@@ -3,7 +3,7 @@ Python script creating two directories, showing images in the script directory a
 
 How to use:
 1. Install opencv for python3
- sudo apt-get install python3-opencv
+ a) Linux: sudo apt-get install python3-opencv
  2. Put the script into whatever folder you have images in
  3. Run the script
  python3 tagDivider.py
