@@ -3,8 +3,8 @@ from os import path # for: os.path.abspath
 import shutil # for: shutil.move
 import cv2 # for: cv2.imread; cv2.namedWindow; cv2.imshow; cv2.waitKey; cv2.destroyAllWindows; cv2.IMREAD_COLOR
 IMAGE_EXTENSION = (".bmp", ".dib", ".jpeg", ".jpg", ".jpe", ".jp2", ".png", ".pbm", ".pgm", ".ppm", ".pxm", ".pnm", ".pfm", ".sr", ".ras", ".tiff", ".tif", ".exr", ".hdr", ".pic") # Stolen from here: https://docs.opencv.org/4.5.2/d4/da8/group__imgcodecs.html I didn't include .webp because if the image is animated shit does not work
-LEFT_FOLDER_CODE = 97 # Default 97 - 'd'
-RIGHT_FOLDER_CODE = 100 # Default 100 - 'a'
+LEFT_FOLDER_CODE = 100 # Default 100 - 'd'
+RIGHT_FOLDER_CODE = 97 # Default 97 - 'a'
 # Change by checking: https://www.ascii-code.com/
 
 firstFolderName = input("Enter first folder name: [a] ")
