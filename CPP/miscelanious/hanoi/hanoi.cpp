@@ -99,7 +99,7 @@ void onlyLegalMove(std::deque<int> &firstRod, std::deque<int> &secondRod)
   }
 }
 
-void doTheThingEven(std::deque<int> &firstRod, std::deque<int> &secondRod, std::deque<int> &thirdRod)
+void doTheThingEven(std::deque<int> &firstRod, std::deque<int> &secondRod, std::deque<int> &thirdRod, const unsigned int numberOfPlates)
 {
   int i = 0;
   do{
@@ -109,14 +109,14 @@ void doTheThingEven(std::deque<int> &firstRod, std::deque<int> &secondRod, std::
     i++;
     onlyLegalMove(secondRod, thirdRod);
     i++;
-  }while(thirdRod.size() != 6);
+  }while(thirdRod.size() != numberOfPlates);
   printDeque(firstRod);
   printDeque(secondRod);
   printDeque(thirdRod);
   std::cout << i << std::endl;
 }
 
-void doTheThingOdd(std::deque<int> &firstRod, std::deque<int> &secondRod, std::deque<int> &thirdRod)
+void doTheThingOdd(std::deque<int> &firstRod, std::deque<int> &secondRod, std::deque<int> &thirdRod, const unsigned int numberOfPlates)
 {
   int i = 0;
   do{
@@ -126,7 +126,7 @@ void doTheThingOdd(std::deque<int> &firstRod, std::deque<int> &secondRod, std::d
     i++;
     onlyLegalMove(secondRod, thirdRod);
     i++;
-  }while(thirdRod.size() != 6);
+  }while(thirdRod.size() != numberOfPlates);
   printDeque(firstRod);
   printDeque(secondRod);
   printDeque(thirdRod);
@@ -140,17 +140,27 @@ odd:
 AC AB BC
 */
 
+std::deque <int> fillDeque(const int maxNumber)
+{
+  std::deque <int> deque;
+  for(int i = 1; i <= maxNumber; i++ )
+  {
+    deque.push_back(i);
+  }
+  return deque;
+}
 
 int main()
 {
-  //int numberOfPlates = 6;
-
+  unsigned int numberOfPlates;
+  std::cout << "Enter number of plates: " << std::endl;
+  std::cin >> numberOfPlates;
   std::deque<int> firstRod, secondRod, thirdRod;
-  firstRod = {1, 2, 3, 4, 5, 6};
+  firstRod = fillDeque(numberOfPlates);
   secondRod = {};
   thirdRod = {};
-  if(firstRod.size() % 2 == 0) doTheThingEven(firstRod, secondRod, thirdRod);
-  else doTheThingOdd(firstRod, secondRod, thirdRod);
+  if(firstRod.size() % 2 == 0) doTheThingEven(firstRod, secondRod, thirdRod, numberOfPlates);
+  else doTheThingOdd(firstRod, secondRod, thirdRod, numberOfPlates);
 
 
   return 0;
