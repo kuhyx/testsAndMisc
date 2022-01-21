@@ -3,6 +3,8 @@
 
 #include <SFML/Graphics.hpp>
 
+// Paths
+const std::string PATH_TO_PLAYER_TEXTURE = "Textures/Player.png";
 
 // Player constants
 const float PLAYER_RADIUS = 40;
