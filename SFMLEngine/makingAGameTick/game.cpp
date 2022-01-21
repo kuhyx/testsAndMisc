@@ -11,7 +11,7 @@ class Game
 
   private:
     void processEvents(); // playerInput, mainLoop
-    void update(); // code that updates the game
+    void update(sf::Time deltaTime); // code that updates the game
     void render(); // code that renders the game
     void handlePlayerInput(sf::Keyboard::Key key, bool isPressed);
     bool mIsMovingUp = false;
@@ -32,10 +32,25 @@ Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mPlayer()
 
 void Game::run()
 {
-  while (mWindow.isOpen())
+  /* Other useful frame rate related tecnhiques:
+  sf::sleep - interrupts the execution for a given time, not very accurate
+  sf::RenderWindow::setFramerateLimit() - tries to achieve the frame rate by calling sf::sleep, nice for testing purposes
+  sf::RenderWindow::setVerticalSyncEnabled() - enables V-sync which adapts the rate of graphical updates from sf::RenderWindow::display() to the refresh rate of the monitor
+  */
+  sf::Clock clock;
+  sf::Time timeSinceLastUpdateFunction = sf::Time::Zero;
+  while (mWindow.isOpen()) // this loop calls the render method
   {
     processEvents();
-    update();
+    timeSinceLastUpdateFunction += clock.restart();
+    while(timeSinceLastUpdateFunction > TIME_PER_FRAME) // fixed time stamps
+    // this loop collects user input and computes game logic
+    {
+      timeSinceLastUpdateFunction -= TIME_PER_FRAME;
+      processEvents();
+      update(TIME_PER_FRAME);
+    }
+
     render();
   }
 }
@@ -79,13 +94,16 @@ void Game::processEvents()
   }
 }
 
-void Game::update()
+void Game::update(sf::Time deltaTime)
 {
 
-  sf::Vector2f movement (0.f, 0.f);
+  sf::Vector2f movement (0.f, 0.f); // movement from the origin of the current coordinate system, in this case origin is the shape's positon
   movement.y += mIsMovingUp * MOVING_UP_SPEED + mIsMovingDown * MOVING_DOWN_SPEED;
   movement.x += mIsMovingLeft * MOVING_LEFT_SPEED + mIsMovingRight * MOVING_RIGHT_SPEED;
-  mPlayer.move(movement);
+  mPlayer.move(movement * deltaTime.asSeconds());
+  // from physics formula distance = speed * time
+  // this allows us to move exactly the distance we want it to move in one second, no matter what computer are we on
+  // delta time / time step - time that has elapsed since the last frame
 
 }
 
