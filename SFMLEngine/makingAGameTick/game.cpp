@@ -20,14 +20,19 @@ class Game
     bool mIsMovingDown = false;
   private:
     sf::RenderWindow mWindow;
-    sf::CircleShape mPlayer;
+    sf::Texture mTexture;
+    sf::Sprite mPlayer;
 };
 
-Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mPlayer()
+Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mTexture(), mPlayer()
 {
-  mPlayer.setRadius(PLAYER_RADIUS);
+  if (!mTexture.loadFromFile(PATH_TO_PLAYER_TEXTURE))
+  {
+    std::cout << "NO FILE: " << PATH_TO_PLAYER_TEXTURE << std::endl;
+    mWindow.close();
+  }
+  mPlayer.setTexture(mTexture);
   mPlayer.setPosition(PLAYER_X_POSITION, PLAYER_Y_POSITION);
-  mPlayer.setFillColor(PLAYER_COLOR);
 }
 
 void Game::run()
