@@ -1,24 +1,6 @@
-#ifndef RESOURCES_CPP
-#define RESOURCES_CPP
+#ifndef RESOURCES_INL
+#define RESOURCES_INL
 
-#include <assert.h>
-// Mostly Chapter 2
-// Handles resource management
-namespace Textures // This gives us a scope for the enumerators which allows us to write Textures::Airplane instead of just Airplane to avoid name collisions in the global scope
-{
-  enum ID { Landscape, Airplane, Missile };
-}
-
-class TextureHolder
-{
-  public:
-    void load(Textures::ID id, const std::string& filename);
-    sf::Texture& get(Textures::ID id);
-    const sf::Texture& get(Textures::ID id) const;
-  private:
-    std::map< Textures::ID, std::unique_ptr<sf::Texture> > mTextureMap;
-    // unique_ptr are class templates that act like pointers, this allows us to work with heavyweight objects without copying them all the time, or we can store classes that are non-cpyable like sf::Shader
-};
 
 void TextureHolder::load(Textures::ID id, const std::string& filename)
 // Function to load a resource, it takes one parameter for filename and one for identifier
@@ -45,4 +27,4 @@ const sf::Texture& TextureHolder::get(Textures::ID id) const // we need to be ab
   return *found -> second; // We have to access the second member of the pointer, then we deference it and get a texture
 }
 
-#endif //RESOUIRCES_CPP
+#endif // RESOURCES_INL

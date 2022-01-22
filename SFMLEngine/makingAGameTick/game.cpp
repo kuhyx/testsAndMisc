@@ -4,7 +4,7 @@
 #include <vector>
 #include <SFML/Graphics.hpp>
 #include "constants.hpp"
-#include "resources.cpp"
+#include "resources.hpp"
 #include "basic.cpp"
 
 
