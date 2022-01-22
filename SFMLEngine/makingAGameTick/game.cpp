@@ -1,7 +1,13 @@
+#ifndef GAME_CPP
+#define GAME_CPP
+
 #include <vector>
 #include <SFML/Graphics.hpp>
 #include "constants.hpp"
+#include "resources.cpp"
 #include "basic.cpp"
+
+
 
 class Game
 {
@@ -20,18 +26,16 @@ class Game
     bool mIsMovingDown = false;
   private:
     sf::RenderWindow mWindow;
-    sf::Texture mTexture;
+    TextureHolder mTexture;
     sf::Sprite mPlayer;
 };
 
 Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mTexture(), mPlayer()
 {
-  if (!mTexture.loadFromFile(PATH_TO_PLAYER_TEXTURE))
-  {
-    std::cout << "NO FILE: " << PATH_TO_PLAYER_TEXTURE << std::endl;
-    mWindow.close();
-  }
-  mPlayer.setTexture(mTexture);
+  //TextureHolder textures;
+  mTexture.load(Textures::Airplane, PATH_TO_PLAYER_TEXTURE);
+
+  mPlayer.setTexture(mTexture.get(Textures::Airplane));
   mPlayer.setPosition(PLAYER_X_POSITION, PLAYER_Y_POSITION);
 }
 
@@ -124,3 +128,5 @@ int main()
   Game game;
   game.run();
 }
+
+#endif // GAME_CPP
