@@ -16,6 +16,9 @@ class ResourceHolder
     void load(Identifier id, const std::string& filename);
     Resource& get(Identifier id);
     const Resource& get(Identifier id) const;
+    template <typename Parameter>
+    void load(Identifier id, const std::string& filename, const Parameter& secondParameter);
+    // Second parameter can be of sf::Shader::Type or std::string&
   private:
     std::map< Identifier, std::unique_ptr<Resource> > mResourceMap;
     // unique_ptr are class templates that act like pointers, this allows us to work with heavyweight objects without copying them all the time, or we can store classes that are non-cpyable like sf::Shader
