@@ -22,4 +22,7 @@ const float MOVING_LEFT_SPEED = -MOVING_RIGHT_SPEED;
 // Time constants
 const sf::Time TIME_PER_FRAME = sf::seconds(1.f / 60.f); // 1 frame is 1 / 60 of the second so we get 60 frames in a second
 
+// Error strings
+const std::string TEXTURE_LOAD_ERROR = "TextureHolder::load - Failed to load ";
+
 #endif // CONSTANTS_HPP
