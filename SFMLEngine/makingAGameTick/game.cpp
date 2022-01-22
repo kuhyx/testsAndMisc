@@ -99,6 +99,8 @@ void Game::processEvents()
       case sf::Event::Closed:
         mWindow.close();
         break;
+      default:
+        break;
     }
   }
 }
