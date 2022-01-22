@@ -9,14 +9,15 @@ namespace Textures // This gives us a scope for the enumerators which allows us 
   enum ID { Landscape, Airplane, Missile };
 }
 
-class TextureHolder
+template <typename Resource, typename Identifier>
+class ResourceHolder
 {
   public:
-    void load(Textures::ID id, const std::string& filename);
-    sf::Texture& get(Textures::ID id);
-    const sf::Texture& get(Textures::ID id) const;
+    void load(Identifier id, const std::string& filename);
+    Resource& get(Identifier id);
+    const Resource& get(Identifier id) const;
   private:
-    std::map< Textures::ID, std::unique_ptr<sf::Texture> > mTextureMap;
+    std::map< Identifier, std::unique_ptr<Resource> > mResourceMap;
     // unique_ptr are class templates that act like pointers, this allows us to work with heavyweight objects without copying them all the time, or we can store classes that are non-cpyable like sf::Shader
 };
 

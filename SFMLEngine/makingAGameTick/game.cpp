@@ -26,13 +26,13 @@ class Game
     bool mIsMovingDown = false;
   private:
     sf::RenderWindow mWindow;
-    TextureHolder mTexture;
+    ResourceHolder<sf::Texture, Textures::ID> mTexture;
     sf::Sprite mPlayer;
 };
 
 Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mTexture(), mPlayer()
 {
-  //TextureHolder textures;
+  //ResourceHolder textures;
   mTexture.load(Textures::Airplane, PATH_TO_PLAYER_TEXTURE);
 
   mPlayer.setTexture(mTexture.get(Textures::Airplane));
