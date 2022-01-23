@@ -1,15 +1,17 @@
 #ifndef ENTITY_HPP
 #define ENTITY_HPP
+#include "SceneNode.hpp"
+#include "SceneNode.cpp"
 
-class Entity
+class Entity : public SceneNode
 {
-public:
-  void SetVelocity(sf::Vector2f velocity);
-  void setVelocity(float velocityX, float velocityY);
-  sf::Vector2f getVelocity() const;
+  public:
+    void SetVelocity(sf::Vector2f velocity);
+    void setVelocity(float velocityX, float velocityY);
+    sf::Vector2f getVelocity() const;
 
   private:
-  sf::Vector2f mVelocity; // default ocnstructor initializes this vector to a zero vector
+    sf::Vector2f mVelocity; // default ocnstructor initializes this vector to a zero vector
 
 };
 

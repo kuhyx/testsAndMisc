@@ -5,9 +5,9 @@
 #include <SFML/Graphics.hpp>
 #include "constants.hpp"
 #include "resources.hpp"
+#include "SceneNode.hpp"
 #include "entity.hpp"
 #include "aircraft.hpp"
-#include "scenenode.hpp"
 #include "basic.cpp"
 
 

@@ -29,6 +29,6 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
 
 };
 
-#include "scenenode.cpp"
+#include "SceneNode.cpp"
 
 #endif
