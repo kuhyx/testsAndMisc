@@ -5,6 +5,9 @@
 #include <SFML/Graphics.hpp>
 #include "constants.hpp"
 #include "resources.hpp"
+#include "entity.hpp"
+#include "aircraft.hpp"
+#include "scenenode.hpp"
 #include "basic.cpp"
 
 
@@ -32,9 +35,7 @@ class Game
 
 Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mTexture(), mPlayer()
 {
-  //ResourceHolder textures;
   mTexture.load(Textures::Airplane, PATH_TO_PLAYER_TEXTURE);
-
   mPlayer.setTexture(mTexture.get(Textures::Airplane));
   mPlayer.setPosition(PLAYER_X_POSITION, PLAYER_Y_POSITION);
 }
