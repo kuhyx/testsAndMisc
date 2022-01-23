@@ -1,7 +1,6 @@
 #ifndef SCENE_NODE_CPP
 #define SCENE_NODE_CPP
 
-#include "scenenode.hpp"
 
 void SceneNode::attachChild(ScenePointer child) // takes ownership of the scene node
 {
@@ -32,7 +31,7 @@ SceneNode::ScenePointer SceneNode::detachChild(const SceneNode& node) // finds n
 
 void SceneNode::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
-  
+
 }
 
 void SceneNode::draw(sf::RenderTarget& target, sf::RenderStates states) const
