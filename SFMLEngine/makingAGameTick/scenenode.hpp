@@ -18,7 +18,7 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
     // Virtual functions are member functions whose behavior can be overridden in derived classes
     // draw() function allows our class to be used like this:
     /*
-    sf::RenderWindow window(...);
+    sf::RenderWindow window(...); // window class calls our draw() function
     SceneNode::ScenePointer node(...);
     window.draw(*node);
     */

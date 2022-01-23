@@ -30,4 +30,22 @@ SceneNode::ScenePointer SceneNode::detachChild(const SceneNode& node) // finds n
   return result; // and we return the pointer to the node
 }
 
+void SceneNode::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
+{
+  
+}
+
+void SceneNode::draw(sf::RenderTarget& target, sf::RenderStates states) const
+{
+  states.transform *= getTransform();
+  // *= combines the parent's absolute transform with the relative one of the current node;
+  // states.transform contains the absolute world transform
+  drawCurrent(target, states); // now we can draw the derived object using states, this is similar to how sf::Sprite handles transforms
+
+  for (const ScenePointer& child : mChildren)
+  {
+    child -> draw(target, states); // we also need to draw all the child nodes
+  }
+}
+
 #endif

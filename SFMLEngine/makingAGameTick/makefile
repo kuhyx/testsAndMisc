@@ -1,4 +1,4 @@
-CXXFLAGS = -Wextra -Wall -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wstrict-overflow=5 -Wwrite-strings -Wcast-qual -Wunreachable-code -pedantic -Wswitch-default
+CXXFLAGS = -Wextra -Wall -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wstrict-overflow=5 -Wwrite-strings -Wcast-qual -Wunreachable-code -pedantic -Wswitch-default -Wno-unused-parameter
 # https://stackoverflow.com/a/3376483
 
 compile:./game.cpp
