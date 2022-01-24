@@ -47,4 +47,40 @@ void SceneNode::draw(sf::RenderTarget& target, sf::RenderStates states) const
   }
 }
 
+void SceneNode::updateCurrent(sf::Time deltaTime)
+{
+
+}
+
+void SceneNode::updateChildren(sf::Time deltaTime)
+{
+  for (const ScenePointer& child : mChildren)
+  {
+    child -> update(deltaTime); // we also need to draw all the child nodes
+  }
+}
+
+void SceneNode::update(sf::Time deltaTime)
+{
+  updateCurrent(deltaTime);
+  updateChildren(deltaTime);
+}
+
+sf::Transform SceneNode::getWorldTransform() const
+{
+  sf::Transform transform = sf::Transform::Identity; // sf::Transform::Identity represents the identity transform - it does not have any effecft on the object, it is not necessary in the code but it clarifies how transforms are applied
+  for (const SceneNode* node = this; node != nullptr; node = node -> mParent)
+  {
+    transform = node -> getTransform() * transform;
+  }
+  return transform;
+}
+
+sf::Vector2f SceneNode::getWorldPosition() const
+{
+  return getWorldTransform() * sf::Vector2f();
+}
+
+
+
 #endif

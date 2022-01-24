@@ -17,4 +17,9 @@ sf::Vector2f Entity::getVelocity() const
   return mVelocity;
 }
 
+void Entity::updateCurrent(sf::Time deltaTime)
+{
+  move(mVelocity * deltaTime.asSeconds()); // shortcut for setPosition(getPosition() + offset)
+}
+
 #endif
