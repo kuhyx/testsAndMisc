@@ -6,7 +6,7 @@ void Entity::SetVelocity(sf::Vector2f velocity)
   mVelocity = velocity;
 }
 
-void Entity::setVelocity(float velocityX, float velocityY)
+void Entity::SetVelocity(float velocityX, float velocityY)
 {
   mVelocity.x = velocityX;
   mVelocity.y = velocityY;

@@ -3,6 +3,7 @@
 
 #include <cstddef> // std::size_t
 #include "../SceneNodeDerrivatives/SpriteNode.hpp"
+#include "../SceneNodeDerrivatives/entity.hpp"
 
 World::World(sf::RenderWindow& window)
 : mWindow(window)
@@ -56,7 +57,7 @@ void World::buildScene()
   std::unique_ptr<Aircraft> leader(new Aircraft(Aircraft::Eagle, mTextures)); // we create the player's airplane
   mPlayerAircraft = leader.get();
   mPlayerAircraft -> setPosition(mSpawnPosition); // Set player position
-  mPlayerAircraft -> setVelocity(PLAYER_SIDEWARD_VELOCITY, mScrollSpeed); // forward velocity equals scroll speed, sideward velocity equals PLAYER_SIDEWARD_VELOCITY
+  mPlayerAircraft -> SetVelocity(PLAYER_SIDEWARD_VELOCITY, mScrollSpeed); // forward velocity equals scroll speed, sideward velocity equals PLAYER_SIDEWARD_VELOCITY
   mSceneLayers[Air] -> attachChild(std::move(leader)); // we attach the plane to the Air scene layer
 
   std::unique_ptr<Aircraft> leftEscort(new Aircraft(Aircraft::Raptor, mTextures)); // create new airplane
@@ -66,7 +67,28 @@ void World::buildScene()
   std::unique_ptr<Aircraft> rightEscort(new Aircraft(Aircraft::Raptor, mTextures)); // create new airplane
   rightEscort -> setPosition(RIGHT_ESCORT_X_POSITION, RIGHT_ESCORT_Y_POSITION); // Set new airplane position
   mPlayerAircraft -> attachChild(std::move(rightEscort)); // leftEscort is now a child of player aircraft and it will folow it!
+}
 
+void World::draw()
+{
+  mWindow.setView(mWorldView);
+  mWindow.draw(mSceneGraph);
+}
 
+void World::update(sf::Time deltaTime) // controls world scrolling and entity movement
+{
+  mWorldView.move(0.f, mScrollSpeed * deltaTime.asSeconds());
+
+  sf::Vector2f position = mPlayerAircraft -> getPosition();
+  sf::Vector2f velocity = mPlayerAircraft -> getVelocity();
+
+  if(position.x <= mWorldBounds.left + WORLD_MAX_DISTANCE_FROM_BOUNDARY || position.x >= mWorldBounds.left + mWorldBounds.width - WORLD_MAX_DISTANCE_FROM_BOUNDARY) // if the player gets too close to world bounds make its velocity negative so it comes back
+  {
+    velocity.x = -velocity.x;
+    mPlayerAircraft -> SetVelocity(velocity);
   }
+
+  mSceneGraph.update(deltaTime); // mSceneGraph actaully applies these velocities
+}
+
 #endif // WORLD_CPP
