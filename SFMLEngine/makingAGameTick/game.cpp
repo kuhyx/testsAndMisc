@@ -6,6 +6,7 @@
 #include "constants.hpp"
 #include "resources.hpp"
 #include "SceneNode.hpp"
+#include "SpriteNode.hpp"
 #include "entity.hpp"
 #include "aircraft.hpp"
 #include "basic.cpp"
@@ -117,7 +118,7 @@ void Game::update(sf::Time deltaTime)
   // from physics formula distance = speed * time
   // this allows us to move exactly the distance we want it to move in one second, no matter what computer are we on
   // delta time / time step - time that has elapsed since the last frame
-
+  // mWorldView.move(0.f, mScrollSpeed * deltaTime.asSeconds()); we scroll up the map, we update both the map and the player so he does not get left behind, we multiple by time to ensure that we have the same speed of n pixels per second no matter the simulation frame rate
 }
 
 void Game::render()

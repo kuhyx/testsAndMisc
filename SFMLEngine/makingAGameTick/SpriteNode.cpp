@@ -1,0 +1,5 @@
+#ifndef SPRITE_NODE_CPP
+#define SPRITE_NODE_CPP
+
+
+#endif // SPRITE_NODE_CPP
