@@ -10,7 +10,7 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
   public:
     typedef std::unique_ptr<SceneNode> ScenePointer; // element types must be complete types and we do not want to manage memory ourselves so we use std::unique_ptr
   public:
-    SceneNode();
+    //SceneNode();
     void attachChild(ScenePointer child);
     ScenePointer detachChild(const SceneNode& node);
   private:
