@@ -12,6 +12,7 @@ class Entity : public SceneNode
 
   private:
     sf::Vector2f mVelocity; // default ocnstructor initializes this vector to a zero vector
+    virtual void updateCurrent(sf::Time deltaTime);
 
 };
 

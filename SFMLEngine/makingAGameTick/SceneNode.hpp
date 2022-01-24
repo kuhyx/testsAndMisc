@@ -13,6 +13,7 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
     //SceneNode();
     void attachChild(ScenePointer child);
     ScenePointer detachChild(const SceneNode& node);
+    void update(sf::Time deltaTime);
   private:
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const; // we override draw() function of sf::Drawable
     // Virtual functions are member functions whose behavior can be overridden in derived classes
@@ -23,6 +24,10 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
     window.draw(*node);
     */
     virtual void drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const; // draws only the current object, and not the children
+    virtual void updateCurrent(sf::Time deltaTime); // we reuse scene graph to reach all entities with world update, this one updates current node
+    void updateChildren(sf::Time deltaTime); // this one updates child nodes
+    sf::Transform getWorldTransform() const; // it takes into account all the parent transform
+    sf::Vector2f getWorldPosition() const;
   private:
     std::vector<ScenePointer> mChildren;
     SceneNode* mParent;

@@ -4,9 +4,17 @@
 #include <assert.h>
 // Mostly Chapter 2
 // Handles resource management
+
+
+
+
 namespace Textures // This gives us a scope for the enumerators which allows us to write Textures::Airplane instead of just Airplane to avoid name collisions in the global scope
 {
-  enum ID { Landscape, Airplane, Missile };
+  enum ID
+  {
+    Eagle,
+    Raptor,
+  };
 }
 
 template <typename Resource, typename Identifier>
@@ -23,6 +31,8 @@ class ResourceHolder
     std::map< Identifier, std::unique_ptr<Resource> > mResourceMap;
     // unique_ptr are class templates that act like pointers, this allows us to work with heavyweight objects without copying them all the time, or we can store classes that are non-cpyable like sf::Shader
 };
+
+typedef ResourceHolder<sf::Texture, Textures::ID> TextureHolder;
 
 
 

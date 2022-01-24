@@ -12,6 +12,7 @@
 
 
 
+
 class Game
 {
   public:
@@ -29,14 +30,14 @@ class Game
     bool mIsMovingDown = false;
   private:
     sf::RenderWindow mWindow;
-    ResourceHolder<sf::Texture, Textures::ID> mTexture;
+    TextureHolder mTexture;
     sf::Sprite mPlayer;
 };
 
 Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mTexture(), mPlayer()
 {
-  mTexture.load(Textures::Airplane, PATH_TO_PLAYER_TEXTURE);
-  mPlayer.setTexture(mTexture.get(Textures::Airplane));
+  mTexture.load(Textures::Eagle, PATH_TO_PLAYER_TEXTURE);
+  mPlayer.setTexture(mTexture.get(Textures::Eagle));
   mPlayer.setPosition(PLAYER_X_POSITION, PLAYER_Y_POSITION);
 }
 
