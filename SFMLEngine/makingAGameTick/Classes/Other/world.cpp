@@ -19,9 +19,16 @@ World::World(sf::RenderWindow& window)
 , mScrollSpeed ( WORLD_SCROLL_SPEED )
 , mPlayerAircraft(nullptr)
 {
-  // loadTextures();
+  loadTextures();
   // buildScene();
   // mWorldView.setCenter(mSpawnPosition);
+}
+
+void World::loadTextures()
+{
+  mTextures.load(Textures::Eagle, PATH_TO_EAGLE_TEXTURE);
+  mTextures.load(Textures::Raptor, PATH_TO_RAPTOR_TEXTURE);
+  mTextures.load(Textures::Desert, PATH_TO_DESERT_TEXTURE);
 }
 
 #endif // WORLD_CPP
