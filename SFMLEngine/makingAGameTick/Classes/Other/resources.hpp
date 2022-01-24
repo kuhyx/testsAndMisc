@@ -14,6 +14,7 @@ namespace Textures // This gives us a scope for the enumerators which allows us 
   {
     Eagle,
     Raptor,
+    Desert
   };
 }
 

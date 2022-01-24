@@ -5,6 +5,9 @@
 
 // Paths
 const std::string PATH_TO_PLAYER_TEXTURE = "Textures/Player.png";
+const std::string PATH_TO_EAGLE_TEXTURE = "Textures/Eagle.png";
+const std::string PATH_TO_RAPTOR_TEXTURE = "Textures/Raptor.png";
+const std::string PATH_TO_DESERT_TEXTURE = "Textures/Desert.png";
 
 // Player constants
 const float PLAYER_RADIUS = 40;
