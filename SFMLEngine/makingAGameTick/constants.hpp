@@ -25,4 +25,11 @@ const sf::Time TIME_PER_FRAME = sf::seconds(1.f / 60.f); // 1 frame is 1 / 60 of
 // Error strings
 const std::string TEXTURE_LOAD_ERROR = "TextureHolder::load - Failed to load ";
 
+// World constants
+const float WORLD_LEFT_X_POSITION = 0;
+const float WORLD_TOP_Y_POSITION = 0;
+// const float WORLD_WIDTH = 0; by default mWorldView.getSize().x
+const float WORLD_HEIGHT = 2000;
+const float WORLD_SCROLL_SPEED = -1;
+
 #endif // CONSTANTS_HPP

@@ -4,12 +4,14 @@
 #include <vector>
 #include <SFML/Graphics.hpp>
 #include "constants.hpp"
-#include "resources.hpp"
-#include "SceneNode.hpp"
-#include "SpriteNode.hpp"
-#include "entity.hpp"
-#include "aircraft.hpp"
+#include "./Classes/Other/resources.hpp"
+#include "./Classes/Other/world.hpp"
+#include "./Classes/SceneNodeDerrivatives/SceneNode.hpp"
+#include "./Classes/SceneNodeDerrivatives/SpriteNode.hpp"
+#include "./Classes/SceneNodeDerrivatives/entity.hpp"
+#include "./Classes/SceneNodeDerrivatives/aircraft.hpp"
 #include "basic.cpp"
+
 
 
 
