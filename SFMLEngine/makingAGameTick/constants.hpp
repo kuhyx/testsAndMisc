@@ -7,16 +7,24 @@
 const std::string PATH_TO_PLAYER_TEXTURE = "Textures/Player.png";
 const std::string PATH_TO_EAGLE_TEXTURE = "Textures/Eagle.png";
 const std::string PATH_TO_RAPTOR_TEXTURE = "Textures/Raptor.png";
-const std::string PATH_TO_DESERT_TEXTURE = "Textures/Desert.png";
+const std::string PATH_TO_DESERT_TEXTURE = "Textures/Desert.jpg";
 
 // Player constants
 const float PLAYER_RADIUS = 40;
 const float PLAYER_X_POSITION = 100;
 const float PLAYER_Y_POSITION = 100;
 const sf::Color PLAYER_COLOR = sf::Color::Cyan;
+const float PLAYER_SIDEWARD_VELOCITY = 40;
+
+// Other sprites constants
+const float LEFT_ESCORT_X_POSITION = -80;
+const float LEFT_ESCORT_Y_POSITION = 50;
+const float RIGHT_ESCORT_X_POSITION = -LEFT_ESCORT_X_POSITION;
+const float RIGHT_ESCORT_Y_POSITION = LEFT_ESCORT_Y_POSITION;
 
 // Movement constants
 // const sf::Vector2f INITIAL_MOVEMENT (0.f, 0.f);
+
 const float MOVING_UP_SPEED = -100;
 const float MOVING_DOWN_SPEED = -MOVING_UP_SPEED;
 const float MOVING_RIGHT_SPEED = 100;
