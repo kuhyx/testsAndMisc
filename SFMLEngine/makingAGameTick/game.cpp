@@ -16,7 +16,7 @@
 
 
 
-class Game
+class Game : private sf::NonCopyable
 {
   public:
     Game(); // Sets up player radius, position and fill color
@@ -35,15 +35,27 @@ class Game
     sf::RenderWindow mWindow;
     TextureHolder mTexture;
     sf::Sprite mPlayer;
+    World mWorld;
 };
 
-Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application"), mTexture(), mPlayer()
+Game::Game()
+: mWindow(sf::VideoMode(640, 480), "World", sf::Style::Close)
+, mWorld(mWindow)
+/* , mFont()
+, mStatisticsText()
+, mStatisticsUpdateTime()
+, mStatisticsNumFrames(0)
+*/
 {
-  mTexture.load(Textures::Eagle, PATH_TO_PLAYER_TEXTURE);
-  mPlayer.setTexture(mTexture.get(Textures::Eagle));
-  mPlayer.setPosition(PLAYER_X_POSITION, PLAYER_Y_POSITION);
+	/* mFont.loadFromFile("Media/Sansation.ttf");
+	mStatisticsText.setFont(mFont);
+	mStatisticsText.setPosition(5.f, 5.f);
+	mStatisticsText.setCharacterSize(10);
+  */
 }
 
+
+// Resposible for managing game loop - fetching input form the window system, updating the world, and ordering the rendering of the game
 void Game::run()
 {
   /* Other useful frame rate related tecnhiques:
@@ -126,7 +138,10 @@ void Game::update(sf::Time deltaTime)
 void Game::render()
 {
   mWindow.clear();
-  mWindow.draw(mPlayer);
+  mWorld.draw();
+
+  mWindow.setView(mWindow.getDefaultView());
+  // mWindow.draw(mStatisticsText);
   mWindow.display();
 }
 

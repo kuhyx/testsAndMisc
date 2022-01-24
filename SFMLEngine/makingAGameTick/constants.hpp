@@ -42,5 +42,6 @@ const float WORLD_TOP_Y_POSITION = 0;
 // const float WORLD_WIDTH = 0; by default mWorldView.getSize().x
 const float WORLD_HEIGHT = 2000;
 const float WORLD_SCROLL_SPEED = -1;
+const float WORLD_MAX_DISTANCE_FROM_BOUNDARY = 150;
 
 #endif // CONSTANTS_HPP
