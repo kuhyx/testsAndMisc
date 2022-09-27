@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-const std::vector <std::string> TIERS = {"Shit", "Bad", "Mid", "Good", "Top", "God Tier"};
+const std::vector <std::string> TIERS = {"Abhorrent", "Bad", "Mid", "Good", "Top", "God Tier"};
 const float TIER_BASE = TIERS.size();
 
 void print(std::string const s)
