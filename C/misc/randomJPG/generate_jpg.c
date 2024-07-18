@@ -16,16 +16,16 @@ void print_usage(const char* program_name) {
     printf("  -h, --help           Show this help message and exit\n");
     printf("Arguments:\n");
     printf("  <num_images>         Number of images to generate (default: 1)\n");
-    printf("  <size>               Size of each image (default: 256)\n");
-    printf("  <block_size>         Size of each block (default: 16)\n");
+    printf("  <size>               Size of each image (default: 1000)\n");
+    printf("  <block_size>         Size of each block (default: 25)\n");
     printf("  <quality>            Quality of the output image (default: 100)\n");
     printf("  <output_path>        Path to save the output image (default: output.png)\n");
     printf("  <color1> ... <colorN> List of colors in hex format (default: #000000 and #FFFFFF)\n");
 }
 
 void generate_bloated_jpeg(int size, RGB* color_list, int num_colors, int block_size, const char* output_path, int quality, int image_index, const char* folder) {
-    if (size > 1000 || size % block_size != 0) {
-        fprintf(stderr, "Size must be 1000 pixels or less and divisible by block_size\n");
+    if (size % block_size != 0) {
+        fprintf(stderr, "Size must be divisible by block_size\n");
         exit(EXIT_FAILURE);
     }
 
@@ -114,8 +114,8 @@ int main(int argc, char *argv[]) {
 
     // Default values
     int num_images = 1;
-    int size = 256;
-    int block_size = 16;
+    int size = 1000;
+    int block_size = 25;
     int quality = 100;
     const char* output_path = "output.png";
     const char* default_colors[] = { "#000000", "#FFFFFF" }; // Example default colors: black and white
