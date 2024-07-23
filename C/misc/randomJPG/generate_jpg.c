@@ -210,6 +210,9 @@ int main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
+    // Start time measurement
+    clock_t start_time = clock();
+
     int num_images, size, block_size, quality;
     const char *output_path;
     parse_arguments(argc, argv, &num_images, &size, &block_size, &quality, &output_path);
@@ -226,5 +229,10 @@ int main(int argc, char *argv[]) {
     }
 
     free(color_list);
+
+    // End time measurement
+    clock_t end_time = clock();
+    double execution_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    printf("Generated %d images in %f seconds!\n", num_images, execution_time);
     return EXIT_SUCCESS;
 }
