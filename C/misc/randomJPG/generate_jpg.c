@@ -47,7 +47,6 @@ unsigned char* allocate_image_buffer(int size) {
 }
 
 void fill_image_with_colors(unsigned char* image_buffer, int size, RGB* color_list, int num_colors, int block_size) {
-    srand(time(NULL));
     for (int y = 0; y < size; y += block_size) {
         for (int x = 0; x < size; x += block_size) {
             RGB color = color_list[rand() % num_colors];
@@ -206,6 +205,7 @@ int handle_help_option(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
     if (handle_help_option(argc, argv)) {
         return EXIT_SUCCESS;
     }
