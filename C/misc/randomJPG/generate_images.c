@@ -11,7 +11,7 @@ typedef struct {
 } RGB;
 
 void print_usage(const char* program_name) {
-    printf("Usage: %s [options] <num_images> <size> <block_size> <quality> <output_path> <color1> ... <colorN>\n", program_name);
+    printf("Usage: %s [options] <num_images> <size> <block_size> <quality> <output_path> <format> <color1> ... <colorN>\n", program_name);
     printf("Options:\n");
     printf("  -h, --help           Show this help message and exit\n");
     printf("Arguments:\n");
@@ -20,6 +20,7 @@ void print_usage(const char* program_name) {
     printf("  <block_size>         Size of each block (default: 25)\n");
     printf("  <quality>            Quality of the output image (default: 100)\n");
     printf("  <output_path>        Path to save the output image (default: output.png)\n");
+    printf("  <format>             Output format (jpeg or bmp, default: jpeg)\n");
     printf("  <color1> ... <colorN> List of colors in hex format (default: #000000 and #FFFFFF)\n");
 }
 
@@ -33,8 +34,8 @@ void create_folder_if_not_exists(const char* folder) {
     }
 }
 
-void generate_image_filename(char* unique_output_path, size_t size, const char* folder, int image_index) {
-    snprintf(unique_output_path, size, "%s/bloated_image_%d.jpg", folder, image_index);
+void generate_image_filename(char* unique_output_path, size_t size, const char* folder, int image_index, const char* format) {
+    snprintf(unique_output_path, size, "%s/bloated_image_%d.%s", folder, image_index, format);
 }
 
 unsigned char* allocate_image_buffer(int size) {
@@ -61,7 +62,6 @@ void fill_image_with_colors(unsigned char* image_buffer, int size, RGB* color_li
         }
     }
 }
-
 
 void handle_error(FILE *outfile, unsigned char *image_buffer) {
     if (!outfile) {
@@ -113,7 +113,46 @@ void save_image_as_jpeg(unsigned char* image_buffer, int size, const char* uniqu
     free(image_buffer);
 }
 
-void generate_bloated_jpeg(int size, RGB* color_list, int num_colors, int block_size, const char* output_path, int quality, int image_index, const char* folder) {
+void save_image_as_bmp(unsigned char* image_buffer, int size, const char* unique_output_path) {
+    FILE *outfile = fopen(unique_output_path, "wb");
+    handle_error(outfile, image_buffer);
+
+    // BMP Header
+    unsigned char bmpfileheader[14] = {
+        'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0
+    };
+    unsigned char bmpinfoheader[40] = {
+        40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0
+    };
+    int filesize = 54 + 3 * size * size;
+
+    bmpfileheader[ 2] = (unsigned char)(filesize    );
+    bmpfileheader[ 3] = (unsigned char)(filesize>> 8);
+    bmpfileheader[ 4] = (unsigned char)(filesize>>16);
+    bmpfileheader[ 5] = (unsigned char)(filesize>>24);
+
+    bmpinfoheader[ 4] = (unsigned char)(size    );
+    bmpinfoheader[ 5] = (unsigned char)(size>> 8);
+    bmpinfoheader[ 6] = (unsigned char)(size>>16);
+    bmpinfoheader[ 7] = (unsigned char)(size>>24);
+    bmpinfoheader[ 8] = (unsigned char)(size    );
+    bmpinfoheader[ 9] = (unsigned char)(size>> 8);
+    bmpinfoheader[10] = (unsigned char)(size>>16);
+    bmpinfoheader[11] = (unsigned char)(size>>24);
+
+    fwrite(bmpfileheader, 1, 14, outfile);
+    fwrite(bmpinfoheader, 1, 40, outfile);
+
+    // Write image data (in BMP format, rows are bottom to top)
+    for (int y = size - 1; y >= 0; y--) {
+        fwrite(image_buffer + (y * size * 3), 3, size, outfile);
+    }
+
+    fclose(outfile);
+    free(image_buffer);
+}
+
+void generate_bloated_image(int size, RGB* color_list, int num_colors, int block_size, const char* output_path, int quality, int image_index, const char* folder, const char* format) {
     if (size % block_size != 0) {
         fprintf(stderr, "Size must be divisible by block_size\n");
         exit(EXIT_FAILURE);
@@ -122,13 +161,21 @@ void generate_bloated_jpeg(int size, RGB* color_list, int num_colors, int block_
     create_folder_if_not_exists(folder);
 
     char unique_output_path[1024];
-    generate_image_filename(unique_output_path, sizeof(unique_output_path), folder, image_index);
+    generate_image_filename(unique_output_path, sizeof(unique_output_path), folder, image_index, format);
 
     unsigned char* image_buffer = allocate_image_buffer(size);
 
     fill_image_with_colors(image_buffer, size, color_list, num_colors, block_size);
 
-    save_image_as_jpeg(image_buffer, size, unique_output_path, quality);
+    if (strcmp(format, "jpeg") == 0) {
+        save_image_as_jpeg(image_buffer, size, unique_output_path, quality);
+    } else if (strcmp(format, "bmp") == 0) {
+        save_image_as_bmp(image_buffer, size, unique_output_path);
+    } else {
+        fprintf(stderr, "Unsupported format: %s\n", format);
+        free(image_buffer);
+        exit(EXIT_FAILURE);
+    }
 
     printf("Image %d saved to %s\n", image_index, unique_output_path);
 }
@@ -151,15 +198,15 @@ void parse_single_color(const char* color_str, RGB* color) {
 }
 
 void parse_color_list(int argc, char* argv[], int* num_colors, RGB** color_list) {
-    *num_colors = argc - 6;
+    *num_colors = argc - 7;
     allocate_color_list(*num_colors, color_list);
     for (int i = 0; i < *num_colors; ++i) {
-        parse_single_color(argv[6 + i], &(*color_list)[i]);
+        parse_single_color(argv[7 + i], &(*color_list)[i]);
     }
 }
 
 void parse_default_colors(int* num_colors, RGB** color_list) {
-    const char* default_colors[] = { "#000000", "#FFFFFF" };
+    const char* default_colors[] = { "#000000", "#FFFFFF", "#0000FF", "#00FF00", "#00FFFF", "#FF0000", "#FF00FF", "#FFFF00" };
     *num_colors = sizeof(default_colors) / sizeof(default_colors[0]);
     allocate_color_list(*num_colors, color_list);
     for (int i = 0; i < *num_colors; ++i) {
@@ -168,26 +215,28 @@ void parse_default_colors(int* num_colors, RGB** color_list) {
 }
 
 void parse_colors(int argc, char* argv[], int* num_colors, RGB** color_list) {
-    if (argc > 6) {
+    if (argc > 7) {
         parse_color_list(argc, argv, num_colors, color_list);
     } else {
         parse_default_colors(num_colors, color_list);
     }
 }
 
-void parse_arguments(int argc, char* argv[], int* num_images, int* size, int* block_size, int* quality, const char** output_path) {
+void parse_arguments(int argc, char* argv[], int* num_images, int* size, int* block_size, int* quality, const char** output_path, const char** format) {
     // Default values
     *num_images = 1;
     *size = 1000;
     *block_size = 25;
     *quality = 100;
     *output_path = "output.png";
+    *format = "jpeg";
 
     if (argc > 1) *num_images = atoi(argv[1]);
     if (argc > 2) *size = atoi(argv[2]);
     if (argc > 3) *block_size = atoi(argv[3]);
     if (argc > 4) *quality = atoi(argv[4]);
     if (argc > 5) *output_path = argv[5];
+    if (argc > 6) *format = argv[6];
 }
 
 void create_output_folder(char *folder, size_t folder_size) {
@@ -214,8 +263,8 @@ int main(int argc, char *argv[]) {
     clock_t start_time = clock();
 
     int num_images, size, block_size, quality;
-    const char *output_path;
-    parse_arguments(argc, argv, &num_images, &size, &block_size, &quality, &output_path);
+    const char *output_path, *format;
+    parse_arguments(argc, argv, &num_images, &size, &block_size, &quality, &output_path, &format);
 
     RGB *color_list;
     int num_colors;
@@ -225,7 +274,7 @@ int main(int argc, char *argv[]) {
     create_output_folder(folder, sizeof(folder));
 
     for (int i = 1; i <= num_images; ++i) {
-        generate_bloated_jpeg(size, color_list, num_colors, block_size, output_path, quality, i, folder);
+        generate_bloated_image(size, color_list, num_colors, block_size, output_path, quality, i, folder, format);
     }
 
     free(color_list);
