@@ -8,7 +8,7 @@ CFLAGS = -Wall -O3 -march=native -flto -fomit-frame-pointer
 LIBS = -ljpeg
 
 # Source files
-SRCS = generate_images.c
+SRCS = generate_jpg.c
 
 # Output executable
 TARGET = generate_images
