@@ -11,7 +11,5 @@ if echo "$bluetooth_info" | grep -q "Connected: yes"; then
     echo "#50FA7B"  # Green for connected
 else
     echo " Disconnected"
-    echo
-    echo "#FF5555"  # Red for disconnected
 fi
 
