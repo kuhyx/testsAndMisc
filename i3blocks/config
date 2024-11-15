@@ -1,0 +1,36 @@
+[global]
+separator=false
+markup=pango
+
+[cpu_gpu_monitor]
+command=~/.config/i3blocks/cpu_gpu_monitor.sh
+interval=5
+markup=pango
+
+[motherboard_temperature]
+command=~/.config/i3blocks/motherboard_temp.sh
+interval=10
+
+
+[memory]
+command=free -h | awk '/^Mem:/ {print "RAM: " $3 "/" $2}'  #  for RAM
+interval=10
+color=#50FA7B
+
+[disk]
+command=df -h / | awk '/\// {print "  Disk: " $3 "/" $2}'  #  for disk
+interval=30
+color=#50FA7B
+
+[ethernet]
+command=ip -o -4 addr show enp6s0 | awk '{print "  LAN: "$4}' || echo " LAN: down"  #  for Ethernet
+interval=10
+
+[network_monitor]
+command=~/.config/i3blocks/network_monitor.sh
+interval=1
+
+[time]
+command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
+interval=1
+color=#50FA7B
