@@ -40,7 +40,7 @@ interval=1
 color=#50FA7B
 
 [ethernet]
-command=ip -o -4 addr show enp6s0 | awk '{print "  LAN: "$4}' || echo " LAN: down"  #  for Ethernet
+command=ip -o -4 addr show enp6s0 | awk '{print "  LAN: "$4}' || echo " LAN: down"  #  for Ethernet
 interval=10
 
 [wifi]

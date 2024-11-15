@@ -5,7 +5,7 @@ wifi_interface=$(iw dev | awk '$1=="Interface"{print $2}')
 
 # If no WiFi interface is found, exit
 if [ -z "$wifi_interface" ]; then
-    echo " WiFi: down"
+    echo "  WiFi: down"
     exit 1
 fi
 
