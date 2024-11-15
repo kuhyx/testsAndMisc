@@ -1,15 +1,32 @@
 #!/bin/bash
 
-# Ethernet interface (replace with your interface name, e.g., enp6s0)
-interface="enp6s0"
+# Function to detect the active network interface
+detect_interface() {
+    for interface in /sys/class/net/*; do
+        interface=$(basename "$interface")
+        if [[ "$interface" != "lo" && -d "/sys/class/net/$interface" && "$(cat /sys/class/net/$interface/operstate)" == "up" ]]; then
+            echo "$interface"
+            return
+        fi
+    done
+}
+
+# Detect the active network interface
+interface=$(detect_interface)
+
+# If no active interface is found, exit
+if [ -z "$interface" ]; then
+    echo "No active network interface found"
+    exit 1
+fi
 
 # Paths to RX (received) and TX (transmitted) bytes
 rx_path="/sys/class/net/$interface/statistics/rx_bytes"
 tx_path="/sys/class/net/$interface/statistics/tx_bytes"
 
 # Read the current RX and TX bytes
-rx_now=$(cat $rx_path)
-tx_now=$(cat $tx_path)
+rx_now=$(cat $rx_path 2>/dev/null)
+tx_now=$(cat $tx_path 2>/dev/null)
 
 # Read the last recorded RX and TX bytes from a temp file
 state_file="/tmp/network_monitor_$interface"
@@ -37,12 +54,10 @@ else
     tx_rate=0
 fi
 
-# Convert to human-readable format (KB/s or MB/s) with consistent width
-rx_human=$(numfmt --to=iec --suffix=B/s --format="%7.1f" $rx_rate)
-tx_human=$(numfmt --to=iec --suffix=B/s --format="%7.1f" $tx_rate)
+# Convert speeds to human-readable format
+rx_rate_human=$(numfmt --to=iec --suffix=B/s $rx_rate)
+tx_rate_human=$(numfmt --to=iec --suffix=B/s $tx_rate)
 
-# Output the data with consistent padding
-printf "  DL: %-10s   UL: %-10s\n" "$rx_human" "$tx_human"
-echo
+# Output the result
+echo -e "  DL: $rx_rate_human      UL: $tx_rate_human"
 echo "#50FA7B"
-
