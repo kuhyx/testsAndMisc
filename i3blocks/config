@@ -2,8 +2,13 @@
 separator=false
 markup=pango
 
+[cpu_monitor]
+command=~/.config/i3blocks/cpu_monitor.sh
+interval=5
+markup=pango
+
 [cpu_gpu_monitor]
-command=~/.config/i3blocks/cpu_gpu_monitor.sh
+command=~/.config/i3blocks/gpu_monitor.sh
 interval=5
 markup=pango
 

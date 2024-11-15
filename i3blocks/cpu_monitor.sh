@@ -22,4 +22,8 @@ if [[ "$cpu_load" != "N/A" ]]; then
     :
 fi
 
-echo "CPU Temp: $cpu_temp°C, CPU Load: $cpu_load, Color: $cpu_color"
+cpu_metrics=$(echo "CPU Temp: $cpu_temp°C, CPU Load: $cpu_load, Color: $cpu_color")
+cpu_temp=$(echo "$cpu_metrics" | awk -F', ' '{print $1}' | awk -F': ' '{print $2}')
+cpu_load=$(echo "$cpu_metrics" | awk -F', ' '{print $2}' | awk -F': ' '{print $2}')
+cpu_color=$(echo "$cpu_metrics" | awk -F', ' '{print $3}' | awk -F': ' '{print $2}')
+echo -e "<span color=\"$cpu_color\">  CPU: ${cpu_temp}, Load: ${cpu_load}</span>"

@@ -32,9 +32,34 @@ get_intel_metrics() {
 
 # Detect GPU type and get metrics
 if lspci | grep -i nvidia > /dev/null; then
-    get_nvidia_metrics
+    gpu_metrics=$(get_nvidia_metrics)
 elif lspci | grep -i vga | grep -i intel > /dev/null; then
-    get_intel_metrics
+    gpu_metrics=$(get_intel_metrics)
 else
     echo "No supported GPU found."
 fi
+
+#!/bin/bash
+# GPU Metrics
+gpu_temp=$(echo "$gpu_metrics" | awk -F', ' '{print $1}' | awk -F': ' '{print $2}')
+gpu_load=$(echo "$gpu_metrics" | awk -F', ' '{print $2}' | awk -F': ' '{print $2}')
+
+gpu_color="#FFFFFF"  
+# Colors for GPU Load
+if [[ "$gpu_load" != "N/A%" ]]; then
+    if (( $(echo "$gpu_load < 50.0" | bc -l) )); then
+        gpu_color="#50FA7B"  # Green
+    elif (( $(echo "$gpu_load < 75.0" | bc -l) )); then
+        gpu_color="#F1FA8C"  # Yellow
+    else
+        gpu_color="#FF5555"  # Red
+    fi
+else 
+    gpu_color="#FFFFFF"  # Default color
+fi
+
+# Output<
+echo -e "<span color=\"$gpu_color\">  GPU: ${gpu_temp}, Load: ${gpu_load}</span>"
+echo
+echo "#FFFFFF"  # Default color for fallback (ignored if markup is enabled)
+
