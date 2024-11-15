@@ -12,7 +12,7 @@ get_nvidia_metrics() {
         gpu_load="N/A"
     fi
 
-    echo "GPU Temp: $gpu_temp°C, GPU Load: $gpu_load%"
+    echo "GPU Temp: $gpu_temp°C, GPU Load: $gpu_load"
 }
 
 # Function to get Intel GPU metrics
@@ -27,7 +27,7 @@ get_intel_metrics() {
         gpu_temp="N/A"
     fi
 
-    echo "GPU Temp: $gpu_temp°C, GPU Load: $gpu_load%"
+    echo "GPU Temp: $gpu_temp°C, GPU Load: $gpu_load"
 }
 
 # Detect GPU type and get metrics
@@ -46,7 +46,7 @@ gpu_load=$(echo "$gpu_metrics" | awk -F', ' '{print $2}' | awk -F': ' '{print $2
 
 gpu_color="#FFFFFF"  
 # Colors for GPU Load
-if [[ "$gpu_load" != "N/A%" ]]; then
+if [[ "$gpu_load" != "N/A" ]]; then
     if (( $(echo "$gpu_load < 50.0" | bc -l) )); then
         gpu_color="#50FA7B"  # Green
     elif (( $(echo "$gpu_load < 75.0" | bc -l) )); then
@@ -59,7 +59,7 @@ else
 fi
 
 # Output<
-echo -e "<span color=\"$gpu_color\">  GPU: ${gpu_temp}, Load: ${gpu_load}</span>"
+echo -e "<span color=\"$gpu_color\">  GPU: ${gpu_temp}, Load: ${gpu_load}%</span>"
 echo
 echo "#FFFFFF"  # Default color for fallback (ignored if markup is enabled)
 
