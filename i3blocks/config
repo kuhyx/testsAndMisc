@@ -22,6 +22,15 @@ command=df -h / | awk '/\// {print "  Disk: " $3 "/" $2}'  #  for disk
 interval=30
 color=#50FA7B
 
+[volume]
+command=~/.config/i3blocks/volume.sh
+interval=1
+
+[bluetooth]
+command=~/.config/i3blocks/bluetooth.sh
+interval=5
+
+
 [ethernet]
 command=ip -o -4 addr show enp6s0 | awk '{print "  LAN: "$4}' || echo " LAN: down"  #  for Ethernet
 interval=10
