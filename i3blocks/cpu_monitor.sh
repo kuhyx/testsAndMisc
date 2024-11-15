@@ -3,7 +3,10 @@
 # CPU Temperature
 cpu_temp=$(sensors | awk '/^Tctl:/ {print $2}' | tr -d '+°C')
 if [ -z "$cpu_temp" ]; then
-    cpu_temp=$(sensors | awk '/^Package id 0:/ {print $3}' | tr -d '+°C')
+    cpu_temp=$(sensors | awk '/^Package id 0:/ {print $4}' | tr -d '+°C')
+fi
+if [ -z "$cpu_temp" ]; then
+    cpu_temp=$(sensors | awk '/^Core 0:/ {print $3}' | tr -d '+°C')
 fi
 if [ -z "$cpu_temp" ]; then
     cpu_temp="N/A"
@@ -22,8 +25,4 @@ if [[ "$cpu_load" != "N/A" ]]; then
     :
 fi
 
-cpu_metrics=$(echo "CPU Temp: $cpu_temp°C, CPU Load: $cpu_load, Color: $cpu_color")
-cpu_temp=$(echo "$cpu_metrics" | awk -F', ' '{print $1}' | awk -F': ' '{print $2}')
-cpu_load=$(echo "$cpu_metrics" | awk -F', ' '{print $2}' | awk -F': ' '{print $2}')
-cpu_color=$(echo "$cpu_metrics" | awk -F', ' '{print $3}' | awk -F': ' '{print $2}')
-echo -e "<span color=\"$cpu_color\">  CPU: ${cpu_temp}, Load: ${cpu_load}</span>"
+echo -e "<span color=\"$cpu_color\">  CPU: ${cpu_temp}°C, Load: ${cpu_load}</span>"
