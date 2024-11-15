@@ -18,11 +18,31 @@ if [ -z "$cpu_load" ]; then
     cpu_load="N/A"
 fi
 
-# Colors for CPU Load
+# Colors for CPU Load and Temperature
 cpu_color="#FFFFFF"  # Default color
+
+# Change color based on CPU load
 if [[ "$cpu_load" != "N/A" ]]; then
-    # Add logic to change color based on load
-    :
+    cpu_load_float=$(echo "$cpu_load" | awk '{print ($1 + 0)}')
+    if (( $(echo "$cpu_load_float < 1.0" | bc -l) )); then
+        cpu_color="#50FA7B"  # Green for low load
+    elif (( $(echo "$cpu_load_float < 2.0" | bc -l) )); then
+        cpu_color="#F1FA8C"  # Yellow for medium load
+    else
+        cpu_color="#FF5555"  # Red for high load
+    fi
+fi
+
+# Change color based on CPU temperature
+if [[ "$cpu_temp" != "N/A" ]]; then
+    cpu_temp_float=$(echo "$cpu_temp" | awk '{print ($1 + 0)}')
+    if (( $(echo "$cpu_temp_float < 65.0" | bc -l) )); then
+        cpu_color="#50FA7B"  # Green for low temperature
+    elif (( $(echo "$cpu_temp_float < 85.0" | bc -l) )); then
+        cpu_color="#F1FA8C"  # Yellow for medium temperature
+    else
+        cpu_color="#FF5555"  # Red for high temperature
+    fi
 fi
 
 echo -e "<span color=\"$cpu_color\">  CPU: ${cpu_temp}°C, Load: ${cpu_load}</span>"
