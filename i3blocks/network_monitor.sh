@@ -58,6 +58,6 @@ fi
 rx_rate_human=$(numfmt --to=iec --suffix=B/s $rx_rate)
 tx_rate_human=$(numfmt --to=iec --suffix=B/s $tx_rate)
 
-# Output the result
-echo -e "  DL: $rx_rate_human      UL: $tx_rate_human"
+# Output the result with fixed width
+printf "  DL: %-8s      UL: %-8s\n" "$rx_rate_human" "$tx_rate_human"
 echo "#50FA7B"
