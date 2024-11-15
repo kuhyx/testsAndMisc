@@ -7,7 +7,6 @@ mute=$(pactl get-sink-mute @DEFAULT_SINK@ | awk '{print $2}')
 # Determine icon and color based on mute status
 if [ "$mute" = "yes" ]; then
     icon="🔇"  # Muted
-    color="#FF5555"  # Red
 else
     icon="🔊"  # Volume icon
     color="#50FA7B"  # Green
