@@ -43,6 +43,10 @@ color=#50FA7B
 command=ip -o -4 addr show enp6s0 | awk '{print "  LAN: "$4}' || echo " LAN: down"  #  for Ethernet
 interval=10
 
+[wifi]
+command=~/.config/i3blocks/wifi_monitor.sh
+interval=10
+
 [network_monitor]
 command=~/.config/i3blocks/network_monitor.sh
 interval=1

@@ -6,7 +6,6 @@ acpi -b | awk -F', ' '
         split($3, time, " ")
         printf "  %d%%", percent[1]
         if (time[1] != "") printf ", %s", time[1]
-        if ($1 ~ /Charging/) printf ", Charging"
+        if ($1 ~ /Charging/) printf ", "
         printf "\n"
     }'
-
