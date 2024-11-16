@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Get the current volume level and mute status
