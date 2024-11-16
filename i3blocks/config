@@ -17,12 +17,12 @@ command=~/.config/i3blocks/motherboard_temp.sh
 interval=5
 
 [memory]
-command=free -h | awk '/^Mem:/ {print "RAM: " $3 "/" $2}'  #  for RAM
+command=free -h | awk '/^Mem:/ {print " " $3 "/" $2}'  #  for RAM
 interval=5
 color=#50FA7B
 
 [disk]
-command=df -h / | awk '/\// {print "  Disk: " $3 "/" $2}'  #  for disk
+command=df -h / | awk '/\// {print " Disk: " $3 "/" $2}'  #  for disk
 interval=60
 color=#50FA7B
 
@@ -40,7 +40,7 @@ interval=1
 color=#50FA7B
 
 [ethernet]
-command=ip -o -4 addr show enp6s0 | awk '{print "  "$4}' || echo "  down"  #  for Ethernet
+command=ip -o -4 addr show enp6s0 | awk '{print " "$4}' || echo " down"  #  for Ethernet
 interval=10
 
 [wifi]
@@ -52,7 +52,7 @@ command=~/.config/i3blocks/network_monitor.sh
 interval=1
 
 [time]
-command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
+command=echo " $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
 interval=1
 color=#50FA7B
 

@@ -21,7 +21,7 @@ else
 fi
 
 # Output the temperature with the color
-echo "  MB: ${temp}°C"  #  is a thermometer icon
+echo " MB: ${temp}°C"  #  is a thermometer icon
 echo
 echo $color
 
