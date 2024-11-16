@@ -59,7 +59,7 @@ else
 fi
 
 # Output<
-echo -e "<span color=\"$gpu_color\">  GPU: ${gpu_temp}, Load: ${gpu_load}%</span>"
+echo -e "<span color=\"$gpu_color\">  ${gpu_temp}, ${gpu_load}%</span>"
 echo
 echo "#FFFFFF"  # Default color for fallback (ignored if markup is enabled)
 

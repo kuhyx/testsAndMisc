@@ -45,4 +45,4 @@ if [[ "$cpu_temp" != "N/A" ]]; then
     fi
 fi
 
-echo -e "<span color=\"$cpu_color\">  CPU: ${cpu_temp}°C, Load: ${cpu_load}</span>"
+echo -e "<span color=\"$cpu_color\">  ${cpu_temp}°C, ${cpu_load}</span>"
