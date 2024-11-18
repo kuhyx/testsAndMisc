@@ -19,7 +19,7 @@ fi
 
 if is_ubuntu; then
     sudo apt-get update
-    sudo apt-get install -y fonts-dejavu-core fonts-noto ttf-font-awesome bc jq iw
+    sudo apt-get install -y fonts-dejavu-core fonts-noto fonts-font-awesome bc jq iw
 else
     yes | sudo pacman -S --needed ttf-dejavu noto-fonts ttf-font-awesome bc jq iw
 fi

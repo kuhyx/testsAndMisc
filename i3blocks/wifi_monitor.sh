@@ -20,5 +20,5 @@ signal=$(echo "$wifi_info" | awk '/Signal level/ {print $4}' | tr -d 'level=')
 if [ -z "$ssid" ]; then
     echo "  down"
 else
-    echo " $ssid ($signal dBm)"
+    echo "  $ssid ($signal dBm)"
 fi

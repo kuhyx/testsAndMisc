@@ -17,12 +17,12 @@ command=~/.config/i3blocks/motherboard_temp.sh
 interval=5
 
 [memory]
-command=free -h | awk '/^Mem:/ {print " " $3 "/" $2}'  #  for RAM
+command=free -h | awk '/^Mem:/ {print "  " $3 "/" $2}'  #  for RAM
 interval=5
 color=#50FA7B
 
 [disk]
-command=df -h / | awk '/\// {print " Disk: " $3 "/" $2}'  #  for disk
+command=df -h / | awk '/\// {print "  " $3 "/" $2}'  #  for disk
 interval=60
 color=#50FA7B
 
