@@ -1,58 +1,69 @@
-[global]
-separator=false
-markup=pango
-
 [cpu_monitor]
 command=~/.config/i3blocks/cpu_monitor.sh
 interval=5
 markup=pango
+
 
 [gpu_monitor]
 command=~/.config/i3blocks/gpu_monitor.sh
 interval=5
 markup=pango
 
+
 [motherboard_temperature]
 command=~/.config/i3blocks/motherboard_temp.sh
 interval=5
+
 
 [memory]
 command=free -h | awk '/^Mem:/ {print "  " $3 "/" $2}'  #  for RAM
 interval=5
 color=#50FA7B
 
+
 [disk]
 command=df -h / | awk '/\// {print "  " $3 "/" $2}'  #  for disk
 interval=60
 color=#50FA7B
 
+
+
 [volume]
 command=~/.config/i3blocks/volume.sh
 interval=1
 
+
 [bluetooth]
 command=~/.config/i3blocks/bluetooth.sh
 interval=5
+color=#FFFFFF
+
 
 [battery]
 command=~/.config/i3blocks/battery_status.sh
 interval=1
-color=#50FA7B
+
 
 [ethernet]
-command=ip -o -4 addr show enp6s0 | awk '{print "  "$4}' || echo "  down"  #  for Ethernet
+command=ip -o -4 addr show enp6s0 | awk '{print "    "$4}' || echo "  down"  #  for Ethernet
 interval=10
+color=#FFFFFF
+
 
 [wifi]
 command=~/.config/i3blocks/wifi_monitor.sh
 interval=10
+color=#FFFFFF
 
-[network_monitor]
-command=~/.config/i3blocks/network_monitor.sh
-interval=1
+
+#[network_monitor]
+#command=~/.config/i3blocks/network_monitor.sh
+#interval=1
+#color=#FFFFFF
+
 
 [time]
-command=echo " $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
+command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
 interval=1
 color=#50FA7B
 

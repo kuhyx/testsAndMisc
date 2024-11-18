@@ -75,5 +75,5 @@ rx_rate_human=$(numfmt --to=iec --suffix=B/s $total_rx_rate)
 tx_rate_human=$(numfmt --to=iec --suffix=B/s $total_tx_rate)
 
 # Output the result with fixed width
-printf "  %-8s      %-8s\n" "$rx_rate_human" "$tx_rate_human"
+printf "    %-8s        %-8s\n" "$rx_rate_human" "$tx_rate_human"
 echo "#50FA7B"
