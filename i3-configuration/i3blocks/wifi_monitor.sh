@@ -16,9 +16,12 @@ wifi_info=$(iwconfig $wifi_interface 2>/dev/null)
 ssid=$(echo "$wifi_info" | awk -F '"' '/ESSID/ {print $2}')
 signal=$(echo "$wifi_info" | awk '/Signal level/ {print $4}' | tr -d 'level=')
 
+# Get the IP address
+ip_address=$(ip addr show $wifi_interface | awk '/inet / {print $2}' | cut -d/ -f1)
+
 # Output the result
 if [ -z "$ssid" ]; then
     echo "    down"
 else
-    echo "    $ssid ($signal dBm)"
+    echo "    $ssid ($signal dBm) $ip_address"
 fi
