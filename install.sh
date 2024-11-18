@@ -9,8 +9,11 @@ is_ubuntu() {
 set_font_size() {
     resolution=$(xdpyinfo | grep dimensions | awk '{print $2}')
     width=$(echo $resolution | cut -d 'x' -f 1)
+    # Do not change this font size, it actually makes i3blocks unbearable to look at:
+    # Icons (like for slack) are too small and i3blocks are too big
+    # Network monitor jumping becomes annoying
     if [ "$width" -gt 1920 ]; then
-        echo "14"
+        echo "8"
     else
         echo "8"
     fi

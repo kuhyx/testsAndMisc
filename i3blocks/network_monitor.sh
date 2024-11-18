@@ -71,9 +71,9 @@ else
 fi
 
 # Convert speeds to human-readable format
-rx_rate_human=$(numfmt --to=iec --suffix=B/s $total_rx_rate)
-tx_rate_human=$(numfmt --to=iec --suffix=B/s $total_tx_rate)
+rx_rate_human=$(numfmt --to=iec --suffix=B/s --padding=8 $total_rx_rate)
+tx_rate_human=$(numfmt --to=iec --suffix=B/s --padding=8 $total_tx_rate)
 
-# Output the result with fixed width
-printf "    %-8s        %-8s\n" "$rx_rate_human" "$tx_rate_human"
+# Store the result of printf into a string and echo it
+printf "    %s        %s\n" "$rx_rate_human" "$tx_rate_human"
 echo "#50FA7B"
