@@ -39,7 +39,7 @@ convert_video() {
   TARGET_BITRATE=$(echo "($TARGET_SIZE_BYTES * 8) / $DURATION / 2000" | bc) # Reduce by 10% to ensure size is below target
   
   # Convert video
-  ffmpeg -i "$input_file" -b:v "${TARGET_BITRATE}k" -c:a copy "$output_file"
+  ffmpeg -i "$input_file" -vcodec libx264 -b:v "${TARGET_BITRATE}k" -preset veryslow -acodec aac -c:a copy "$output_file"
   
   # Get original and converted video sizes
   ORIGINAL_SIZE=$(stat -c%s "$input_file")
