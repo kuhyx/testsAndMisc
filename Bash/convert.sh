@@ -36,7 +36,7 @@ convert_video() {
   TARGET_SIZE_BYTES=$(numfmt --from=iec "$TARGET_SIZE")
     
   # Calculate target bitrate in kilobits per second
-  TARGET_BITRATE=$(echo "($TARGET_SIZE_BYTES * 8) / $DURATION / 2000" | bc) # Reduce by 10% to ensure size is below target
+  TARGET_BITRATE=$(echo "($TARGET_SIZE_BYTES * 8) / $DURATION / 2000" | bc)
   
   # Convert video
   ffmpeg -i "$input_file" -vcodec libx264 -b:v "${TARGET_BITRATE}k" -preset veryslow -acodec aac -c:a copy "$output_file"
@@ -53,15 +53,34 @@ convert_video() {
   echo "Target bitrate: ${TARGET_BITRATE}kbps"
 }
 
-# Export function for find command
+# Function to move video if already below target size and in desired format
+move_video() {
+  local input_file="$1"
+  local output_file="$OUTPUT_DIR/${input_file##*/}"
+  
+  # Get original video size
+  ORIGINAL_SIZE=$(stat -c%s "$input_file")
+  
+  # Check if video is below target size and in desired format
+  if [[ "$ORIGINAL_SIZE" -le "$TARGET_SIZE_BYTES" && "${input_file##*.}" == "$TARGET_EXT" ]]; then
+    mv "$input_file" "$output_file"
+    echo "Moved $input_file to $output_file"
+  else
+    convert_video "$input_file"
+  fi
+}
+
+# Export functions for find command
 export -f convert_video
+export -f move_video
 export TARGET_EXT
 export TARGET_SIZE
+export TARGET_SIZE_BYTES
 export OUTPUT_DIR
 
-# Find and convert videos
+# Find and process videos
 if [ -d "$INPUT_PATH" ]; then
-  find "$INPUT_PATH" -type f -name "*.mp4" -o -name "*.mkv" -o -name "*.avi" -o -name "*.webm" -exec bash -c 'convert_video "$0"' {} \;
+  find "$INPUT_PATH" -type f -name "*.mp4" -o -name "*.mkv" -o -name "*.avi" -o -name "*.webm" -exec bash -c 'move_video "$0"' {} \;
 else
-  convert_video "$INPUT_PATH"
+  move_video "$INPUT_PATH"
 fi
