@@ -80,7 +80,7 @@ export OUTPUT_DIR
 
 # Find and process videos
 if [ -d "$INPUT_PATH" ]; then
-  find "$INPUT_PATH" -type f -name "*.mp4" -o -name "*.mkv" -o -name "*.avi" -o -name "*.webm" -exec bash -c 'move_video "$0"' {} \;
+  find "$INPUT_PATH" \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.webm" \) -type f -exec bash -c 'move_video "$0"' {} \;
 else
   move_video "$INPUT_PATH"
 fi
