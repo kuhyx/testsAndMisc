@@ -45,7 +45,7 @@ interval=1
 
 
 [ethernet]
-command=ip -o -4 addr show enp6s0 | awk '{print "    "$4}' || echo "  down"  #  for Ethernet
+command=ip -o -4 addr show | grep -E 'enp6s0|eth0' | awk '{print "    "$4}' || echo "  down"  #  for Ethernet
 interval=10
 color=#FFFFFF
 
