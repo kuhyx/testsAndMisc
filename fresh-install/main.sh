@@ -106,6 +106,39 @@ pacman_packages=(
     openmpi
     boost
     suitesparse
+    vtk
+    junit
+    java-hamcrest
+    ant
+    chrpath
+    source-highlight
+    gdb
+    python-markdown
+    gtk-doc
+    gobject-introspection
+    cdparanoia
+    adobe-source-sans-pro-fonts
+    perl-font-ttf
+    perl-sort-versions
+    ttf-liberation
+    aalib
+    libcaca
+    libdv
+    qt5-wayland
+    qt6-tools
+    qt6-shadertools
+    gst-plugins-base
+    libgphoto2
+    lapacke
+    opencv
+    cuda
+    vulkan-validation-layers
+    libltc
+    libavtp
+    libmpcdec
+    neon
+    soundtouch
+    wildmidi
 )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -123,6 +156,7 @@ done
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
+    "https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
     "https://aur.archlinux.org/glew-git.git glew-git"
     "https://aur.archlinux.org/libaec-git.git libaec-git"
     # "https://aur.archlinux.org/hdf5-git.git hdf5-git"
@@ -138,11 +172,102 @@ aur_packages=(
     # "https://aur.archlinux.org/boost-git.git boost-git"
     "https://aur.archlinux.org/utf8cpp-git.git utf8cpp-git"
     "https://aur.archlinux.org/eigen-git.git eigen-git"
-    "https://aur.archlinux.org/vtk-git.git vtk-git"
-    "https://aur.archlinux.org/ant-git.git ant-git"
+    # "https://aur.archlinux.org/vtk-git.git vtk-git"
+    # "https://aur.archlinux.org/ant-git.git ant-git"
+    # "https://aur.archlinux.org/chrpath-git.git chrpath-git"
     "https://aur.archlinux.org/openexr-git.git openexr-git"
+
+    # "https://aur.archlinux.org/gdb-git.git gdb-git"
+     "https://aur.archlinux.org/valgrind-git.git valgrind-git"
+    # "https://aur.archlinux.org/gobject-introspection-git.git gobject-introspection-git"
+    # "https://aur.archlinux.org/cdparanoia-git.git cdparanoia-git"
+    "https://aur.archlinux.org/sdl12-compat-git.git sdl12-compat-git"
+    "https://aur.archlinux.org/libvisual.git libvisual"
+    "https://aur.archlinux.org/qt5-tools-git.git qt5-tools-git"
+    "https://aur.archlinux.org/wayland-protocols-git.git wayland-protocols-git"
+    "https://aur.archlinux.org/libtremor-git.git libtremor-git"vulkan-validation-layers
+    "https://aur.archlinux.org/nasm-git.git nasm-git"
+    # "https://aur.archlinux.org/aalib-git.git aalib-git"
+    # "https://aur.archlinux.org/libcaca-git.git libcaca-git"
+    #"https://aur.archlinux.org/libdv-git.git libdv-git"
+    "https://aur.archlinux.org/qt5-declarative-git.git qt5-declarative-git"
+    # "https://aur.archlinux.org/qt5-wayland-git.git qt5-wayland-git"
+    "https://aur.archlinux.org/libshout-git.git libshout-git"
+    "https://aur.archlinux.org/taglib-git.git taglib-git"
+    "https://aur.archlinux.org/twolame-git.git twolame-git"
+    "https://aur.archlinux.org/wavpack-git.git wavpack-git"
+    # "https://aur.archlinux.org/qt6-tools-git.git qt6-tools-git"
+    # "https://aur.archlinux.org/qt6-shadertools-git.git qt6-shadertools-git"
+    "https://aur.archlinux.org/autoconf-archive-git.git autoconf-archive-git"
+
+    # "https://aur.archlinux.org/libgphoto2-git.git libgphoto2-git"
+    "https://aur.archlinux.org/protobuf-git.git protobuf-git"
+    # "https://aur.archlinux.org/lapacke-git.git lapacke-git"
+    # "https://aur.archlinux.org/opencv-git.git opencv-git"
+    "https://aur.archlinux.org/vulkan-utility-libraries-git.git vulkan-utility-libraries-git"
+    # "https://aur.archlinux.org/vulkan-validation-layers-git.git vulkan-validation-layers-git"
+    # "https://aur.archlinux.org/cuda-git.git cuda-git"
+    # "https://aur.archlinux.org/libltc-git.git libltc-git"
+    # "https://aur.archlinux.org/libavtp-git.git libavtp-git"
+    "https://aur.archlinux.org/chromaprint-git.git chromaprint-git"
+    "https://aur.archlinux.org/libdca-git.git libdca-git"https://aur.archlinux.org/autoconf-archive-git.git
+    # "https://aur.archlinux.org/libmpcdec-git.git libmpcdec-git"
+    # "https://aur.archlinux.org/neon-git.git neon-git"
+    "https://aur.archlinux.org/rtmpdump-git.git rtmpdump-git"
+    # "https://aur.archlinux.org/soundtouch-git.git soundtouch-git"
+    
+    "https://aur.archlinux.org/spandsp-git.git spandsp-git"
+    "https://aur.archlinux.org/libsrtp-git.git libsrtp-git"
+    "https://aur.archlinux.org/yasm-git.git yasm-git"
+    "https://aur.archlinux.org/svt-hevc-git.git svt-hevc-git"
+    "https://aur.archlinux.org/zvbi-git.git zvbi-git"
+    # "https://aur.archlinux.org/wildmidi-git.git wildmidi-git"
+    "https://aur.archlinux.org/zxing-cpp-git.git zxing-cpp-git"
+    "https://aur.archlinux.org/gtk2-git.git gtk2-git"
+    "https://aur.archlinux.org/libwmf-git.git libwmf-git"
+    "https://aur.archlinux.org/opencl-headers-git.git opencl-headers-git"
+    "https://aur.archlinux.org/libzip-git.git libzip-git"
+    "https://aur.archlinux.org/ghostpcl-git.git ghostpcl-git"
+    "https://aur.archlinux.org/ghostxps-git.git ghostxps-git"
+    "https://aur.archlinux.org/liblqr-git.git liblqr-git"
+    "https://aur.archlinux.org/djvulibre-git.git djvulibre-git"
+
+    "https://aur.archlinux.org/imagemagick-git.git imagemagick-git"
+
+    "https://aur.archlinux.org/zbar-git.git zbar-git"
+    "https://aur.archlinux.org/wpewebkit-git.git wpewebkit-git"
+    "https://aur.archlinux.org/openh264-git.git openh264-git"
+    "https://aur.archlinux.org/vo-aacenc-git.git vo-aacenc-git"
+    "https://aur.archlinux.org/a52dec-git.git a52dec-git"
+    "https://aur.archlinux.org/libmpeg2-git.git libmpeg2-git"
+    "https://aur.archlinux.org/frei0r-plugins-git.git frei0r-plugins-git"
+    "https://aur.archlinux.org/ladspa-git.git ladspa-git"
+    "https://aur.archlinux.org/libcaca-git.git libcaca-git"
+    "https://aur.archlinux.org/celt-git.git celt-git"
+    "https://aur.archlinux.org/libgme-git.git libgme-git"
+    "https://aur.archlinux.org/pulseaudio-git.git pulseaudio-git"
+    "https://aur.archlinux.org/rtmpdump-git.git rtmpdump-git"
+    "https://aur.archlinux.org/smbclient-git.git smbclient-git"
+    "https://aur.archlinux.org/twolame-git.git twolame-git"
+    "https://aur.archlinux.org/wavpack-git.git wavpack-git"
+    "https://aur.archlinux.org/zvbi-git.git zvbi-git"
+    "https://aur.archlinux.org/sndio-git.git sndio-git"
+    "https://aur.archlinux.org/libomxil-bellagio-git.git libomxil-bellagio-git"
+    "https://aur.archlinux.org/chromaprint-fftw-git.git chromaprint-fftw-git"
+    "https://aur.archlinux.org/codec2-git.git codec2-git"
+    "https://aur.archlinux.org/flite1-git.git flite1-git"
+    "https://aur.archlinux.org/libilbc-git.git libilbc-git"
+    "https://aur.archlinux.org/kvazaar-git.git kvazaar-git"
+    "https://aur.archlinux.org/openh264-git.git openh264-git"
+    "https://aur.archlinux.org/shine-git.git shine-git"
+    "https://aur.archlinux.org/vo-amrwbenc-git.git vo-amrwbenc-git"
+    "https://aur.archlinux.org/xavs-git.git xavs-git"
+    "https://aur.archlinux.org/ndi-sdk-git.git ndi-sdk-git"
+    "https://aur.archlinux.org/rockchip-mpp-git.git rockchip-mpp-git"
+    "https://aur.archlinux.org/gtk-doc-git.git gtk-doc-git"
+
     "https://aur.archlinux.org/gstreamer-git.git gstreamer-git"
-    "https://aur.archlinux.org/libgphoto2-git.git libgphoto2-git"
+    "https://aur.archlinux.org/gst-plugins-base-git.git gst-plugins-base-git"
     "https://aur.archlinux.org/protobuf-git.git protobuf-git"
     "https://aur.archlinux.org/python2.git python2"
     # "https://aur.archlinux.org/go-tools-git.git  go-tools-git"
@@ -161,7 +286,7 @@ aur_packages=(
     "https://aur.archlinux.org/xmlto-git.git xmlto"
     "https://aur.archlinux.org/jsoncpp-git.git jsoncpp"
     "https://aur.archlinux.org/libuv-git.git libuv"
-    "https://aur.archlinux.org/rhash-git.git rhash"
+    "https://aur.archlinux.org/rhash-git.git rhantash"
     "https://aur.archlinux.org/cppdap-git.git cppdap"
     "https://aur.archlinux.org/bluez-git.git bluez-git"
     "https://aur.archlinux.org/lynx-git.git lynx-git"
