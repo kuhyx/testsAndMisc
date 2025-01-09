@@ -1,5 +1,19 @@
 #!/bin/sh 
 set -e
+
+# Function to play a sound on error
+play_error_sound() {
+    pactl set-sink-volume @DEFAULT_SINK@ +50%
+    for i in 1 2 3; do
+        paplay /usr/share/sounds/freedesktop/stereo/dialog-error.oga
+    done
+    pactl set-sink-volume @DEFAULT_SINK@ -50%
+}
+
+# Trap errors and call the play_error_sound function
+trap 'play_error_sound' ERR
+
+
 sudo -v
 
 install_from_aur() {
@@ -77,6 +91,21 @@ pacman_packages=(
     yarn
     openssl-1.1
     tk
+    jasper
+    libdc1394
+    cblas
+    pegtl
+    hdf5
+    proj
+    gcc-fortran
+    python-nose
+    python-pyproject-metadata
+    meson-python
+    lapack
+    python-numpy
+    openmpi
+    boost
+    suitesparse
 )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -84,7 +113,7 @@ for pkg in "${pacman_packages[@]}"; do
         # Check if the package exists in the AUR packages list
         if ! echo "${aur_packages[@]}" | grep -q "$pkg"; then
             sudo pacman -S --noconfirm $pkg
-        else
+        else        
             echo "$pkg exists in AUR packages, skipping pacman installation"
         fi
     else
@@ -93,14 +122,34 @@ for pkg in "${pacman_packages[@]}"; do
 done
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
-
 aur_packages=(
+    "https://aur.archlinux.org/glew-git.git glew-git"
+    "https://aur.archlinux.org/libaec-git.git libaec-git"
+    # "https://aur.archlinux.org/hdf5-git.git hdf5-git"
+    # "https://aur.archlinux.org/packages/proj-git.git proj-git"
+    "https://aur.archlinux.org/pugixml-git.git  pugixml-git"
+    "https://aur.archlinux.org/gl2ps-git.git gl2ps-git"
+    # "https://aur.archlinux.org/lapack-git.git lapack-git"
+    "https://aur.archlinux.org/cython-git.git cython-git"
+    "https://aur.archlinux.org/patchelf-git.git patchelf-git"
+    # "https://aur.archlinux.org/python-numpy-git.git python-numpy-git"
+    "https://aur.archlinux.org/numactl-git.git numactl-git"
+    # "https://aur.archlinux.org/openmpi-git.git openmpi-git"
+    # "https://aur.archlinux.org/boost-git.git boost-git"
+    "https://aur.archlinux.org/utf8cpp-git.git utf8cpp-git"
+    "https://aur.archlinux.org/eigen-git.git eigen-git"
+    "https://aur.archlinux.org/vtk-git.git vtk-git"
+    "https://aur.archlinux.org/ant-git.git ant-git"
+    "https://aur.archlinux.org/openexr-git.git openexr-git"
+    "https://aur.archlinux.org/gstreamer-git.git gstreamer-git"
+    "https://aur.archlinux.org/libgphoto2-git.git libgphoto2-git"
+    "https://aur.archlinux.org/protobuf-git.git protobuf-git"
     "https://aur.archlinux.org/python2.git python2"
     # "https://aur.archlinux.org/go-tools-git.git  go-tools-git"
     # "https://aur.archlinux.org/git-lfs-git.git git-lfs-git"
     # "https://aur.archlinux.org/nodejs-git.git nodejs-git"
     # "https://aur.archlinux.org/jasper-git.git jasper-git"
-    "https://aur.archlinux.org/signal-desktop.git signal-desktop-beta"
+    # "https://aur.archlinux.org/signal-desktop.git signal-desktop"
     "https://aur.archlinux.org/signal-account-switcher.git signal-account-switcher"
     "https://aur.archlinux.org/libinih-git.git libinih-git"
     # "https://aur.archlinux.org/glibc-git.git glibc-git"
