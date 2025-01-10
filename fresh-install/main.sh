@@ -266,6 +266,22 @@ pacman_packages=(
     virtualbox-guest-iso
     virtualbox-ext-vnc
     imath
+    embree
+    # https://wiki.archlinux.org/title/Java#OpenJDK
+    jdk-openjdk
+    openjdk-doc
+    openjdk-src
+    libharu
+    openxr
+    opencolorio
+    openimageio
+    openvdb
+    # for unreal engine
+    lttng-ust2.12
+    opensubdiv
+    openshadinglanguage
+    blender
+    
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -319,7 +335,7 @@ aur_packages=(
     "https://aur.archlinux.org/cython-git.git cython-git"
     "https://aur.archlinux.org/patchelf-git.git patchelf-git"
     # "https://aur.archlinux.org/python-numpy-git.git python-numpy-git"
-    "https://aur.archlinux.org/numactl-git.git numactl-git"
+    # "https://aur.archlinux.org/numactl-git.git numactl-git"
     # "https://aur.archlinux.org/openmpi-git.git openmpi-git"
     # "https://aur.archlinux.org/boost-git.git boost-git"
     "https://aur.archlinux.org/utf8cpp-git.git utf8cpp-git"
@@ -415,7 +431,6 @@ aur_packages=(
     "https://aur.archlinux.org/cython-git.git cython-git"
     "https://aur.archlinux.org/patchelf-git.git patchelf-git"
     # "https://aur.archlinux.org/python-numpy-git.git python-numpy-git"
-    "https://aur.archlinux.org/numactl-git.git numactl-git"
     # "https://aur.archlinux.org/openmpi-git.git openmpi-git"
     # "https://aur.archlinux.org/boost-git.git boost-git"
     "https://aur.archlinux.org/utf8cpp-git.git utf8cpp-git"
@@ -567,17 +582,17 @@ aur_packages=(
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
 
     "https://aur.archlinux.org/alembic-git.git alembic-git"
-    "https://aur.archlinux.org/embree-git.git embree-git"
-    "https://aur.archlinux.org/libharu-git.git libharu-git"
-    "https://aur.archlinux.org/openxr-git.git openxr-git"
-    "https://aur.archlinux.org/openimageio-git.git openimageio-git"
-    "https://aur.archlinux.org/opencolorio-git.git opencolorio-git"
-    "https://aur.archlinux.org/openvdb-git.git openvdb-git"
-    "https://aur.archlinux.org/opencollada-git.git opencollada-git"
-    "https://aur.archlinux.org/opensubdiv-git.git opensubdiv-git"
-    "https://aur.archlinux.org/openshadinglanguage-git.git openshadinglanguage-git"
+    # "https://aur.archlinux.org/embree-git.git embree-git"
+    # "https://aur.archlinux.org/opencolorio-git.git opencolorio-git"
+    #"https://aur.archlinux.org/openimageio-git.git openimageio-git"
+    #"https://aur.archlinux.org/opencollada.git opencollada"
     "https://aur.archlinux.org/libdecor-git.git libdecor-git"
-    "https://aur.archlinux.org/blender-git.git blender-git"
+    # https://wiki.archlinux.org/title/Microsoft_fonts
+    "https://aur.archlinux.org/ttf-ms-win10-auto.git ttf-ms-win10-auto"
+    "https://aur.archlinux.org/ttf-ms-win11-auto.git ttf-ms-win11-auto"
+    "https://aur.archlinux.org/godot-git.git godot-git"
+    
+    
 )
 
 for pkg in "${aur_packages[@]}"; do
@@ -596,3 +611,9 @@ cd ~/linux-configuration
 hosts/install.sh
 i3-configuration/install.sh
 sudo pacman -Syuu 
+
+# Installing unreal engine:
+# https://aur.archlinux.org/packages/unreal-engine-bin
+cd ~/aur
+git clone https://aur.archlinux.org/unreal-engine-bin.git
+# https://www.unrealengine.com/en-US/linux
