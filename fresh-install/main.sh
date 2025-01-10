@@ -213,19 +213,22 @@ pacman_packages=(
     lldb
     ocaml
     ocaml-ctypes
-    ocaml-findlib
-    python-myst-parser
-    lua53
-    z3
-    ocaml-stdlib-shims
-    llvm
-    patchutils
-    python-httplib2
     python-pyparsing
     ffmpeg
     lua52
     cabextract
     mingw-w64-gcc
+    lib32-gst-plugins-base-libs
+    lib32-gnutls
+    lib32-gmp
+    lib32-libcups
+    lib32-libpulse
+    lib32-libxcomposite
+    lib32-libxinerama
+    lib32-opencl-icd-loader
+    lib32-pcsclite
+    lib32-sdl2
+    samba
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -504,23 +507,11 @@ aur_packages=(
     # "https://aur.archlinux.org/mpv-git.git mpv-git"
     "https://aur.archlinux.org/unzrip-git.git unzrip-git"
     "https://aur.archlinux.org/python-vdf.git python-vdf"   
-
-    "https://aur.archlinux.org/lib32-gmp-git.git lib32-gmp-git"
-    "https://aur.archlinux.org/lib32-nettle-git.git lib32-nettle-git"
-    "https://aur.archlinux.org/lib32-gnutls-git lib32-gnutls-git" 
-    "https://aur.archlinux.org/lib32-gst-plugins-base-libs-git lib32-gst-plugins-base-libs-git"
-    "https://aur.archlinux.org/lib32-libcups-git lib32-libcups-git"
-    "https://aur.archlinux.org/lib32-libpulse-git lib32-libpulse-git" 
-    "https://aur.archlinux.org/lib32-libxcomposite-git lib32-libxcomposite-git"
-    "https://aur.archlinux.org/lib32-libxcomposite-git lib32-libxcomposite-git"
-    "https://aur.archlinux.org/lib32-libxinerama-git lib32-libxinerama-git"
-    "https://aur.archlinux.org/lib32-opencl-icd-loader-git lib32-opencl-icd-loader-git"
-    "https://aur.archlinux.org/lib32-pcsclite-git lib32-pcsclite-git"
-    "https://aur.archlinux.org/samba-git samba-git"
-    "https://aur.archlinux.org/sane-git sane-git"
-    "https://aur.archlinux.org/lib32-sdl2-git lib32-sdl2-git"
-    "https://aur.archlinux.org/unixodbc-git unixodbc-git"
-    "https://aur.archlinux.org/lib32-v4l-utils-git lib32-v4l-utils-git"
+    "https://aur.archlinux.org/lib32-gmp-hg.git lib32-gmp"
+    "https://aur.archlinux.org/sane-git.git sane-git"
+    #"https://aur.archlinux.org/lib32-sdl2-git.git lib32-sdl2-git"
+    "https://aur.archlinux.org/unixodbc-git.git unixodbc-git"
+    "https://aur.archlinux.org/lib32-v4l-utils-git.git lib32-v4l-utils-git"
     "https://aur.archlinux.org/wine-git.git wine-git"
 
     "https://aur.archlinux.org/winetricks-git.git winetricks-git"
@@ -535,6 +526,7 @@ aur_packages=(
     "https://aur.archlinux.org/deluge-git.git deluge-git"
     "https://aur.archlinux.org/nvm-git.git nvm-git"
     "https://aur.archlinux.org/unityhub-beta.git unityhub-beta"
+    "https://aur.archlinux.org/keepassxc-git.git keepassxc-git"
 )
 
 for pkg in "${aur_packages[@]}"; do
