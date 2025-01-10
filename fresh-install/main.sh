@@ -310,7 +310,8 @@ nvm i v18.20.5
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
-    "https://aur.archlinux.org/qdirstat-git.git qdirstat-git"
+    # "https://aur.archlinux.org/qdirstat-git.git qdirstat-git"
+    "https://aur.archlinux.org/qdirstat.git qdirstat"
     "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser"
     # "https://aur.archlinux.org/expac-git.git expac-git"
     # "https://aur.archlinux.org/gn-git.git gn-git"
@@ -594,7 +595,7 @@ aur_packages=(
     # https://wiki.archlinux.org/title/Microsoft_fonts
     "https://aur.archlinux.org/httpfs2-2gbplus.git  httpfs2-2gbplus"
     "https://aur.archlinux.org/ttf-ms-win10-auto.git ttf-ms-win10-auto"
-    "https://aur.archlinux.org/ttf-ms-win11-auto.git ttf-ms-win11-auto"
+    "https://aur.archlinux.org/httpdirfs-git.git httpdirfs-git"
     "https://aur.archlinux.org/godot-git.git godot-git"
     "https://aur.archlinux.org/icu63.git icu63"
     "https://aur.archlinux.org/unreal-engine.git unreal-engine"
