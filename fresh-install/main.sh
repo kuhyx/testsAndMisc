@@ -61,7 +61,7 @@ process_packages() {
             git clone $repo_url
             if [ -d "$repo_dir" ] && [ -z "$(ls -A $repo_dir)" ]; then
                 echo "Repository $repo_dir is empty, trying to install with pacman"
-                if sudo pacman -S --noconfirm $pkg_name; then
+                if sudo pacman -Sy --noconfirm $pkg_name; then
                     echo "$pkg_name" >> done.txt
                 else
                     echo "$pkg_name" >> failed.txt
@@ -83,6 +83,8 @@ process_packages() {
     done < "$file_path"
 }
 
+sudo cp /etc/makepkg.conf /etc/makepkg.conf.bak
+sudo cp ./makepkg.conf /etc/makepkg.conf
 sudo cp /etc/pacman.conf /etc/pacman.conf.bak
 sudo cp ./pacman.conf /etc/pacman.conf
 # pacman
@@ -232,13 +234,39 @@ pacman_packages=(
     lib32-sdl2
     lib32-v4l-utils
     samba
+    lib32-attr
+    lib32-libvpx
+    libsoup
+    lib32-libsoup
+    lib32-speex
+    steam-native-runtime
+    fontforge
+    python-pefile
+    glib2-devel
+    lib32-gtk3
+    lib32-rust-libs
+    python-booleanoperations
+    python-brotli
+    python-defcon
+    python-fontmath
+    python-fontpens
+    python-fonttools
+    python-fs
+    python-tqdm
+    python-ufoprocessor
+    python-unicodedata2
+    python-zopfli
+    afdko
+    pyside6
+    python-pyaml
+    python-zstandard
     )
 
 for pkg in "${pacman_packages[@]}"; do
     if ! pacman -Qi $pkg > /dev/null 2>&1; then
         # Check if the package exists in the AUR packages list
         if ! echo "${aur_packages[@]}" | grep -q "$pkg"; then
-            sudo pacman -S --noconfirm $pkg
+            sudo pacman -Sy --noconfirm $pkg
         else        
             echo "$pkg exists in AUR packages, skipping pacman installation"
         fi
@@ -515,20 +543,25 @@ aur_packages=(
     #"https://aur.archlinux.org/lib32-sdl2-git.git lib32-sdl2-git"
     "https://aur.archlinux.org/unixodbc-git.git unixodbc-git"
     "https://aur.archlinux.org/wine-git.git wine-git"
-
     "https://aur.archlinux.org/winetricks-git.git winetricks-git"
     "https://aur.archlinux.org/protontricks-git.git protontricks-git"
-    "https://aur.archlinux.org/bottles-git.git bottles-git"
-    "https://aur.archlinux.org/proton-ge-custom.git proton-ge-custom"
+    "https://aur.archlinux.org/lib32-lzo.git lib32-lzo"
+    "https://aur.archlinux.org/mingw-w64-tools.git mingw-w64-tools"
+    "https://aur.archlinux.org/python-ufonormalizer.git python-ufonormalizer"
+    "https://aur.archlinux.org/python-cu2qu.git python-cu2qu"
+    "https://aur.archlinux.org/psautohint.git psautohint"
+    "https://aur.archlinux.org/proton-ge-custom-bin.git proton-ge-custom-bin"
+    "https://aur.archlinux.org/python-inputs.git python-inputs"
+    "https://aur.archlinux.org/python-steam.git python-steam"
     "https://aur.archlinux.org/protonup-qt.git protonup-qt"
     "https://aur.archlinux.org/protonhax-git.git protonhax-git"
     "https://aur.archlinux.org/msvc-wine-git.git msvc-wine-git"
-    "https://aur.archlinux.org/jq-git.git jq-git"
-    "https://aur.archlinux.org/iw-git.git iw-git"
     "https://aur.archlinux.org/deluge-git.git deluge-git"
     "https://aur.archlinux.org/nvm-git.git nvm-git"
     "https://aur.archlinux.org/unityhub-beta.git unityhub-beta"
     "https://aur.archlinux.org/keepassxc-git.git keepassxc-git"
+    "https://aur.archlinux.org/nvidia-open-git.git nvidia-open-git"
+    "https://aur.archlinux.org/nvidia-utils-beta.git nvidia-utils-beta"
 )
 
 for pkg in "${aur_packages[@]}"; do
