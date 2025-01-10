@@ -83,6 +83,8 @@ process_packages() {
     done < "$file_path"
 }
 
+sudo cp /etc/pacman.conf /etc/pacman.conf.bak
+sudo cp ./pacman.conf /etc/pacman.conf
 # pacman
 pacman_packages=(
     distcc
@@ -228,6 +230,7 @@ pacman_packages=(
     lib32-opencl-icd-loader
     lib32-pcsclite
     lib32-sdl2
+    lib32-v4l-utils
     samba
     )
 
@@ -511,7 +514,6 @@ aur_packages=(
     "https://aur.archlinux.org/sane-git.git sane-git"
     #"https://aur.archlinux.org/lib32-sdl2-git.git lib32-sdl2-git"
     "https://aur.archlinux.org/unixodbc-git.git unixodbc-git"
-    "https://aur.archlinux.org/lib32-v4l-utils-git.git lib32-v4l-utils-git"
     "https://aur.archlinux.org/wine-git.git wine-git"
 
     "https://aur.archlinux.org/winetricks-git.git winetricks-git"
