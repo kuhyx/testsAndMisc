@@ -285,6 +285,7 @@ nvm i v18.20.5
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
+    "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser"
     # "https://aur.archlinux.org/expac-git.git expac-git"
     # "https://aur.archlinux.org/gn-git.git gn-git"
     # "https://aur.archlinux.org/gperf-git.git gperf-git"
@@ -509,7 +510,6 @@ aur_packages=(
     "https://aur.archlinux.org/lynx-git.git lynx-git"
     "https://aur.archlinux.org/pacman-git.git pacman-git"
     # "https://aur.archlinux.org/mold-git.git mold-git"
-    "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser"
     "https://aur.archlinux.org/glu-git.git glu-git"
     "https://aur.archlinux.org/mupdf-git.git mupdf-git"
     "https://aur.archlinux.org/exiv2-git.git exiv2-git"
@@ -559,9 +559,11 @@ aur_packages=(
     "https://aur.archlinux.org/deluge-git.git deluge-git"
     "https://aur.archlinux.org/nvm-git.git nvm-git"
     "https://aur.archlinux.org/unityhub-beta.git unityhub-beta"
-    "https://aur.archlinux.org/keepassxc-git.git keepassxc-git"
+    # "https://aur.archlinux.org/keepassxc-git.git keepassxc-git"
     "https://aur.archlinux.org/nvidia-open-git.git nvidia-open-git"
-    "https://aur.archlinux.org/nvidia-utils-beta.git nvidia-utils-beta"
+    "https://aur.archlinux.org/autorandr-git.git autorandr-git"
+    "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
+    "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
 )
 
 for pkg in "${aur_packages[@]}"; do
@@ -576,4 +578,7 @@ else
     echo "Oh My Zsh is already installed"
 fi
 
-sudo pacman -R firefox
+cd ~/linux-configuration
+hosts/install.sh
+i3-configuration/install.sh
+sudo pacman -Syuu 
