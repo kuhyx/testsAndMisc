@@ -265,6 +265,7 @@ pacman_packages=(
     virtualbox
     virtualbox-guest-iso
     virtualbox-ext-vnc
+    imath
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -564,7 +565,18 @@ aur_packages=(
     "https://aur.archlinux.org/autorandr-git.git autorandr-git"
     "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
-    "https://aur.archlinux.org/spotube-bin.git spotube"
+
+    "https://aur.archlinux.org/alembic-git.git alembic-git"
+    "https://aur.archlinux.org/embree-git.git embree-git"
+    "https://aur.archlinux.org/libharu-git.git libharu-git"
+    "https://aur.archlinux.org/openxr-git.git openxr-git"
+    "https://aur.archlinux.org/openimageio-git.git openimageio-git"
+    "https://aur.archlinux.org/opencolorio-git.git opencolorio-git"
+    "https://aur.archlinux.org/openvdb-git.git openvdb-git"
+    "https://aur.archlinux.org/opencollada-git.git opencollada-git"
+    "https://aur.archlinux.org/opensubdiv-git.git opensubdiv-git"
+    "https://aur.archlinux.org/openshadinglanguage-git.git openshadinglanguage-git"
+    "https://aur.archlinux.org/libdecor-git.git libdecor-git"
     "https://aur.archlinux.org/blender-git.git blender-git"
 )
 
