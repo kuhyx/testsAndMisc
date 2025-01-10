@@ -244,6 +244,7 @@ pacman_packages=(
     python-pefile
     glib2-devel
     lib32-gtk3
+    rust
     lib32-rust-libs
     python-booleanoperations
     python-brotli
@@ -260,6 +261,7 @@ pacman_packages=(
     pyside6
     python-pyaml
     python-zstandard
+    zip
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -492,10 +494,6 @@ aur_packages=(
     "https://aur.archlinux.org/sndio-git.git sndio-git"
     "https://aur.archlinux.org/codec2-git.git codec2-git"
     "https://aur.archlinux.org/flite1.git flite1"
-    "https://aur.archlinux.org/libilbc-git.git libilbc-git"
-    # "https://aur.archlinux.org/signal-desktop.git signal-desktop"
-    "https://aur.archlinux.org/signal-account-switcher.git signal-account-switcher"
-    "https://aur.archlinux.org/libinih-git.git libinih-git"
     # "https://aur.archlinux.org/glibc-git.git glibc-git"
     # "https://aur.archlinux.org/gcc-git.git gcc-git"
     "https://aur.archlinux.org/plzip.git plzip"
@@ -519,7 +517,6 @@ aur_packages=(
     # "https://aur.archlinux.org/avisynthplus-git.git avisynthplus-git"
    #  "https://aur.archlinux.org/lcevcdec.git lcevcdec"
     "https://aur.archlinux.org/lensfun-git.git lensfun-git"
-    "https://aur.archlinux.org/libilbc-git.git libilbc-git"
     # "https://aur.archlinux.org/python-librabbitmq.git python-librabbitmq"
    # "https://aur.archlinux.org/librist-git.git librist-git"
     "https://aur.archlinux.org/quirc-git.git quirc-git"
@@ -564,7 +561,7 @@ aur_packages=(
     "https://aur.archlinux.org/autorandr-git.git autorandr-git"
     "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
-    "https://aur.archlinux.org/spotube.git spotube"
+    "https://aur.archlinux.org/spotube-bin.git spotube"
 )
 
 for pkg in "${aur_packages[@]}"; do
