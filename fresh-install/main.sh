@@ -564,6 +564,7 @@ aur_packages=(
     "https://aur.archlinux.org/autorandr-git.git autorandr-git"
     "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
+    "https://aur.archlinux.org/spotube.git spotube"
 )
 
 for pkg in "${aur_packages[@]}"; do
