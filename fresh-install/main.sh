@@ -32,7 +32,8 @@ install_from_aur() {
     fi
     cd $(basename $repo_url .git)
     if ! pacman -Qi $pkg_name > /dev/null 2>&1; then
-        yes | makepkg -s -i --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
+        yes | makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
+        sudo pacman -U --noconfirm *.pkg.tar.zst
     else
         echo "$pkg_name is already installed"
     fi
@@ -40,6 +41,8 @@ install_from_aur() {
 
 process_packages() {
     local file_path=$1
+    > failed.txt
+    > done.txt
 
     while IFS= read -r pkg_name; do
         if [ -z "$pkg_name" ]; then
@@ -58,12 +61,24 @@ process_packages() {
             git clone $repo_url
             if [ -d "$repo_dir" ] && [ -z "$(ls -A $repo_dir)" ]; then
                 echo "Repository $repo_dir is empty, trying to install with pacman"
-                sudo pacman -S --noconfirm $pkg_name
+                if sudo pacman -S --noconfirm $pkg_name; then
+                    echo "$pkg_name" >> done.txt
+                else
+                    echo "$pkg_name" >> failed.txt
+                fi
             else
-                install_from_aur $repo_url $pkg_name
+                if install_from_aur $repo_url $pkg_name; then
+                    echo "$pkg_name" >> done.txt
+                else
+                    echo "$pkg_name" >> failed.txt
+                fi
             fi
         else
-            install_from_aur $repo_url $pkg_name
+            if install_from_aur $repo_url $pkg_name; then
+                echo "$pkg_name" >> done.txt
+            else
+                echo "$pkg_name" >> failed.txt
+            fi
         fi
     done < "$file_path"
 }
@@ -201,7 +216,17 @@ pacman_packages=(
     ocaml-findlib
     python-myst-parser
     lua53
-)
+    z3
+    ocaml-stdlib-shims
+    llvm
+    patchutils
+    python-httplib2
+    python-pyparsing
+    ffmpeg
+    lua52
+    cabextract
+    mingw-w64-gcc
+    )
 
 for pkg in "${pacman_packages[@]}"; do
     if ! pacman -Qi $pkg > /dev/null 2>&1; then
@@ -220,6 +245,9 @@ if ! command -v nvm &> /dev/null; then
 else
     echo "nvm is already installed"
 fi
+export NVM_DIR=$HOME/.nvm;
+source $NVM_DIR/nvm.sh;
+nvm i v18.20.5
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
@@ -231,17 +259,14 @@ aur_packages=(
     # "https://aur.archlinux.org/lldb-git.git lldb-git"
     # "https://aur.archlinux.org/ocaml-ctypes-git.git ocaml-ctypes-git"
     # "https://aur.archlinux.org/swig-git.git swig-git"
-    "https://aur.archlinux.org/z3-git.git z3-git"
-    "https://aur.archlinux.org/ocaml-stdlib-shims-git.git ocaml-stdlib-shims-git"
+    #"https://aur.archlinux.org/z3-git.git z3-git"
 
-    "https://aur.archlinux.org/llvm-git.git     llvm-git"
-    "https://aur.archlinux.org/nodejs-lts-hydrogen-git.git nodejs-lts-hydrogen-git"
-    "https://aur.archlinux.org/patchutils-git.git patchutils-git"
-    "https://aur.archlinux.org/python-httplib2-git.git python-httplib2-git"
-    "https://aur.archlinux.org/python-pyparsing-git.git python-pyparsing-git"
-    "https://aur.archlinux.org/electron25.git electron25"
-    "https://aur.archlinux.org/franz.git franz"
+    # "https://aur.archlinux.org/llvm-git.git     llvm-git"
+    "https://aur.archlinux.org/python310.git python310"
+    # "https://aur.archlinux.org/nodejs-lts-hydrogen.git nodejs-lts-hydrogen"
+    # "https://aur.archlinux.org/electron25.git electron25"
     # "https://aur.archlinux.org/openvino.git openvino"
+    "https://aur.archlinux.org/slack-electron.git slack-electron"
     "https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
     "https://aur.archlinux.org/glew-git.git glew-git"
     "https://aur.archlinux.org/libaec-git.git libaec-git"
@@ -329,7 +354,6 @@ aur_packages=(
     "https://aur.archlinux.org/wavpack-git.git wavpack-git"
     "https://aur.archlinux.org/zvbi-git.git zvbi-git"
     "https://aur.archlinux.org/sndio-git.git sndio-git"
-    # "https://aur.archlinux.org/chromaprint-fftw.git chromaprint-fftw"
     "https://aur.archlinux.org/codec2-git.git codec2-git"
     "https://aur.archlinux.org/flite1.git flite1"
     "https://aur.archlinux.org/libilbc-git.git libilbc-git"
@@ -431,7 +455,6 @@ aur_packages=(
     "https://aur.archlinux.org/wavpack-git.git wavpack-git"
     "https://aur.archlinux.org/zvbi-git.git zvbi-git"
     "https://aur.archlinux.org/sndio-git.git sndio-git"
-    # "https://aur.archlinux.org/chromaprint-fftw.git chromaprint-fftw"
     "https://aur.archlinux.org/codec2-git.git codec2-git"
     "https://aur.archlinux.org/flite1.git flite1"
     "https://aur.archlinux.org/libilbc-git.git libilbc-git"
@@ -467,24 +490,45 @@ aur_packages=(
    # "https://aur.archlinux.org/librist-git.git librist-git"
     "https://aur.archlinux.org/quirc-git.git quirc-git"
     "https://aur.archlinux.org/svt-vp9-git.git svt-vp9-git"
-    "https://aur.archlinux.org/chromaprint-fftw-git.git chromaprint-fftw-git"
     "https://aur.archlinux.org/davs2-git.git davs2-git"
     "https://aur.archlinux.org/libaribcaption-git.git libaribcaption-git"
     "https://aur.archlinux.org/libklvanc-git.git libklvanc-git"
     "https://aur.archlinux.org/uavs3d-git.git uavs3d-git"
     "https://aur.archlinux.org/vvenc-git.git vvenc-git"
     "https://aur.archlinux.org/xavs2-git.git xavs2-git"
-    "https://aur.archlinux.org/xevd-git.git xevd-git"
-    "https://aur.archlinux.org/xeve-git.git xeve-git"
+    "https://aur.archlinux.org/xevd.git xevd"
+    "https://aur.archlinux.org/xeve.git xeve"
+    "https://aur.archlinux.org/amf-headers-git.git amf-headers-git"
+    #"https://aur.archlinux.org/ffmpeg-git.git ffmpeg-git"
+    #"https://aur.archlinux.org/mpv-full-git.git mpv-full-git"
+    # "https://aur.archlinux.org/mpv-git.git mpv-git"
+    "https://aur.archlinux.org/unzrip-git.git unzrip-git"
+    "https://aur.archlinux.org/python-vdf.git python-vdf"   
 
-    "https://aur.archlinux.org/ffmpeg-full-git.git ffmpeg-full-git"
-    "https://aur.archlinux.org/mpv-full-git.git mpv-full-git"
+    "https://aur.archlinux.org/lib32-gmp-git.git lib32-gmp-git"
+    "https://aur.archlinux.org/lib32-nettle-git.git lib32-nettle-git"
+    "https://aur.archlinux.org/lib32-gnutls-git lib32-gnutls-git" 
+    "https://aur.archlinux.org/lib32-gst-plugins-base-libs-git lib32-gst-plugins-base-libs-git"
+    "https://aur.archlinux.org/lib32-libcups-git lib32-libcups-git"
+    "https://aur.archlinux.org/lib32-libpulse-git lib32-libpulse-git" 
+    "https://aur.archlinux.org/lib32-libxcomposite-git lib32-libxcomposite-git"
+    "https://aur.archlinux.org/lib32-libxcomposite-git lib32-libxcomposite-git"
+    "https://aur.archlinux.org/lib32-libxinerama-git lib32-libxinerama-git"
+    "https://aur.archlinux.org/lib32-opencl-icd-loader-git lib32-opencl-icd-loader-git"
+    "https://aur.archlinux.org/lib32-pcsclite-git lib32-pcsclite-git"
+    "https://aur.archlinux.org/samba-git samba-git"
+    "https://aur.archlinux.org/sane-git sane-git"
+    "https://aur.archlinux.org/lib32-sdl2-git lib32-sdl2-git"
+    "https://aur.archlinux.org/unixodbc-git unixodbc-git"
+    "https://aur.archlinux.org/lib32-v4l-utils-git lib32-v4l-utils-git"
+    "https://aur.archlinux.org/wine-git.git wine-git"
+
+    "https://aur.archlinux.org/winetricks-git.git winetricks-git"
     "https://aur.archlinux.org/protontricks-git.git protontricks-git"
     "https://aur.archlinux.org/bottles-git.git bottles-git"
     "https://aur.archlinux.org/proton-ge-custom.git proton-ge-custom"
     "https://aur.archlinux.org/protonup-qt.git protonup-qt"
     "https://aur.archlinux.org/protonhax-git.git protonhax-git"
-    "https://aur.archlinux.org/wine-git.git wine-git"
     "https://aur.archlinux.org/msvc-wine-git.git msvc-wine-git"
     "https://aur.archlinux.org/jq-git.git jq-git"
     "https://aur.archlinux.org/iw-git.git iw-git"
