@@ -3,11 +3,11 @@ set -e
 
 # Function to play a sound on error
 play_error_sound() {
-    pactl set-sink-volume @DEFAULT_SINK@ +50%
+    #pactl set-sink-volume @DEFAULT_SINK@ +50%
     for i in 1 2 3; do
         paplay /usr/share/sounds/freedesktop/stereo/dialog-error.oga
     done
-    pactl set-sink-volume @DEFAULT_SINK@ -50%
+    #pactl set-sink-volume @DEFAULT_SINK@ -50%
 }
 
 # Trap errors and call the play_error_sound function
@@ -285,6 +285,8 @@ pacman_packages=(
     udftools
     dotnet-runtime
     dotnet-sdk
+    godot
+    joyutils
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -595,10 +597,19 @@ aur_packages=(
     # https://wiki.archlinux.org/title/Microsoft_fonts
     "https://aur.archlinux.org/httpfs2-2gbplus.git  httpfs2-2gbplus"
     "https://aur.archlinux.org/ttf-ms-win10-auto.git ttf-ms-win10-auto"
-    "https://aur.archlinux.org/httpdirfs-git.git httpdirfs-git"
-    "https://aur.archlinux.org/godot-git.git godot-git"
+    "https://aur.archlinux.org/httpdirfs-git. git httpdirfs-git"
+    # "https://aur.archlinux.org/godot-git.git godot-git"
     "https://aur.archlinux.org/icu63.git icu63"
-    "https://aur.archlinux.org/unreal-engine.git unreal-engine"
+    "https://aur.archlinux.org/github-cli-git.git github-cli-git"
+    "https://aur.archlinux.org/github-copilot-cli.git github-copilot-cli"
+    "https://aur.archlinux.org/tinycmmc-git.git tinycmmc"
+    "https://aur.archlinux.org/evtest-qt-git.git evtest-qt-git"
+    # https://wiki.archlinux.org/title/Gamepad#
+    "https://aur.archlinux.org/jstest-gtk-git.git jstest-gtk-git"
+    "https://aur.archlinux.org/xboxdrv-git.git xboxdrv-git"
+    "https://aur.archlinux.org/xpadneo-dkms-git.git xpadneo-dkms-git"
+    "https://aur.archlinux.org/xpadneo-dkms-git.git xpadneo-dkms-git"
+    "https://aur.archlinux.org/xone-dongle-firmware.git xone-dongle-firmware"
     
     
 )
@@ -619,3 +630,14 @@ cd ~/linux-configuration
 hosts/install.sh
 i3-configuration/install.sh
 sudo pacman -Syuu 
+
+# Installing unreal engine
+cd ~/aur
+if [ ! -d "$(basename https://aur.archlinux.org/unreal-engine.git .git)" ]; then
+    git clone https://aur.archlinux.org/unreal-engine.git
+fi
+
+cd unreal-engine
+# gh auth login
+gh repo clone EpicGames/UnrealEngine -- -b release --single-branch
+makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
