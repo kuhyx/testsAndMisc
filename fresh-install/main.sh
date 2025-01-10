@@ -281,7 +281,10 @@ pacman_packages=(
     opensubdiv
     openshadinglanguage
     blender
-    
+    p7zip
+    udftools
+    dotnet-runtime
+    dotnet-sdk
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -307,6 +310,7 @@ nvm i v18.20.5
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
+    "https://aur.archlinux.org/qdirstat-git.git qdirstat-git"
     "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser"
     # "https://aur.archlinux.org/expac-git.git expac-git"
     # "https://aur.archlinux.org/gn-git.git gn-git"
@@ -420,7 +424,7 @@ aur_packages=(
     "https://aur.archlinux.org/xavs.git xavs"
     "https://aur.archlinux.org/ndi-sdk.git ndi-sdk"
     "https://aur.archlinux.org/rockchip-mpp.git rockchip-mpp"
-"https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
+    "https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
     "https://aur.archlinux.org/glew-git.git glew-git"
     "https://aur.archlinux.org/libaec-git.git libaec-git"
     # "https://aur.archlinux.org/hdf5-git.git hdf5-git"
@@ -588,9 +592,12 @@ aur_packages=(
     #"https://aur.archlinux.org/opencollada.git opencollada"
     "https://aur.archlinux.org/libdecor-git.git libdecor-git"
     # https://wiki.archlinux.org/title/Microsoft_fonts
+    "https://aur.archlinux.org/httpfs2-2gbplus.git  httpfs2-2gbplus"
     "https://aur.archlinux.org/ttf-ms-win10-auto.git ttf-ms-win10-auto"
     "https://aur.archlinux.org/ttf-ms-win11-auto.git ttf-ms-win11-auto"
     "https://aur.archlinux.org/godot-git.git godot-git"
+    "https://aur.archlinux.org/icu63.git icu63"
+    "https://aur.archlinux.org/unreal-engine.git unreal-engine"
     
     
 )
@@ -611,9 +618,3 @@ cd ~/linux-configuration
 hosts/install.sh
 i3-configuration/install.sh
 sudo pacman -Syuu 
-
-# Installing unreal engine:
-# https://aur.archlinux.org/packages/unreal-engine-bin
-cd ~/aur
-git clone https://aur.archlinux.org/unreal-engine-bin.git
-# https://www.unrealengine.com/en-US/linux
