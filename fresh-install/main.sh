@@ -262,6 +262,10 @@ pacman_packages=(
     python-pyaml
     python-zstandard
     zip
+    virtualbox
+    virtualbox-host-modules-arch
+    virtualbox-guest-iso
+    virtualbox-ext-vnc
     )
 
 for pkg in "${pacman_packages[@]}"; do
