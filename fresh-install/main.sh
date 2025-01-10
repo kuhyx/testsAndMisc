@@ -263,7 +263,6 @@ pacman_packages=(
     python-zstandard
     zip
     virtualbox
-    virtualbox-host-modules-arch
     virtualbox-guest-iso
     virtualbox-ext-vnc
     )
@@ -566,6 +565,7 @@ aur_packages=(
     "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
     "https://aur.archlinux.org/spotube-bin.git spotube"
+    "https://aur.archlinux.org/blender-git.git blender-git"
 )
 
 for pkg in "${aur_packages[@]}"; do
