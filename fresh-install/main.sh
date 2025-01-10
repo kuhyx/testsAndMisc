@@ -15,6 +15,7 @@ trap 'play_error_sound' ERR
 
 
 sudo -v
+git config --global init.defaultBranch main
 
 install_from_aur() {
     if [ ! -d "$HOME/aur" ]; then
@@ -190,6 +191,16 @@ pacman_packages=(
     rhash
     avisynthplus
     librist
+    expac
+    gn
+    gperf
+    lld
+    lldb
+    ocaml
+    ocaml-ctypes
+    ocaml-findlib
+    python-myst-parser
+    lua53
 )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -204,10 +215,33 @@ for pkg in "${pacman_packages[@]}"; do
         echo "$pkg is already installed"
     fi
 done
+if ! command -v nvm &> /dev/null; then
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+else
+    echo "nvm is already installed"
+fi
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
-    "https://aur.archlinux.org/openvino.git openvino"
+    # "https://aur.archlinux.org/expac-git.git expac-git"
+    # "https://aur.archlinux.org/gn-git.git gn-git"
+    # "https://aur.archlinux.org/gperf-git.git gperf-git"
+    "https://aur.archlinux.org/http-parser-git.git http-parser-git"
+    # "https://aur.archlinux.org/python-recommonmark.git python-recommonmark"
+    # "https://aur.archlinux.org/lldb-git.git lldb-git"
+    # "https://aur.archlinux.org/ocaml-ctypes-git.git ocaml-ctypes-git"
+    # "https://aur.archlinux.org/swig-git.git swig-git"
+    "https://aur.archlinux.org/z3-git.git z3-git"
+    "https://aur.archlinux.org/ocaml-stdlib-shims-git.git ocaml-stdlib-shims-git"
+
+    "https://aur.archlinux.org/llvm-git.git     llvm-git"
+    "https://aur.archlinux.org/nodejs-lts-hydrogen-git.git nodejs-lts-hydrogen-git"
+    "https://aur.archlinux.org/patchutils-git.git patchutils-git"
+    "https://aur.archlinux.org/python-httplib2-git.git python-httplib2-git"
+    "https://aur.archlinux.org/python-pyparsing-git.git python-pyparsing-git"
+    "https://aur.archlinux.org/electron25.git electron25"
+    "https://aur.archlinux.org/franz.git franz"
+    # "https://aur.archlinux.org/openvino.git openvino"
     "https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
     "https://aur.archlinux.org/glew-git.git glew-git"
     "https://aur.archlinux.org/libaec-git.git libaec-git"
@@ -237,7 +271,7 @@ aur_packages=(
     "https://aur.archlinux.org/libvisual.git libvisual"
     "https://aur.archlinux.org/qt5-tools-git.git qt5-tools-git"
     "https://aur.archlinux.org/wayland-protocols-git.git wayland-protocols-git"
-    "https://aur.archlinux.org/libtremor-git.git libtremor-git"    "https://aur.archlinux.org/openvino-git.git openvino-git"
+    "https://aur.archlinux.org/libtremor-git.git libtremor-git"    
 
     # "https://aur.archlinux.org/qt5-wayland-git.git qt5-wayland-git"
     "https://aur.archlinux.org/libshout-git.git libshout-git"
