@@ -294,6 +294,22 @@ pacman_packages=(
     glew
     mangohud
     lib32-mangohud
+    pcmanfm-gtk3
+    # https://wiki.archlinux.org/title/File_manager_functionality#File_managers_other_than_Dolphin_and_Konqueror
+    tumbler
+    ffmpegthumbnailer
+    webp-pixbuf-loader
+    poppler-glib
+    freetype2
+    libgsf
+    totem
+    evince
+    gnome-epub-thumbnailer
+    f3d
+    python-dbus-next
+    python-parse
+    python-systemd
+    python-colorlog
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -622,7 +638,12 @@ aur_packages=(
     "https://aur.archlinux.org/gamemode-git.git gamemode-git"
     #"https://aur.archlinux.org/mangohud-git.git mangohud-git"
     #"https://aur.archlinux.org/lib32-mangohud-git.git lib32-mangohud-git"
-    
+    # https://wiki.archlinux.org/title/File_manager_functionality#File_managers_other_than_Dolphin_and_Konqueror
+    "https://aur.archlinux.org/python-pyvips.git python-pyvips"
+    "https://aur.archlinux.org/ffmpeg-audio-thumbnailer.git ffmpeg-audio-thumbnailer"
+    "https://aur.archlinux.org/raw-thumbnailer.git raw-thumbnailer"
+    "https://aur.archlinux.org/mcomix.git mcomix"
+    "https://aur.archlinux.org/folderpreview.git folderpreview"
 )
 
 for pkg in "${aur_packages[@]}"; do
