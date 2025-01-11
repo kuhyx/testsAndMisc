@@ -33,7 +33,7 @@ install_from_aur() {
     cd $(basename $repo_url .git)
     if ! pacman -Qi $pkg_name > /dev/null 2>&1; then
         yes | makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
-        sudo pacman -U --noconfirm *.pkg.tar.zst
+        yes | sudo pacman -U  *.pkg.tar.zst
     else
         echo "$pkg_name is already installed"
     fi
@@ -87,11 +87,16 @@ sudo cp /etc/makepkg.conf /etc/makepkg.conf.bak
 sudo cp ./makepkg.conf /etc/makepkg.conf
 sudo cp /etc/pacman.conf /etc/pacman.conf.bak
 sudo cp ./pacman.conf /etc/pacman.conf
+# sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.bak
+# sudo cp ./mkinitcpio.conf /etc/mkinitcpio.conf
+# mkinitcpio -P
+
 # pacman
 pacman_packages=(
     linux
     distcc
     git
+    bluez
     bluez-utils
     icmake
     yodl
@@ -290,6 +295,8 @@ pacman_packages=(
     joyutils
     gparted
     nvidia-open 
+    nvidia-utils
+    lib32-nvidia-utils
     xorg-xinput
     glew
     mangohud
@@ -310,13 +317,15 @@ pacman_packages=(
     python-parse
     python-systemd
     python-colorlog
+    zsh
+    keepassxc
     )
 
 for pkg in "${pacman_packages[@]}"; do
     if ! pacman -Qi $pkg > /dev/null 2>&1; then
         # Check if the package exists in the AUR packages list
         if ! echo "${aur_packages[@]}" | grep -q "$pkg"; then
-            sudo pacman -Sy --noconfirm $pkg
+            yes | sudo pacman -Sy --noconfirm $pkg
         else        
             echo "$pkg exists in AUR packages, skipping pacman installation"
         fi
@@ -335,9 +344,11 @@ nvm i v18.20.5
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
+    "https://aur.archlinux.org/visual-studio-code-bin.git visual-studio-code-bin"
+    "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser-bin"
     "https://aur.archlinux.org/mkinitcpio-git.git mkinitcpio-git"
     # "https://aur.archlinux.org/qdirstat-git.git qdirstat-git"
-    "https://aur.archlinux.org/qdirstat.git qdirstat"
+    # "https://aur.archlinux.org/qdirstat.git qdirstat"
     # "https://aur.archlinux.org/expac-git.git expac-git"
     # "https://aur.archlinux.org/gn-git.git gn-git"
     # "https://aur.archlinux.org/gperf-git.git gperf-git"
@@ -381,7 +392,7 @@ aur_packages=(
     # "https://aur.archlinux.org/cdparanoia-git.git cdparanoia-git"
     "https://aur.archlinux.org/sdl12-compat-git.git sdl12-compat-git"
     "https://aur.archlinux.org/libvisual.git libvisual"
-    "https://aur.archlinux.org/qt5-tools-git.git qt5-tools-git"
+    # "https://aur.archlinux.org/qt5-tools-git.git qt5-tools-git"
     "https://aur.archlinux.org/wayland-protocols-git.git wayland-protocols-git"
     "https://aur.archlinux.org/libtremor-git.git libtremor-git"    
 
@@ -546,7 +557,6 @@ aur_packages=(
     # "https://aur.archlinux.org/gcc-git.git gcc-git"
     "https://aur.archlinux.org/plzip.git plzip"
     "https://aur.archlinux.org/zsh-git.git zsh"
-    "https://aur.archlinux.org/visual-studio-code-bin.git visual-studio-code-bin"
     "https://aur.archlinux.org/asciidoc-git.git asciidoc"
     "https://aur.archlinux.org/xmlto-git.git xmlto"
     "https://aur.archlinux.org/jsoncpp-git.git jsoncpp"
@@ -665,7 +675,7 @@ fi
 cd ~/linux-configuration
 hosts/install.sh
 i3-configuration/install.sh
-sudo pacman -Syuu 
+yes | sudo pacman -Syuu 
 
 # Installing unreal engine
 cd ~/aur
