@@ -89,6 +89,7 @@ sudo cp /etc/pacman.conf /etc/pacman.conf.bak
 sudo cp ./pacman.conf /etc/pacman.conf
 # pacman
 pacman_packages=(
+    linux
     distcc
     git
     bluez-utils
@@ -287,6 +288,11 @@ pacman_packages=(
     dotnet-sdk
     godot
     joyutils
+    gparted
+    nvidia-open 
+    xorg-xinput
+    mangohud
+    lib32-mangohud
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -312,6 +318,7 @@ nvm i v18.20.5
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
+    "https://aur.archlinux.org/mkinitcpio-git.git mkinitcpio-git"
     # "https://aur.archlinux.org/qdirstat-git.git qdirstat-git"
     "https://aur.archlinux.org/qdirstat.git qdirstat"
     "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser"
@@ -583,7 +590,7 @@ aur_packages=(
     "https://aur.archlinux.org/nvm-git.git nvm-git"
     "https://aur.archlinux.org/unityhub-beta.git unityhub-beta"
     # "https://aur.archlinux.org/keepassxc-git.git keepassxc-git"
-    "https://aur.archlinux.org/nvidia-open-git.git nvidia-open-git"
+    #"https://aur.archlinux.org/nvidia-open-git.git nvidia-open-git"
     "https://aur.archlinux.org/autorandr-git.git autorandr-git"
     "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
@@ -597,7 +604,7 @@ aur_packages=(
     # https://wiki.archlinux.org/title/Microsoft_fonts
     "https://aur.archlinux.org/httpfs2-2gbplus.git  httpfs2-2gbplus"
     "https://aur.archlinux.org/ttf-ms-win10-auto.git ttf-ms-win10-auto"
-    "https://aur.archlinux.org/httpdirfs-git. git httpdirfs-git"
+    # "https://aur.archlinux.org/httpdirfs-git. git httpdirfs-git"
     # "https://aur.archlinux.org/godot-git.git godot-git"
     "https://aur.archlinux.org/icu63.git icu63"
     "https://aur.archlinux.org/github-cli-git.git github-cli-git"
@@ -610,7 +617,12 @@ aur_packages=(
     "https://aur.archlinux.org/xpadneo-dkms-git.git xpadneo-dkms-git"
     "https://aur.archlinux.org/xpadneo-dkms-git.git xpadneo-dkms-git"
     "https://aur.archlinux.org/xone-dongle-firmware.git xone-dongle-firmware"
-    
+    # "https://aur.archlinux.org/gparted-git.git gparted-git"    
+    "https://aur.archlinux.org/ferdium-git.git ferdium-git"
+    "https://aur.archlinux.org/gamemode-git.git gamemode-git"
+    "https://aur.archlinux.org/gamemode-git.git gamemode-git"
+    #"https://aur.archlinux.org/mangohud-git.git mangohud-git"
+    #"https://aur.archlinux.org/lib32-mangohud-git.git lib32-mangohud-git"
     
 )
 
@@ -637,7 +649,7 @@ if [ ! -d "$(basename https://aur.archlinux.org/unreal-engine.git .git)" ]; then
     git clone https://aur.archlinux.org/unreal-engine.git
 fi
 
-cd unreal-engine
-# gh auth login
-gh repo clone EpicGames/UnrealEngine -- -b release --single-branch
-makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
+#cd unreal-engine
+## gh auth login
+#gh repo clone EpicGames/UnrealEngine -- -b release --single-branch
+#makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
