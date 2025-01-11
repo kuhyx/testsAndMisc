@@ -644,6 +644,10 @@ aur_packages=(
     "https://aur.archlinux.org/raw-thumbnailer.git raw-thumbnailer"
     "https://aur.archlinux.org/mcomix.git mcomix"
     "https://aur.archlinux.org/folderpreview.git folderpreview"
+    # "https://aur.archlinux.org/python-pip-git.git pip-git"
+    "https://aur.archlinux.org/pyenv-git.git pyenv-git"
+    # "https://aur.archlinux.org/python-pipx-git.git pipx-git"
+
 )
 
 for pkg in "${aur_packages[@]}"; do
