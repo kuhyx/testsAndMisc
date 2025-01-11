@@ -291,6 +291,7 @@ pacman_packages=(
     gparted
     nvidia-open 
     xorg-xinput
+    glew
     mangohud
     lib32-mangohud
     )
@@ -321,7 +322,6 @@ aur_packages=(
     "https://aur.archlinux.org/mkinitcpio-git.git mkinitcpio-git"
     # "https://aur.archlinux.org/qdirstat-git.git qdirstat-git"
     "https://aur.archlinux.org/qdirstat.git qdirstat"
-    "https://aur.archlinux.org/thorium-browser-bin.git thorium-browser"
     # "https://aur.archlinux.org/expac-git.git expac-git"
     # "https://aur.archlinux.org/gn-git.git gn-git"
     # "https://aur.archlinux.org/gperf-git.git gperf-git"
@@ -339,7 +339,7 @@ aur_packages=(
     # "https://aur.archlinux.org/openvino.git openvino"
     "https://aur.archlinux.org/slack-electron.git slack-electron"
     "https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
-    "https://aur.archlinux.org/glew-git.git glew-git"
+    # "https://aur.archlinux.org/glew-git.git glew-git"
     "https://aur.archlinux.org/libaec-git.git libaec-git"
     # "https://aur.archlinux.org/hdf5-git.git hdf5-git"
     # "https://aur.archlinux.org/packages/proj-git.git proj-git"
@@ -435,7 +435,6 @@ aur_packages=(
     "https://aur.archlinux.org/ndi-sdk.git ndi-sdk"
     "https://aur.archlinux.org/rockchip-mpp.git rockchip-mpp"
     "https://aur.archlinux.org/bash-completion-git.git bash-completion-git"
-    "https://aur.archlinux.org/glew-git.git glew-git"
     "https://aur.archlinux.org/libaec-git.git libaec-git"
     # "https://aur.archlinux.org/hdf5-git.git hdf5-git"
     # "https://aur.archlinux.org/packages/proj-git.git proj-git"
