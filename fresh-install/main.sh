@@ -319,6 +319,26 @@ pacman_packages=(
     python-colorlog
     zsh
     keepassxc
+    # https://wiki.archlinux.org/title/TeX_Live
+    ghostscript
+    perl
+    ruby
+    texlive
+    texlive-basic
+    texlive-latex
+    texlive-latexrecommended
+    texlive-latexextra
+    texlive-fontsrecommended
+    texlive-fontsextra
+    texlive-xetex
+    texlive-luatex
+    texlive-bibtextra
+    texlve-mathscience
+    texlive-lang
+    perl-yaml-tiny
+    perl-file-homedir
+    texlive-binextra
+    texlive-plaingeneric
     )
 
 for pkg in "${pacman_packages[@]}"; do
