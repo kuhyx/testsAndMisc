@@ -332,8 +332,8 @@ pacman_packages=(
     texlive-fontsextra
     texlive-xetex
     texlive-luatex
-    texlive-bibtextra
-    texlve-mathscience
+    texlive-bibtexextra 
+    texlive-mathscience
     texlive-lang
     perl-yaml-tiny
     perl-file-homedir
