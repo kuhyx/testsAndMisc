@@ -90,7 +90,9 @@ sudo cp ./pacman.conf /etc/pacman.conf
 # sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.bak
 # sudo cp ./mkinitcpio.conf /etc/mkinitcpio.conf
 # mkinitcpio -P
-
+yes | sudo pacman -Sy --noconfirm reflector
+sudo systemctl enable reflector.service
+sudo systemctl start reflector.service
 # pacman
 pacman_packages=(
     linux
@@ -294,7 +296,7 @@ pacman_packages=(
     godot
     joyutils
     gparted
-    nvidia-open 
+    nvidia 
     nvidia-utils
     lib32-nvidia-utils
     xorg-xinput
@@ -339,6 +341,12 @@ pacman_packages=(
     perl-file-homedir
     texlive-binextra
     texlive-plaingeneric
+    linux-firmware-qlogic
+    linux-firmware-bnx2x
+    linux-firmware-liquidio
+    linux-firmware-mellanox
+    linux-firmware-nfp
+    wine
     )
 
 for pkg in "${pacman_packages[@]}"; do
@@ -677,6 +685,11 @@ aur_packages=(
     # "https://aur.archlinux.org/python-pip-git.git pip-git"
     "https://aur.archlinux.org/pyenv-git.git pyenv-git"
     # "https://aur.archlinux.org/python-pipx-git.git pipx-git"
+    "https://aur.archlinux.org/aic94xx-firmware.git  aic94xx-firmware"
+    "https://aur.archlinux.org/ast-firmware.git  ast-firmware"
+    "https://aur.archlinux.org/wd719x-firmware.git  wd719x-firmware"
+    "https://aur.archlinux.org/upd72020x-fw.git  upd72020x-fw"
+    "https://aur.archlinux.org/mkinitcpio-firmware.git mkinitcpio-firmware"
 
 )
 
@@ -685,6 +698,10 @@ for pkg in "${aur_packages[@]}"; do
     pkg_name=$(echo $pkg | awk '{print $2}')
     install_from_aur $repo_url $pkg_name
 done
+
+cd ~/linux-configuration
+mkdir .config/mpv/
+cp mpv.conf .config/mpv/mpv.conf
 
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
