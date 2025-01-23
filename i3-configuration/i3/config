@@ -41,6 +41,9 @@ bindsym XF86AudioLowerVolume exec --no-startup-id /home/kuchy/volume_control.sh 
 bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle && $refresh_i3status
 bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle && $refresh_i3status
 
+# Add a key binding to toggle the microphone
+bindsym $mod+m exec --no-startup-id /home/kuchy/i3-configuration/scripts/toggle_mic.sh
+
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 
