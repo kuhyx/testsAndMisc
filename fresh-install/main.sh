@@ -350,11 +350,54 @@ pacman_packages=(
     )
 
 for pkg in "${pacman_packages[@]}"; do
-    if ! pacman -Qi $pkg > /dev/null 2>&1; then
-        # Check if the package exists in the AUR packages list
+    # Check for texlive subpackages
+    if [ "$pkg" == "texlive" ]; then
+        sub_pkgs=(
+            texlive-basic texlive-bibtexextra texlive-binextra texlive-context texlive-fontsextra
+            texlive-fontsrecommended texlive-fontutils texlive-formatsextra texlive-games texlive-humanities
+            texlive-latex texlive-latexextra texlive-latexrecommended texlive-luatex texlive-mathscience
+            texlive-metapost texlive-music texlive-pictures texlive-plaingeneric texlive-pstricks
+            texlive-publishers texlive-xetex
+        )
+        all_installed=true
+        for subpkg in "${sub_pkgs[@]}"; do
+            if ! pacman -Qi "$subpkg" &> /dev/null; then
+                all_installed=false
+                break
+            fi
+        done
+        if [ "$all_installed" = true ]; then
+            echo "All texlive subpackages are installed, skipping texlive"
+            continue
+        fi
+    fi
+
+    # Check for texlive-lang subpackages
+    if [ "$pkg" == "texlive-lang" ]; then
+        sub_pkgs=(
+            texlive-langarabic texlive-langchinese texlive-langcjk texlive-langcyrillic
+            texlive-langczechslovak texlive-langenglish texlive-langeuropean texlive-langfrench
+            texlive-langgerman texlive-langgreek texlive-langitalian texlive-langjapanese
+            texlive-langkorean texlive-langother texlive-langpolish texlive-langportuguese
+            texlive-langspanish
+        )
+        all_installed=true
+        for subpkg in "${sub_pkgs[@]}"; do
+            if ! pacman -Qi "$subpkg" &> /dev/null; then
+                all_installed=false
+                break
+            fi
+        done
+        if [ "$all_installed" = true ]; then
+            echo "All texlive-lang subpackages are installed, skipping texlive-lang"
+            continue
+        fi
+    fi
+
+    if ! pacman -Qi "$pkg" &> /dev/null; then
         if ! echo "${aur_packages[@]}" | grep -q "$pkg"; then
-            yes | sudo pacman -Sy --noconfirm $pkg
-        else        
+            yes | sudo pacman -Sy --noconfirm "$pkg"
+        else
             echo "$pkg exists in AUR packages, skipping pacman installation"
         fi
     else
@@ -413,7 +456,7 @@ aur_packages=(
     # "https://aur.archlinux.org/vtk-git.git vtk-git"
     # "https://aur.archlinux.org/ant-git.git ant-git"
     # "https://aur.archlinux.org/chrpath-git.git chrpath-git"
-    "https://aur.archlinux.org/openexr-git.git openexr-git"
+    #"https://aur.archlinux.org/openexr-git.git openexr-git"
 
     # "https://aur.archlinux.org/gdb-git.git gdb-git"
      "https://aur.archlinux.org/valgrind-git.git valgrind-git"
@@ -506,7 +549,6 @@ aur_packages=(
     # "https://aur.archlinux.org/vtk-git.git vtk-git"
     # "https://aur.archlinux.org/ant-git.git ant-git"
     # "https://aur.archlinux.org/chrpath-git.git chrpath-git"
-    "https://aur.archlinux.org/openexr-git.git openexr-git"
 
     # "https://aur.archlinux.org/gdb-git.git gdb-git"
      "https://aur.archlinux.org/valgrind-git.git valgrind-git"
