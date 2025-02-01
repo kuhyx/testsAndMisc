@@ -412,6 +412,7 @@ fi
 export NVM_DIR=$HOME/.nvm;
 source $NVM_DIR/nvm.sh;
 nvm i v18.20.5
+nvm install --lts
 sudo systemctl enable bluetooth.service
 sudo systemctl start bluetooth.service
 aur_packages=(
@@ -638,8 +639,8 @@ aur_packages=(
     "https://aur.archlinux.org/glu-git.git glu-git"
     "https://aur.archlinux.org/mupdf-git.git mupdf-git"
     # "https://aur.archlinux.org/exiv2-git.git exiv2-git"
-    "https://aur.archlinux.org/libraw-git.git libraw-git"
-    "https://aur.archlinux.org/nomacs-git.git nomacs-git"
+    # "https://aur.archlinux.org/libraw-git.git libraw-git"
+    #"https://aur.archlinux.org/nomacs-git.git nomacs-git"
     "https://aur.archlinux.org/aribb24-git.git aribb24-git"
     # "https://aur.archlinux.org/avisynthplus-git.git avisynthplus-git"
    #  "https://aur.archlinux.org/lcevcdec.git lcevcdec"
@@ -686,8 +687,8 @@ aur_packages=(
     # "https://aur.archlinux.org/unityhub-beta.git unityhub-beta"
     # "https://aur.archlinux.org/keepassxc-git.git keepassxc-git"
     #"https://aur.archlinux.org/nvidia-open-git.git nvidia-open-git"
-    "https://aur.archlinux.org/autorandr-git.git autorandr-git"
-    "https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
+    #"https://aur.archlinux.org/autorandr-git.git autorandr-git"
+    #"https://aur.archlinux.org/xorg-xrandr-git.git xorg-xrandr-git"
     "https://aur.archlinux.org/mpv-plugin-xrandr.git mpv-plugin-xrandr"
 
     # "https://aur.archlinux.org/alembic-git.git alembic-git"
@@ -715,7 +716,7 @@ aur_packages=(
     # "https://aur.archlinux.org/gparted-git.git gparted-git"    
     # "https://aur.archlinux.org/ferdium-git.git ferdium-git"
     "https://aur.archlinux.org/ferdium.git ferdium"
-    "https://aur.archlinux.org/gamemode-git.git gamemode-git"
+    #"https://aur.archlinux.org/gamemode-git.git gamemode-git"
     #"https://aur.archlinux.org/mangohud-git.git mangohud-git"
     #"https://aur.archlinux.org/lib32-mangohud-git.git lib32-mangohud-git"
     # https://wiki.archlinux.org/title/File_manager_functionality#File_managers_other_than_Dolphin_and_Konqueror
@@ -741,9 +742,11 @@ for pkg in "${aur_packages[@]}"; do
     install_from_aur $repo_url $pkg_name
 done
 
-cd ~/linux-configuration
-mkdir .config/mpv/
-cp mpv.conf .config/mpv/mpv.conf
+cd ~/linux-configuration/fresh-install
+if [ ! -d "$HOME/.config/mpv" ]; then
+    mkdir -p "$HOME/.config/mpv"
+fi
+cp mpv.conf "$HOME/.config/mpv/mpv.conf"
 
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
