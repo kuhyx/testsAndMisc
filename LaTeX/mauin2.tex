@@ -1,0 +1,21 @@
+\documentclass[a4paper]{article}
+\usepackage{background}
+\usepackage{lipsum}
+\pagestyle{empty} % Disable page numbering
+
+\newlength\mylen
+\setlength\mylen{\dimexpr\paperwidth/40\relax}
+
+\SetBgScale{1}
+\SetBgAngle{0}
+\SetBgColor{blue!30}
+\SetBgContents{\tikz{\draw[step=\mylen] (-.5\paperwidth,-.5\paperheight) grid (.5\paperwidth,.5\paperheight);}}
+
+\begin{document}
+\newpage 
+
+\ % The empty page
+
+\newpage
+
+\end{document}
