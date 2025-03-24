@@ -52,10 +52,80 @@ function display_operation() {
     esac
 }
 
+# Function to check if user is trying to install specific packages that require confirmation
+function check_for_steam() {
+    # List of packages that require confirmation
+    local restricted_packages=("steam" "freetube-bin")
+    
+    # Check if the command is an installation command
+    if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" ]]; then
+        # Check all arguments
+        for arg in "$@"; do
+            # Check if argument matches any restricted package
+            for package in "${restricted_packages[@]}"; do
+                if [[ "$arg" == "$package" ]]; then
+                    return 0  # Restricted package found
+                fi
+            done
+        done
+    fi
+    return 1  # No restricted package found
+}
+
+# Function to prompt for a generated random string
+function prompt_for_random_string() {
+    echo -e "${YELLOW}WARNING: You are trying to install Steam.${NC}"
+    
+    # Generate a random 32-character string
+    random_string=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+    
+    echo -e "${YELLOW}To confirm installation, please type (not copy/paste) this exact string:${NC}"
+    echo -e "${YELLOW}The string will be displayed for 10 seconds only.${NC}"
+    echo -e "${YELLOW}Get ready to type...${NC}"
+    sleep 2
+    
+    # Display string character by character with spaces to prevent easy copying
+    echo -e "${CYAN}"
+    for ((i=0; i<${#random_string}; i++)); do
+        # Add random spacing and line breaks to make copying harder
+        if ((i % 8 == 0)) && ((i > 0)); then
+            echo ""
+        fi
+        printf " %c " "${random_string:$i:1}"
+    done
+    echo -e "${NC}"
+    
+    # Set a timer to clear the string
+    (sleep 10 && echo -e "\033[2J\033[H" && echo -e "${YELLOW}Time's up! Enter the string you memorized:${NC}") &
+    timer_pid=$!
+    
+    echo -e "${YELLOW}Enter the string shown above:${NC}"
+    read -r user_input
+    
+    # Kill the timer if it's still running
+    kill $timer_pid &>/dev/null
+    
+    if [[ "$user_input" == "$random_string" ]]; then
+        echo -e "${GREEN}String matched. Proceeding with installation...${NC}"
+        return 0
+    else
+        echo -e "${RED}Error: String did not match. Steam installation aborted.${NC}"
+        return 1
+    fi
+}
+
 # Check for wrapper-specific commands
 if [[ "$1" == "--help-wrapper" ]]; then
     show_help
     exit 0
+fi
+
+# Check if trying to install steam
+if check_for_steam "$@"; then
+    prompt_for_random_string
+    if [[ $? -ne 0 ]]; then
+        exit 1
+    fi
 fi
 
 # Display operation
@@ -64,7 +134,6 @@ display_operation "$1"
 # Echo the command that's about to be executed
 echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@"
 
-# ...existing code...
 # Record start time for statistics
 start_time=$(date +%s)
 
