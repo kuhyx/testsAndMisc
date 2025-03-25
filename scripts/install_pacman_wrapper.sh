@@ -1,6 +1,13 @@
 #!/bin/bash
 # filepath: /home/kuhy/linux-configuration/scripts/install_pacman_wrapper.sh
 
+# Auto-sudo functionality
+if [ "$EUID" -ne 0 ]; then
+  echo "Executing with sudo..."
+  sudo "$0" "$@"
+  exit $?
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -34,55 +41,23 @@ echo -e "${BLUE}Copying wrapper script to ${WRAPPER_DEST}...${NC}"
 cp "$WRAPPER_SOURCE" "$WRAPPER_DEST"
 chmod +x "$WRAPPER_DEST"
 
-# Choose installation method
-echo -e "${YELLOW}Select installation method:${NC}"
-echo "1. Create alias in /etc/profile.d/ (recommended)"
-echo "2. Create symbolic link (advanced)"
-read -p "Enter choice (1-2): " choice
+# Automatically use symbolic link installation method
+echo -e "${YELLOW}Installing using symbolic link method...${NC}"
 
-case $choice in
-  1)
-    # Create an alias file in /etc/profile.d/
-    echo -e "${BLUE}Creating system-wide alias...${NC}"
-    cat > /etc/profile.d/pacman-wrapper.sh << EOF
-#!/bin/bash
-alias pacman='$WRAPPER_DEST'
-EOF
-    chmod +x /etc/profile.d/pacman-wrapper.sh
-    echo -e "${GREEN}Installation complete!${NC}"
-    echo -e "${YELLOW}Note:${NC} You need to log out and log back in for the alias to take effect."
-    echo -e "Alternatively, run: ${CYAN}source /etc/profile.d/pacman-wrapper.sh${NC}"
-    ;;
-  2)
-    # Create a symbolic link
-    echo -e "${YELLOW}Warning: This method replaces the pacman command directly.${NC}"
-    echo -e "Make sure your wrapper script is fully functional to avoid system issues."
-    read -p "Are you sure you want to continue? (y/N): " confirm
-    if [[ "$confirm" == [yY] || "$confirm" == [yY][eE][sS] ]]; then
-      # Backup original pacman
-      if [ ! -f "/usr/bin/pacman.orig" ]; then
-        echo -e "${BLUE}Backing up original pacman to /usr/bin/pacman.orig...${NC}"
-        cp /usr/bin/pacman /usr/bin/pacman.orig
-      fi
-      
-      # Update the PACMAN_BIN variable in the wrapper to point to the original
-      sed -i 's|PACMAN_BIN="\/usr\/bin\/pacman"|PACMAN_BIN="\/usr\/bin\/pacman.orig"|g' "$WRAPPER_DEST"
-      
-      # Create symbolic link
-      echo -e "${BLUE}Creating symbolic link...${NC}"
-      ln -sf "$WRAPPER_DEST" /usr/bin/pacman
-      echo -e "${GREEN}Installation complete!${NC}"
-      echo -e "Pacman is now wrapped. The original pacman is available at ${CYAN}/usr/bin/pacman.orig${NC}"
-    else
-      echo -e "${YELLOW}Installation cancelled.${NC}"
-      exit 0
-    fi
-    ;;
-  *)
-    echo -e "${RED}Invalid choice. Installation cancelled.${NC}"
-    exit 1
-    ;;
-esac
+# Backup original pacman
+if [ ! -f "/usr/bin/pacman.orig" ]; then
+  echo -e "${BLUE}Backing up original pacman to /usr/bin/pacman.orig...${NC}"
+  cp /usr/bin/pacman /usr/bin/pacman.orig
+fi
+
+# Update the PACMAN_BIN variable in the wrapper to point to the original
+sed -i 's|PACMAN_BIN="\/usr\/bin\/pacman"|PACMAN_BIN="\/usr\/bin\/pacman.orig"|g' "$WRAPPER_DEST"
+
+# Create symbolic link
+echo -e "${BLUE}Creating symbolic link...${NC}"
+ln -sf "$WRAPPER_DEST" /usr/bin/pacman
+echo -e "${GREEN}Installation complete!${NC}"
+echo -e "Pacman is now wrapped. The original pacman is available at ${CYAN}/usr/bin/pacman.orig${NC}"
 
 # Create uninstaller
 echo -e "${BLUE}Creating uninstaller...${NC}"
