@@ -65,7 +65,7 @@ function display_operation() {
 # Function to check if user is trying to install specific packages that require confirmation
 function check_for_steam() {
     # List of packages that require confirmation
-    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey")
+    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey" "google-chrome" "mirosoft-edge-stable-bin" "opera" "slimjet" "vivaldi" "yandex-browser" "min-browser-bin" "vieb-bin")
     
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
@@ -92,69 +92,56 @@ function check_for_steam() {
 function prompt_for_math_solution() {
     echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
     
-    # Generate a random math problem
-    operation_type=$((RANDOM % 5 + 1))
+    # Generate a random math problem with a random number of operations
+    # Define possible operations
+    operations=('+' '-' '*' '/')
     
-    case $operation_type in
-        1) # Addition
-            num1=$((RANDOM % 90 + 10))
-            num2=$((RANDOM % 90 + 10))
-            problem="$num1 + $num2"
-            solution=$((num1 + num2))
-            ;;
-        2) # Subtraction
-            num1=$((RANDOM % 90 + 10))
-            num2=$((RANDOM % 90 + 10))
-            # Make sure num1 > num2 for positive result
-            if [[ $num1 -lt $num2 ]]; then
-                temp=$num1
-                num1=$num2
-                num2=$temp
-            fi
-            problem="$num1 - $num2"
-            solution=$((num1 - num2))
-            ;;
-        3) # Multiplication
-            num1=$((RANDOM % 15 + 2))
-            num2=$((RANDOM % 15 + 2))
-            problem="$num1 * $num2"
-            solution=$((num1 * num2))
-            ;;
-        4) # Division (with whole number result)
-            num2=$((RANDOM % 10 + 2))
-            num1=$((num2 * (RANDOM % 10 + 1)))
-            problem="$num1 / $num2"
-            solution=$((num1 / num2))
-            ;;
-        5) # Mixed with parentheses
-            num1=$((RANDOM % 20 + 5))
-            num2=$((RANDOM % 10 + 2))
-            num3=$((RANDOM % 20 + 5))
-            
-            # Random sub-operation
-            sub_op=$((RANDOM % 3 + 1))
-            
-            case $sub_op in
-                1)
-                    problem="($num1 + $num2) * $num3"
-                    solution=$(((num1 + num2) * num3))
-                    ;;
-                2)
-                    if [[ $num1 -lt $num2 ]]; then
-                        temp=$num1
-                        num1=$num2
-                        num2=$temp
-                    fi
-                    problem="($num1 - $num2) * $num3"
-                    solution=$(((num1 - num2) * num3))
-                    ;;
-                3)
-                    problem="$num1 * ($num2 + $num3)"
-                    solution=$((num1 * (num2 + num3)))
-                    ;;
-            esac
-            ;;
-    esac
+    # Decide on the number of operations (2-4)
+    num_operations=$((RANDOM % 4 + 3))
+    
+    # Start with a random number
+    current_value=$((RANDOM % 50 + 10))
+    problem="$current_value"
+    
+    # Build the problem step by step
+    for ((i=1; i<=num_operations; i++)); do
+        # Choose a random operation
+        op=${operations[$((RANDOM % ${#operations[@]}))]}
+        
+        # Generate the next operand based on the operation
+        case $op in
+            '+') 
+                next_num=$((RANDOM % 50 + 5))
+                ;;
+            '-') 
+                next_num=$((RANDOM % 50 + 5))
+                ;;
+            '*') 
+                next_num=$((RANDOM % 10 + 2))  # Smaller numbers for multiplication
+                ;;
+            '/') 
+                # For division, ensure it's clean (no remainder)
+                next_num=$((RANDOM % 5 + 2))
+                current_value=$((next_num * (RANDOM % 10 + 1)))
+                problem="$current_value"
+                i=1  # Reset counter to ensure we still get the right number of operations
+                continue
+                ;;
+        esac
+        
+        problem="$problem $op $next_num"
+        
+        # Update current value for next iteration
+        case $op in
+            '+') current_value=$((current_value + next_num)) ;;
+            '-') current_value=$((current_value - next_num)) ;;
+            '*') current_value=$((current_value * next_num)) ;;
+            '/') current_value=$((current_value / next_num)) ;;
+        esac
+    done
+    
+    # Calculate solution using bash's evaluation
+    solution=$(eval "echo \$(($problem))")
     
     echo -e "${YELLOW}To confirm installation, please solve this math problem:${NC}"
     echo -e "${CYAN}$problem = ?${NC}"
