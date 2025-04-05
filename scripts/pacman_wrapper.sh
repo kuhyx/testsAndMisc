@@ -11,7 +11,17 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Define paths for both pacman and pacman.orig
 PACMAN_BIN="/usr/bin/pacman"
+PACMAN_ORIG_BIN="/usr/bin/pacman.orig.real"
+
+# Detect if script is being called as pacman.orig
+SCRIPT_NAME=$(basename "$0")
+if [[ "$SCRIPT_NAME" == "pacman.orig" ]]; then
+    IS_PACMAN_ORIG=true
+else
+    IS_PACMAN_ORIG=false
+fi
 
 # Function to display help
 function show_help() {
@@ -55,16 +65,22 @@ function display_operation() {
 # Function to check if user is trying to install specific packages that require confirmation
 function check_for_steam() {
     # List of packages that require confirmation
-    local restricted_packages=("steam" "freetube-bin")
+    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey")
     
     # Check if the command is an installation command
-    if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" ]]; then
+    if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
         # Check all arguments
         for arg in "$@"; do
+            # Fix the comment that was accidentally merged with code
             # Check if argument matches any restricted package
             for package in "${restricted_packages[@]}"; do
                 if [[ "$arg" == "$package" ]]; then
                     return 0  # Restricted package found
+                fi
+                
+                # Check if the argument is a path containing the restricted package
+                if [[ "$arg" == *"$package"*".pkg.tar."* ]]; then
+                    return 0  # Restricted package found in path
                 fi
             done
         done
@@ -164,7 +180,7 @@ if [[ "$1" == "--help-wrapper" ]]; then
     exit 0
 fi
 
-# Check if trying to install steam
+# Check if trying to install restricted packages
 if check_for_steam "$@"; then
     prompt_for_math_solution
     if [[ $? -ne 0 ]]; then
@@ -175,14 +191,20 @@ fi
 # Display operation
 display_operation "$1"
 
-# Echo the command that's about to be executed
-echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@"
+# Determine which binary to use
+if [[ "$IS_PACMAN_ORIG" == true ]]; then
+    echo -e "${GREEN}Executing via pacman.orig:${NC} $PACMAN_ORIG_BIN $@"
+    EXEC_BIN="$PACMAN_ORIG_BIN"
+else
+    echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@"
+    EXEC_BIN="$PACMAN_BIN"
+fi
 
 # Record start time for statistics
 start_time=$(date +%s)
 
 # Execute the real pacman command
-"$PACMAN_BIN" "$@"
+"$EXEC_BIN" "$@"
 exit_code=$?
 
 # Record end time for statistics
