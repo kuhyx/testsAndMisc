@@ -72,44 +72,88 @@ function check_for_steam() {
     return 1  # No restricted package found
 }
 
-# Function to prompt for a generated random string
-function prompt_for_random_string() {
-    echo -e "${YELLOW}WARNING: You are trying to install Steam.${NC}"
+# Function to prompt for solving a math problem
+function prompt_for_math_solution() {
+    echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
     
-    # Generate a random 32-character string
-    random_string=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+    # Generate a random math problem
+    operation_type=$((RANDOM % 5 + 1))
     
-    echo -e "${YELLOW}To confirm installation, please type (not copy/paste) this exact string:${NC}"
-    echo -e "${YELLOW}The string will be displayed for 10 seconds only.${NC}"
-    echo -e "${YELLOW}Get ready to type...${NC}"
-    sleep 2
+    case $operation_type in
+        1) # Addition
+            num1=$((RANDOM % 90 + 10))
+            num2=$((RANDOM % 90 + 10))
+            problem="$num1 + $num2"
+            solution=$((num1 + num2))
+            ;;
+        2) # Subtraction
+            num1=$((RANDOM % 90 + 10))
+            num2=$((RANDOM % 90 + 10))
+            # Make sure num1 > num2 for positive result
+            if [[ $num1 -lt $num2 ]]; then
+                temp=$num1
+                num1=$num2
+                num2=$temp
+            fi
+            problem="$num1 - $num2"
+            solution=$((num1 - num2))
+            ;;
+        3) # Multiplication
+            num1=$((RANDOM % 15 + 2))
+            num2=$((RANDOM % 15 + 2))
+            problem="$num1 * $num2"
+            solution=$((num1 * num2))
+            ;;
+        4) # Division (with whole number result)
+            num2=$((RANDOM % 10 + 2))
+            num1=$((num2 * (RANDOM % 10 + 1)))
+            problem="$num1 / $num2"
+            solution=$((num1 / num2))
+            ;;
+        5) # Mixed with parentheses
+            num1=$((RANDOM % 20 + 5))
+            num2=$((RANDOM % 10 + 2))
+            num3=$((RANDOM % 20 + 5))
+            
+            # Random sub-operation
+            sub_op=$((RANDOM % 3 + 1))
+            
+            case $sub_op in
+                1)
+                    problem="($num1 + $num2) * $num3"
+                    solution=$(((num1 + num2) * num3))
+                    ;;
+                2)
+                    if [[ $num1 -lt $num2 ]]; then
+                        temp=$num1
+                        num1=$num2
+                        num2=$temp
+                    fi
+                    problem="($num1 - $num2) * $num3"
+                    solution=$(((num1 - num2) * num3))
+                    ;;
+                3)
+                    problem="$num1 * ($num2 + $num3)"
+                    solution=$((num1 * (num2 + num3)))
+                    ;;
+            esac
+            ;;
+    esac
     
-    # Display string character by character with spaces to prevent easy copying
-    echo -e "${CYAN}"
-    for ((i=0; i<${#random_string}; i++)); do
-        # Add random spacing and line breaks to make copying harder
-        if ((i % 8 == 0)) && ((i > 0)); then
-            echo ""
-        fi
-        printf " %c " "${random_string:$i:1}"
-    done
-    echo -e "${NC}"
+    echo -e "${YELLOW}To confirm installation, please solve this math problem:${NC}"
+    echo -e "${CYAN}$problem = ?${NC}"
     
-    # Set a timer to clear the string
-    (sleep 10 && echo -e "\033[2J\033[H" && echo -e "${YELLOW}Time's up! Enter the string you memorized:${NC}") &
-    timer_pid=$!
-    
-    echo -e "${YELLOW}Enter the string shown above:${NC}"
+    echo -e "${YELLOW}Enter your answer:${NC}"
     read -r user_input
     
-    # Kill the timer if it's still running
-    kill $timer_pid &>/dev/null
+    # Trim whitespaces from user input
+    user_input=$(echo $user_input | xargs)
     
-    if [[ "$user_input" == "$random_string" ]]; then
-        echo -e "${GREEN}String matched. Proceeding with installation...${NC}"
+    if [[ "$user_input" == "$solution" ]]; then
+        echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
         return 0
     else
-        echo -e "${RED}Error: String did not match. Steam installation aborted.${NC}"
+        echo -e "${RED}Incorrect answer. Installation aborted. The correct answer was $solution.${NC}"
         return 1
     fi
 }
@@ -122,7 +166,7 @@ fi
 
 # Check if trying to install steam
 if check_for_steam "$@"; then
-    prompt_for_random_string
+    prompt_for_math_solution
     if [[ $? -ne 0 ]]; then
         exit 1
     fi
