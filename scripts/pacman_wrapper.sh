@@ -92,21 +92,45 @@ function check_for_steam() {
 function prompt_for_math_solution() {
     echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
     
-    # Generate a random math problem with a random number of operations
     # Define possible operations
     operations=('+' '-' '*' '/')
+    mult_div_operations=('*' '/')
+    add_sub_operations=('+' '-')
     
-    # Decide on the number of operations (2-4)
-    num_operations=$((RANDOM % 4 + 3))
+    # Set minimum requirements
+    min_total_operations=6
+    min_mult_div=3
     
     # Start with a random number
+    number_of_operations=$((RANDOM % 4 + min_total_operations))
     current_value=$((RANDOM % 50 + 10))
     problem="$current_value"
     
-    # Build the problem step by step
-    for ((i=1; i<=num_operations; i++)); do
-        # Choose a random operation
-        op=${operations[$((RANDOM % ${#operations[@]}))]}
+    # Track how many multiplication/division operations we've used
+    mult_div_count=0
+    
+    # Build the problem with minimum required operations
+    for ((i=1; i<=number_of_operations; i++)); do
+        # If we haven't met the multiplication/division minimum and we're running out of operations
+        if [[ $mult_div_count -lt $min_mult_div && $(($number_of_operations - $i + 1)) -le $(($min_mult_div - $mult_div_count)) ]]; then
+            # Force a multiplication or division
+            op=${mult_div_operations[$((RANDOM % 2))]}
+            mult_div_count=$((mult_div_count + 1))
+        # If we've met minimum mult/div requirement, use any operation
+        elif [[ $mult_div_count -ge $min_mult_div ]]; then
+            op=${operations[$((RANDOM % 4))]}
+            # Count if we randomly selected another mult/div operation
+            [[ $op == "*" || $op == "/" ]] && ((mult_div_count++))
+        # Otherwise randomly choose a mult/div or add/sub with preference for mult/div
+        else
+            # 70% chance for mult/div until minimum is met
+            if [[ $((RANDOM % 10)) -lt 7 ]]; then
+                op=${mult_div_operations[$((RANDOM % 2))]}
+                mult_div_count=$((mult_div_count + 1))
+            else
+                op=${add_sub_operations[$((RANDOM % 2))]}
+            fi
+        fi
         
         # Generate the next operand based on the operation
         case $op in
@@ -117,14 +141,16 @@ function prompt_for_math_solution() {
                 next_num=$((RANDOM % 50 + 5))
                 ;;
             '*') 
-                next_num=$((RANDOM % 10 + 2))  # Smaller numbers for multiplication
+                next_num=$((RANDOM % 9 + 2))  # Smaller numbers for multiplication
                 ;;
             '/') 
                 # For division, ensure it's clean (no remainder)
                 next_num=$((RANDOM % 5 + 2))
-                current_value=$((next_num * (RANDOM % 10 + 1)))
+                temp_value=$((next_num * (RANDOM % 10 + 1)))
+                current_value=$temp_value
                 problem="$current_value"
                 i=1  # Reset counter to ensure we still get the right number of operations
+                mult_div_count=0  # Reset the counter since we're starting over
                 continue
                 ;;
         esac
