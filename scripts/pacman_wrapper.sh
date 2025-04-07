@@ -11,17 +11,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Define paths for both pacman and pacman.orig
 PACMAN_BIN="/usr/bin/pacman"
-PACMAN_ORIG_BIN="/usr/bin/pacman.orig.real"
-
-# Detect if script is being called as pacman.orig
-SCRIPT_NAME=$(basename "$0")
-if [[ "$SCRIPT_NAME" == "pacman.orig" ]]; then
-    IS_PACMAN_ORIG=true
-else
-    IS_PACMAN_ORIG=false
-fi
 
 # Function to display help
 function show_help() {
@@ -65,22 +55,17 @@ function display_operation() {
 # Function to check if user is trying to install specific packages that require confirmation
 function check_for_steam() {
     # List of packages that require confirmation
-    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey" "google-chrome" "mirosoft-edge-stable-bin" "opera" "slimjet" "vivaldi" "yandex-browser" "min-browser-bin" "vieb-bin")
+    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey")
     
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
         # Check all arguments
         for arg in "$@"; do
-            # Fix the comment that was accidentally merged with code
-            # Check if argument matches any restricted package
+            # Check if argument matches any restricted packageExecuting: /usr/bin/pacman.orig -U --config /etc/pacman.conf -- /home/kuhy/.cache/yay/seamonkey-bin/seamonkey-bin-2.53.20-1-x86_64.pkg.tar.zst /home/kuhy/.cache/yay/seamonkey-bin/seamonkey-bin-debug-2.53.20-1-x86_64.pkg.tar.zst
+
             for package in "${restricted_packages[@]}"; do
                 if [[ "$arg" == "$package" ]]; then
                     return 0  # Restricted package found
-                fi
-                
-                # Check if the argument is a path containing the restricted package
-                if [[ "$arg" == *"$package"*".pkg.tar."* ]]; then
-                    return 0  # Restricted package found in path
                 fi
             done
         done
@@ -88,101 +73,68 @@ function check_for_steam() {
     return 1  # No restricted package found
 }
 
-# Function to prompt for solving a math problem
+# Function to prompt for solving a word unscrambling challenge
 function prompt_for_math_solution() {
     echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
+    echo -e "${YELLOW}Challenge will begin shortly...${NC}"
     
-    # Define possible operations
-    operations=('+' '-' '*' '/')
-    mult_div_operations=('*' '/')
-    add_sub_operations=('+' '-')
+    # Sleep for random 5-10 seconds
+    sleep_duration=$((RANDOM % 10 + 10))
+    sleep $sleep_duration
     
-    # Set minimum requirements
-    min_total_operations=6
-    min_mult_div=3
+    # Define path to words.txt (in the same directory as the script)
+    script_dir="$(dirname "$(readlink -f "$0")")"
+    words_file="$script_dir/words.txt"
     
-    # Start with a random number
-    number_of_operations=$((RANDOM % 4 + min_total_operations))
-    current_value=$((RANDOM % 50 + 10))
-    problem="$current_value"
+    # Check if words.txt exists
+    if [[ ! -f "$words_file" ]]; then
+        echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
+        return 1
+    fi
+    words_count=80
+    # Load ${words_count} random words
+    mapfile -t selected_words < <(shuf -n $words_count "$words_file")
     
-    # Track how many multiplication/division operations we've used
-    mult_div_count=0
-    
-    # Build the problem with minimum required operations
-    for ((i=1; i<=number_of_operations; i++)); do
-        # If we haven't met the multiplication/division minimum and we're running out of operations
-        if [[ $mult_div_count -lt $min_mult_div && $(($number_of_operations - $i + 1)) -le $(($min_mult_div - $mult_div_count)) ]]; then
-            # Force a multiplication or division
-            op=${mult_div_operations[$((RANDOM % 2))]}
-            mult_div_count=$((mult_div_count + 1))
-        # If we've met minimum mult/div requirement, use any operation
-        elif [[ $mult_div_count -ge $min_mult_div ]]; then
-            op=${operations[$((RANDOM % 4))]}
-            # Count if we randomly selected another mult/div operation
-            [[ $op == "*" || $op == "/" ]] && ((mult_div_count++))
-        # Otherwise randomly choose a mult/div or add/sub with preference for mult/div
-        else
-            # 70% chance for mult/div until minimum is met
-            if [[ $((RANDOM % 10)) -lt 7 ]]; then
-                op=${mult_div_operations[$((RANDOM % 2))]}
-                mult_div_count=$((mult_div_count + 1))
-            else
-                op=${add_sub_operations[$((RANDOM % 2))]}
-            fi
-        fi
-        
-        # Generate the next operand based on the operation
-        case $op in
-            '+') 
-                next_num=$((RANDOM % 50 + 5))
-                ;;
-            '-') 
-                next_num=$((RANDOM % 50 + 5))
-                ;;
-            '*') 
-                next_num=$((RANDOM % 9 + 2))  # Smaller numbers for multiplication
-                ;;
-            '/') 
-                # For division, ensure it's clean (no remainder)
-                next_num=$((RANDOM % 5 + 2))
-                temp_value=$((next_num * (RANDOM % 10 + 1)))
-                current_value=$temp_value
-                problem="$current_value"
-                i=1  # Reset counter to ensure we still get the right number of operations
-                mult_div_count=0  # Reset the counter since we're starting over
-                continue
-                ;;
-        esac
-        
-        problem="$problem $op $next_num"
-        
-        # Update current value for next iteration
-        case $op in
-            '+') current_value=$((current_value + next_num)) ;;
-            '-') current_value=$((current_value - next_num)) ;;
-            '*') current_value=$((current_value * next_num)) ;;
-            '/') current_value=$((current_value / next_num)) ;;
-        esac
+    # Convert all words to uppercase
+    for i in "${!selected_words[@]}"; do
+        selected_words[$i]=$(echo "${selected_words[$i]}" | tr '[:lower:]' '[:upper:]')
     done
     
-    # Calculate solution using bash's evaluation
-    solution=$(eval "echo \$(($problem))")
+    echo -e "${CYAN}Here are ${words_count} random words. Remember them:${NC}"
     
-    echo -e "${YELLOW}To confirm installation, please solve this math problem:${NC}"
-    echo -e "${CYAN}$problem = ?${NC}"
+    # Display the words in a 5x4 grid (5 rows, 4 columns)
+    for (( i=0; i<words_count; i++ )); do
+        printf "${BLUE}%-15s${NC}" "${selected_words[$i]}"
+        if (( (i+1) % 4 == 0 )); then
+            echo ""
+        fi
+    done
+
+    # Select a random word to scramble (already in uppercase)
+    target_index=$((RANDOM % ${words_count}))
+    target_word="${selected_words[$target_index]}"
     
-    echo -e "${YELLOW}Enter your answer:${NC}"
+    # Scramble the word
+    scrambled_word=$(echo "$target_word" | fold -w1 | shuf | tr -d '\n')
+    
+    # Ensure scrambled word is different from original
+    if [[ "$scrambled_word" == "$target_word" ]]; then
+        # Use simple reversal as fallback
+        scrambled_word=$(echo "$target_word" | rev)
+    fi
+    
+    echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
+    echo -e "${YELLOW}Unscramble the word to proceed with installation:${NC}"
     read -r user_input
     
-    # Trim whitespaces from user input
-    user_input=$(echo $user_input | xargs)
+    # Convert user input to uppercase and trim whitespaces
+    user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
     
-    if [[ "$user_input" == "$solution" ]]; then
+    if [[ "$user_input" == "$target_word" ]]; then
         echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
         return 0
     else
-        echo -e "${RED}Incorrect answer. Installation aborted. The correct answer was $solution.${NC}"
+        echo -e "${RED}Incorrect answer. Installation aborted. The correct word was '$target_word'.${NC}"
         return 1
     fi
 }
@@ -193,7 +145,7 @@ if [[ "$1" == "--help-wrapper" ]]; then
     exit 0
 fi
 
-# Check if trying to install restricted packages
+# Check if trying to install steam
 if check_for_steam "$@"; then
     prompt_for_math_solution
     if [[ $? -ne 0 ]]; then
@@ -204,20 +156,14 @@ fi
 # Display operation
 display_operation "$1"
 
-# Determine which binary to use
-if [[ "$IS_PACMAN_ORIG" == true ]]; then
-    echo -e "${GREEN}Executing via pacman.orig:${NC} $PACMAN_ORIG_BIN $@"
-    EXEC_BIN="$PACMAN_ORIG_BIN"
-else
-    echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@"
-    EXEC_BIN="$PACMAN_BIN"
-fi
+# Echo the command that's about to be executed
+echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@"
 
 # Record start time for statistics
 start_time=$(date +%s)
 
 # Execute the real pacman command
-"$EXEC_BIN" "$@"
+"$PACMAN_BIN" "$@"
 exit_code=$?
 
 # Record end time for statistics
