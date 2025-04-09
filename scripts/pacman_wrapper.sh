@@ -61,10 +61,9 @@ function check_for_steam() {
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
         # Check all arguments
         for arg in "$@"; do
-            # Check if argument matches any restricted packageExecuting: /usr/bin/pacman.orig -U --config /etc/pacman.conf -- /home/kuhy/.cache/yay/seamonkey-bin/seamonkey-bin-2.53.20-1-x86_64.pkg.tar.zst /home/kuhy/.cache/yay/seamonkey-bin/seamonkey-bin-debug-2.53.20-1-x86_64.pkg.tar.zst
-
+            # Check if argument matches any restricted package
             for package in "${restricted_packages[@]}"; do
-                if [[ "$arg" == "$package" ]]; then
+                if [[ "$arg" == "$package" || "$arg" == *"/$package-"* || "$arg" == *"/$package/"* ]]; then
                     return 0  # Restricted package found
                 fi
             done
