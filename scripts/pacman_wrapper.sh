@@ -55,7 +55,7 @@ function display_operation() {
 # Function to check if user is trying to install specific packages that require confirmation
 function check_for_steam() {
     # List of packages that require confirmation
-    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin")
+    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp" "yt-dlp-git")
     
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
@@ -78,7 +78,7 @@ function prompt_for_math_solution() {
     echo -e "${YELLOW}Challenge will begin shortly...${NC}"
     
     # Sleep for random 5-10 seconds
-    sleep_duration=$((RANDOM % 10 + 10))
+    sleep_duration=$((RANDOM % 20 + 20))
     sleep $sleep_duration
     
     # Define path to words.txt (in the same directory as the script)
@@ -90,7 +90,7 @@ function prompt_for_math_solution() {
         echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
         return 1
     fi
-    words_count=80
+    words_count=160
     # Load ${words_count} random words
     mapfile -t selected_words < <(shuf -n $words_count "$words_file")
     
