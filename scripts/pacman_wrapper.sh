@@ -91,16 +91,20 @@ function prompt_for_math_solution() {
         return 1
     fi
     
-    # Filter words by length (5-8 characters) and load random words
+    # Choose a specific word length (5, 6, 7, or 8 characters)
+    word_length=$((RANDOM % 4 + 5))
+    echo -e "${CYAN}Today's challenge: Words with ${word_length} letters${NC}"
+    
+    # Filter words by the specific chosen length and load random words
     words_count=160
-    mapfile -t selected_words < <(grep -E '^[a-zA-Z]{5,8}$' "$words_file" | shuf -n $words_count)
+    mapfile -t selected_words < <(grep -E "^[a-zA-Z]{$word_length}$" "$words_file" | shuf -n $words_count)
     
     # If we couldn't get enough words of the right length
     if [[ ${#selected_words[@]} -lt $words_count ]]; then
-        echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of the required length.${NC}"
+        echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of length $word_length.${NC}"
         words_count=${#selected_words[@]}
         if [[ $words_count -eq 0 ]]; then
-            echo -e "${RED}Error: No words of length 5-8 found in $words_file${NC}"
+            echo -e "${RED}Error: No words of length $word_length found in $words_file${NC}"
             return 1
         fi
     fi
@@ -142,6 +146,11 @@ function prompt_for_math_solution() {
     
     if [[ "$user_input" == "$target_word" ]]; then
         echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
+        
+        # Add sleep after successful challenge completion (3-6 seconds)
+        post_challenge_sleep=$((RANDOM % 20 + 20))
+        sleep $post_challenge_sleep
+        
         return 0
     else
         echo -e "${RED}Incorrect answer. Installation aborted. The correct word was '$target_word'.${NC}"
