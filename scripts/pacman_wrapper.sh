@@ -77,7 +77,7 @@ function prompt_for_math_solution() {
     echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
     echo -e "${YELLOW}Challenge will begin shortly...${NC}"
     
-    # Sleep for random 5-10 seconds
+    # Sleep for random 20-40 seconds
     sleep_duration=$((RANDOM % 20 + 20))
     sleep $sleep_duration
     
@@ -90,9 +90,20 @@ function prompt_for_math_solution() {
         echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
         return 1
     fi
+    
+    # Filter words by length (5-8 characters) and load random words
     words_count=160
-    # Load ${words_count} random words
-    mapfile -t selected_words < <(shuf -n $words_count "$words_file")
+    mapfile -t selected_words < <(grep -E '^[a-zA-Z]{5,8}$' "$words_file" | shuf -n $words_count)
+    
+    # If we couldn't get enough words of the right length
+    if [[ ${#selected_words[@]} -lt $words_count ]]; then
+        echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of the required length.${NC}"
+        words_count=${#selected_words[@]}
+        if [[ $words_count -eq 0 ]]; then
+            echo -e "${RED}Error: No words of length 5-8 found in $words_file${NC}"
+            return 1
+        fi
+    fi
     
     # Convert all words to uppercase
     for i in "${!selected_words[@]}"; do
@@ -101,7 +112,7 @@ function prompt_for_math_solution() {
     
     echo -e "${CYAN}Here are ${words_count} random words. Remember them:${NC}"
     
-    # Display the words in a 5x4 grid (5 rows, 4 columns)
+    # Display the words in a grid (4 columns)
     for (( i=0; i<words_count; i++ )); do
         printf "${BLUE}%-15s${NC}" "${selected_words[$i]}"
         if (( (i+1) % 4 == 0 )); then
