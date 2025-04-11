@@ -19,9 +19,10 @@ NC='\033[0m' # No Color
 
 # Script locations
 WRAPPER_SOURCE="$(dirname "$0")/pacman_wrapper.sh"
+WORDS_SOURCE="$(dirname "$0")/words.txt"
 INSTALL_DIR="/usr/local/bin"
 WRAPPER_DEST="${INSTALL_DIR}/pacman_wrapper"
-
+WORDS_DEST="${INSTALL_DIR}/words.txt"
 # Check if script is run as root
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Please run as root${NC}"
@@ -39,6 +40,7 @@ echo -e "${CYAN}Installing pacman wrapper...${NC}"
 # Install the wrapper script
 echo -e "${BLUE}Copying wrapper script to ${WRAPPER_DEST}...${NC}"
 cp "$WRAPPER_SOURCE" "$WRAPPER_DEST"
+cp "$WORDS_SOURCE" "$WORDS_DEST"
 chmod +x "$WRAPPER_DEST"
 
 # Automatically use symbolic link installation method
@@ -47,6 +49,7 @@ echo -e "${YELLOW}Installing using symbolic link method...${NC}"
 # Backup original pacman
 if [ ! -f "/usr/bin/pacman.orig" ]; then
   echo -e "${BLUE}Backing up original pacman to /usr/bin/pacman.orig...${NC}"
+  cp ./
   cp /usr/bin/pacman /usr/bin/pacman.orig
 fi
 
