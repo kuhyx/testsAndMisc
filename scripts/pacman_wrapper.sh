@@ -55,7 +55,7 @@ function display_operation() {
 # Function to check if user is trying to install specific packages that require confirmation
 function check_for_steam() {
     # List of packages that require confirmation
-    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp" "yt-dlp-git")
+    local restricted_packages=("steam" "freetube-bin" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git")
     
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
