@@ -142,8 +142,41 @@ function prompt_for_math_solution() {
     fi
     
     echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
-    echo -e "${YELLOW}Unscramble the word to proceed with installation:${NC}"
-    read -r user_input
+    echo -e "${YELLOW}Unscramble the word to proceed with installation (you have 2 minutes):${NC}"
+    
+    # Set up a background process to display the timer
+    (
+        start_time=$(date +%s)
+        while true; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+            remaining=$((120 - elapsed))
+            
+            if [[ $remaining -le 0 ]]; then
+                echo -ne "\r${YELLOW}Time remaining: 0 seconds${NC}    "
+                break
+            fi
+            
+            echo -ne "\r${YELLOW}Time remaining: ${remaining} seconds${NC}    "
+            sleep 1
+        done
+    ) &
+    display_pid=$!
+    
+    # Read user input with timeout
+    read -t 120 -r user_input
+    read_status=$?
+    
+    # Kill the timer display
+    kill $display_pid 2>/dev/null
+    wait $display_pid 2>/dev/null
+    echo # Add a newline after the timer
+    
+    # Check if read timed out
+    if [[ $read_status -ne 0 ]]; then
+        echo -e "${RED}Time's up! Challenge failed. The correct word was '$target_word'.${NC}"
+        return 1
+    fi
     
     # Convert user input to uppercase and trim whitespaces
     user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
@@ -151,7 +184,7 @@ function prompt_for_math_solution() {
     if [[ "$user_input" == "$target_word" ]]; then
         echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
         
-        # Add sleep after successful challenge completion (3-6 seconds)
+        # Add sleep after successful challenge completion (20-40 seconds)
         post_challenge_sleep=$((RANDOM % 20 + 20))
         sleep $post_challenge_sleep
         
