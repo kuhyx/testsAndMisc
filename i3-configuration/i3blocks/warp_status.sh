@@ -11,14 +11,16 @@ status=$(warp-cli status 2>/dev/null | grep "Status update:" | awk '{print $3}')
 
 # Display the status with an icon
 if [ "$status" = "Connected" ]; then
-    echo "!!!  WARP CONNECTED !!!"
+    echo "🔒 !!! WARP CONNECTED !!!" 
     echo
     echo "#FFFF00"  # Yellow
 elif [ "$status" = "Disconnected" ]; then
-    echo "warp disconnected"
-else
-    echo "!  WARP unknown !"
+    echo "WARP disconnected"
     echo
-    echo "#FF0000"  # Yellow
+    echo "#00FF00"  # Green
+else
+    echo "⚠️ ! WARP unknown !"
+    echo
+    echo "#FF0000"  # Red
     exit 0
 fi
