@@ -41,6 +41,8 @@ fi
 # Set font size based on screen resolution
 font_size=$(set_font_size)
 
+# Make all scripts in i3blocks executable
+find i3blocks -type f -exec chmod +x {} \;
 cp -r i3blocks ~/.config/
 cp -r i3 ~/.config/
 sed -i "s/font pango:System San Francisco Display, FontAwesome [0-9]*/font pango:System San Francisco Display, FontAwesome $font_size/" ~/.config/i3/config

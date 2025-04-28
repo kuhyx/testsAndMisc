@@ -28,9 +28,11 @@ color=#50FA7B
 
 
 
+
 [volume]
 command=~/.config/i3blocks/volume.sh
 interval=1
+
 
 
 [bluetooth]
@@ -60,6 +62,11 @@ color=#FFFFFF
 #command=~/.config/i3blocks/network_monitor.sh
 #interval=1
 #color=#FFFFFF
+
+
+[warp]
+command=~/.config/i3blocks/warp_status.sh
+interval=60
 
 
 [time]
