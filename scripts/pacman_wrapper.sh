@@ -26,28 +26,28 @@ function show_help() {
 function display_operation() {
     case "$1" in
         -S|-Sy|-S\ *)
-            echo -e "${BLUE}Installing packages...${NC}"
+            echo -e "${BLUE}Installing packages...${NC}" >&2
             ;;
         -Syu|-Syyu)
-            echo -e "${BLUE}Updating system...${NC}"
+            echo -e "${BLUE}Updating system...${NC}" >&2
             ;;
         -R|-Rs|-Rns|-R\ *)
-            echo -e "${YELLOW}Removing packages...${NC}"
+            echo -e "${YELLOW}Removing packages...${NC}" >&2
             ;;
         -Ss|-Ss\ *)
-            echo -e "${CYAN}Searching for packages...${NC}"
+            echo -e "${CYAN}Searching for packages...${NC}" >&2
             ;;
         -Q|-Qs|-Qi|-Ql|-Q\ *)
-            echo -e "${CYAN}Querying package database...${NC}"
+            echo -e "${CYAN}Querying package database...${NC}" >&2
             ;;
         -U|-U\ *)
-            echo -e "${BLUE}Installing local packages...${NC}"
+            echo -e "${BLUE}Installing local packages...${NC}" >&2
             ;;
         -Scc)
-            echo -e "${YELLOW}Cleaning package cache...${NC}"
+            echo -e "${YELLOW}Cleaning package cache...${NC}" >&2
             ;;
         *)
-            echo -e "${CYAN}Executing pacman command...${NC}"
+            echo -e "${CYAN}Executing pacman command...${NC}" >&2
             ;;
     esac
 }
@@ -213,7 +213,7 @@ fi
 display_operation "$1"
 
 # Echo the command that's about to be executed
-echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@"
+echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@" >&2
 
 # Record start time for statistics
 start_time=$(date +%s)
@@ -228,9 +228,9 @@ duration=$((end_time - start_time))
 
 # Display results
 if [ $exit_code -eq 0 ]; then
-    echo -e "${GREEN}Command completed successfully in ${duration}s.${NC}"
+    echo -e "${GREEN}Command completed successfully in ${duration}s.${NC}" >&2
 else
-    echo -e "${RED}Command failed with exit code ${exit_code}.${NC}"
+    echo -e "${RED}Command failed with exit code ${exit_code}.${NC}" >&2
 fi
 
 # Display some helpful tips depending on the operation
