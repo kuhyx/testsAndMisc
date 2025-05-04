@@ -150,7 +150,7 @@ function prompt_for_math_solution() {
         while true; do
             current_time=$(date +%s)
             elapsed=$((current_time - start_time))
-            remaining=$((120 - elapsed))
+            remaining=$((60 - elapsed))
             
             if [[ $remaining -le 0 ]]; then
                 echo -ne "\r${YELLOW}Time remaining: 0 seconds${NC}    "
@@ -164,7 +164,7 @@ function prompt_for_math_solution() {
     display_pid=$!
     
     # Read user input with timeout
-    read -t 120 -r user_input
+    read -t 60 -r user_input
     read_status=$?
     
     # Kill the timer display
