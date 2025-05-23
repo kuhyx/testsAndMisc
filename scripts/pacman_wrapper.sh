@@ -76,9 +76,28 @@ function check_for_steam() {
     return 1  # No restricted package found
 }
 
+# Function to check if current day is a weekday (Monday-Friday)
+function is_weekday() {
+    local day_of_week=$(date +%u)  # %u gives 1-7 (Monday is 1, Sunday is 7)
+    if [[ $day_of_week -ge 1 && $day_of_week -le 5 ]]; then
+        return 0  # Is weekday
+    else
+        return 1  # Is weekend
+    fi
+}
+
 # Function to prompt for solving a word unscrambling challenge
 function prompt_for_math_solution() {
     echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
+    
+    # Check if it's a weekday and block completely
+    if is_weekday; then
+        local day_name=$(date +%A)
+        echo -e "${RED}Installation BLOCKED: Restricted packages cannot be installed on weekdays.${NC}"
+        echo -e "${RED}Today is $day_name. Please try again on the weekend (Saturday or Sunday).${NC}"
+        return 1
+    fi
+    
     echo -e "${YELLOW}Challenge will begin shortly...${NC}"
     
     # Sleep for random 20-40 seconds
