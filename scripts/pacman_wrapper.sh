@@ -52,10 +52,10 @@ function display_operation() {
     esac
 }
 
-# Function to check if user is trying to install specific packages that require confirmation
-function check_for_steam() {
-    # List of packages that require confirmation
-    local restricted_packages=("steam" "freetube-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter" "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git" "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora")
+# Function to check if user is trying to install packages that are always blocked
+function check_for_always_blocked() {
+    # List of packages that are ALWAYS blocked without any challenge
+    local always_blocked_packages=("freetube-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter" "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git" "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora")
      
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
@@ -64,16 +64,40 @@ function check_for_steam() {
             # Strip repository prefix if present (like extra/ or community/)
             local package_name="${arg##*/}"
             
-            # Check if argument matches any restricted package
-            for package in "${restricted_packages[@]}"; do
+            # Check if argument matches any always blocked package
+            for package in "${always_blocked_packages[@]}"; do
                 if [[ "$arg" == "$package" || "$arg" == *"/$package-"* || "$arg" == *"/$package/"* || 
                       "$arg" == *"/$package" || "$package_name" == "$package" ]]; then
-                    return 0  # Restricted package found
+                    return 0  # Always blocked package found
                 fi
             done
         done
     fi
-    return 1  # No restricted package found
+    return 1  # No always blocked package found
+}
+
+# Function to check if user is trying to install steam (challenge-eligible package)
+function check_for_steam() {
+    # List of packages that require challenge (only steam in this case)
+    local steam_packages=("steam")
+     
+    # Check if the command is an installation command
+    if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
+        # Check all arguments
+        for arg in "$@"; do
+            # Strip repository prefix if present (like extra/ or community/)
+            local package_name="${arg##*/}"
+            
+            # Check if argument matches steam
+            for package in "${steam_packages[@]}"; do
+                if [[ "$arg" == "$package" || "$arg" == *"/$package-"* || "$arg" == *"/$package/"* || 
+                      "$arg" == *"/$package" || "$package_name" == "$package" ]]; then
+                    return 0  # Steam package found
+                fi
+            done
+        done
+    fi
+    return 1  # No steam package found
 }
 
 # Function to check if current day is a weekday (Monday-Friday)
@@ -86,19 +110,19 @@ function is_weekday() {
     fi
 }
 
-# Function to prompt for solving a word unscrambling challenge
-function prompt_for_math_solution() {
-    echo -e "${YELLOW}WARNING: You are trying to install a restricted package.${NC}"
+# Function to prompt for solving a word unscrambling challenge (only for steam)
+function prompt_for_steam_challenge() {
+    echo -e "${YELLOW}WARNING: You are trying to install Steam.${NC}"
     
     # Check if it's a weekday and block completely
     if is_weekday; then
         local day_name=$(date +%A)
-        echo -e "${RED}Installation BLOCKED: Restricted packages cannot be installed on weekdays.${NC}"
+        echo -e "${RED}Steam installation BLOCKED: Steam cannot be installed on weekdays.${NC}"
         echo -e "${RED}Today is $day_name. Please try again on the weekend (Saturday or Sunday).${NC}"
         return 1
     fi
     
-    echo -e "${YELLOW}Challenge will begin shortly...${NC}"
+    echo -e "${YELLOW}Weekend Steam challenge will begin shortly...${NC}"
     
     # Sleep for random 20-40 seconds
     sleep_duration=$((RANDOM % 20 + 20))
@@ -220,9 +244,16 @@ if [[ "$1" == "--help-wrapper" ]]; then
     exit 0
 fi
 
-# Check if trying to install steam
+# Check for always blocked packages first (highest priority)
+if check_for_always_blocked "$@"; then
+    echo -e "${RED}Installation BLOCKED: This package is permanently restricted and cannot be installed.${NC}"
+    echo -e "${RED}Package installation has been denied by system policy.${NC}"
+    exit 1
+fi
+
+# Check for steam (challenge-eligible package)
 if check_for_steam "$@"; then
-    prompt_for_math_solution
+    prompt_for_steam_challenge
     if [[ $? -ne 0 ]]; then
         exit 1
     fi
