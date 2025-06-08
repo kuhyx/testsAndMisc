@@ -125,7 +125,8 @@ function prompt_for_steam_challenge() {
     echo -e "${YELLOW}Weekend Steam challenge will begin shortly...${NC}"
     
     # Sleep for random 20-40 seconds
-    sleep_duration=$((RANDOM % 20 + 20))
+    # sleep_duration=$((RANDOM % 20 + 20))
+    sleep_duration=$((RANDOM % 20))
     sleep $sleep_duration
     
     # Define path to words.txt (in the same directory as the script)
@@ -139,7 +140,8 @@ function prompt_for_steam_challenge() {
     fi
     
     # Choose a specific word length (5, 6, 7, or 8 characters)
-    word_length=$((RANDOM % 4 + 5))
+    #
+    word_length=5
     echo -e "${CYAN}Today's challenge: Words with ${word_length} letters${NC}"
     
     # Filter words by the specific chosen length and load random words
@@ -228,7 +230,8 @@ function prompt_for_steam_challenge() {
         echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
         
         # Add sleep after successful challenge completion (20-40 seconds)
-        post_challenge_sleep=$((RANDOM % 20 + 20))
+        # post_challenge_sleep=$((RANDOM % 20 + 20))
+        post_challenge_sleep=$((RANDOM % 20))
         sleep $post_challenge_sleep
         
         return 0
