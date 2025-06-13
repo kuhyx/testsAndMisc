@@ -134,7 +134,7 @@ function is_weekday() {
         return 0  # Is weekday
     # Friday before 4PM is weekday, after 4PM is weekend
     elif [[ $day_of_week -eq 5 ]]; then
-        if [[ $hour -lt 16 ]]; then
+        if [[ $hour -lt 15 ]]; then
             return 0  # Is weekday (Friday before 4PM)
         else
             return 1  # Is weekend (Friday after 4PM)
