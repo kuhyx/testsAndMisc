@@ -100,11 +100,46 @@ function check_for_steam() {
     return 1  # No steam package found
 }
 
-# Function to check if current day is a weekday (Monday-Friday)
+# Function to check if user is trying to install virtualbox (always challenge-eligible package)
+function check_for_virtualbox() {
+    # List of packages that require challenge (virtualbox packages)
+    local virtualbox_packages=("virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-vnc" "virtualbox-guest-utils" "virtualbox-host-dkms")
+     
+    # Check if the command is an installation command
+    if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
+        # Check all arguments
+        for arg in "$@"; do
+            # Strip repository prefix if present (like extra/ or community/)
+            local package_name="${arg##*/}"
+            
+            # Check if argument matches virtualbox
+            for package in "${virtualbox_packages[@]}"; do
+                if [[ "$arg" == "$package" || "$arg" == *"/$package-"* || "$arg" == *"/$package/"* || 
+                      "$arg" == *"/$package" || "$package_name" == "$package" ]]; then
+                    return 0  # VirtualBox package found
+                fi
+            done
+        done
+    fi
+    return 1  # No virtualbox package found
+}
+
+# Function to check if current day is a weekday (after 4PM Friday until midnight Sunday)
 function is_weekday() {
     local day_of_week=$(date +%u)  # %u gives 1-7 (Monday is 1, Sunday is 7)
-    if [[ $day_of_week -ge 1 && $day_of_week -le 5 ]]; then
+    local hour=$(date +%H)         # %H gives hour in 24-hour format (00-23)
+    
+    # Monday through Thursday are always weekdays
+    if [[ $day_of_week -ge 1 && $day_of_week -le 4 ]]; then
         return 0  # Is weekday
+    # Friday before 4PM is weekday, after 4PM is weekend
+    elif [[ $day_of_week -eq 5 ]]; then
+        if [[ $hour -lt 16 ]]; then
+            return 0  # Is weekday (Friday before 4PM)
+        else
+            return 1  # Is weekend (Friday after 4PM)
+        fi
+    # Saturday and Sunday are weekend
     else
         return 1  # Is weekend
     fi
@@ -241,6 +276,125 @@ function prompt_for_steam_challenge() {
     fi
 }
 
+# Function to prompt for solving a word unscrambling challenge (for virtualbox - always active)
+function prompt_for_virtualbox_challenge() {
+    echo -e "${YELLOW}WARNING: You are trying to install VirtualBox.${NC}"
+    echo -e "${YELLOW}VirtualBox challenge will begin shortly...${NC}"
+    
+    # Sleep for random 10-30 seconds
+    sleep_duration=$((RANDOM % 20 + 10))
+    sleep $sleep_duration
+    
+    # Define path to words.txt (in the same directory as the script)
+    script_dir="$(dirname "$(readlink -f "$0")")"
+    words_file="$script_dir/words.txt"
+    
+    # Check if words.txt exists
+    if [[ ! -f "$words_file" ]]; then
+        echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
+        return 1
+    fi
+    
+    # Choose a specific word length (6, 7, or 8 characters for VirtualBox)
+    word_length=6
+    echo -e "${CYAN}VirtualBox challenge: Words with ${word_length} letters${NC}"
+    
+    # Filter words by the specific chosen length and load random words
+    words_count=120
+    mapfile -t selected_words < <(grep -E "^[a-zA-Z]{$word_length}$" "$words_file" | shuf -n $words_count)
+    
+    # If we couldn't get enough words of the right length
+    if [[ ${#selected_words[@]} -lt $words_count ]]; then
+        echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of length $word_length.${NC}"
+        words_count=${#selected_words[@]}
+        if [[ $words_count -eq 0 ]]; then
+            echo -e "${RED}Error: No words of length $word_length found in $words_file${NC}"
+            return 1
+        fi
+    fi
+    
+    # Convert all words to uppercase
+    for i in "${!selected_words[@]}"; do
+        selected_words[$i]=$(echo "${selected_words[$i]}" | tr '[:lower:]' '[:upper:]')
+    done
+    
+    echo -e "${CYAN}Here are ${words_count} random words. Remember them:${NC}"
+    
+    # Display the words in a grid (4 columns)
+    for (( i=0; i<words_count; i++ )); do
+        printf "${BLUE}%-15s${NC}" "${selected_words[$i]}"
+        if (( (i+1) % 4 == 0 )); then
+            echo ""
+        fi
+    done
+
+    # Select a random word to scramble (already in uppercase)
+    target_index=$((RANDOM % ${words_count}))
+    target_word="${selected_words[$target_index]}"
+    
+    # Scramble the word
+    scrambled_word=$(echo "$target_word" | fold -w1 | shuf | tr -d '\n')
+    
+    # Ensure scrambled word is different from original
+    if [[ "$scrambled_word" == "$target_word" ]]; then
+        # Use simple reversal as fallback
+        scrambled_word=$(echo "$target_word" | rev)
+    fi
+    
+    echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
+    echo -e "${YELLOW}Unscramble the word to proceed with VirtualBox installation (you have 90 seconds):${NC}"
+    
+    # Set up a background process to display the timer
+    (
+        start_time=$(date +%s)
+        while true; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+            remaining=$((90 - elapsed))
+            
+            if [[ $remaining -le 0 ]]; then
+                echo -ne "\r${YELLOW}Time remaining: 0 seconds${NC}    "
+                break
+            fi
+            
+            echo -ne "\r${YELLOW}Time remaining: ${remaining} seconds${NC}    "
+            sleep 1
+        done
+    ) &
+    display_pid=$!
+    
+    # Read user input with timeout (90 seconds for VirtualBox)
+    read -t 90 -r user_input
+    read_status=$?
+    
+    # Kill the timer display
+    kill $display_pid 2>/dev/null
+    wait $display_pid 2>/dev/null
+    echo # Add a newline after the timer
+    
+    # Check if read timed out
+    if [[ $read_status -ne 0 ]]; then
+        echo -e "${RED}Time's up! VirtualBox challenge failed. The correct word was '$target_word'.${NC}"
+        return 1
+    fi
+    
+    # Convert user input to uppercase and trim whitespaces
+    user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
+    
+    if [[ "$user_input" == "$target_word" ]]; then
+        echo -e "${GREEN}Correct! Proceeding with VirtualBox installation...${NC}"
+        
+        # Add sleep after successful challenge completion (15-35 seconds)
+        post_challenge_sleep=$((RANDOM % 20 + 15))
+        sleep $post_challenge_sleep
+        
+        return 0
+    else
+        echo -e "${RED}Incorrect answer. VirtualBox installation aborted. The correct word was '$target_word'.${NC}"
+        return 1
+    fi
+}
+
 # Check for wrapper-specific commands
 if [[ "$1" == "--help-wrapper" ]]; then
     show_help
@@ -252,6 +406,14 @@ if check_for_always_blocked "$@"; then
     echo -e "${RED}Installation BLOCKED: This package is permanently restricted and cannot be installed.${NC}"
     echo -e "${RED}Package installation has been denied by system policy.${NC}"
     exit 1
+fi
+
+# Check for virtualbox (always challenge-eligible package)
+if check_for_virtualbox "$@"; then
+    prompt_for_virtualbox_challenge
+    if [[ $? -ne 0 ]]; then
+        exit 1
+    fi
 fi
 
 # Check for steam (challenge-eligible package)
