@@ -5,16 +5,23 @@
 
 set -e  # Exit on any error
 
+# Function to check and request sudo privileges
+check_sudo() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "This script requires sudo privileges to modify system files."
+        echo "Requesting sudo access..."
+        exec sudo "$0" "$@"
+    fi
+}
+
+# Check for sudo privileges first
+check_sudo "$@"
+
 echo "NVIDIA Comprehensive Troubleshooter & GSP Disabler"
 echo "=================================================="
 echo "Current Date: $(date)"
 echo "User: $USER"
-
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-   echo "Error: This script must be run as root (use sudo)"
-   exit 1
-fi
+echo "Original user: ${SUDO_USER:-$USER}"
 
 # Check if nvidia module is loaded
 if ! lsmod | grep -q nvidia; then
