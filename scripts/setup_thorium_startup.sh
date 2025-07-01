@@ -98,7 +98,7 @@ export HOME="$USER_HOME"
 
 # Function to wait for X11 server and desktop environment
 wait_for_desktop() {
-    local max_attempts=90
+    local max_attempts=30
     local attempt=0
     
     echo "Waiting for X11 server and window manager to be ready..." >&2
@@ -109,7 +109,7 @@ wait_for_desktop() {
             echo "X11 server is ready" >&2
             break
         fi
-        sleep 2
+        sleep 1
         ((attempt++))
     done
     
@@ -118,25 +118,16 @@ wait_for_desktop() {
         return 1
     fi
     
-    # Wait for window manager (specifically check for i3)
-    attempt=0
-    while [[ \$attempt -lt 30 ]]; do
-        if pgrep -x i3 >/dev/null 2>&1; then
-            echo "i3 window manager detected and running" >&2
-            break
-        elif pgrep -x "i3wm" >/dev/null 2>&1; then
-            echo "i3wm window manager detected and running" >&2
-            break
-        elif wmctrl -m >/dev/null 2>&1; then
-            echo "Window manager detected via wmctrl" >&2
-            break
-        fi
-        sleep 2
-        ((attempt++))
-    done
-    
-    # Additional wait for desktop environment to stabilize
-    sleep 15
+    # Quick check for window manager (no waiting loop)
+    if pgrep -x i3 >/dev/null 2>&1; then
+        echo "i3 window manager detected and running" >&2
+    elif pgrep -x "i3wm" >/dev/null 2>&1; then
+        echo "i3wm window manager detected and running" >&2
+    elif wmctrl -m >/dev/null 2>&1; then
+        echo "Window manager detected via wmctrl" >&2
+    else
+        echo "Window manager not detected, proceeding anyway" >&2
+    fi
     
     return 0
 }
@@ -154,9 +145,6 @@ launch_browser() {
     
     local browser_pid=\$!
     echo "Browser launched with PID: \$browser_pid" >&2
-    
-    # Give browser time to start
-    sleep 5
     
     return 0
 }
@@ -383,10 +371,7 @@ test_setup() {
         echo "Testing browser launch..."
         echo "Note: This will open Thorium browser with Fitatu website"
         
-        # Small delay
-        sleep 2
-        
-        # Test the launcher
+        # Test the launcher immediately
         if /usr/local/bin/thorium-fitatu-launcher.sh; then
             echo "✓ Test launch completed successfully"
         else
