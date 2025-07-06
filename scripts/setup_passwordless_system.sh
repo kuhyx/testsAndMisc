@@ -102,7 +102,18 @@ configure_lightdm_autologin() {
         pacman -S --noconfirm lightdm lightdm-gtk-greeter
     fi
     
-    # Create auto-login configuration
+    # Method 1: Update the main lightdm.conf file directly
+    sed -i "/^#autologin-user=/c\autologin-user=${TARGET_USER}" "$lightdm_conf"
+    sed -i "/^#autologin-user-timeout=/c\autologin-user-timeout=0" "$lightdm_conf"
+    sed -i "/^#autologin-session=/c\autologin-session=i3" "$lightdm_conf"
+    sed -i "/^#autologin-in-background=/c\autologin-in-background=false" "$lightdm_conf"
+    
+    # Also set user-session to i3 as fallback
+    sed -i "/^#user-session=/c\user-session=i3" "$lightdm_conf"
+    
+    echo "✓ LightDM auto-login configured in main config file"
+    
+    # Method 2: Also create the separate config file for redundancy
     cat > "$custom_conf" << EOF
 # LightDM Auto-Login Configuration
 # Created by setup_passwordless_system.sh on $(date)
@@ -122,15 +133,19 @@ user-session=i3
 greeter-session=lightdm-gtk-greeter
 
 # Disable screen lock timeout during login
-autologin-in-background=true
+autologin-in-background=false
 EOF
 
-    echo "✓ LightDM auto-login configured for user: $TARGET_USER"
-    echo "✓ Configuration file created: $custom_conf"
+    echo "✓ LightDM auto-login also configured in separate config file: $custom_conf"
     
     # Enable lightdm service
     systemctl enable lightdm.service
     echo "✓ LightDM service enabled"
+    
+    # Restart lightdm to apply changes
+    echo "Restarting LightDM to apply auto-login settings..."
+    systemctl restart lightdm.service
+    echo "✓ LightDM restarted"
 }
 
 # Function to configure i3 session
