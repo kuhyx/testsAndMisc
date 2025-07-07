@@ -5,15 +5,23 @@
 
 set -e  # Exit on any error
 
-echo "Midnight Auto-Shutdown Setup for Arch Linux"
-echo "==========================================="
-echo "Current Date: $(date)"
-echo "User: ${SUDO_USER:-$USER}"
+# Function to show usage
+show_usage() {
+    echo "Midnight Auto-Shutdown Setup for Arch Linux"
+    echo "==========================================="
+    echo "Usage: $0 [enable|disable|status]"
+    echo ""
+    echo "Commands:"
+    echo "  enable   - Set up automatic midnight shutdown (default)"
+    echo "  disable  - Remove automatic midnight shutdown"
+    echo "  status   - Show current status"
+    echo ""
+}
 
 # Function to check and request sudo privileges
 check_sudo() {
     if [[ $EUID -ne 0 ]]; then
-        echo "This script requires sudo privileges to create systemd services."
+        echo "This script requires sudo privileges to manage systemd services."
         echo "Requesting sudo access..."
         exec sudo "$0" "$@"
     fi
@@ -28,8 +36,135 @@ else
     USER_HOME="$HOME"
 fi
 
-echo "Target user: $ACTUAL_USER"
-echo "User home: $USER_HOME"
+# Function to disable and remove midnight shutdown
+disable_midnight_shutdown() {
+    echo "Disabling Midnight Auto-Shutdown"
+    echo "==============================="
+    echo "Current Date: $(date)"
+    echo "User: $ACTUAL_USER"
+    echo ""
+    
+    local timer_file="/etc/systemd/system/midnight-shutdown.timer"
+    local service_file="/etc/systemd/system/midnight-shutdown.service"
+    local script_file="/usr/local/bin/midnight-shutdown-manager.sh"
+    local removed_files=()
+    
+    # Stop and disable timer if it exists
+    if systemctl is-active midnight-shutdown.timer &>/dev/null; then
+        echo "Stopping midnight-shutdown timer..."
+        systemctl stop midnight-shutdown.timer
+        echo "✓ Timer stopped"
+    fi
+    
+    if systemctl is-enabled midnight-shutdown.timer &>/dev/null; then
+        echo "Disabling midnight-shutdown timer..."
+        systemctl disable midnight-shutdown.timer
+        echo "✓ Timer disabled"
+    fi
+    
+    # Remove timer file
+    if [[ -f "$timer_file" ]]; then
+        rm -f "$timer_file"
+        removed_files+=("$timer_file")
+        echo "✓ Removed timer file: $timer_file"
+    fi
+    
+    # Remove service file
+    if [[ -f "$service_file" ]]; then
+        rm -f "$service_file"
+        removed_files+=("$service_file")
+        echo "✓ Removed service file: $service_file"
+    fi
+    
+    # Remove management script
+    if [[ -f "$script_file" ]]; then
+        rm -f "$script_file"
+        removed_files+=("$script_file")
+        echo "✓ Removed management script: $script_file"
+    fi
+    
+    # Reload systemd daemon
+    if [[ ${#removed_files[@]} -gt 0 ]]; then
+        echo "Reloading systemd daemon..."
+        systemctl daemon-reload
+        echo "✓ Systemd daemon reloaded"
+    fi
+    
+    echo ""
+    echo "=========================================="
+    echo "Midnight Auto-Shutdown Removal Complete"
+    echo "=========================================="
+    
+    if [[ ${#removed_files[@]} -gt 0 ]]; then
+        echo "Removed files:"
+        printf "  %s\n" "${removed_files[@]}"
+        echo ""
+        echo "✓ Automatic midnight shutdown has been completely disabled"
+        echo "✓ Your PC will no longer shutdown automatically at midnight"
+    else
+        echo "No midnight shutdown configuration was found to remove."
+    fi
+    
+    echo ""
+}
+
+# Function to show current status
+show_current_status() {
+    echo "Midnight Auto-Shutdown Status"
+    echo "============================"
+    echo "Current Date: $(date)"
+    echo "User: $ACTUAL_USER"
+    echo ""
+    
+    local timer_exists=false
+    local service_exists=false
+    local script_exists=false
+    
+    # Check if files exist
+    if [[ -f "/etc/systemd/system/midnight-shutdown.timer" ]]; then
+        timer_exists=true
+        echo "✓ Timer file exists"
+    else
+        echo "✗ Timer file missing"
+    fi
+    
+    if [[ -f "/etc/systemd/system/midnight-shutdown.service" ]]; then
+        service_exists=true
+        echo "✓ Service file exists"
+    else
+        echo "✗ Service file missing"
+    fi
+    
+    if [[ -f "/usr/local/bin/midnight-shutdown-manager.sh" ]]; then
+        script_exists=true
+        echo "✓ Management script exists"
+    else
+        echo "✗ Management script missing"
+    fi
+    
+    echo ""
+    
+    # Check systemd status
+    if $timer_exists; then
+        if systemctl is-enabled midnight-shutdown.timer &>/dev/null; then
+            echo "✓ Timer is enabled"
+            if systemctl is-active midnight-shutdown.timer &>/dev/null; then
+                echo "✓ Timer is active"
+                echo ""
+                echo "Next scheduled shutdown:"
+                systemctl list-timers midnight-shutdown.timer --no-pager 2>/dev/null | grep midnight-shutdown || echo "Timer information not available"
+            else
+                echo "✗ Timer is not active"
+            fi
+        else
+            echo "✗ Timer is not enabled"
+        fi
+    else
+        echo "Status: NOT CONFIGURED"
+    fi
+    
+    echo ""
+}
 
 # Function to create the shutdown service
 create_shutdown_service() {
@@ -51,9 +186,6 @@ ExecStart=/usr/bin/systemctl poweroff
 TimeoutStartSec=0
 StandardOutput=journal
 StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
 EOF
 
     echo "✓ Created systemd service: $service_file"
@@ -259,10 +391,40 @@ confirm_setup() {
     esac
 }
 
-# Main execution flow
-main() {
-    # Check for sudo privileges
-    check_sudo "$@"
+# Function to confirm disable
+confirm_disable() {
+    echo ""
+    echo "Disable Auto-Shutdown Confirmation"
+    echo "================================="
+    echo "This will completely remove the automatic midnight shutdown configuration."
+    echo ""
+    echo "After disabling:"
+    echo "- Your PC will no longer shutdown automatically at midnight"
+    echo "- All related systemd services and timers will be removed"
+    echo "- The management script will be deleted"
+    echo ""
+    read -p "Do you want to proceed with disabling? (y/N): " confirm
+    
+    case "$confirm" in
+        [yY]|[yY][eE][sS])
+            echo "Proceeding with disable..."
+            return 0
+            ;;
+        *)
+            echo "Disable cancelled."
+            exit 0
+            ;;
+    esac
+}
+
+# Main execution flow for enable
+enable_midnight_shutdown() {
+    echo "Midnight Auto-Shutdown Setup for Arch Linux"
+    echo "==========================================="
+    echo "Current Date: $(date)"
+    echo "User: $ACTUAL_USER"
+    echo "Target user: $ACTUAL_USER"
+    echo "User home: $USER_HOME"
     
     # Confirm setup
     confirm_setup
@@ -282,5 +444,28 @@ main() {
     show_instructions
 }
 
-# Run main function
-main "$@"
+# Parse command line arguments
+case "${1:-enable}" in
+    "enable")
+        check_sudo "$@"
+        enable_midnight_shutdown
+        ;;
+    "disable")
+        check_sudo "$@"
+        confirm_disable
+        disable_midnight_shutdown
+        ;;
+    "status")
+        check_sudo "$@"
+        show_current_status
+        ;;
+    "help"|"-h"|"--help")
+        show_usage
+        ;;
+    *)
+        echo "Error: Unknown command '$1'"
+        echo ""
+        show_usage
+        exit 1
+        ;;
+esac
