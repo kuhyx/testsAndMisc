@@ -75,6 +75,12 @@ interval=10
 color=#FFFFFF
 
 
+[pc_startup]
+command=~/.config/i3blocks/pc_startup_status.sh
+interval=30
+color=#FFFFFF
+
+
 [time]
 command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
 interval=1
