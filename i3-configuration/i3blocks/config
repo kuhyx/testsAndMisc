@@ -69,6 +69,12 @@ command=~/.config/i3blocks/warp_status.sh
 interval=60
 
 
+[activitywatch]
+command=~/.config/i3blocks/activitywatch_status.sh
+interval=10
+color=#FFFFFF
+
+
 [time]
 command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
 interval=1
