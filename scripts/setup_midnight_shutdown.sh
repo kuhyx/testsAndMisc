@@ -182,7 +182,7 @@ Before=shutdown.target reboot.target halt.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/systemctl poweroff
+ExecStart=/usr/local/bin/midnight-shutdown-check.sh
 TimeoutStartSec=0
 StandardOutput=journal
 StandardError=journal
@@ -208,6 +208,8 @@ Requires=midnight-shutdown.service
 OnCalendar=*-*-* 00:00:00
 Persistent=false
 AccuracySec=1s
+WakeSystem=false
+RandomizedDelaySec=0
 
 [Install]
 WantedBy=timers.target
@@ -282,10 +284,46 @@ EOF
     echo "✓ Created management script: $script_file"
 }
 
+# Function to create smart shutdown check script
+create_shutdown_check_script() {
+    echo ""
+    echo "4. Creating Smart Shutdown Check Script..."
+    echo "========================================"
+    
+    local check_script="/usr/local/bin/midnight-shutdown-check.sh"
+    
+    cat > "$check_script" << 'EOF'
+#!/bin/bash
+# Smart midnight shutdown check script
+# Only shuts down if the current time is actually close to midnight
+# Prevents shutdown on boot if system was off during scheduled time
+
+# Get current time components
+current_hour=$(date +%H)
+current_minute=$(date +%M)
+current_time_minutes=$((10#$current_hour * 60 + 10#$current_minute))
+
+# Midnight is 0 minutes (00:00)
+# Allow shutdown if we're within 5 minutes of midnight
+# This covers 23:55-00:05 range
+if [[ $current_time_minutes -le 5 ]] || [[ $current_time_minutes -ge 1435 ]]; then
+    echo "$(date): Executing midnight shutdown - current time is within shutdown window"
+    logger -t midnight-shutdown "Executing scheduled shutdown at $(date)"
+    /usr/bin/systemctl poweroff
+else
+    echo "$(date): Skipping shutdown - not within midnight window (current: $current_hour:$current_minute)"
+    logger -t midnight-shutdown "Skipped shutdown - not within midnight window (current: $current_hour:$current_minute)"
+fi
+EOF
+
+    chmod +x "$check_script"
+    echo "✓ Created smart shutdown check script: $check_script"
+}
+
 # Function to enable the timer
 enable_timer() {
     echo ""
-    echo "4. Enabling Shutdown Timer..."
+    echo "5. Enabling Shutdown Timer..."
     echo "============================"
     
     # Reload systemd daemon
@@ -304,7 +342,7 @@ enable_timer() {
 # Function to test the setup
 test_setup() {
     echo ""
-    echo "5. Testing Setup..."
+    echo "6. Testing Setup..."
     echo "=================="
     
     echo "Service files:"
@@ -433,6 +471,7 @@ enable_midnight_shutdown() {
     create_shutdown_service
     create_shutdown_timer
     create_management_script
+    create_shutdown_check_script
     
     # Enable and start timer
     enable_timer
