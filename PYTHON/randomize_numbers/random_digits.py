@@ -6,19 +6,18 @@ def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
     randomized_numbers = []
     for number in numbers:
         percentage = random.uniform(min_percentage, max_percentage) / 100
-        change = number * percentage
         if random.choice([True, False]):
-            new_number = number + change
+            new_number = number + (number * percentage)
         else:
-            new_number = number - change
+            new_number = number - (number * percentage)
         randomized_numbers.append(new_number)
     return randomized_numbers
 
 def parse_input(input_string):
-    # Replace commas with dots and remove non-numeric characters except dots, commas, digits, and minus signs
-    cleaned_input = re.sub(r'[^\d.,\s-]', '', input_string).replace(',', '.')
+    # Replace commas with dots and remove non-numeric characters except dots, commas, and digits
+    cleaned_input = re.sub(r'[^\d.,\s]', '', input_string).replace(',', '.')
     # Split the cleaned input into individual numbers
-    number_strings = re.split(r'\s+', cleaned_input)
+    number_strings = cleaned_input.split()
     # Convert the number strings to floats
     numbers = []
     decimal_counts = []
