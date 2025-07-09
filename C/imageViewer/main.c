@@ -1,12 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <strings.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define MAX_PATH_LEN 512
+#define MAX_FILES 1000
+
+typedef struct {
+    char** files;
+    int count;
+    int current_index;
+    char base_dir[MAX_PATH_LEN];
+} FileList;
 
 typedef struct {
     SDL_Window* window;
@@ -21,7 +32,26 @@ typedef struct {
     int dragging;
     int last_mouse_x;
     int last_mouse_y;
+    FileList file_list;
+    
+    // Auto-navigation state
+    int left_key_held;
+    int right_key_held;
+    Uint32 last_auto_nav_time;
+    Uint32 auto_nav_interval; // milliseconds
 } ImageViewer;
+
+// Function declarations
+int is_image_file(const char* filename);
+int init_file_list(FileList* list, const char* path);
+void cleanup_file_list(FileList* list);
+char* get_current_file_path(const FileList* list);
+int navigate_to_file(FileList* list, const char* target_filename);
+int load_current_image(ImageViewer* viewer);
+int navigate_next_image(ImageViewer* viewer);
+int navigate_prev_image(ImageViewer* viewer);
+void print_current_image_info(const ImageViewer* viewer);
+void handle_auto_navigation(ImageViewer* viewer);
 
 int init_viewer(ImageViewer* viewer) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -67,6 +97,18 @@ int init_viewer(ImageViewer* viewer) {
     viewer->dragging = 0;
     viewer->image_width = 0;
     viewer->image_height = 0;
+    
+    // Initialize file list
+    viewer->file_list.files = NULL;
+    viewer->file_list.count = 0;
+    viewer->file_list.current_index = 0;
+    viewer->file_list.base_dir[0] = '\0';
+    
+    // Initialize auto-navigation state
+    viewer->left_key_held = 0;
+    viewer->right_key_held = 0;
+    viewer->last_auto_nav_time = 0;
+    viewer->auto_nav_interval = 100;
 
     return 1;
 }
@@ -161,14 +203,16 @@ void handle_zoom(ImageViewer* viewer, float zoom_delta, int mouse_x, int mouse_y
 }
 
 void print_help() {
-    printf("\n=== JPG Image Viewer Controls ===\n");
+    printf("\n=== Image Viewer Controls ===\n");
     printf("Mouse wheel / +/-: Zoom in/out\n");
     printf("Mouse drag: Pan image\n");
+    printf("Left/Right Arrow: Navigate between images\n");
+    printf("Hold Left/Right Arrow: Auto-navigate every second\n");
     printf("R: Reset zoom and position\n");
     printf("F: Fit image to window\n");
     printf("H: Show this help\n");
     printf("ESC/Q: Quit\n");
-    printf("==================================\n\n");
+    printf("===============================\n\n");
 }
 
 void cleanup_viewer(ImageViewer* viewer) {
@@ -181,13 +225,260 @@ void cleanup_viewer(ImageViewer* viewer) {
     if (viewer->window) {
         SDL_DestroyWindow(viewer->window);
     }
+    cleanup_file_list(&viewer->file_list);
     IMG_Quit();
     SDL_Quit();
 }
 
+int is_image_file(const char* filename) {
+    const char* ext = strrchr(filename, '.');
+    if (!ext) return 0;
+    
+    ext++; // Skip the dot
+    return (strcasecmp(ext, "jpg") == 0 || strcasecmp(ext, "jpeg") == 0 ||
+            strcasecmp(ext, "png") == 0 || strcasecmp(ext, "bmp") == 0 ||
+            strcasecmp(ext, "gif") == 0 || strcasecmp(ext, "tif") == 0 ||
+            strcasecmp(ext, "tiff") == 0);
+}
+
+int init_file_list(FileList* list, const char* path) {
+    struct stat path_stat;
+    list->files = NULL;
+    list->count = 0;
+    list->current_index = 0;
+    
+    if (stat(path, &path_stat) != 0) {
+        printf("Error: Cannot access path %s\n", path);
+        return 0;
+    }
+    
+    if (S_ISDIR(path_stat.st_mode)) {
+        // It's a directory - scan for image files
+        DIR* dir = opendir(path);
+        if (!dir) {
+            printf("Error: Cannot open directory %s\n", path);
+            return 0;
+        }
+        
+        strcpy(list->base_dir, path);
+        
+        // First pass: count image files
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
+                // Build full path and check if it's a regular file
+                char full_path[MAX_PATH_LEN * 2];
+                snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+                struct stat file_stat;
+                if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
+                    list->count++;
+                }
+            }
+        }
+        
+        if (list->count == 0) {
+            printf("No image files found in directory %s\n", path);
+            closedir(dir);
+            return 0;
+        }
+        
+        // Allocate memory for file list
+        list->files = malloc(list->count * sizeof(char*));
+        if (!list->files) {
+            printf("Error: Memory allocation failed\n");
+            closedir(dir);
+            return 0;
+        }
+        
+        // Second pass: store filenames
+        rewinddir(dir);
+        int index = 0;
+        while ((entry = readdir(dir)) != NULL && index < list->count) {
+            if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
+                // Build full path and check if it's a regular file
+                char full_path[MAX_PATH_LEN * 2];
+                snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+                struct stat file_stat;
+                if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
+                    list->files[index] = malloc(strlen(entry->d_name) + 1);
+                    if (list->files[index]) {
+                        strcpy(list->files[index], entry->d_name);
+                        index++;
+                    }
+                }
+            }
+        }
+        list->count = index; // Update count to actual stored files
+        
+        closedir(dir);
+        
+        // Sort files alphabetically by filename without extension, shorter names first
+        for (int i = 0; i < list->count - 1; i++) {
+            for (int j = 0; j < list->count - i - 1; j++) {
+                // Extract filenames without extensions
+                char name1[MAX_PATH_LEN], name2[MAX_PATH_LEN];
+                strcpy(name1, list->files[j]);
+                strcpy(name2, list->files[j + 1]);
+                
+                char* dot1 = strrchr(name1, '.');
+                char* dot2 = strrchr(name2, '.');
+                if (dot1) *dot1 = '\0';
+                if (dot2) *dot2 = '\0';
+                
+                // Custom comparison: shorter names first, then alphabetical
+                int should_swap = 0;
+                int len1 = strlen(name1);
+                int len2 = strlen(name2);
+                
+                if (len1 != len2) {
+                    // Different lengths - shorter comes first
+                    should_swap = (len1 > len2);
+                } else {
+                    // Same length - alphabetical order
+                    should_swap = (strcmp(name1, name2) > 0);
+                }
+                
+                if (should_swap) {
+                    char* temp = list->files[j];
+                    list->files[j] = list->files[j + 1];
+                    list->files[j + 1] = temp;
+                }
+            }
+        }
+        
+        printf("Found %d image files in directory\n", list->count);
+        
+    } else if (S_ISREG(path_stat.st_mode)) {
+        // It's a single file
+        if (!is_image_file(path)) {
+            printf("Error: %s is not a supported image file\n", path);
+            return 0;
+        }
+        
+        // Extract directory and filename
+        char* last_slash = strrchr(path, '/');
+        if (last_slash) {
+            strncpy(list->base_dir, path, last_slash - path);
+            list->base_dir[last_slash - path] = '\0';
+        } else {
+            strcpy(list->base_dir, ".");
+        }
+        
+        // For single file, create a list with just this file
+        list->count = 1;
+        list->files = malloc(sizeof(char*));
+        if (!list->files) {
+            printf("Error: Memory allocation failed\n");
+            return 0;
+        }
+        
+        const char* filename = last_slash ? last_slash + 1 : path;
+        list->files[0] = malloc(strlen(filename) + 1);
+        if (list->files[0]) {
+            strcpy(list->files[0], filename);
+        }
+        
+    } else {
+        printf("Error: %s is neither a file nor a directory\n", path);
+        return 0;
+    }
+    
+    return 1;
+}
+
+void cleanup_file_list(FileList* list) {
+    if (list->files) {
+        for (int i = 0; i < list->count; i++) {
+            if (list->files[i]) {
+                free(list->files[i]);
+            }
+        }
+        free(list->files);
+        list->files = NULL;
+    }
+    list->count = 0;
+    list->current_index = 0;
+}
+
+char* get_current_file_path(const FileList* list) {
+    if (!list->files || list->current_index < 0 || list->current_index >= list->count) {
+        return NULL;
+    }
+    
+    static char full_path[MAX_PATH_LEN * 2];
+    snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, list->files[list->current_index]);
+    return full_path;
+}
+
+int navigate_to_file(FileList* list, const char* target_filename) {
+    const char* filename = strrchr(target_filename, '/');
+    filename = filename ? filename + 1 : target_filename;
+    
+    for (int i = 0; i < list->count; i++) {
+        if (strcmp(list->files[i], filename) == 0) {
+            list->current_index = i;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int load_current_image(ImageViewer* viewer) {
+    char* file_path = get_current_file_path(&viewer->file_list);
+    if (!file_path) {
+        printf("No current file to load\n");
+        return 0;
+    }
+    
+    return load_image(viewer, file_path);
+}
+
+int navigate_next_image(ImageViewer* viewer) {
+    if (viewer->file_list.count <= 1) return 0;
+    
+    viewer->file_list.current_index = (viewer->file_list.current_index + 1) % viewer->file_list.count;
+    return load_current_image(viewer);
+}
+
+int navigate_prev_image(ImageViewer* viewer) {
+    if (viewer->file_list.count <= 1) return 0;
+    
+    viewer->file_list.current_index = (viewer->file_list.current_index - 1 + viewer->file_list.count) % viewer->file_list.count;
+    return load_current_image(viewer);
+}
+
+void print_current_image_info(const ImageViewer* viewer) {
+    if (viewer->file_list.count > 1) {
+        printf("Image %d/%d: %s\n", 
+               viewer->file_list.current_index + 1, 
+               viewer->file_list.count,
+               viewer->file_list.files[viewer->file_list.current_index]);
+    }
+}
+
+void handle_auto_navigation(ImageViewer* viewer) {
+    Uint32 current_time = SDL_GetTicks();
+    
+    if ((viewer->left_key_held || viewer->right_key_held) && 
+        (current_time - viewer->last_auto_nav_time >= viewer->auto_nav_interval)) {
+        
+        if (viewer->left_key_held) {
+            if (navigate_prev_image(viewer)) {
+                print_current_image_info(viewer);
+            }
+        } else if (viewer->right_key_held) {
+            if (navigate_next_image(viewer)) {
+                print_current_image_info(viewer);
+            }
+        }
+        
+        viewer->last_auto_nav_time = current_time;
+    }
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        printf("Usage: %s <image_file.jpg>\n", argv[0]);
+        printf("Usage: %s <image_file_or_directory>\n", argv[0]);
         printf("Supported formats: JPG, JPEG, PNG, BMP, GIF, TIF\n");
         return 1;
     }
@@ -199,13 +490,28 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (!load_image(&viewer, argv[1])) {
-        printf("Failed to load image: %s\n", argv[1]);
+    if (!init_file_list(&viewer.file_list, argv[1])) {
+        printf("Failed to initialize file list for: %s\n", argv[1]);
+        cleanup_viewer(&viewer);
+        return 1;
+    }
+
+    // If a specific file was given, navigate to it
+    if (argc == 2) {
+        struct stat path_stat;
+        if (stat(argv[1], &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
+            navigate_to_file(&viewer.file_list, argv[1]);
+        }
+    }
+
+    if (!load_current_image(&viewer)) {
+        printf("Failed to load initial image\n");
         cleanup_viewer(&viewer);
         return 1;
     }
 
     print_help();
+    print_current_image_info(&viewer);
 
     int quit = 0;
     SDL_Event e;
@@ -259,6 +565,40 @@ int main(int argc, char* argv[]) {
                         case SDLK_h:
                             print_help();
                             break;
+
+                        case SDLK_LEFT:
+                            if (!viewer.left_key_held) {
+                                // First press - immediate navigation
+                                if (navigate_prev_image(&viewer)) {
+                                    print_current_image_info(&viewer);
+                                }
+                                viewer.left_key_held = 1;
+                                viewer.last_auto_nav_time = SDL_GetTicks();
+                            }
+                            break;
+
+                        case SDLK_RIGHT:
+                            if (!viewer.right_key_held) {
+                                // First press - immediate navigation
+                                if (navigate_next_image(&viewer)) {
+                                    print_current_image_info(&viewer);
+                                }
+                                viewer.right_key_held = 1;
+                                viewer.last_auto_nav_time = SDL_GetTicks();
+                            }
+                            break;
+                    }
+                    break;
+
+                case SDL_KEYUP:
+                    switch (e.key.keysym.sym) {
+                        case SDLK_LEFT:
+                            viewer.left_key_held = 0;
+                            break;
+
+                        case SDLK_RIGHT:
+                            viewer.right_key_held = 0;
+                            break;
                     }
                     break;
 
@@ -306,6 +646,9 @@ int main(int argc, char* argv[]) {
                     break;
             }
         }
+
+        // Handle auto-navigation when keys are held
+        handle_auto_navigation(&viewer);
 
         render_image(&viewer);
         SDL_Delay(16);
