@@ -36,7 +36,28 @@ sudo pacman -S sdl2 sdl2_image
 brew install sdl2 sdl2_image
 ```
 
-## Building
+## Installation
+
+### Arch Linux (Automated)
+For Arch Linux users, there's an automated installation script that handles everything:
+
+```bash
+./install_arch.sh
+```
+
+This script will:
+- Install SDL2 dependencies via pacman
+- Build the imageviewer from source
+- Install the binary to `/usr/local/bin`
+- Create a desktop entry for GUI access
+- Set up file associations
+
+To uninstall:
+```bash
+./uninstall_arch.sh
+```
+
+### Manual Building
 
 1. Install dependencies (see above)
 2. Build the project:
