@@ -86,8 +86,8 @@ run_clang_tidy() {
 run_cppcheck() {
     print_step "Running cppcheck analysis..."
     
-    cppcheck --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction \
-             --suppress=constParameter --quiet --std=c99 main.c || {
+    cppcheck --enable=all --check-level=exhaustive --suppress=missingIncludeSystem \
+            --quiet --std=c23 main.c || {
         print_warning "cppcheck found issues (see output above)"
     }
     
