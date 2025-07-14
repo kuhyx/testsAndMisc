@@ -42,16 +42,16 @@ typedef struct {
 } ImageViewer;
 
 // Function declarations
-int is_image_file(const char* filename);
-int init_file_list(FileList* list, const char* path);
-void cleanup_file_list(FileList* list);
-char* get_current_file_path(const FileList* list);
-int navigate_to_file(FileList* list, const char* target_filename);
-int load_current_image(ImageViewer* viewer);
-int navigate_next_image(ImageViewer* viewer);
-int navigate_prev_image(ImageViewer* viewer);
-void print_current_image_info(const ImageViewer* viewer);
-void handle_auto_navigation(ImageViewer* viewer);
+static int is_image_file(const char* filename);
+static int init_file_list(FileList* list, const char* path);
+static void cleanup_file_list(FileList* list);
+static char* get_current_file_path(const FileList* list);
+static int navigate_to_file(FileList* list, const char* target_filename);
+static int load_current_image(ImageViewer* viewer);
+static int navigate_next_image(ImageViewer* viewer);
+static int navigate_prev_image(ImageViewer* viewer);
+static void print_current_image_info(const ImageViewer* viewer);
+static void handle_auto_navigation(ImageViewer* viewer);
 
 // Safe memory copy wrapper to address static analyzer warnings
 static int safe_copy_memory(void* dest, size_t dest_size, const void* src, size_t src_len) {
@@ -96,7 +96,7 @@ static int safe_format_path(char* dest, size_t dest_size, const char* dir, const
     return 1; // Success
 }
 
-int init_viewer(ImageViewer* viewer) {
+static int init_viewer(ImageViewer* viewer) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         return 0;
@@ -156,7 +156,7 @@ int init_viewer(ImageViewer* viewer) {
     return 1;
 }
 
-int load_image(ImageViewer* viewer, const char* filename) {
+static int load_image(ImageViewer* viewer, const char* filename) {
     if (viewer->texture) {
         SDL_DestroyTexture(viewer->texture);
         viewer->texture = NULL;
@@ -206,7 +206,7 @@ int load_image(ImageViewer* viewer, const char* filename) {
     return 1;
 }
 
-void render_image(ImageViewer* viewer) {
+static void render_image(ImageViewer* viewer) {
     SDL_SetRenderDrawColor(viewer->renderer, 32, 32, 32, 255);
     SDL_RenderClear(viewer->renderer);
 
@@ -230,7 +230,7 @@ void render_image(ImageViewer* viewer) {
     SDL_RenderPresent(viewer->renderer);
 }
 
-void handle_zoom(ImageViewer* viewer, float zoom_delta, int mouse_x, int mouse_y) {
+static void handle_zoom(ImageViewer* viewer, float zoom_delta, int mouse_x, int mouse_y) {
     float old_zoom = viewer->zoom_factor;
     viewer->zoom_factor += zoom_delta;
     
@@ -249,7 +249,7 @@ void handle_zoom(ImageViewer* viewer, float zoom_delta, int mouse_x, int mouse_y
     viewer->offset_y = (viewer->offset_y - (mouse_y - center_y)) * zoom_ratio + (mouse_y - center_y);
 }
 
-void print_help() {
+static void print_help() {
     printf("\n=== Image Viewer Controls ===\n");
     printf("Mouse wheel / +/-: Zoom in/out\n");
     printf("Mouse drag: Pan image\n");
@@ -262,7 +262,7 @@ void print_help() {
     printf("===============================\n\n");
 }
 
-void cleanup_viewer(ImageViewer* viewer) {
+static void cleanup_viewer(ImageViewer* viewer) {
     if (viewer->texture) {
         SDL_DestroyTexture(viewer->texture);
     }
@@ -277,7 +277,7 @@ void cleanup_viewer(ImageViewer* viewer) {
     SDL_Quit();
 }
 
-int is_image_file(const char* filename) {
+static int is_image_file(const char* filename) {
     const char* ext = strrchr(filename, '.');
     if (!ext) return 0;
     
@@ -288,7 +288,7 @@ int is_image_file(const char* filename) {
             strcasecmp(ext, "tiff") == 0 || strcasecmp(ext, "webp") == 0);
 }
 
-int init_file_list(FileList* list, const char* path) {
+static int init_file_list(FileList* list, const char* path) {
     struct stat path_stat;
     list->files = NULL;
     list->count = 0;
@@ -564,7 +564,7 @@ int init_file_list(FileList* list, const char* path) {
     return 1;
 }
 
-void cleanup_file_list(FileList* list) {
+static void cleanup_file_list(FileList* list) {
     if (list->files) {
         for (int i = 0; i < list->count; i++) {
             if (list->files[i]) {
@@ -578,7 +578,7 @@ void cleanup_file_list(FileList* list) {
     list->current_index = 0;
 }
 
-char* get_current_file_path(const FileList* list) {
+static char* get_current_file_path(const FileList* list) {
     if (!list->files || list->current_index < 0 || list->current_index >= list->count) {
         return NULL;
     }
@@ -590,20 +590,8 @@ char* get_current_file_path(const FileList* list) {
     return full_path;
 }
 
-int navigate_to_file(FileList* list, const char* target_filename) {
-    const char* filename = strrchr(target_filename, '/');
-    filename = filename ? filename + 1 : target_filename;
-    
-    for (int i = 0; i < list->count; i++) {
-        if (strcmp(list->files[i], filename) == 0) {
-            list->current_index = i;
-            return 1;
-        }
-    }
-    return 0;
-}
 
-int load_current_image(ImageViewer* viewer) {
+static int load_current_image(ImageViewer* viewer) {
     char* file_path = get_current_file_path(&viewer->file_list);
     if (!file_path) {
         printf("No current file to load\n");
@@ -613,21 +601,21 @@ int load_current_image(ImageViewer* viewer) {
     return load_image(viewer, file_path);
 }
 
-int navigate_next_image(ImageViewer* viewer) {
+static int navigate_next_image(ImageViewer* viewer) {
     if (viewer->file_list.count <= 1) return 0;
     
     viewer->file_list.current_index = (viewer->file_list.current_index + 1) % viewer->file_list.count;
     return load_current_image(viewer);
 }
 
-int navigate_prev_image(ImageViewer* viewer) {
+static int navigate_prev_image(ImageViewer* viewer) {
     if (viewer->file_list.count <= 1) return 0;
     
     viewer->file_list.current_index = (viewer->file_list.current_index - 1 + viewer->file_list.count) % viewer->file_list.count;
     return load_current_image(viewer);
 }
 
-void print_current_image_info(const ImageViewer* viewer) {
+static void print_current_image_info(const ImageViewer* viewer) {
     if (viewer->file_list.count > 1) {
         printf("Image %d/%d: %s\n", 
                viewer->file_list.current_index + 1, 
@@ -636,7 +624,7 @@ void print_current_image_info(const ImageViewer* viewer) {
     }
 }
 
-void handle_auto_navigation(ImageViewer* viewer) {
+static void handle_auto_navigation(ImageViewer* viewer) {
     Uint32 current_time = SDL_GetTicks();
     
     if ((viewer->left_key_held || viewer->right_key_held) && 
