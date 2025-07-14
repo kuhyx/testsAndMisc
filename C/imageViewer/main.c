@@ -59,14 +59,14 @@ int init_viewer(ImageViewer* viewer) {
         return 0;
     }
 
-    int img_flags = IMG_INIT_JPG | IMG_INIT_PNG;
+    int img_flags = IMG_INIT_JPG | IMG_INIT_PNG | IMG_INIT_WEBP;
     if (!(IMG_Init(img_flags) & img_flags)) {
         printf("SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
         SDL_Quit();
         return 0;
     }
 
-    viewer->window = SDL_CreateWindow("JPG Image Viewer",
+    viewer->window = SDL_CreateWindow("Image Viewer",
                                       SDL_WINDOWPOS_UNDEFINED,
                                       SDL_WINDOWPOS_UNDEFINED,
                                       WINDOW_WIDTH,
@@ -238,7 +238,7 @@ int is_image_file(const char* filename) {
     return (strcasecmp(ext, "jpg") == 0 || strcasecmp(ext, "jpeg") == 0 ||
             strcasecmp(ext, "png") == 0 || strcasecmp(ext, "bmp") == 0 ||
             strcasecmp(ext, "gif") == 0 || strcasecmp(ext, "tif") == 0 ||
-            strcasecmp(ext, "tiff") == 0);
+            strcasecmp(ext, "tiff") == 0 || strcasecmp(ext, "webp") == 0);
 }
 
 int init_file_list(FileList* list, const char* path) {
@@ -349,7 +349,7 @@ int init_file_list(FileList* list, const char* path) {
         printf("Found %d image files in directory\n", list->count);
         
     } else if (S_ISREG(path_stat.st_mode)) {
-        // It's a single file
+        // It's a single file - scan its directory for all images
         if (!is_image_file(path)) {
             printf("Error: %s is not a supported image file\n", path);
             return 0;
@@ -357,26 +357,118 @@ int init_file_list(FileList* list, const char* path) {
         
         // Extract directory and filename
         char* last_slash = strrchr(path, '/');
+        const char* target_filename;
+        
         if (last_slash) {
             strncpy(list->base_dir, path, last_slash - path);
             list->base_dir[last_slash - path] = '\0';
+            target_filename = last_slash + 1;
         } else {
             strcpy(list->base_dir, ".");
+            target_filename = path;
         }
         
-        // For single file, create a list with just this file
-        list->count = 1;
-        list->files = malloc(sizeof(char*));
-        if (!list->files) {
-            printf("Error: Memory allocation failed\n");
+        // Now scan the directory for all image files
+        DIR* dir = opendir(list->base_dir);
+        if (!dir) {
+            printf("Error: Cannot open directory %s\n", list->base_dir);
             return 0;
         }
         
-        const char* filename = last_slash ? last_slash + 1 : path;
-        list->files[0] = malloc(strlen(filename) + 1);
-        if (list->files[0]) {
-            strcpy(list->files[0], filename);
+        // First pass: count image files in directory
+        struct dirent* entry;
+        list->count = 0;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
+                // Build full path and check if it's a regular file
+                char full_path[MAX_PATH_LEN * 2];
+                snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
+                struct stat file_stat;
+                if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
+                    list->count++;
+                }
+            }
         }
+        
+        if (list->count == 0) {
+            printf("No image files found in directory %s\n", list->base_dir);
+            closedir(dir);
+            return 0;
+        }
+        
+        // Allocate memory for file list
+        list->files = malloc(list->count * sizeof(char*));
+        if (!list->files) {
+            printf("Error: Memory allocation failed\n");
+            closedir(dir);
+            return 0;
+        }
+        
+        // Second pass: store filenames
+        rewinddir(dir);
+        int index = 0;
+        while ((entry = readdir(dir)) != NULL && index < list->count) {
+            if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
+                // Build full path and check if it's a regular file
+                char full_path[MAX_PATH_LEN * 2];
+                snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
+                struct stat file_stat;
+                if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
+                    list->files[index] = malloc(strlen(entry->d_name) + 1);
+                    if (list->files[index]) {
+                        strcpy(list->files[index], entry->d_name);
+                        index++;
+                    }
+                }
+            }
+        }
+        list->count = index; // Update count to actual stored files
+        
+        closedir(dir);
+        
+        // Sort files alphabetically by filename without extension, shorter names first
+        for (int i = 0; i < list->count - 1; i++) {
+            for (int j = 0; j < list->count - i - 1; j++) {
+                // Extract filenames without extensions
+                char name1[MAX_PATH_LEN], name2[MAX_PATH_LEN];
+                strcpy(name1, list->files[j]);
+                strcpy(name2, list->files[j + 1]);
+                
+                char* dot1 = strrchr(name1, '.');
+                char* dot2 = strrchr(name2, '.');
+                if (dot1) *dot1 = '\0';
+                if (dot2) *dot2 = '\0';
+                
+                // Custom comparison: shorter names first, then alphabetical
+                int should_swap = 0;
+                int len1 = strlen(name1);
+                int len2 = strlen(name2);
+                
+                if (len1 != len2) {
+                    // Different lengths - shorter comes first
+                    should_swap = (len1 > len2);
+                } else {
+                    // Same length - alphabetical order
+                    should_swap = (strcmp(name1, name2) > 0);
+                }
+                
+                if (should_swap) {
+                    char* temp = list->files[j];
+                    list->files[j] = list->files[j + 1];
+                    list->files[j + 1] = temp;
+                }
+            }
+        }
+        
+        // Find the target file in the sorted list and set current_index
+        for (int i = 0; i < list->count; i++) {
+            if (strcmp(list->files[i], target_filename) == 0) {
+                list->current_index = i;
+                break;
+            }
+        }
+        
+        printf("Found %d image files in directory, starting with: %s\n", list->count, target_filename);
         
     } else {
         printf("Error: %s is neither a file nor a directory\n", path);
@@ -479,7 +571,7 @@ void handle_auto_navigation(ImageViewer* viewer) {
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         printf("Usage: %s <image_file_or_directory>\n", argv[0]);
-        printf("Supported formats: JPG, JPEG, PNG, BMP, GIF, TIF\n");
+        printf("Supported formats: JPG, JPEG, PNG, BMP, GIF, TIF, WEBP\n");
         return 1;
     }
 
@@ -494,14 +586,6 @@ int main(int argc, char* argv[]) {
         printf("Failed to initialize file list for: %s\n", argv[1]);
         cleanup_viewer(&viewer);
         return 1;
-    }
-
-    // If a specific file was given, navigate to it
-    if (argc == 2) {
-        struct stat path_stat;
-        if (stat(argv[1], &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
-            navigate_to_file(&viewer.file_list, argv[1]);
-        }
     }
 
     if (!load_current_image(&viewer)) {
