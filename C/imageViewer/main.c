@@ -137,8 +137,10 @@ int load_image(ImageViewer* viewer, const char* filename) {
 
     SDL_FreeSurface(surface);
 
-    strncpy(viewer->current_file, filename, MAX_PATH_LEN - 1);
-    viewer->current_file[MAX_PATH_LEN - 1] = '\0';
+    size_t filename_len = strlen(filename);
+    size_t copy_len = (filename_len < MAX_PATH_LEN - 1) ? filename_len : MAX_PATH_LEN - 1;
+    memcpy(viewer->current_file, filename, copy_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+    viewer->current_file[copy_len] = '\0';
 
     viewer->zoom_factor = 1.0f;
     viewer->offset_x = 0;
@@ -261,7 +263,15 @@ int init_file_list(FileList* list, const char* path) {
             return 0;
         }
         
-        strcpy(list->base_dir, path);
+        size_t path_len = strlen(path);
+        if (path_len < MAX_PATH_LEN) {
+            memcpy(list->base_dir, path, path_len);
+            list->base_dir[path_len] = '\0';
+        } else {
+            printf("Error: Path too long\n");
+            closedir(dir);
+            return 0;
+        }
         
         // First pass: count image files
         struct dirent* entry;
@@ -269,7 +279,10 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
+                    continue; // Skip if path is too long
+                }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
                     list->count++;
@@ -298,12 +311,17 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
+                    continue; // Skip if path is too long
+                }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
                     list->files[index] = malloc(strlen(entry->d_name) + 1);
                     if (list->files[index]) {
-                        strcpy(list->files[index], entry->d_name);
+                        size_t name_len = strlen(entry->d_name);
+                        memcpy(list->files[index], entry->d_name, name_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+                        list->files[index][name_len] = '\0';
                         index++;
                     }
                 }
@@ -318,8 +336,16 @@ int init_file_list(FileList* list, const char* path) {
             for (int j = 0; j < list->count - i - 1; j++) {
                 // Extract filenames without extensions
                 char name1[MAX_PATH_LEN], name2[MAX_PATH_LEN];
-                strcpy(name1, list->files[j]);
-                strcpy(name2, list->files[j + 1]);
+                size_t len1 = strlen(list->files[j]);
+                size_t len2 = strlen(list->files[j + 1]);
+                
+                size_t copy_len1 = (len1 < MAX_PATH_LEN - 1) ? len1 : MAX_PATH_LEN - 1;
+                size_t copy_len2 = (len2 < MAX_PATH_LEN - 1) ? len2 : MAX_PATH_LEN - 1;
+                
+                memcpy(name1, list->files[j], copy_len1);
+                name1[copy_len1] = '\0';
+                memcpy(name2, list->files[j + 1], copy_len2);
+                name2[copy_len2] = '\0';
                 
                 char* dot1 = strrchr(name1, '.');
                 char* dot2 = strrchr(name2, '.');
@@ -328,12 +354,12 @@ int init_file_list(FileList* list, const char* path) {
                 
                 // Custom comparison: shorter names first, then alphabetical
                 int should_swap = 0;
-                int len1 = strlen(name1);
-                int len2 = strlen(name2);
+                int name1_len = strlen(name1);
+                int name2_len = strlen(name2);
                 
-                if (len1 != len2) {
+                if (name1_len != name2_len) {
                     // Different lengths - shorter comes first
-                    should_swap = (len1 > len2);
+                    should_swap = (name1_len > name2_len);
                 } else {
                     // Same length - alphabetical order
                     should_swap = (strcmp(name1, name2) > 0);
@@ -361,11 +387,18 @@ int init_file_list(FileList* list, const char* path) {
         const char* target_filename;
         
         if (last_slash) {
-            strncpy(list->base_dir, path, last_slash - path);
-            list->base_dir[last_slash - path] = '\0';
+            size_t dir_len = last_slash - path;
+            if (dir_len < MAX_PATH_LEN) {
+                memcpy(list->base_dir, path, dir_len);
+                list->base_dir[dir_len] = '\0';
+            } else {
+                printf("Error: Directory path too long\n");
+                return 0;
+            }
             target_filename = last_slash + 1;
         } else {
-            strcpy(list->base_dir, ".");
+            memcpy(list->base_dir, ".", 1);
+            list->base_dir[1] = '\0';
             target_filename = path;
         }
         
@@ -383,7 +416,10 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
+                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
+                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
+                    continue; // Skip if path is too long
+                }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
                     list->count++;
@@ -412,12 +448,17 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
+                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
+                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
+                    continue; // Skip if path is too long
+                }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
                     list->files[index] = malloc(strlen(entry->d_name) + 1);
                     if (list->files[index]) {
-                        strcpy(list->files[index], entry->d_name);
+                        size_t name_len = strlen(entry->d_name);
+                        memcpy(list->files[index], entry->d_name, name_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+                        list->files[index][name_len] = '\0';
                         index++;
                     }
                 }
@@ -432,8 +473,16 @@ int init_file_list(FileList* list, const char* path) {
             for (int j = 0; j < list->count - i - 1; j++) {
                 // Extract filenames without extensions
                 char name1[MAX_PATH_LEN], name2[MAX_PATH_LEN];
-                strcpy(name1, list->files[j]);
-                strcpy(name2, list->files[j + 1]);
+                size_t len1 = strlen(list->files[j]);
+                size_t len2 = strlen(list->files[j + 1]);
+                
+                size_t copy_len1 = (len1 < MAX_PATH_LEN - 1) ? len1 : MAX_PATH_LEN - 1;
+                size_t copy_len2 = (len2 < MAX_PATH_LEN - 1) ? len2 : MAX_PATH_LEN - 1;
+                
+                memcpy(name1, list->files[j], copy_len1);
+                name1[copy_len1] = '\0';
+                memcpy(name2, list->files[j + 1], copy_len2);
+                name2[copy_len2] = '\0';
                 
                 char* dot1 = strrchr(name1, '.');
                 char* dot2 = strrchr(name2, '.');
@@ -442,12 +491,12 @@ int init_file_list(FileList* list, const char* path) {
                 
                 // Custom comparison: shorter names first, then alphabetical
                 int should_swap = 0;
-                int len1 = strlen(name1);
-                int len2 = strlen(name2);
+                int name1_len = strlen(name1);
+                int name2_len = strlen(name2);
                 
-                if (len1 != len2) {
+                if (name1_len != name2_len) {
                     // Different lengths - shorter comes first
-                    should_swap = (len1 > len2);
+                    should_swap = (name1_len > name2_len);
                 } else {
                     // Same length - alphabetical order
                     should_swap = (strcmp(name1, name2) > 0);
@@ -499,7 +548,10 @@ char* get_current_file_path(const FileList* list) {
     }
     
     static char full_path[MAX_PATH_LEN * 2];
-    snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, list->files[list->current_index]);
+    int ret = snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, list->files[list->current_index]);
+    if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
+        return NULL; // Path too long
+    }
     return full_path;
 }
 

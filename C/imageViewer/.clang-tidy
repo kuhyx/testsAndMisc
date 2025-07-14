@@ -13,7 +13,8 @@ Checks: >
   -modernize-use-trailing-return-type,
   -cert-err33-c,
   -misc-unused-parameters,
-  -readability-isolate-declaration
+  -readability-isolate-declaration,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*\.h$'
