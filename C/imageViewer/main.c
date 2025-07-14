@@ -151,8 +151,9 @@ int load_image(ImageViewer* viewer, const char* filename) {
     float scale_y = (float)window_h / viewer->image_height;
     float auto_scale = (scale_x < scale_y) ? scale_x : scale_y;
     
+    // Only scale down if image is larger than window, never scale up
     if (auto_scale < 1.0f) {
-        viewer->zoom_factor = auto_scale * 0.9f;
+        viewer->zoom_factor = auto_scale;
     }
 
     printf("Loaded image: %s (%dx%d)\n", filename, viewer->image_width, viewer->image_height);
@@ -628,7 +629,7 @@ int main(int argc, char* argv[]) {
                                 
                                 float scale_x = (float)window_w / viewer.image_width;
                                 float scale_y = (float)window_h / viewer.image_height;
-                                viewer.zoom_factor = ((scale_x < scale_y) ? scale_x : scale_y) * 0.9f;
+                                viewer.zoom_factor = (scale_x < scale_y) ? scale_x : scale_y;
                                 viewer.offset_x = 0;
                                 viewer.offset_y = 0;
                                 printf("Fit to window (zoom: %.2f)\n", viewer.zoom_factor);
@@ -726,6 +727,27 @@ int main(int argc, char* argv[]) {
                 case SDL_WINDOWEVENT:
                     if (e.window.event == SDL_WINDOWEVENT_RESIZED) {
                         printf("Window resized to %dx%d\n", e.window.data1, e.window.data2);
+                        
+                        // Recalculate auto-scaling for new window size
+                        int window_w = e.window.data1;
+                        int window_h = e.window.data2;
+                        
+                        float scale_x = (float)window_w / viewer.image_width;
+                        float scale_y = (float)window_h / viewer.image_height;
+                        float auto_scale = (scale_x < scale_y) ? scale_x : scale_y;
+                        
+                        // Only scale down if image is larger than window, never scale up
+                        if (auto_scale < 1.0f) {
+                            viewer.zoom_factor = auto_scale;
+                        } else {
+                            viewer.zoom_factor = 1.0f;
+                        }
+                        
+                        // Reset offset to center the image
+                        viewer.offset_x = 0;
+                        viewer.offset_y = 0;
+                        
+                        printf("Auto-scaled to zoom: %.2f\n", viewer.zoom_factor);
                     }
                     break;
             }
