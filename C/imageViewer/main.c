@@ -53,6 +53,49 @@ int navigate_prev_image(ImageViewer* viewer);
 void print_current_image_info(const ImageViewer* viewer);
 void handle_auto_navigation(ImageViewer* viewer);
 
+// Safe memory copy wrapper to address static analyzer warnings
+static int safe_copy_memory(void* dest, size_t dest_size, const void* src, size_t src_len) {
+    if (!dest || !src || dest_size == 0 || src_len == 0) {
+        return 0; // Invalid parameters
+    }
+    
+    if (src_len > dest_size) {
+        return 0; // Source too large for destination
+    }
+    
+    memcpy(dest, src, src_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+    return 1; // Success
+}
+
+// Safe string copy with automatic null termination
+static int safe_copy_string(char* dest, size_t dest_size, const char* src, size_t src_len) {
+    if (!dest || !src || dest_size <= 1) {
+        return 0; // Invalid parameters or dest too small for null terminator
+    }
+    
+    size_t copy_len = (src_len < dest_size - 1) ? src_len : dest_size - 1;
+    if (!safe_copy_memory(dest, dest_size, src, copy_len)) {
+        return 0;
+    }
+    
+    dest[copy_len] = '\0';
+    return 1; // Success
+}
+
+// Safe path formatting wrapper to address static analyzer warnings
+static int safe_format_path(char* dest, size_t dest_size, const char* dir, const char* filename) {
+    if (!dest || !dir || !filename || dest_size == 0) {
+        return 0; // Invalid parameters
+    }
+    
+    int ret = snprintf(dest, dest_size, "%s/%s", dir, filename); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+    if (ret < 0 || (size_t)ret >= dest_size) {
+        return 0; // Formatting failed or path too long
+    }
+    
+    return 1; // Success
+}
+
 int init_viewer(ImageViewer* viewer) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -138,9 +181,10 @@ int load_image(ImageViewer* viewer, const char* filename) {
     SDL_FreeSurface(surface);
 
     size_t filename_len = strlen(filename);
-    size_t copy_len = (filename_len < MAX_PATH_LEN - 1) ? filename_len : MAX_PATH_LEN - 1;
-    memcpy(viewer->current_file, filename, copy_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    viewer->current_file[copy_len] = '\0';
+    if (!safe_copy_string(viewer->current_file, MAX_PATH_LEN, filename, filename_len)) {
+        printf("Error: Filename too long for buffer\n");
+        return 0;
+    }
 
     viewer->zoom_factor = 1.0f;
     viewer->offset_x = 0;
@@ -264,10 +308,7 @@ int init_file_list(FileList* list, const char* path) {
         }
         
         size_t path_len = strlen(path);
-        if (path_len < MAX_PATH_LEN) {
-            memcpy(list->base_dir, path, path_len);
-            list->base_dir[path_len] = '\0';
-        } else {
+        if (!safe_copy_string(list->base_dir, MAX_PATH_LEN, path, path_len)) {
             printf("Error: Path too long\n");
             closedir(dir);
             return 0;
@@ -279,9 +320,8 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
-                    continue; // Skip if path is too long
+                if (!safe_format_path(full_path, sizeof(full_path), path, entry->d_name)) {
+                    continue; // Skip if path formatting fails or path too long
                 }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
@@ -311,18 +351,20 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
-                    continue; // Skip if path is too long
+                if (!safe_format_path(full_path, sizeof(full_path), path, entry->d_name)) {
+                    continue; // Skip if path formatting fails or path too long
                 }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
                     list->files[index] = malloc(strlen(entry->d_name) + 1);
                     if (list->files[index]) {
                         size_t name_len = strlen(entry->d_name);
-                        memcpy(list->files[index], entry->d_name, name_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-                        list->files[index][name_len] = '\0';
-                        index++;
+                        if (safe_copy_string(list->files[index], name_len + 1, entry->d_name, name_len)) {
+                            index++;
+                        } else {
+                            free(list->files[index]);
+                            list->files[index] = NULL;
+                        }
                     }
                 }
             }
@@ -339,13 +381,10 @@ int init_file_list(FileList* list, const char* path) {
                 size_t len1 = strlen(list->files[j]);
                 size_t len2 = strlen(list->files[j + 1]);
                 
-                size_t copy_len1 = (len1 < MAX_PATH_LEN - 1) ? len1 : MAX_PATH_LEN - 1;
-                size_t copy_len2 = (len2 < MAX_PATH_LEN - 1) ? len2 : MAX_PATH_LEN - 1;
-                
-                memcpy(name1, list->files[j], copy_len1);
-                name1[copy_len1] = '\0';
-                memcpy(name2, list->files[j + 1], copy_len2);
-                name2[copy_len2] = '\0';
+                if (!safe_copy_string(name1, MAX_PATH_LEN, list->files[j], len1) ||
+                    !safe_copy_string(name2, MAX_PATH_LEN, list->files[j + 1], len2)) {
+                    continue; // Skip if copy fails
+                }
                 
                 char* dot1 = strrchr(name1, '.');
                 char* dot2 = strrchr(name2, '.');
@@ -388,17 +427,16 @@ int init_file_list(FileList* list, const char* path) {
         
         if (last_slash) {
             size_t dir_len = last_slash - path;
-            if (dir_len < MAX_PATH_LEN) {
-                memcpy(list->base_dir, path, dir_len);
-                list->base_dir[dir_len] = '\0';
-            } else {
+            if (!safe_copy_string(list->base_dir, MAX_PATH_LEN, path, dir_len)) {
                 printf("Error: Directory path too long\n");
                 return 0;
             }
             target_filename = last_slash + 1;
         } else {
-            memcpy(list->base_dir, ".", 1);
-            list->base_dir[1] = '\0';
+            if (!safe_copy_string(list->base_dir, MAX_PATH_LEN, ".", 1)) {
+                printf("Error: Failed to set current directory\n");
+                return 0;
+            }
             target_filename = path;
         }
         
@@ -416,9 +454,8 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
-                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
-                    continue; // Skip if path is too long
+                if (!safe_format_path(full_path, sizeof(full_path), list->base_dir, entry->d_name)) {
+                    continue; // Skip if path formatting fails or path too long
                 }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
@@ -448,18 +485,20 @@ int init_file_list(FileList* list, const char* path) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
                 char full_path[MAX_PATH_LEN * 2];
-                int ret = snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, entry->d_name);
-                if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
-                    continue; // Skip if path is too long
+                if (!safe_format_path(full_path, sizeof(full_path), list->base_dir, entry->d_name)) {
+                    continue; // Skip if path formatting fails or path too long
                 }
                 struct stat file_stat;
                 if (stat(full_path, &file_stat) == 0 && S_ISREG(file_stat.st_mode)) {
                     list->files[index] = malloc(strlen(entry->d_name) + 1);
                     if (list->files[index]) {
                         size_t name_len = strlen(entry->d_name);
-                        memcpy(list->files[index], entry->d_name, name_len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-                        list->files[index][name_len] = '\0';
-                        index++;
+                        if (safe_copy_string(list->files[index], name_len + 1, entry->d_name, name_len)) {
+                            index++;
+                        } else {
+                            free(list->files[index]);
+                            list->files[index] = NULL;
+                        }
                     }
                 }
             }
@@ -476,13 +515,10 @@ int init_file_list(FileList* list, const char* path) {
                 size_t len1 = strlen(list->files[j]);
                 size_t len2 = strlen(list->files[j + 1]);
                 
-                size_t copy_len1 = (len1 < MAX_PATH_LEN - 1) ? len1 : MAX_PATH_LEN - 1;
-                size_t copy_len2 = (len2 < MAX_PATH_LEN - 1) ? len2 : MAX_PATH_LEN - 1;
-                
-                memcpy(name1, list->files[j], copy_len1);
-                name1[copy_len1] = '\0';
-                memcpy(name2, list->files[j + 1], copy_len2);
-                name2[copy_len2] = '\0';
+                if (!safe_copy_string(name1, MAX_PATH_LEN, list->files[j], len1) ||
+                    !safe_copy_string(name2, MAX_PATH_LEN, list->files[j + 1], len2)) {
+                    continue; // Skip if copy fails
+                }
                 
                 char* dot1 = strrchr(name1, '.');
                 char* dot2 = strrchr(name2, '.');
@@ -548,9 +584,8 @@ char* get_current_file_path(const FileList* list) {
     }
     
     static char full_path[MAX_PATH_LEN * 2];
-    int ret = snprintf(full_path, sizeof(full_path), "%s/%s", list->base_dir, list->files[list->current_index]);
-    if (ret < 0 || (size_t)ret >= sizeof(full_path)) {
-        return NULL; // Path too long
+    if (!safe_format_path(full_path, sizeof(full_path), list->base_dir, list->files[list->current_index])) {
+        return NULL; // Path formatting failed or path too long
     }
     return full_path;
 }
