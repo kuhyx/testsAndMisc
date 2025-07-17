@@ -201,7 +201,11 @@ class KeyboardCoopGame:
         if letter in self.available_letters and self.is_valid_move(letter):
             self.selected_letters.append(letter)
             self.current_word += letter
-            self.available_letters = set(self.key_adjacency[letter]) if letter in self.key_adjacency else set()
+            
+            # Update available letters to include adjacent letters AND the same letter
+            adjacent_letters = set(self.key_adjacency[letter]) if letter in self.key_adjacency else set()
+            adjacent_letters.add(letter)  # Allow selecting the same letter again
+            self.available_letters = adjacent_letters
             
             # Switch player
             self.current_player = 1 - self.current_player
@@ -296,6 +300,8 @@ class KeyboardCoopGame:
         instructions = [
             "Instructions:",
             "• Take turns selecting adjacent letters",
+            "• Click letters or use keyboard to select",
+            "• Same letter can be selected consecutively",
             "• Press ENTER to submit word (min 3 letters)",
             "• Press R to reset game",
             "• Score increases exponentially",
@@ -308,7 +314,7 @@ class KeyboardCoopGame:
             self.screen.blit(inst_text, (start_x, 20 + i * 22))
         
         # Enter button - smaller and repositioned
-        enter_rect = pygame.Rect(750, 155, 120, 40)
+        enter_rect = pygame.Rect(750, 190, 120, 40)
         pygame.draw.rect(self.screen, KEY_COLOR, enter_rect)
         pygame.draw.rect(self.screen, TEXT_COLOR, enter_rect, 2)
         enter_text = self.small_font.render("ENTER", True, TEXT_COLOR)
@@ -316,7 +322,7 @@ class KeyboardCoopGame:
         self.screen.blit(enter_text, enter_text_rect)
         
         # Reset button - smaller and repositioned
-        reset_rect = pygame.Rect(880, 155, 120, 40)
+        reset_rect = pygame.Rect(880, 190, 120, 40)
         pygame.draw.rect(self.screen, KEY_COLOR, reset_rect)
         pygame.draw.rect(self.screen, TEXT_COLOR, reset_rect, 2)
         reset_text = self.small_font.render("RESET", True, TEXT_COLOR)
@@ -333,8 +339,8 @@ class KeyboardCoopGame:
             self.handle_letter_click(key)
         
         # Check UI buttons
-        enter_rect = pygame.Rect(750, 155, 120, 40)
-        reset_rect = pygame.Rect(880, 155, 120, 40)
+        enter_rect = pygame.Rect(750, 190, 120, 40)
+        reset_rect = pygame.Rect(880, 190, 120, 40)
         
         if enter_rect.collidepoint(pos):
             self.submit_word()
@@ -357,6 +363,11 @@ class KeyboardCoopGame:
                         self.submit_word()
                     elif event.key == pygame.K_r:
                         self.reset_game()
+                    else:
+                        # Handle letter key presses
+                        key_name = pygame.key.name(event.key)
+                        if len(key_name) == 1 and key_name.isalpha():
+                            self.handle_letter_click(key_name.lower())
             
             # Clear screen
             self.screen.fill(BACKGROUND_COLOR)
