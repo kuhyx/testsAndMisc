@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Modifier App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🃏 Texas Hold'em Modifier</h1>
+        <div class="game-area">
+            <div class="probability-settings">
+                <h3>Settings</h3>
+                <div class="setting">
+                    <label for="modifierChance">Modifier Probability:</label>
+                    <input type="range" id="modifierChance" min="0" max="100" value="30">
+                    <span id="chanceValue">30%</span>
+                </div>
+            </div>
+            
+            <div class="result-area">
+                <div id="resultDisplay" class="result-display">
+                    <p>Click "Start Round" to begin!</p>
+                </div>
+            </div>
+            
+            <button id="startRoundBtn" class="start-button">Start Round</button>
+            
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">Rounds Played:</span>
+                    <span id="roundsCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Modifiers Applied:</span>
+                    <span id="modifiersCount">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
