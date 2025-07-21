@@ -55,7 +55,7 @@ function display_operation() {
 # Function to check if user is trying to install packages that are always blocked
 function check_for_always_blocked() {
     # List of packages that are ALWAYS blocked without any challenge
-    local always_blocked_packages=("freetube-bin" "brave" "brave-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter" "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git" "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora" "tartube")
+    local always_blocked_packages=("freetube-bin" "virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-vnc" "virtualbox-guest-utils" "virtualbox-host-dkms" "brave" "brave-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter" "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git" "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora" "tartube")
      
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
