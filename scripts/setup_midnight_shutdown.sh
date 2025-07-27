@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script to set up automatic PC shutdown with day-specific time windows
-# Saturday-Thursday: Shutdown between 21:30-05:00
-# Friday/Sunday: Shutdown between 00:00-05:00
+# Monday-Wednesday: Shutdown between 21:00-05:00
+# Thursday-Sunday: Shutdown between 22:00-05:00
 # Handles sudo privileges automatically
 
 set -e  # Exit on any error
@@ -18,8 +18,8 @@ show_usage() {
     echo "  status   - Show current status"
     echo ""
     echo "Shutdown Schedule:"
-    echo "  Saturday-Thursday: 21:30-05:00"
-    echo "  Friday/Sunday:     00:00-05:00"
+    echo "  Monday-Wednesday: 21:00-05:00"
+    echo "  Thursday-Sunday:  22:00-05:00"
     echo ""
 }
 
@@ -178,8 +178,8 @@ show_current_status() {
     
     echo ""
     echo "Shutdown Schedule:"
-    echo "  Saturday-Thursday: 21:30-05:00"
-    echo "  Friday/Sunday:     00:00-05:00"
+    echo "  Monday-Wednesday: 21:00-05:00"
+    echo "  Thursday-Sunday:  22:00-05:00"
     echo ""
 }
 
@@ -222,6 +222,7 @@ Description=Timer for automatic PC shutdown with day-specific windows
 Requires=day-specific-shutdown.service
 
 [Timer]
+OnCalendar=*-*-* 21:00:00
 OnCalendar=*-*-* 21:30:00
 OnCalendar=*-*-* 22:00:00
 OnCalendar=*-*-* 22:30:00
@@ -283,8 +284,8 @@ show_status() {
     
     echo ""
     echo "Shutdown Schedule:"
-    echo "  Saturday-Thursday: 21:30-05:00"
-    echo "  Friday/Sunday:     00:00-05:00"
+    echo "  Monday-Wednesday: 21:00-05:00"
+    echo "  Thursday-Sunday:  22:00-05:00"
     
     echo ""
     echo "Next scheduled checks:"
@@ -313,8 +314,8 @@ case "$1" in
         echo "  logs     - Show recent shutdown logs"
         echo ""
         echo "Shutdown Schedule:"
-        echo "  Saturday-Thursday: 21:30-05:00"
-        echo "  Friday/Sunday:     00:00-05:00"
+        echo "  Monday-Wednesday: 21:00-05:00"
+        echo "  Thursday-Sunday:  22:00-05:00"
         echo ""
         show_status
         ;;
@@ -337,8 +338,8 @@ create_shutdown_check_script() {
 #!/bin/bash
 # Smart day-specific shutdown check script
 # Different shutdown windows based on day of week:
-# Saturday-Thursday: 21:30-05:00
-# Friday/Sunday: 00:00-05:00
+# Monday-Wednesday: 21:00-05:00
+# Thursday-Sunday: 22:00-05:00
 
 # Get current time and day
 current_hour=$(date +%H)
@@ -348,7 +349,7 @@ day_of_week=$(date +%u)  # 1=Monday, 7=Sunday
 day_name=$(date +%A)
 
 # Convert time to minutes for easier comparison
-# 21:30 = 1290 minutes, 05:00 = 300 minutes
+# 21:00 = 1260 minutes, 22:00 = 1320 minutes, 05:00 = 300 minutes
 # 00:00 = 0 minutes, 05:00 = 300 minutes
 
 logger -t day-specific-shutdown "Checking shutdown conditions at $(date) - Day: $day_name ($day_of_week), Time: $current_hour:$current_minute"
@@ -356,31 +357,37 @@ logger -t day-specific-shutdown "Checking shutdown conditions at $(date) - Day: 
 # Determine if we should shutdown based on day and time
 should_shutdown=false
 
-if [[ $day_of_week -eq 5 ]] || [[ $day_of_week -eq 7 ]]; then
-    # Friday (5) or Sunday (7): shutdown window 00:00-05:00
-    logger -t day-specific-shutdown "Today is $day_name - checking 00:00-05:00 window"
+if [[ $day_of_week -ge 1 ]] && [[ $day_of_week -le 3 ]]; then
+    # Monday (1), Tuesday (2), Wednesday (3): shutdown window 21:00-05:00
+    logger -t day-specific-shutdown "Today is $day_name - checking 21:00-05:00 window"
     
-    if [[ $current_time_minutes -ge 0 ]] && [[ $current_time_minutes -le 300 ]]; then
-        should_shutdown=true
-        logger -t day-specific-shutdown "Time $current_hour:$current_minute is within Friday/Sunday shutdown window (00:00-05:00)"
-    else
-        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside Friday/Sunday shutdown window (00:00-05:00)"
-    fi
-else
-    # Monday(1), Tuesday(2), Wednesday(3), Thursday(4), Saturday(6): shutdown window 21:30-05:00
-    logger -t day-specific-shutdown "Today is $day_name - checking 21:30-05:00 window"
-    
-    # Check if time is between 21:30 (1290 minutes) and 23:59 (1439 minutes)
+    # Check if time is between 21:00 (1260 minutes) and 23:59 (1439 minutes)
     # OR between 00:00 (0 minutes) and 05:00 (300 minutes)
-    if [[ $current_time_minutes -ge 1290 ]] || [[ $current_time_minutes -le 300 ]]; then
+    if [[ $current_time_minutes -ge 1260 ]] || [[ $current_time_minutes -le 300 ]]; then
         should_shutdown=true
-        if [[ $current_time_minutes -ge 1290 ]]; then
-            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (21:30-23:59)"
+        if [[ $current_time_minutes -ge 1260 ]]; then
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (21:00-23:59)"
         else
             logger -t day-specific-shutdown "Time $current_hour:$current_minute is within morning shutdown window (00:00-05:00)"
         fi
     else
-        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (21:30-05:00)"
+        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (21:00-05:00)"
+    fi
+else
+    # Thursday (4), Friday (5), Saturday (6), Sunday (7): shutdown window 22:00-05:00
+    logger -t day-specific-shutdown "Today is $day_name - checking 22:00-05:00 window"
+    
+    # Check if time is between 22:00 (1320 minutes) and 23:59 (1439 minutes)
+    # OR between 00:00 (0 minutes) and 05:00 (300 minutes)
+    if [[ $current_time_minutes -ge 1320 ]] || [[ $current_time_minutes -le 300 ]]; then
+        should_shutdown=true
+        if [[ $current_time_minutes -ge 1320 ]]; then
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (22:00-23:59)"
+        else
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within morning shutdown window (00:00-05:00)"
+        fi
+    else
+        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (22:00-05:00)"
     fi
 fi
 
@@ -469,8 +476,8 @@ show_instructions() {
     echo "✓ Timer enabled and started"
     echo ""
     echo "Shutdown Schedule:"
-    echo "  Saturday-Thursday: 21:30-05:00 (evening to early morning)"
-    echo "  Friday/Sunday:     00:00-05:00 (midnight to early morning)"
+    echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
+    echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
     echo ""
     echo "Management commands:"
     echo "  sudo day-specific-shutdown-manager.sh status   - Check status"
@@ -494,8 +501,8 @@ confirm_setup() {
     echo "This will set up your PC to automatically shutdown during specific time windows."
     echo ""
     echo "Shutdown Schedule:"
-    echo "  Saturday-Thursday: 21:30-05:00 (9:30 PM to 5:00 AM)"
-    echo "  Friday/Sunday:     00:00-05:00 (Midnight to 5:00 AM)"
+    echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
+    echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
     echo ""
     echo "Important considerations:"
     echo "- Any unsaved work will be lost during shutdown windows"
