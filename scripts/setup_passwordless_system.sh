@@ -2,8 +2,30 @@
 # Script to set up passwordless sudo and automatic login
 # Configures lightdm for auto-login and sudo for passwordless access
 # Handles sudo privileges automatically
+# Usage: ./setup_passwordless_system.sh [--reboot] [--logout]
+#   --reboot: Offer to reboot after setup completion
+#   --logout: Allow restart of LightDM (which will logout the user)
 
 set -e  # Exit on any error
+
+# Check for flags
+OFFER_REBOOT=false
+ALLOW_LOGOUT=false
+for arg in "$@"; do
+    case $arg in
+        --reboot)
+            OFFER_REBOOT=true
+            shift
+            ;;
+        --logout)
+            ALLOW_LOGOUT=true
+            shift
+            ;;
+        *)
+            # Unknown option, keep it for sudo check
+            ;;
+    esac
+done
 
 # Function to check and request sudo privileges
 check_sudo() {
@@ -142,10 +164,14 @@ EOF
     systemctl enable lightdm.service
     echo "✓ LightDM service enabled"
     
-    # Restart lightdm to apply changes
-    echo "Restarting LightDM to apply auto-login settings..."
-    systemctl restart lightdm.service
-    echo "✓ LightDM restarted"
+    # Restart lightdm to apply changes only if --logout flag is provided
+    if [[ "$ALLOW_LOGOUT" == true ]]; then
+        echo "Restarting LightDM to apply auto-login settings..."
+        systemctl restart lightdm.service
+        echo "✓ LightDM restarted"
+    else
+        echo "✓ LightDM configuration complete (restart lightdm or reboot to activate auto-login)"
+    fi
 }
 
 # Function to configure i3 session
@@ -324,15 +350,23 @@ test_configurations
 show_security_warnings
 show_final_instructions
 
-echo ""
-echo "Would you like to reboot now to activate all changes?"
-read -p "Reboot system now? (y/N): " -n 1 -r
-echo
+# Only offer reboot if --reboot flag was provided
+if [[ "$OFFER_REBOOT" == true ]]; then
+    echo ""
+    echo "Would you like to reboot now to activate all changes?"
+    read -p "Reboot system now? (y/N): " -n 1 -r
+    echo
 
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Rebooting system in 5 seconds..."
-    sleep 5
-    reboot
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Rebooting system in 5 seconds..."
+        sleep 5
+        reboot
+    else
+        echo "Remember to reboot when convenient to activate all changes."
+    fi
 else
+    echo ""
+    echo "Setup completed successfully."
     echo "Remember to reboot when convenient to activate all changes."
+    echo "To automatically prompt for reboot in the future, use: $0 --reboot"
 fi
