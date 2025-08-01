@@ -4,6 +4,31 @@
 
 set -e  # Exit on any error
 
+# Default to non-interactive mode
+INTERACTIVE_MODE=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -i|--interactive)
+            INTERACTIVE_MODE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  -i, --interactive    Enable interactive prompts (default: auto-yes)"
+            echo "  -h, --help          Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Function to check and request sudo privileges
 check_sudo() {
     if [[ $EUID -ne 0 ]]; then
@@ -13,7 +38,7 @@ check_sudo() {
     fi
 }
 
-# Check for sudo privileges first
+# Check for sudo privileges after argument parsing
 check_sudo "$@"
 
 echo "Thorium Browser Auto-Startup Setup"
@@ -21,6 +46,11 @@ echo "=================================="
 echo "Current Date: $(date)"
 echo "User: $USER"
 echo "Original user: ${SUDO_USER:-$USER}"
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    echo "Mode: Interactive (prompts enabled)"
+else
+    echo "Mode: Automatic (auto-yes, use --interactive for prompts)"
+fi
 
 # Target URL
 TARGET_URL="https://www.fitatu.com/app/planner"
@@ -68,9 +98,21 @@ check_thorium_browser() {
             echo "You can install Thorium browser from:"
             echo "https://thorium.rocks/"
             echo ""
-            read -p "Continue anyway? The service will be created but may fail to start (y/N): " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            
+            local continue_anyway=false
+            
+            if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+                read -p "Continue anyway? The service will be created but may fail to start (y/N): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    continue_anyway=true
+                fi
+            else
+                echo "Auto-continuing anyway - service will be created but may fail to start (use --interactive to prompt)"
+                continue_anyway=true
+            fi
+            
+            if [[ "$continue_anyway" != true ]]; then
                 exit 1
             fi
         fi
@@ -363,11 +405,21 @@ test_setup() {
     echo "8. Testing Setup..."
     echo "=================="
     
-    echo "Would you like to test the browser launcher now?"
-    read -p "Test launch Thorium browser with Fitatu? (y/N): " -n 1 -r
-    echo
+    local run_test=true
     
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+        echo "Would you like to test the browser launcher now?"
+        read -p "Test launch Thorium browser with Fitatu? (y/N): " -n 1 -r
+        echo
+        
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            run_test=false
+        fi
+    else
+        echo "Auto-testing the browser launcher (use --interactive to prompt)"
+    fi
+    
+    if [[ "$run_test" == "true" ]]; then
         echo "Testing browser launch..."
         echo "Note: This will open Thorium browser with Fitatu website"
         

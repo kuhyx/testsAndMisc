@@ -5,10 +5,40 @@
 
 set -e  # Exit on any error
 
+# Default to non-interactive mode
+INTERACTIVE_MODE=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -i|--interactive)
+            INTERACTIVE_MODE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  -i, --interactive    Enable interactive prompts (default: auto-yes)"
+            echo "  -h, --help          Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo "PC Startup Time Monitor for Arch Linux"
 echo "======================================"
 echo "Current Date: $(date)"
 echo "User: ${SUDO_USER:-$USER}"
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    echo "Mode: Interactive (prompts enabled)"
+else
+    echo "Mode: Automatic (auto-yes, use --interactive for prompts)"
+fi
 
 # Function to check and request sudo privileges
 check_sudo() {
@@ -492,18 +522,25 @@ confirm_setup() {
     echo "- Check time: 8:30 AM daily"
     echo "- Action: Show warning if PC wasn't started in expected window"
     echo ""
-    read -p "Do you want to proceed? (y/N): " confirm
     
-    case "$confirm" in
-        [yY]|[yY][eE][sS])
-            echo "Proceeding with setup..."
-            return 0
-            ;;
-        *)
-            echo "Setup cancelled."
-            exit 0
-            ;;
-    esac
+    if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+        read -p "Do you want to proceed? (y/N): " confirm
+        
+        case "$confirm" in
+            [yY]|[yY][eE][sS])
+                echo "Proceeding with setup..."
+                return 0
+                ;;
+            *)
+                echo "Setup cancelled."
+                exit 0
+                ;;
+        esac
+    else
+        echo "Auto-proceeding with setup (use --interactive to prompt)"
+        echo "Proceeding with setup..."
+        return 0
+    fi
 }
 
 # Main execution flow

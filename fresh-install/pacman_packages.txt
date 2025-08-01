@@ -74,27 +74,47 @@ asciidoctor
 man-db
 # git for large files like LLM 
 git-lfs
-# 
+# hell for servers
 nodejs
+# hell for desktop 
 electron
+# better npm 
 yarn
+# for compatibility of some packages
 openssl-1.1
+# needed for some packages 
 tk
+# needed for some packages jpeg 
 jasper
+# opencv dependency  
 libdc1394
+# needed for a lot of packages 
 cblas
+# Parsing Expression Grammar Template Library consider removing 
 pegtl
+# needed for a lot of packages
 hdf5
+# needed for a lot of packages
 proj
+# needed for a lot of packages
 gcc-fortran
+# needed for a lot of packages
 python-nose
+# needed for a lot of packages
 python-pyproject-metadata
+# needed for a lot of packages
 meson-python
+# needed for a lot of packages
 lapack
+# needed for a lot of packages
 python-numpy
+# needed for a lot of packages
 openmpi
+# needed for a lot of packages
 boost
+# needed for some packages
 suitesparse
+# needed for some packages
 vtk
 junit
 java-hamcrest

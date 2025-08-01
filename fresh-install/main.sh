@@ -191,22 +191,22 @@ fi
 cp mpv.conf "$HOME/.config/mpv/mpv.conf"
 
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    yes | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 else
     echo "Oh My Zsh is already installed"
 fi
 
 cd ~/linux-configuration
-hosts/install.sh
+sudo hosts/install.sh
 i3-configuration/install.sh
 scripts/install_pacman_wrapper.sh
-scripts/nvidia_troubleshoots.sh 
-scripts/setup_activitywatch.sh 
-scripts/setup_media_organizer.sh
-scripts/setup_pc_startup_monitor.sh
-scripts/setup_periodic_system.sh 
-scripts/setup_thorium_startup.sh
-protonup
+scripts/nvidia_troubleshoot.sh 
+sudo scripts/setup_activitywatch.sh 
+sudo scripts/setup_media_organizer.sh
+sudo scripts/setup_pc_startup_monitor.sh
+yes | sudo scripts/setup_periodic_system.sh 
+sudo scripts/setup_thorium_startup.sh
+yes | protonup
 yes | sudo pacman -Syuu 
 
 #cd unreal-engine

@@ -5,6 +5,31 @@
 
 set -e  # Exit on any error
 
+# Default to non-interactive mode
+INTERACTIVE_MODE=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -i|--interactive)
+            INTERACTIVE_MODE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  -i, --interactive    Enable interactive prompts (default: auto-yes)"
+            echo "  -h, --help          Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Function to check and request sudo privileges
 check_sudo() {
     if [[ $EUID -ne 0 ]]; then
@@ -14,7 +39,7 @@ check_sudo() {
     fi
 }
 
-# Check for sudo privileges first
+# Check for sudo privileges after argument parsing
 check_sudo "$@"
 
 echo "NVIDIA Comprehensive Troubleshooter & GSP Disabler"
@@ -22,6 +47,11 @@ echo "=================================================="
 echo "Current Date: $(date)"
 echo "User: $USER"
 echo "Original user: ${SUDO_USER:-$USER}"
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    echo "Mode: Interactive (prompts enabled)"
+else
+    echo "Mode: Automatic (auto-yes, use --interactive for prompts)"
+fi
 
 # Check if nvidia module is loaded
 if ! lsmod | grep -q nvidia; then
@@ -40,7 +70,7 @@ mkdir -p "$MODPROBE_DIR"
 # Create the configuration file
 cat > "$CONFIG_FILE" << EOF
 # Disable NVIDIA GSP firmware to prevent Vulkan failures and crashes
-# Created by disable-gsp-firmware.sh on $(date)
+# Created by nvidia_troubleshoot.sh on $(date)
 options nvidia NVreg_EnableGpuFirmware=0
 EOF
 
@@ -75,7 +105,7 @@ configure_xorg() {
     # Create NVIDIA-specific configuration
     cat > "$NVIDIA_CONF" << EOF
 # NVIDIA configuration with RenderAccel disabled
-# Created by disable-gsp-firmware.sh on $(date)
+# Created by nvidia_troubleshoot.sh on $(date)
 Section "Device"
     Identifier "NVIDIA Card"
     Driver "nvidia"
@@ -99,7 +129,7 @@ configure_gcc_workaround() {
     if ! grep -q "IGNORE_CC_MISMATCH" "$PROFILE_FILE"; then
         echo "" >> "$PROFILE_FILE"
         echo "# NVIDIA GCC version mismatch workaround" >> "$PROFILE_FILE"
-        echo "# Added by disable-gsp-firmware.sh on $(date)" >> "$PROFILE_FILE"
+        echo "# Added by nvidia_troubleshoot.sh on $(date)" >> "$PROFILE_FILE"
         echo "export IGNORE_CC_MISMATCH=1" >> "$PROFILE_FILE"
         echo "✓ Added IGNORE_CC_MISMATCH=1 to $PROFILE_FILE"
     else
@@ -120,10 +150,19 @@ install_pyroveil() {
     echo "like Final Fantasy VII Rebirth. Pyroveil can work around these problems."
     echo ""
     
-    read -p "Would you like to install Pyroveil? (y/N): " -n 1 -r
-    echo
+    local install_pyroveil=true
     
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+        read -p "Would you like to install Pyroveil? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            install_pyroveil=false
+        fi
+    else
+        echo "Auto-installing Pyroveil (use --interactive to prompt)"
+    fi
+    
+    if [[ "$install_pyroveil" == "true" ]]; then
         # Check for required dependencies
         local missing_deps=()
         

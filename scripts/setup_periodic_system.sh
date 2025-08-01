@@ -5,6 +5,31 @@
 
 set -e  # Exit on any error
 
+# Default to non-interactive mode
+INTERACTIVE_MODE=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -i|--interactive)
+            INTERACTIVE_MODE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  -i, --interactive    Enable interactive prompts (default: auto-yes)"
+            echo "  -h, --help          Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Function to check and request sudo privileges
 check_sudo() {
     if [[ $EUID -ne 0 ]]; then
@@ -14,7 +39,7 @@ check_sudo() {
     fi
 }
 
-# Check for sudo privileges first
+# Check for sudo privileges after argument parsing
 check_sudo "$@"
 
 echo "Periodic System Setup - Pacman Wrapper & Hosts File"
@@ -22,6 +47,11 @@ echo "==================================================="
 echo "Current Date: $(date)"
 echo "User: $USER"
 echo "Original user: ${SUDO_USER:-$USER}"
+if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+    echo "Mode: Interactive (prompts enabled)"
+else
+    echo "Mode: Automatic (auto-yes, use --interactive for prompts)"
+fi
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -470,11 +500,21 @@ run_initial_execution() {
     echo "9. Running Initial Execution..."
     echo "==============================="
     
-    echo "Would you like to run the system maintenance now to test the setup?"
-    read -p "Run initial execution? (y/N): " -n 1 -r
-    echo
+    local run_initial=true
     
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+        echo "Would you like to run the system maintenance now to test the setup?"
+        read -p "Run initial execution? (y/N): " -n 1 -r
+        echo
+        
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            run_initial=false
+        fi
+    else
+        echo "Auto-running initial execution to test the setup (use --interactive to prompt)"
+    fi
+    
+    if [[ "$run_initial" == "true" ]]; then
         echo "Running initial system maintenance..."
         /usr/local/bin/periodic-system-maintenance.sh
         echo "✓ Initial execution completed"
