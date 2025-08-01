@@ -96,7 +96,10 @@ sudo systemctl start reflector.service
 # Read pacman packages from file
 declare -a pacman_packages
 while IFS= read -r line; do
-    [[ -n "$line" ]] && pacman_packages+=("$line")
+    # Skip empty lines and comments (lines not starting with alphanumeric characters)
+    if [[ -n "$line" && "$line" =~ ^[a-z0-9] ]]; then
+        pacman_packages+=("$line")
+    fi
 done < "pacman_packages.txt"
 
 for pkg in "${pacman_packages[@]}"; do
@@ -169,7 +172,10 @@ sudo systemctl start bluetooth.service
 # Read AUR packages from file
 declare -a aur_packages
 while IFS= read -r line; do
-    [[ -n "$line" ]] && aur_packages+=("$line")
+    # Skip empty lines and comments (lines not starting with alphanumeric characters)
+    if [[ -n "$line" && "$line" =~ ^[a-z0-9] ]]; then
+        aur_packages+=("$line")
+    fi
 done < "aur_packages.txt"
 
 for entry in "${aur_packages[@]}"; do
@@ -200,13 +206,8 @@ scripts/setup_media_organizer.sh
 scripts/setup_pc_startup_monitor.sh
 scripts/setup_periodic_system.sh 
 scripts/setup_thorium_startup.sh
+protonup
 yes | sudo pacman -Syuu 
-
-# Installing unreal engine
-cd ~/aur
-if [ ! -d "$(basename https://aur.archlinux.org/unreal-engine.git .git)" ]; then
-    git clone https://aur.archlinux.org/unreal-engine.git
-fi
 
 #cd unreal-engine
 ## gh auth login

@@ -1,33 +1,53 @@
+# duh - using default linux for most compatibility
 linux
+# needed for compiling basically anything 
 distcc
+# probably already installed at this point 
 git
+# bluetooth 
 bluez
 bluez-utils
+# faster make 
 icmake
+# needed for some packages 
 yodl
-texlive-plaingeneric
-docbook-xsl
+# open gl
 glu
+# sound
 pavucontrol-qt
+# faster compiling
 mold
+# faster unpacking 
 zstd
 lz4
 xz
 pigz
 lbzip2
+# needed for some packages 
 doxygen
-graphviz
+# programming languages needed for some packages
 tcl
+# ? Tool for optimizing the compression of PNG files
 pngcrush
+# compilers
 gcc-ada
 gcc-d
+# fonts for i3 ricing
 ttf-dejavu
 noto-fonts
 ttf-font-awesome
+# calculator
 bc
+# for battery - toDo ignore on desktop
 acpi
+# Programming language needed for some pakcages 
 cargo
+# opengl api 
 freeglut
+# Latex 
+texlive-plaingeneric
+docbook-xsl
+graphviz
 texlive-latexextra
 biber
 texlive-bibtexextra
@@ -38,14 +58,23 @@ texlive-pstricks
 texlive-games
 texlive-humanities
 texlive-science
+#  Node.js native addon build tool needed for some packages
 node-gyp
+# For writing uml diagrams - consider removing 
 plantuml
+# dependency hell injector
 npm
+# generates man pages from markdown - consider removing 
 ruby-ronn
+# for GO programming language 
 go-tools
+# ? Posssibly required by some packages - consider removing 
 asciidoctor
+# manuals
 man-db
+# git for large files like LLM 
 git-lfs
+# 
 nodejs
 electron
 yarn
@@ -250,5 +279,4 @@ gl2ps
 twolame
 yasm
 a52dec
-libtremor
 deluge
