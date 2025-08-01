@@ -249,3 +249,6 @@ pugixml
 gl2ps
 twolame
 yasm
+a52dec
+libtremor
+deluge

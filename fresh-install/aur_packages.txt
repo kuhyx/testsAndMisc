@@ -30,7 +30,6 @@ libwmf-git https://aur.archlinux.org/libwmf-git.git
 opencl-headers-git https://aur.archlinux.org/opencl-headers-git.git
 libzip-git https://aur.archlinux.org/libzip-git.git
 vo-aacenc https://aur.archlinux.org/vo-aacenc.git
-a52dec-git https://aur.archlinux.org/a52dec-git.git
 frei0r-plugins-git https://aur.archlinux.org/frei0r-plugins-git.git
 celt-git https://aur.archlinux.org/celt-git.git
 libgme-git https://aur.archlinux.org/libgme-git.git
@@ -42,12 +41,7 @@ vo-amrwbenc https://aur.archlinux.org/vo-amrwbenc.git
 xavs https://aur.archlinux.org/xavs.git
 ndi-sdk https://aur.archlinux.org/ndi-sdk.git
 rockchip-mpp https://aur.archlinux.org/rockchip-mpp.git
-libaec-git https://aur.archlinux.org/libaec-git.git
-pugixml-git https://aur.archlinux.org/pugixml-git.git
-gl2ps-git https://aur.archlinux.org/gl2ps-git.git
 eigen-git https://aur.archlinux.org/eigen-git.git
-qt5-tools-git https://aur.archlinux.org/qt5-tools-git.git
-libtremor-git https://aur.archlinux.org/libtremor-git.git
 nasm-git https://aur.archlinux.org/nasm-git.git
 libdecor-git https://aur.archlinux.org/libdecor-git.git
 plzip https://aur.archlinux.org/plzip.git
@@ -89,7 +83,6 @@ python-inputs https://aur.archlinux.org/python-inputs.git
 python-steam https://aur.archlinux.org/python-steam.git
 protonup-qt https://aur.archlinux.org/protonup-qt.git
 protonhax-git https://aur.archlinux.org/protonhax-git.git
-deluge-git https://aur.archlinux.org/deluge-git.git
 nvm-git https://aur.archlinux.org/nvm-git.git
 unityhub https://aur.archlinux.org/unityhub.git
 mpv-plugin-xrandr https://aur.archlinux.org/mpv-plugin-xrandr.git
