@@ -96,3 +96,4 @@ xone-dongle-firmware https://aur.archlinux.org/xone-dongle-firmware.git
 ferdium https://aur.archlinux.org/ferdium.git
 flite1 https://aur.archlinux.org/flite1.git
 protonup https://aur.archlinux.org/protonup-git.git
+gwe https://aur.archlinux.org/gwe.git
