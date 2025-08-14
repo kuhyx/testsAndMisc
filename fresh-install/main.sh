@@ -17,11 +17,13 @@ trap 'play_error_sound' ERR
 sudo -v
 git config --global init.defaultBranch main
 
-# GPU detection and conditional NVIDIA driver installation
-if [ -f "./detect_gpu_and_install.sh" ]; then
+# GPU detection (now split vendor-specific logic)
+if [ -f "./detect_gpu.sh" ]; then
+    . ./detect_gpu.sh
+elif [ -f "./detect_gpu_and_install.sh" ]; then
     . ./detect_gpu_and_install.sh
 else
-    echo "GPU detection script not found; continuing without conditional NVIDIA install."
+    echo "GPU detection scripts not found; continuing without GPU specific installation."
 fi
 
 install_from_aur() {

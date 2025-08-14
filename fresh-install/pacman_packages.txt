@@ -298,3 +298,4 @@ yasm
 a52dec
 deluge
 screengrab
+python-poetry

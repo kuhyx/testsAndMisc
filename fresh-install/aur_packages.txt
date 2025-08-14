@@ -11,12 +11,11 @@ cython-git https://aur.archlinux.org/cython-git.git
 patchelf-git https://aur.archlinux.org/patchelf-git.git
 utf8cpp-git https://aur.archlinux.org/utf8cpp-git.git
 valgrind-git https://aur.archlinux.org/valgrind-git.git
-sdl12-compat-git https://aur.archlinux.org/sdl12-compat-git.git
+sdl12-compat https://aur.archlinux.org/sdl12-compat.git
 libvisual https://aur.archlinux.org/libvisual.git
-wayland-protocols-git https://aur.archlinux.org/wayland-protocols-git.git
-libshout-git https://aur.archlinux.org/libshout-git.git
-taglib-git https://aur.archlinux.org/taglib-git.git
-wavpack-git https://aur.archlinux.org/wavpack-git.git
+libshout https://aur.archlinux.org/libshout.git
+taglib https://aur.archlinux.org/taglib.git
+wavpack https://aur.archlinux.org/wavpack.git
 autoconf-archive-git https://aur.archlinux.org/autoconf-archive-git.git
 vulkan-utility-libraries-git https://aur.archlinux.org/vulkan-utility-libraries-git.git
 chromaprint-git https://aur.archlinux.org/chromaprint-git.git
