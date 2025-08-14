@@ -17,25 +17,56 @@ trap 'play_error_sound' ERR
 sudo -v
 git config --global init.defaultBranch main
 
+# GPU detection and conditional NVIDIA driver installation
+if [ -f "./detect_gpu_and_install.sh" ]; then
+    . ./detect_gpu_and_install.sh
+else
+    echo "GPU detection script not found; continuing without conditional NVIDIA install."
+fi
+
 install_from_aur() {
     if [ ! -d "$HOME/aur" ]; then
-        mkdir ~/aur
+        mkdir -p "$HOME/aur"
     fi
-    cd ~/aur
+    cd "$HOME/aur"
     local repo_url=$1
     local pkg_name=$2
+    local repo_dir="$(basename "$repo_url" .git)"
 
-    if [ ! -d "$(basename $repo_url .git)" ]; then
-        git clone $repo_url
+    if [ ! -d "$repo_dir" ]; then
+        git clone "$repo_url"
     else
-        echo "Repository $(basename $repo_url .git) already cloned"
+        echo "Repository $repo_dir already cloned; updating"
+        (cd "$repo_dir" && git fetch --all -q && git reset --hard origin/HEAD -q || git pull --ff-only || true)
     fi
-    cd $(basename $repo_url .git)
-    if ! pacman -Qi $pkg_name > /dev/null 2>&1; then
-        yes | makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
-        yes | sudo pacman -U  *.pkg.tar.zst
-    else
+    cd "$repo_dir"
+
+    if pacman -Qi "$pkg_name" >/dev/null 2>&1; then
         echo "$pkg_name is already installed"
+        return 0
+    fi
+
+    echo "Cleaning old package artifacts to avoid duplicate -U targets"
+    find . -maxdepth 1 -type f -name '*.pkg.tar.*' -delete 2>/dev/null || true
+
+    echo "Building $pkg_name (clean build)"
+    # -c (clean up work dirs after) -C (clean build - remove src/ and pkg/ first)
+    if ! yes | makepkg -s -c -C --noconfirm --nocheck --skipchecksums --skipinteg --skippgpcheck --needed; then
+        echo "Build failed for $pkg_name" >&2
+        return 1
+    fi
+
+    # Collect only the freshly built packages (should now be only current version)
+    mapfile -t built_pkgs < <(ls -1 *.pkg.tar.zst 2>/dev/null || true)
+    if [ ${#built_pkgs[@]} -eq 0 ]; then
+        echo "No package files produced for $pkg_name" >&2
+        return 1
+    fi
+
+    echo "Installing built package(s): ${built_pkgs[*]}"
+    if ! yes | sudo pacman -U --noconfirm "${built_pkgs[@]}"; then
+        echo "Installation failed for $pkg_name" >&2
+        return 1
     fi
 }
 
@@ -90,9 +121,42 @@ sudo cp ./pacman.conf /etc/pacman.conf
 # sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.bak
 # sudo cp ./mkinitcpio.conf /etc/mkinitcpio.conf
 # mkinitcpio -P
-yes | sudo pacman -Sy --noconfirm reflector
-sudo systemctl enable reflector.service
-sudo systemctl start reflector.service
+# Reflector install / service management (idempotent & resilient)
+if pacman -Qi reflector >/dev/null 2>&1; then
+    echo "reflector already installed"
+else
+    yes | sudo pacman -Sy --noconfirm reflector || echo "Warning: reflector install failed (continuing)"
+fi
+# Prefer timer over service (Arch default)
+if systemctl list-unit-files | grep -q '^reflector.timer'; then
+    if systemctl is-enabled reflector.timer >/dev/null 2>&1; then
+        echo "reflector.timer already enabled"
+    else
+        sudo systemctl enable reflector.timer || echo "Warning: could not enable reflector.timer"
+    fi
+    if systemctl is-active reflector.timer >/dev/null 2>&1; then
+        echo "reflector.timer already active"
+    else
+        if ! sudo systemctl start reflector.timer; then
+            echo "Warning: failed to start reflector.timer (check: systemctl status reflector.timer; journalctl -xeu reflector.timer)"
+        fi
+    fi
+elif systemctl list-unit-files | grep -q '^reflector.service'; then
+    if systemctl is-enabled reflector.service >/dev/null 2>&1; then
+        echo "reflector.service already enabled"
+    else
+        sudo systemctl enable reflector.service || echo "Warning: could not enable reflector.service"
+    fi
+    if systemctl is-active reflector.service >/dev/null 2>&1; then
+        echo "reflector.service already running"
+    else
+        if ! sudo systemctl start reflector.service; then
+            echo "Warning: failed to start reflector.service (check: systemctl status reflector.service; journalctl -xeu reflector.service)"
+        fi
+    fi
+else
+    echo "reflector systemd unit not found (neither timer nor service)"
+fi
 # Read pacman packages from file
 declare -a pacman_packages
 while IFS= read -r line; do
@@ -103,6 +167,11 @@ while IFS= read -r line; do
 done < "pacman_packages.txt"
 
 for pkg in "${pacman_packages[@]}"; do
+    # Skip NVIDIA packages if GPU is not NVIDIA
+    if [ "$GPU_VENDOR" != "nvidia" ] && { [ "$pkg" = "nvidia" ] || [ "$pkg" = "nvidia-utils" ] || [ "$pkg" = "lib32-nvidia-utils" ]; }; then
+        echo "Skipping $pkg (GPU vendor: $GPU_VENDOR)"
+        continue
+    fi
     # Check for texlive subpackages
     if [ "$pkg" == "texlive" ]; then
         sub_pkgs=(

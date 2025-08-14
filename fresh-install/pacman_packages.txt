@@ -1,3 +1,4 @@
+arch-wiki-docs
 # duh - using default linux for most compatibility
 linux
 # needed for compiling basically anything 
@@ -140,7 +141,6 @@ gst-plugins-base
 libgphoto2
 lapacke
 opencv
-cuda
 vulkan-validation-layers
 libltc
 libavtp
@@ -196,9 +196,6 @@ lib32-libvpx
 libsoup
 lib32-libsoup
 lib32-speex
-nvidia
-nvidia-utils
-lib32-nvidia-utils
 steam
 steam-native-runtime
 fontforge
@@ -223,9 +220,9 @@ pyside6
 python-pyaml
 python-zstandard
 zip
-virtualbox
-virtualbox-guest-iso
-virtualbox-ext-vnc
+#virtualbox
+#virtualbox-guest-iso
+#virtualbox-ext-vnc
 imath
 embree
 jdk-openjdk

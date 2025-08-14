@@ -1,7 +1,8 @@
+local-arch-wiki https://aur.archlinux.org/local-arch-wiki.git
 visual-studio-code-bin https://aur.archlinux.org/visual-studio-code-bin.git
 thorium-browser-bin https://aur.archlinux.org/thorium-browser-bin.git
 mkinitcpio-git https://aur.archlinux.org/mkinitcpio-git.git
-yay-git https://aur.archlinux.org/yay-git.git
+yay https://aur.archlinux.org/yay.git
 http-parser-git https://aur.archlinux.org/http-parser-git.git
 python310 https://aur.archlinux.org/python310.git
 slack-electron https://aur.archlinux.org/slack-electron.git
