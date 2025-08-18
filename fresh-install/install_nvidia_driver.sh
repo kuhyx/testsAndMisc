@@ -16,17 +16,35 @@ _build_aur_pkg() {
 }
 
 _choose_nvidia_pkg() {
-  local have_linux have_linux_lts multiple_kernels driver_pkg prefer_open
+  local have_linux have_linux_lts multiple_kernels driver_pkg prefer_open detect_out legacy_detected=0
   prefer_open=${NVIDIA_PREFER_OPEN:-1}
   pacman -Qq | grep -qx linux && have_linux=1 || have_linux=0
   pacman -Qq | grep -qx linux-lts && have_linux_lts=1 || have_linux_lts=0
   if [ $((have_linux + have_linux_lts)) -gt 1 ]; then multiple_kernels=1; else multiple_kernels=0; fi
-  if ! command -v nvidia-detect >/dev/null 2>&1; then yes | sudo pacman -Sy --noconfirm nvidia-detect || true; fi
-  local detect_out="$(nvidia-detect 2>/dev/null || true)"
-  if echo "$detect_out" | grep -q '470'; then driver_pkg='nvidia-470xx-dkms';
-  elif echo "$detect_out" | grep -q '390'; then driver_pkg='nvidia-390xx-dkms';
-  elif echo "$detect_out" | grep -q '340'; then driver_pkg='nvidia-340xx-dkms';
-  else
+
+  # Optionally skip attempting to install nvidia-detect (some minimal repo setups don't have it yet)
+  if [ -z "${NVIDIA_SKIP_DETECT:-}" ] && ! command -v nvidia-detect >/dev/null 2>&1; then
+    if pacman -Si nvidia-detect >/dev/null 2>&1; then
+      echo "Attempting to install helper utility: nvidia-detect" >&2
+      # Use --needed to avoid forcing refresh (& avoid partial upgrade semantics with -Sy)
+      yes | sudo pacman -S --needed --noconfirm nvidia-detect || echo "nvidia-detect install failed (continuing with heuristic)" >&2
+    else
+      echo "nvidia-detect not present in enabled repos; using heuristic selection." >&2
+    fi
+  fi
+
+  if command -v nvidia-detect >/dev/null 2>&1; then
+    detect_out="$(nvidia-detect 2>/dev/null || true)"
+  fi
+
+  if [ -n "$detect_out" ]; then
+    if echo "$detect_out" | grep -q '470'; then driver_pkg='nvidia-470xx-dkms'; legacy_detected=1; fi
+    if echo "$detect_out" | grep -q '390'; then driver_pkg='nvidia-390xx-dkms'; legacy_detected=1; fi
+    if echo "$detect_out" | grep -q '340'; then driver_pkg='nvidia-340xx-dkms'; legacy_detected=1; fi
+  fi
+
+  if [ "$legacy_detected" = 0 ]; then
+    # Heuristic modern driver selection
     if [ "$multiple_kernels" = 1 ]; then
       if [ "$prefer_open" = 1 ] && pacman -Si nvidia-open-dkms >/dev/null 2>&1; then driver_pkg='nvidia-open-dkms'; else driver_pkg='nvidia-dkms'; fi
     else
@@ -36,7 +54,10 @@ _choose_nvidia_pkg() {
         if [ "$prefer_open" = 1 ] && pacman -Si nvidia-open >/dev/null 2>&1; then driver_pkg='nvidia-open'; else driver_pkg='nvidia'; fi
       fi
     fi
+  else
+    echo "Legacy NVIDIA generation detected via nvidia-detect output; choosing $driver_pkg" >&2
   fi
+
   echo "$driver_pkg"
 }
 
