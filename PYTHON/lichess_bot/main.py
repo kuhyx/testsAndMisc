@@ -7,6 +7,7 @@ import time
 from typing import Optional
 
 import chess
+import chess.pgn
 
 from .engine import RandomEngine
 from .lichess_api import LichessAPI
@@ -35,6 +36,13 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
         color: Optional[str] = my_color
         # Track how many moves we have already processed; start at -1 so we act on the first state (0 moves)
         last_handled_len = -1
+        # Prepare a per-game log file
+        game_log_path = os.path.join(os.getcwd(), f"lichess_bot_game_{game_id}.log")
+        try:
+            with open(game_log_path, "w") as lf:
+                lf.write(f"game {game_id} started\n")
+        except Exception:
+            game_log_path = None
         try:
             for event in api.stream_game_events(game_id):
                 et = event.get("type")
@@ -85,12 +93,15 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         f"Game {game_id}: turn={'white' if is_white_turn else 'black'}, my_turn={my_turn}"
                     )
                     if my_turn:
-                        move = engine.choose_move(board)
+                        move, reason = engine.choose_move_with_explanation(board)
                         if move is None:
                             logging.info(f"Game {game_id}: no legal moves (game likely over)")
                             break
                         try:
                             logging.info(f"Game {game_id}: playing {move.uci()}")
+                            if game_log_path:
+                                with open(game_log_path, "a") as lf:
+                                    lf.write(f"ply {last_handled_len+1}: {move.uci()}\n{reason}\n\n")
                             api.make_move(game_id, move)
                         except Exception as e:
                             logging.warning(f"Game {game_id}: move {move.uci()} failed: {e}")
@@ -106,6 +117,17 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
         except Exception as e:
             logging.exception(f"Game {game_id} thread error: {e}")
         finally:
+            # On game end, write full PGN to the log file
+            try:
+                if game_log_path:
+                    game = chess.pgn.Game.from_board(board)
+                    with open(game_log_path, "a") as lf:
+                        lf.write("\nPGN:\n")
+                        exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
+                        lf.write(game.accept(exporter))
+                        lf.write("\n")
+            except Exception as e:
+                logging.debug(f"Game {game_id}: could not write PGN: {e}")
             logging.info(f"Ending game thread for {game_id}")
 
     # Main event stream: challenge and game start events
