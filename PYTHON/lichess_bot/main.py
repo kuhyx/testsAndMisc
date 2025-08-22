@@ -128,7 +128,9 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
 
                     if color is None:
                         logging.info(f"Game {game_id}: color unknown yet; waiting for gameFull")
-                        last_handled_len = new_len
+                        # Do not mark this position handled on gameFull; wait for authoritative gameState
+                        if et == "gameState":
+                            last_handled_len = new_len
                         continue
 
                     is_white_turn = board.turn
@@ -166,8 +168,12 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                 api.make_move(game_id, move)
                         except Exception as e:
                             logging.warning(f"Game {game_id}: move {move.uci()} failed: {e}")
-                    # Mark this position as handled (whether or not we moved)
-                    last_handled_len = new_len
+                    # Mark this position as handled only on authoritative gameState,
+                    # or after we've actually attempted a move. This prevents missing
+                    # our very first move as White when gameFull (len=0) is followed by
+                    # gameState (len=0).
+                    if et == "gameState" or (my_turn and allow_move):
+                        last_handled_len = new_len
                     if status in {"mate", "resign", "stalemate", "timeout", "draw"}:
                         logging.info(f"Game {game_id} finished: {status}")
                         break
