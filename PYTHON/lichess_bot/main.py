@@ -8,6 +8,8 @@ from typing import Optional
 
 import chess
 import chess.pgn
+import subprocess
+import sys
 
 from .engine import RandomEngine
 from .lichess_api import LichessAPI
@@ -163,6 +165,99 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
                         lf.write(game.accept(exporter))
                         lf.write("\n")
+                # After PGN is written, run analysis and save it to the same file (inserted before PGN)
+                if game_log_path:
+                    analysis_text: Optional[str] = None
+                    try:
+                        analyze_script = os.path.join(
+                            os.path.dirname(os.path.dirname(__file__)),
+                            "stockfish_analysis",
+                            "analyze_chess_game.py",
+                        )
+                        if os.path.isfile(analyze_script):
+                            # Estimate total plies from the final board
+                            try:
+                                total_plies = len(board.move_stack)
+                            except Exception:
+                                total_plies = 0
+
+                            logging.info(
+                                f"Game {game_id}: starting post-game analysis ({total_plies} plies)"
+                            )
+                            # Run analyzer unbuffered and stream output for progress
+                            proc = subprocess.Popen(
+                                [sys.executable, "-u", analyze_script, game_log_path],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True,
+                                bufsize=1,
+                            )
+                            analyzed = 0
+                            lines: list[str] = []
+                            ply_line_re = __import__("re").compile(r"^\s*(\d+)\s")
+                            # Read stdout line by line
+                            assert proc.stdout is not None
+                            for line in proc.stdout:
+                                lines.append(line)
+                                m = ply_line_re.match(line)
+                                if m:
+                                    # Count as one analyzed ply
+                                    analyzed += 1
+                                    left = max(0, (total_plies or 0) - analyzed) if total_plies else "?"
+                                    if total_plies:
+                                        pct = analyzed / total_plies * 100.0
+                                        logging.info(
+                                            f"Game {game_id}: analysis progress {analyzed}/{total_plies} ({pct:.0f}%), left {left}"
+                                        )
+                                    else:
+                                        logging.info(
+                                            f"Game {game_id}: analysis progress {analyzed} plies (total unknown)"
+                                        )
+
+                            # Capture any remaining stderr and ensure process ends
+                            assert proc.stderr is not None
+                            stderr_text = proc.stderr.read() or ""
+                            ret = proc.wait()
+                            analysis_text = "".join(lines)
+                            if ret != 0:
+                                logging.warning(
+                                    f"Game {game_id}: analysis script exited with code {ret}"
+                                )
+                                if stderr_text:
+                                    analysis_text += ("\n[stderr]\n" + stderr_text)
+                            logging.info(f"Game {game_id}: analysis complete")
+                        else:
+                            logging.info(
+                                f"Game {game_id}: analysis script not found at {analyze_script}; skipping analysis"
+                            )
+                    except Exception as e:
+                        logging.debug(f"Game {game_id}: analysis run failed: {e}")
+
+                    # Insert analysis before the PGN section so future runs can still parse PGN cleanly
+                    if analysis_text:
+                        try:
+                            with open(game_log_path, "r", encoding="utf-8", errors="replace") as f:
+                                content = f.read()
+
+                            # Find the start of the 'PGN:' line
+                            insert_idx = 0
+                            p = content.find("\nPGN:\n")
+                            if p != -1:
+                                insert_idx = p + 1  # start of the line after the preceding newline
+                            elif content.startswith("PGN:\n"):
+                                insert_idx = 0
+                            else:
+                                # If PGN marker not found (unexpected), append at end
+                                insert_idx = len(content)
+
+                            analysis_block = (
+                                "ANALYSIS:\n" + analysis_text.rstrip() + "\n\n"
+                            )
+                            new_content = content[:insert_idx] + analysis_block + content[insert_idx:]
+                            with open(game_log_path, "w", encoding="utf-8") as f:
+                                f.write(new_content)
+                        except Exception as e:
+                            logging.debug(f"Game {game_id}: could not write analysis to log: {e}")
             except Exception as e:
                 logging.debug(f"Game {game_id}: could not write PGN: {e}")
             logging.info(f"Ending game thread for {game_id}")
