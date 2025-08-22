@@ -43,6 +43,10 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                 lf.write(f"game {game_id} started\n")
         except Exception:
             game_log_path = None
+        # Simple time manager state
+        my_ms = None
+        opp_ms = None
+        inc_ms = 0
         try:
             for event in api.stream_game_events(game_id):
                 et = event.get("type")
@@ -52,6 +56,10 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         state = event.get("state", {})
                         moves = state.get("moves", "")
                         status = state.get("status")
+                        # clocks are in milliseconds if present
+                        my_ms = state.get("wtime") if color == "white" else state.get("btime")
+                        opp_ms = state.get("btime") if color == "white" else state.get("wtime")
+                        inc_ms = state.get("winc") or state.get("binc") or 0
                         # Discover my color from gameFull
                         white_id = event["white"].get("id")
                         black_id = event["black"].get("id")
@@ -64,6 +72,15 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                     else:
                         moves = event.get("moves", "")
                         status = event.get("status")
+                        # update clocks from gameState if present
+                        if color == "white":
+                            my_ms = event.get("wtime", my_ms)
+                            opp_ms = event.get("btime", opp_ms)
+                            inc_ms = event.get("winc", inc_ms)
+                        elif color == "black":
+                            my_ms = event.get("btime", my_ms)
+                            opp_ms = event.get("wtime", opp_ms)
+                            inc_ms = event.get("binc", inc_ms)
 
                     moves_list = moves.split() if moves else []
                     new_len = len(moves_list)
@@ -93,12 +110,23 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         f"Game {game_id}: turn={'white' if is_white_turn else 'black'}, my_turn={my_turn}"
                     )
                     if my_turn:
-                        move, reason = engine.choose_move_with_explanation(board)
+                        # Compute a per-move time budget (seconds) based on remaining time
+                        # Heuristic: use min( max_time_sec, max(0.05, 0.6 * my_time_left/remaining_moves + inc) )
+                        # Estimate remaining moves as 30 - ply/2 bounded to [10, 60]
+                        est_moves_left = max(10, min(60, 30 - board.fullmove_number // 2))
+                        time_left_sec = (my_ms or 0) / 1000.0
+                        inc_sec = (inc_ms or 0) / 1000.0
+                        budget = 0.6 * (time_left_sec / max(1, est_moves_left)) + 0.5 * inc_sec
+                        # Spend more time per move (requested): double the budget
+                        budget *= 2.0
+                        # Keep within reasonable bounds
+                        budget = max(0.05, min(engine.max_time_sec, budget))
+                        move, reason = engine.choose_move_with_explanation(board, time_budget_sec=budget)
                         if move is None:
                             logging.info(f"Game {game_id}: no legal moves (game likely over)")
                             break
                         try:
-                            logging.info(f"Game {game_id}: playing {move.uci()}")
+                            logging.info(f"Game {game_id}: playing {move.uci()} (budget={budget:.2f}s, my_time_left={time_left_sec:.1f}s, inc={inc_sec:.2f}s)")
                             if game_log_path:
                                 with open(game_log_path, "a") as lf:
                                     lf.write(f"ply {last_handled_len+1}: {move.uci()}\n{reason}\n\n")
