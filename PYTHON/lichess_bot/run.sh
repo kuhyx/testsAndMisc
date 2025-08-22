@@ -13,6 +13,21 @@ if [[ -f "$SCRIPT_DIR/.env" ]]; then
   set +a
 fi
 
+# Helper to persist the token to .env
+save_token() {
+  local env_file="$SCRIPT_DIR/.env"
+  # Keep other lines, remove existing LICHESS_TOKEN, then append new one
+  if [[ -f "$env_file" ]]; then
+    grep -v '^LICHESS_TOKEN=' "$env_file" > "$env_file.tmp" || true
+    printf 'LICHESS_TOKEN=%s\n' "$LICHESS_TOKEN" >> "$env_file.tmp"
+    mv "$env_file.tmp" "$env_file"
+  else
+    printf 'LICHESS_TOKEN=%s\n' "$LICHESS_TOKEN" > "$env_file"
+  fi
+  chmod 600 "$env_file" 2>/dev/null || true
+  echo "Saved token to $env_file"
+}
+
 # Optional: --token <TOKEN> to set for this run
 if [[ "${1:-}" == "--token" || "${1:-}" == "-t" ]]; then
   if [[ "${2:-}" == "" ]]; then
@@ -33,6 +48,10 @@ if [[ -z "${LICHESS_TOKEN:-}" ]]; then
     exit 1
   fi
   echo "Token received."
+  save_token
+else
+  # If token came from CLI or env, still persist so next run won't prompt
+  save_token
 fi
 
 # Choose python: prefer local venv
