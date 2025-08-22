@@ -6,6 +6,8 @@ import threading
 import time
 from typing import Optional
 
+import chess
+
 from .engine import RandomEngine
 from .lichess_api import LichessAPI
 from .utils import backoff_sleep
@@ -29,38 +31,78 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
 
     def handle_game(game_id: str, my_color: Optional[str] = None):
         logging.info(f"Starting game thread for {game_id}")
+        board = chess.Board()
+        color: Optional[str] = my_color
+        # Track how many moves we have already processed; start at -1 so we act on the first state (0 moves)
+        last_handled_len = -1
         try:
-            board, color = api.join_game_stream(game_id, my_color)
-            logging.info(f"Game {game_id}: joined as {color}")
+            for event in api.stream_game_events(game_id):
+                et = event.get("type")
+                if et in ("gameFull", "gameState"):
+                    # Determine moves list and optional status
+                    if et == "gameFull":
+                        state = event.get("state", {})
+                        moves = state.get("moves", "")
+                        status = state.get("status")
+                        # Discover my color from gameFull
+                        white_id = event["white"].get("id")
+                        black_id = event["black"].get("id")
+                        me = api.get_my_user_id()
+                        if me == white_id:
+                            color = "white"
+                        elif me == black_id:
+                            color = "black"
+                        logging.info(f"Game {game_id}: joined as {color} (gameFull)")
+                    else:
+                        moves = event.get("moves", "")
+                        status = event.get("status")
 
-            while True:
-                # If it's our turn, pick and play a move
-                if (board.turn and color == "white") or (not board.turn and color == "black"):
-                    move = engine.choose_move(board)
-                    if move is None:
-                        logging.info(f"Game {game_id}: no legal moves (game likely over)")
+                    moves_list = moves.split() if moves else []
+                    new_len = len(moves_list)
+                    logging.info(
+                        f"Game {game_id}: event={et}, moves={new_len}, color={color}"
+                    )
+                    if new_len == last_handled_len:
+                        logging.debug(f"Game {game_id}: position unchanged (len={new_len}), skipping")
+                        continue
+
+                    # Rebuild board from moves
+                    board = chess.Board()
+                    for m in moves_list:
+                        try:
+                            board.push_uci(m)
+                        except Exception:
+                            logging.debug(f"Game {game_id}: could not apply move {m}")
+
+                    if color is None:
+                        logging.info(f"Game {game_id}: color unknown yet; waiting for gameFull")
+                        last_handled_len = new_len
+                        continue
+
+                    is_white_turn = board.turn
+                    my_turn = (is_white_turn and color == "white") or ((not is_white_turn) and color == "black")
+                    logging.info(
+                        f"Game {game_id}: turn={'white' if is_white_turn else 'black'}, my_turn={my_turn}"
+                    )
+                    if my_turn:
+                        move = engine.choose_move(board)
+                        if move is None:
+                            logging.info(f"Game {game_id}: no legal moves (game likely over)")
+                            break
+                        try:
+                            logging.info(f"Game {game_id}: playing {move.uci()}")
+                            api.make_move(game_id, move)
+                        except Exception as e:
+                            logging.warning(f"Game {game_id}: move {move.uci()} failed: {e}")
+                    # Mark this position as handled (whether or not we moved)
+                    last_handled_len = new_len
+                    if status in {"mate", "resign", "stalemate", "timeout", "draw"}:
+                        logging.info(f"Game {game_id} finished: {status}")
                         break
-                    api.make_move(game_id, move)
-                # Sleep briefly to avoid hammering the API
-                time.sleep(0.2)
-
-                # Poll for updates to keep board in sync
-                updates = api.get_game_state(game_id)
-                if updates is None:
+                elif et == "chatLine":
                     continue
-                # Apply last move if present
-                last_move_uci = updates.get("lastMove")
-                if last_move_uci:
-                    try:
-                        board.push_uci(last_move_uci)
-                    except Exception:
-                        # It may already be applied; ignore
-                        pass
-
-                # Check for game end
-                if updates.get("status") in {"mate", "resign", "stalemate", "timeout", "draw"}:
-                    logging.info(f"Game {game_id} finished: {updates.get('status')}")
-                    break
+                elif et == "opponentGone":
+                    continue
         except Exception as e:
             logging.exception(f"Game {game_id} thread error: {e}")
         finally:

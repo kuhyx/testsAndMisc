@@ -44,11 +44,11 @@ class LichessAPI:
         r.raise_for_status()
 
     def join_game_stream(self, game_id: str, my_color: Optional[str]) -> Tuple[chess.Board, str]:
-        # Join board stream once to detect initial state and my color
+        """Deprecated: use stream_game_events and parse initial state there."""
+        # Fallback to initial behavior for compatibility
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
         board = chess.Board()
         color = my_color or "white"
-
         with self.session.get(url, stream=True, timeout=60) as r:
             r.raise_for_status()
             for line in r.iter_lines(decode_unicode=True):
@@ -58,10 +58,8 @@ class LichessAPI:
                     event = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-
                 t = event.get("type")
                 if t == "gameFull":
-                    # set my color
                     white_id = event["white"].get("id")
                     black_id = event["black"].get("id")
                     me = self.get_my_user_id()
@@ -69,8 +67,6 @@ class LichessAPI:
                         color = "white"
                     elif me == black_id:
                         color = "black"
-
-                    # Load initial state
                     state = event.get("state", {})
                     moves = state.get("moves", "")
                     if moves:
@@ -80,10 +76,19 @@ class LichessAPI:
                             except Exception:
                                 pass
                     break
-                elif t == "gameState":
-                    # may see gameState first in rare cases; skip until gameFull
-                    continue
         return board, color
+
+    def stream_game_events(self, game_id: str) -> Generator[Dict, None, None]:
+        url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
+        with self.session.get(url, stream=True, timeout=60) as r:
+            r.raise_for_status()
+            for line in r.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    logging.debug(f"Skipping non-JSON line in game {game_id}: {line}")
 
     def make_move(self, game_id: str, move: chess.Move) -> None:
         url = f"{LICHESS_API}/api/board/game/{game_id}/move/{move.uci()}"
@@ -94,23 +99,7 @@ class LichessAPI:
         r.raise_for_status()
 
     def get_game_state(self, game_id: str) -> Optional[Dict]:
-        url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
-        # Use a short-lived request to read a single line update
-        with self.session.get(url, stream=True, timeout=10) as r:
-            if r.status_code >= 400:
-                return None
-            for line in r.iter_lines(decode_unicode=True):
-                if not line:
-                    continue
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if event.get("type") == "gameState":
-                    return event
-                if event.get("type") == "gameFull":
-                    return event.get("state")
-                # If we get other events, keep looping; this request is short-lived anyway.
+        """Deprecated: use stream_game_events in a persistent loop."""
         return None
 
     def get_my_user_id(self) -> Optional[str]:
