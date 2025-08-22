@@ -11,7 +11,7 @@ import chess.pgn
 
 from .engine import RandomEngine
 from .lichess_api import LichessAPI
-from .utils import backoff_sleep
+from .utils import backoff_sleep, get_and_increment_version
 
 
 def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> None:
@@ -25,13 +25,16 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
         raise RuntimeError("LICHESS_TOKEN environment variable is required")
 
     logging.info("Token present. Initializing client and engine...")
+    # Self-incrementing bot version (persisted on disk)
+    bot_version = get_and_increment_version()
+    logging.info(f"Bot version: v{bot_version}")
     api = LichessAPI(token)
     engine = RandomEngine()
 
     game_threads = {}
 
     def handle_game(game_id: str, my_color: Optional[str] = None):
-        logging.info(f"Starting game thread for {game_id}")
+        logging.info(f"Starting game thread for {game_id} [bot v{bot_version}]")
         board = chess.Board()
         color: Optional[str] = my_color
         # Track how many moves we have already processed; start at -1 so we act on the first state (0 moves)
@@ -41,6 +44,7 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
         try:
             with open(game_log_path, "w") as lf:
                 lf.write(f"game {game_id} started\n")
+                lf.write(f"bot_version v{bot_version}\n")
         except Exception:
             game_log_path = None
         # Simple time manager state
@@ -149,6 +153,11 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
             try:
                 if game_log_path:
                     game = chess.pgn.Game.from_board(board)
+                    # Record the bot version in the PGN headers
+                    try:
+                        game.headers["BotVersion"] = f"v{bot_version}"
+                    except Exception:
+                        pass
                     with open(game_log_path, "a") as lf:
                         lf.write("\nPGN:\n")
                         exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
