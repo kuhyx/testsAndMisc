@@ -53,6 +53,11 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
         my_ms = None
         opp_ms = None
         inc_ms = 0
+        # Meta info for logging/PGN
+        game_date_iso: Optional[str] = None
+        white_name: Optional[str] = None
+        black_name: Optional[str] = None
+        site_url: Optional[str] = None
         try:
             for event in api.stream_game_events(game_id):
                 et = event.get("type")
@@ -69,6 +74,18 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         # Discover my color from gameFull
                         white_id = event["white"].get("id")
                         black_id = event["black"].get("id")
+                        white_name = event["white"].get("name") or white_id or "?"
+                        black_name = event["black"].get("name") or black_id or "?"
+                        # Set site and date if available
+                        try:
+                            # Lichess event may include 'createdAt' ms epoch
+                            created_ms = event.get("createdAt") or event.get("createdAtDate")
+                            if created_ms:
+                                import datetime
+                                game_date_iso = datetime.datetime.utcfromtimestamp(int(created_ms)/1000).strftime("%Y.%m.%d")
+                        except Exception:
+                            pass
+                        site_url = f"https://lichess.org/{game_id}"
                         me = api.get_my_user_id()
                         if me == white_id:
                             color = "white"
@@ -158,6 +175,14 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                     # Record the bot version in the PGN headers
                     try:
                         game.headers["BotVersion"] = f"v{bot_version}"
+                        if site_url:
+                            game.headers["Site"] = site_url
+                        if game_date_iso:
+                            game.headers["Date"] = game_date_iso
+                        if white_name:
+                            game.headers["White"] = white_name
+                        if black_name:
+                            game.headers["Black"] = black_name
                     except Exception:
                         pass
                     with open(game_log_path, "a") as lf:
@@ -250,7 +275,19 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                 # If PGN marker not found (unexpected), append at end
                                 insert_idx = len(content)
 
+                            # Prepend meta information block for easier parsing later
+                            meta_lines = []
+                            if game_date_iso:
+                                meta_lines.append(f"Date: {game_date_iso}")
+                            if white_name or black_name:
+                                meta_lines.append(f"Players: {white_name or '?'} vs {black_name or '?'}")
+                            if meta_lines:
+                                meta_block = "\n".join(meta_lines) + "\n"
+                            else:
+                                meta_block = ""
+
                             analysis_block = (
+                                (meta_block if meta_block else "") +
                                 "ANALYSIS:\n" + analysis_text.rstrip() + "\n\n"
                             )
                             new_content = content[:insert_idx] + analysis_block + content[insert_idx:]

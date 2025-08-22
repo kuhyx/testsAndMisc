@@ -223,11 +223,23 @@ class RandomEngine:
             alpha = stand_pat
 
         # Explore captures to avoid horizon effect
+        # Consider only captures/promotions and order by SEE to reduce blunders
+        capture_moves: list[tuple[int, chess.Move]] = []
         for move in self._ordered_moves(board):
             if time.time() >= self._deadline:
                 break
             if not board.is_capture(move) and not move.promotion:
                 continue
+            try:
+                capture_moves.append((int(self._see_value(board, move)), move))
+            except Exception:
+                capture_moves.append((0, move))
+
+        capture_moves.sort(key=lambda t: t[0], reverse=True)
+
+        for _, move in capture_moves:
+            if time.time() >= self._deadline:
+                break
             board.push(move)
             score = -self._quiescence(board, -beta, -alpha, start)
             board.pop()
@@ -238,70 +250,67 @@ class RandomEngine:
         return alpha
 
     def _ordered_moves(self, board: chess.Board):
-        # Simple move ordering: captures/promotions first, then checks
+        # Move ordering that mixes tactical SEE with simple heuristics
         def score_move(m: chess.Move) -> int:
             s = 0
-            if board.is_capture(m):
+            is_cap = board.is_capture(m)
+            if is_cap:
                 s += 1000
             if m.promotion:
                 s += 800
             try:
                 if board.gives_check(m):
-                    s += 100
+                    s += 120
             except Exception:
                 pass
 
-            # Early-game heuristics to avoid silly shuffles
+            # SEE: reward good captures and avoid obviously losing moves
+            try:
+                see = int(self._see_value(board, m))
+                if is_cap or see < 0:
+                    s += max(-600, min(600, see))
+            except Exception:
+                pass
+
             early = self._is_early_game(board)
             piece = board.piece_at(m.from_square)
             if piece:
-                # Strongly prefer castling when legal
                 if board.is_castling(m):
-                    s += 500
-                # Prefer developing minors from back rank
+                    s += 650
                 if piece.piece_type in (chess.KNIGHT, chess.BISHOP):
-                    if chess.square_rank(m.from_square) in (0, 7) and not board.is_capture(m):
-                        s += 80
-                # Penalize knights to the rim early (unless it's a capture or check)
+                    if chess.square_rank(m.from_square) in (0, 7) and not is_cap:
+                        s += 90
                 if early and piece.piece_type == chess.KNIGHT:
                     to_file = chess.square_file(m.to_square)
-                    if to_file in (0, 7) and not board.is_capture(m):
-                        s -= 120
-                # Discourage king walks when not castling
+                    if to_file in (0, 7) and not is_cap:
+                        s -= 140
                 if piece.piece_type == chess.KING and early and not board.is_castling(m):
-                    s -= 400
-                # Mildly discourage rook moves very early if both knights and bishops are undeveloped
+                    s -= 450
                 if piece.piece_type == chess.ROOK and early and self._most_minors_undeveloped(board, piece.color):
-                    s -= 120
-                # Discourage early queen sorties unless forcing
-                if piece.piece_type == chess.QUEEN and early and not board.is_capture(m):
+                    s -= 140
+                if piece.piece_type == chess.QUEEN and early and not is_cap:
                     try:
                         gives_check = board.gives_check(m)
                     except Exception:
                         gives_check = False
                     if not gives_check:
-                        s -= 90
-                # Discourage moving the same piece twice very early if not forcing
-                if early and not board.is_capture(m) and not board.is_castling(m):
+                        s -= 120
+                if early and not is_cap and not board.is_castling(m):
                     if not self._is_start_square(piece.piece_type, piece.color, m.from_square):
-                        # unless stepping into center
                         to_center = chess.square_file(m.to_square) in (3, 4) and chess.square_rank(m.to_square) in (2, 3, 4, 5)
                         if not to_center:
-                            s -= 60
-                # Penalize weakening f-pawn pushes early
-                if piece.piece_type == chess.PAWN and early and not board.is_capture(m):
+                            s -= 70
+                if piece.piece_type == chess.PAWN and early and not is_cap:
                     from_file = chess.square_file(m.from_square)
                     from_rank = chess.square_rank(m.from_square)
                     to_rank = chess.square_rank(m.to_square)
-                    # f2->f3 or f7->f6
                     if from_file == 5:
                         if piece.color == chess.WHITE and from_rank == 1 and to_rank == 2:
-                            s -= 120
+                            s -= 140
                         if piece.color == chess.BLACK and from_rank == 6 and to_rank == 5:
-                            s -= 120
-                    # small bonus for central pawn advances
+                            s -= 140
                     if chess.square_file(m.to_square) in (3, 4):
-                        s += 40
+                        s += 50
             return s
 
         moves = list(board.legal_moves)
@@ -365,8 +374,11 @@ class RandomEngine:
         # Piece-square tendencies (small)
         pst = self._pst_score(board)
 
+        # Hanging/loose pieces penalty
+        hanging_pen = self._hanging_pieces_penalty(board)
+
         # Aggregate white-centric score then convert to side-to-move via negamax
-        white_score = material - dp_pen + mobility_term + center_score + rook_file_bonus + safety + pst
+        white_score = material - dp_pen + mobility_term + center_score + rook_file_bonus + safety + pst - hanging_pen
         return white_score if board.turn == chess.WHITE else -white_score
 
     def _opening_book_move(self, board: chess.Board) -> Optional[chess.Move]:
@@ -502,3 +514,55 @@ class RandomEngine:
             if (file_idx, rank_idx) in {(4, 7), (3, 7)}:
                 return -10
         return 0
+
+    # --- Tactical helpers ---
+    def _see_value(self, board: chess.Board, move: chess.Move) -> int:
+        """Static Exchange Evaluation for a move in centipawns.
+
+        Positive is good for the side to move. Uses python-chess SEE when available.
+        """
+        if hasattr(board, "see"):
+            return int(board.see(move))
+        # Fallback MVV/LVA approximation
+        victim = board.piece_at(move.to_square)
+        attacker = board.piece_at(move.from_square)
+        if not attacker:
+            return 0
+        gain = 0
+        if victim:
+            gain += self.piece_values.get(victim.piece_type, 0)
+        gain -= self.piece_values.get(attacker.piece_type, 0)
+        return gain
+
+    def _hanging_pieces_penalty(self, board: chess.Board) -> int:
+        """Penalty for pieces that can be captured for non-negative SEE by the opponent."""
+        pen_white = 0
+        pen_black = 0
+        # Evaluate from a neutral board state without mutating turn logic
+        for sq, pc in board.piece_map().items():
+            if pc.piece_type == chess.KING:
+                continue
+            opp = not pc.color
+            # If opponent has a legal capture on this square with SEE >= 0, penalize
+            attackers = board.attackers(opp, sq)
+            if not attackers:
+                continue
+            bad = False
+            for a in attackers:
+                m = chess.Move(a, sq)
+                if m in board.legal_moves:
+                    try:
+                        see_gain = self._see_value(board, m)
+                    except Exception:
+                        see_gain = self.piece_values.get(pc.piece_type, 0) - 1
+                    if see_gain >= 0:
+                        bad = True
+                        break
+            if bad:
+                val = int(self.piece_values.get(pc.piece_type, 0) * 0.33)
+                if pc.color == chess.WHITE:
+                    pen_white += val
+                else:
+                    pen_black += val
+        # Convert to white-centric score
+        return pen_white - pen_black
