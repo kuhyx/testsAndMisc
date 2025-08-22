@@ -59,6 +59,9 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
         black_name: Optional[str] = None
         site_url: Optional[str] = None
         try:
+            # Only send moves on authoritative gameState events to avoid race
+            # conditions right after gameFull arrives.
+            seen_game_full = False
             for event in api.stream_game_events(game_id):
                 et = event.get("type")
                 if et in ("gameFull", "gameState"):
@@ -92,6 +95,7 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         elif me == black_id:
                             color = "black"
                         logging.info(f"Game {game_id}: joined as {color} (gameFull)")
+                        seen_game_full = True
                     else:
                         moves = event.get("moves", "")
                         status = event.get("status")
@@ -132,7 +136,9 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                     logging.info(
                         f"Game {game_id}: turn={'white' if is_white_turn else 'black'}, my_turn={my_turn}"
                     )
-                    if my_turn:
+                    # Only move on 'gameState' events; skip making a move on initial 'gameFull'
+                    allow_move = (et == "gameState")
+                    if my_turn and allow_move:
                         # Compute a per-move time budget (seconds) based on remaining time
                         # Heuristic: use min( max_time_sec, max(0.05, 0.6 * my_time_left/remaining_moves + inc) )
                         # Estimate remaining moves as 30 - ply/2 bounded to [10, 60]
@@ -149,11 +155,15 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                             logging.info(f"Game {game_id}: no legal moves (game likely over)")
                             break
                         try:
-                            logging.info(f"Game {game_id}: playing {move.uci()} (budget={budget:.2f}s, my_time_left={time_left_sec:.1f}s, inc={inc_sec:.2f}s)")
-                            if game_log_path:
-                                with open(game_log_path, "a") as lf:
-                                    lf.write(f"ply {last_handled_len+1}: {move.uci()}\n{reason}\n\n")
-                            api.make_move(game_id, move)
+                            # Double-check legality just before sending to avoid 400s when state changed.
+                            if move not in board.legal_moves:
+                                logging.info(f"Game {game_id}: selected move no longer legal; skipping send")
+                            else:
+                                logging.info(f"Game {game_id}: playing {move.uci()} (budget={budget:.2f}s, my_time_left={time_left_sec:.1f}s, inc={inc_sec:.2f}s)")
+                                if game_log_path:
+                                    with open(game_log_path, "a") as lf:
+                                        lf.write(f"ply {last_handled_len+1}: {move.uci()}\n{reason}\n\n")
+                                api.make_move(game_id, move)
                         except Exception as e:
                             logging.warning(f"Game {game_id}: move {move.uci()} failed: {e}")
                     # Mark this position as handled (whether or not we moved)

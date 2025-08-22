@@ -20,28 +20,74 @@ class LichessAPI:
             "User-Agent": "minimal-lichess-bot/0.1 (+https://lichess.org)"
         })
 
+    def _request(self, method: str, url: str, *, raise_for_status: bool = False, **kwargs) -> requests.Response:
+        """Wrapper around session.request that logs every request/response.
+
+        - Logs start (method+URL) and end (status, elapsed).
+        - On 4xx/5xx, logs a warning with a small snippet of the response body.
+        - Optionally raises for status.
+        """
+        t0 = time.monotonic()
+        logging.info(f"HTTP {method} {url} -> sending")
+        try:
+            r = self.session.request(method, url, **kwargs)
+        except Exception as e:
+            logging.error(f"HTTP {method} {url} -> exception: {e}")
+            raise
+        elapsed = time.monotonic() - t0
+        status = r.status_code
+        if status >= 400:
+            # Log a brief error body snippet if available
+            snippet = None
+            try:
+                text = r.text or ""
+                snippet = text[:200].replace("\n", " ")
+            except Exception:
+                snippet = None
+            if snippet:
+                logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s body='{snippet}'")
+            else:
+                logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s")
+        else:
+            logging.info(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s")
+        if raise_for_status:
+            r.raise_for_status()
+        return r
+
     def stream_events(self) -> Generator[Dict, None, None]:
         url = f"{LICHESS_API}/api/stream/event"
-        with self.session.get(url, stream=True, timeout=60) as r:
-            r.raise_for_status()
-            for line in r.iter_lines(decode_unicode=True):
-                if not line:
+        backoff = 0.5
+        while True:
+            try:
+                # Use NDJSON Accept and no timeout for long-lived stream
+                headers = {"Accept": "application/x-ndjson"}
+                with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
+                    r.raise_for_status()
+                    backoff = 0.5  # reset on success
+                    for line in r.iter_lines(decode_unicode=True):
+                        if not line:
+                            continue
+                        try:
+                            yield json.loads(line)
+                        except json.JSONDecodeError:
+                            logging.debug(f"Skipping non-JSON line: {line}")
+            except requests.HTTPError as e:
+                status = getattr(e.response, "status_code", None)
+                if status == 429:
+                    logging.warning("Event stream hit 429; backing off")
+                    time.sleep(backoff)
+                    backoff = min(8.0, backoff * 2)
                     continue
-                try:
-                    yield json.loads(line)
-                except json.JSONDecodeError:
-                    logging.debug(f"Skipping non-JSON line: {line}")
+                raise
 
     def accept_challenge(self, challenge_id: str) -> None:
         url = f"{LICHESS_API}/api/challenge/{challenge_id}/accept"
-        r = self.session.post(url, timeout=30)
-        r.raise_for_status()
+        self._request("POST", url, timeout=30, raise_for_status=True)
 
     def decline_challenge(self, challenge_id: str, reason: str = "generic") -> None:
         url = f"{LICHESS_API}/api/challenge/{challenge_id}/decline"
         data = {"reason": reason}
-        r = self.session.post(url, data=data, timeout=30)
-        r.raise_for_status()
+        self._request("POST", url, data=data, timeout=30, raise_for_status=True)
 
     def join_game_stream(self, game_id: str, my_color: Optional[str]) -> Tuple[chess.Board, str]:
         """Deprecated: use stream_game_events and parse initial state there."""
@@ -49,7 +95,8 @@ class LichessAPI:
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
         board = chess.Board()
         color = my_color or "white"
-        with self.session.get(url, stream=True, timeout=60) as r:
+        headers = {"Accept": "application/x-ndjson"}
+        with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
             r.raise_for_status()
             for line in r.iter_lines(decode_unicode=True):
                 if not line:
@@ -80,7 +127,8 @@ class LichessAPI:
 
     def stream_game_events(self, game_id: str) -> Generator[Dict, None, None]:
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
-        with self.session.get(url, stream=True, timeout=60) as r:
+        headers = {"Accept": "application/x-ndjson"}
+        with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
             r.raise_for_status()
             for line in r.iter_lines(decode_unicode=True):
                 if not line:
@@ -92,10 +140,15 @@ class LichessAPI:
 
     def make_move(self, game_id: str, move: chess.Move) -> None:
         url = f"{LICHESS_API}/api/board/game/{game_id}/move/{move.uci()}"
-        r = self.session.post(url, timeout=30)
+        r = self._request("POST", url, timeout=30)
+        if r.status_code in (400, 409):
+            # Likely not our turn or move already played; do not retry to avoid spam
+            r.raise_for_status()
+            return
         if r.status_code == 429:
+            logging.warning(f"HTTP POST {url} -> 429; retrying once after 0.5s")
             time.sleep(0.5)
-            r = self.session.post(url, timeout=30)
+            r = self._request("POST", url, timeout=30)
         r.raise_for_status()
 
     def get_game_state(self, game_id: str) -> Optional[Dict]:
@@ -104,7 +157,7 @@ class LichessAPI:
 
     def get_my_user_id(self) -> Optional[str]:
         url = f"{LICHESS_API}/api/account"
-        r = self.session.get(url, timeout=30)
+        r = self._request("GET", url, timeout=30)
         if r.status_code == 200:
             return r.json().get("id")
         return None

@@ -43,6 +43,20 @@ class RandomEngine:
             ("e2e4", "c7c5"): ["g1f3", "d2d4", "c2c3", "b1c3"],
             ("d2d4", "d7d5"): ["c2c4", "g1f3", "e2e3"],
             ("d2d4", "g8f6"): ["c2c4", "g1f3", "e2e3"],
+
+            # --- More specific continuations to steer sensible early play ---
+            # 1.e4 e5 2.Nf3 (Black to move)
+            ("e2e4", "e7e5", "g1f3"): ["b8c6", "g8f6", "f8c5", "d7d6"],
+            # Italian: 1.e4 e5 2.Nf3 Nc6 3.Bc4 (Black to move)
+            ("e2e4", "e7e5", "g1f3", "b8c6", "f1c4"): ["g8f6", "f8c5", "d7d6"],
+            # Ruy Lopez: 1.e4 e5 2.Nf3 Nc6 3.Bb5 (Black to move)
+            ("e2e4", "e7e5", "g1f3", "b8c6", "f1b5"): ["a7a6", "g8f6", "f8c5", "d7d6"],
+            # Scotch: 1.e4 e5 2.Nf3 Nc6 3.d4 (Black to move)
+            ("e2e4", "e7e5", "g1f3", "b8c6", "d2d4"): ["e5d4", "g8f6"],
+            # Queen's Gambit: 1.d4 d5 2.c4 (Black to move)
+            ("d2d4", "d7d5", "c2c4"): ["e7e6", "c7c6", "d5c4"],
+            # English: 1.c4 e5 2.Nc3 (Black to move)
+            ("c2c4", "e7e5", "b1c3"): ["g8f6", "b8c6"],
         }
 
     def choose_move(self, board: chess.Board, time_budget_sec: Optional[float] = None) -> Optional[chess.Move]:
@@ -275,6 +289,30 @@ class RandomEngine:
             early = self._is_early_game(board)
             piece = board.piece_at(m.from_square)
             if piece:
+                # Discourage premature queen adventures in the opening
+                if piece.piece_type == chess.QUEEN and early:
+                    victim = board.piece_at(m.to_square)
+                    # Penalize queen pawn-grabs on edge pawns (a2/b2/g2/h2 or a7/b7/g7/h7)
+                    poison_targets_white = {chess.A7, chess.B7, chess.G7, chess.H7}
+                    poison_targets_black = {chess.A2, chess.B2, chess.G2, chess.H2}
+                    is_poison_target = (
+                        (piece.color == chess.WHITE and m.to_square in poison_targets_white)
+                        or (piece.color == chess.BLACK and m.to_square in poison_targets_black)
+                    )
+                    if is_cap and victim and victim.piece_type == chess.PAWN and is_poison_target:
+                        # If destination is heavily attacked, apply a large penalty
+                        attackers_op = len(board.attackers(not piece.color, m.to_square))
+                        defenders_me = len(board.attackers(piece.color, m.to_square))
+                        if attackers_op >= max(1, defenders_me):
+                            s -= 500
+                        else:
+                            s -= 250
+                    # General small penalty for non-check queen moves before minor development
+                    if not is_cap:
+                        if self._most_minors_undeveloped(board, piece.color):
+                            s -= 160
+                        else:
+                            s -= 60
                 if board.is_castling(m):
                     s += 650
                 if piece.piece_type in (chess.KNIGHT, chess.BISHOP):
@@ -304,11 +342,20 @@ class RandomEngine:
                     from_file = chess.square_file(m.from_square)
                     from_rank = chess.square_rank(m.from_square)
                     to_rank = chess.square_rank(m.to_square)
+                    # Discourage early f-pawn push and also random wing pawn thrusts like a/b/g/h
                     if from_file == 5:
                         if piece.color == chess.WHITE and from_rank == 1 and to_rank == 2:
                             s -= 140
                         if piece.color == chess.BLACK and from_rank == 6 and to_rank == 5:
                             s -= 140
+                    if from_file in (0, 1, 6, 7) and ((piece.color == chess.WHITE and from_rank == 1 and to_rank == 2) or (piece.color == chess.BLACK and from_rank == 6 and to_rank == 5)):
+                        s -= 60
+                    # Discourage early c-pawn push to c4/c5 if we already advanced the e-pawn (prevents e5+c5 blunder-y structures)
+                    if from_file == 2:
+                        e_pawn_sq = chess.E2 if piece.color == chess.WHITE else chess.E7
+                        e_advanced = board.piece_at(e_pawn_sq) is None
+                        if e_advanced and ((piece.color == chess.WHITE and from_rank == 1 and to_rank == 3) or (piece.color == chess.BLACK and from_rank == 6 and to_rank == 4)):
+                            s -= 80
                     if chess.square_file(m.to_square) in (3, 4):
                         s += 50
             return s
@@ -371,6 +418,22 @@ class RandomEngine:
                 if bk_sq not in (chess.E8, chess.G8, chess.C8):
                     safety += 40
 
+        # Early queen raid penalty: queen deep in opponent camp in the opening
+        queen_raid_pen = 0
+        if self._is_early_game(board):
+            q_w = board.pieces(chess.QUEEN, chess.WHITE)
+            q_b = board.pieces(chess.QUEEN, chess.BLACK)
+            if q_w:
+                qsq = next(iter(q_w))
+                # White queen on rank 7/8 is often risky early
+                if chess.square_rank(qsq) >= 6:
+                    queen_raid_pen -= 30
+            if q_b:
+                qsq = next(iter(q_b))
+                # Black queen on rank 1/2 is often risky early
+                if chess.square_rank(qsq) <= 1:
+                    queen_raid_pen += 30
+
         # Piece-square tendencies (small)
         pst = self._pst_score(board)
 
@@ -378,7 +441,7 @@ class RandomEngine:
         hanging_pen = self._hanging_pieces_penalty(board)
 
         # Aggregate white-centric score then convert to side-to-move via negamax
-        white_score = material - dp_pen + mobility_term + center_score + rook_file_bonus + safety + pst - hanging_pen
+        white_score = material - dp_pen + mobility_term + center_score + rook_file_bonus + safety + queen_raid_pen + pst - hanging_pen
         return white_score if board.turn == chess.WHITE else -white_score
 
     def _opening_book_move(self, board: chess.Board) -> Optional[chess.Move]:

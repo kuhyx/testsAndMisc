@@ -122,7 +122,7 @@ def main():
     ap.add_argument("file", help="Path to a PGN file or a log containing a PGN section")
     ap.add_argument("--engine", default="stockfish", help="Path to stockfish executable (default: stockfish)")
     # Exactly one of time or depth may be provided; default to time
-    ap.add_argument("--time", type=float, default=0.2, help="Analysis time per evaluation in seconds (default: 0.2)")
+    ap.add_argument("--time", type=float, default=4, help="Analysis time per evaluation in seconds (default: 0.2)")
     ap.add_argument("--depth", type=int, default=None, help="Fixed depth per evaluation (overrides --time)")
     args = ap.parse_args()
 
