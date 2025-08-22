@@ -195,9 +195,13 @@ class RandomEngine:
             board.push(move)
             score = -self._alphabeta(board, depth - 1, -beta, -alpha, start)
             board.pop()
+            # Prefer lower-risk choices on score ties
             if score > best_score:
                 best_score = score
                 best_move = move
+            elif best_move is not None and (score == best_score or abs(score - best_score) < 1e-3):
+                if self._risk_score(board, move) < self._risk_score(board, best_move):
+                    best_move = move
             if score > alpha:
                 alpha = score
             if alpha >= beta:
@@ -289,6 +293,17 @@ class RandomEngine:
             early = self._is_early_game(board)
             piece = board.piece_at(m.from_square)
             if piece:
+                # Heuristic: demote unsound early bishop sacs on f2/f7
+                if early and self._is_bishop_sac_on_f2f7(board, m):
+                    try:
+                        see_sac = int(self._see_value(board, m))
+                    except Exception:
+                        see_sac = -300
+                    # Large penalty if SEE is bad or not clearly winning material
+                    if see_sac <= -50:
+                        s -= 1300  # outweigh capture+check bonuses
+                    else:
+                        s -= 600
                 # Discourage premature queen adventures in the opening
                 if piece.piece_type == chess.QUEEN and early:
                     victim = board.piece_at(m.to_square)
@@ -342,6 +357,33 @@ class RandomEngine:
                     from_file = chess.square_file(m.from_square)
                     from_rank = chess.square_rank(m.from_square)
                     to_rank = chess.square_rank(m.to_square)
+                    # Bishop kick patterns (a6 vs Bb5, h6 vs Bg5, g6 vs Bf5)
+                    if piece.color == chess.BLACK:
+                        if m.from_square == chess.H7 and m.to_square == chess.H6:
+                            tgt = board.piece_at(chess.G5)
+                            if tgt and tgt.color != piece.color and tgt.piece_type == chess.BISHOP:
+                                s += 130
+                        if m.from_square == chess.A7 and m.to_square == chess.A6:
+                            tgt = board.piece_at(chess.B5)
+                            if tgt and tgt.color != piece.color and tgt.piece_type == chess.BISHOP:
+                                s += 120
+                        if m.from_square == chess.G7 and m.to_square == chess.G6:
+                            tgt = board.piece_at(chess.F5)
+                            if tgt and tgt.color != piece.color and tgt.piece_type == chess.BISHOP:
+                                s += 90
+                    else:
+                        if m.from_square == chess.H2 and m.to_square == chess.H3:
+                            tgt = board.piece_at(chess.G4)
+                            if tgt and tgt.color != piece.color and tgt.piece_type == chess.BISHOP:
+                                s += 130
+                        if m.from_square == chess.A2 and m.to_square == chess.A3:
+                            tgt = board.piece_at(chess.B4)
+                            if tgt and tgt.color != piece.color and tgt.piece_type == chess.BISHOP:
+                                s += 120
+                        if m.from_square == chess.G2 and m.to_square == chess.G3:
+                            tgt = board.piece_at(chess.F4)
+                            if tgt and tgt.color != piece.color and tgt.piece_type == chess.BISHOP:
+                                s += 90
                     # Discourage early f-pawn push and also random wing pawn thrusts like a/b/g/h
                     if from_file == 5:
                         if piece.color == chess.WHITE and from_rank == 1 and to_rank == 2:
@@ -629,3 +671,39 @@ class RandomEngine:
                     pen_black += val
         # Convert to white-centric score
         return pen_white - pen_black
+
+    # --- Risk/Pattern helpers ---
+    def _is_bishop_sac_on_f2f7(self, board: chess.Board, move: chess.Move) -> bool:
+        pc = board.piece_at(move.from_square)
+        if not pc or pc.piece_type != chess.BISHOP:
+            return False
+        # Only consider captures of the f-pawn on its home square
+        target = chess.F2 if pc.color == chess.BLACK else chess.F7
+        if move.to_square != target:
+            return False
+        if not board.is_capture(move):
+            return False
+        victim = board.piece_at(move.to_square)
+        if not victim or victim.piece_type != chess.PAWN:
+            return False
+        # Typically it's tempting because it's check; if not a check, still likely bad
+        try:
+            is_check = board.gives_check(move)
+        except Exception:
+            is_check = False
+        return True
+
+    def _risk_score(self, board: chess.Board, move: chess.Move) -> int:
+        """Lower is safer. Positive values indicate tactical/material risk for the mover."""
+        risk = 0
+        # Negative SEE means we may be losing material on this move
+        try:
+            see = int(self._see_value(board, move))
+        except Exception:
+            see = 0
+        if see < 0:
+            risk += -see
+        # Extra risk for early bishop sac on f2/f7
+        if self._is_early_game(board) and self._is_bishop_sac_on_f2f7(board, move):
+            risk += 600
+        return risk
