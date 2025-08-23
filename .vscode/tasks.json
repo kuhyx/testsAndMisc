@@ -16,6 +16,13 @@
 			"command": "python -m pip install -r requirements.txt && pytest -q",
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "pytest quick",
+			"type": "shell",
+			"command": "python -m pip install -r requirements.txt && pytest -q",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }
