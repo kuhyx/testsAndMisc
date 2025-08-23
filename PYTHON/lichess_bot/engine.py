@@ -180,14 +180,18 @@ class RandomEngine:
         return best_move
 
     def choose_move_with_explanation(self, board: chess.Board, time_budget_sec: Optional[float] = None) -> Tuple[Optional[chess.Move], str]:
-        """Return the chosen move and a human-readable explanation of top candidates.
+        """Return the chosen move and a human-readable explanation with full breakdown.
 
-        The explanation lists top candidates with scores and quick annotations.
+        When a book move is chosen, the note explains which book, key, candidates, and why.
+        When search is used, includes depth, time, node count, top candidates, and for the
+        selected move a numeric breakdown of evaluation components and risk/SEE details.
         """
         start = time.time()
         # Set a per-move deadline used throughout search
         time_limit = time_budget_sec if time_budget_sec is not None else self.max_time_sec
         self._deadline = start + max(0.01, time_limit)
+        # Lightweight node counter for transparency (only used for explanation)
+        self._nodes = 0
         depth_used = 0
         best_move: Optional[chess.Move] = None
         scores: list[Tuple[chess.Move, float]] = []
@@ -195,10 +199,35 @@ class RandomEngine:
         # Opening book shortcut
         book_mv = self._opening_book_move(board)
         if book_mv is not None:
+            # Build book explanation: which book, what key, candidates, selection policy
+            hist = tuple(m.uci() for m in board.move_stack)
+            key_used: Optional[tuple[str, ...]] = None
+            candidates: list[str] = []
+            legal_ucis: list[str] = []
+            legals = {m.uci(): m for m in board.legal_moves}
+            for klen in range(len(hist), -1, -1):
+                key = hist[:klen]
+                if key in self.opening_book:
+                    key_used = key
+                    candidates = list(self.opening_book[key])
+                    legal_ucis = [u for u in candidates if u in legals]
+                    break
+            mv_san = None
             try:
-                return book_mv, f"opening-book: {board.san(book_mv)} ({book_mv.uci()})"
+                mv_san = board.san(book_mv)
             except Exception:
-                return book_mv, f"opening-book: {book_mv.uci()}"
+                pass
+            annotations = self._annotate_move_simple(board, book_mv)
+            lines = [
+                "source=opening-book",
+                f"book=internal.opening_book key={key_used if key_used is not None else 'N/A'}",
+                f"history={hist}",
+                f"candidates={candidates}",
+                f"legal_candidates={legal_ucis}",
+                "selection=first-legal-candidate (stable)",
+                f"chosen={mv_san + ' ' if mv_san else ''}({book_mv.uci()}) reasons=[{annotations}]",
+            ]
+            return book_mv, "\n".join(lines)
 
         # Analyze all legal moves at the root with alpha-beta to given depth/time
         for d in range(1, self.depth + 1):
@@ -230,37 +259,13 @@ class RandomEngine:
 
         # Build explanation
         def annotate(m: chess.Move) -> str:
-            tags = []
-            if board.is_capture(m):
-                tags.append("capture")
-            if m.promotion:
-                tags.append(f"promotes={chess.piece_symbol(m.promotion).upper()}")
-            try:
-                if board.gives_check(m):
-                    tags.append("check")
-            except Exception:
-                pass
-            if board.is_castling(m):
-                tags.append("castle")
-            # Centralization
-            center = {chess.D4, chess.E4, chess.D5, chess.E5}
-            if m.to_square in center:
-                tags.append("center")
-            # Development: minor piece leaves back rank
-            if board.piece_at(m.from_square) and board.piece_at(m.from_square).piece_type in (chess.KNIGHT, chess.BISHOP):
-                if chess.square_rank(m.from_square) in (0, 7):
-                    tags.append("develops")
-            # Rook to (semi-)open file
-            if board.piece_at(m.from_square) and board.piece_at(m.from_square).piece_type == chess.ROOK:
-                file_idx = chess.square_file(m.to_square)
-                if self._is_open_file(board, file_idx):
-                    tags.append("open-file")
-            return ",".join(tags)
+            return self._annotate_move_simple(board, m)
 
         top = scores[:5]
         best_cp = top[0][1]
+        elapsed = time.time() - start
         lines = [
-            f"depth={depth_used} time={time.time()-start:.2f}s candidates={len(scores)}",
+            f"source=search depth={depth_used} time={elapsed:.2f}s nodes={getattr(self, '_nodes', 0)} candidates={len(scores)}",
             f"best {board.san(top[0][0])} ({top[0][0].uci()}) score={best_cp:.1f} reasons=[{annotate(top[0][0])}]",
         ]
         if avoided_note:
@@ -270,6 +275,68 @@ class RandomEngine:
             for mv, sc in top[1:]:
                 delta = sc - best_cp
                 lines.append(f"  {board.san(mv)} ({mv.uci()}) score={sc:.1f} delta={delta:+.1f} reasons=[{annotate(mv)}]")
+
+        # Deep-dive numeric breakdown for the chosen move
+        if best_move is not None:
+            # SEE and risk details
+            try:
+                see_val = int(self._see_value(board, best_move))
+            except Exception:
+                see_val = 0
+            risk_total = self._risk_score(board, best_move)
+            risk_qtrap = 0
+            try:
+                risk_qtrap = self._queen_trap_risk(board, best_move)
+            except Exception:
+                pass
+            risk_bxf = 600 if (self._is_early_game(board) and self._is_bishop_sac_on_f2f7(board, best_move)) else 0
+
+            # Static evaluation components before and after (mover perspective)
+            pre_white_score, pre_comp = self._evaluate_components(board)
+            pre_stm = pre_white_score if board.turn == chess.WHITE else -pre_white_score
+
+            board.push(best_move)
+            try:
+                post_white_score, post_comp = self._evaluate_components(board)
+                # After the move, it's opponent to move; flip sign to mover perspective
+                post_stm = - (post_white_score if board.turn == chess.WHITE else -post_white_score)
+            finally:
+                board.pop()
+
+            # Tactical delta captured by search beyond static eval
+            tactical_delta = best_cp - post_stm
+
+            # Compose component lines with explanations
+            def fmt_comps(prefix: str, comp: dict, white_score_val: float, stm_val: float) -> list[str]:
+                parts = []
+                parts.append(f"{prefix}: stm_eval={stm_val:.1f} (from white_score={white_score_val:.1f} {'as-is' if (prefix=='pre') else 'flipped to mover'})")
+                parts.append("  components (white-centric):")
+                parts.append(f"    material={comp['material']}  # material balance in centipawns (white - black)")
+                parts.append(f"    doubled_pawns_term={comp['doubled_pawns_term']}  # - (white_minus_black_doubled_pawns_penalty)")
+                parts.append(f"    mobility_term={comp['mobility_term']}  # weighted (legal_moves_white - legal_moves_black)")
+                parts.append(f"      mobility_white={comp['mob_w']} mobility_black={comp['mob_b']}")
+                parts.append(f"    center_score={comp['center_score']}  # piece presence in central squares")
+                parts.append(f"    rook_file_bonus={comp['rook_file_bonus']}  # rooks on open files")
+                parts.append(f"    king_safety={comp['safety']}  # castled/central king heuristics in middlegame")
+                parts.append(f"    queen_raid_penalty={comp['queen_raid_pen']}  # early risky queen raids")
+                parts.append(f"    piece_square_table={comp['pst']}  # small piece-square tendencies")
+                parts.append(f"    hanging_pieces_term={comp['hanging_pieces_term']}  # - (hanging pieces penalty: white - black)")
+                return parts
+
+            pre_lines = fmt_comps("pre", pre_comp, pre_white_score, pre_stm)
+            post_lines = fmt_comps("post", post_comp, post_white_score, post_stm)
+
+            lines.append("details:")
+            lines.append(f"  see={see_val}  # Static Exchange Evaluation of chosen move (>=0 means not losing material immediately)")
+            lines.append(f"  risk_total={risk_total}  # aggregate risk score (lower is safer)")
+            lines.append(f"    risk_queen_trap={risk_qtrap}  # estimated risk of the queen becoming trapped/over-attacked")
+            lines.append(f"    risk_bishop_sac_f2f7={risk_bxf}  # extra risk for early Bxf2/Bxf7 motifs")
+            lines.append(f"  pre_static_eval: {pre_stm:.1f}  # mover-perspective before making the move")
+            lines.append(f"  post_static_eval: {post_stm:.1f}  # mover-perspective immediately after the move")
+            lines.append(f"  search_score: {best_cp:.1f}  # alpha-beta score after quiescence")
+            lines.append(f"  tactical_delta: {tactical_delta:+.1f}  # (search_score - post_static_eval), captures/tactics beyond static")
+            lines.extend(pre_lines)
+            lines.extend(post_lines)
 
         return best_move, "\n".join(lines)
 
@@ -332,6 +399,11 @@ class RandomEngine:
 
         best = -float("inf")
         for move in self._ordered_moves(board):
+            # Node counting for transparency
+            try:
+                self._nodes += 1
+            except Exception:
+                pass
             board.push(move)
             score = -self._alphabeta(board, depth - 1, -beta, -alpha, start)
             board.pop()
@@ -345,6 +417,11 @@ class RandomEngine:
 
     def _quiescence(self, board: chess.Board, alpha: float, beta: float, start: float) -> float:
         # Stand-pat
+        # Count the node and evaluate
+        try:
+            self._nodes += 1
+        except Exception:
+            pass
         stand_pat = self._evaluate(board)
         if stand_pat >= beta:
             return beta
@@ -369,6 +446,10 @@ class RandomEngine:
         for _, move in capture_moves:
             if time.time() >= self._deadline:
                 break
+            try:
+                self._nodes += 1
+            except Exception:
+                pass
             board.push(move)
             score = -self._quiescence(board, -beta, -alpha, start)
             board.pop()
@@ -536,15 +617,25 @@ class RandomEngine:
         if board.is_stalemate() or board.is_insufficient_material() or board.can_claim_draw():
             return 0
 
-        # Base material (white minus black)
+        white_score, _ = self._evaluate_components(board)
+        return white_score if board.turn == chess.WHITE else -white_score
+
+    def _evaluate_components(self, board: chess.Board) -> Tuple[float, dict]:
+        """Compute the white-centric evaluation and return a components dict for transparency.
+
+        Returns a tuple of (white_score, components_dict). The components dict contains
+        the exact terms that sum to the white-centric score, plus small helper values.
+        """
+        # Base material (white - black)
         material = 0
         piece_map = board.piece_map()
         for sq, pc in piece_map.items():
             val = self.piece_values[pc.piece_type]
             material += val if pc.color == chess.WHITE else -val
 
-        # Doubled pawns penalty
+        # Doubled pawns penalty (white - black penalty)
         dp_pen = self._doubled_pawns_penalty(board)
+        doubled_term = -dp_pen
 
         # Mobility (white - black) with small weight
         mob_w, mob_b = self._mobility(board)
@@ -601,12 +692,58 @@ class RandomEngine:
         # Piece-square tendencies (small)
         pst = self._pst_score(board)
 
-        # Hanging/loose pieces penalty
+        # Hanging/loose pieces penalty (white - black)
         hanging_pen = self._hanging_pieces_penalty(board)
+        hanging_term = -hanging_pen
 
-        # Aggregate white-centric score then convert to side-to-move via negamax
-        white_score = material - dp_pen + mobility_term + center_score + rook_file_bonus + safety + queen_raid_pen + pst - hanging_pen
-        return white_score if board.turn == chess.WHITE else -white_score
+        white_score = material + doubled_term + mobility_term + center_score + rook_file_bonus + safety + queen_raid_pen + pst + hanging_term
+        comps = {
+            "material": material,
+            "doubled_pawns_term": doubled_term,
+            "mobility_term": mobility_term,
+            "mob_w": mob_w,
+            "mob_b": mob_b,
+            "center_score": center_score,
+            "rook_file_bonus": rook_file_bonus,
+            "safety": safety,
+            "queen_raid_pen": queen_raid_pen,
+            "pst": pst,
+            "hanging_pieces_term": hanging_term,
+        }
+        return white_score, comps
+
+    def _annotate_move_simple(self, board: chess.Board, m: chess.Move) -> str:
+        """Return a short, human-friendly tag list for a move."""
+        tags = []
+        if board.is_capture(m):
+            tags.append("capture")
+        if m.promotion:
+            try:
+                tags.append(f"promotes={chess.piece_symbol(m.promotion).upper()}")
+            except Exception:
+                tags.append("promotes")
+        try:
+            if board.gives_check(m):
+                tags.append("check")
+        except Exception:
+            pass
+        if board.is_castling(m):
+            tags.append("castle")
+        # Centralization
+        center = {chess.D4, chess.E4, chess.D5, chess.E5}
+        if m.to_square in center:
+            tags.append("center")
+        # Development: minor piece leaves back rank
+        piece = board.piece_at(m.from_square)
+        if piece and piece.piece_type in (chess.KNIGHT, chess.BISHOP):
+            if chess.square_rank(m.from_square) in (0, 7):
+                tags.append("develops")
+        # Rook to (semi-)open file
+        if piece and piece.piece_type == chess.ROOK:
+            file_idx = chess.square_file(m.to_square)
+            if self._is_open_file(board, file_idx):
+                tags.append("open-file")
+        return ",".join(tags)
 
     def _opening_book_move(self, board: chess.Board) -> Optional[chess.Move]:
         # Only use book for the first few plies and only from starting positions
