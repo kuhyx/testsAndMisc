@@ -179,7 +179,9 @@ class RandomEngine:
                 alpha = score
             if alpha >= beta:
                 break
-        scored.sort(key=lambda t: t[1], reverse=True)
+        # Prefer higher score; on ties, prefer lower risk
+        risk_map = {m: self._risk_score(board, m) for m, _ in scored}
+        scored.sort(key=lambda t: (t[1], -risk_map[t[0]]), reverse=True)
         return scored
 
     def _search_root(self, board: chess.Board, depth: int, start: float) -> Tuple[float, Optional[chess.Move]]:
@@ -306,6 +308,17 @@ class RandomEngine:
                         s -= 600
                 # Discourage premature queen adventures in the opening
                 if piece.piece_type == chess.QUEEN and early:
+                    # Strongly demote greedy corner rook captures like Qxh8/Qxa8/Qxh1/Qxa1
+                    if is_cap:
+                        victim = board.piece_at(m.to_square)
+                        if victim and victim.piece_type == chess.ROOK and m.to_square in {chess.A8, chess.H8, chess.A1, chess.H1}:
+                            try:
+                                if board.gives_check(m):
+                                    s -= 1200
+                                else:
+                                    s -= 900
+                            except Exception:
+                                s -= 900
                     victim = board.piece_at(m.to_square)
                     # Penalize queen pawn-grabs on edge pawns (a2/b2/g2/h2 or a7/b7/g7/h7)
                     poison_targets_white = {chess.A7, chess.B7, chess.G7, chess.H7}
@@ -706,4 +719,67 @@ class RandomEngine:
         # Extra risk for early bishop sac on f2/f7
         if self._is_early_game(board) and self._is_bishop_sac_on_f2f7(board, move):
             risk += 600
+        # Queen trap risk (e.g., greedy corner rook grabs like Qxh8?)
+        try:
+            risk += self._queen_trap_risk(board, move)
+        except Exception:
+            pass
+        return risk
+
+    def _queen_trap_risk(self, board: chess.Board, move: chess.Move) -> int:
+        """Estimate risk of the mover's queen becoming trapped or heavily attacked after this move.
+
+        Adds a notable penalty for queen captures on corner rooks when defenders outweigh attackers
+        or when the queen has very limited safe mobility from the destination square.
+        """
+        pc = board.piece_at(move.from_square)
+        if not pc or pc.piece_type != chess.QUEEN:
+            return 0
+
+        # Pre-move info about target square
+        victim_pre = board.piece_at(move.to_square)
+        is_corner = move.to_square in {chess.A8, chess.H8, chess.A1, chess.H1}
+        is_corner_rook_capture = bool(victim_pre and victim_pre.piece_type == chess.ROOK and is_corner)
+
+        # Simulate the move
+        board.push(move)
+        try:
+            my_color = not board.turn  # after push, side to move flipped; queen belongs to the previous mover
+            qsq = move.to_square
+            risk = 0
+
+            # If queen moved to a corner, that's typically risky (limited squares)
+            if qsq in {chess.A8, chess.H8, chess.A1, chess.H1}:
+                risk += 120
+
+            # Count attackers/defenders on the queen's square
+            attackers = len(board.attackers(not my_color, qsq))
+            defenders = len(board.attackers(my_color, qsq))
+            if attackers >= max(1, defenders):
+                # Heavily attacked or under-defended queen on destination
+                risk += 350
+
+            # Estimate queen mobility: how many immediate moves are not landing on attacked squares
+            safe_exits = 0
+            for m in board.legal_moves:
+                if m.from_square == qsq:
+                    # Quick static safety: avoid landing on currently attacked squares
+                    if not board.is_attacked_by(not my_color, m.to_square):
+                        safe_exits += 1
+                        if safe_exits >= 4:
+                            break
+            if safe_exits <= 1:
+                risk += 450
+            elif safe_exits <= 3:
+                risk += 200
+            # Extra penalty if this was a corner rook capture and exits are limited or square is contested
+            if is_corner_rook_capture:
+                base = 300
+                # If heavily attacked or exits are poor, escalate
+                if attackers >= max(1, defenders) or safe_exits <= 2:
+                    base += 600
+                # Taking with check is often tempting; still risky. Keep the penalty significant.
+                risk += base
+        finally:
+            board.pop()
         return risk
