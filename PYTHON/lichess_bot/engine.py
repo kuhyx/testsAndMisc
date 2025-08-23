@@ -311,20 +311,6 @@ class RandomEngine:
             mv = self.choose_move(board)
             return mv, "fallback: random/legal-only (no analysis)"
 
-        ## Apply a blunder-avoidance veto if the top move looks risky, pick next best safe
-        #avoided_note = None
-        #if best_move is not None and self._looks_blunderish(board, best_move):
-        #    avoided_note = f"avoided risky {board.san(best_move)} ({best_move.uci()})"
-        #    for cand, _ in scores[1:]:
-        #        if not self._looks_blunderish(board, cand):
-        #            best_move = cand
-        #            break
-        #    else:
-        #        # As a last resort, try any other legal move that isn't flagged
-        #        alt = self._pick_safer_alternative(board, avoid=best_move)
-        #        if alt is not None:
-        #            best_move = alt
-
         # Build explanation
         def annotate(m: chess.Move) -> str:
             return self._annotate_move_simple(board, m)
@@ -336,8 +322,6 @@ class RandomEngine:
             f"source=search depth={depth_used} time={elapsed:.2f}s nodes={getattr(self, '_nodes', 0)} candidates={len(scores)}",
             f"best {board.san(top[0][0])} ({top[0][0].uci()}) score={best_cp:.1f} reasons=[{annotate(top[0][0])}]",
         ]
-        #if avoided_note:
-        #    lines.append(avoided_note)
         if len(top) > 1:
             lines.append("alternatives:")
             for mv, sc in top[1:]:
@@ -407,6 +391,174 @@ class RandomEngine:
             lines.extend(post_lines)
 
         return best_move, "\n".join(lines)
+
+    def evaluate_proposed_move_with_suggestion(
+        self,
+        state: "chess.Board | str",
+        proposed_move: "chess.Move | str",
+        time_budget_sec: Optional[float] = None,
+    ) -> Tuple[Optional[float], str, Optional[chess.Move], str]:
+        """Evaluate a proposed move on a given position and also propose the engine's move.
+
+        Inputs:
+        - state: either a chess.Board or a FEN string representing the current position.
+        - proposed_move: a chess.Move object or a string (UCI preferred, SAN fallback).
+        - time_budget_sec: optional time limit for each analysis pass.
+
+        Returns a tuple: (proposed_score_cp, proposed_explanation, engine_move, engine_explanation)
+        - proposed_score_cp: search score (centipawns, mover POV) for the proposed move, or None if illegal/unavailable.
+        - proposed_explanation: a detailed, human-readable breakdown of where the score came from.
+        - engine_move: the move our engine would play from this position.
+        - engine_explanation: the usual explanation for the engine's chosen move.
+        """
+        # Normalize board
+        if isinstance(state, chess.Board):
+            board = state.copy(stack=False)
+        else:
+            try:
+                board = chess.Board(state)
+            except Exception:
+                # If FEN parsing fails, assume start position
+                board = chess.Board()
+
+        # Parse proposed move
+        def _parse_move(b: chess.Board, mv: "chess.Move | str") -> Optional[chess.Move]:
+            if isinstance(mv, chess.Move):
+                return mv if mv in b.legal_moves else None
+            # Try UCI first
+            try:
+                m = chess.Move.from_uci(str(mv).strip())
+                if m in b.legal_moves:
+                    return m
+            except Exception:
+                pass
+            # Try SAN
+            try:
+                m = b.parse_san(str(mv).strip())
+                if m in b.legal_moves:
+                    return m
+            except Exception:
+                pass
+            return None
+
+        pmove = _parse_move(board, proposed_move)
+
+        # Evaluate proposed move (ensure we set a deadline specifically for this pass)
+        start = time.time()
+        budget = time_budget_sec if time_budget_sec is not None else min(1.5, self.max_time_sec)
+        self._deadline = start + max(0.01, budget)
+        self._nodes = 0
+
+        proposed_score: Optional[float] = None
+        if pmove is None:
+            # Still compute our own suggestion below
+            proposed_expl = (
+                "source=search\nillegal_or_unavailable_move=true\n"
+                "note=The proposed move is not legal in the provided position."
+            )
+        else:
+            # Compute search score for the specific move
+            # Use full alpha-beta for consistency with choose_move_with_explanation
+            # Depth is limited by deadline
+            depth_used = 0
+            best_score_for_move: Optional[float] = None
+            # A tiny iterative deepening loop focused on the single move
+            for d in range(1, self.depth + 1):
+                if time.time() >= self._deadline:
+                    break
+                depth_used = d
+                board.push(pmove)
+                try:
+                    sc = -self._alphabeta(board, d - 1, -float("inf"), float("inf"), start)
+                finally:
+                    board.pop()
+                best_score_for_move = sc
+            proposed_score = best_score_for_move
+
+            # Build a detailed breakdown similar to choose_move_with_explanation
+            def _move_breakdown(b: chess.Board, m: chess.Move, search_score: float) -> str:
+                # SEE and risk
+                try:
+                    see_val = int(self._see_value(b, m))
+                except Exception:
+                    see_val = 0
+                risk_total = self._risk_score(b, m)
+                try:
+                    risk_qtrap = self._queen_trap_risk(b, m)
+                except Exception:
+                    risk_qtrap = 0
+                risk_bxf = 600 if (self._is_early_game(b) and self._is_bishop_sac_on_f2f7(b, m)) else 0
+
+                # Static eval components pre/post (mover perspective)
+                pre_white_score, pre_comp = self._evaluate_components(b)
+                pre_stm = pre_white_score if b.turn == chess.WHITE else -pre_white_score
+
+                b.push(m)
+                try:
+                    post_white_score, post_comp = self._evaluate_components(b)
+                    post_stm = - (post_white_score if b.turn == chess.WHITE else -post_white_score)
+                finally:
+                    b.pop()
+
+                tactical_delta = search_score - post_stm
+
+                def fmt_comps(prefix: str, comp: dict, white_score_val: float, stm_val: float) -> list[str]:
+                    parts = []
+                    parts.append(f"{prefix}: stm_eval={stm_val:.1f} (from white_score={white_score_val:.1f} {'as-is' if (prefix=='pre') else 'flipped to mover'})")
+                    parts.append("  components (white-centric):")
+                    parts.append(f"    material={comp['material']}")
+                    parts.append(f"    doubled_pawns_term={comp['doubled_pawns_term']}")
+                    parts.append(f"    mobility_term={comp['mobility_term']}")
+                    parts.append(f"      mobility_white={comp['mob_w']} mobility_black={comp['mob_b']}")
+                    parts.append(f"    center_score={comp['center_score']}")
+                    parts.append(f"    rook_file_bonus={comp['rook_file_bonus']}")
+                    parts.append(f"    king_safety={comp['safety']}")
+                    parts.append(f"    queen_raid_penalty={comp['queen_raid_pen']}")
+                    parts.append(f"    piece_square_table={comp['pst']}")
+                    parts.append(f"    hanging_pieces_term={comp['hanging_pieces_term']}")
+                    return parts
+
+                pre_lines = fmt_comps("pre", pre_comp, pre_white_score, pre_stm)
+                post_lines = fmt_comps("post", post_comp, post_white_score, post_stm)
+
+                elapsed = time.time() - start
+                nodes = getattr(self, "_nodes", 0)
+                mv_san = None
+                try:
+                    mv_san = b.san(m)
+                except Exception:
+                    pass
+                ann = self._annotate_move_simple(b, m)
+                lines = [
+                    f"source=search depth={depth_used} time={elapsed:.2f}s nodes={nodes}",
+                    f"move {mv_san if mv_san else ''} ({m.uci()}) score={search_score:.1f} reasons=[{ann}]",
+                    "details:",
+                    f"  see={see_val}",
+                    f"  risk_total={risk_total}",
+                    f"    risk_queen_trap={risk_qtrap}",
+                    f"    risk_bishop_sac_f2f7={risk_bxf}",
+                    f"  pre_static_eval: {pre_stm:.1f}",
+                    f"  post_static_eval: {post_stm:.1f}",
+                    f"  search_score: {search_score:.1f}",
+                    f"  tactical_delta: {tactical_delta:+.1f}",
+                ]
+                lines.extend(pre_lines)
+                lines.extend(post_lines)
+                return "\n".join(lines)
+
+            if proposed_score is None:
+                proposed_expl = (
+                    "source=search\nunable_to_compute_score=true\n"
+                    "note=Time limit reached before evaluating the proposed move."
+                )
+            else:
+                proposed_expl = _move_breakdown(board, pmove, proposed_score)
+
+        # Now get the engine's own suggestion (separate pass to keep API simple)
+        eng_budget = time_budget_sec if time_budget_sec is not None else min(1.5, self.max_time_sec)
+        move_suggestion, engine_expl = self.choose_move_with_explanation(board, time_budget_sec=eng_budget)
+
+        return proposed_score, proposed_expl, move_suggestion, engine_expl
 
     def _analyze_root(self, board: chess.Board, depth: int, start: float) -> list[Tuple[chess.Move, float]]:
         alpha = -float("inf")
@@ -1184,376 +1336,3 @@ class RandomEngine:
         finally:
             board.pop()
         return risk
-
-    # --- Blunder veto helpers ---
-    def _looks_blunderish(self, board: chess.Board, move: chess.Move) -> bool:
-        """Lightweight tactical sanity checks to avoid common blunders.
-
-        Heuristics:
-        - Use a small DB of logged blunders
-        - Negative SEE on the move beyond a threshold (typically losing material)
-        - Large immediate static-eval drop
-        - Opponent has mate-in-1 or many forcing checks
-        - Opponent has profitable captures right away
-        - Destination under-defended and opponent can capture for non-negative SEE
-        - Tiny depth-2 probe is very favorable for the opponent
-        - Non-forced king moves in middlegame
-        """
-        # Known logged blunder?
-        try:
-            if self._is_logged_blunder(board, move):
-                return True
-        except Exception:
-            pass
-
-    # Strongly negative SEE on our own move
-        try:
-            see = int(self._see_value(board, move))
-        except Exception:
-            see = 0
-        is_cap = board.is_capture(move)
-        if see <= -120:
-            return True
-        # Pawns: non-capture push into under-defended square is often a blunder even at milder SEE
-        pc0 = board.piece_at(move.from_square)
-        if pc0 and pc0.piece_type == chess.PAWN and not board.is_capture(move) and not move.promotion:
-            if see <= -60:
-                return True
-            from_file = chess.square_file(move.from_square)
-            if from_file in (0, 7):
-                heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
-                if self._is_early_game(board) or heavy_pieces >= 2:
-                    if see < 0:
-                        return True
-
-        # Pre-move static eval (from mover perspective)
-        pre_eval = self._evaluate(board)
-
-        board.push(move)
-        try:
-            # Post-move eval (flip sign back to mover perspective)
-            post_eval_for_opp = self._evaluate(board)
-            post_eval_for_us = -post_eval_for_opp
-            # For captures with non-negative SEE, require a much larger immediate static drop to flag as a blunder
-            drop_thresh = 350 if (is_cap and see >= 0) else 220
-            if post_eval_for_us < pre_eval - drop_thresh:
-                return True
-
-            # Opponent mate-in-1?
-            for opp in board.legal_moves:
-                board.push(opp)
-                try:
-                    if board.is_checkmate():
-                        return True
-                finally:
-                    board.pop()
-
-            # Forcing checks right away
-            check_count = 0
-            heavy_check = False
-            my_color = not board.turn
-            for opp in board.legal_moves:
-                try:
-                    if board.gives_check(opp):
-                        check_count += 1
-                        pc = board.piece_at(opp.from_square)
-                        if pc and pc.piece_type in (chess.QUEEN, chess.ROOK, chess.BISHOP):
-                            heavy_check = True
-                        if board.is_capture(opp) or opp.promotion:
-                            heavy_check = True
-                except Exception:
-                    pass
-            # For captures that pass SEE, be less sensitive to raw check counts
-            if (not (is_cap and see >= 0) and (check_count >= 2 or (check_count >= 1 and heavy_check))) or ((is_cap and see >= 0) and check_count >= 3):
-                return True
-
-            # King exits limited after check presence
-            ksq = board.king(my_color)
-            if ksq is not None and check_count >= 1:
-                king_exits = 0
-                for m in board.legal_moves:
-                    if m.from_square == ksq and not board.is_capture(m):
-                        king_exits += 1
-                        if king_exits >= 2:
-                            break
-                if king_exits <= 1:
-                    return True
-
-            # Under-defended destination
-            moved_piece = board.piece_at(move.to_square)
-            if moved_piece:
-                # If this was a capture with non-negative SEE, trust SEE over crude defenders/attackers
-                if not (is_cap and see >= 0):
-                    attackers_op = len(board.attackers(not my_color, move.to_square))
-                    defenders_me = len(board.attackers(my_color, move.to_square))
-                    if attackers_op >= max(1, defenders_me):
-                        for opp in board.legal_moves:
-                            if opp.to_square == move.to_square and board.is_capture(opp):
-                                try:
-                                    opp_see2 = int(self._see_value(board, opp))
-                                except Exception:
-                                    opp_see2 = 0
-                                if opp_see2 >= 0:
-                                    return True
-
-            # Greedy corner-rook takes by minors are often traps (similar to queen corner traps)
-            if is_cap:
-                moved_by = board.piece_at(move.to_square)
-                from_pc = board.piece_at(move.from_square) if moved_by is None else moved_by  # after push, piece on to_square
-                victim_pre = None
-                # Reconstruct victim type by undoing and checking
-                board.pop()
-                try:
-                    victim_pre = board.piece_at(move.to_square)
-                finally:
-                    board.push(move)
-                if from_pc and from_pc.piece_type in (chess.KNIGHT, chess.BISHOP) and victim_pre and victim_pre.piece_type == chess.ROOK and move.to_square in {chess.A8, chess.H8, chess.A1, chess.H1}:
-                    # If destination is under-defended OR the minor has very limited safe exits, treat as blunderish
-                    attackers = len(board.attackers(not my_color, move.to_square))
-                    defenders = len(board.attackers(my_color, move.to_square))
-                    # Count safe exits for the minor from the corner square
-                    safe_exits = 0
-                    for esc in board.legal_moves:
-                        if esc.from_square == move.to_square:
-                            # Avoid landing on attacked squares
-                            if not board.is_attacked_by(not my_color, esc.to_square):
-                                safe_exits += 1
-                                if safe_exits >= 3:
-                                    break
-                    if attackers >= max(1, defenders) or safe_exits <= 1:
-                        return True
-
-            # Unsafe promotions to queen: if the new queen square is under-defended, treat as blunderish
-            if move.promotion == chess.QUEEN:
-                qsq = move.to_square
-                attackers = len(board.attackers(not my_color, qsq))
-                defenders = len(board.attackers(my_color, qsq))
-                if attackers >= max(1, defenders):
-                    return True
-
-            # Rook-pawn loosening immediately increasing own hanging penalties is a red flag
-            mover_from_file = chess.square_file(move.from_square)
-            if moved_piece and moved_piece.piece_type == chess.PAWN and mover_from_file in (0, 7) and not board.is_capture(move) and not move.promotion:
-                _, pre_comp = self._evaluate_components(board)  # board here is after push
-                pre_hanging_term = pre_comp.get("hanging_pieces_term", 0)
-                # Undo move to get baseline, then re-push for state safety
-                board.pop()
-                try:
-                    _, base_comp = self._evaluate_components(board)
-                    base_hanging_term = base_comp.get("hanging_pieces_term", 0)
-                finally:
-                    board.push(move)
-                # If our side's hanging penalty worsened notably, treat as blunder-ish
-                # Remember: components are white-centric; flip based on mover color
-                delta_hang_white = pre_hanging_term - base_hanging_term
-                worsen = (delta_hang_white < -80) if my_color == chess.WHITE else (delta_hang_white > 80)
-                if worsen:
-                    return True
-
-            # Tiny probe depth-2 for opponent side
-            try:
-                old_deadline = getattr(self, "_deadline", None)
-                self._deadline = time.time() + 0.03
-                probe = self._alphabeta(board, 2, -float('inf'), float('inf'), time.time())
-                if old_deadline is not None:
-                    self._deadline = old_deadline
-                # For safe captures (SEE >= 0), require a much stronger opponent probe to flag as blunder
-                # Only relax the tiny-probe threshold for queen captures that already passed SEE
-                relax = is_cap and see >= 0 and board.piece_at(move.from_square) and board.piece_at(move.from_square).piece_type == chess.QUEEN
-                threshold = 450 if relax else 250
-                if probe >= threshold:
-                    return True
-            except Exception:
-                try:
-                    if old_deadline is not None:
-                        self._deadline = old_deadline
-                except Exception:
-                    pass
-        finally:
-            board.pop()
-
-        # Non-forced king move in middlegame
-        pc0 = board.piece_at(move.from_square)
-        if pc0 and pc0.piece_type == chess.KING and not board.is_castling(move):
-            # If we're currently in check, allow king moves (forced). Otherwise, scrutinize.
-            if not board.is_check():
-                # Penalize king moves that keep the king in the center early or that stay on the same file/rank while heavy pieces remain.
-                heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
-                if self._is_early_game(board) or heavy_pieces >= 2:
-                    # Compute a crude safety trend: if post static eval (mover perspective) does not improve and king remains central/edge-trapped, veto.
-                    pre_eval = self._evaluate(board)
-                    board.push(move)
-                    try:
-                        post_eval_for_opp = self._evaluate(board)
-                        post_eval_for_us = -post_eval_for_opp
-                        to_sq = move.to_square
-                        file_idx = chess.square_file(to_sq)
-                        rank_idx = chess.square_rank(to_sq)
-                        centralish = (file_idx in (3, 4)) and (rank_idx in (2, 3, 4, 5))
-                        stays_corner = (to_sq in {chess.A1, chess.H1, chess.A8, chess.H8})
-                        # If not improving eval and moving into/remaining in danger zones, veto.
-                        if post_eval_for_us <= pre_eval and (not centralish or stays_corner):
-                            return True
-                    finally:
-                        board.pop()
-                # Generic: non-forced king shuffle is discouraged
-                return True
-        return False
-
-    def _pick_safer_alternative(self, board: chess.Board, avoid: Optional[chess.Move] = None) -> Optional[chess.Move]:
-        """Pick a safer alternative move using ordering heuristics, avoiding a specific move if provided.
-
-        Prefers non-logged, non-blunderish moves; falls back to the least-risk option.
-        """
-        moves = [m for m in self._ordered_moves(board) if avoid is None or m != avoid]
-        if not moves:
-            return None
-
-        def is_non_forced_king_move(mv: chess.Move) -> bool:
-            pc = board.piece_at(mv.from_square)
-            if not pc or pc.piece_type != chess.KING:
-                return False
-            if board.is_castling(mv):
-                return False
-            # Non-check, non-capture king moves are considered non-forced
-            if board.is_capture(mv):
-                return False
-            try:
-                if board.gives_check(mv):
-                    return False
-            except Exception:
-                pass
-            # Avoid passive king shuffles when heavy pieces remain
-            heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
-            return heavy_pieces >= 2 or self._is_early_game(board)
-
-        def is_plain_pawn_push(mv: chess.Move) -> bool:
-            pc = board.piece_at(mv.from_square)
-            if not pc or pc.piece_type != chess.PAWN:
-                return False
-            if board.is_capture(mv) or mv.promotion:
-                return False
-            try:
-                if board.gives_check(mv):
-                    return False
-            except Exception:
-                pass
-            return True
-
-        # First pass: strictly avoid logged blunders and blunderish moves; also skip passive king shuffles if possible
-        # Prefer SEE-sound captures with the lowest risk (avoid unsafe queen promotions)
-        safe_caps: list[tuple[int, chess.Move]] = []
-        for m in moves:
-            if board.is_capture(m):
-                try:
-                    see_m = int(self._see_value(board, m))
-                except Exception:
-                    see_m = 0
-                if see_m >= 0:
-                    try:
-                        if self._is_logged_blunder(board, m):
-                            continue
-                    except Exception:
-                        pass
-                    try:
-                        r = self._risk_score(board, m)
-                    except Exception:
-                        r = 9999
-                    # Small tie-breaker: prefer non-queen promotions over queen when risks tie
-                    if m.promotion == chess.QUEEN:
-                        r += 50
-                    safe_caps.append((r, m))
-        if safe_caps:
-            safe_caps.sort(key=lambda t: t[0])
-            return safe_caps[0][1]
-
-        # Otherwise look for solid non-captures following safety heuristics
-        for m in moves:
-            try:
-                if self._is_logged_blunder(board, m):
-                    continue
-            except Exception:
-                pass
-            if is_non_forced_king_move(m):
-                continue
-            # If many minors are undeveloped, prefer non-pawn moves first
-            mover = board.piece_at(m.from_square)
-            if mover and self._most_minors_undeveloped(board, mover.color) and is_plain_pawn_push(m):
-                continue
-            # Prefer captures or developing moves over rook-pawn pushes
-            if mover and mover.piece_type == chess.PAWN and is_plain_pawn_push(m):
-                from_file = chess.square_file(m.from_square)
-                if from_file in (0, 7):
-                    continue
-            if not self._looks_blunderish(board, m):
-                return m
-
-        # Second pass: choose least-risk non-logged, non-blunderish move; allow passive king last
-        scored: list[tuple[int, chess.Move]] = []
-        for m in moves:
-            try:
-                if self._is_logged_blunder(board, m):
-                    continue
-            except Exception:
-                pass
-            # Skip blunderish moves outright, but allow passive king moves as last resort (still add risk)
-            try:
-                bl = self._looks_blunderish(board, m)
-            except Exception:
-                bl = False
-            if bl and not is_non_forced_king_move(m):
-                continue
-            try:
-                r = self._risk_score(board, m)
-            except Exception:
-                r = 9999
-            # Slightly inflate risk for passive king moves to avoid endless shuffling when heavy pieces remain
-            if is_non_forced_king_move(m):
-                r += 250
-            # Inflate risk for plain pawn pushes if minors are still undeveloped
-            mover = board.piece_at(m.from_square)
-            if mover and self._most_minors_undeveloped(board, mover.color) and is_plain_pawn_push(m):
-                r += 180
-            # Extra risk for rook-pawn pushes in general
-            if mover and mover.piece_type == chess.PAWN and is_plain_pawn_push(m):
-                if chess.square_file(m.from_square) in (0, 7):
-                    r += 120
-                # And extra for SEE-negative plain pawn advances
-                try:
-                    see_m = int(self._see_value(board, m))
-                except Exception:
-                    see_m = 0
-                if see_m < 0:
-                    r += 220
-            scored.append((r, m))
-        if scored:
-            scored.sort(key=lambda t: t[0])
-            return scored[0][1]
-
-        # Last resort: still avoid logged blunders if at all possible
-        non_logged = []
-        for m in moves:
-            try:
-                if self._is_logged_blunder(board, m):
-                    continue
-            except Exception:
-                pass
-            non_logged.append(m)
-        if not non_logged and avoid is not None:
-            # Better to take the previously avoided (but not logged) move than a known logged blunder
-            try:
-                if not self._is_logged_blunder(board, avoid):
-                    return avoid
-            except Exception:
-                return avoid
-        target_pool = non_logged if non_logged else moves
-        try:
-            target_pool.sort(key=lambda m: self._risk_score(board, m))
-        except Exception:
-            pass
-        return target_pool[0]
-
-    def _is_logged_blunder(self, board: chess.Board, move: chess.Move) -> bool:
-        fen = board.fen()
-        bad = self._logged_blunders.get(fen)
-        return bool(bad and move.uci() in bad)
