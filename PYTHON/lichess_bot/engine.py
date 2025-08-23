@@ -67,153 +67,22 @@ class RandomEngine:
             ("e2e4", "d7d6", "d2d4"): ["g8f6", "g7g6", "c7c5"],
         }
 
-        # Logged tactical blunders to avoid (fen -> set of UCI moves)
-        # These positions come from self-play or historical logs that reliably lead to large swings.
-        self._logged_blunders: dict[str, set[str]] = {
-            # From tests: test_blunders_uetJvfYW.py
-            "rnbqkb1r/pppppppp/8/4P3/5n2/2NP4/PPP2PPP/R1BQKBNR b KQkq - 0 4": {"g7g6"},
-            "rnbqkb1r/pppppp1p/6p1/4P3/5n2/2NP4/PPP2PPP/R1BQKBNR w KQkq - 0 5": {"g1f3"},
-            "rnbqkb1r/pppppp1p/6p1/4P3/5n2/2NP1N2/PPP2PPP/R1BQKB1R b KQkq - 1 5": {"f8g7"},
-            "rnbq1rk1/3p1pbp/p1p3p1/3pP3/Pp3BPP/2N2N2/1PP2P2/R2QKB1R w KQ - 0 13": {"b2b3"},
-            # From tests: test_blunders_6tW77MSE.py
-            "r2q1rk1/ppp1pp1p/6p1/2Pp3P/PP1nnPb1/8/8/RNB1KB1R w KQ - 0 13": {"h5g6"},
-            "r2q1rk1/ppp1pp1p/6P1/2Pp4/PP1nnPb1/8/8/RNB1KB1R b KQ - 0 13": {"f7g6"},
-            "r2q1rk1/ppp1p2p/6p1/2Pp4/PP1nnPb1/8/8/RNB1KB1R w KQ - 0 14": {"c5c6"},
-            "r2q1rk1/ppp1p2p/2P3p1/3p4/PP1nnPb1/8/8/RNB1KB1R b KQ - 0 14": {"g4f3"},
-            "r2q1rk1/ppp1p2p/2P3p1/3p4/PP1nnP2/5b2/8/RNB1KB1R w KQ - 1 15": {"c6b7"},
-            "r2q1rk1/pPp1p2p/6p1/3p4/PP1nnP2/5b2/8/RNB1KB1R b KQ - 0 15": {"a8b8"},
-            "1r1q1rk1/pPp1p2p/6p1/3p4/PP1nnP2/5b2/8/RNB1KB1R w KQ - 1 16": {"f4f5"},
-            "1r1q1rk1/pPp1p2p/6p1/3p1P2/PP1nn3/5b2/8/RNB1KB1R b KQ - 0 16": {"f3h1"},
-            "1r1q1rk1/pPp1p2p/6p1/3p1P2/PP1nn3/8/8/RNB1KB1b w Q - 0 17": {"f5g6"},
-            "1r1q1rk1/pPp1p3/6p1/3p4/PP1nn3/8/8/RNB1KB1b w Q - 0 18": {"b4b5"},
-            "1r1q1rk1/pPp1p3/6p1/1P1p4/P3n3/5n2/8/RNB1KB1b w Q - 1 19": {"e1e2"},
-            "1r1q1rk1/pPp1p3/6p1/1P1p4/P3n3/5n2/4K3/RNB2B1b b - - 2 19": {"e4g3"},
-            "1r1q1rk1/pPp1p3/6p1/1P1p4/P7/5nn1/4K3/RNB2B1b w - - 3 20": {"e2e3"},
-            "1r1q1rk1/pPp1p3/6p1/1P1p4/P7/3K4/8/RNB1nn1b w - - 2 22": {"d3d4"},
-            "1r1q2k1/pPp1p3/6p1/1P1p4/P2K1r2/8/8/RNB1nn1b w - - 4 23": {"d4e5"},
-            "1r1q2k1/pPp1p3/6p1/1P1pK3/P4r2/8/8/RNB1nn1b b - - 5 23": {"d8d6"},
-            # From tests: test_blunders_2n69vqvJ.py
-            "r1k4r/pppb2pp/2n5/2p5/2B5/1Q6/PP3PKP/3R1R2 b - - 3 16": {"g7g6"},
-            # From tests: test_blunders_P3sWyT5C.py
-            "r1bqk2r/ppp2ppp/2np1n2/2b1p3/2BPP3/2P2N2/PP3PPP/RNBQ1RK1 b kq - 0 6": {"e8g8", "d6d5"},
-            "r1bq1r1k/ppP2ppp/2n2n2/4p1B1/2B1P3/1NP2N2/PP3PPP/R2Q1RK1 b - - 0 12": {"h8g8"},
-            "r1bR2k1/pp3ppp/2n2n2/4p1B1/2B1P3/1NP2N2/PPQ2PPP/5RK1 b - - 0 16": {"f6e8"},
-            # Also avoid a follow-up losing retreat in the same game
-            "r1bRn1k1/pp3ppp/2n5/4p1B1/2B1P3/1NP2N2/PPQ2PPP/5RK1 w - - 1 17": {"d8e8"},
-            # From tests: test_blunders_LeA9yF98.py
-            "r1bqk2r/ppp2ppp/2n2n2/2bpp3/2BPP3/2P2N2/PP3PPP/RNBQ1RK1 w kq - 0 7": {"d4c5"},
-            "r1bqk2r/ppp2ppp/2n2n2/2Ppp3/2B1P3/2P2N2/PP3PPP/RNBQ1RK1 b kq - 0 7": {"d5e4"},
-            "r1bB2kr/2p2p2/p1B5/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 0 17": {"g8h7"},
-            "B1bB3r/2p2p1k/p7/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 0 18": {"h7g7"},
-            "B1b4r/2p2pk1/p4B2/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 2 19": {"g7g8"},
-            "B1b3kB/2p2p2/p7/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 0 20": {"g8f8"},
-            "B1b2k1B/2p2p2/p7/2P3pQ/1Pp1p3/4P3/P2N2PP/RN3RK1 b - - 0 21": {"f8e8"},
-            "B1b1k2B/2p2R2/p7/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 b - - 0 22": {"c7c6"},
-            "5k1B/3R4/p1B5/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 w - - 1 25": {"d7d8"},
-            "3R3B/4k3/p1B5/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 w - - 3 26": {"h5e8"},
-            # Additional from tests (remaining failures)
-            "r1br4/5B1k/2n2B2/pp2p3/4P2p/1QP2N2/PP3PPP/RN3RK1 w - - 1 15": {"f6d8"},
-            "r1bqk2r/ppp2ppp/2np1n2/2b5/2BPP3/5N2/PP3PPP/RNBQ1RK1 b kq - 0 7": {"f6e4"},
-            "r2qk2r/pppb2pp/2n5/2p3B1/Q1B1p3/5N2/PP3PPP/R4RK1 b kq - 1 12": {"e4f3"},
-            "r2Bk2r/pppb2pp/2n5/2p5/Q1B5/8/PP3PpP/R4RK1 w kq - 0 14": {"g1g2"},
-            "8/8/2k3pR/1p6/p1p5/8/PP3PKP/8 b - - 1 29": {"c6d7"},
-            "5k2/5P1R/8/1p5P/p1p5/8/PP4K1/8 b - - 0 38": {"f8e7"},
-            "5k2/5PR1/7P/1p6/p7/2P5/P5K1/8 b - - 0 41": {"f8e7"},
-            "5Q2/6R1/8/1p1k3Q/p7/2P5/P5K1/8 b - - 2 45": {"d5e6"},
-            "1r5r/Q5p1/4kp2/3b3p/3P4/8/1P3PPP/4R1K1 b - - 3 28": {"e6d6"},
-            "1b4k1/p4ppp/8/7n/4K3/1P5P/8/8 w - - 3 36": {"e4f5"},
-            "6k1/p4ppp/3b4/5K1n/8/1P5P/8/8 w - - 5 37": {"f5g5"},
-            "6k1/p4pp1/3bn3/7p/8/1P4KP/8/8 w - - 2 40": {"g3h4"},
-            "6k1/p4pp1/3b4/2n4p/7K/1P5P/8/8 w - - 4 41": {"h4h5"},
-            "8/p3kpp1/5b2/8/3nK3/7P/8/8 w - - 10 47": {"e4f4"},
-            "6k1/p4pp1/5b2/3K4/3n4/7P/8/8 w - - 18 51": {"d5d6"},
-            "6k1/p4pp1/4nb2/2K5/8/7P/8/8 w - - 24 54": {"c5d6"},
-            "6k1/p4pp1/3K1b2/8/5n2/7P/8/8 w - - 26 55": {"d6d7"},
-            "6k1/p2K1pp1/5b2/8/8/7n/8/8 w - - 0 56": {"d7e8"},
-            "3r1rk1/pp3Np1/3N3p/2p5/4P3/2P5/P5PP/R2Q1RK1 b - - 0 18": {"f8f7"},
-            "5Q2/p5pk/4P2p/1pp5/8/2P5/P5PP/5RK1 b - - 0 24": {"h7g6"},
-            "5Q2/p5p1/4P1kp/1pp5/8/2P5/P5PP/5RK1 w - - 1 25": {"e6e7"},
-            "5Q2/p3P1p1/6kp/1pp5/8/2P5/P5PP/5RK1 b - - 0 25": {"g6h7"},
-            # From tests: test_blunders_EUQXHm7d.py
-            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b6/8/bNB1KB1n b - - 0 18": {"a1c3"},
-            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1bb5/8/1NB1KB1n w - - 1 19": {"b1d2"},
-            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1bb5/3N4/2B1KB1n b - - 2 19": {"c3d2"},
-            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b6/3b4/2B1KB1n w - - 0 20": {"c1d2"},
-            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b6/3B4/4KB1n b - - 0 20": {"h1g3"},
-            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b4n1/3B4/4KB2 w - - 1 21": {"f6e7"},
-            "1r3r2/pPp1qp1k/8/3p4/P7/1b4n1/3B4/4KB2 w - - 0 22": {"f1e2"},
-            "1r3r2/pPp1qp1k/8/3p4/P7/1b4n1/3BB3/4K3 b - - 1 22": {"e7e3"},
-            "1r3r2/pPp2p1k/8/3p4/P7/1b2q1n1/3BB3/4K3 w - - 2 23": {"a4a5"},
-            "1r3r2/pPp2p1k/8/P2p4/8/1b2q1n1/3BB3/4K3 b - - 0 23": {"e3e2"},
-            # From tests: test_blunders_OVmR29MI.py
-            "rnb1kb1r/pp3ppp/4q3/2p3N1/4p3/8/PPPPNPPP/R1BQ1RK1 b kq - 1 9": {"e6a2"},
-            "2kr3r/1p4p1/4bp2/7p/Q2b1B2/2P5/1P3PPP/5RK1 w - - 0 20": {"c3d4"},
-            "2kr3r/1p4p1/4bp2/7p/Q2P1B2/8/1P3PPP/5RK1 b - - 0 20": {"e6d5"},
-            "2kr3r/1p4p1/5p2/3b3p/Q2P1B2/8/1P3PPP/5RK1 w - - 1 21": {"a4a8"},
-            "3r3r/1p1k2p1/5p2/3b3p/Q2P1B2/8/1P3PPP/5RK1 b - - 4 22": {"d7c8"},
-            "2kr3r/1p4p1/5p2/Q2b3p/3P1B2/8/1P3PPP/5RK1 b - - 6 23": {"b7b6"},
-            "2kr3r/6p1/1Q3p2/3b3p/3P1B2/8/1P3PPP/5RK1 b - - 0 24": {"c8d7"},
-            "3r3r/3k2p1/1Q3p2/3b3p/3P1B2/8/1P3PPP/5RK1 w - - 1 25": {"f4c7"},
-            "3r3r/2Bk2p1/1Q3p2/3b3p/3P4/8/1P3PPP/5RK1 b - - 2 25": {"d8c8"},
-            "2r4r/2Bk2p1/1Q3p2/3b3p/3P4/8/1P3PPP/5RK1 w - - 3 26": {"c7b8"},
-            "1r5r/Q5p1/4kp2/3b3p/3P4/8/1P3PPP/4R1K1 b - - 3 28": {"e6d6"},
-            "1r5r/2k1R1p1/5p2/3Q3p/3P4/8/1P3PPP/6K1 b - - 2 31": {"c7c8"},
-            "1rk4r/4R1p1/5p2/3Q3p/3P4/8/1P3PPP/6K1 w - - 3 32": {"d5c5"},
-            "1r1k3r/4R1p1/5p2/2Q4p/3P4/8/1P3PPP/6K1 w - - 5 33": {"d4d5"},
-            "3k3r/1Q2R3/5pp1/3P3p/8/8/1P3PPP/6K1 w - - 0 37": {"d5d6"},
-            "3k3r/1Q2R3/3P1p2/6pp/8/8/1P3PPP/6K1 w - - 0 38": {"b7b8"},
+    def _log_considered(self, board: chess.Board, scored: list[Tuple[chess.Move, float]]) -> None:
+        """Print a single-line summary of considered root moves with their scores.
 
-            # From tests: test_blunders_PdZ7Ft7C.py
-            "rnb2rk1/pp2bppp/8/8/2qN4/2N5/PPP2PPP/R1BQK2R w - - 3 13": {"b2b3"},
-            "rn3rk1/pp2bppp/8/3Q1b2/8/1P6/2q2PPP/2B2K1R w - - 0 18": {"d5b7"},
-            "rn3rk1/pQ2bppp/8/5b2/8/1P6/2q2PPP/2B2K1R b - - 0 18": {"c2f2"},
-            "6k1/p2n1ppp/8/2b5/6b1/1P6/3K3P/4R3 b - - 0 27": {"c5b4"},
-            "6k1/p2n1ppp/8/8/5Kb1/1P6/7P/4b3 b - - 1 29": {"e1c3"},
-            "6k1/p2n1ppp/8/8/6K1/1Pb5/7P/8 b - - 0 30": {"d7f6"},
-            "6k1/p4ppp/5n2/5K2/8/1Pb5/7P/8 b - - 2 31": {"f6d7"},
-            "6k1/p2n1ppp/8/5K2/8/1Pb5/7P/8 w - - 3 32": {"f5e4"},
-            "6k1/p2n1ppp/8/8/4K3/1Pb5/7P/8 b - - 4 32": {"d7f6"},
-            "6k1/p4ppp/8/4b2n/4K3/1P5P/8/8 b - - 2 35": {"e5b8"},
-            "1b4k1/p4ppp/8/7n/4K3/1P5P/8/8 w - - 3 36": {"e4f5"},
-            "1b4k1/p4ppp/8/5K1n/8/1P5P/8/8 b - - 4 36": {"b8d6"},
-            "6k1/p4ppp/3b4/5K1n/8/1P5P/8/8 w - - 5 37": {"f5g5"},
-            "6k1/p4ppp/3b4/6Kn/8/1P5P/8/8 b - - 6 37": {"h5f4"},
-            "6k1/p4ppp/3b4/8/5nK1/1P5P/8/8 b - - 8 38": {"h7h5"},
-            "6k1/p4pp1/3b4/7p/5nK1/1P5P/8/8 w - - 0 39": {"g4g3"},
-            "6k1/p4pp1/3b4/7p/5n2/1P4KP/8/8 b - - 1 39": {"f4e6"},
-            "6k1/p4pp1/3bn3/7p/8/1P4KP/8/8 w - - 2 40": {"g3h4"},
-            "6k1/p4pp1/3bn3/7p/7K/1P5P/8/8 b - - 3 40": {"e6c5"},
-            "6k1/p4pp1/3b4/2n4p/7K/1P5P/8/8 w - - 4 41": {"h4h5"},
-            "6k1/p4pp1/3b4/2n4K/8/1P5P/8/8 b - - 0 41": {"c5b3"},
-            "6k1/p4pp1/3b4/6K1/8/1n5P/8/8 b - - 1 42": {"d6e7"},
-            "6k1/p3bpp1/8/5K2/8/1n5P/8/8 b - - 3 43": {"b3d4"},
-            "8/p3kpp1/5b2/8/3nK3/7P/8/8 w - - 10 47": {"e4f4"},
-            "8/p3kpp1/4nb2/8/5K2/7P/8/8 w - - 12 48": {"f4f5"},
-            "6k1/p4pp1/5b2/3K4/3n4/7P/8/8 w - - 18 51": {"d5d6"},
-            "6k1/p4pp1/4nb2/2K5/8/7P/8/8 w - - 24 54": {"c5d6"},
-            "6k1/p4pp1/3K1b2/8/5n2/7P/8/8 w - - 26 55": {"d6d7"},
-            "6k1/p2K1pp1/5b2/8/8/7n/8/8 w - - 0 56": {"d7e8"},
-
-            # From tests: test_blunders_mgh3xtEb.py
-            "r4r2/p2p3k/n2Np1p1/q1p5/P5Q1/8/3NKP2/8 b - - 2 24": {"a5c7"},
-            "r4N2/p6k/n5pq/P1pp4/6Q1/5N2/4KP2/8 b - - 0 30": {"h6f8"},
-            "r4q2/p6k/n5p1/P1pp4/6Q1/5N2/4KP2/8 w - - 0 31": {"g4h3"},
-            "r4qk1/p2Q4/n5p1/P1pp4/8/5N2/4KP2/8 w - - 4 33": {"e2e3"},
-            "4rqk1/p2Q4/n5p1/P1pp4/8/4KN2/5P2/8 w - - 6 34": {"e3d2"},
-            "4rqk1/p2Q4/n5p1/P1pp4/8/5N2/3K1P2/8 b - - 7 34": {"d5d4"},
-            "4rqk1/p2Q4/n5p1/P1p5/3p4/5N2/3K1P2/8 w - - 0 35": {"d7a7"},
-            "4r1k1/Q7/n5p1/P1p5/3p4/5q2/3K1P2/8 w - - 0 36": {"d2c2"},
-            "6k1/Q7/n5p1/P1p5/3p4/8/4rq2/3K4 w - - 0 38": {"d1c1"},
-            "6k1/Q7/n5p1/P1p5/3p4/8/4rq2/2K5 b - - 1 38": {"f2e1"},
-
-            # From tests: test_blunders_4QOgOQhi.py
-            "r4qk1/p1p4p/np4p1/3p1p2/3P4/3K1N2/PP3nPP/RN5R w - - 2 18": {"d3c3"},
-            "r4qk1/p1p4p/np4p1/3p1p2/3P4/2K2N2/PP3nPP/RN5R b - - 3 18": {"f2h1"},
-            "r4qk1/p1p4p/1p4p1/3p1p2/1n1P4/3K1N2/PP4PP/RN5n w - - 2 20": {"d3e3"},
-            "r5k1/p1p1q2p/1p4p1/3p1p2/1n1P4/4KN2/PP4PP/RN5n w - - 4 21": {"e3f4"},
-            "r5k1/p1p4p/1p4p1/3p1pK1/1n1P2q1/5N2/PP4PP/RN5n w - - 8 23": {"g5h6"},
-        }
-
+        Example: considered: e4 (e2e4) +30.0; Nf3 (g1f3) +15.0; d4 (d2d4) +12.0
+        """
+        if not scored:
+            return
+        parts: list[str] = []
+        for mv, sc in scored:
+            try:
+                san = board.san(mv)
+            except Exception:
+                san = ''
+            parts.append(f"{san} ({mv.uci()}) {sc:+.1f}")
+        print("considered: " + "; ".join(parts))
+        
     def choose_move(self, board: chess.Board, time_budget_sec: Optional[float] = None) -> Optional[chess.Move]:
         start = time.time()
         best_move: Optional[chess.Move] = None
@@ -221,8 +90,9 @@ class RandomEngine:
         time_limit = time_budget_sec if time_budget_sec is not None else self.max_time_sec
         self._deadline = start + max(0.01, time_limit)
         best_score = -float("inf") if board.turn else float("inf")
+        last_depth_used = 0
 
-    # Opening book shortcut (very early only)
+        # Opening book shortcut (very early only)
         book_mv = self._opening_book_move(board)
         if book_mv is not None:
             return book_mv
@@ -234,12 +104,15 @@ class RandomEngine:
             score, move = self._search_root(board, d, start)
             if move is not None:
                 best_move, best_score = move, score
+                last_depth_used = d
 
-        # Final safety veto: if top choice looks tactically risky, prefer a safer legal alternative
-        if best_move is not None and self._looks_blunderish(board, best_move):
-            safer = self._pick_safer_alternative(board, avoid=best_move)
-            if safer is not None:
-                return safer
+        # Log considered moves with scores (no detailed breakdown) using the last completed depth
+        if last_depth_used > 0 and time.time() < self._deadline:
+            try:
+                scored = self._analyze_root(board, last_depth_used, start)
+                self._log_considered(board, scored)
+            except Exception:
+                pass
 
         # Fallback to random if search didn’t find anything
         if best_move is None:
@@ -306,6 +179,12 @@ class RandomEngine:
             if scores:
                 best_move = scores[0][0]
 
+        # Emit a concise log of considered moves and scores
+        try:
+            self._log_considered(board, scores)
+        except Exception:
+            pass
+
         if not scores:
             # Fallback
             mv = self.choose_move(board)
@@ -314,12 +193,7 @@ class RandomEngine:
         # Apply the same final safety veto as choose_move (avoid logged/risky blunders)
         veto_applied = False
         original_best = best_move
-        if best_move is not None and self._looks_blunderish(board, best_move):
-            safer = self._pick_safer_alternative(board, avoid=best_move)
-            if safer is not None:
-                best_move = safer
-                veto_applied = True
-
+        
         # Build explanation
         def annotate(m: chess.Move) -> str:
             return self._annotate_move_simple(board, m)
@@ -343,7 +217,12 @@ class RandomEngine:
             lines.append("alternatives:")
             for mv, sc in top[1:]:
                 delta = sc - best_cp
-                lines.append(f"  {board.san(mv)} ({mv.uci()}) score={sc:.1f} delta={delta:+.1f} reasons=[{annotate(mv)}]")
+                # Keep alternatives concise: move + score + delta (no detailed reasons)
+                try:
+                    san_alt = board.san(mv)
+                except Exception:
+                    san_alt = ''
+                lines.append(f"  {san_alt} ({mv.uci()}) score={sc:.1f} delta={delta:+.1f}")
 
         if veto_applied and original_best is not None and best_move is not None and original_best != best_move:
             # Provide a short note about the veto and why
@@ -1378,93 +1257,3 @@ class RandomEngine:
         finally:
             board.pop()
         return risk
-
-    # --- Blunder-avoidance helpers used by final selection veto ---
-    def _looks_blunderish(self, board: chess.Board, move: chess.Move) -> bool:
-        """Heuristically decide if a root move is too risky to play.
-
-        Primary signal: move is a known logged blunder in this exact FEN.
-        Secondary signals: egregiously bad SEE, very high aggregated risk, or early bishop sac on f2/f7.
-        """
-        # 1) Logged blunders (exact FEN match)
-        try:
-            fen = board.fen()
-            bl = self._logged_blunders.get(fen)
-            if bl and move.uci() in bl:
-                return True
-        except Exception:
-            pass
-
-        # 2) Unsound early bishop sac on f2/f7
-        try:
-            if self._is_early_game(board) and self._is_bishop_sac_on_f2f7(board, move):
-                return True
-        except Exception:
-            pass
-
-        # 3) Very bad SEE or extreme risk
-        see = 0
-        try:
-            see = int(self._see_value(board, move))
-        except Exception:
-            pass
-        if see <= -150:
-            return True
-
-        risk = 0
-        try:
-            risk = self._risk_score(board, move)
-        except Exception:
-            pass
-        if risk >= 600:
-            return True
-        return False
-
-    def _pick_safer_alternative(self, board: chess.Board, avoid: chess.Move) -> Optional[chess.Move]:
-        """Pick a safer legal move than `avoid` in the current position.
-
-        Avoids logged blunders in this FEN and prefers lower-risk, non-losing-SEE moves.
-        Uses quick static features to remain fast at the root.
-        """
-        fen = None
-        try:
-            fen = board.fen()
-        except Exception:
-            fen = None
-        forbidden = set()
-        if fen is not None:
-            forbidden = set(self._logged_blunders.get(fen, set()))
-        candidates = []
-        for m in board.legal_moves:
-            if m == avoid:
-                continue
-            if m.uci() in forbidden:
-                continue
-            candidates.append(m)
-        if not candidates:
-            return None
-
-        def safety_key(m: chess.Move):
-            # Lower is better
-            try:
-                risk = self._risk_score(board, m)
-            except Exception:
-                risk = 0
-            try:
-                see = int(self._see_value(board, m))
-            except Exception:
-                see = 0
-            # Prefer non-negative SEE; then lower risk; slight bias to central moves
-            center_bonus = 0
-            if chess.square_file(m.to_square) in (3, 4) and chess.square_rank(m.to_square) in (2, 3, 4, 5):
-                center_bonus = -10
-            # Key tuple: negative-SEE first, risk next, then small positional bias
-            return (0 if see >= 0 else 1, risk, center_bonus)
-
-        candidates.sort(key=safety_key)
-        # Pick the first candidate that doesn't look blunderish under our heuristic
-        for m in candidates:
-            if not self._looks_blunderish(board, m):
-                return m
-        # If all look a bit risky, return the least-bad
-        return candidates[0]
