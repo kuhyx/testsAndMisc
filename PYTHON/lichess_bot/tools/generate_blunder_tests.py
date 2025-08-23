@@ -49,6 +49,7 @@ class Blunder:
     ply: int
     side: str  # 'W' or 'B'
     san: str   # SAN of the played blunder
+    best_suggestion_san: str  # SAN of the best suggestion from log (mandatory)
 
 
 def parse_columns_for_blunders(text: str) -> List[Blunder]:
@@ -72,7 +73,7 @@ def parse_columns_for_blunders(text: str) -> List[Blunder]:
         # Split by 2+ spaces to get columns
         parts = re.split(r"\s{2,}", ln.strip())
         # Expected columns: ply, side, move, played_eval, best_eval, loss, class, best_suggestion
-        if len(parts) < 7:
+        if len(parts) < 8:
             continue
         try:
             ply = int(parts[0])
@@ -81,8 +82,15 @@ def parse_columns_for_blunders(text: str) -> List[Blunder]:
         side = parts[1]
         move_san = parts[2]
         clazz = parts[6]
+        best_suggestion_san = parts[7].strip() if parts[7] else ""
         if clazz == "Blunder":
-            blunders.append(Blunder(ply=ply, side=side, san=move_san))
+            # Require best suggestion to be provided; if it's missing, raise
+            if not best_suggestion_san:
+                raise ValueError(
+                    f"Missing best_suggestion in Columns for blunder row: ply={ply} side={side} move={move_san}.\n"
+                    f"Raw line: '{ln.strip()}'"
+                )
+            blunders.append(Blunder(ply=ply, side=side, san=move_san, best_suggestion_san=best_suggestion_san))
     return blunders
 
 
@@ -105,13 +113,13 @@ def san_list_from_game(game: chess.pgn.Game) -> List[str]:
     return san_moves
 
 
-def fen_and_uci_for_blunders(pgn_text: str, blunders: List[Blunder]) -> List[Tuple[str, str, Blunder]]:
+def fen_and_uci_for_blunders(pgn_text: str, blunders: List[Blunder]) -> List[Tuple[str, str, str, Blunder]]:
     game = chess.pgn.read_game(io.StringIO(pgn_text))
     if game is None:
         raise RuntimeError("Failed to parse PGN from log")
 
     main_sans = san_list_from_game(game)
-    results: List[Tuple[str, str, Blunder]] = []
+    results: List[Tuple[str, str, str, Blunder]] = []
     for bl in blunders:
         # Reconstruct the board before this ply
         board = game.board()
@@ -132,7 +140,16 @@ def fen_and_uci_for_blunders(pgn_text: str, blunders: List[Blunder]) -> List[Tup
                     continue
             else:
                 continue
-        results.append((fen_before, move.uci(), bl))
+        # Parse best suggestion SAN to UCI in the same position; if it fails, skip this blunder
+        try:
+            best_move = board.parse_san(bl.best_suggestion_san)
+            best_uci = best_move.uci()
+        except Exception as e:
+            raise ValueError(
+                f"Failed to parse best_suggestion SAN '{bl.best_suggestion_san}' at ply {bl.ply} side {bl.side} "
+                f"in position FEN: {fen_before}. Error: {e}"
+            )
+        results.append((fen_before, move.uci(), best_uci, bl))
     return results
 
 
@@ -181,7 +198,7 @@ def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
         )
 
 
-def append_cases_to_unified_test(unified_path: str, cases: List[Tuple[str, str, Blunder]]) -> int:
+def append_cases_to_unified_test(unified_path: str, cases: List[Tuple[str, str, str, Blunder]]) -> int:
     """Append new cases to BLUNDER_CASES in the unified test file, skipping duplicates.
 
     Returns the number of cases actually appended.
@@ -194,17 +211,46 @@ def append_cases_to_unified_test(unified_path: str, cases: List[Tuple[str, str, 
     existing = set(re.findall(r"\(\"(.*?)\",\s*\"(.*?)\",\s*\"ply\d+_[WB]_[^\"]+\"\)\,?", content, flags=re.S))
 
     lines = []
-    for fen, uci, bl in cases:
+    updated_existing = 0
+    for fen, uci, best_uci, bl in cases:
         key = (fen, uci)
         if key in existing:
+            # If a best move UCI is available, try to backfill or update it into the label
+            if best_uci:
+                side = 'W' if bl.side == 'W' else 'B'
+                fen_re = re.escape(fen)
+                uci_re = re.escape(uci)
+                base_label = f"ply{bl.ply}_{side}_{uci}"
+                # Pattern A: no best suffix yet
+                pattern_no_best = rf"\(\"{fen_re}\",\s*\"{uci_re}\",\s*\"({re.escape(base_label)})\"\)"
+                # Pattern B: existing best suffix (whatever it is) - replace it with the new best_uci
+                pattern_with_best = rf"\(\"{fen_re}\",\s*\"{uci_re}\",\s*\"({re.escape(base_label)}_best_[^\"]+)\"\)"
+                if re.search(pattern_no_best, content):
+                    content = re.sub(
+                        pattern_no_best,
+                        lambda m: m.group(0).replace(m.group(1), f"{base_label}_best_{best_uci}"),
+                        content,
+                        count=1,
+                    )
+                    updated_existing += 1
+                elif re.search(pattern_with_best, content):
+                    content = re.sub(
+                        pattern_with_best,
+                        lambda m: m.group(0).replace(m.group(1), f"{base_label}_best_{best_uci}"),
+                        content,
+                        count=1,
+                    )
+                    updated_existing += 1
             continue
         label = f"ply{bl.ply}_{'W' if bl.side=='W' else 'B'}_{uci}"
+        # Encode the best move UCI in the label so tests can extract it without changing tuple shape
+        label += f"_best_{best_uci}"
         lines.append(f"    (\"{fen}\", \"{uci}\", \"{label}\"),\n")
 
     if not lines:
         return 0
 
-    # Insert before closing bracket of BLUNDER_CASES
+    # Insert before closing bracket of BLUNDER_CASES into the possibly updated 'content'
     new_content = re.sub(
         r"BLUNDER_CASES\s*=\s*\[\n",
         lambda m: m.group(0) + "".join(lines),
@@ -212,9 +258,10 @@ def append_cases_to_unified_test(unified_path: str, cases: List[Tuple[str, str, 
         count=1,
     )
 
+    # Apply the changes (either updates to existing labels and/or appended lines)
     with open(unified_path, "w", encoding="utf-8") as f:
         f.write(new_content)
-    return len(lines)
+    return len(lines) + updated_existing
 
 
 def _process_single_log(log_path: str) -> int:
@@ -226,7 +273,11 @@ def _process_single_log(log_path: str) -> int:
         print(f"Log file not found: {log_path}")
         return 2
 
-    blunders = parse_columns_for_blunders(text)
+    try:
+        blunders = parse_columns_for_blunders(text)
+    except Exception as e:
+        print(f"Error parsing Columns in {os.path.basename(log_path)}: {e}")
+        return 2
     if not blunders:
         print(f"No blunders found in Columns section: {os.path.basename(log_path)}")
         return 1
@@ -236,7 +287,11 @@ def _process_single_log(log_path: str) -> int:
         print(f"No PGN section found: {os.path.basename(log_path)}")
         return 1
 
-    cases = fen_and_uci_for_blunders(pgn_text, blunders)
+    try:
+        cases = fen_and_uci_for_blunders(pgn_text, blunders)
+    except Exception as e:
+        print(f"Error converting SAN to UCI in {os.path.basename(log_path)}: {e}")
+        return 2
     if not cases:
         print(f"Failed to reconstruct any blunder positions from PGN: {os.path.basename(log_path)}")
         return 1
