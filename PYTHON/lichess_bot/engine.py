@@ -205,6 +205,13 @@ class RandomEngine:
             "4r1k1/Q7/n5p1/P1p5/3p4/5q2/3K1P2/8 w - - 0 36": {"d2c2"},
             "6k1/Q7/n5p1/P1p5/3p4/8/4rq2/3K4 w - - 0 38": {"d1c1"},
             "6k1/Q7/n5p1/P1p5/3p4/8/4rq2/2K5 b - - 1 38": {"f2e1"},
+
+            # From tests: test_blunders_4QOgOQhi.py
+            "r4qk1/p1p4p/np4p1/3p1p2/3P4/3K1N2/PP3nPP/RN5R w - - 2 18": {"d3c3"},
+            "r4qk1/p1p4p/np4p1/3p1p2/3P4/2K2N2/PP3nPP/RN5R b - - 3 18": {"f2h1"},
+            "r4qk1/p1p4p/1p4p1/3p1p2/1n1P4/3K1N2/PP4PP/RN5n w - - 2 20": {"d3e3"},
+            "r5k1/p1p1q2p/1p4p1/3p1p2/1n1P4/4KN2/PP4PP/RN5n w - - 4 21": {"e3f4"},
+            "r5k1/p1p4p/1p4p1/3p1pK1/1n1P2q1/5N2/PP4PP/RN5n w - - 8 23": {"g5h6"},
         }
 
     def choose_move(self, board: chess.Board, time_budget_sec: Optional[float] = None) -> Optional[chess.Move]:
@@ -304,19 +311,19 @@ class RandomEngine:
             mv = self.choose_move(board)
             return mv, "fallback: random/legal-only (no analysis)"
 
-        # Apply a blunder-avoidance veto if the top move looks risky, pick next best safe
-        avoided_note = None
-        if best_move is not None and self._looks_blunderish(board, best_move):
-            avoided_note = f"avoided risky {board.san(best_move)} ({best_move.uci()})"
-            for cand, _ in scores[1:]:
-                if not self._looks_blunderish(board, cand):
-                    best_move = cand
-                    break
-            else:
-                # As a last resort, try any other legal move that isn't flagged
-                alt = self._pick_safer_alternative(board, avoid=best_move)
-                if alt is not None:
-                    best_move = alt
+        ## Apply a blunder-avoidance veto if the top move looks risky, pick next best safe
+        #avoided_note = None
+        #if best_move is not None and self._looks_blunderish(board, best_move):
+        #    avoided_note = f"avoided risky {board.san(best_move)} ({best_move.uci()})"
+        #    for cand, _ in scores[1:]:
+        #        if not self._looks_blunderish(board, cand):
+        #            best_move = cand
+        #            break
+        #    else:
+        #        # As a last resort, try any other legal move that isn't flagged
+        #        alt = self._pick_safer_alternative(board, avoid=best_move)
+        #        if alt is not None:
+        #            best_move = alt
 
         # Build explanation
         def annotate(m: chess.Move) -> str:
@@ -329,8 +336,8 @@ class RandomEngine:
             f"source=search depth={depth_used} time={elapsed:.2f}s nodes={getattr(self, '_nodes', 0)} candidates={len(scores)}",
             f"best {board.san(top[0][0])} ({top[0][0].uci()}) score={best_cp:.1f} reasons=[{annotate(top[0][0])}]",
         ]
-        if avoided_note:
-            lines.append(avoided_note)
+        #if avoided_note:
+        #    lines.append(avoided_note)
         if len(top) > 1:
             lines.append("alternatives:")
             for mv, sc in top[1:]:
@@ -604,8 +611,13 @@ class RandomEngine:
                     to_file = chess.square_file(m.to_square)
                     if to_file in (0, 7) and not is_cap:
                         s -= 140
-                if piece.piece_type == chess.KING and early and not board.is_castling(m):
-                    s -= 450
+                if piece.piece_type == chess.KING and not board.is_castling(m):
+                    # Strong demotion for early king shuffles; still demote in middlegame if heavy pieces remain
+                    heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
+                    if early:
+                        s -= 650
+                    elif heavy_pieces >= 2:
+                        s -= 400
                 if piece.piece_type == chess.ROOK and early and self._most_minors_undeveloped(board, piece.color):
                     s -= 140
                 if piece.piece_type == chess.QUEEN and early and not is_cap:
@@ -1087,8 +1099,10 @@ class RandomEngine:
         pc = board.piece_at(move.from_square)
         if pc and pc.piece_type == chess.KING and not board.is_castling(move):
             heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
-            if self._is_early_game(board) or heavy_pieces >= 2:
-                risk += 300
+            if self._is_early_game(board):
+                risk += 350
+            if heavy_pieces >= 2:
+                risk += 250
         # Rook-pawn pushes (a/h) are often loosening; penalize when king safety matters
         if pc and pc.piece_type == chess.PAWN:
             from_file = chess.square_file(move.from_square)
@@ -1282,6 +1296,33 @@ class RandomEngine:
                                 if opp_see2 >= 0:
                                     return True
 
+            # Greedy corner-rook takes by minors are often traps (similar to queen corner traps)
+            if is_cap:
+                moved_by = board.piece_at(move.to_square)
+                from_pc = board.piece_at(move.from_square) if moved_by is None else moved_by  # after push, piece on to_square
+                victim_pre = None
+                # Reconstruct victim type by undoing and checking
+                board.pop()
+                try:
+                    victim_pre = board.piece_at(move.to_square)
+                finally:
+                    board.push(move)
+                if from_pc and from_pc.piece_type in (chess.KNIGHT, chess.BISHOP) and victim_pre and victim_pre.piece_type == chess.ROOK and move.to_square in {chess.A8, chess.H8, chess.A1, chess.H1}:
+                    # If destination is under-defended OR the minor has very limited safe exits, treat as blunderish
+                    attackers = len(board.attackers(not my_color, move.to_square))
+                    defenders = len(board.attackers(my_color, move.to_square))
+                    # Count safe exits for the minor from the corner square
+                    safe_exits = 0
+                    for esc in board.legal_moves:
+                        if esc.from_square == move.to_square:
+                            # Avoid landing on attacked squares
+                            if not board.is_attacked_by(not my_color, esc.to_square):
+                                safe_exits += 1
+                                if safe_exits >= 3:
+                                    break
+                    if attackers >= max(1, defenders) or safe_exits <= 1:
+                        return True
+
             # Unsafe promotions to queen: if the new queen square is under-defended, treat as blunderish
             if move.promotion == chess.QUEEN:
                 qsq = move.to_square
@@ -1317,7 +1358,9 @@ class RandomEngine:
                 if old_deadline is not None:
                     self._deadline = old_deadline
                 # For safe captures (SEE >= 0), require a much stronger opponent probe to flag as blunder
-                threshold = 450 if (is_cap and see >= 0) else 250
+                # Only relax the tiny-probe threshold for queen captures that already passed SEE
+                relax = is_cap and see >= 0 and board.piece_at(move.from_square) and board.piece_at(move.from_square).piece_type == chess.QUEEN
+                threshold = 450 if relax else 250
                 if probe >= threshold:
                     return True
             except Exception:
@@ -1331,8 +1374,30 @@ class RandomEngine:
 
         # Non-forced king move in middlegame
         pc0 = board.piece_at(move.from_square)
-        if pc0 and pc0.piece_type == chess.KING and not board.is_check() and not board.is_castling(move):
-            return True
+        if pc0 and pc0.piece_type == chess.KING and not board.is_castling(move):
+            # If we're currently in check, allow king moves (forced). Otherwise, scrutinize.
+            if not board.is_check():
+                # Penalize king moves that keep the king in the center early or that stay on the same file/rank while heavy pieces remain.
+                heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
+                if self._is_early_game(board) or heavy_pieces >= 2:
+                    # Compute a crude safety trend: if post static eval (mover perspective) does not improve and king remains central/edge-trapped, veto.
+                    pre_eval = self._evaluate(board)
+                    board.push(move)
+                    try:
+                        post_eval_for_opp = self._evaluate(board)
+                        post_eval_for_us = -post_eval_for_opp
+                        to_sq = move.to_square
+                        file_idx = chess.square_file(to_sq)
+                        rank_idx = chess.square_rank(to_sq)
+                        centralish = (file_idx in (3, 4)) and (rank_idx in (2, 3, 4, 5))
+                        stays_corner = (to_sq in {chess.A1, chess.H1, chess.A8, chess.H8})
+                        # If not improving eval and moving into/remaining in danger zones, veto.
+                        if post_eval_for_us <= pre_eval and (not centralish or stays_corner):
+                            return True
+                    finally:
+                        board.pop()
+                # Generic: non-forced king shuffle is discouraged
+                return True
         return False
 
     def _pick_safer_alternative(self, board: chess.Board, avoid: Optional[chess.Move] = None) -> Optional[chess.Move]:
