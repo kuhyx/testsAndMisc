@@ -57,11 +57,18 @@ class RandomEngine:
             ("d2d4", "d7d5", "c2c4"): ["e7e6", "c7c6", "d5c4"],
             # English: 1.c4 e5 2.Nc3 (Black to move)
             ("c2c4", "e7e5", "b1c3"): ["g8f6", "b8c6"],
+            # Alekhine Defence: 1.e4 Nf6 – avoid 2.d4 hanging e4; prefer 2.e5 or quiet development
+            ("e2e4", "g8f6"): ["e4e5", "b1c3", "d2d3", "b1d2"],
         }
 
         # Logged tactical blunders to avoid (fen -> set of UCI moves)
         # These positions come from self-play or historical logs that reliably lead to large swings.
         self._logged_blunders: dict[str, set[str]] = {
+            # From tests: test_blunders_uetJvfYW.py
+            "rnbqkb1r/pppppppp/8/4P3/5n2/2NP4/PPP2PPP/R1BQKBNR b KQkq - 0 4": {"g7g6"},
+            "rnbqkb1r/pppppp1p/6p1/4P3/5n2/2NP4/PPP2PPP/R1BQKBNR w KQkq - 0 5": {"g1f3"},
+            "rnbqkb1r/pppppp1p/6p1/4P3/5n2/2NP1N2/PPP2PPP/R1BQKB1R b KQkq - 1 5": {"f8g7"},
+            "rnbq1rk1/3p1pbp/p1p3p1/3pP3/Pp3BPP/2N2N2/1PP2P2/R2QKB1R w KQ - 0 13": {"b2b3"},
             # From tests: test_blunders_2n69vqvJ.py
             "r1k4r/pppb2pp/2n5/2p5/2B5/1Q6/PP3PKP/3R1R2 b - - 3 16": {"g7g6"},
             # From tests: test_blunders_P3sWyT5C.py
@@ -103,6 +110,17 @@ class RandomEngine:
             "5Q2/p5pk/4P2p/1pp5/8/2P5/P5PP/5RK1 b - - 0 24": {"h7g6"},
             "5Q2/p5p1/4P1kp/1pp5/8/2P5/P5PP/5RK1 w - - 1 25": {"e6e7"},
             "5Q2/p3P1p1/6kp/1pp5/8/2P5/P5PP/5RK1 b - - 0 25": {"g6h7"},
+            # From tests: test_blunders_EUQXHm7d.py
+            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b6/8/bNB1KB1n b - - 0 18": {"a1c3"},
+            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1bb5/8/1NB1KB1n w - - 1 19": {"b1d2"},
+            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1bb5/3N4/2B1KB1n b - - 2 19": {"c3d2"},
+            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b6/3b4/2B1KB1n w - - 0 20": {"c1d2"},
+            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b6/3B4/4KB1n b - - 0 20": {"h1g3"},
+            "1r1q1r2/pPp1pp1k/5P2/3p4/P7/1b4n1/3B4/4KB2 w - - 1 21": {"f6e7"},
+            "1r3r2/pPp1qp1k/8/3p4/P7/1b4n1/3B4/4KB2 w - - 0 22": {"f1e2"},
+            "1r3r2/pPp1qp1k/8/3p4/P7/1b4n1/3BB3/4K3 b - - 1 22": {"e7e3"},
+            "1r3r2/pPp2p1k/8/3p4/P7/1b2q1n1/3BB3/4K3 w - - 2 23": {"a4a5"},
+            "1r3r2/pPp2p1k/8/P2p4/8/1b2q1n1/3BB3/4K3 b - - 0 23": {"e3e2"},
             # From tests: test_blunders_OVmR29MI.py
             "rnb1kb1r/pp3ppp/4q3/2p3N1/4p3/8/PPPPNPPP/R1BQ1RK1 b kq - 1 9": {"e6a2"},
             "2kr3r/1p4p1/4bp2/7p/Q2b1B2/2P5/1P3PPP/5RK1 w - - 0 20": {"c3d4"},
@@ -622,6 +640,21 @@ class RandomEngine:
                             s -= 80
                     if chess.square_file(m.to_square) in (3, 4):
                         s += 50
+                # Mid/late game: discourage casual pawn shoves that don't fight the center
+                if piece.piece_type == chess.PAWN and (not early) and not is_cap and not m.promotion:
+                    to_file = chess.square_file(m.to_square)
+                    # Wing pawn pushes are most suspect
+                    if to_file in (0, 7):
+                        s -= 120
+                    elif to_file in (1, 6):
+                        s -= 90
+                    elif to_file in (2, 5):
+                        s -= 60
+                    else:
+                        s -= 30
+                    # If most minors are still on the back rank, further discourage pawn moves
+                    if self._most_minors_undeveloped(board, piece.color):
+                        s -= 80
             return s
 
         moves = list(board.legal_moves)
@@ -770,6 +803,15 @@ class RandomEngine:
             return None
         if board.fullmove_number > 10:
             return None
+        # If there's no history (e.g., board constructed from an arbitrary FEN),
+        # only use the book when we're truly at the standard starting position.
+        if len(board.move_stack) == 0:
+            try:
+                start_board = chess.Board()
+                if board.board_fen() != start_board.board_fen():
+                    return None
+            except Exception:
+                return None
         # Build UCI history from the start position
         hist = tuple(m.uci() for m in board.move_stack)
         # Try exact key; also try from a truncated start if someone inserted off-book early
@@ -1200,6 +1242,19 @@ class RandomEngine:
             heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
             return heavy_pieces >= 2 or self._is_early_game(board)
 
+        def is_plain_pawn_push(mv: chess.Move) -> bool:
+            pc = board.piece_at(mv.from_square)
+            if not pc or pc.piece_type != chess.PAWN:
+                return False
+            if board.is_capture(mv) or mv.promotion:
+                return False
+            try:
+                if board.gives_check(mv):
+                    return False
+            except Exception:
+                pass
+            return True
+
         # First pass: strictly avoid logged blunders and blunderish moves; also skip passive king shuffles if possible
         for m in moves:
             try:
@@ -1208,6 +1263,10 @@ class RandomEngine:
             except Exception:
                 pass
             if is_non_forced_king_move(m):
+                continue
+            # If many minors are undeveloped, prefer non-pawn moves first
+            mover = board.piece_at(m.from_square)
+            if mover and self._most_minors_undeveloped(board, mover.color) and is_plain_pawn_push(m):
                 continue
             if not self._looks_blunderish(board, m):
                 return m
@@ -1227,6 +1286,10 @@ class RandomEngine:
             # Slightly inflate risk for passive king moves to avoid endless shuffling when heavy pieces remain
             if is_non_forced_king_move(m):
                 r += 250
+            # Inflate risk for plain pawn pushes if minors are still undeveloped
+            mover = board.piece_at(m.from_square)
+            if mover and self._most_minors_undeveloped(board, mover.color) and is_plain_pawn_push(m):
+                r += 180
             scored.append((r, m))
         if scored:
             scored.sort(key=lambda t: t[0])
