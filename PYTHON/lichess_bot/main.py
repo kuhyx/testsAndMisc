@@ -138,8 +138,11 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                     logging.info(
                         f"Game {game_id}: turn={'white' if is_white_turn else 'black'}, my_turn={my_turn}"
                     )
-                    # Only move on 'gameState' events; skip making a move on initial 'gameFull'
-                    allow_move = (et == "gameState")
+                    # Move policy:
+                    # - Always move on 'gameState' (authoritative)
+                    # - Also allow moving on the initial 'gameFull' when there are zero moves and it's our turn.
+                    #   This avoids stalling at game start when Lichess doesn't immediately send a 'gameState' for 0 moves.
+                    allow_move = (et == "gameState") or (et == "gameFull" and new_len == 0)
                     if my_turn and allow_move:
                         # Compute a per-move time budget (seconds) based on remaining time
                         # Heuristic: use min( max_time_sec, max(0.05, 0.6 * my_time_left/remaining_moves + inc) )
@@ -168,10 +171,8 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                 api.make_move(game_id, move)
                         except Exception as e:
                             logging.warning(f"Game {game_id}: move {move.uci()} failed: {e}")
-                    # Mark this position as handled only on authoritative gameState,
-                    # or after we've actually attempted a move. This prevents missing
-                    # our very first move as White when gameFull (len=0) is followed by
-                    # gameState (len=0).
+                    # Mark this position as handled on authoritative gameState, or after we've
+                    # actually attempted a move (including the first move on gameFull len=0).
                     if et == "gameState" or (my_turn and allow_move):
                         last_handled_len = new_len
                     if status in {"mate", "resign", "stalemate", "timeout", "draw"}:
