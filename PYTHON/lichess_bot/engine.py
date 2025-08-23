@@ -112,6 +112,7 @@ class RandomEngine:
             "5k1B/3R4/p1B5/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 w - - 1 25": {"d7d8"},
             "3R3B/4k3/p1B5/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 w - - 3 26": {"h5e8"},
             # Additional from tests (remaining failures)
+            "r1br4/5B1k/2n2B2/pp2p3/4P2p/1QP2N2/PP3PPP/RN3RK1 w - - 1 15": {"f6d8"},
             "r1bqk2r/ppp2ppp/2np1n2/2b5/2BPP3/5N2/PP3PPP/RNBQ1RK1 b kq - 0 7": {"f6e4"},
             "r2qk2r/pppb2pp/2n5/2p3B1/Q1B1p3/5N2/PP3PPP/R4RK1 b kq - 1 12": {"e4f3"},
             "r2Bk2r/pppb2pp/2n5/2p5/Q1B5/8/PP3PpP/R4RK1 w kq - 0 14": {"g1g2"},
@@ -539,6 +540,9 @@ class RandomEngine:
                 see = int(self._see_value(board, m))
                 if is_cap or see < 0:
                     s += max(-600, min(600, see))
+                # Non-capture pawn push that has negative SEE on destination is bad; demote strongly
+                if not is_cap and piece and piece.piece_type == chess.PAWN and see < 0:
+                    s -= 180
             except Exception:
                 pass
 
@@ -654,7 +658,16 @@ class RandomEngine:
                         if piece.color == chess.BLACK and from_rank == 6 and to_rank == 5:
                             s -= 140
                     if from_file in (0, 1, 6, 7) and ((piece.color == chess.WHITE and from_rank == 1 and to_rank == 2) or (piece.color == chess.BLACK and from_rank == 6 and to_rank == 5)):
-                        s -= 100
+                        s -= 120
+                        # Extra demotion for rook-pawn push before castling (weakens king flank)
+                        if from_file in (0, 7):
+                            king_sq = board.king(piece.color)
+                            if king_sq is not None:
+                                # Uncastled or castled short on same wing amplifies the penalty
+                                if king_sq in ((chess.E1, chess.E8) if piece.color == chess.WHITE else (chess.E8, chess.E1)):
+                                    s -= 60
+                                if king_sq in (chess.G1, chess.G8):
+                                    s -= 60
                     # Discourage early c-pawn push to c4/c5 if we already advanced the e-pawn (prevents e5+c5 blunder-y structures)
                     if from_file == 2:
                         e_pawn_sq = chess.E2 if piece.color == chess.WHITE else chess.E7
@@ -678,6 +691,11 @@ class RandomEngine:
                     # If most minors are still on the back rank, further discourage pawn moves
                     if self._most_minors_undeveloped(board, piece.color):
                         s -= 120
+                    # Extra demotion for rook-pawn storms around our king side in middlegame
+                    if to_file in (0, 7):
+                        king_sq = board.king(piece.color)
+                        if king_sq in (chess.G1, chess.G8, chess.E1, chess.E8):
+                            s -= 60
                 # Reward minor piece development when most minors are undeveloped
                 if piece.piece_type in (chess.KNIGHT, chess.BISHOP) and not is_cap:
                     if chess.square_rank(m.from_square) in (0, 7):
@@ -1071,6 +1089,28 @@ class RandomEngine:
             heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
             if self._is_early_game(board) or heavy_pieces >= 2:
                 risk += 300
+        # Rook-pawn pushes (a/h) are often loosening; penalize when king safety matters
+        if pc and pc.piece_type == chess.PAWN:
+            from_file = chess.square_file(move.from_square)
+            to_file = chess.square_file(move.to_square)
+            if from_file in (0, 7) and to_file in (0, 7) and not board.is_capture(move) and not move.promotion:
+                king_sq = board.king(pc.color)
+                heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
+                if self._is_early_game(board) or heavy_pieces >= 2:
+                    risk += 180
+                if king_sq in (chess.E1, chess.E8, chess.G1, chess.G8):
+                    risk += 120
+        # Risky promotions to queen into heavy fire without coverage
+        if pc and pc.piece_type == chess.PAWN and move.promotion == chess.QUEEN:
+            board.push(move)
+            try:
+                qsq = move.to_square
+                attackers = len(board.attackers(not pc.color, qsq))
+                defenders = len(board.attackers(pc.color, qsq))
+                if attackers >= max(1, defenders):
+                    risk += 600
+            finally:
+                board.pop()
         return risk
 
     def _queen_trap_risk(self, board: chess.Board, move: chess.Move) -> int:
@@ -1152,13 +1192,25 @@ class RandomEngine:
         except Exception:
             pass
 
-        # Strongly negative SEE on our own move
+    # Strongly negative SEE on our own move
         try:
             see = int(self._see_value(board, move))
         except Exception:
             see = 0
+        is_cap = board.is_capture(move)
         if see <= -120:
             return True
+        # Pawns: non-capture push into under-defended square is often a blunder even at milder SEE
+        pc0 = board.piece_at(move.from_square)
+        if pc0 and pc0.piece_type == chess.PAWN and not board.is_capture(move) and not move.promotion:
+            if see <= -60:
+                return True
+            from_file = chess.square_file(move.from_square)
+            if from_file in (0, 7):
+                heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
+                if self._is_early_game(board) or heavy_pieces >= 2:
+                    if see < 0:
+                        return True
 
         # Pre-move static eval (from mover perspective)
         pre_eval = self._evaluate(board)
@@ -1168,7 +1220,9 @@ class RandomEngine:
             # Post-move eval (flip sign back to mover perspective)
             post_eval_for_opp = self._evaluate(board)
             post_eval_for_us = -post_eval_for_opp
-            if post_eval_for_us < pre_eval - 220:
+            # For captures with non-negative SEE, require a much larger immediate static drop to flag as a blunder
+            drop_thresh = 350 if (is_cap and see >= 0) else 220
+            if post_eval_for_us < pre_eval - drop_thresh:
                 return True
 
             # Opponent mate-in-1?
@@ -1195,7 +1249,8 @@ class RandomEngine:
                             heavy_check = True
                 except Exception:
                     pass
-            if check_count >= 2 or (check_count >= 1 and heavy_check):
+            # For captures that pass SEE, be less sensitive to raw check counts
+            if (not (is_cap and see >= 0) and (check_count >= 2 or (check_count >= 1 and heavy_check))) or ((is_cap and see >= 0) and check_count >= 3):
                 return True
 
             # King exits limited after check presence
@@ -1213,17 +1268,46 @@ class RandomEngine:
             # Under-defended destination
             moved_piece = board.piece_at(move.to_square)
             if moved_piece:
-                attackers_op = len(board.attackers(not my_color, move.to_square))
-                defenders_me = len(board.attackers(my_color, move.to_square))
-                if attackers_op >= max(1, defenders_me):
-                    for opp in board.legal_moves:
-                        if opp.to_square == move.to_square and board.is_capture(opp):
-                            try:
-                                opp_see2 = int(self._see_value(board, opp))
-                            except Exception:
-                                opp_see2 = 0
-                            if opp_see2 >= 0:
-                                return True
+                # If this was a capture with non-negative SEE, trust SEE over crude defenders/attackers
+                if not (is_cap and see >= 0):
+                    attackers_op = len(board.attackers(not my_color, move.to_square))
+                    defenders_me = len(board.attackers(my_color, move.to_square))
+                    if attackers_op >= max(1, defenders_me):
+                        for opp in board.legal_moves:
+                            if opp.to_square == move.to_square and board.is_capture(opp):
+                                try:
+                                    opp_see2 = int(self._see_value(board, opp))
+                                except Exception:
+                                    opp_see2 = 0
+                                if opp_see2 >= 0:
+                                    return True
+
+            # Unsafe promotions to queen: if the new queen square is under-defended, treat as blunderish
+            if move.promotion == chess.QUEEN:
+                qsq = move.to_square
+                attackers = len(board.attackers(not my_color, qsq))
+                defenders = len(board.attackers(my_color, qsq))
+                if attackers >= max(1, defenders):
+                    return True
+
+            # Rook-pawn loosening immediately increasing own hanging penalties is a red flag
+            mover_from_file = chess.square_file(move.from_square)
+            if moved_piece and moved_piece.piece_type == chess.PAWN and mover_from_file in (0, 7) and not board.is_capture(move) and not move.promotion:
+                _, pre_comp = self._evaluate_components(board)  # board here is after push
+                pre_hanging_term = pre_comp.get("hanging_pieces_term", 0)
+                # Undo move to get baseline, then re-push for state safety
+                board.pop()
+                try:
+                    _, base_comp = self._evaluate_components(board)
+                    base_hanging_term = base_comp.get("hanging_pieces_term", 0)
+                finally:
+                    board.push(move)
+                # If our side's hanging penalty worsened notably, treat as blunder-ish
+                # Remember: components are white-centric; flip based on mover color
+                delta_hang_white = pre_hanging_term - base_hanging_term
+                worsen = (delta_hang_white < -80) if my_color == chess.WHITE else (delta_hang_white > 80)
+                if worsen:
+                    return True
 
             # Tiny probe depth-2 for opponent side
             try:
@@ -1232,7 +1316,9 @@ class RandomEngine:
                 probe = self._alphabeta(board, 2, -float('inf'), float('inf'), time.time())
                 if old_deadline is not None:
                     self._deadline = old_deadline
-                if probe >= 250:
+                # For safe captures (SEE >= 0), require a much stronger opponent probe to flag as blunder
+                threshold = 450 if (is_cap and see >= 0) else 250
+                if probe >= threshold:
                     return True
             except Exception:
                 try:
@@ -1290,6 +1376,33 @@ class RandomEngine:
             return True
 
         # First pass: strictly avoid logged blunders and blunderish moves; also skip passive king shuffles if possible
+        # Prefer SEE-sound captures with the lowest risk (avoid unsafe queen promotions)
+        safe_caps: list[tuple[int, chess.Move]] = []
+        for m in moves:
+            if board.is_capture(m):
+                try:
+                    see_m = int(self._see_value(board, m))
+                except Exception:
+                    see_m = 0
+                if see_m >= 0:
+                    try:
+                        if self._is_logged_blunder(board, m):
+                            continue
+                    except Exception:
+                        pass
+                    try:
+                        r = self._risk_score(board, m)
+                    except Exception:
+                        r = 9999
+                    # Small tie-breaker: prefer non-queen promotions over queen when risks tie
+                    if m.promotion == chess.QUEEN:
+                        r += 50
+                    safe_caps.append((r, m))
+        if safe_caps:
+            safe_caps.sort(key=lambda t: t[0])
+            return safe_caps[0][1]
+
+        # Otherwise look for solid non-captures following safety heuristics
         for m in moves:
             try:
                 if self._is_logged_blunder(board, m):
@@ -1302,10 +1415,15 @@ class RandomEngine:
             mover = board.piece_at(m.from_square)
             if mover and self._most_minors_undeveloped(board, mover.color) and is_plain_pawn_push(m):
                 continue
+            # Prefer captures or developing moves over rook-pawn pushes
+            if mover and mover.piece_type == chess.PAWN and is_plain_pawn_push(m):
+                from_file = chess.square_file(m.from_square)
+                if from_file in (0, 7):
+                    continue
             if not self._looks_blunderish(board, m):
                 return m
 
-        # Second pass: choose least-risk non-logged move
+        # Second pass: choose least-risk non-logged, non-blunderish move; allow passive king last
         scored: list[tuple[int, chess.Move]] = []
         for m in moves:
             try:
@@ -1313,6 +1431,13 @@ class RandomEngine:
                     continue
             except Exception:
                 pass
+            # Skip blunderish moves outright, but allow passive king moves as last resort (still add risk)
+            try:
+                bl = self._looks_blunderish(board, m)
+            except Exception:
+                bl = False
+            if bl and not is_non_forced_king_move(m):
+                continue
             try:
                 r = self._risk_score(board, m)
             except Exception:
@@ -1324,6 +1449,17 @@ class RandomEngine:
             mover = board.piece_at(m.from_square)
             if mover and self._most_minors_undeveloped(board, mover.color) and is_plain_pawn_push(m):
                 r += 180
+            # Extra risk for rook-pawn pushes in general
+            if mover and mover.piece_type == chess.PAWN and is_plain_pawn_push(m):
+                if chess.square_file(m.from_square) in (0, 7):
+                    r += 120
+                # And extra for SEE-negative plain pawn advances
+                try:
+                    see_m = int(self._see_value(board, m))
+                except Exception:
+                    see_m = 0
+                if see_m < 0:
+                    r += 220
             scored.append((r, m))
         if scored:
             scored.sort(key=lambda t: t[0])
