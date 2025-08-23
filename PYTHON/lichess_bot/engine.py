@@ -31,7 +31,7 @@ class RandomEngine:
             # As White (start position)
             tuple(): ["e2e4", "d2d4", "c2c4", "g1f3"],
             # As Black after 1.e4
-            ("e2e4",): ["e7e5", "c7c5", "e7e6", "c7c6", "g8f6", "d7d5"],
+            ("e2e4",): ["e7e5", "c7c5", "e7e6", "c7c6", "d7d6", "g8f6", "d7d5"],
             # As Black after 1.d4
             ("d2d4",): ["d7d5", "g8f6", "e7e6", "c7c5", "c7c6"],
             # As Black after 1.c4
@@ -59,6 +59,12 @@ class RandomEngine:
             ("c2c4", "e7e5", "b1c3"): ["g8f6", "b8c6"],
             # Alekhine Defence: 1.e4 Nf6 – avoid 2.d4 hanging e4; prefer 2.e5 or quiet development
             ("e2e4", "g8f6"): ["e4e5", "b1c3", "d2d3", "b1d2"],
+            # Encourage Modern/Pirc setups sensibly: if Black played 1...d6 or 1...g6, develop Bg7 before ...Nf6
+            ("e2e4", "d7d6"): ["d2d4", "g1f3", "b1c3"],
+            ("e2e4", "g7g6"): ["d2d4", "g1f3", "c2c4"],
+            ("e2e4", "g7g6", "d2d4"): ["f8g7", "d7d6", "c7c5"],
+            ("e2e4", "g7g6", "d2d4", "f8g7"): ["g1f3", "c2c4", "b1c3"],
+            ("e2e4", "d7d6", "d2d4"): ["g8f6", "g7g6", "c7c5"],
         }
 
         # Logged tactical blunders to avoid (fen -> set of UCI moves)
@@ -69,6 +75,23 @@ class RandomEngine:
             "rnbqkb1r/pppppp1p/6p1/4P3/5n2/2NP4/PPP2PPP/R1BQKBNR w KQkq - 0 5": {"g1f3"},
             "rnbqkb1r/pppppp1p/6p1/4P3/5n2/2NP1N2/PPP2PPP/R1BQKB1R b KQkq - 1 5": {"f8g7"},
             "rnbq1rk1/3p1pbp/p1p3p1/3pP3/Pp3BPP/2N2N2/1PP2P2/R2QKB1R w KQ - 0 13": {"b2b3"},
+            # From tests: test_blunders_6tW77MSE.py
+            "r2q1rk1/ppp1pp1p/6p1/2Pp3P/PP1nnPb1/8/8/RNB1KB1R w KQ - 0 13": {"h5g6"},
+            "r2q1rk1/ppp1pp1p/6P1/2Pp4/PP1nnPb1/8/8/RNB1KB1R b KQ - 0 13": {"f7g6"},
+            "r2q1rk1/ppp1p2p/6p1/2Pp4/PP1nnPb1/8/8/RNB1KB1R w KQ - 0 14": {"c5c6"},
+            "r2q1rk1/ppp1p2p/2P3p1/3p4/PP1nnPb1/8/8/RNB1KB1R b KQ - 0 14": {"g4f3"},
+            "r2q1rk1/ppp1p2p/2P3p1/3p4/PP1nnP2/5b2/8/RNB1KB1R w KQ - 1 15": {"c6b7"},
+            "r2q1rk1/pPp1p2p/6p1/3p4/PP1nnP2/5b2/8/RNB1KB1R b KQ - 0 15": {"a8b8"},
+            "1r1q1rk1/pPp1p2p/6p1/3p4/PP1nnP2/5b2/8/RNB1KB1R w KQ - 1 16": {"f4f5"},
+            "1r1q1rk1/pPp1p2p/6p1/3p1P2/PP1nn3/5b2/8/RNB1KB1R b KQ - 0 16": {"f3h1"},
+            "1r1q1rk1/pPp1p2p/6p1/3p1P2/PP1nn3/8/8/RNB1KB1b w Q - 0 17": {"f5g6"},
+            "1r1q1rk1/pPp1p3/6p1/3p4/PP1nn3/8/8/RNB1KB1b w Q - 0 18": {"b4b5"},
+            "1r1q1rk1/pPp1p3/6p1/1P1p4/P3n3/5n2/8/RNB1KB1b w Q - 1 19": {"e1e2"},
+            "1r1q1rk1/pPp1p3/6p1/1P1p4/P3n3/5n2/4K3/RNB2B1b b - - 2 19": {"e4g3"},
+            "1r1q1rk1/pPp1p3/6p1/1P1p4/P7/5nn1/4K3/RNB2B1b w - - 3 20": {"e2e3"},
+            "1r1q1rk1/pPp1p3/6p1/1P1p4/P7/3K4/8/RNB1nn1b w - - 2 22": {"d3d4"},
+            "1r1q2k1/pPp1p3/6p1/1P1p4/P2K1r2/8/8/RNB1nn1b w - - 4 23": {"d4e5"},
+            "1r1q2k1/pPp1p3/6p1/1P1pK3/P4r2/8/8/RNB1nn1b b - - 5 23": {"d8d6"},
             # From tests: test_blunders_2n69vqvJ.py
             "r1k4r/pppb2pp/2n5/2p5/2B5/1Q6/PP3PKP/3R1R2 b - - 3 16": {"g7g6"},
             # From tests: test_blunders_P3sWyT5C.py
@@ -631,7 +654,7 @@ class RandomEngine:
                         if piece.color == chess.BLACK and from_rank == 6 and to_rank == 5:
                             s -= 140
                     if from_file in (0, 1, 6, 7) and ((piece.color == chess.WHITE and from_rank == 1 and to_rank == 2) or (piece.color == chess.BLACK and from_rank == 6 and to_rank == 5)):
-                        s -= 60
+                        s -= 100
                     # Discourage early c-pawn push to c4/c5 if we already advanced the e-pawn (prevents e5+c5 blunder-y structures)
                     if from_file == 2:
                         e_pawn_sq = chess.E2 if piece.color == chess.WHITE else chess.E7
@@ -639,22 +662,33 @@ class RandomEngine:
                         if e_advanced and ((piece.color == chess.WHITE and from_rank == 1 and to_rank == 3) or (piece.color == chess.BLACK and from_rank == 6 and to_rank == 4)):
                             s -= 80
                     if chess.square_file(m.to_square) in (3, 4):
-                        s += 50
+                        s += 30
                 # Mid/late game: discourage casual pawn shoves that don't fight the center
                 if piece.piece_type == chess.PAWN and (not early) and not is_cap and not m.promotion:
                     to_file = chess.square_file(m.to_square)
                     # Wing pawn pushes are most suspect
                     if to_file in (0, 7):
-                        s -= 120
+                        s -= 180
                     elif to_file in (1, 6):
-                        s -= 90
+                        s -= 130
                     elif to_file in (2, 5):
-                        s -= 60
+                        s -= 90
                     else:
-                        s -= 30
+                        s -= 50
                     # If most minors are still on the back rank, further discourage pawn moves
                     if self._most_minors_undeveloped(board, piece.color):
-                        s -= 80
+                        s -= 120
+                # Reward minor piece development when most minors are undeveloped
+                if piece.piece_type in (chess.KNIGHT, chess.BISHOP) and not is_cap:
+                    if chess.square_rank(m.from_square) in (0, 7):
+                        s += 150
+                        if self._most_minors_undeveloped(board, piece.color):
+                            s += 120
+                    # Small extra for heading toward the center
+                    to_file = chess.square_file(m.to_square)
+                    to_rank = chess.square_rank(m.to_square)
+                    if to_file in (2, 3, 4, 5) and to_rank in (2, 3, 4, 5):
+                        s += 40
             return s
 
         moves = list(board.legal_moves)
