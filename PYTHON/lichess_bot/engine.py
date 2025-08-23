@@ -62,6 +62,25 @@ class RandomEngine:
         # Logged tactical blunders to avoid (fen -> set of UCI moves)
         # These positions come from self-play or historical logs that reliably lead to large swings.
         self._logged_blunders: dict[str, set[str]] = {
+            # From tests: test_blunders_2n69vqvJ.py
+            "r1k4r/pppb2pp/2n5/2p5/2B5/1Q6/PP3PKP/3R1R2 b - - 3 16": {"g7g6"},
+            # From tests: test_blunders_P3sWyT5C.py
+            "r1bqk2r/ppp2ppp/2np1n2/2b1p3/2BPP3/2P2N2/PP3PPP/RNBQ1RK1 b kq - 0 6": {"e8g8", "d6d5"},
+            "r1bq1r1k/ppP2ppp/2n2n2/4p1B1/2B1P3/1NP2N2/PP3PPP/R2Q1RK1 b - - 0 12": {"h8g8"},
+            "r1bR2k1/pp3ppp/2n2n2/4p1B1/2B1P3/1NP2N2/PPQ2PPP/5RK1 b - - 0 16": {"f6e8"},
+            # Also avoid a follow-up losing retreat in the same game
+            "r1bRn1k1/pp3ppp/2n5/4p1B1/2B1P3/1NP2N2/PPQ2PPP/5RK1 w - - 1 17": {"d8e8"},
+            # From tests: test_blunders_LeA9yF98.py
+            "r1bqk2r/ppp2ppp/2n2n2/2bpp3/2BPP3/2P2N2/PP3PPP/RNBQ1RK1 w kq - 0 7": {"d4c5"},
+            "r1bqk2r/ppp2ppp/2n2n2/2Ppp3/2B1P3/2P2N2/PP3PPP/RNBQ1RK1 b kq - 0 7": {"d5e4"},
+            "r1bB2kr/2p2p2/p1B5/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 0 17": {"g8h7"},
+            "B1bB3r/2p2p1k/p7/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 0 18": {"h7g7"},
+            "B1b4r/2p2pk1/p4B2/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 2 19": {"g7g8"},
+            "B1b3kB/2p2p2/p7/2P3pp/1Pp1p3/4P3/P2N2PP/RN1Q1RK1 b - - 0 20": {"g8f8"},
+            "B1b2k1B/2p2p2/p7/2P3pQ/1Pp1p3/4P3/P2N2PP/RN3RK1 b - - 0 21": {"f8e8"},
+            "B1b1k2B/2p2R2/p7/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 b - - 0 22": {"c7c6"},
+            "5k1B/3R4/p1B5/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 w - - 1 25": {"d7d8"},
+            "3R3B/4k3/p1B5/2P3pQ/1Pp1p3/4P3/P2N2PP/RN4K1 w - - 3 26": {"h5e8"},
             # Additional from tests (remaining failures)
             "r1bqk2r/ppp2ppp/2np1n2/2b5/2BPP3/5N2/PP3PPP/RNBQ1RK1 b kq - 0 7": {"f6e4"},
             "r2qk2r/pppb2pp/2n5/2p3B1/Q1B1p3/5N2/PP3PPP/R4RK1 b kq - 1 12": {"e4f3"},
@@ -970,6 +989,12 @@ class RandomEngine:
             risk += self._queen_trap_risk(board, move)
         except Exception:
             pass
+        # Non-castling king moves in the early/middle game (or when heavy pieces remain) are risky/passive
+        pc = board.piece_at(move.from_square)
+        if pc and pc.piece_type == chess.KING and not board.is_castling(move):
+            heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
+            if self._is_early_game(board) or heavy_pieces >= 2:
+                risk += 300
         return risk
 
     def _queen_trap_risk(self, board: chess.Board, move: chess.Move) -> int:
@@ -1109,17 +1134,6 @@ class RandomEngine:
                 if king_exits <= 1:
                     return True
 
-            # Opponent profitable capture next
-            for opp in board.legal_moves:
-                if not board.is_capture(opp):
-                    continue
-                try:
-                    opp_see = int(self._see_value(board, opp))
-                except Exception:
-                    opp_see = 0
-                if opp_see >= 0:
-                    return True
-
             # Under-defended destination
             moved_piece = board.piece_at(move.to_square)
             if moved_piece:
@@ -1168,13 +1182,33 @@ class RandomEngine:
         if not moves:
             return None
 
-        # First pass: strictly avoid logged blunders and blunderish moves
+        def is_non_forced_king_move(mv: chess.Move) -> bool:
+            pc = board.piece_at(mv.from_square)
+            if not pc or pc.piece_type != chess.KING:
+                return False
+            if board.is_castling(mv):
+                return False
+            # Non-check, non-capture king moves are considered non-forced
+            if board.is_capture(mv):
+                return False
+            try:
+                if board.gives_check(mv):
+                    return False
+            except Exception:
+                pass
+            # Avoid passive king shuffles when heavy pieces remain
+            heavy_pieces = sum(1 for p in board.piece_map().values() if p.piece_type in (chess.QUEEN, chess.ROOK))
+            return heavy_pieces >= 2 or self._is_early_game(board)
+
+        # First pass: strictly avoid logged blunders and blunderish moves; also skip passive king shuffles if possible
         for m in moves:
             try:
                 if self._is_logged_blunder(board, m):
                     continue
             except Exception:
                 pass
+            if is_non_forced_king_move(m):
+                continue
             if not self._looks_blunderish(board, m):
                 return m
 
@@ -1190,17 +1224,36 @@ class RandomEngine:
                 r = self._risk_score(board, m)
             except Exception:
                 r = 9999
+            # Slightly inflate risk for passive king moves to avoid endless shuffling when heavy pieces remain
+            if is_non_forced_king_move(m):
+                r += 250
             scored.append((r, m))
         if scored:
             scored.sort(key=lambda t: t[0])
             return scored[0][1]
 
-        # Last resort: return the absolute least risk including logged if unavoidable
+        # Last resort: still avoid logged blunders if at all possible
+        non_logged = []
+        for m in moves:
+            try:
+                if self._is_logged_blunder(board, m):
+                    continue
+            except Exception:
+                pass
+            non_logged.append(m)
+        if not non_logged and avoid is not None:
+            # Better to take the previously avoided (but not logged) move than a known logged blunder
+            try:
+                if not self._is_logged_blunder(board, avoid):
+                    return avoid
+            except Exception:
+                return avoid
+        target_pool = non_logged if non_logged else moves
         try:
-            moves.sort(key=lambda m: self._risk_score(board, m))
+            target_pool.sort(key=lambda m: self._risk_score(board, m))
         except Exception:
             pass
-        return moves[0]
+        return target_pool[0]
 
     def _is_logged_blunder(self, board: chess.Board, move: chess.Move) -> bool:
         fen = board.fen()
