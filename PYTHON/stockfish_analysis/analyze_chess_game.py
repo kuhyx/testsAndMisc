@@ -9,6 +9,7 @@ Usage:
         [--threads auto|N]
         [--hash-mb auto|MB]
         [--multipv N]
+        [--last-move-only]
 
 Notes:
     - Requires python-chess. Install from PYTHON/stockfish_analysis/requirements.txt
@@ -206,6 +207,8 @@ def main():
     ap.add_argument("--hash-mb", type=_parse_hash_mb, default=None, metavar="auto|MB",
                     help="Hash table size in MB (default: auto = up to half RAM, capped)")
     ap.add_argument("--multipv", type=int, default=2, help="Number of principal variations to compute (default: 1)")
+    ap.add_argument("--last-move-only", action="store_true",
+                    help="Analyze only the last move of the main line (reports its eval and the best move)")
     args = ap.parse_args()
 
     if not os.path.isfile(args.file):
@@ -322,92 +325,183 @@ def main():
     ply = 1
     try:
         node = game
-        while node.variations:
-            move_node = node.variations[0]
-            move = move_node.move
-            mover_white = board.turn
 
-            # Analyse position to get engine best move suggestion
-            info_root_raw = engine.analyse(board, limit=limit, multipv=effective_mpv)
-            info_root = info_root_raw[0] if isinstance(info_root_raw, list) else info_root_raw
-            best_move = None
-            if info_root is not None and "pv" in info_root and info_root["pv"]:
-                best_move = info_root["pv"][0]
-            # Fallback to engine.play if PV missing
-            if best_move is None:
-                res = engine.play(board, limit)
-                best_move = res.move
-
-            # Evaluate played move position (for mover POV) using a temp board
-            san = board.san(move)
-            board_played = board.copy()
-            board_played.push(move)
-            info_played_raw = engine.analyse(board_played, limit=limit, multipv=effective_mpv)
-            info_played = info_played_raw[0] if isinstance(info_played_raw, list) else info_played_raw
-            if info_played is None or "score" not in info_played:
-                played_cp, played_mate = None, None
+        if args.last_move_only:
+            # Walk to the last move in the main line and analyze only that ply.
+            if not node.variations:
+                print("No moves found in the game.")
             else:
-                played_cp, played_mate = score_to_cp(info_played["score"], pov_white=mover_white)
+                while node.variations:
+                    move_node = node.variations[0]
+                    move = move_node.move
+                    mover_white = board.turn
 
-            # Evaluate best move position (for mover POV)
-            best_san = board.san(best_move) if best_move is not None else "?"
-            if best_move is not None:
-                board_best = board.copy()
-                board_best.push(best_move)
-                info_best_raw = engine.analyse(board_best, limit=limit, multipv=effective_mpv)
-                info_best = info_best_raw[0] if isinstance(info_best_raw, list) else info_best_raw
-                if info_best is None or "score" not in info_best:
-                    best_cp, best_mate = None, None
+                    # If this is the final move in the mainline, analyze it and stop.
+                    if not move_node.variations:
+                        # Analyse current position to get engine best move suggestion
+                        info_root_raw = engine.analyse(board, limit=limit, multipv=effective_mpv)
+                        info_root = info_root_raw[0] if isinstance(info_root_raw, list) else info_root_raw
+                        best_move = None
+                        if info_root is not None and "pv" in info_root and info_root["pv"]:
+                            best_move = info_root["pv"][0]
+                        if best_move is None:
+                            res = engine.play(board, limit)
+                            best_move = res.move
+
+                        san = board.san(move)
+
+                        # Evaluate played move
+                        board_played = board.copy()
+                        board_played.push(move)
+                        info_played_raw = engine.analyse(board_played, limit=limit, multipv=effective_mpv)
+                        info_played = info_played_raw[0] if isinstance(info_played_raw, list) else info_played_raw
+                        if info_played is None or "score" not in info_played:
+                            played_cp, played_mate = None, None
+                        else:
+                            played_cp, played_mate = score_to_cp(info_played["score"], pov_white=mover_white)
+
+                        # Evaluate best move position (for mover POV)
+                        best_san = board.san(best_move) if best_move is not None else "?"
+                        if best_move is not None:
+                            board_best = board.copy()
+                            board_best.push(best_move)
+                            info_best_raw = engine.analyse(board_best, limit=limit, multipv=effective_mpv)
+                            info_best = info_best_raw[0] if isinstance(info_best_raw, list) else info_best_raw
+                            if info_best is None or "score" not in info_best:
+                                best_cp, best_mate = None, None
+                            else:
+                                best_cp, best_mate = score_to_cp(info_best["score"], pov_white=mover_white)
+                        else:
+                            best_cp, best_mate = None, None
+
+                        # Compute loss/classification
+                        cp_loss: Optional[int] = None
+                        classification = "Unknown"
+                        if best_mate is not None or played_mate is not None:
+                            if best_mate is not None and played_mate is not None:
+                                if (best_mate > 0) and (played_mate > 0):
+                                    if abs(played_mate) == abs(best_mate):
+                                        classification = "Best"
+                                    elif abs(played_mate) > abs(best_mate):
+                                        classification = "Inaccuracy"
+                                    else:
+                                        classification = "Best"
+                                elif (best_mate < 0) and (played_mate < 0):
+                                    if abs(played_mate) == abs(best_mate):
+                                        classification = "Best"
+                                    elif abs(played_mate) < abs(best_mate):
+                                        classification = "Blunder"
+                                    else:
+                                        classification = "Good"
+                                else:
+                                    classification = "Blunder"
+                            else:
+                                classification = "Blunder"
+                        else:
+                            if best_cp is not None and played_cp is not None:
+                                cp_loss = max(0, best_cp - played_cp)
+                                classification = classify_cp_loss(cp_loss)
+
+                        side = "W" if mover_white else "B"
+                        print(
+                            f"{ply:>3}  {side}   {san:<8}  {fmt_eval(played_cp, played_mate):>10}  "
+                            f"{fmt_eval(best_cp, best_mate):>9}  "
+                            f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  {classification:<12}  {best_san}"
+                        )
+                        break
+
+                    # Advance to keep searching for the last move
+                    board.push(move)
+                    node = move_node
+                    ply += 1
+        else:
+            # Default behavior: analyze all moves
+            while node.variations:
+                move_node = node.variations[0]
+                move = move_node.move
+                mover_white = board.turn
+
+                # Analyse position to get engine best move suggestion
+                info_root_raw = engine.analyse(board, limit=limit, multipv=effective_mpv)
+                info_root = info_root_raw[0] if isinstance(info_root_raw, list) else info_root_raw
+                best_move = None
+                if info_root is not None and "pv" in info_root and info_root["pv"]:
+                    best_move = info_root["pv"][0]
+                # Fallback to engine.play if PV missing
+                if best_move is None:
+                    res = engine.play(board, limit)
+                    best_move = res.move
+
+                # Evaluate played move position (for mover POV) using a temp board
+                san = board.san(move)
+                board_played = board.copy()
+                board_played.push(move)
+                info_played_raw = engine.analyse(board_played, limit=limit, multipv=effective_mpv)
+                info_played = info_played_raw[0] if isinstance(info_played_raw, list) else info_played_raw
+                if info_played is None or "score" not in info_played:
+                    played_cp, played_mate = None, None
                 else:
-                    best_cp, best_mate = score_to_cp(info_best["score"], pov_white=mover_white)
-            else:
-                best_cp, best_mate = None, None
+                    played_cp, played_mate = score_to_cp(info_played["score"], pov_white=mover_white)
 
-            # Compute centipawn loss bands
-            cp_loss: Optional[int] = None
-            classification = "Unknown"
-            # Handle mate cases first
-            if best_mate is not None or played_mate is not None:
-                if best_mate is not None and played_mate is not None:
-                    # Same sign -> compare speed
-                    if (best_mate > 0) and (played_mate > 0):
-                        # Keeping a mate: equal speed Best; slower -> Inaccuracy; faster -> Best
-                        if abs(played_mate) == abs(best_mate):
-                            classification = "Best"
-                        elif abs(played_mate) > abs(best_mate):
-                            classification = "Inaccuracy"
-                        else:
-                            classification = "Best"
-                    elif (best_mate < 0) and (played_mate < 0):
-                        # Defending: equal delay Best; if played is sooner mate -> Blunder; if played delays more -> Good
-                        if abs(played_mate) == abs(best_mate):
-                            classification = "Best"
-                        elif abs(played_mate) < abs(best_mate):
-                            classification = "Blunder"
-                        else:
-                            classification = "Good"
+                # Evaluate best move position (for mover POV)
+                best_san = board.san(best_move) if best_move is not None else "?"
+                if best_move is not None:
+                    board_best = board.copy()
+                    board_best.push(best_move)
+                    info_best_raw = engine.analyse(board_best, limit=limit, multipv=effective_mpv)
+                    info_best = info_best_raw[0] if isinstance(info_best_raw, list) else info_best_raw
+                    if info_best is None or "score" not in info_best:
+                        best_cp, best_mate = None, None
                     else:
-                        # Sign flip across who mates -> Blunder
+                        best_cp, best_mate = score_to_cp(info_best["score"], pov_white=mover_white)
+                else:
+                    best_cp, best_mate = None, None
+
+                # Compute centipawn loss bands
+                cp_loss: Optional[int] = None
+                classification = "Unknown"
+                # Handle mate cases first
+                if best_mate is not None or played_mate is not None:
+                    if best_mate is not None and played_mate is not None:
+                        # Same sign -> compare speed
+                        if (best_mate > 0) and (played_mate > 0):
+                            # Keeping a mate: equal speed Best; slower -> Inaccuracy; faster -> Best
+                            if abs(played_mate) == abs(best_mate):
+                                classification = "Best"
+                            elif abs(played_mate) > abs(best_mate):
+                                classification = "Inaccuracy"
+                            else:
+                                classification = "Best"
+                        elif (best_mate < 0) and (played_mate < 0):
+                            # Defending: equal delay Best; if played is sooner mate -> Blunder; if played delays more -> Good
+                            if abs(played_mate) == abs(best_mate):
+                                classification = "Best"
+                            elif abs(played_mate) < abs(best_mate):
+                                classification = "Blunder"
+                            else:
+                                classification = "Good"
+                        else:
+                            # Sign flip across who mates -> Blunder
+                            classification = "Blunder"
+                    else:
+                        # Losing a forced mate or missing one
                         classification = "Blunder"
                 else:
-                    # Losing a forced mate or missing one
-                    classification = "Blunder"
-            else:
-                if best_cp is not None and played_cp is not None:
-                    cp_loss = max(0, best_cp - played_cp)
-                    classification = classify_cp_loss(cp_loss)
+                    if best_cp is not None and played_cp is not None:
+                        cp_loss = max(0, best_cp - played_cp)
+                        classification = classify_cp_loss(cp_loss)
 
-            side = "W" if mover_white else "B"
-            print(
-                f"{ply:>3}  {side}   {san:<8}  {fmt_eval(played_cp, played_mate):>10}  "
-                f"{fmt_eval(best_cp, best_mate):>9}  "
-                f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  {classification:<12}  {best_san}"
-            )
+                side = "W" if mover_white else "B"
+                print(
+                    f"{ply:>3}  {side}   {san:<8}  {fmt_eval(played_cp, played_mate):>10}  "
+                    f"{fmt_eval(best_cp, best_mate):>9}  "
+                    f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  {classification:<12}  {best_san}"
+                )
 
-            node = move_node
-            ply += 1
-            # Advance the live board for the next ply
-            board.push(move)
+                node = move_node
+                ply += 1
+                # Advance the live board for the next ply
+                board.push(move)
     finally:
         engine.quit()
 
