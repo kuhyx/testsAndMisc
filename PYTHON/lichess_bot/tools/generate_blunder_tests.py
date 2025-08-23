@@ -136,8 +136,11 @@ def fen_and_uci_for_blunders(pgn_text: str, blunders: List[Blunder]) -> List[Tup
     return results
 
 
-def write_pytest(target_path: str, cases: List[Tuple[str, str, Blunder]], game_id: str):
+def ensure_unified_test_file(target_path: str) -> None:
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
+    if os.path.exists(target_path):
+        return
+    # Create skeleton unified test file
     with open(target_path, "w", encoding="utf-8") as f:
         f.write(
             """import os
@@ -153,33 +156,65 @@ if REPO_ROOT not in sys.path:
 from PYTHON.lichess_bot.engine import RandomEngine  # noqa: E402
 
 BLUNDER_CASES = [
+]
+
+
+@pytest.mark.parametrize('fen,blunder_uci,label', BLUNDER_CASES, ids=[c[2] for c in BLUNDER_CASES])
+def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
+    board = chess.Board(fen)
+    eng = RandomEngine(depth=4, max_time_sec=1.2)
+    # Prefer explanation variant if available for better failure messages
+    move = None
+    explanation = ''
+    if hasattr(eng, 'choose_move_with_explanation'):
+        try:
+            mv, expl = eng.choose_move_with_explanation(board, time_budget_sec=1.2)
+            move, explanation = mv, expl or ''
+        except Exception:
+            move = eng.choose_move(board)
+    else:
+        move = eng.choose_move(board)
+    assert move is not None, 'Engine returned no move'
+    assert move in board.legal_moves, 'Engine move is illegal'
+    assert move.uci() != blunder_uci, f'Engine repeated blunder {blunder_uci} at {label}. Explanation: {explanation}'
 """
         )
-        for fen, uci, bl in cases:
-            label = f"ply{bl.ply}_{'W' if bl.side=='W' else 'B'}_{uci}"
-            f.write(f"    (\"{fen}\", \"{uci}\", \"{label}\"),\n")
-        f.write(
-            "]\n\n"
-            "@pytest.mark.parametrize('fen,blunder_uci,label', BLUNDER_CASES, ids=[c[2] for c in BLUNDER_CASES])\n"
-            "def test_engine_avoids_logged_blunder(fen, blunder_uci, label):\n"
-            "    board = chess.Board(fen)\n"
-            "    eng = RandomEngine(depth=4, max_time_sec=1.2)\n"
-            "    # Prefer explanation variant if available for better failure messages\n"
-            "    move = None\n"
-            "    explanation = ''\n"
-            "    if hasattr(eng, 'choose_move_with_explanation'):\n"
-            "        try:\n"
-            "            mv, expl = eng.choose_move_with_explanation(board, time_budget_sec=1.2)\n"
-            "            move, explanation = mv, expl or ''\n"
-            "        except Exception:\n"
-            "            move = eng.choose_move(board)\n"
-            "    else:\n"
-            "        move = eng.choose_move(board)\n"
-            "    assert move is not None, 'Engine returned no move'\n"
-            "    assert move in board.legal_moves, 'Engine move is illegal'\n"
-            "    assert move.uci() != blunder_uci, f'Engine repeated blunder {blunder_uci} at {label}. Explanation: {explanation}'\n"
-        )
-    print(f"Wrote {target_path} with {len(cases)} blunder checks (game {game_id}).")
+
+
+def append_cases_to_unified_test(unified_path: str, cases: List[Tuple[str, str, Blunder]]) -> int:
+    """Append new cases to BLUNDER_CASES in the unified test file, skipping duplicates.
+
+    Returns the number of cases actually appended.
+    """
+    ensure_unified_test_file(unified_path)
+    with open(unified_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Extract current cases as a set of (fen, uci) to de-duplicate
+    existing = set(re.findall(r"\(\"(.*?)\",\s*\"(.*?)\",\s*\"ply\d+_[WB]_[^\"]+\"\)\,?", content, flags=re.S))
+
+    lines = []
+    for fen, uci, bl in cases:
+        key = (fen, uci)
+        if key in existing:
+            continue
+        label = f"ply{bl.ply}_{'W' if bl.side=='W' else 'B'}_{uci}"
+        lines.append(f"    (\"{fen}\", \"{uci}\", \"{label}\"),\n")
+
+    if not lines:
+        return 0
+
+    # Insert before closing bracket of BLUNDER_CASES
+    new_content = re.sub(
+        r"BLUNDER_CASES\s*=\s*\[\n",
+        lambda m: m.group(0) + "".join(lines),
+        content,
+        count=1,
+    )
+
+    with open(unified_path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+    return len(lines)
 
 
 def _process_single_log(log_path: str) -> int:
@@ -210,9 +245,11 @@ def _process_single_log(log_path: str) -> int:
     m = re.search(r"game_([A-Za-z0-9]+)\.log$", base)
     game_id = m.group(1) if m else os.path.splitext(base)[0]
 
-    target = os.path.join(os.path.dirname(__file__), "..", "tests", f"test_blunders_{game_id}.py")
-    target = os.path.abspath(target)
-    write_pytest(target, cases, game_id)
+    # Always append to the unified test file
+    unified = os.path.join(os.path.dirname(__file__), "..", "tests", "test_blunders_all.py")
+    unified = os.path.abspath(unified)
+    added = append_cases_to_unified_test(unified, cases)
+    print(f"Appended {added} new blunder checks to {os.path.relpath(unified)} (game {game_id}).")
     return 0
 
 

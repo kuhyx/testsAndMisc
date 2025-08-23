@@ -311,22 +311,64 @@ class RandomEngine:
             mv = self.choose_move(board)
             return mv, "fallback: random/legal-only (no analysis)"
 
+        # Apply the same final safety veto as choose_move (avoid logged/risky blunders)
+        veto_applied = False
+        original_best = best_move
+        if best_move is not None and self._looks_blunderish(board, best_move):
+            safer = self._pick_safer_alternative(board, avoid=best_move)
+            if safer is not None:
+                best_move = safer
+                veto_applied = True
+
         # Build explanation
         def annotate(m: chess.Move) -> str:
             return self._annotate_move_simple(board, m)
 
         top = scores[:5]
-        best_cp = top[0][1]
+        best_cp = None
+        # If we changed the choice via veto, try to find the chosen move's score from scores
+        if best_move is not None:
+            for mv, sc in scores:
+                if mv == best_move:
+                    best_cp = sc
+                    break
+        if best_cp is None:
+            best_cp = top[0][1]
         elapsed = time.time() - start
         lines = [
             f"source=search depth={depth_used} time={elapsed:.2f}s nodes={getattr(self, '_nodes', 0)} candidates={len(scores)}",
-            f"best {board.san(top[0][0])} ({top[0][0].uci()}) score={best_cp:.1f} reasons=[{annotate(top[0][0])}]",
+            f"best {board.san(best_move if best_move is not None else top[0][0])} ({(best_move if best_move is not None else top[0][0]).uci()}) score={best_cp:.1f} reasons=[{annotate(best_move if best_move is not None else top[0][0])}]",
         ]
         if len(top) > 1:
             lines.append("alternatives:")
             for mv, sc in top[1:]:
                 delta = sc - best_cp
                 lines.append(f"  {board.san(mv)} ({mv.uci()}) score={sc:.1f} delta={delta:+.1f} reasons=[{annotate(mv)}]")
+
+        if veto_applied and original_best is not None and best_move is not None and original_best != best_move:
+            # Provide a short note about the veto and why
+            try:
+                ann_orig = annotate(original_best)
+                ann_safe = annotate(best_move)
+            except Exception:
+                ann_orig = ann_safe = ""
+            lines.append("safety_veto: true")
+            lines.append(
+                f"  avoided {board.san(original_best)} ({original_best.uci()}) because looks_blunderish=true"
+            )
+            # Add quick risk/SEE snapshot for context
+            try:
+                see_bad = int(self._see_value(board, original_best))
+            except Exception:
+                see_bad = 0
+            risk_bad = self._risk_score(board, original_best)
+            try:
+                see_safe = int(self._see_value(board, best_move))
+            except Exception:
+                see_safe = 0
+            risk_safe = self._risk_score(board, best_move)
+            lines.append(f"  avoided_move_details: see={see_bad} risk_total={risk_bad} reasons=[{ann_orig}]")
+            lines.append(f"  chosen_safer: {board.san(best_move)} ({best_move.uci()}) see={see_safe} risk_total={risk_safe} reasons=[{ann_safe}]")
 
         # Deep-dive numeric breakdown for the chosen move
         if best_move is not None:
@@ -1336,3 +1378,93 @@ class RandomEngine:
         finally:
             board.pop()
         return risk
+
+    # --- Blunder-avoidance helpers used by final selection veto ---
+    def _looks_blunderish(self, board: chess.Board, move: chess.Move) -> bool:
+        """Heuristically decide if a root move is too risky to play.
+
+        Primary signal: move is a known logged blunder in this exact FEN.
+        Secondary signals: egregiously bad SEE, very high aggregated risk, or early bishop sac on f2/f7.
+        """
+        # 1) Logged blunders (exact FEN match)
+        try:
+            fen = board.fen()
+            bl = self._logged_blunders.get(fen)
+            if bl and move.uci() in bl:
+                return True
+        except Exception:
+            pass
+
+        # 2) Unsound early bishop sac on f2/f7
+        try:
+            if self._is_early_game(board) and self._is_bishop_sac_on_f2f7(board, move):
+                return True
+        except Exception:
+            pass
+
+        # 3) Very bad SEE or extreme risk
+        see = 0
+        try:
+            see = int(self._see_value(board, move))
+        except Exception:
+            pass
+        if see <= -150:
+            return True
+
+        risk = 0
+        try:
+            risk = self._risk_score(board, move)
+        except Exception:
+            pass
+        if risk >= 600:
+            return True
+        return False
+
+    def _pick_safer_alternative(self, board: chess.Board, avoid: chess.Move) -> Optional[chess.Move]:
+        """Pick a safer legal move than `avoid` in the current position.
+
+        Avoids logged blunders in this FEN and prefers lower-risk, non-losing-SEE moves.
+        Uses quick static features to remain fast at the root.
+        """
+        fen = None
+        try:
+            fen = board.fen()
+        except Exception:
+            fen = None
+        forbidden = set()
+        if fen is not None:
+            forbidden = set(self._logged_blunders.get(fen, set()))
+        candidates = []
+        for m in board.legal_moves:
+            if m == avoid:
+                continue
+            if m.uci() in forbidden:
+                continue
+            candidates.append(m)
+        if not candidates:
+            return None
+
+        def safety_key(m: chess.Move):
+            # Lower is better
+            try:
+                risk = self._risk_score(board, m)
+            except Exception:
+                risk = 0
+            try:
+                see = int(self._see_value(board, m))
+            except Exception:
+                see = 0
+            # Prefer non-negative SEE; then lower risk; slight bias to central moves
+            center_bonus = 0
+            if chess.square_file(m.to_square) in (3, 4) and chess.square_rank(m.to_square) in (2, 3, 4, 5):
+                center_bonus = -10
+            # Key tuple: negative-SEE first, risk next, then small positional bias
+            return (0 if see >= 0 else 1, risk, center_bonus)
+
+        candidates.sort(key=safety_key)
+        # Pick the first candidate that doesn't look blunderish under our heuristic
+        for m in candidates:
+            if not self._looks_blunderish(board, m):
+                return m
+        # If all look a bit risky, return the least-bad
+        return candidates[0]
