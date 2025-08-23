@@ -1,18 +1,32 @@
 #!/usr/bin/env python3
 """
-Generate pytest cases from a lichess analysis log.
+Generate pytest cases from one or more lichess analysis logs.
 
-Input: a log file that contains a "Columns:" section and a "PGN:" section,
-like the example the user provided. We'll extract each row where class==Blunder,
-reconstruct the FEN of the position before the blunder, and the blunder move in
-UCI. Then we write a parametrized pytest that asserts the engine does not pick
-that same blunder move from that position.
+Input: log files that contain a "Columns:" section and a "PGN:" section.
+We'll extract each row where class==Blunder, reconstruct the FEN of the
+position before the blunder, and the blunder move in UCI. Then we'll write
+parametrized pytest files that assert the engine does not pick that same
+blunder move from those positions.
 
-Usage:
-  python PYTHON/lichess_bot/tools/generate_blunder_tests.py /path/to/lichess_bot_game_xxxxx.log
+Where logs are loaded from:
+    - By default (no arguments), all logs in the "past_games" folder located
+        next to this script will be processed (files matching lichess_bot_game_*.log).
+    - If a single argument is provided and it's a file path, that file is used.
+    - If a single argument looks like a game id (e.g. OVmR29MI), the script will
+        look for past_games/lichess_bot_game_<gameid>.log next to this script.
 
-It will create a file like:
-  PYTHON/lichess_bot/tests/test_blunders_<gameid>.py
+Usage examples:
+    # Process all logs in tools/past_games
+    python PYTHON/lichess_bot/tools/generate_blunder_tests.py
+
+    # Process a specific game by id from tools/past_games
+    python PYTHON/lichess_bot/tools/generate_blunder_tests.py OVmR29MI
+
+    # Process an explicit file path
+    python PYTHON/lichess_bot/tools/generate_blunder_tests.py /path/to/lichess_bot_game_xxxxx.log
+
+It will create files like:
+    PYTHON/lichess_bot/tests/test_blunders_<gameid>.py
 
 Dependencies: python-chess, pytest (already in requirements.txt)
 """
@@ -168,30 +182,30 @@ BLUNDER_CASES = [
     print(f"Wrote {target_path} with {len(cases)} blunder checks (game {game_id}).")
 
 
-def main(argv: List[str]) -> int:
-    if len(argv) < 2:
-        print("Usage: generate_blunder_tests.py /path/to/lichess_bot_game_xxx.log")
+def _process_single_log(log_path: str) -> int:
+    """Process a single log file. Returns 0 on success, non-zero otherwise."""
+    try:
+        with open(log_path, "r", encoding="utf-8") as fh:
+            text = fh.read()
+    except FileNotFoundError:
+        print(f"Log file not found: {log_path}")
         return 2
-    log_path = argv[1]
-    with open(log_path, "r", encoding="utf-8") as fh:
-        text = fh.read()
 
     blunders = parse_columns_for_blunders(text)
     if not blunders:
-        print("No blunders found in the log's Columns section.")
+        print(f"No blunders found in Columns section: {os.path.basename(log_path)}")
         return 1
 
     pgn_text = extract_pgn(text)
     if not pgn_text:
-        print("No PGN section found in the log.")
+        print(f"No PGN section found: {os.path.basename(log_path)}")
         return 1
 
     cases = fen_and_uci_for_blunders(pgn_text, blunders)
     if not cases:
-        print("Failed to reconstruct any blunder positions from PGN.")
+        print(f"Failed to reconstruct any blunder positions from PGN: {os.path.basename(log_path)}")
         return 1
 
-    # Try to derive game id from file name
     base = os.path.basename(log_path)
     m = re.search(r"game_([A-Za-z0-9]+)\.log$", base)
     game_id = m.group(1) if m else os.path.splitext(base)[0]
@@ -200,6 +214,55 @@ def main(argv: List[str]) -> int:
     target = os.path.abspath(target)
     write_pytest(target, cases, game_id)
     return 0
+
+
+def main(argv: List[str]) -> int:
+    script_dir = os.path.dirname(__file__)
+    past_dir = os.path.abspath(os.path.join(script_dir, "past_games"))
+
+    # No argument: process all logs in past_games
+    if len(argv) == 1:
+        if not os.path.isdir(past_dir):
+            print(f"No past_games directory found at {past_dir}")
+            return 2
+        logs = [
+            os.path.join(past_dir, name)
+            for name in os.listdir(past_dir)
+            if re.match(r"lichess_bot_game_[A-Za-z0-9]+\.log$", name)
+        ]
+        if not logs:
+            print(f"No logs found in {past_dir}")
+            return 1
+        # Sort by mtime ascending for determinism
+        logs.sort(key=lambda p: os.path.getmtime(p))
+        ok = 0
+        for lp in logs:
+            rc = _process_single_log(lp)
+            if rc == 0:
+                ok += 1
+        print(f"Processed {len(logs)} logs from {past_dir}, succeeded: {ok}, failed: {len(logs)-ok}")
+        return 0 if ok > 0 else 1
+
+    # One argument: game id or file path
+    arg = argv[1]
+    candidate_path = None
+    if os.path.isfile(arg):
+        candidate_path = arg
+    else:
+        # Treat as game id, resolve within past_games
+        if re.fullmatch(r"[A-Za-z0-9]+", arg):
+            candidate_path = os.path.join(past_dir, f"lichess_bot_game_{arg}.log")
+        else:
+            # Fallback: if it's a bare filename, try inside past_games
+            maybe = os.path.join(past_dir, arg)
+            if os.path.isfile(maybe):
+                candidate_path = maybe
+
+    if not candidate_path:
+        print("Usage: generate_blunder_tests.py [<game_id>|</path/to/log>]")
+        return 2
+
+    return _process_single_log(candidate_path)
 
 
 if __name__ == "__main__":
