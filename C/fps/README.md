@@ -8,12 +8,12 @@ A tiny first-person demo using legacy OpenGL (compat) and FreeGLUT:
 
 ## Build
 
-Requires development packages for OpenGL, GLU, and FreeGLUT.
+Requires development packages for OpenGL, GLU, FreeGLUT, and SDL2 (for audio).
 On Debian/Ubuntu:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y build-essential freeglut3-dev
+sudo apt-get install -y build-essential freeglut3-dev libsdl2-dev pkg-config
 ```
 
 Then build and run:
@@ -29,3 +29,4 @@ If your distro uses different package names, install the equivalents of:
 ## Notes
 - This uses old-school fixed-function OpenGL for simplicity and broad compatibility.
 - Mouse is confined via glutWarpPointer; press M if you need to release it.
+- SDL2 is used only for simple procedurally generated sound effects (shoot, hit, game over).

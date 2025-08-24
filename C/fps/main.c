@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <SDL2/SDL.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -84,6 +85,97 @@ static vec3 cam_right()
 	return v3_norm(v3_cross(cam_front(), v3(0,1,0)));
 }
 
+// -------- Audio (SDL2) --------
+static SDL_AudioDeviceID g_audio_dev = 0;
+static SDL_AudioSpec g_audio_have;
+static bool g_audio_ok = false;
+
+static void audio_cleanup(void)
+{
+	if (g_audio_dev) {
+		SDL_ClearQueuedAudio(g_audio_dev);
+		SDL_CloseAudioDevice(g_audio_dev);
+		g_audio_dev = 0;
+	}
+	if (g_audio_ok) {
+		SDL_QuitSubSystem(SDL_INIT_AUDIO);
+		g_audio_ok = false;
+	}
+}
+
+static void audio_init(void)
+{
+	if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+		fprintf(stderr, "SDL audio init failed: %s\n", SDL_GetError());
+		return;
+	}
+	SDL_AudioSpec want;
+	SDL_zero(want);
+	want.freq = 48000;
+	want.format = AUDIO_F32SYS;
+	want.channels = 1;
+	want.samples = 1024;
+	g_audio_dev = SDL_OpenAudioDevice(NULL, 0, &want, &g_audio_have, 0);
+	if (!g_audio_dev) {
+		fprintf(stderr, "SDL_OpenAudioDevice failed: %s\n", SDL_GetError());
+		SDL_QuitSubSystem(SDL_INIT_AUDIO);
+		return;
+	}
+	SDL_PauseAudioDevice(g_audio_dev, 0);
+	g_audio_ok = true;
+	atexit(audio_cleanup);
+}
+
+static void audio_queue_samples(const float* data, int frames)
+{
+	if (!g_audio_ok) return;
+	int bytes = frames * (int)sizeof(float);
+	SDL_QueueAudio(g_audio_dev, data, bytes);
+}
+
+static void audio_play_tone(float freq, float duration, float vol)
+{
+	if (!g_audio_ok) return;
+	int sr = g_audio_have.freq ? g_audio_have.freq : 48000;
+	int frames = (int)(duration * sr);
+	if (frames <= 0) return;
+	float* buf = (float*)malloc((size_t)frames * sizeof(float));
+	if (!buf) return;
+	float phase = 0.0f;
+	float dp = 2.0f * (float)M_PI * freq / (float)sr;
+	for (int i=0; i<frames; ++i) {
+		float t = (float)i / (float)frames;
+		// simple attack/decay envelope
+		float env = t < 0.1f ? (t/0.1f) : (1.0f - t);
+		if (env < 0.0f) env = 0.0f;
+		buf[i] = sinf(phase) * vol * env;
+		phase += dp;
+	}
+	audio_queue_samples(buf, frames);
+	free(buf);
+}
+
+static void audio_play_sweep(float f0, float f1, float duration, float vol)
+{
+	if (!g_audio_ok) return;
+	int sr = g_audio_have.freq ? g_audio_have.freq : 48000;
+	int frames = (int)(duration * sr);
+	if (frames <= 0) return;
+	float* buf = (float*)malloc((size_t)frames * sizeof(float));
+	if (!buf) return;
+	float phase = 0.0f;
+	for (int i=0; i<frames; ++i) {
+		float t = (float)i / (float)frames; // 0..1
+		float f = f0 + (f1 - f0) * t;
+		float dp = 2.0f * (float)M_PI * f / (float)sr;
+		float env = 1.0f - t; // fade out
+		buf[i] = sinf(phase) * vol * env;
+		phase += dp;
+	}
+	audio_queue_samples(buf, frames);
+	free(buf);
+}
+
 static float frand(float a, float b) { return a + (b-a) * (rand()/(float)RAND_MAX); }
 
 static void clear_targets() { g_target_count = 0; }
@@ -141,12 +233,14 @@ static void shoot()
 	g_bullet_origin = g_cam_pos;
 	g_bullet_dir = dir;
 	g_bullet_t = 0.08f; // show for ~80ms
+	audio_play_tone(1600.0f, 0.05f, 0.25f); // shoot
 
 	if (best_i >= 0) {
 		// remove hit target (swap remove)
 		g_targets[best_i] = g_targets[g_target_count-1];
 		g_target_count--;
 		g_score++;
+	audio_play_tone(600.0f, 0.08f, 0.35f); // hit
 	}
 }
 
@@ -309,6 +403,7 @@ static void update(float dt)
 			if (dist2 <= reach*reach) {
 				g_state = GAME_OVER;
 				glutSetCursor(GLUT_CURSOR_LEFT_ARROW);
+				audio_play_sweep(400.0f, 120.0f, 0.5f, 0.5f); // game over
 				break;
 			}
 		}
@@ -433,6 +528,7 @@ int main(int argc, char** argv)
 	glutCreateWindow("FPS Demo");
 
 	init_gl();
+	audio_init();
 
 	glutDisplayFunc(display);
 	glutIdleFunc(idle);
