@@ -2,8 +2,8 @@
 # Targets: build (default), run, clean
 
 CC := gcc
-CFLAGS := -O2 -Wall -Wextra -Wno-missing-field-initializers -std=c11
-LDFLAGS := -lglut -lGLU -lGL -lm
+CFLAGS := -O2 -Wall -Wextra -Wno-missing-field-initializers -std=c11 $(shell pkg-config --cflags sdl2 2>/dev/null)
+LDFLAGS := -lglut -lGLU -lGL -lm $(shell pkg-config --libs sdl2 2>/dev/null)
 
 SRC := main.c
 BIN := fps_demo
