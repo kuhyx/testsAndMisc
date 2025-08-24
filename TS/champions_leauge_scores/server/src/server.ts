@@ -1,0 +1,166 @@
+import express, { Request, Response } from 'express';
+import axios from 'axios';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const PORT = Number(process.env.PORT || 8787);
+const API_BASE = 'https://api.football-data.org/v4';
+const API_TOKEN = process.env.FOOTBALL_DATA_API_KEY;
+
+if (!API_TOKEN) {
+  // eslint-disable-next-line no-console
+  console.warn('[server] FOOTBALL_DATA_API_KEY is not set. Live data will not work until you set it.');
+}
+
+const app = express();
+app.use(cors());
+app.disable('etag');
+app.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
+// Simple request/response logging middleware
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  // Attach id so downstream handlers could use it if needed
+  (res as any).locals = { ...(res as any).locals, requestId: id };
+
+  // eslint-disable-next-line no-console
+  console.log(`[#${id}] -> ${req.method} ${req.originalUrl} ` +
+    (Object.keys(req.query || {}).length ? `query=${JSON.stringify(req.query)}` : ''));
+
+  res.on('finish', () => {
+    const durMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    // eslint-disable-next-line no-console
+    console.log(`[#${id}] <- ${req.method} ${req.originalUrl} ${res.statusCode} ${durMs.toFixed(1)}ms`);
+  });
+
+  next();
+});
+
+// Axios interceptors to log outgoing requests and incoming responses
+axios.interceptors.request.use((config) => {
+  (config as any).metadata = { start: Date.now() };
+  // eslint-disable-next-line no-console
+  console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
+  return config;
+}, (error) => {
+  // eslint-disable-next-line no-console
+  console.warn('[axios req error]', error?.message || error);
+  return Promise.reject(error);
+});
+
+axios.interceptors.response.use((response) => {
+  const started = (response.config as any).metadata?.start || Date.now();
+  const dur = Date.now() - started;
+  let size = 0;
+  try {
+    const d = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    size = d?.length || 0;
+  } catch (_e) { /* ignore */ }
+  // eslint-disable-next-line no-console
+  console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B`);
+  return response;
+}, (error) => {
+  const cfg = error?.config || {};
+  const started = (cfg as any).metadata?.start || Date.now();
+  const dur = Date.now() - started;
+  const status = error?.response?.status;
+  // eslint-disable-next-line no-console
+  console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms`, error?.response?.data || error?.message);
+  return Promise.reject(error);
+});
+
+app.get('/health', (_req: Request, res: Response) => res.json({ ok: true }));
+
+function buildHeaders() {
+  return {
+    'X-Auth-Token': API_TOKEN || '',
+  } as Record<string, string>;
+}
+
+function normalizeMatch(m: any) {
+  return {
+    id: m.id,
+    utcDate: m.utcDate,
+    status: m.status,
+    stage: m.stage,
+    group: m.group,
+    matchday: m.matchday,
+    homeTeam: m.homeTeam?.name,
+    awayTeam: m.awayTeam?.name,
+    score: m.score,
+    competition: m.competition?.name || 'UEFA Champions League',
+    venue: m.venue,
+    referees: m.referees?.map((r: any) => r.name).filter(Boolean) || [],
+  };
+}
+
+app.get('/api/live', async (_req: Request, res: Response) => {
+  try {
+    if (!API_TOKEN) {
+      const demo = [{
+        id: 1,
+        utcDate: new Date().toISOString(),
+        status: 'LIVE',
+        stage: 'GROUP_STAGE',
+        group: 'Group A',
+        matchday: 1,
+        homeTeam: { name: 'Demo FC' },
+        awayTeam: { name: 'Sample United' },
+        score: { fullTime: { home: 1, away: 0 }, halfTime: { home: 1, away: 0 } },
+        competition: { name: 'UEFA Champions League' },
+      }];
+      return res.json({ count: demo.length, matches: demo.map(normalizeMatch), fetchedAt: new Date().toISOString(), demo: true });
+    }
+    const url = `${API_BASE}/competitions/CL/matches`;
+    const { data } = await axios.get(url, { headers: buildHeaders(), params: { status: 'LIVE' } });
+    const matches = (data.matches || []).map(normalizeMatch);
+    res.json({ count: matches.length, matches, fetchedAt: new Date().toISOString() });
+  } catch (err: any) {
+    const status = err?.response?.status || 500;
+    res.status(status).json({ error: 'Failed to fetch live matches', details: err?.response?.data || err?.message });
+  }
+});
+
+app.get('/api/matches', async (req: Request, res: Response) => {
+  try {
+    const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+    if (!API_TOKEN) {
+      const demo = [{
+        id: 2,
+        utcDate: new Date().toISOString(),
+        status: 'TIMED',
+        stage: 'GROUP_STAGE',
+        group: 'Group B',
+        matchday: 1,
+        homeTeam: { name: 'Placeholder City' },
+        awayTeam: { name: 'Mock Rovers' },
+        score: { fullTime: { home: null, away: null }, halfTime: { home: null, away: null } },
+        competition: { name: 'UEFA Champions League' },
+      }];
+      return res.json({ count: demo.length, matches: demo.map(normalizeMatch), fetchedAt: new Date().toISOString(), date, demo: true });
+    }
+    const url = `${API_BASE}/competitions/CL/matches`;
+    const { data } = await axios.get(url, {
+      headers: buildHeaders(),
+      params: { dateFrom: date, dateTo: date },
+    });
+    const matches = (data.matches || []).map(normalizeMatch);
+    res.json({ count: matches.length, matches, fetchedAt: new Date().toISOString() });
+  } catch (err: any) {
+    const status = err?.response?.status || 500;
+    res.status(status).json({ error: 'Failed to fetch matches', details: err?.response?.data || err?.message });
+  }
+});
+
+app.listen(PORT, () => {
+  // eslint-disable-next-line no-console
+  console.log(`[server] Listening on http://localhost:${PORT}`);
+});
