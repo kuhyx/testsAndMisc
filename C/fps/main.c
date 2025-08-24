@@ -13,6 +13,7 @@
 #include <time.h>
 #include <string.h>
 #include <SDL2/SDL.h>
+#include <ctype.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -364,14 +365,19 @@ static void display()
 static void update(float dt)
 {
 	if (g_state == GAME_RUNNING) {
-		float speed = g_move_speed * ((g_keys['\t'] || g_keys['Q'] || g_keys['q']) ? g_sprint_mul : 1.0f); // Tab/Q to sprint
+		float speed = g_move_speed * ((g_keys['\t'] || g_keys['q']) ? g_sprint_mul : 1.0f); // Tab/q to sprint
 		vec3 f = cam_front(); f.y = 0.0f; f = v3_norm(f);
 		vec3 r = cam_right(); r.y = 0.0f; r = v3_norm(r);
-
-		if (g_keys['W'] || g_keys['w']) g_cam_pos = v3_add(g_cam_pos, v3_scale(f, speed*dt));
-		if (g_keys['S'] || g_keys['s']) g_cam_pos = v3_sub(g_cam_pos, v3_scale(f, speed*dt));
-		if (g_keys['A'] || g_keys['a']) g_cam_pos = v3_sub(g_cam_pos, v3_scale(r, speed*dt));
-		if (g_keys['D'] || g_keys['d']) g_cam_pos = v3_add(g_cam_pos, v3_scale(r, speed*dt));
+		// Accumulate movement and apply once to avoid drift artifacts
+		vec3 mv = v3(0,0,0);
+		if (g_keys['w']) mv = v3_add(mv, f);
+		if (g_keys['s']) mv = v3_sub(mv, f);
+		if (g_keys['a']) mv = v3_sub(mv, r);
+		if (g_keys['d']) mv = v3_add(mv, r);
+		if (v3_len(mv) > 0.0f) {
+			mv = v3_norm(mv);
+			g_cam_pos = v3_add(g_cam_pos, v3_scale(mv, speed*dt));
+		}
 
 		// Keep feet on ground
 		g_cam_pos.y = 1.6f;
@@ -436,7 +442,8 @@ static void reshape(int w, int h)
 static void keyboard_down(unsigned char key, int x, int y)
 {
 	(void)x; (void)y;
-	g_keys[key] = true;
+	unsigned char k = (unsigned char)tolower(key);
+	g_keys[k] = true;
 	if (key == 27) { // Esc
 		exit(0);
 	} else if (key == ' ') {
@@ -459,7 +466,8 @@ static void keyboard_down(unsigned char key, int x, int y)
 static void keyboard_up(unsigned char key, int x, int y)
 {
 	(void)x; (void)y;
-	g_keys[key] = false;
+	unsigned char k = (unsigned char)tolower(key);
+	g_keys[k] = false;
 }
 
 static void mouse_button(int button, int state, int x, int y)
@@ -500,6 +508,13 @@ static void init_gl()
 	glLineWidth(1.0f);
 }
 
+static void on_entry(int state)
+{
+	if (state != GLUT_ENTERED) {
+		for (int i = 0; i < 256; ++i) g_keys[i] = false;
+	}
+}
+
 int main(int argc, char** argv)
 {
 	(void)argv;
@@ -518,6 +533,8 @@ int main(int argc, char** argv)
 	glutReshapeFunc(reshape);
 	glutKeyboardFunc(keyboard_down);
 	glutKeyboardUpFunc(keyboard_up);
+	// Clear keys on focus leave to avoid stuck inputs
+	glutEntryFunc(on_entry);
 	glutPassiveMotionFunc(passive_motion);
 	glutMouseFunc(mouse_button);
 
