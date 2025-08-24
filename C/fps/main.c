@@ -61,9 +61,7 @@ static int g_score = 0;
 typedef enum { GAME_RUNNING = 0, GAME_OVER = 1 } GameState;
 static GameState g_state = GAME_RUNNING;
 
-// Bullet visualization
-static float g_bullet_t = 0.0f; // seconds left to show bullet line
-static vec3 g_bullet_origin, g_bullet_dir;
+// Bullet visualization removed per request
 
 // Timing
 static int g_prev_ms = 0;
@@ -230,9 +228,6 @@ static void shoot()
 		float t = ray_sphere(g_cam_pos, dir, g_targets[i].pos, g_targets[i].radius);
 		if (t >= 0.0f && t < best_t) { best_t = t; best_i = i; }
 	}
-	g_bullet_origin = g_cam_pos;
-	g_bullet_dir = dir;
-	g_bullet_t = 0.08f; // show for ~80ms
 	audio_play_tone(1600.0f, 0.05f, 0.25f); // shoot
 
 	if (best_i >= 0) {
@@ -323,16 +318,7 @@ static void display()
 		glPopMatrix();
 	}
 
-	// Bullet line
-	if (g_bullet_t > 0.0f) {
-		glColor3f(1.0f, 1.0f, 0.3f);
-		glBegin(GL_LINES);
-		vec3 p0 = g_bullet_origin;
-		vec3 p1 = v3_add(p0, v3_scale(g_bullet_dir, 100.0f));
-		glVertex3f(p0.x, p0.y, p0.z);
-		glVertex3f(p1.x, p1.y, p1.z);
-		glEnd();
-	}
+	// Bullet line removed
 
 	// Crosshair overlay (only during gameplay)
 	if (g_state == GAME_RUNNING) {
@@ -417,10 +403,7 @@ static void update(float dt)
 		}
 	}
 
-	if (g_bullet_t > 0.0f) {
-		g_bullet_t -= dt;
-		if (g_bullet_t < 0.0f) g_bullet_t = 0.0f;
-	}
+	// No bullet tracer timer
 }
 
 static void idle()
