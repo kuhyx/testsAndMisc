@@ -34,6 +34,9 @@ exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
 # and nm-applet is a desktop environment-independent system tray GUI for it.
 exec --no-startup-id nm-applet
 
+# Keep screen awake and unlocked; also treat controller input as activity
+exec --no-startup-id bash /home/kuhy/linux-configuration/scripts/turn_off_auto_idle_screen_shutdown.sh --watch-controller
+
 # Use pactl to adjust volume in PulseAudio.
 set $refresh_i3status killall -SIGUSR1 i3status
 bindsym XF86AudioRaiseVolume exec --no-startup-id /home/kuchy/volume_control.sh up
