@@ -52,25 +52,93 @@ function display_operation() {
     esac
 }
 
+# Helper: return 0 if the given package name is blocked by policy
+function is_blocked_package_name() {
+    local name="$1"
+    # Normalize to package base (strip any repo prefix already done by caller)
+    # Broad block: Firefox family and derivatives (covers -bin/-git and similar suffixes)
+    if [[ $name =~ ^firefox($|[-_]) ]]; then
+        return 0
+    fi
+    if [[ $name =~ ^(librewolf|waterfox|icecat|floorp|zen-browser|tor-browser|mullvad-browser|basilisk|palemoon|iceweasel|abrowser|cliqz)($|[-_]) ]]; then
+        return 0
+    fi
+
+    # Explicitly blocked names list
+    local blocked=(
+        "freetube-bin" "virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-vnc" "virtualbox-guest-utils" "virtualbox-host-dkms"
+        "brave" "brave-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min"
+        "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter"
+        "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git"
+        "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora" "tartube"
+
+        # Firefox and prominent Firefox-based browsers/variants (explicit names)
+        "firefox" "firefox-bin" "firefox-esr" "firefox-esr-bin" "firefox-beta" "firefox-beta-bin"
+        "firefox-developer-edition" "firefox-developer-edition-bin" "firefox-nightly" "firefox-nightly-bin"
+        "firefox-appmenu" "firefox-appmenu-bin" "firefox-kde-opensuse"
+        "librewolf" "librewolf-bin" "waterfox" "waterfox-bin" "waterfox-current-bin" "waterfox-classic-bin" "waterfox-g3-bin"
+        "icecat" "icecat-bin" "floorp" "floorp-bin" "zen-browser" "zen-browser-bin"
+        "tor-browser" "tor-browser-bin" "torbrowser-launcher" "mullvad-browser" "mullvad-browser-bin"
+        "basilisk" "basilisk-bin" "palemoon" "palemoon-bin" "iceweasel" "iceweasel-bin" "abrowser" "cliqz"
+    )
+
+    for pkg in "${blocked[@]}"; do
+        if [[ "$name" == "$pkg" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Helper: detect if current invocation includes --noconfirm
+function has_noconfirm_flag() {
+    for arg in "$@"; do
+        if [[ "$arg" == "--noconfirm" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Cleanup: remove any installed blocked packages (in addition to the queued operation)
+function remove_installed_blocked_packages() {
+    local user_args=("$@")
+    # List installed package names
+    mapfile -t installed_names < <("$PACMAN_BIN" -Qq 2>/dev/null)
+    local to_remove=()
+    for name in "${installed_names[@]}"; do
+        if is_blocked_package_name "$name"; then
+            to_remove+=("$name")
+        fi
+    done
+
+    if [[ ${#to_remove[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}Policy cleanup:${NC} Removing blocked installed packages: ${BOLD}${to_remove[*]}${NC}" >&2
+    local remove_cmd=("$PACMAN_BIN" -Rns --noconfirm)
+    "${remove_cmd[@]}" "${to_remove[@]}"
+    local rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo -e "${RED}Cleanup removal failed with exit code ${rc}.${NC}" >&2
+    else
+        echo -e "${GREEN}Cleanup removal completed for: ${to_remove[*]}${NC}" >&2
+    fi
+    return $rc
+}
+
 # Function to check if user is trying to install packages that are always blocked
 function check_for_always_blocked() {
-    # List of packages that are ALWAYS blocked without any challenge
-    local always_blocked_packages=("freetube-bin" "virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-vnc" "virtualbox-guest-utils" "virtualbox-host-dkms" "brave" "brave-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min" "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter" "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git" "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora" "tartube")
-     
     # Check if the command is an installation command
     if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
         # Check all arguments
         for arg in "$@"; do
             # Strip repository prefix if present (like extra/ or community/)
             local package_name="${arg##*/}"
-            
-            # Check if argument matches any always blocked package
-            for package in "${always_blocked_packages[@]}"; do
-                if [[ "$arg" == "$package" || "$arg" == *"/$package-"* || "$arg" == *"/$package/"* || 
-                      "$arg" == *"/$package" || "$package_name" == "$package" ]]; then
-                    return 0  # Always blocked package found
-                fi
-            done
+            if is_blocked_package_name "$package_name"; then
+                return 0  # Always blocked package found
+            fi
         done
     fi
     return 1  # No always blocked package found
@@ -405,6 +473,8 @@ fi
 if check_for_always_blocked "$@"; then
     echo -e "${RED}Installation BLOCKED: This package is permanently restricted and cannot be installed.${NC}"
     echo -e "${RED}Package installation has been denied by system policy.${NC}"
+    # Regardless of the attempted action, enforce cleanup of any installed blocked packages
+    remove_installed_blocked_packages "$@"
     exit 1
 fi
 
@@ -447,6 +517,9 @@ if [ $exit_code -eq 0 ]; then
 else
     echo -e "${RED}Command failed with exit code ${exit_code}.${NC}" >&2
 fi
+
+# After any operation, remove installed blocked packages as part of policy enforcement
+remove_installed_blocked_packages "$@"
 
 # Display some helpful tips depending on the operation
 if [[ "$1" == "-S" || "$1" == "-S "* ]] && [ $exit_code -eq 0 ]; then
