@@ -13,6 +13,60 @@ NC='\033[0m' # No Color
 
 PACMAN_BIN="/usr/bin/pacman"
 
+# Ensure periodic system services (timer/monitor) are set up; if not, trigger setup
+ensure_periodic_maintenance() {
+    # Only proceed if systemd/systemctl is available
+    if ! command -v systemctl >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local timer_unit="periodic-system-maintenance.timer"
+    local startup_unit="periodic-system-startup.service"
+    local monitor_unit="hosts-file-monitor.service"
+    local needs_setup=0
+
+    # Timer should be enabled and active
+    systemctl --quiet is-enabled "$timer_unit" || needs_setup=1
+    systemctl --quiet is-active  "$timer_unit" || needs_setup=1
+
+    # Monitor should be enabled and active
+    systemctl --quiet is-enabled "$monitor_unit" || needs_setup=1
+    systemctl --quiet is-active  "$monitor_unit" || needs_setup=1
+
+    # Startup service should be enabled (it’s oneshot and may not be active except at boot)
+    systemctl --quiet is-enabled "$startup_unit" || needs_setup=1
+
+    if [[ $needs_setup -eq 0 ]]; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}Periodic maintenance services missing or inactive. Running setup...${NC}" >&2
+
+    # Try to locate setup_periodic_system.sh
+    local setup_script=""
+    local self_dir
+    self_dir="$(dirname "$(readlink -f "$0")")"
+    if [[ -f "$self_dir/setup_periodic_system.sh" ]]; then
+        setup_script="$self_dir/setup_periodic_system.sh"
+    elif [[ -f "$HOME/linux-configuration/scripts/setup_periodic_system.sh" ]]; then
+        setup_script="$HOME/linux-configuration/scripts/setup_periodic_system.sh"
+    fi
+
+    if [[ -n "$setup_script" ]]; then
+        if [[ $EUID -ne 0 ]]; then
+            sudo bash "$setup_script"
+        else
+            bash "$setup_script"
+        fi
+        echo -e "${CYAN}Tip:${NC} To disable these later:" >&2
+        echo "  sudo systemctl disable periodic-system-maintenance.timer" >&2
+        echo "  sudo systemctl disable periodic-system-startup.service" >&2
+        echo "  sudo systemctl disable hosts-file-monitor.service" >&2
+    else
+        echo -e "${RED}Could not locate setup_periodic_system.sh to configure services automatically.${NC}" >&2
+    fi
+}
+
 # Function to display help
 function show_help() {
     echo -e "${BOLD}Pacman Wrapper Help${NC}"
@@ -468,6 +522,9 @@ if [[ "$1" == "--help-wrapper" ]]; then
     show_help
     exit 0
 fi
+
+# Before any pacman action, ensure maintenance services exist
+ensure_periodic_maintenance
 
 # Check for always blocked packages first (highest priority)
 if check_for_always_blocked "$@"; then
