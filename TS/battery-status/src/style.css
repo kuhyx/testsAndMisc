@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0b0c10;
+  --fg: #e0e0e0;
+  --muted: #9aa0a6;
+  --accent: #61dafb;
+  --card: #1f2937;
+  --ok: #10b981;
+  --warn: #f59e0b;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+h1 { font-size: 1.8rem; margin: 0 0 1rem; }
+p { color: var(--muted); }
+
+.card {
+  margin-top: 1rem;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border: 1px solid #334155;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed #334155;
+}
+.row:last-child { border-bottom: 0; }
+
+.label { color: var(--muted); }
+.value { font-weight: 600; }
+.value[data-charging="true"] { color: var(--ok); }
+.value[data-charging="false"] { color: var(--warn); }
+
+footer { margin-top: 1.25rem; color: var(--muted); }
