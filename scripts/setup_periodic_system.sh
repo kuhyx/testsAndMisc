@@ -77,6 +77,7 @@ LOGROTATE_TEMPLATES="$TEMPLATES_BASE/logrotate"
 # Template files
 TEMPLATE_MAINT_SCRIPT="$BIN_TEMPLATES/periodic-system-maintenance.sh"
 TEMPLATE_HOSTS_MONITOR="$BIN_TEMPLATES/hosts-file-monitor.sh"
+TEMPLATE_BROWSER_WRAPPER="$BIN_TEMPLATES/browser-preexec-wrapper.sh"
 TEMPLATE_SVC_MAINT="$SYSTEMD_TEMPLATES/periodic-system-maintenance.service"
 TEMPLATE_TIMER="$SYSTEMD_TEMPLATES/periodic-system-maintenance.timer"
 TEMPLATE_STARTUP="$SYSTEMD_TEMPLATES/periodic-system-startup.service"
@@ -107,6 +108,7 @@ verify_files() {
     for tmpl in \
         "$TEMPLATE_MAINT_SCRIPT" \
         "$TEMPLATE_HOSTS_MONITOR" \
+    "$TEMPLATE_BROWSER_WRAPPER" \
         "$TEMPLATE_SVC_MAINT" \
         "$TEMPLATE_TIMER" \
         "$TEMPLATE_STARTUP" \
@@ -199,6 +201,40 @@ create_hosts_monitor_service() {
     echo "✓ Installed hosts monitor service from template: $monitor_service"
 }
 
+# Function to install browser pre-exec wrapper and wire common browser names
+install_browser_preexec_wrapper() {
+    echo ""
+    echo "6.1 Installing Browser Pre-Exec Wrapper..."
+    echo "========================================="
+
+    local wrapper="/usr/local/bin/browser-preexec-wrapper"
+    sed -e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g" \
+        "$TEMPLATE_BROWSER_WRAPPER" > "$wrapper"
+    chmod +x "$wrapper"
+    echo "✓ Installed wrapper: $wrapper"
+
+    # Allow passwordless execution of hosts installer for root-only actions
+    local sudoers_file="/etc/sudoers.d/hosts-install-no-passwd"
+    if command -v visudo >/dev/null 2>&1; then
+        echo "${SUDO_USER:-$USER} ALL=(ALL) NOPASSWD: $HOSTS_INSTALL_SCRIPT" > "$sudoers_file"
+        chmod 440 "$sudoers_file"
+        # Validate syntax
+        visudo -c >/dev/null || echo "Warning: sudoers validation returned non-zero"
+        echo "✓ Sudoers drop-in created: $sudoers_file"
+    else
+        echo "visudo not found; skipping sudoers drop-in"
+    fi
+
+    # Create symlinks for common browser commands to the wrapper in /usr/local/bin
+    # This takes precedence over /usr/bin in PATH on most systems.
+    local browsers=( "thorium-browser" "google-chrome" "google-chrome-stable" "chromium" "brave" "brave-browser" "vivaldi-stable" "firefox" )
+    for b in "${browsers[@]}"; do
+        local link="/usr/local/bin/$b"
+        ln -sf "$wrapper" "$link"
+    done
+    echo "✓ Symlinked wrapper for common browsers in /usr/local/bin"
+}
+
 # Function to enable and start services
 enable_services() {
     echo ""
@@ -284,6 +320,7 @@ create_systemd_service
 create_systemd_timer
 create_startup_service
 create_hosts_monitor_service
+install_browser_preexec_wrapper
 enable_services
 create_log_rotation
 run_initial_execution
