@@ -50,38 +50,63 @@ check_permissions() {
 
 install_dependencies() {
     print_step "Checking dependencies..."
-    
+
     # Check if pacman is available
     if ! command -v pacman &> /dev/null; then
         print_error "pacman not found. Are you sure this is Arch Linux?"
         exit 1
     fi
-    
-    # Check if required packages are already installed
+
+    # Define required packages and show what we will check
     local packages=("sdl2" "sdl2_image" "gcc" "make" "pkg-config" "xdg-utils")
+    print_step "Packages to verify: ${packages[*]}"
+
+    # Determine missing packages in a single call (faster than looping)
+    # pacman -T lists targets that are not currently installed
+    local missing_output
+    missing_output=$(pacman -T "${packages[@]}" 2>/dev/null || true)
+
+    # Build arrays for missing and installed for better UX
     local missing_packages=()
-    
-    for package in "${packages[@]}"; do
-        if ! pacman -Q "$package" &> /dev/null; then
-            missing_packages+=("$package")
+    local installed_packages=()
+    if [[ -n "$missing_output" ]]; then
+        # Populate missing_packages from pacman -T output
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && missing_packages+=("$line")
+        done <<< "$missing_output"
+    fi
+
+    # Derive installed packages by set subtraction
+    for pkg in "${packages[@]}"; do
+        local found_missing=0
+        for miss in "${missing_packages[@]}"; do
+            if [[ "$pkg" == "$miss" ]]; then
+                found_missing=1
+                break
+            fi
+        done
+        if [[ $found_missing -eq 0 ]]; then
+            installed_packages+=("$pkg")
         fi
     done
-    
-    if [ ${#missing_packages[@]} -eq 0 ]; then
+
+    # Verbose summary
+    if [[ ${#installed_packages[@]} -gt 0 ]]; then
+        print_success "Already installed: ${installed_packages[*]}"
+    fi
+    if [[ ${#missing_packages[@]} -eq 0 ]]; then
         print_success "All dependencies are already installed"
         return 0
+    else
+        print_warning "Missing packages: ${missing_packages[*]}"
     fi
-    
-    print_step "Installing missing dependencies: ${missing_packages[*]}"
-    
-    # Update package database
+
     print_step "Updating package database..."
     sudo pacman -Sy
-    
-    # Install required packages
-    print_step "Installing SDL2 libraries..."
+
+    print_step "Installing missing dependencies..."
     sudo pacman -S --needed "${missing_packages[@]}"
-    
+
     print_success "Dependencies installed successfully"
 }
 
