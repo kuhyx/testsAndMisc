@@ -30,9 +30,15 @@ typedef struct {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
+    SDL_Surface *original_surface; // kept for saving rotated output
     char current_file[MAX_PATH_LEN];
     int image_width;
     int image_height;
+    // Trimming (crop) amounts in pixels from each side (applied before rotation)
+    int trim_left;
+    int trim_right;
+    int trim_top;
+    int trim_bottom;
     float zoom_factor;
     int offset_x;
     int offset_y;
@@ -46,6 +52,9 @@ typedef struct {
     int right_key_held;
     Uint32 last_auto_nav_time;
     Uint32 auto_nav_interval; // milliseconds
+
+    // Rotation state (degrees, multiples of 90)
+    int rotation_degrees;
 } ImageViewer;
 
 // Function declarations
@@ -58,6 +67,12 @@ static int navigate_next_image(ImageViewer *viewer);
 static int navigate_prev_image(ImageViewer *viewer);
 static void print_current_image_info(const ImageViewer *viewer);
 static void handle_auto_navigation(ImageViewer *viewer);
+
+// Rotation/saving helpers
+static SDL_Surface *rotate_surface_90_cw(SDL_Surface *src);
+static SDL_Surface *rotate_surface_quarters(SDL_Surface *src, int quartersCW);
+static SDL_Surface *crop_surface_argb8888(SDL_Surface *src, int left, int top, int right, int bottom);
+static int save_processed_image(const ImageViewer *viewer);
 
 // Safe memory copy wrapper to address static analyzer warnings
 static int safe_copy_memory(void *dest, size_t dest_size, const void *src, size_t src_len) {
@@ -146,13 +161,19 @@ static int init_viewer(ImageViewer *viewer) {
     }
 
     viewer->texture = NULL;
+    viewer->original_surface = NULL;
     viewer->current_file[0] = '\0';
     viewer->zoom_factor = 1.0f;
+    viewer->trim_left = 0;
+    viewer->trim_right = 0;
+    viewer->trim_top = 0;
+    viewer->trim_bottom = 0;
     viewer->offset_x = 0;
     viewer->offset_y = 0;
     viewer->dragging = 0;
     viewer->image_width = 0;
     viewer->image_height = 0;
+    viewer->rotation_degrees = 0;
 
     // Initialize file list
     viewer->file_list.files = NULL;
@@ -174,6 +195,10 @@ static int load_image(ImageViewer *viewer, const char *filename) {
         SDL_DestroyTexture(viewer->texture);
         viewer->texture = NULL;
     }
+    if (viewer->original_surface) {
+        SDL_FreeSurface(viewer->original_surface);
+        viewer->original_surface = NULL;
+    }
 
     SDL_Surface *surface = IMG_Load(filename);
     if (!surface) {
@@ -181,15 +206,27 @@ static int load_image(ImageViewer *viewer, const char *filename) {
         return 0;
     }
 
-    viewer->texture = SDL_CreateTextureFromSurface(viewer->renderer, surface);
-    if (!viewer->texture) {
-        printf("Unable to create texture from %s! SDL_Error: %s\n", filename, SDL_GetError());
+    // Convert to a known format for safe rotation/saving
+    SDL_Surface *converted = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_ARGB8888, 0);
+    if (!converted) {
+        printf("Unable to convert surface for %s! SDL_Error: %s\n", filename, SDL_GetError());
         SDL_FreeSurface(surface);
         return 0;
     }
 
-    viewer->image_width = surface->w;
-    viewer->image_height = surface->h;
+    viewer->texture = SDL_CreateTextureFromSurface(viewer->renderer, converted);
+    if (!viewer->texture) {
+        printf("Unable to create texture from %s! SDL_Error: %s\n", filename, SDL_GetError());
+        SDL_FreeSurface(converted);
+        SDL_FreeSurface(surface);
+        return 0;
+    }
+
+    viewer->image_width = converted->w;
+    viewer->image_height = converted->h;
+
+    // Keep the converted surface for saving later
+    viewer->original_surface = converted;
 
     SDL_FreeSurface(surface);
 
@@ -200,8 +237,14 @@ static int load_image(ImageViewer *viewer, const char *filename) {
     }
 
     viewer->zoom_factor = 1.0f;
+    // Reset trims on new image
+    viewer->trim_left = 0;
+    viewer->trim_right = 0;
+    viewer->trim_top = 0;
+    viewer->trim_bottom = 0;
     viewer->offset_x = 0;
     viewer->offset_y = 0;
+    viewer->rotation_degrees = 0; // reset rotation on new image
 
     int window_w, window_h;
     SDL_GetWindowSize(viewer->window, &window_w, &window_h);
@@ -228,8 +271,32 @@ static void render_image(ImageViewer *viewer) {
         return;
     }
 
-    int scaled_width = (int)(viewer->image_width * viewer->zoom_factor);
-    int scaled_height = (int)(viewer->image_height * viewer->zoom_factor);
+    int base_w = viewer->image_width;
+    int base_h = viewer->image_height;
+
+    // Compute effective source rect based on trims (clamp to valid range)
+    int left = viewer->trim_left < 0 ? 0 : viewer->trim_left;
+    int right = viewer->trim_right < 0 ? 0 : viewer->trim_right;
+    int top = viewer->trim_top < 0 ? 0 : viewer->trim_top;
+    int bottom = viewer->trim_bottom < 0 ? 0 : viewer->trim_bottom;
+    if (left + right >= base_w) {
+        int excess = left + right - (base_w - 1);
+        if (right >= excess) right -= excess; else left -= (excess - right);
+    }
+    if (top + bottom >= base_h) {
+        int excess = top + bottom - (base_h - 1);
+        if (bottom >= excess) bottom -= excess; else top -= (excess - bottom);
+    }
+    SDL_Rect src_rect;
+    src_rect.x = left;
+    src_rect.y = top;
+    src_rect.w = base_w - left - right;
+    src_rect.h = base_h - top - bottom;
+    if (src_rect.w <= 0) src_rect.w = 1;
+    if (src_rect.h <= 0) src_rect.h = 1;
+
+    int scaled_width = (int)(src_rect.w * viewer->zoom_factor);
+    int scaled_height = (int)(src_rect.h * viewer->zoom_factor);
 
     int window_w, window_h;
     SDL_GetWindowSize(viewer->window, &window_w, &window_h);
@@ -238,7 +305,7 @@ static void render_image(ImageViewer *viewer) {
     int y = (window_h - scaled_height) / 2 + viewer->offset_y;
 
     SDL_Rect dest_rect = {x, y, scaled_width, scaled_height};
-    SDL_RenderCopy(viewer->renderer, viewer->texture, NULL, &dest_rect);
+    SDL_RenderCopyEx(viewer->renderer, viewer->texture, &src_rect, &dest_rect, (double)viewer->rotation_degrees, NULL, SDL_FLIP_NONE);
 
     SDL_RenderPresent(viewer->renderer);
 }
@@ -272,6 +339,11 @@ static void print_help() {
     printf("Mouse drag: Pan image\n");
     printf("Left/Right Arrow: Navigate between images\n");
     printf("Hold Left/Right Arrow: Auto-navigate every second\n");
+    printf("[ / ]: Rotate left/right by 90 degrees\n");
+    printf("Trim (per side, step 10px; hold Shift for 50px):\n");
+    printf("  1/2: Left -/+   3/4: Right -/+   5/6: Top -/+   7/8: Bottom -/+\n");
+    printf("  T: Reset all trims to 0\n");
+    printf("Ctrl+S: Save trimmed (and rotated, if applied) image next to the original\n");
     printf("R: Reset zoom and position\n");
     printf("F: Fit image to window\n");
     printf("H: Show this help\n");
@@ -282,6 +354,10 @@ static void print_help() {
 static void cleanup_viewer(ImageViewer *viewer) {
     if (viewer->texture) {
         SDL_DestroyTexture(viewer->texture);
+    }
+    if (viewer->original_surface) {
+        SDL_FreeSurface(viewer->original_surface);
+        viewer->original_surface = NULL;
     }
     if (viewer->renderer) {
         SDL_DestroyRenderer(viewer->renderer);
@@ -730,9 +806,12 @@ int main(int argc, char *argv[]) {
                         case SDLK_f: {
                             int window_w, window_h;
                             SDL_GetWindowSize(viewer.window, &window_w, &window_h);
-
-                            float scale_x = (float)window_w / viewer.image_width;
-                            float scale_y = (float)window_h / viewer.image_height;
+                            int eff_w = viewer.image_width - viewer.trim_left - viewer.trim_right;
+                            int eff_h = viewer.image_height - viewer.trim_top - viewer.trim_bottom;
+                            if (eff_w < 1) eff_w = 1;
+                            if (eff_h < 1) eff_h = 1;
+                            float scale_x = (float)window_w / eff_w;
+                            float scale_y = (float)window_h / eff_h;
                             viewer.zoom_factor = (scale_x < scale_y) ? scale_x : scale_y;
                             viewer.offset_x = 0;
                             viewer.offset_y = 0;
@@ -753,6 +832,95 @@ int main(int argc, char *argv[]) {
                         case SDLK_h:
                             print_help();
                             break;
+
+                        // Trimming controls: per-side -/+ with number keys; Shift = larger step
+                        case SDLK_1:
+                        case SDLK_2:
+                        case SDLK_3:
+                        case SDLK_4:
+                        case SDLK_5:
+                        case SDLK_6:
+                        case SDLK_7:
+                        case SDLK_8: {
+                            int step = (SDL_GetModState() & KMOD_SHIFT) ? 50 : 10;
+                            int iw = viewer.image_width;
+                            int ih = viewer.image_height;
+                            if (iw <= 0 || ih <= 0) break;
+                            switch (e.key.keysym.sym) {
+                                case SDLK_1: // left -
+                                    viewer.trim_left -= step;
+                                    if (viewer.trim_left < 0) viewer.trim_left = 0;
+                                    break;
+                                case SDLK_2: // left +
+                                    viewer.trim_left += step;
+                                    break;
+                                case SDLK_3: // right -
+                                    viewer.trim_right -= step;
+                                    if (viewer.trim_right < 0) viewer.trim_right = 0;
+                                    break;
+                                case SDLK_4: // right +
+                                    viewer.trim_right += step;
+                                    break;
+                                case SDLK_5: // top -
+                                    viewer.trim_top -= step;
+                                    if (viewer.trim_top < 0) viewer.trim_top = 0;
+                                    break;
+                                case SDLK_6: // top +
+                                    viewer.trim_top += step;
+                                    break;
+                                case SDLK_7: // bottom -
+                                    viewer.trim_bottom -= step;
+                                    if (viewer.trim_bottom < 0) viewer.trim_bottom = 0;
+                                    break;
+                                case SDLK_8: // bottom +
+                                    viewer.trim_bottom += step;
+                                    break;
+                            }
+                            // Clamp so at least 1px remains
+                            if (viewer.trim_left + viewer.trim_right >= iw) {
+                                viewer.trim_right = iw - 1 - viewer.trim_left;
+                                if (viewer.trim_right < 0) viewer.trim_right = 0;
+                                if (viewer.trim_left >= iw) viewer.trim_left = iw - 1;
+                            }
+                            if (viewer.trim_top + viewer.trim_bottom >= ih) {
+                                viewer.trim_bottom = ih - 1 - viewer.trim_top;
+                                if (viewer.trim_bottom < 0) viewer.trim_bottom = 0;
+                                if (viewer.trim_top >= ih) viewer.trim_top = ih - 1;
+                            }
+                            int eff_w = iw - viewer.trim_left - viewer.trim_right;
+                            int eff_h = ih - viewer.trim_top - viewer.trim_bottom;
+                            printf("Trim L/R/T/B: %d/%d/%d/%d (effective %dx%d)\n",
+                                   viewer.trim_left, viewer.trim_right, viewer.trim_top, viewer.trim_bottom,
+                                   eff_w, eff_h);
+                        } break;
+
+                        case SDLK_t: // reset trimming
+                            viewer.trim_left = viewer.trim_right = viewer.trim_top = viewer.trim_bottom = 0;
+                            printf("Trims reset.\n");
+                            break;
+
+                        case SDLK_LEFTBRACKET: { // '[' rotate left 90
+                            viewer.rotation_degrees -= 90;
+                            if (viewer.rotation_degrees <= -360)
+                                viewer.rotation_degrees = 0;
+                            printf("Rotation: %d degrees\n", ((viewer.rotation_degrees%360)+360)%360);
+                        } break;
+
+                        case SDLK_RIGHTBRACKET: { // ']' rotate right 90
+                            viewer.rotation_degrees += 90;
+                            if (viewer.rotation_degrees >= 360)
+                                viewer.rotation_degrees = 0;
+                            printf("Rotation: %d degrees\n", ((viewer.rotation_degrees%360)+360)%360);
+                        } break;
+
+                        case SDLK_s: {
+                            const Uint16 mods = SDL_GetModState();
+                            if (mods & KMOD_CTRL) {
+                                if (!save_processed_image(&viewer)) {
+                                    printf("Failed to save image.\n");
+                                }
+                            }
+                        } break;
 
                         case SDLK_LEFT:
                             if (!viewer.left_key_held) {
@@ -832,9 +1000,12 @@ int main(int argc, char *argv[]) {
                         // Recalculate auto-scaling for new window size
                         int window_w = e.window.data1;
                         int window_h = e.window.data2;
-
-                        float scale_x = (float)window_w / viewer.image_width;
-                        float scale_y = (float)window_h / viewer.image_height;
+                        int eff_w = viewer.image_width - viewer.trim_left - viewer.trim_right;
+                        int eff_h = viewer.image_height - viewer.trim_top - viewer.trim_bottom;
+                        if (eff_w < 1) eff_w = 1;
+                        if (eff_h < 1) eff_h = 1;
+                        float scale_x = (float)window_w / eff_w;
+                        float scale_y = (float)window_h / eff_h;
                         float auto_scale = (scale_x < scale_y) ? scale_x : scale_y;
 
                         // Only scale down if image is larger than window, never scale up
@@ -864,4 +1035,219 @@ int main(int argc, char *argv[]) {
     cleanup_viewer(&viewer);
     printf("Image viewer closed.\n");
     return 0;
+}
+
+// Rotate ARGB8888 surface 90 degrees clockwise
+static SDL_Surface *rotate_surface_90_cw(SDL_Surface *src) {
+    if (!src) return NULL;
+    int allocated_conv = 0;
+    SDL_Surface *work = src;
+    if (src->format->format != SDL_PIXELFORMAT_ARGB8888) {
+        work = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
+        if (!work) return NULL;
+        allocated_conv = 1;
+    }
+
+    int src_w = work->w;
+    int src_h = work->h;
+    SDL_Surface *dest = SDL_CreateRGBSurfaceWithFormat(0, src_h, src_w, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!dest) {
+        if (allocated_conv) SDL_FreeSurface(work);
+        return NULL;
+    }
+
+    if (SDL_MUSTLOCK(work)) SDL_LockSurface(work);
+    if (SDL_MUSTLOCK(dest)) SDL_LockSurface(dest);
+
+    Uint32 *src_pixels = (Uint32 *)work->pixels;
+    Uint32 *dst_pixels = (Uint32 *)dest->pixels;
+    int src_pitch_px = work->pitch / 4;
+    int dst_pitch_px = dest->pitch / 4;
+
+    for (int y = 0; y < src_h; ++y) {
+        for (int x = 0; x < src_w; ++x) {
+            Uint32 pixel = src_pixels[y * src_pitch_px + x];
+            int nx = src_h - 1 - y;
+            int ny = x;
+            dst_pixels[ny * dst_pitch_px + nx] = pixel;
+        }
+    }
+
+    if (SDL_MUSTLOCK(dest)) SDL_UnlockSurface(dest);
+    if (SDL_MUSTLOCK(work)) SDL_UnlockSurface(work);
+    if (allocated_conv) SDL_FreeSurface(work);
+    return dest;
+}
+
+static SDL_Surface *rotate_surface_quarters(SDL_Surface *src, int quartersCW) {
+    quartersCW = ((quartersCW % 4) + 4) % 4;
+    if (quartersCW == 0) {
+        // Return a duplicate to avoid accidental modifications to original
+        SDL_Surface *dup = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
+        return dup;
+    }
+
+    SDL_Surface *current = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
+    if (!current) return NULL;
+    for (int i = 0; i < quartersCW; ++i) {
+        SDL_Surface *next = rotate_surface_90_cw(current);
+        SDL_FreeSurface(current);
+        if (!next) return NULL;
+        current = next;
+    }
+    return current;
+}
+
+// Crop ARGB8888 surface by trimming pixels from each side; returns new surface
+static SDL_Surface *crop_surface_argb8888(SDL_Surface *src, int left, int top, int right, int bottom) {
+    if (!src) return NULL;
+    SDL_Surface *work = src;
+    int free_work = 0;
+    if (src->format->format != SDL_PIXELFORMAT_ARGB8888) {
+        work = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
+        if (!work) return NULL;
+        free_work = 1;
+    }
+
+    int iw = work->w;
+    int ih = work->h;
+    if (left < 0) left = 0;
+    if (right < 0) right = 0;
+    if (top < 0) top = 0;
+    if (bottom < 0) bottom = 0;
+    if (left + right >= iw) right = iw - 1 - left;
+    if (top + bottom >= ih) bottom = ih - 1 - top;
+    int cw = iw - left - right;
+    int ch = ih - top - bottom;
+    if (cw < 1) cw = 1;
+    if (ch < 1) ch = 1;
+
+    SDL_Surface *out = SDL_CreateRGBSurfaceWithFormat(0, cw, ch, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!out) {
+        if (free_work) SDL_FreeSurface(work);
+        return NULL;
+    }
+    if (SDL_MUSTLOCK(work)) SDL_LockSurface(work);
+    if (SDL_MUSTLOCK(out)) SDL_LockSurface(out);
+    Uint32 *sp = (Uint32 *)work->pixels;
+    Uint32 *dp = (Uint32 *)out->pixels;
+    int sp_pitch = work->pitch / 4;
+    int dp_pitch = out->pitch / 4;
+    for (int y = 0; y < ch; ++y) {
+        memcpy(&dp[y * dp_pitch], &sp[(y + top) * sp_pitch + left], (size_t)cw * 4);
+    }
+    if (SDL_MUSTLOCK(out)) SDL_UnlockSurface(out);
+    if (SDL_MUSTLOCK(work)) SDL_UnlockSurface(work);
+    if (free_work) SDL_FreeSurface(work);
+    return out;
+}
+
+static int save_processed_image(const ImageViewer *viewer) {
+    if (!viewer->original_surface) {
+        printf("No image loaded to save.\n");
+        return 0;
+    }
+
+    // First, crop based on current trims (before rotation to match on-screen behavior)
+    SDL_Surface *cropped = crop_surface_argb8888(
+        viewer->original_surface,
+        viewer->trim_left, viewer->trim_top, viewer->trim_right, viewer->trim_bottom);
+    if (!cropped) {
+        printf("Failed to crop surface for saving.\n");
+        return 0;
+    }
+
+    int rot = ((viewer->rotation_degrees % 360) + 360) % 360;
+    int quarters = rot / 90;
+
+    SDL_Surface *save_surf = NULL;
+    if (quarters == 0) {
+        save_surf = cropped; // already ARGB8888
+    } else {
+        save_surf = rotate_surface_quarters(cropped, quarters);
+        SDL_FreeSurface(cropped);
+        if (!save_surf) {
+            printf("Failed to rotate cropped surface for saving.\n");
+            return 0;
+        }
+    }
+    if (!save_surf) {
+        printf("Failed to prepare rotated surface for saving.\n");
+        return 0;
+    }
+
+    // Build output path based on original extension: <base_dir>/<name>_rotated.<ext>
+    const char *orig_name = viewer->file_list.files[viewer->file_list.current_index];
+    char name_wo_ext[MAX_PATH_LEN];
+    size_t len = strlen(orig_name);
+    if (!safe_copy_string(name_wo_ext, sizeof name_wo_ext, orig_name, len)) {
+        SDL_FreeSurface(save_surf);
+        return 0;
+    }
+    const char *ext_ptr = strrchr(orig_name, '.');
+    char ext_lower[16] = {0};
+    if (ext_ptr && *(ext_ptr + 1) != '\0') {
+        ext_ptr++; // skip dot
+        size_t eLen = strlen(ext_ptr);
+        if (eLen >= sizeof(ext_lower)) eLen = sizeof(ext_lower) - 1;
+        for (size_t i = 0; i < eLen; ++i) {
+            char c = ext_ptr[i];
+            if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+            ext_lower[i] = c;
+        }
+    } else {
+        // default to png if no extension
+        strcpy(ext_lower, "png");
+    }
+
+    // Trim name_wo_ext at last dot to remove extension
+    char *dot = strrchr(name_wo_ext, '.');
+    if (dot) *dot = '\0';
+
+    char out_path[MAX_PATH_LEN * 2];
+    char fname[MAX_PATH_LEN];
+
+    // Decide saving function by extension; fallback to png if unsupported
+    int saved = 0;
+    int fallback_png = 0;
+    int any_trim = (viewer->trim_left | viewer->trim_right | viewer->trim_top | viewer->trim_bottom) != 0;
+
+    if (strcmp(ext_lower, "png") == 0) {
+        int n = snprintf(fname, sizeof fname, "%s_%s.png", name_wo_ext, any_trim ? "trimmed" : "rotated");
+        if (n >= 0 && (size_t)n < sizeof fname &&
+            safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
+            if (IMG_SavePNG(save_surf, out_path) == 0) saved = 1;
+        }
+    } else if (strcmp(ext_lower, "jpg") == 0 || strcmp(ext_lower, "jpeg") == 0) {
+        int n = snprintf(fname, sizeof fname, "%s_%s.%s", name_wo_ext, any_trim ? "trimmed" : "rotated", ext_lower);
+        if (n >= 0 && (size_t)n < sizeof fname &&
+            safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
+            if (IMG_SaveJPG(save_surf, out_path, 90) == 0) saved = 1;
+        }
+    } else if (strcmp(ext_lower, "bmp") == 0) {
+        int n = snprintf(fname, sizeof fname, "%s_%s.bmp", name_wo_ext, any_trim ? "trimmed" : "rotated");
+        if (n >= 0 && (size_t)n < sizeof fname &&
+            safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
+            if (SDL_SaveBMP(save_surf, out_path) == 0) saved = 1;
+        }
+    } else {
+        // Unsupported original extension for saving -> fallback to PNG
+        int n = snprintf(fname, sizeof fname, "%s_%s.png", name_wo_ext, any_trim ? "trimmed" : "rotated");
+        if (n >= 0 && (size_t)n < sizeof fname &&
+            safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
+            if (IMG_SavePNG(save_surf, out_path) == 0) { saved = 1; fallback_png = 1; }
+        }
+    }
+
+    SDL_FreeSurface(save_surf);
+    if (!saved) {
+        printf("Failed to save rotated image (unsupported format or IO error).\n");
+        return 0;
+    }
+    if (fallback_png) {
+        printf("Saved %s image (fallback PNG): %s\n", any_trim ? "trimmed" : "rotated", out_path);
+    } else {
+        printf("Saved %s image: %s\n", any_trim ? "trimmed" : "rotated", out_path);
+    }
+    return 1;
 }
