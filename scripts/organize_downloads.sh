@@ -10,7 +10,8 @@ set -euo pipefail
 # Define directories to scan
 DOWNLOADS_DIR="$HOME/Downloads"
 HOME_DIR="$HOME"
-TEMP_DIR="/tmp/media_organize_$$"
+# Prefer a temp dir on the same filesystem as Downloads to avoid tmpfs /tmp space limits
+TEMP_DIR="$DOWNLOADS_DIR/.media_organize_$$"
 
 # Define image and video file extensions
 IMAGE_EXTENSIONS=("jpg" "jpeg" "png" "gif" "bmp" "tiff" "tif" "webp" "svg" "ico" "raw" "cr2" "nef" "orf" "arw" "dng" "heic" "heif")
@@ -87,8 +88,14 @@ create_media_archive() {
     local archive_name="media_archive_${timestamp}.zip"
     local archive_path="$DOWNLOADS_DIR/$archive_name"
     
-    # Create temporary directory
-    mkdir -p "$TEMP_DIR"
+    # Create temporary directory (fallback to /tmp if needed)
+    if ! mkdir -p "$TEMP_DIR" 2>/dev/null; then
+        TEMP_DIR="/tmp/media_organize_$$"
+        mkdir -p "$TEMP_DIR"
+    fi
+
+    # Ensure temp dir is cleaned up on function return; trap unsets itself after running
+    trap 'rm -rf "$TEMP_DIR" 2>/dev/null || true; trap - RETURN' RETURN
     
     log "Found ${#files[@]} media files to archive."
     log "Creating archive: $archive_path"
@@ -110,10 +117,24 @@ create_media_archive() {
             local temp_dir=$(dirname "$temp_file")
             
             mkdir -p "$temp_dir"
-            if cp "$file" "$temp_file" 2>/dev/null; then
+            # Check readability first to provide a clearer error
+            if [[ ! -r "$file" ]]; then
+                log "WARNING: Cannot read $file (permission denied?)"
+                ((copy_errors++))
+                continue
+            fi
+
+            # Attempt copy and capture any error for logging
+            local cp_err
+            if cp_err=$(cp -p "$file" "$temp_file" 2>&1); then
                 successfully_copied+=("$file")
             else
-                log "WARNING: Failed to copy $file"
+                # Surface the cp error so the user can see the reason
+                log "WARNING: Failed to copy $file -> $cp_err"
+                # Special hint for space issues
+                if echo "$cp_err" | grep -qi "No space left on device"; then
+                    log "HINT: Not enough free space to stage files. Using $TEMP_DIR. Free up space or change TEMP_DIR."
+                fi
                 ((copy_errors++))
             fi
         fi
@@ -181,8 +202,8 @@ create_media_archive() {
         fi
         log "Archive size: $(du -h "$archive_path" | cut -f1)"
         
-        # Cleanup temp directory
-        rm -rf "$TEMP_DIR"
+    # Cleanup temp directory (trap will also attempt, which is safe)
+    rm -rf "$TEMP_DIR"
         
         # Return success only if we removed files or there were no files to remove
         if [[ $removed_count -gt 0 ]] || [[ ${#successfully_copied[@]} -eq 0 ]]; then
@@ -194,7 +215,7 @@ create_media_archive() {
     else
         log "ERROR: Failed to create archive. Original files preserved."
         log "Zip command failed."
-        rm -rf "$TEMP_DIR"
+    rm -rf "$TEMP_DIR"
         return 1
     fi
 }
