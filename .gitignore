@@ -247,3 +247,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 fps_demo
+server_c
