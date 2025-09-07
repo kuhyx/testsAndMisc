@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mini Articles</title>
+<style>
+/* Tiny, readable defaults */
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial,sans-serif;color:#222;background:#fff}
+header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-bottom:1px solid #ddd;position:sticky;top:0;background:#fff}
+header h1{margin:0;font-size:1.1rem}
+header nav{display:flex;gap:.5rem}
+button, input[type=file]{font:inherit}
+main{max-width:960px;margin:0 auto;padding:1rem}
+.hidden{display:none!important}
+section.hidden{display:none!important}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem}
+.card{border:1px solid #ddd;border-radius:.5rem;overflow:hidden;background:#fff;cursor:pointer;display:flex;flex-direction:column}
+.card img{width:100%;height:120px;object-fit:cover;display:block}
+.card h3{margin:.5rem;font-size:1rem}
+#editor label{display:block;margin:.5rem 0 .25rem}
+input[type=text]{width:100%;padding:.5rem;border:1px solid #ccc;border-radius:.4rem}
+.drop{border:1.5px dashed #bbb;border-radius:.5rem;padding:.5rem;text-align:center;color:#666}
+.drop img{max-width:100%;max-height:200px;display:block;margin:.25rem auto}
+#content{min-height:200px;padding:.5rem;border:1px solid #ccc;border-radius:.5rem}
+#content:empty:before{content:attr(data-ph);color:#999}
+article img, article video{max-width:100%;height:auto;display:block;margin:.5rem 0}
+article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
+.controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+.small{font-size:.85rem;color:#666}
+/* Focused reading mode: keep header headline, hide nav and extras */
+.reading header nav{display:none}
+.reading #delBtn,.reading #dateInfo{display:none}
+</style>
+
+<header>
+  <h1>Mini Articles</h1>
+  <nav>
+    <button id="toList" title="All articles">List</button>
+    <button id="toNew" title="Create article">New</button>
+  </nav>
+</header>
+<main>
+  <!-- List View -->
+  <section id="listV" class="grid"></section>
+
+  <!-- Read View -->
+  <section id="readV" class="hidden">
+    <div class="controls">
+      <button id="backBtn">← Back</button>
+      <button id="delBtn" title="Delete">Delete</button>
+      <span class="small" id="dateInfo"></span>
+    </div>
+    <article id="readA">
+      <img id="readThumb" alt="thumbnail"/>
+      <h1 id="readTitle"></h1>
+      <div id="readBody"></div>
+    </article>
+  </section>
+
+  <!-- Editor View -->
+  <section id="editor" class="hidden">
+    <label>Title</label>
+    <input id="title" type="text" maxlength="200" placeholder="Article title"/>
+
+    <label>Thumbnail</label>
+    <div id="thumbDrop" class="drop" tabindex="0">Drop image here or choose…<br><img id="thumbPrev" alt="thumbnail preview"/></div>
+    <input id="thumbFile" type="file" accept="image/*"/>
+
+    <label>Body</label>
+    <div class="controls">
+      <button id="insImg">Insert image</button>
+      <button id="insVid">Insert video</button>
+    </div>
+    <div id="content" contenteditable="true" data-ph="Write here. Drag & drop images/videos where you want them."></div>
+
+    <div class="controls">
+      <button id="saveBtn">Save</button>
+      <button id="cancelBtn">Cancel</button>
+      <span class="small">Stored locally or on server if available.</span>
+    </div>
+    <input id="imgFile" type="file" accept="image/*" hidden>
+    <input id="vidFile" type="file" accept="video/*" hidden>
+  </section>
+</main>
+
+<script>
+// Tiny SPA with optional backend. Falls back to localStorage.
+(function(){
+  const $=s=>document.querySelector(s);
+  const listV=$('#listV'), readV=$('#readV'), editor=$('#editor');
+  const rT=$('#readTitle'), rB=$('#readBody'), rTh=$('#readThumb'), dt=$('#dateInfo');
+  const toList=$('#toList'), toNew=$('#toNew'), back=$('#backBtn'), del=$('#delBtn');
+  const title=$('#title'), content=$('#content');
+  const tDrop=$('#thumbDrop'), tPrev=$('#thumbPrev'), tFile=$('#thumbFile');
+  const insImg=$('#insImg'), insVid=$('#insVid'), imgFile=$('#imgFile'), vidFile=$('#vidFile');
+  const saveBtn=$('#saveBtn'), cancelBtn=$('#cancelBtn');
+  const KEY='articles14k';
+  let selId=null; let API=null;
+
+  // API client with detection
+  async function detectAPI(){
+    try{const r=await fetch('/api/articles'); if(r.ok){return {
+      async list(){return (await fetch('/api/articles')).json()},
+      async get(id){const r=await fetch('/api/articles/'+id); if(!r.ok) return null; return r.json()},
+      async create(a){const r=await fetch('/api/articles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(a)}); return r.json()},
+      async update(id,patch){const r=await fetch('/api/articles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}); return r.ok? r.json():null},
+      async remove(id){await fetch('/api/articles/'+id,{method:'DELETE'})}
+    }} }catch(e){}
+    // Fallback to localStorage
+    const S={get(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}},set(a){localStorage.setItem(KEY,JSON.stringify(a))}};
+    const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    return {
+      async list(){return S.get()},
+      async get(id){return S.get().find(x=>x.id===id)||null},
+      async create(a){const arr=S.get(); const obj=Object.assign({id:uid(),createdAt:Date.now()},a); arr.unshift(obj); S.set(arr); return obj},
+      async update(id,patch){const arr=S.get(); const i=arr.findIndex(x=>x.id===id); if(i<0) return null; arr[i]=Object.assign(arr[i],patch,{updatedAt:Date.now()}); S.set(arr); return arr[i]},
+      async remove(id){const arr=S.get().filter(x=>x.id!==id); S.set(arr)}
+    };
+  }
+
+  function show(v){[listV,readV,editor].forEach(x=>x.classList.add('hidden')); v.classList.remove('hidden'); document.documentElement.classList.toggle('reading', v===readV)}
+
+  async function renderList(){
+    const a=await API.list();
+    if(!a.length){listV.innerHTML='<div class="small">No articles yet. Click New to create one.</div>';return}
+    listV.innerHTML=a.map(x=>`<div class="card" data-id="${x.id}"><img src="${x.thumb||''}" alt="thumb"><h3>${esc(x.title)}</h3></div>`).join('');
+  }
+
+  function esc(s){return (s||'').replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
+
+  function pick(el,cb){el.onchange=e=>{const f=e.target.files&&e.target.files[0]; if(f) fileToDataURL(f).then(cb)}; el.click()}
+  function fileToDataURL(f){return new Promise((res,rej)=>{const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f)})}
+  function insertAtSel(node){const s=window.getSelection(); if(!s||!s.rangeCount){content.appendChild(node); return} const r=s.getRangeAt(0); r.deleteContents(); r.insertNode(node); r.setStartAfter(node); r.setEndAfter(node); s.removeAllRanges(); s.addRange(r)}
+  function dropHandler(zone, cb){zone.addEventListener('dragover',e=>{e.preventDefault(); zone.style.background='#f7f7f7'}); zone.addEventListener('dragleave',()=>zone.style.background=''); zone.addEventListener('drop',e=>{e.preventDefault(); zone.style.background=''; const fs=[...(e.dataTransfer.files||[])]; fs.forEach(cb)});}
+
+  // Thumb drag/drop or file select
+  dropHandler(tDrop, f=>{ if(!f.type.startsWith('image/')) return; fileToDataURL(f).then(u=>{tPrev.src=u})});
+  tFile.addEventListener('change',e=>{const f=e.target.files[0]; if(f) fileToDataURL(f).then(u=>tPrev.src=u)});
+  tDrop.addEventListener('click',()=>tFile.click());
+
+  // Content drag/drop insert and paste
+  content.addEventListener('paste',e=>{const it=(e.clipboardData||{}).items||[]; for(const x of it){const f=x.getAsFile&&x.getAsFile(); if(!f) continue; e.preventDefault(); if(f.type.startsWith('image/')) fileToDataURL(f).then(u=>{const img=new Image(); img.src=u; insertAtSel(img)})
+      else if(f.type.startsWith('video/')) fileToDataURL(f).then(u=>{const v=document.createElement('video'); v.controls=true; v.src=u; v.style.maxWidth='100%'; insertAtSel(v)}) } });
+  dropHandler(content, f=>{ if(f.type.startsWith('image/')) { fileToDataURL(f).then(u=>{const img=new Image(); img.src=u; insertAtSel(img)}) } else if(f.type.startsWith('video/')) { fileToDataURL(f).then(u=>{const v=document.createElement('video'); v.controls=true; v.src=u; v.style.maxWidth='100%'; insertAtSel(v)}) } });
+
+  // Insert buttons
+  insImg.onclick=()=>pick(imgFile, u=>{const img=new Image(); img.src=u; insertAtSel(img)});
+  insVid.onclick=()=>pick(vidFile, u=>{const v=document.createElement('video'); v.controls=true; v.src=u; v.style.maxWidth='100%'; insertAtSel(v)});
+
+  // Save article
+  saveBtn.onclick=async()=>{
+    let th=tPrev.src||''; if(!th){const fi=content.querySelector('img'); if(fi) th=fi.src}
+    const obj={title:title.value.trim()||'Untitled', body:content.innerHTML, thumb:th||''};
+    await API.create(obj); selId=null; clearEditor(); await renderList(); show(listV);
+  };
+
+  function clearEditor(){ title.value=''; content.innerHTML=''; tPrev.removeAttribute('src') }
+  cancelBtn.onclick=()=>{selId=null; clearEditor(); show(listV)};
+
+  // List click -> read (ensure full focus by switching view)
+  listV.addEventListener('click',async e=>{const card=e.target.closest('.card'); if(!card) return; const id=card.getAttribute('data-id'); const a=await API.get(id); if(!a) return; openRead(a)});
+  function openRead(a){ selId=a.id; rTh.src=a.thumb||''; rT.textContent=a.title||''; rB.innerHTML=a.body||''; dt.textContent=new Date(a.createdAt||Date.now()).toLocaleString(); show(readV) }
+
+  // Delete
+  del.onclick=async()=>{ if(!selId) return; await API.remove(selId); selId=null; await renderList(); show(listV) };
+
+  // Nav
+  toList.onclick=async()=>{await renderList(); show(listV)};
+  toNew.onclick=()=>{selId=null; clearEditor(); show(editor)};
+  back.onclick=()=>{show(listV)};
+
+  // No deep linking; keep UI simple and focused
+
+  (async function init(){
+    API=await detectAPI();
+    const items=await API.list();
+    if(!items.length){await API.create({title:'Welcome to Mini Articles', body:'<p>Edit or create your first article. Drop images or videos right into the text.</p>', thumb:''});}
+    await renderList();
+    show(listV);
+  })();
+})();
+</script>
+</html>
