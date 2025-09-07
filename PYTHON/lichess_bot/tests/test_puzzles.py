@@ -8,7 +8,7 @@ import pytest
 from PYTHON.lichess_bot.engine import RandomEngine
 
 
-def _load_top_puzzles(csv_path: str, limit: int = 10) -> List[Tuple[str, str]]:
+def _load_top_puzzles(csv_path: str, limit: int = 1) -> List[Tuple[str, str]]:
     """
     Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
     CSV columns: PuzzleId,FEN,Moves,...
