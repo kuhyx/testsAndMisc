@@ -20,7 +20,6 @@
 
 static volatile sig_atomic_t g_stop = 0;
 static const char *DOC_ROOT = NULL; // current working directory
-static long long g_boot_ms = 0; // server start time for live-reload token
 
 static void on_sigint(int sig){ (void)sig; g_stop = 1; }
 
@@ -262,13 +261,6 @@ static void handle_static(int c, const char* path){
   fseek(f,0,SEEK_END); long sz=ftell(f); fseek(f,0,SEEK_SET); char* buf=malloc((size_t)sz); if(!buf){ fclose(f); send_response(c,500,"Internal Server Error","text/plain","",0,false); return; }
   size_t n=fread(buf,1,(size_t)sz,f); fclose(f);
   const char* mime=guess_mime(full);
-  // Inject a tiny live-reload script into index.html at serve-time (does not affect file size on disk)
-  if(strstr(mime, "text/html") && (!strcmp(rel, "/index.html"))){
-    const char* lr = "<script>setInterval(()=>fetch('/__lr').then(r=>r.text()).then(t=>{if(window.__lr!==t){if(window.__lr)location.reload();window.__lr=t}}),500);</script>";
-    size_t ln = strlen(lr);
-    char* out = malloc(n + ln);
-    if(out){ memcpy(out, buf, n); memcpy(out + n, lr, ln); send_response(c,200,"OK",mime,out,n+ln,false); free(out); free(buf); return; }
-  }
   send_response(c,200,"OK",mime,buf,n,false); free(buf);
 }
 
@@ -287,16 +279,6 @@ static void handle_client(int c){
   char* body = NULL; if(content_length){ body = malloc(content_length+1); if(!body){ close(c); return; } size_t off=0; if(have_body){ size_t cpy = have_body>content_length?content_length:have_body; memcpy(body, buf+header_bytes, cpy); off = cpy; }
     size_t remain = content_length - off; while(remain>0){ ssize_t rr = recv(c, body+off, remain, 0); if(rr<=0) break; off+=rr; remain-=rr; } body[content_length]='\0'; }
 
-  // Lightweight live-reload timestamp endpoint
-  if(!strcmp(method, "GET") && !strcmp(path, "/__lr")){
-    char idx[SMALL_BUF*2]; snprintf(idx, sizeof(idx), "%s/index.html", DOC_ROOT?DOC_ROOT:".");
-    struct stat st; char out[96]; size_t w=0;
-    if(stat(idx, &st)==0){ w=(size_t)snprintf(out, sizeof(out), "%ld-%lld", (long)st.st_mtime, g_boot_ms); }
-    else { out[0]='0'; w=1; }
-    send_response(c,200,"OK","text/plain",out,w,false);
-    free(body); close(c); return;
-  }
-
   if(!strncmp(path, "/api/", 5)){
     handle_api(c, method, path, body, content_length);
   } else if(!strcmp(method,"GET")){
@@ -313,7 +295,6 @@ static void handle_client(int c){
 int main(int argc, char** argv){
   signal(SIGINT, on_sigint);
   srand((unsigned int)time(NULL));
-  g_boot_ms = now_ms();
   char cwd[SMALL_BUF]; if(getcwd(cwd,sizeof(cwd))) DOC_ROOT=strdup(cwd);
   const char* host = getenv_default("HOST","127.0.0.1");
   int port = atoi(getenv_default("PORT","8000")); if(port<=0) port=8000;
