@@ -67,7 +67,7 @@ class RandomEngine:
         if not legal:
             return None, "no_legal_moves"
 
-        args = [m.uci() for m in legal]
+        args = ["--fen", board.fen()] + [m.uci() for m in legal]
         # Optionally pass a seed for reproducibility when desired; keep default behavior otherwise.
         # We deliberately avoid adding annotations here per request.
 
@@ -103,7 +103,7 @@ class RandomEngine:
         if not legal:
             return 0.0, "no_legal_moves", None, "no_best_move"
 
-        args = ["--explain", "--analyze", proposed_move_uci] + [m.uci() for m in legal]
+        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [m.uci() for m in legal]
         out = self._call_engine(args, timeout=max(0.1, time_budget_sec))
 
         # Try to parse the engine's JSON explanation
