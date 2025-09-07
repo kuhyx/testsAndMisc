@@ -8,7 +8,7 @@ import pytest
 from PYTHON.lichess_bot.engine import RandomEngine
 
 
-def _load_top_puzzles(csv_path: str, limit: int = 1) -> List[Tuple[str, str]]:
+def _load_top_puzzles(csv_path: str, limit: int = 8) -> List[Tuple[str, str]]:
     """
     Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
     CSV columns: PuzzleId,FEN,Moves,...
@@ -26,7 +26,10 @@ def _load_top_puzzles(csv_path: str, limit: int = 1) -> List[Tuple[str, str]]:
     return puzzles
 
 
-@pytest.mark.parametrize("fen,moves_str", _load_top_puzzles(os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv")))
+@pytest.mark.parametrize(
+    "fen,moves_str",
+    _load_top_puzzles(os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv"), limit=8),
+)
 def test_puzzle_engine_follow_solution(fen: str, moves_str: str):
     board = chess.Board(fen)
     eng = RandomEngine(max_time_sec=1.0)

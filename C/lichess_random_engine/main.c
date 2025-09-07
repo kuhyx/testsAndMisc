@@ -378,6 +378,12 @@ typedef struct {
     // our defenders of our heavy pieces (to scale penalties)
     double our_q_def;          // number of our attackers defending our queen square
     double our_r_def;          // aggregated (0.5 per rook with at least one defender)
+    // destination geometry features
+    double to_central;         // 0..1 centrality of destination square
+    double rook_on_7th;        // 1 if rook lands on 7th (white) or 2nd (black) rank
+    // baseline threats before move (from original position); helps evaluate reductions
+    double base_opp_threat_our_q; // 1.0 if our queen is attacked in the initial position
+    double base_opp_threat_our_r; // aggregated 0.5 per rook attacked initially
 } MoveInfo;
 
 static void parse_move_spec(const char *spec, MoveInfo *mi) {
@@ -408,6 +414,10 @@ static void parse_move_spec(const char *spec, MoveInfo *mi) {
     mi->opp_threat_our_r = 0.0;
     mi->our_q_def = 0.0;
     mi->our_r_def = 0.0;
+    mi->to_central = 0.0;
+    mi->rook_on_7th = 0.0;
+    mi->base_opp_threat_our_q = 0.0;
+    mi->base_opp_threat_our_r = 0.0;
 
     const char *semi = strchr(spec, ';');
     size_t uci_len = semi ? (size_t)(semi - spec) : strlen(spec);
@@ -447,10 +457,15 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
     if (mi->mate) s += 100000.0;            // winning immediately trumps all
     // Checks: scale by pressure; devalue "empty" checks with no material promise
     if (mi->chk) {
-    double chk_bonus = 250.0 + 80.0 * mi->atk_opp_king - 60.0 * mi->opp_king_mob;
+        double chk_bonus = 250.0 + 80.0 * mi->atk_opp_king - 60.0 * mi->opp_king_mob;
         // if checker cannot be captured cheaply
-        if (mi->opp_min_att_cp <= 0.0) chk_bonus += 500.0; // no attackers on checker
-        else if (mi->opp_min_att_cp >= mi->piece_cp - 1e-6) chk_bonus += 300.0; // only expensive capture
+        if (mi->opp_min_att_cp <= 0.0) {
+            // For queen checks, don't over-reward being "safe"; it's still a queen in play
+            chk_bonus += (mi->piece_cp >= 850.0) ? 80.0 : 500.0;
+        } else if (mi->opp_min_att_cp >= mi->piece_cp - 1e-6) {
+            // Only expensive capture; scale down for queen
+            chk_bonus += (mi->piece_cp >= 850.0) ? 50.0 : 300.0;
+        }
         // if our defender is cheaper than their attacker, exchange favors us
         if (mi->us_min_att_cp > 0.0 && mi->opp_min_att_cp > 0.0 && mi->us_min_att_cp < mi->opp_min_att_cp) chk_bonus += 150.0;
         // strongly devalue queen checks that only pick up a pawn (common blunder bait)
@@ -468,27 +483,104 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
             }
         }
         // Checking captures are especially forcing, except when it's a queen snatching a pawn
-        if (mi->cap_cp > 0.0) {
+    if (mi->cap_cp > 0.0) {
             double add = 400.0;
-            if (mi->piece_cp >= 850.0 && mi->cap_cp <= 100.0 && mi->opp_king_mob > 0.0) add = 30.0;
+            if (mi->piece_cp >= 850.0) {
+                // Queen check-captures: big when taking heavy pieces, modest otherwise
+                if (mi->cap_cp >= 500.0) add = 900.0; else add = (mi->cap_cp <= 120.0 && mi->opp_king_mob > 0.0) ? 30.0 : 220.0;
+            }
             chk_bonus += add;
         }
-    if (mi->opp_king_mob > 0.0 && mi->cap_cp <= 0.0 && mi->see_cp <= 0.0 && mi->mat_cp <= 0.0) chk_bonus *= 0.3;
+        // If it's a rook delivering a light check and king has many escapes, devalue sharply,
+        // especially when the destination has no friendly cover.
+        if (mi->piece_cp == 500.0 && mi->cap_cp <= 0.0 && mi->opp_king_mob >= 3.0) {
+            // Centralizing rook checks are less "empty" tactically; dampen less when moving to a central file
+            int is_central = (mi->to_central >= 0.70);
+            if (mi->us_min_att_cp <= 0.0 && mi->our_r_def <= 0.0) chk_bonus *= is_central ? 0.65 : 0.35; else chk_bonus *= is_central ? 0.8 : 0.5;
+        }
+        if (mi->opp_king_mob > 0.0 && mi->cap_cp <= 0.0 && mi->see_cp <= 0.0 && mi->mat_cp <= 0.0) {
+            // For centralizing rook checks, keep more of the check bonus
+            if (mi->chk && mi->piece_cp == 500.0 && mi->to_central >= 0.70) chk_bonus *= 0.6;
+            else if (mi->chk && mi->piece_cp >= 850.0) {
+                // Queen empty checks are rarely best when king has outs
+                double damp = (mi->opp_threat_our_q > 0.0 ? 0.05 : 0.15);
+                if (mi->opp_king_mob <= 1.0) damp = 0.35; // pressing checks with few escapes deserve more credit
+                chk_bonus *= damp;
+            } else chk_bonus *= 0.3;
+        }
         s += chk_bonus;
     }
     s += 1.5 * mi->cap_cp;                  // value captures strongly
-    // prefer winning exchanges where the capturing piece is cheaper than the captured value
+        // prefer winning exchanges where the capturing piece is cheaper than the captured value
     if (mi->cap_cp > 0.0) {
         if (mi->piece_cp >= 850.0) {
             // Queen captures: be cautious; usually lead to heavy trades
-            s += 0.4 * (mi->cap_cp - mi->piece_cp);
-            s -= 200.0; // mild global discouragement of queen snatches
+            s += 0.35 * (mi->cap_cp - mi->piece_cp);
+            // Tactical exception: queen checking capture of a rook with only a minor as cheapest recapture
+            int tactical_qr_check = (mi->cap_cp >= 500.0 && mi->chk && ((mi->opp_min_att_cp == 0.0) || (mi->opp_min_att_cp > 0.0 && mi->opp_min_att_cp <= 350.0)));
+            if (!tactical_qr_check) {
+                // Prefer safe queen captures; discourage only the risky ones
+                if (mi->see_cp >= 0.0) {
+                    // Reward safe queen captures more when not taking a queen; queen-vs-queen trades are volatile
+                    s += (mi->cap_cp >= 850.0 ? 120.0 : 260.0);
+                } else {
+                    s -= 180.0;
+                }
+                if (mi->chk <= 0 && mi->see_cp < 0.0) {
+                    s -= 150.0; // additional nudge: non-checking queen captures are less forcing when SEE bad
+                }
+                // If our queen capture allows immediate queen recapture (opp attacker min is queen), punish
+                if (mi->opp_min_att_cp >= 850.0) s -= 250.0;
+                // If SEE is substantially negative after a queen capture, punish further
+                if (mi->see_cp < -100.0) s -= 350.0;
+                // Strongly penalize non-check queen pawn snatches that don't create pressure
+                if (mi->cap_cp <= 120.0 && mi->chk <= 0 && mi->threat_q <= 0.0 && mi->threat_r <= 0.0 && mi->opp_king_mob > 0.0) {
+                    s -= 400.0;
+                }
+                // Under pressure (in check or heavy pieces attacked), allow queen minor recaptures more
+                if (mi->cap_cp >= 300.0 && mi->cap_cp <= 350.0 && (mi->in_check || mi->base_opp_threat_our_q > 0.0 || mi->base_opp_threat_our_r > 0.0)) {
+                    s += 350.0;
+                }
+                // Penalize queen-vs-queen captures unless overwhelmingly good by SEE and follow-up
+                if (mi->cap_cp >= 850.0) {
+                    s -= 300.0;
+                    if (mi->opp_min_att_cp >= 480.0 && mi->opp_min_att_cp <= 520.0) s -= 200.0; // rook recapture looming
+                }
+            } else {
+                // strong incentive for forcing deflection/clearance captures (QxR+ with minor recapture)
+                s += 950.0;
+            }
             if (mi->opp_min_att_cp >= 500.0) s -= 200.0; // likely immediate recapture by heavy piece
             if (mi->us_min_att_cp <= 0.0 && mi->opp_min_att_cp > 0.0) s -= 600.0; // no friendly cover on destination
+            // Non-check heavy recapture by queen, but safe (SEE >= 0): allow it when necessary
+            if (mi->cap_cp >= 480.0 && mi->cap_cp <= 520.0 && mi->chk <= 0 && mi->see_cp >= 0.0) {
+                s += 500.0;
+            }
+            // If both our queen and a rook will remain under fire after a queen capture and we have no cover, avoid it
+            if (mi->opp_threat_our_q > 0.0 && mi->opp_threat_our_r > 0.0 && mi->us_min_att_cp <= 0.0) {
+                s -= 500.0;
+            }
+            // Even without giving check: safe queen capture of a rook with only a minor as cheapest recapture is often winning
+            if (mi->cap_cp >= 500.0 && mi->chk <= 0 && mi->see_cp >= 0.0 && mi->opp_min_att_cp > 0.0 && mi->opp_min_att_cp <= 350.0) {
+                s += 850.0;
+            }
+            // Central safe queen capture of a minor often consolidates initiative
+            if (mi->cap_cp >= 280.0 && mi->cap_cp <= 350.0 && mi->see_cp >= 0.0 && mi->to_central >= 0.50) {
+                s += 100.0;
+            }
         } else {
             double exch = mi->cap_cp - mi->piece_cp;
             double exch_w = (mi->piece_cp <= 120.0) ? 1.0 : 3.5; // further dampen pawn capture bias
+            // If a heavy piece safely captures a pawn (no opponent attackers), dramatically soften the
+            // exchange penalty; these "tidying up" captures are often correct in endgames.
+            if (mi->cap_cp <= 120.0 && mi->opp_min_att_cp <= 0.0 && mi->piece_cp >= 400.0) {
+                exch_w = 1.0;
+            }
             s += exch_w * exch;
+            // Extra nudge: safe rook pawn pickup (cleaning up a passer) is usually good
+            if (mi->piece_cp == 500.0 && mi->cap_cp <= 120.0 && mi->opp_min_att_cp <= 0.0) {
+                s += 300.0;
+            }
             // Prefer minor taking heavy piece, or rook taking queen
             if ((mi->piece_cp <= 350.0 && mi->cap_cp >= 500.0) || (mi->piece_cp == 500.0 && mi->cap_cp >= 900.0)) {
                 s += 300.0;
@@ -496,9 +588,16 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
             // Strongly prefer minor piece (B/N) capturing a heavy piece
             if (mi->cap_cp >= 500.0 && mi->piece_cp <= 350.0) s += 900.0;
             // No generic heavy-vs-heavy penalty; handled by context-specific terms
+            // Discourage rook-vs-rook captures that land under pawn attack without cover
+            if (mi->piece_cp == 500.0 && mi->cap_cp >= 500.0 && mi->opp_min_att_cp > 0.0 && mi->opp_min_att_cp <= 100.0 && mi->us_min_att_cp <= 0.0) {
+                s -= 700.0;
+            }
     }
     }
     s += 2.0 * mi->prom_cp;                 // promotions are very strong
+    // micro-bonus for central pawn captures improving structure/space
+        // stronger bonus for central pawn captures improving structure/space
+    if (mi->cap_cp > 0.0 && mi->piece_cp <= 120.0) s += 360.0 * mi->to_central;
     // material swing, but discount when the gain is from a capture that moves into enemy fire
     double mat_term = 1.5 * mi->mat_cp;
     if (mi->cap_cp > 0.0 && mi->opp_min_att_cp > 0.0) {
@@ -518,10 +617,19 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
         if (mi->piece_cp >= 850.0) mat_term *= 0.35;
     }
     s += mat_term;
-    s += 0.2 * mi->see_cp;                  // prefer profitable captures after recapture (more tempered)
+    s += 0.15 * mi->see_cp;                 // prefer profitable captures after recapture (more tempered)
     s -= 1.0 * mi->risk_cp;                 // avoid walking into obvious captures
     s += 40.0 * mi->atk_opp_king;           // general king pressure
-    s -= 40.0 * mi->opp_king_mob;           // reduce opponent king mobility (moderate impact)
+    // Penalize opponent king mobility less when the move gives check (forcing)
+    double mob_w = mi->chk ? 15.0 : 40.0;
+    s -= mob_w * mi->opp_king_mob;           // reduce opponent king mobility (moderate impact)
+    // Encourage rook on 7th/2nd rank pressure
+    if (mi->rook_on_7th > 0.0) s += 120.0;
+    // Heuristic: encourage rook horizontal alignment towards enemy king wing (files f/g/h)
+    // Simple proxy: if rook moves to file f/g/h on 7th/2nd, add small bonus
+    // (This tends to favor Rf7 over Rg7 when king safety/recapture differ subtly.)
+    // Compute destination file index from to_central derivation context is not available here, so we approximate via piece value and rook_on_7th only.
+    // Note: to refine, we would carry destination file explicitly; skipped to keep changes small.
     // destination safety: even if defended, prefer squares where the cheapest opponent attacker
     // is not much cheaper than our defender or our moved piece
     if (mi->opp_min_att_cp > 0.0) {
@@ -537,29 +645,65 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
     // Defensive interposition: encourage rook blocks where recapture favors us (e.g., ...Rd8)
     // Only rooks should receive this large bonus; avoid giving it to queen interpositions.
     if (mi->cap_cp <= 0.0 && mi->piece_cp == 500.0 && mi->opp_min_att_cp >= 850.0 && mi->us_min_att_cp > 0.0 && mi->us_min_att_cp <= 350.0) {
+        s += 1200.0;
+    }
+    // When in check, strongly prefer blocking with a minor piece (interposition)
+    // Heuristic baseline: any non-capture minor move while in check
+    if (mi->in_check && mi->cap_cp <= 0.0 && mi->piece_cp > 0.0 && mi->piece_cp <= 350.0) {
         s += 900.0;
     }
-    // When in check, slightly prefer blocking with a minor piece over using the queen
-    // Heuristic: non-capture, minor piece moves to a square attacked by a heavy piece (likely block),
-    // and we have at least one defender covering it (safe-ish interposition)
+    // Additional boost when the interposition square is covered by us and their cheapest attacker is heavy
     if (mi->in_check && mi->cap_cp <= 0.0 && mi->piece_cp > 0.0 && mi->piece_cp <= 350.0 && mi->opp_min_att_cp >= 500.0 && mi->us_min_att_cp > 0.0) {
-        s += 150.0;
+        s += 600.0;
     }
     // when currently in check, avoid queen captures unless overwhelmingly good
     if (mi->in_check && mi->cap_cp > 0.0 && mi->piece_cp >= 850.0) {
         s -= 800.0;
+    }
+    // While in check, discourage quiet queen interpositions that don't add forcing value
+    if (mi->in_check && mi->cap_cp <= 0.0 && mi->piece_cp >= 850.0 && !mi->chk) {
+        s -= 700.0;
+    }
+    // And even queen cross-checks should be secondary to solid minor interpositions
+    if (mi->in_check && mi->cap_cp <= 0.0 && mi->piece_cp >= 850.0 && mi->chk) {
+        s -= 200.0;
     }
     {
         // If our queen ends up under attack, reduce credit for creating threats with the queen
         double q_threat_w = 80.0;
         if (mi->opp_threat_our_q > 0.0) q_threat_w *= 0.7; // still valuable when coordinated
     s += q_threat_w * mi->threat_q;               // direct queen threat
-    double r_threat_w = (mi->piece_cp >= 850.0) ? 400.0 : 120.0;
+    double r_threat_w = (mi->piece_cp >= 850.0) ? 400.0 : 180.0;
     s += r_threat_w * mi->threat_r;               // rook threat (encourage pressure like Qd6 hitting Rd8)
     // Synergy: queen move creating simultaneous threats on queen and rook
     double synergy = (mi->piece_cp >= 850.0 && mi->threat_q > 0.0 && mi->threat_r > 0.0) ? 350.0 : 0.0;
         if (mi->opp_threat_our_q > 0.0) synergy *= 0.3;
         s += synergy;
+    }
+    // Quiet minor move that increases queen safety (defends our queen) gets a consolidation bonus
+    if (mi->cap_cp <= 0.0 && mi->piece_cp > 0.0 && mi->piece_cp <= 350.0) {
+        // Case A: we add defenders while queen remains attacked
+        if (mi->our_q_def > 0.0 && mi->opp_threat_our_q > 0.0) {
+            s += 900.0;
+        }
+        // Case B: baseline our queen was attacked, and this move neutralizes that attack entirely
+        if (mi->base_opp_threat_our_q > 0.0 && mi->opp_threat_our_q <= 0.0) {
+            s += 1000.0;
+        }
+    }
+    // Extra encouragement: rook on 7th/2nd that also creates rook threats
+    if (mi->piece_cp == 500.0 && mi->rook_on_7th > 0.0 && mi->threat_r > 0.0) {
+        s += 80.0;
+    }
+    // Explicit penalty: empty rook check with many king escapes and no added threats
+    if (mi->piece_cp == 500.0 && mi->chk && mi->cap_cp <= 0.0 && mi->opp_king_mob >= 3.0 && mi->threat_q <= 0.0 && mi->threat_r <= 0.0) {
+        if (mi->to_central >= 0.70) {
+            // Waive harsh penalty when the rook check lands centrally; treat as useful improvement
+            s -= 20.0;
+        } else {
+            s -= 180.0;
+            if (mi->our_r_def <= 0.0) s -= 60.0; // even worse if the checking rook is undefended
+        }
     }
     // Penalize leaving our heavy pieces hanging after the move; scale by lack of defenders
     if (mi->opp_threat_our_q > 0.0) {
@@ -574,12 +718,24 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
             s += 60.0; // encourage multipurpose standoff
         }
         s -= def_scale_q * 260.0;
+    // Prefer defended rook landing squares on quiet moves
+    if (mi->cap_cp <= 0.0 && mi->piece_cp == 500.0 && mi->our_r_def > 0.0) {
+        s += 120.0 * mi->our_r_def; // up to +60 per defended rook
+    }
     }
     if (mi->opp_threat_our_r > 0.0) {
         double def_scale_r = (mi->our_r_def > 0.0) ? 0.6 : 1.0;
         // If this rook move is a defensive interposition with favorable recapture, waive the penalty
         if (mi->cap_cp <= 0.0 && mi->piece_cp >= 500.0 && mi->opp_min_att_cp >= 850.0 && mi->us_min_att_cp > 0.0 && mi->us_min_att_cp <= 350.0) {
             def_scale_r = 0.0;
+        }
+        // If our rook is on the 7th/2nd rank and we have defenders, soften exposure penalty a lot
+        if (mi->rook_on_7th > 0.0 && mi->our_r_def > 0.0) {
+            def_scale_r *= 0.3;
+        }
+        // If this rook move safely recaptures a minor (SEE not terrible), soften exposure penalty
+        if (mi->piece_cp == 500.0 && mi->cap_cp >= 300.0 && mi->cap_cp <= 350.0 && mi->see_cp >= -50.0) {
+            def_scale_r *= 0.35;
         }
         // If we just made a favorable minor-vs-heavy capture with good SEE, don't over-penalize residual rook exposure
         if (mi->cap_cp >= 500.0 && mi->piece_cp <= 350.0 && mi->see_cp >= 200.0) {
@@ -591,16 +747,60 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
     if (mi->piece_cp >= 850.0 && mi->cap_cp <= 0.0 && mi->opp_threat_our_r > 0.0 && mi->mat_cp <= 0.0) {
         // penalize only truly passive queen sidesteps that don't create new pressure
         if (mi->threat_q <= 0.0 && mi->threat_r <= 0.0 && mi->atk_opp_king <= 0.0 && mi->prox_king <= 0.0) {
-            s -= 220.0;
+            s -= 400.0;
         }
+    }
+    // If our rooks were under fire initially, reward queen interpositions that fully neutralize it, especially centrally
+    if (mi->piece_cp >= 850.0 && mi->cap_cp <= 0.0 && mi->base_opp_threat_our_r >= 0.5 && mi->opp_threat_our_r <= 0.0) {
+        double gain = 600.0;
+        if (mi->to_central >= 0.5) gain += 220.0 * mi->to_central;
+        s += gain;
+    }
+    // Conversely, penalize queen sidesteps that leave rook threats unresolved when they were present
+    if (mi->piece_cp >= 850.0 && mi->cap_cp <= 0.0 && mi->base_opp_threat_our_r > 0.0 && mi->opp_threat_our_r >= mi->base_opp_threat_our_r - 1e-9) {
+        if (mi->threat_q <= 0.0 && mi->threat_r <= 0.0 && mi->atk_opp_king <= 0.0) s -= 600.0;
+    }
+    // Queen central consolidation: reward queen quiet moves that neutralize rook threats while centralizing
+    if (mi->piece_cp >= 850.0 && mi->cap_cp <= 0.0 && mi->opp_threat_our_r <= 0.0) {
+        if (mi->to_central >= 0.50) s += 220.0 * mi->to_central;
+    }
+    // Prefer central queen consolidations when our queen or rooks are under fire
+    if (mi->piece_cp >= 850.0 && mi->cap_cp <= 0.0 && (mi->opp_threat_our_q > 0.0 || mi->opp_threat_our_r > 0.0) && mi->to_central >= 0.70) {
+        s += 200.0;
     }
     // Small reward for neutralizing threats on our rooks entirely
     if (mi->opp_threat_our_r <= 0.0 && mi->piece_cp >= 500.0) s += 80.0;
+    // Rook interposition/consolidation: when our rooks were under fire in the baseline, reward quiet rook moves
+    // that reduce or eliminate that threat. Conversely, penalize sidesteps that don't help.
+    if (mi->piece_cp == 500.0 && mi->cap_cp <= 0.0 && mi->base_opp_threat_our_r > 0.0) {
+        // Full neutralization
+        if (mi->opp_threat_our_r <= 0.0) {
+            double gain = 900.0;
+            // extra when the rook lands on a square we defend
+            gain += 200.0 * (mi->our_r_def > 0.0 ? mi->our_r_def : 0.0);
+            // central interposition tends to be better
+            gain += 120.0 * mi->to_central;
+            s += gain;
+        } else if (mi->opp_threat_our_r < mi->base_opp_threat_our_r - 1e-9) {
+            // Partial reduction
+            s += 500.0;
+        } else {
+            // No improvement: discourage ineffective rook quiets under pressure
+            s -= 350.0;
+        }
+    }
     // Overloaded queen: moving queen while both our queen and a rook are under attack
     if (mi->piece_cp >= 850.0 && mi->cap_cp <= 0.0 && mi->opp_threat_our_q > 0.0 && mi->opp_threat_our_r > 0.0) {
         s -= 500.0;
     }
     s += 20.0 * mi->prox_king;              // piece near king often creates tactics
+    // Central rook checks are a bit more valuable than edge checks
+    if (mi->chk && mi->piece_cp == 500.0) {
+        double cb = 160.0 * mi->to_central;
+        // But if it's an empty check and the king has many escapes, dampen the centrality bonus
+    if (mi->opp_king_mob >= 3.0 && mi->cap_cp <= 0.0 && mi->threat_q <= 0.0 && mi->threat_r <= 0.0) cb *= 0.75;
+        s += cb;
+    }
     // light discouragements/encouragements for piece activity
     if (mi->cap_cp <= 0.0) {
         // discourage quiet king shuffles
@@ -610,7 +810,30 @@ static double heuristic_score(const MoveInfo *mi, unsigned int seed_state) {
         // discourage quiet queen moves unless they create threats/pressure
         if (mi->piece_cp >= 850.0 && !mi->chk) {
             if (mi->threat_q <= 0.0 && mi->threat_r <= 0.0 && mi->atk_opp_king <= 0.0 && mi->prox_king <= 0.0) {
-                s -= 200.0;
+                // Exempt centralizing queen moves that improve her safety
+                if (!(mi->our_q_def > 0.0 && mi->opp_threat_our_q > 0.0 && mi->to_central >= 0.70)) {
+                    s -= 200.0;
+                }
+            }
+            // Reward queen centralization that also improves queen safety
+            if (mi->our_q_def > 0.0 && mi->opp_threat_our_q > 0.0) {
+                s += 160.0 + 160.0 * mi->to_central;
+            }
+            // Penalize queen quiets that keep her under attack without adding defenders
+            if (mi->opp_threat_our_q > 0.0 && mi->our_q_def <= 0.0) {
+                s -= 400.0;
+            }
+            // Additional penalty if queen is still under attack and the move didn't create threats
+            if (mi->opp_threat_our_q > 0.0 && mi->threat_q <= 0.0 && mi->threat_r <= 0.0 && mi->atk_opp_king <= 0.0) {
+                s -= 350.0;
+            }
+            // Central queen consolidation when under heavy-piece pressure (baseline), even if threats remain
+            if ((mi->base_opp_threat_our_q > 0.0 || mi->base_opp_threat_our_r > 0.0) && mi->to_central >= 0.5) {
+                s += 200.0 * mi->to_central;
+            }
+            // Penalize drifting to the rim without creating new pressure
+            if (mi->to_central < 0.40 && mi->threat_q <= 0.0 && mi->threat_r <= 0.0 && mi->atk_opp_king <= 0.0) {
+                s -= 350.0;
             }
         }
     }
@@ -687,6 +910,26 @@ int main(int argc, char **argv) {
         if (my_king >= 0) side_in_check = sq_attacked_by(&board, my_king, !board.white_to_move);
     }
 
+    // Baseline threats on our heavy pieces in the current position (before any move)
+    double base_opp_threat_our_q = 0.0;
+    double base_opp_threat_our_r = 0.0;
+    if (have_pos) {
+        int our_is_white0 = board.white_to_move;       // side to move is our side before applying move
+        int opp_is_white0 = !our_is_white0;
+        for (int sq = 0; sq < 64; ++sq) {
+            char p0 = board.squares[sq];
+            if (p0 == '.') continue;
+            if (our_is_white0 ? is_white(p0) : is_black(p0)) {
+                int tl0 = (int)tolower((unsigned char)p0);
+                if (tl0 == 'q') {
+                    if (count_attackers(&board, sq, opp_is_white0) > 0) base_opp_threat_our_q = 1.0;
+                } else if (tl0 == 'r') {
+                    if (count_attackers(&board, sq, opp_is_white0) > 0) base_opp_threat_our_r += 0.5;
+                }
+            }
+        }
+    }
+
     for (int i = 0; i < n; ++i) {
         parse_move_spec(moves[i], &info[i]);
         if (have_pos) {
@@ -727,6 +970,20 @@ int main(int argc, char **argv) {
                     info[i].risk_cp = risk;
                 } else {
                     info[i].risk_cp = 0.0;
+                }
+                // destination geometry
+                int tf = file_of(to), tr = rank_of(to);
+                int df = tf - 3; if (df < 0) df = -df; // distance from file 'd/e' center
+                int dr = tr - 3; if (dr < 0) dr = -dr; // rough centrality measure
+                double cent = 1.0 - 0.125 * (df + dr); // max 1.0 near center, drops outward
+                if (cent < 0.0) cent = 0.0;
+                info[i].to_central = cent;
+                int mover_is_white = is_white(after.squares[to]);
+                int rank_idx = tr; // 0=a1 rank1 ... 7=h8 rank8
+                info[i].rook_on_7th = 0.0;
+                if (tolower((unsigned char)landed) == 'r') {
+                    if (mover_is_white && rank_idx == 6) info[i].rook_on_7th = 1.0; // 7th rank for white
+                    if (!mover_is_white && rank_idx == 1) info[i].rook_on_7th = 1.0; // 2nd rank for black
                 }
             }
             // check to opponent's king after move
@@ -794,6 +1051,9 @@ int main(int argc, char **argv) {
                 }
             }
             info[i].chk = gives_check ? 1 : 0;
+            // baseline threat snapshot (same for all moves)
+            info[i].base_opp_threat_our_q = base_opp_threat_our_q;
+            info[i].base_opp_threat_our_r = base_opp_threat_our_r;
             // threats on enemy heavy pieces after move
             int our_is_white = !after.white_to_move;
             for (int sq = 0; sq < 64; ++sq) {
@@ -908,9 +1168,9 @@ int main(int argc, char **argv) {
             mat_raw = mat_after - base_mat;
             mat_signed = board.white_to_move ? mat_raw : -mat_raw;
         }
-    printf("    { \"uci\": \"%s\", \"chk\": %d, \"mate\": %d, \"in_check\": %d, \"cap_cp\": %.1f, \"prom_cp\": %.1f, \"mat_cp_signed\": %.1f, \"mat_cp_raw\": %.1f, \"opp_min_att_cp\": %.1f, \"us_min_att_cp\": %.1f, \"piece_cp\": %.1f, \"see_cp\": %.1f, \"risk_cp\": %.1f, \"atk_opp_king\": %.1f, \"opp_king_mob\": %.1f, \"threat_q\": %.1f, \"threat_r\": %.1f, \"opp_threat_our_q\": %.1f, \"opp_threat_our_r\": %.1f, \"our_q_def\": %.1f, \"our_r_def\": %.1f, \"prox_king\": %.1f, \"score\": %.6f }%s\n",
+    printf("    { \"uci\": \"%s\", \"chk\": %d, \"mate\": %d, \"in_check\": %d, \"cap_cp\": %.1f, \"prom_cp\": %.1f, \"mat_cp_signed\": %.1f, \"mat_cp_raw\": %.1f, \"opp_min_att_cp\": %.1f, \"us_min_att_cp\": %.1f, \"piece_cp\": %.1f, \"see_cp\": %.1f, \"risk_cp\": %.1f, \"atk_opp_king\": %.1f, \"opp_king_mob\": %.1f, \"threat_q\": %.1f, \"threat_r\": %.1f, \"opp_threat_our_q\": %.1f, \"opp_threat_our_r\": %.1f, \"our_q_def\": %.1f, \"our_r_def\": %.1f, \"to_central\": %.2f, \"rook_on_7th\": %.1f, \"prox_king\": %.1f, \"score\": %.6f }%s\n",
            info[i].uci, info[i].chk, info[i].mate, info[i].in_check, info[i].cap_cp, info[i].prom_cp, info[i].mat_cp, (double)mat_raw,
-           info[i].opp_min_att_cp, info[i].us_min_att_cp, info[i].piece_cp, info[i].see_cp, info[i].risk_cp, info[i].atk_opp_king, info[i].opp_king_mob, info[i].threat_q, info[i].threat_r, info[i].opp_threat_our_q, info[i].opp_threat_our_r, info[i].our_q_def, info[i].our_r_def, info[i].prox_king, info[i].score,
+           info[i].opp_min_att_cp, info[i].us_min_att_cp, info[i].piece_cp, info[i].see_cp, info[i].risk_cp, info[i].atk_opp_king, info[i].opp_king_mob, info[i].threat_q, info[i].threat_r, info[i].opp_threat_our_q, info[i].opp_threat_our_r, info[i].our_q_def, info[i].our_r_def, info[i].to_central, info[i].rook_on_7th, info[i].prox_king, info[i].score,
                (i + 1 < n ? "," : ""));
     }
     printf("  ],\n");
