@@ -1,0 +1,479 @@
+server_c.c:2:0: information: Include file: <arpa/inet.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <arpa/inet.h>
+^
+server_c.c:3:0: information: Include file: <errno.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <errno.h>
+^
+server_c.c:4:0: information: Include file: <ctype.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <ctype.h>
+^
+server_c.c:5:0: information: Include file: <fcntl.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <fcntl.h>
+^
+server_c.c:6:0: information: Include file: <netinet/in.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <netinet/in.h>
+^
+server_c.c:7:0: information: Include file: <signal.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <signal.h>
+^
+server_c.c:8:0: information: Include file: <stdbool.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdbool.h>
+^
+server_c.c:9:0: information: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdio.h>
+^
+server_c.c:10:0: information: Include file: <stdlib.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdlib.h>
+^
+server_c.c:11:0: information: Include file: <string.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <string.h>
+^
+server_c.c:12:0: information: Include file: <sys/socket.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <sys/socket.h>
+^
+server_c.c:13:0: information: Include file: <sys/stat.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <sys/stat.h>
+^
+server_c.c:14:0: information: Include file: <sys/types.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <sys/types.h>
+^
+server_c.c:15:0: information: Include file: <time.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <time.h>
+^
+server_c.c:16:0: information: Include file: <unistd.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <unistd.h>
+^
+server_c.c:0:0: information: Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches. [normalCheckLevelMaxBranches]
+
+^
+server_c.c:411:77: warning: Either the condition 'elen<8' is redundant or the array 'ext[4]' is accessed at index 7, which is out of bounds. [arrayIndexOutOfBoundsCond]
+      size_t elen=0; while(ext[elen] && elen<8 && isalnum((unsigned char)ext[elen])) elen++; char* ext_safe=strndup_local(ext,elen?elen:3); if(!ext_safe){ send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+                                                                            ^
+server_c.c:411:45: note: Assuming that condition 'elen<8' is not redundant
+      size_t elen=0; while(ext[elen] && elen<8 && isalnum((unsigned char)ext[elen])) elen++; char* ext_safe=strndup_local(ext,elen?elen:3); if(!ext_safe){ send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+                                            ^
+server_c.c:411:77: note: Array index out of bounds
+      size_t elen=0; while(ext[elen] && elen<8 && isalnum((unsigned char)ext[elen])) elen++; char* ext_safe=strndup_local(ext,elen?elen:3); if(!ext_safe){ send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+                                                                            ^
+server_c.c:411:31: style: Array index 'elen' is used before limits check. [arrayIndexThenCheck]
+      size_t elen=0; while(ext[elen] && elen<8 && isalnum((unsigned char)ext[elen])) elen++; char* ext_safe=strndup_local(ext,elen?elen:3); if(!ext_safe){ send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+                              ^
+server_c.c:314:129: style: Condition 'tcontent[0]=='['' is always true [knownConditionTrueFalse]
+    char* tcontent=ltrim_dup(content); if(tcontent && tcontent[0]=='['){ size_t clen=strlen(tcontent); if(clen>=2 && tcontent[0]=='[' && tcontent[clen-1]==']'){
+                                                                                                                                ^
+server_c.c:314:66: note: Assuming that condition 'tcontent[0]=='['' is not redundant
+    char* tcontent=ltrim_dup(content); if(tcontent && tcontent[0]=='['){ size_t clen=strlen(tcontent); if(clen>=2 && tcontent[0]=='[' && tcontent[clen-1]==']'){
+                                                                 ^
+server_c.c:314:129: note: Condition 'tcontent[0]=='['' is always true
+    char* tcontent=ltrim_dup(content); if(tcontent && tcontent[0]=='['){ size_t clen=strlen(tcontent); if(clen>=2 && tcontent[0]=='[' && tcontent[clen-1]==']'){
+                                                                                                                                ^
+server_c.c:463:6: warning: inconclusive: Width 1023 given in format string (no. 2) is smaller than destination buffer 'path[4096]'. [invalidScanfFormatWidth_smaller]
+  if(sscanf(buf, "%15s %1023s", method, path) < 2){ close(c); return; }
+     ^
+server_c.c:289:37: error: Common realloc mistake: 'objs' nulled but not freed upon failure [memleakOnRealloc]
+            if(count==cap){ cap*=2; objs=realloc(objs, cap*sizeof(char*)); }
+                                    ^
+server_c.c:369:39: error: Common realloc mistake: 'objs' nulled but not freed upon failure [memleakOnRealloc]
+              if(count==cap){ cap*=2; objs=realloc(objs, cap*sizeof(char*)); }
+                                      ^
+server_c.c:42:136: warning: If memory allocation fails, then there is a possible null pointer dereference: data [nullPointerOutOfMemory]
+static int write_file_all(const char* path, const char* data, size_t len){ FILE* f=fopen(path,"wb"); if(!f) return -1; size_t n=fwrite(data,1,len,f); fclose(f); return n==len?0:-1; }
+                                                                                                                                       ^
+server_c.c:312:59: note: Assuming allocation function fails
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:59: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:169: note: Calling function 'write_file_all', 2nd argument 'arr' value is 0
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                                                        ^
+server_c.c:42:105: note: Assuming condition is false
+static int write_file_all(const char* path, const char* data, size_t len){ FILE* f=fopen(path,"wb"); if(!f) return -1; size_t n=fwrite(data,1,len,f); fclose(f); return n==len?0:-1; }
+                                                                                                        ^
+server_c.c:42:136: note: Null pointer dereference
+static int write_file_all(const char* path, const char* data, size_t len){ FILE* f=fopen(path,"wb"); if(!f) return -1; size_t n=fwrite(data,1,len,f); fclose(f); return n==len?0:-1; }
+                                                                                                                                       ^
+server_c.c:64:21: warning: If memory allocation fails, then there is a possible null pointer dereference: p [nullPointerOutOfMemory]
+  while((p = strstr(p, qkey))){
+                    ^
+server_c.c:358:187: note: Assuming allocation function fails
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:187: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:360:40: note: Calling function 'json_get_string', 1st argument 'obj' value is 0
+              char* id=json_get_string(obj, "id"); char* title=json_get_string(obj, "title"); char* author=json_get_string(obj, "author"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\"");
+                                       ^
+server_c.c:59:8: note: Assuming condition is false
+    if(!tmp) return strdup("");
+       ^
+server_c.c:63:19: note: Assignment 'p=json', assigned value is 0
+  const char* p = json;
+                  ^
+server_c.c:64:21: note: Null pointer dereference
+  while((p = strstr(p, qkey))){
+                    ^
+server_c.c:76:93: warning: If memory allocation fails, then there is a possible null pointer dereference: json [nullPointerOutOfMemory]
+static long long json_get_number(const char* json, const char* key){ const char* p = strstr(json, key); if(!p) return 0; const char* colon=strchr(p,':'); if(!colon) return 0; const char* v=colon+1; while(*v==' '||*v=='\t') v++; return atoll(v); }
+                                                                                            ^
+server_c.c:358:187: note: Assuming allocation function fails
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:187: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:360:262: note: Calling function 'json_get_number', 1st argument 'obj' value is 0
+              char* id=json_get_string(obj, "id"); char* title=json_get_string(obj, "title"); char* author=json_get_string(obj, "author"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\"");
+                                                                                                                                                                                                                                                                     ^
+server_c.c:76:93: note: Null pointer dereference
+static long long json_get_number(const char* json, const char* key){ const char* p = strstr(json, key); if(!p) return 0; const char* colon=strchr(p,':'); if(!colon) return 0; const char* v=colon+1; while(*v==' '||*v=='\t') v++; return atoll(v); }
+                                                                                            ^
+server_c.c:268:261: warning: If memory allocation fails, then there is a possible null pointer dereference: obj [nullPointerOutOfMemory]
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                                    ^
+server_c.c:268:241: note: Assuming allocation function fails
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                ^
+server_c.c:268:241: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                ^
+server_c.c:268:261: note: Null pointer dereference
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                                    ^
+server_c.c:268:285: warning: If memory allocation fails, then there is a possible null pointer dereference: obj [nullPointerOutOfMemory]
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                                                            ^
+server_c.c:268:241: note: Assuming allocation function fails
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                ^
+server_c.c:268:241: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                ^
+server_c.c:268:285: note: Null pointer dereference
+  size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0'; char* got=json_get_string(obj, "\"id\""); int match=got && strcmp(got,id)==0; free(got); if(match){ free(t); return obj; } free(obj); }
+                                                                                                                                                                                                                                                                                            ^
+server_c.c:283:198: warning: If memory allocation fails, then there is a possible null pointer dereference: obj [nullPointerOutOfMemory]
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                     ^
+server_c.c:283:178: note: Assuming allocation function fails
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                 ^
+server_c.c:283:178: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                 ^
+server_c.c:283:198: note: Null pointer dereference
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                     ^
+server_c.c:283:222: warning: If memory allocation fails, then there is a possible null pointer dereference: obj [nullPointerOutOfMemory]
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                                             ^
+server_c.c:283:178: note: Assuming allocation function fails
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                 ^
+server_c.c:283:178: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                 ^
+server_c.c:283:222: note: Null pointer dereference
+  for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                                             ^
+server_c.c:299:46: warning: If memory allocation fails, then there is a possible null pointer dereference: out [nullPointerOutOfMemory]
+  char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t L=strlen(objs[k]); memcpy(out+w, objs[k], L); w+=L; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                                             ^
+server_c.c:299:19: note: Assuming allocation function fails
+  char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t L=strlen(objs[k]); memcpy(out+w, objs[k], L); w+=L; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                  ^
+server_c.c:299:19: note: Assignment 'out=malloc(total_len+1)', assigned value is 0
+  char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t L=strlen(objs[k]); memcpy(out+w, objs[k], L); w+=L; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                  ^
+server_c.c:299:46: note: Null pointer dereference
+  char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t L=strlen(objs[k]); memcpy(out+w, objs[k], L); w+=L; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                                             ^
+server_c.c:312:80: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                               ^
+server_c.c:312:59: note: Assuming allocation function fails
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:59: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:80: note: Null pointer dereference
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                               ^
+server_c.c:312:121: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                        ^
+server_c.c:312:59: note: Assuming allocation function fails
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:59: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:121: note: Null pointer dereference
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                        ^
+server_c.c:312:135: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                      ^
+server_c.c:312:59: note: Assuming allocation function fails
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:59: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:135: note: Null pointer dereference
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                      ^
+server_c.c:319:49: warning: If memory allocation fails, then there is a possible null pointer dereference: out [nullPointerOutOfMemory]
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                ^
+server_c.c:319:25: note: Assuming allocation function fails
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:25: note: Assignment 'out=malloc(newlen+1)', assigned value is 0
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:49: note: Null pointer dereference
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                ^
+server_c.c:319:172: warning: If memory allocation fails, then there is a possible null pointer dereference: out [nullPointerOutOfMemory]
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                                                                                                                                           ^
+server_c.c:319:25: note: Assuming allocation function fails
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:25: note: Assignment 'out=malloc(newlen+1)', assigned value is 0
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:172: note: Null pointer dereference
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                                                                                                                                           ^
+server_c.c:319:186: warning: If memory allocation fails, then there is a possible null pointer dereference: out [nullPointerOutOfMemory]
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                                                                                                                                                         ^
+server_c.c:319:25: note: Assuming allocation function fails
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:25: note: Assignment 'out=malloc(newlen+1)', assigned value is 0
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:186: note: Null pointer dereference
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                                                                                                                                                         ^
+server_c.c:321:84: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                   ^
+server_c.c:321:63: note: Assuming allocation function fails
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:63: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:84: note: Null pointer dereference
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                   ^
+server_c.c:321:125: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                            ^
+server_c.c:321:63: note: Assuming allocation function fails
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:63: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:125: note: Null pointer dereference
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                            ^
+server_c.c:321:139: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                          ^
+server_c.c:321:63: note: Assuming allocation function fails
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:63: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:139: note: Null pointer dereference
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                          ^
+server_c.c:325:82: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                 ^
+server_c.c:325:61: note: Assuming allocation function fails
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:61: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:82: note: Null pointer dereference
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                 ^
+server_c.c:325:123: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                          ^
+server_c.c:325:61: note: Assuming allocation function fails
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:61: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:123: note: Null pointer dereference
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                          ^
+server_c.c:325:137: warning: If memory allocation fails, then there is a possible null pointer dereference: arr [nullPointerOutOfMemory]
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                        ^
+server_c.c:325:61: note: Assuming allocation function fails
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:61: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:137: note: Null pointer dereference
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                                                        ^
+server_c.c:358:207: warning: If memory allocation fails, then there is a possible null pointer dereference: obj [nullPointerOutOfMemory]
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                              ^
+server_c.c:358:187: note: Assuming allocation function fails
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:187: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:207: note: Null pointer dereference
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                              ^
+server_c.c:358:231: warning: If memory allocation fails, then there is a possible null pointer dereference: obj [nullPointerOutOfMemory]
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                                                      ^
+server_c.c:358:187: note: Assuming allocation function fails
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:187: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:231: note: Null pointer dereference
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                                                                      ^
+server_c.c:363:331: warning: If memory allocation fails, then there is a possible null pointer dereference: thumb [nullPointerOutOfMemory]
+              if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); }
+                                                                                                                                                                                                                                                                                                                                          ^
+server_c.c:363:314: note: Assuming allocation function fails
+              if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); }
+                                                                                                                                                                                                                                                                                                                         ^
+server_c.c:363:314: note: Assignment 'thumb=malloc(urlL)', assigned value is 0
+              if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); }
+                                                                                                                                                                                                                                                                                                                         ^
+server_c.c:363:331: note: Null pointer dereference
+              if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); }
+                                                                                                                                                                                                                                                                                                                                          ^
+server_c.c:376:52: warning: If memory allocation fails, then there is a possible null pointer dereference: out [nullPointerOutOfMemory]
+        char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t Lx=strlen(objs[k]); memcpy(out+w, objs[k], Lx); w+=Lx; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                                                   ^
+server_c.c:376:25: note: Assuming allocation function fails
+        char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t Lx=strlen(objs[k]); memcpy(out+w, objs[k], Lx); w+=Lx; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                        ^
+server_c.c:376:25: note: Assignment 'out=malloc(total_len+1)', assigned value is 0
+        char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t Lx=strlen(objs[k]); memcpy(out+w, objs[k], Lx); w+=Lx; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                        ^
+server_c.c:376:52: note: Null pointer dereference
+        char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t Lx=strlen(objs[k]); memcpy(out+w, objs[k], Lx); w+=Lx; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+                                                   ^
+server_c.c:384:325: warning: If memory allocation fails, then there is a possible null pointer dereference: thumb [nullPointerOutOfMemory]
+        if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); } }
+                                                                                                                                                                                                                                                                                                                                    ^
+server_c.c:384:308: note: Assuming allocation function fails
+        if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); } }
+                                                                                                                                                                                                                                                                                                                   ^
+server_c.c:384:308: note: Assignment 'thumb=malloc(urlL)', assigned value is 0
+        if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); } }
+                                                                                                                                                                                                                                                                                                                   ^
+server_c.c:384:325: note: Null pointer dereference
+        if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); } }
+                                                                                                                                                                                                                                                                                                                                    ^
+server_c.c:312:104: error: If memory allocation fails: pointer addition with NULL pointer. [nullPointerArithmeticOutOfMemory]
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                       ^
+server_c.c:312:59: note: Assuming allocation function fails
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:59: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                          ^
+server_c.c:312:104: note: Null pointer addition
+    size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                       ^
+server_c.c:319:73: error: If memory allocation fails: pointer addition with NULL pointer. [nullPointerArithmeticOutOfMemory]
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                                        ^
+server_c.c:319:25: note: Assuming allocation function fails
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:25: note: Assignment 'out=malloc(newlen+1)', assigned value is 0
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                        ^
+server_c.c:319:73: note: Null pointer addition
+        char* out=malloc(newlen+1); size_t w=0; out[w++]='['; memcpy(out+w,obj,Lobj); w+=Lobj; if(!empty){ out[w++]=','; memcpy(out+w, tcontent+1, clen-2); w+=(clen-2); } out[w++]=']'; out[w]='\0'; write_file_all(file, out, w); free(out);
+                                                                        ^
+server_c.c:321:108: error: If memory allocation fails: pointer addition with NULL pointer. [nullPointerArithmeticOutOfMemory]
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                           ^
+server_c.c:321:63: note: Assuming allocation function fails
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:63: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                              ^
+server_c.c:321:108: note: Null pointer addition
+        size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                           ^
+server_c.c:325:106: error: If memory allocation fails: pointer addition with NULL pointer. [nullPointerArithmeticOutOfMemory]
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                         ^
+server_c.c:325:61: note: Assuming allocation function fails
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:61: note: Assignment 'arr=malloc(tot+1)', assigned value is 0
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                            ^
+server_c.c:325:106: note: Null pointer addition
+      size_t L=strlen(obj); size_t tot=L+2; char* arr=malloc(tot+1); size_t w=0; arr[w++]='['; memcpy(arr+w,obj,L); w+=L; arr[w++]=']'; arr[w]='\0'; write_file_all(file, arr, w); free(arr);
+                                                                                                         ^
+server_c.c:136:159: style: Variable 'h' can be declared as const array [constVariable]
+    size_t L=strlen(payload); bytes=malloc(L+1); if(!bytes){ free(mime); return -1; } size_t w=0; for(size_t i=0;i<L;i++){ if(payload[i]=='%' && i+2<L){ char h[3]={payload[i+1],payload[i+2],'\0'}; bytes[w++]=(unsigned char)strtol(h,NULL,16); i+=2; } else if(payload[i]=='+'){ bytes[w++]=' '; } else { bytes[w++]=(unsigned char)payload[i]; } } blen=w; }
+                                                                                                                                                              ^
+server_c.c:465:34: style: Variable 'cl' can be declared as pointer to const [constVariablePointer]
+  size_t content_length=0; char* cl = strcasestr(buf, "Content-Length:"); if(cl){ content_length = strtoul(cl+15, NULL, 10); }
+                                 ^
+server_c.c:468:9: style: Variable 'hdr_end' can be declared as pointer to const [constVariablePointer]
+  char* hdr_end = strstr(buf, "\r\n\r\n"); size_t header_bytes = hdr_end? (size_t)(hdr_end - buf) + 4 : (size_t)total; size_t have_body = total > (ssize_t)header_bytes ? (size_t)total - header_bytes : 0;
+        ^
+server_c.c:355:47: style: Variable 'L2' is assigned a value that is never used. [unreadVariable]
+        if(t[0] != '['){ free(file); size_t L2=2; send_response(c,200,"OK","application/json","[]",2,true); free(t); return; }
+                                              ^
+server_c.c:355:45: style: Variable 'L2' is assigned a value that is never used. [unreadVariable]
+        if(t[0] != '['){ free(file); size_t L2=2; send_response(c,200,"OK","application/json","[]",2,true); free(t); return; }
+                                            ^
+server_c.c:76:93: warning: If memory allocation fails, then there is a possible null pointer dereference: json [ctunullpointerOutOfMemory]
+static long long json_get_number(const char* json, const char* key){ const char* p = strstr(json, key); if(!p) return 0; const char* colon=strchr(p,':'); if(!colon) return 0; const char* v=colon+1; while(*v==' '||*v=='\t') v++; return atoll(v); }
+                                                                                            ^
+server_c.c:358:187: note: Assuming allocation function fails
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:358:187: note: Assignment 'obj=malloc(obj_len+1)', assigned value is 0
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+                                                                                                                                                                                          ^
+server_c.c:360:261: note: Calling function json_get_number, 1st argument is null
+              char* id=json_get_string(obj, "id"); char* title=json_get_string(obj, "title"); char* author=json_get_string(obj, "author"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\"");
+                                                                                                                                                                                                                                                                    ^
+server_c.c:76:93: note: Dereferencing argument json that is null
+static long long json_get_number(const char* json, const char* key){ const char* p = strstr(json, key); if(!p) return 0; const char* colon=strchr(p,':'); if(!colon) return 0; const char* v=colon+1; while(*v==' '||*v=='\t') v++; return atoll(v); }
+                                                                                            ^
+server_c.c:44:12: style: The function 'append_file_line' is never used. [unusedFunction]
+static int append_file_line(const char* path, const char* line){ FILE* f=fopen(path,"ab"); if(!f) return -1; size_t n=fwrite(line,1,strlen(line),f); n+=fwrite("\n",1,1,f); fclose(f); return (int)n>=0?0:-1; }
+           ^
+nofile:0:0: information: Active checkers: 117/966 (use --checkers-report=<filename> to see details) [checkersReport]
+
