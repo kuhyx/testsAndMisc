@@ -40,35 +40,29 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   </nav>
 </header>
 <main>
-  <!-- Loading indicator -->
-  <section id="loading" class="hidden" aria-live="polite">
+  <section id="loading" class="hidden">
     <div class="small"><span class="spinner"></span><span class="msg">Loading…</span></div>
   </section>
-  <!-- List View -->
   <section id="listV" class="grid"></section>
-
-  <!-- Read View -->
   <section id="readV" class="hidden">
     <div class="controls">
       <button id="backBtn">← Back</button>
-      <button id="delBtn" title="Delete">Delete</button>
+      <button id="delBtn">Delete</button>
       <span class="small" id="dateInfo"></span>
     </div>
     <article id="readA">
-      <img id="readThumb" alt="thumbnail"/>
+      <img id="readThumb"/>
       <h1 id="readTitle"></h1>
       <div id="readBody"></div>
     </article>
   </section>
-
-  <!-- Editor View -->
   <section id="editor" class="hidden">
     <label>Title</label>
-    <input id="title" type="text" maxlength="200" placeholder="Article title"/>
+    <input id="title" type="text" placeholder="Article title"/>
 
     <label>Thumbnail</label>
-    <div id="thumbDrop" class="drop" tabindex="0">Drop image here or choose…<br><img id="thumbPrev" alt="thumbnail preview"/></div>
-    <input id="thumbFile" type="file" accept="image/*"/>
+    <div id="thumbDrop" class="drop">Drop image here or choose…<br><img id="thumbPrev"/></div>
+    <input id="thumbFile" type="file"/>
 
     <label>Body</label>
     <div class="controls">
@@ -82,13 +76,12 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
       <button id="cancelBtn">Cancel</button>
       <span class="small">Stored locally or on server if available.</span>
     </div>
-    <input id="imgFile" type="file" accept="image/*" hidden>
-    <input id="vidFile" type="file" accept="video/*" hidden>
+  <input id="imgFile" type="file" hidden>
+  <input id="vidFile" type="file" hidden>
   </section>
 </main>
 
 <script>
-// Tiny SPA with optional backend. Falls back to localStorage.
 (function(){
   const $=s=>document.querySelector(s);
   const listV=$('#listV'), readV=$('#readV'), editor=$('#editor');
@@ -101,9 +94,8 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   const saveBtn=$('#saveBtn'), cancelBtn=$('#cancelBtn');
   const KEY='articles14k';
   let selId=null; let API=null; let preList; // cache first list to avoid duplicate initial fetches
-  const AC={}; // per-article cache by id
+  const AC={};
   function setLoading(on,msg){ if(!loading) return; if(msg) loading.querySelector('.msg').textContent=msg; loading.classList.toggle('hidden',!on); }
-  const supportsUpload = true; // try server upload; fallback uses data URLs
 
   async function uploadBlobAndGetURL(blob){
     try{
