@@ -113,40 +113,55 @@ static int write_file_all(const char* path, const char* data, size_t len) {
 // removed unused append_file_line (lint)
 
 // ---- JSON helpers (minimal) ----
-// NOLINTBEGIN(readability-function-size)
-static char* json_escape(const char* s) {
+static size_t json_escaped_len(const char* s) {
   size_t n = 0;
   for (const char* p = s; *p; ++p) {
     if (*p == '"' || *p == '\\' || *p == '\n' || *p == '\r' || *p == '\t') n += 2;
     else n++;
   }
-  char* out = malloc(n + 1);
-  if (!out) return NULL;
-  char* w = out;
-  for (const char* p = s; *p; ++p) {
-    if (*p == '"') {
-      *w++ = '\\';
-      *w++ = '"';
-    } else if (*p == '\\') {
-      *w++ = '\\';
-      *w++ = '\\';
-    } else if (*p == '\n') {
-      *w++ = '\\';
-      *w++ = 'n';
-    } else if (*p == '\r') {
-      *w++ = '\\';
-      *w++ = 'r';
-    } else if (*p == '\t') {
-      *w++ = '\\';
-      *w++ = 't';
-    } else {
-      *w++ = *p;
-    }
+  return n;
+}
+
+static inline char* json_append_escaped(char* w, char c) {
+  switch (c) {
+  case '"':
+    *w++ = '\\';
+    *w++ = '"';
+    break;
+  case '\\':
+    *w++ = '\\';
+    *w++ = '\\';
+    break;
+  case '\n':
+    *w++ = '\\';
+    *w++ = 'n';
+    break;
+  case '\r':
+    *w++ = '\\';
+    *w++ = 'r';
+    break;
+  case '\t':
+    *w++ = '\\';
+    *w++ = 't';
+    break;
+  default: *w++ = c; break;
   }
+  return w;
+}
+
+static void json_escape_into(char* out, const char* s) {
+  char* w = out;
+  for (const char* p = s; *p; ++p) w = json_append_escaped(w, *p);
   *w = '\0';
+}
+
+static char* json_escape(const char* s) {
+  size_t n = json_escaped_len(s);
+  char* out = (char*)malloc(n + 1);
+  if (!out) return NULL;
+  json_escape_into(out, s);
   return out;
 }
-// NOLINTEND(readability-function-size)
 
 static const char* skip_ws_commas(const char* p) {
   while (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t' || *p == ',') p++;
@@ -155,30 +170,25 @@ static const char* skip_ws_commas(const char* p) {
 
 // Parse a JSON string starting at v (after the opening quote).
 // Returns malloc'd string and sets *after_end to the char after closing quote.
-// NOLINTBEGIN(readability-function-size)
-static char* parse_json_string_value(const char* v, const char** after_end) {
-  char* out = malloc(strlen(v) + 1);
-  if (!out) {
-    *after_end = v;
-    return NULL;
+static inline char json_unescape_char(char c) {
+  switch (c) {
+  case '"':
+  case '\\':
+  case '/': return c;
+  case 'n': return '\n';
+  case 'r': return '\r';
+  case 't': return '\t';
+  default: return c;
   }
-  size_t w = 0;
+}
+
+static void parse_json_string_core(const char* v, char* out, size_t* w, const char** after_end) {
   bool esc = false;
   const char* p = v;
   for (; *p; ++p) {
     char c = *p;
     if (esc) {
-      if (c == '"' || c == '\\' || c == '/') {
-        out[w++] = c;
-      } else if (c == 'n') {
-        out[w++] = '\n';
-      } else if (c == 'r') {
-        out[w++] = '\r';
-      } else if (c == 't') {
-        out[w++] = '\t';
-      } else {
-        out[w++] = c;
-      }
+      out[(*w)++] = json_unescape_char(c);
       esc = false;
       continue;
     }
@@ -187,17 +197,26 @@ static char* parse_json_string_value(const char* v, const char** after_end) {
       continue;
     }
     if (c == '"') {
-      out[w] = '\0';
       *after_end = p + 1;
-      return out;
+      break;
     }
-    out[w++] = c;
+    out[(*w)++] = c;
   }
+  if (!*after_end) *after_end = p;
+}
+
+static char* parse_json_string_value(const char* v, const char** after_end) {
+  char* out = (char*)malloc(strlen(v) + 1);
+  if (!out) {
+    *after_end = v;
+    return NULL;
+  }
+  size_t w = 0;
+  *after_end = NULL;
+  parse_json_string_core(v, out, &w, after_end);
   out[w] = '\0';
-  *after_end = p; // unterminated; best effort
   return out;
 }
-// NOLINTEND(readability-function-size)
 
 // NOLINTBEGIN(readability-function-size)
 static const char* ensure_quoted_key(const char* key, char** to_free, size_t* out_len) {
@@ -765,7 +784,30 @@ static char* ltrim_dup(const char* s) {
 
 // removed unused list_articles_json (lint)
 
-// NOLINTBEGIN(readability-function-size)
+static bool object_id_matches(const char* obj, const char* id) {
+  char* got = json_get_string(obj, "\"id\"");
+  bool ok = got && strcmp(got, id) == 0;
+  free(got);
+  return ok;
+}
+
+static char* scan_array_for_id(char* t, const char* id) {
+  size_t len = strlen(t);
+  size_t i = 1;
+  while (1) {
+    char* obj = NULL;
+    int r = find_next_json_object(t, len, &i, &obj);
+    if (r <= 0) break;
+    if (object_id_matches(obj, id)) {
+      free(t);
+      return obj;
+    }
+    free(obj);
+  }
+  free(t);
+  return NULL;
+}
+
 static char* find_article_by_id(const char* id) {
   char* file = data_file();
   if (!file) return NULL;
@@ -775,48 +817,12 @@ static char* find_article_by_id(const char* id) {
   if (!content) return NULL;
   char* t = ltrim_dup(content);
   free(content);
-  if (!t) return NULL;
-  if (t[0] != '[') {
+  if (!t || t[0] != '[') {
     free(t);
     return NULL;
   }
-  // iterate objects
-  size_t len = strlen(t);
-  size_t i = 1;
-  int depth = 0;
-  size_t start = 0;
-  for (; i < len; ++i) {
-    char c = t[i];
-    if (c == '{') {
-      if (depth == 0) start = i;
-      depth++;
-    } else if (c == '}') {
-      depth--;
-      if (depth == 0) {
-        size_t end = i;
-        size_t obj_len = end - start + 1;
-        char* obj = malloc(obj_len + 1);
-        if (!obj) {
-          free(t);
-          return NULL;
-        }
-        memcpy(obj, t + start, obj_len);
-        obj[obj_len] = '\0';
-        char* got = json_get_string(obj, "\"id\"");
-        int match = got && strcmp(got, id) == 0;
-        free(got);
-        if (match) {
-          free(t);
-          return obj;
-        }
-        free(obj);
-      }
-    }
-  }
-  free(t);
-  return NULL;
+  return scan_array_for_id(t, id);
 }
-// NOLINTEND(readability-function-size)
 
 // NOLINTBEGIN(readability-function-size)
 static int rewrite_articles_map(char** out_json_updated, const char* match_id,
@@ -855,8 +861,12 @@ static int rewrite_articles_map(char** out_json_updated, const char* match_id,
     char* obj = NULL;
     int r = find_next_json_object(t, len, &i, &obj);
     if (r < 0) {
+      // free accumulated objs
+      for (size_t z = 0; z < count; ++z) free(objs[z]);
+      free(objs);
       free(file);
       free(t);
+      free(updated_copy);
       return -1;
     }
     if (r == 0) break;
@@ -906,8 +916,11 @@ static int rewrite_articles_map(char** out_json_updated, const char* match_id,
     if (!(isMatch && is_delete)) {
       if (push_str(&objs, &cap, &count, obj)) {
         free(obj);
+        for (size_t z = 0; z < count; ++z) free(objs[z]);
+        free(objs);
         free(file);
         free(t);
+        free(updated_copy);
         return -1;
       }
     } else {
@@ -955,6 +968,7 @@ static char* create_article_from_body(const char* body_json) {
   char* out = NULL;
   size_t w = 0;
   if (!content || n == 0) {
+    free(content);
     char* arr_items[1] = {obj};
     assemble_array(arr_items, 1, &out, &w);
   } else {
@@ -969,8 +983,21 @@ static char* create_article_from_body(const char* body_json) {
       while (1) {
         char* one = NULL;
         int r = find_next_json_object(tcontent, len, &i, &one);
-        if (r <= 0) break;
-        push_str(&items, &cap, &cnt, one);
+        if (r <= 0) {
+          // if negative error, free any allocated 'one'
+          if (r < 0) free(one);
+          break;
+        }
+        if (push_str(&items, &cap, &cnt, one)) {
+          free(one);
+          for (size_t z = 0; z < cnt; ++z) free(items[z]);
+          free(items);
+          free(tcontent);
+          free(file);
+          free(id);
+          free(obj);
+          return NULL;
+        }
       }
       assemble_array(items, cnt, &out, &w);
       for (size_t z = 0; z < cnt; ++z) free(items[z]);
@@ -1047,23 +1074,27 @@ static char* save_upload(const char* body, size_t blen, const char* ext_hint) {
 
 // Convert a data: URL into a newly-allocated absolute URL string ("/uploads/...")
 // Returns NULL on failure.
-// NOLINTBEGIN(readability-function-size)
-static char* data_url_to_abs_url(const char* data_url) {
+static int parse_and_save_data_url(const char* data_url, char** out_saved) {
   char* mime = NULL;
   unsigned char* bytes = NULL;
   size_t bl = 0;
   if (parse_data_url(data_url, &mime, &bytes, &bl) != 0) {
     free(mime);
     free(bytes);
-    return NULL;
+    return -1;
   }
   const char* ext = ext_from_mime(mime);
   char* saved = save_bytes_with_ext(bytes, bl, ext);
   free(mime);
   free(bytes);
-  if (!saved) return NULL;
+  if (!saved) return -1;
+  *out_saved = saved;
+  return 0;
+}
+
+static char* saved_to_abs_url(char* saved) {
   size_t L = strlen(saved) + 2;
-  char* url = malloc(L);
+  char* url = (char*)malloc(L);
   if (!url) {
     free(saved);
     return NULL;
@@ -1072,7 +1103,12 @@ static char* data_url_to_abs_url(const char* data_url) {
   free(saved);
   return url;
 }
-// NOLINTEND(readability-function-size)
+
+static char* data_url_to_abs_url(const char* data_url) {
+  char* saved = NULL;
+  if (parse_and_save_data_url(data_url, &saved) != 0) return NULL;
+  return saved_to_abs_url(saved);
+}
 
 static int migrate_thumb_if_data_url(char** pthumb) {
   char* thumb = *pthumb;
@@ -1162,6 +1198,8 @@ static void api_get_articles_array(int c) {
     char* obj = NULL;
     int r = find_next_json_object(t, len, &i, &obj);
     if (r < 0) {
+      for (size_t z = 0; z < count; ++z) free(objs[z]);
+      free(objs);
       free(file);
       free(t);
       send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
@@ -1171,6 +1209,8 @@ static void api_get_articles_array(int c) {
     obj = migrate_one_obj_if_needed(obj, &changed);
     if (push_str(&objs, &cap, &count, obj)) {
       free(obj);
+      for (size_t z = 0; z < count; ++z) free(objs[z]);
+      free(objs);
       free(file);
       free(t);
       send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
@@ -1197,72 +1237,77 @@ static void api_get_articles_array(int c) {
 }
 // NOLINTEND(readability-function-size)
 
-// NOLINTBEGIN(readability-function-size)
+static void persist_article_update(const char* obj, const char* title, const char* author,
+                                   const char* body_s, const char* thumb, long long createdAt) {
+  char* id_copy = json_get_string(obj, "id");
+  char* updated =
+      build_article_json(id_copy ? id_copy : "", title ? title : "", author ? author : "",
+                         body_s ? body_s : "", thumb ? thumb : "", createdAt, 0);
+  if (updated) {
+    rewrite_articles_map(NULL, id_copy, updated, false);
+    free(updated);
+  }
+  free(id_copy);
+}
+
+static int migrate_fields_if_needed(char** obj, char** title, char** author, char** body_s,
+                                    char** thumb, long long createdAt) {
+  int obj_changed = 0;
+  obj_changed |= migrate_thumb_if_data_url(thumb);
+  obj_changed |= migrate_body_inplace(body_s);
+  if (obj_changed) {
+    persist_article_update(*obj, *title, *author, *body_s, *thumb, createdAt);
+    free(*obj);
+    *obj = NULL;
+    return 1;
+  }
+  return 0;
+}
+
+typedef struct {
+  char* title;
+  char* author;
+  char* body;
+  char* thumb;
+  long long createdAt;
+} ArticleFields;
+
+static void load_fields(char* obj, ArticleFields* f) {
+  f->title = json_get_string(obj, "title");
+  f->author = json_get_string(obj, "author");
+  f->body = json_get_string(obj, "body");
+  f->thumb = json_get_string(obj, "thumb");
+  f->createdAt = json_get_number(obj, "\"createdAt\"");
+}
+
+static void free_fields(ArticleFields* f) {
+  free(f->title);
+  free(f->author);
+  free(f->body);
+  free(f->thumb);
+}
+
+static char* maybe_migrate_and_refresh(const char* id, char* obj) {
+  ArticleFields f;
+  load_fields(obj, &f);
+  if (migrate_fields_if_needed(&obj, &f.title, &f.author, &f.body, &f.thumb, f.createdAt)) {
+    free_fields(&f);
+    return find_article_by_id(id);
+  }
+  free_fields(&f);
+  return obj;
+}
+
 static void api_get_article_by_id(int c, const char* id) {
   char* obj = find_article_by_id(id);
   if (!obj) {
     send_response(c, 404, "Not Found", "application/json", "", 0, true);
     return;
   }
-  char* title = json_get_string(obj, "title");
-  char* author = json_get_string(obj, "author");
-  char* body_s = json_get_string(obj, "body");
-  char* thumb = json_get_string(obj, "thumb");
-  long long createdAt = json_get_number(obj, "\"createdAt\"");
-  int obj_changed = 0;
-  if (thumb && strncmp(thumb, "data:", 5) == 0) {
-    char* mime = NULL;
-    unsigned char* bytes = NULL;
-    size_t bl2 = 0;
-    if (parse_data_url(thumb, &mime, &bytes, &bl2) == 0) {
-      const char* ext = ext_from_mime(mime);
-      char* saved = save_bytes_with_ext(bytes, bl2, ext);
-      if (saved) {
-        size_t urlL = strlen(saved) + 2;
-        char* newthumb = malloc(urlL);
-        if (newthumb) {
-          snprintf(newthumb, urlL, "/%s", saved);
-          free(thumb);
-          thumb = newthumb;
-          obj_changed = 1;
-        }
-        free(saved);
-      }
-      free(mime);
-      free(bytes);
-    }
-  }
-  bool bchanged = false;
-  char* new_body = migrate_inline_images_in_body(body_s, &bchanged);
-  if (new_body && bchanged) {
-    free(body_s);
-    body_s = new_body;
-    obj_changed = 1;
-  } else {
-    free(new_body);
-  }
-  if (obj_changed) {
-    char* id_copy = json_get_string(obj, "id");
-    char* updated =
-        build_article_json(id_copy ? id_copy : "", title ? title : "", author ? author : "",
-                           body_s ? body_s : "", thumb ? thumb : "", createdAt, 0);
-    if (updated) {
-      rewrite_articles_map(NULL, id_copy, updated, false);
-      free(updated);
-    }
-    free(id_copy);
-    free(obj);
-    obj = find_article_by_id(id);
-  }
-  free(title);
-  free(author);
-  free(body_s);
-  free(thumb);
-  size_t L = strlen(obj);
-  send_response(c, 200, "OK", "application/json", obj, L, true);
+  obj = maybe_migrate_and_refresh(id, obj);
+  send_response(c, 200, "OK", "application/json", obj, strlen(obj), true);
   free(obj);
 }
-// NOLINTEND(readability-function-size)
 
 static void api_post_article(int c, const char* body) {
   char* obj = create_article_from_body(body ? body : "");
@@ -1292,27 +1337,18 @@ static void api_delete_article(int c, const char* id) {
   }
 }
 
-// NOLINTBEGIN(readability-function-size)
-static void api_post_upload(int c, const char* path, const char* body, size_t blen,
-                            const char* content_type) {
+static char* choose_ext_from(const char* path, const char* content_type) {
   const char* ext_q = get_qparam(path, "ext");
   const char* ext_from_ct = ext_from_content_type(content_type);
   const char* ext = ext_from_ct ? ext_from_ct : (ext_q ? ext_q : "bin");
   size_t elen = 0;
   while (elen < 4 && ext[elen] && isalnum((unsigned char)ext[elen])) elen++;
-  char* ext_safe = strndup_local(ext, elen ? elen : 3);
-  if (!ext_safe) {
-    send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
-    return;
-  }
-  char* saved = save_upload(body, blen, ext_safe);
-  free(ext_safe);
-  if (!saved) {
-    send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
-    return;
-  }
+  return strndup_local(ext, elen ? elen : 3);
+}
+
+static void respond_saved_upload(int c, char* saved) {
   size_t L = strlen(saved) + 20;
-  char* res = malloc(L);
+  char* res = (char*)malloc(L);
   if (!res) {
     free(saved);
     send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
@@ -1323,9 +1359,53 @@ static void api_post_upload(int c, const char* path, const char* body, size_t bl
   free(res);
   free(saved);
 }
-// NOLINTEND(readability-function-size)
 
-// NOLINTBEGIN(readability-function-size)
+static void api_post_upload(int c, const char* path, const char* body, size_t blen,
+                            const char* content_type) {
+  char* ext_safe = choose_ext_from(path, content_type);
+  if (!ext_safe) {
+    send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
+    return;
+  }
+  char* saved = save_upload(body, blen, ext_safe);
+  free(ext_safe);
+  if (!saved) {
+    send_response(c, 500, "Internal Server Error", "application/json", "", 0, true);
+    return;
+  }
+  respond_saved_upload(c, saved);
+}
+
+static bool path_has_id_suffix(const char* path, size_t base_len) {
+  return path[base_len] == '/' && strlen(path) > base_len + 1;
+}
+
+static bool is_method(const char* m, const char* want) { return strcmp(m, want) == 0; }
+
+static void dispatch_articles_get(int c, const char* path) {
+  const char* base = "/api/articles";
+  size_t bl = strlen(base);
+  if (strcmp(path, base) == 0) api_get_articles_array(c);
+  else if (path_has_id_suffix(path, bl)) api_get_article_by_id(c, path + bl + 1);
+  else send_response(c, 404, "Not Found", "application/json", "", 0, true);
+}
+
+static void dispatch_articles_mut(int c, const char* method, const char* path, const char* body) {
+  const char* base = "/api/articles";
+  size_t bl = strlen(base);
+  if (is_method(method, "POST") && strcmp(path, base) == 0) api_post_article(c, body);
+  else if (is_method(method, "PUT") && path_has_id_suffix(path, bl))
+    api_put_article(c, path + bl + 1, body);
+  else if (is_method(method, "DELETE") && path_has_id_suffix(path, bl))
+    api_delete_article(c, path + bl + 1);
+}
+
+static void dispatch_upload(int c, const char* method, const char* path, const char* body,
+                            size_t blen, const char* content_type) {
+  if (strncmp(path, "/api/upload", 12) != 0) return;
+  if (is_method(method, "POST")) api_post_upload(c, path, body, blen, content_type);
+}
+
 static void handle_api(int c, const char* method, const char* path, const char* body, size_t blen,
                        const char* content_type) {
   if (!strncmp(method, "OPTIONS", 7)) {
@@ -1334,35 +1414,14 @@ static void handle_api(int c, const char* method, const char* path, const char* 
   }
   const char* base = "/api/articles";
   size_t bl = strlen(base);
-  if (!strncmp(path, base, bl)) {
-    if (!strcmp(method, "GET")) {
-      if (!strcmp(path, base)) api_get_articles_array(c);
-      else if (path[bl] == '/' && strlen(path) > bl + 1) api_get_article_by_id(c, path + bl + 1);
-      else send_response(c, 404, "Not Found", "application/json", "", 0, true);
-      return;
-    }
-    if (!strcmp(method, "POST") && !strcmp(path, base)) {
-      api_post_article(c, body);
-      return;
-    }
-    if (!strcmp(method, "PUT") && path[bl] == '/' && strlen(path) > bl + 1) {
-      api_put_article(c, path + bl + 1, body);
-      return;
-    }
-    if (!strcmp(method, "DELETE") && path[bl] == '/' && strlen(path) > bl + 1) {
-      api_delete_article(c, path + bl + 1);
-      return;
-    }
+  if (strncmp(path, base, bl) == 0) {
+    if (is_method(method, "GET")) dispatch_articles_get(c, path);
+    else dispatch_articles_mut(c, method, path, body);
   }
-  if (!strncmp(path, "/api/upload", 12)) {
-    if (!strcmp(method, "POST")) {
-      api_post_upload(c, path, body, blen, content_type);
-      return;
-    }
-  }
-  send_response(c, 404, "Not Found", "text/plain", "Not Found", 9, true);
+  dispatch_upload(c, method, path, body, blen, content_type);
+  if (strncmp(path, "/api/", 5) == 0)
+    send_response(c, 404, "Not Found", "text/plain", "Not Found", 9, true);
 }
-// NOLINTEND(readability-function-size)
 
 static bool safe_path(const char* p) {
   if (strstr(p, "..")) return false;
@@ -1513,23 +1572,9 @@ static void handle_client(int c) {
   close(c);
 }
 
-// NOLINTBEGIN(readability-function-size)
-int main(int argc, char** argv) {
-  (void)argc;
-  (void)argv;
-  signal(SIGINT, on_sigint);
-  srand((unsigned int)time(NULL));
-  char cwd[SMALL_BUF];
-  if (getcwd(cwd, sizeof(cwd))) DOC_ROOT = strdup(cwd);
-  const char* host = getenv_default("HOST", "127.0.0.1");
-  int port = atoi(getenv_default("PORT", "8000"));
-  if (port <= 0) port = 8000;
-
+static int server_socket_init(const char* host, int port) {
   int s = socket(AF_INET, SOCK_STREAM, 0);
-  if (s < 0) {
-    perror("socket");
-    return 1;
-  }
+  if (s < 0) return -1;
   int opt = 1;
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
   struct sockaddr_in addr = {0};
@@ -1537,17 +1582,17 @@ int main(int argc, char** argv) {
   addr.sin_port = htons((uint16_t)port);
   addr.sin_addr.s_addr = inet_addr(host);
   if (bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-    perror("bind");
     close(s);
-    return 1;
+    return -1;
   }
   if (listen(s, 64) < 0) {
-    perror("listen");
     close(s);
-    return 1;
+    return -1;
   }
-  printf("Serving Mini Articles (C) on http://%s:%d\n", host, port);
+  return s;
+}
 
+static void server_loop(int s) {
   while (!g_stop) {
     struct sockaddr_in ca;
     socklen_t calen = sizeof(ca);
@@ -1559,7 +1604,29 @@ int main(int argc, char** argv) {
     }
     handle_client(c);
   }
+}
+
+static void init_runtime(void) {
+  signal(SIGINT, on_sigint);
+  srand((unsigned int)time(NULL));
+  char cwd[SMALL_BUF];
+  if (getcwd(cwd, sizeof(cwd))) DOC_ROOT = strdup(cwd);
+}
+
+int main(int argc, char** argv) {
+  (void)argc;
+  (void)argv;
+  init_runtime();
+  const char* host = getenv_default("HOST", "127.0.0.1");
+  int port = atoi(getenv_default("PORT", "8000"));
+  if (port <= 0) port = 8000;
+  int s = server_socket_init(host, port);
+  if (s < 0) {
+    perror("server");
+    return 1;
+  }
+  printf("Serving Mini Articles (C) on http://%s:%d\n", host, port);
+  server_loop(s);
   close(s);
   return 0;
 }
-// NOLINTEND(readability-function-size)
