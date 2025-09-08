@@ -101,6 +101,7 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   const saveBtn=$('#saveBtn'), cancelBtn=$('#cancelBtn');
   const KEY='articles14k';
   let selId=null; let API=null; let preList; // cache first list to avoid duplicate initial fetches
+  const AC={}; // per-article cache by id
   function setLoading(on,msg){ if(!loading) return; if(msg) loading.querySelector('.msg').textContent=msg; loading.classList.toggle('hidden',!on); }
   const supportsUpload = true; // try server upload; fallback uses data URLs
 
@@ -210,11 +211,11 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   cancelBtn.onclick=()=>{selId=null; clearEditor(); show(listV)};
 
   // List click -> read (ensure full focus by switching view)
-  listV.addEventListener('click',async e=>{const card=e.target.closest('.card'); if(!card) return; const id=card.getAttribute('data-id'); const a=await API.get(id); if(!a) return; openRead(a)});
+  listV.addEventListener('click',async e=>{const card=e.target.closest('.card'); if(!card) return; const id=card.getAttribute('data-id'); const c=AC[id]; if(c){ openRead(c); return; } setLoading(true,'Loading article…'); try{ const a=await API.get(id); if(!a) return; AC[id]=a; openRead(a); } finally { setLoading(false); }});
   function openRead(a){ selId=a.id; rTh.loading='lazy'; rTh.decoding='async'; rTh.src=a.thumb||''; rT.textContent=a.title||''; rB.innerHTML=a.body||''; rB.querySelectorAll('img').forEach(im=>{ im.loading='lazy'; im.decoding='async'; }); dt.textContent=new Date(a.createdAt||Date.now()).toLocaleString(); show(readV) }
 
   // Delete
-  del.onclick=async()=>{ if(!selId) return; setLoading(true,'Deleting…'); await API.remove(selId); selId=null; await renderList(); setLoading(false); show(listV) };
+  del.onclick=async()=>{ if(!selId) return; setLoading(true,'Deleting…'); await API.remove(selId); delete AC[selId]; selId=null; await renderList(); setLoading(false); show(listV) };
 
   // Nav
   toList.onclick=async()=>{ setLoading(true,'Loading articles…'); await renderList(); setLoading(false); show(listV)};
