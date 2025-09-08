@@ -1,0 +1,12 @@
+FEN:rnbqkbnr/pppp1ppp/4p3/8/8/N4N2/PPPPPPPP/R1BQKB1R b KQkq - 1 2
+BEST:f8a3
+LINE:g1f3 e7e6 b1a3
+.
+FEN:rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq - 0 1
+BEST:e7e5
+LINE:h2h3
+.
+FEN:rnbqkbnr/pppp1ppp/8/4p3/8/4P3/PPPPKPPP/RNBQ1BNR b kq - 1 2
+BEST:d7d5
+LINE:e2e3 e7e5 e1e2
+.
