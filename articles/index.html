@@ -29,7 +29,7 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
 .spinner{width:16px;height:16px;border:2px solid #ccc;border-top-color:#333;border-radius:50%;display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .reading header nav{display:none}
-.reading #delBtn,.reading #dateInfo{display:none}
+.reading #delBtn{display:none}
 </style>
 
 <header>
@@ -60,8 +60,11 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
     <label>Title</label>
     <input id="title" type="text" placeholder="Article title"/>
 
+  <label>Author</label>
+  <input id="author" type="text" placeholder="Author (optional)"/>
+
     <label>Thumbnail</label>
-    <div id="thumbDrop" class="drop">Drop image here or choose…<br><img id="thumbPrev"/></div>
+  <div id="thumbDrop" class="drop">Choose image…<br><img id="thumbPrev"/></div>
     <input id="thumbFile" type="file"/>
 
     <label>Body</label>
@@ -88,11 +91,12 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   const loading=$('#loading');
   const rT=$('#readTitle'), rB=$('#readBody'), rTh=$('#readThumb'), dt=$('#dateInfo');
   const toList=$('#toList'), toNew=$('#toNew'), back=$('#backBtn'), del=$('#delBtn');
-  const title=$('#title'), content=$('#content');
+  const title=$('#title'), author=$('#author'), content=$('#content');
   const tDrop=$('#thumbDrop'), tPrev=$('#thumbPrev'), tFile=$('#thumbFile');
   const insImg=$('#insImg'), insVid=$('#insVid'), imgFile=$('#imgFile'), vidFile=$('#vidFile');
   const saveBtn=$('#saveBtn'), cancelBtn=$('#cancelBtn');
   const KEY='articles14k';
+  const PH="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 120'%3E%3Crect width='100%25' height='100%25' fill='%23eee'/%3E%3C/svg%3E";
   let selId=null; let API=null; let preList; // cache first list to avoid duplicate initial fetches
   const AC={};
   function setLoading(on,msg){ if(!loading) return; if(msg) loading.querySelector('.msg').textContent=msg; loading.classList.toggle('hidden',!on); }
@@ -150,7 +154,7 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
       finally{ setLoading(false); }
     }
   if(!a.length){listV.innerHTML='<div class="small">No articles yet. Click New to create one.</div>';return}
-  listV.innerHTML=a.map(x=>`<div class="card" data-id="${x.id}"><img loading="lazy" decoding="async" src="${x.thumb||''}" alt="thumb"><h3>${esc(x.title)}</h3></div>`).join('');
+  listV.innerHTML=a.map(x=>`<div class="card" data-id="${x.id}"><img loading="lazy" decoding="async" src="${x.thumb||PH}" alt="thumb"><h3>${esc(x.title)}</h3></div>`).join('');
   }
 
   function esc(s){return (s||'').replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
@@ -159,14 +163,12 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   function fileToDataURL(f){return new Promise((res,rej)=>{const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f)})}
   function dataURLToBlob(dataURL){ try{ const [h,b]=dataURL.split(','); const m=h.match(/data:([^;]+)(;base64)?/); if(!m) return null; const mime=m[1]; const isB64=!!m[2]; const raw=isB64? atob(b): decodeURIComponent(b); const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i); return new Blob([arr], {type:mime}); }catch(e){ return null; } }
   function insertAtSel(node){const s=window.getSelection(); if(!s||!s.rangeCount){content.appendChild(node); return} const r=s.getRangeAt(0); r.deleteContents(); r.insertNode(node); r.setStartAfter(node); r.setEndAfter(node); s.removeAllRanges(); s.addRange(r)}
-  function dropHandler(zone, cb){zone.addEventListener('dragover',e=>{e.preventDefault(); zone.style.background='#f7f7f7'}); zone.addEventListener('dragleave',()=>zone.style.background=''); zone.addEventListener('drop',e=>{e.preventDefault(); zone.style.background=''; const fs=[...(e.dataTransfer.files||[])]; fs.forEach(cb)});}
 
-  // Thumb drag/drop or file select
-  dropHandler(tDrop, f=>{ if(!f.type.startsWith('image/')) return; fileToDataURL(f).then(u=>{tPrev.src=u})});
+  // Thumbnail via file chooser only
   tFile.addEventListener('change',e=>{const f=e.target.files[0]; if(f) fileToDataURL(f).then(u=>tPrev.src=u)});
   tDrop.addEventListener('click',()=>tFile.click());
 
-  // Content drag/drop insert and paste
+  // Content paste (keep), no drag & drop
   content.addEventListener('paste',e=>{const it=(e.clipboardData||{}).items||[]; for(const x of it){const f=x.getAsFile&&x.getAsFile(); if(!f) continue; e.preventDefault(); if(f.type.startsWith('image/')) {
         // Insert a placeholder while uploading
         const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph);
@@ -174,10 +176,6 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
       } else if(f.type.startsWith('video/')) {
         fileToDataURL(f).then(u=>{const v=videoEl(u); insertAtSel(v)});
       } } });
-  dropHandler(content, f=>{ if(f.type.startsWith('image/')) {
-      const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph);
-      (async()=>{ const url=await uploadBlobAndGetURL(f); if(url){ ph.removeAttribute('style'); ph.src=url; } else { fileToDataURL(f).then(u=>{ ph.removeAttribute('style'); ph.src=u; }); } })();
-    } else if(f.type.startsWith('video/')) { fileToDataURL(f).then(u=>{const v=videoEl(u); insertAtSel(v)}) } });
 
   // Insert buttons
   insImg.onclick=()=>{ imgFile.onchange=async e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph); const url=await uploadBlobAndGetURL(f); if(url){ ph.removeAttribute('style'); ph.src=url; } else { fileToDataURL(f).then(u=>{ ph.removeAttribute('style'); ph.src=u; }); } }; imgFile.click(); };
@@ -190,7 +188,7 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
     let th=tPrev.src||''; if(!th){const fi=content.querySelector('img'); if(fi) th=fi.src}
     // If thumbnail is data URL, try uploading to separate file so it loads separately
     if(th && th.startsWith('data:')){ const blob=dataURLToBlob(th); if(blob){ const u=await uploadBlobAndGetURL(blob); if(u) th=u; } }
-    const obj={title:title.value.trim()||'Untitled', body:content.innerHTML, thumb:th||''};
+    const obj={title:title.value.trim()||'Untitled', author:author.value.trim(), body:content.innerHTML, thumb:th||''};
     setLoading(true,'Saving…');
     await API.create(obj);
     selId=null; clearEditor();
@@ -199,12 +197,12 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
     show(listV);
   };
 
-  function clearEditor(){ title.value=''; content.innerHTML=''; tPrev.removeAttribute('src') }
+  function clearEditor(){ title.value=''; author.value=''; content.innerHTML=''; tPrev.removeAttribute('src') }
   cancelBtn.onclick=()=>{selId=null; clearEditor(); show(listV)};
 
   // List click -> read (ensure full focus by switching view)
   listV.addEventListener('click',async e=>{const card=e.target.closest('.card'); if(!card) return; const id=card.getAttribute('data-id'); const c=AC[id]; if(c){ openRead(c); return; } setLoading(true,'Loading article…'); try{ const a=await API.get(id); if(!a) return; AC[id]=a; openRead(a); } finally { setLoading(false); }});
-  function openRead(a){ selId=a.id; rTh.loading='lazy'; rTh.decoding='async'; rTh.src=a.thumb||''; rT.textContent=a.title||''; rB.innerHTML=a.body||''; rB.querySelectorAll('img').forEach(im=>{ im.loading='lazy'; im.decoding='async'; }); dt.textContent=new Date(a.createdAt||Date.now()).toLocaleString(); show(readV) }
+  function openRead(a){ selId=a.id; rTh.loading='lazy'; rTh.decoding='async'; rTh.src=a.thumb||''; rT.textContent=a.title||''; rB.innerHTML=a.body||''; rB.querySelectorAll('img').forEach(im=>{ im.loading='lazy'; im.decoding='async'; }); const d=new Date(a.createdAt||Date.now()).toLocaleString(); dt.textContent=(a.author? a.author+' · ': '')+d; show(readV) }
 
   // Delete
   del.onclick=async()=>{ if(!selId) return; setLoading(true,'Deleting…'); await API.remove(selId); delete AC[selId]; selId=null; await renderList(); setLoading(false); show(listV) };
