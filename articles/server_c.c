@@ -126,6 +126,44 @@ static char* build_article_json(const char* id, const char* title, const char* b
 
 static char* gen_id(){ char* out=malloc(17); if(!out) return NULL; unsigned int r = (unsigned int)rand(); long long t=now_ms(); snprintf(out,17,"%08x%08x", (unsigned int)(t&0xffffffff), r); return out; }
 
+// ---- data URL handling ----
+static int b64val(int c){ if(c>='A'&&c<='Z') return c-'A'; if(c>='a'&&c<='z') return c-'a'+26; if(c>='0'&&c<='9') return c-'0'+52; if(c=='+') return 62; if(c=='/') return 63; return -1; }
+static unsigned char* base64_decode(const char* s, size_t len, size_t* out_len){ size_t pad=0; if(len>=1 && s[len-1]=='=') pad++; if(len>=2 && s[len-2]=='=') pad++; size_t outcap = (len/4)*3 - pad; unsigned char* out = malloc(outcap+1); if(!out) return NULL; size_t w=0; int val=0, valb=-8; for(size_t i=0;i<len;i++){ int c=s[i]; if(c=='='||c=='\r'||c=='\n'||c==' '||c=='\t') continue; int d=b64val(c); if(d<0){ free(out); return NULL; } val = (val<<6) + d; valb += 6; if(valb>=0){ out[w++] = (unsigned char)((val>>valb)&0xFF); valb-=8; } } if(out_len) *out_len=w; return out; }
+static int parse_data_url(const char* data_url, char** out_mime, unsigned char** out_bytes, size_t* out_len){ const char* p=data_url; if(strncmp(p,"data:",5)!=0) return -1; p+=5; const char* semi=strchr(p,';'); const char* comma=strchr(p,','); if(!comma) return -1; char* mime=NULL; int is_b64=0; if(semi && semi<comma){ mime = strndup(p, (size_t)(semi-p)); if(!strncmp(semi, ";base64",7)) is_b64=1; } else { mime = strndup(p, (size_t)(comma-p)); }
+  const char* payload = comma+1; unsigned char* bytes=NULL; size_t blen=0;
+  if(is_b64){ bytes = base64_decode(payload, strlen(payload), &blen); if(!bytes){ free(mime); return -1; } }
+  else { // percent-decoded
+    size_t L=strlen(payload); bytes=malloc(L+1); if(!bytes){ free(mime); return -1; } size_t w=0; for(size_t i=0;i<L;i++){ if(payload[i]=='%' && i+2<L){ char h[3]={payload[i+1],payload[i+2],'\0'}; bytes[w++]=(unsigned char)strtol(h,NULL,16); i+=2; } else if(payload[i]=='+'){ bytes[w++]=' '; } else { bytes[w++]=(unsigned char)payload[i]; } } blen=w; }
+  *out_mime=mime; *out_bytes=bytes; if(out_len) *out_len=blen; return 0; }
+static const char* ext_from_mime(const char* mime){ if(!mime) return NULL; if(strstr(mime,"image/png")) return "png"; if(strstr(mime,"image/jpeg")) return "jpg"; if(strstr(mime,"image/webp")) return "webp"; if(strstr(mime,"image/gif")) return "gif"; return NULL; }
+
+static char* save_bytes_with_ext(const unsigned char* bytes, size_t blen, const char* ext){ if(!bytes||!blen) return NULL; const char* updir="uploads"; ensure_dir(updir); char* name=gen_id(); if(!name) return NULL; const char* e = (ext&&*ext)? ext: "bin"; size_t need=strlen(updir)+1+strlen(name)+1+strlen(e)+1; char* path=malloc(need); if(!path){ free(name); return NULL; } snprintf(path,need,"%s/%s.%s", updir, name, e); free(name); if(write_file_all(path,(const char*)bytes,blen)!=0){ free(path); return NULL; } return path; }
+
+static char* migrate_inline_images_in_body(const char* body, bool* changed){ if(!body) return NULL; const char* p=body; size_t outcap=strlen(body)+1; char* out=malloc(outcap); if(!out) return NULL; size_t w=0; int did=0; while(*p){ const char* m=strstr(p, "src=\""); const char* m2=strstr(p, "src='"); const char* hit=NULL; char quote='\0'; if(m && (!m2 || m<m2)){ hit=m; quote='\"'; } else if(m2){ hit=m2; quote='\''; }
+    if(!hit){ size_t L=strlen(p); if(w+L+1>outcap){ outcap=w+L+1; out=realloc(out,outcap); if(!out) return NULL; } memcpy(out+w,p,L); w+=L; break; }
+    // copy up to src=
+    size_t prefix_len=(size_t)(hit - p); if(w+prefix_len+6>outcap){ outcap=w+prefix_len+64; out=realloc(out,outcap); if(!out) return NULL; } memcpy(out+w,p,prefix_len); w+=prefix_len; memcpy(out+w, "src=\"", 5); w+=5; // normalize to double quote
+    const char* url_start = hit + 5; if(quote=='\''){ url_start = hit + 5; }
+    if(*url_start=='\''||*url_start=='\"') url_start++;
+    const char* url_end=strchr(url_start, quote=='\''?'\'':'\"'); if(!url_end){ // malformed; copy rest
+      size_t L=strlen(url_start); if(w+L+1>outcap){ outcap=w+L+1; out=realloc(out,outcap); if(!out) return NULL; } memcpy(out+w,url_start,L); w+=L; break; }
+    size_t url_len=(size_t)(url_end - url_start);
+    if(url_len>5 && !strncmp(url_start, "data:",5)){
+      char* mime=NULL; unsigned char* bytes=NULL; size_t bl=0; char* urlbuf=strndup(url_start,url_len);
+      if(parse_data_url(urlbuf,&mime,&bytes,&bl)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl,ext); if(saved){ const char* rel=saved; const char* prefix="/"; size_t need=strlen(prefix)+strlen(rel); if(w+need+1>outcap){ outcap=w+need+64; out=realloc(out,outcap); if(!out){ free(saved); free(bytes); free(mime); free(urlbuf); return NULL; } }
+          out[w++]='/'; memcpy(out+w, rel, strlen(rel)); w+=strlen(rel); did=1; free(saved); }
+      }
+      free(bytes); free(mime); free(urlbuf);
+    } else {
+      if(w+url_len+1>outcap){ outcap=w+url_len+64; out=realloc(out,outcap); if(!out) return NULL; } memcpy(out+w,url_start,url_len); w+=url_len;
+    }
+    // closing quote
+    if(w+1>outcap){ outcap=w+64; out=realloc(out,outcap); if(!out) return NULL; }
+    out[w++]='"';
+    p = url_end + 1;
+  }
+  out[w]='\0'; if(changed) *changed=did; return out; }
+
 // ---- HTTP helpers ----
 static void send_str(int c, const char* s){ send(c, s, strlen(s), 0); }
 
@@ -139,7 +177,7 @@ static void send_response(int c, int code, const char* status, const char* ctype
   if(body && blen) send(c, body, blen, 0);
 }
 
-static const char* guess_mime(const char* path){ const char* ext=strrchr(path,'.'); if(!ext) return "application/octet-stream"; ext++; if(!strcmp(ext,"html")) return "text/html; charset=utf-8"; if(!strcmp(ext,"css")) return "text/css"; if(!strcmp(ext,"js")) return "application/javascript"; if(!strcmp(ext,"png")) return "image/png"; if(!strcmp(ext,"jpg")||!strcmp(ext,"jpeg")) return "image/jpeg"; if(!strcmp(ext,"svg")) return "image/svg+xml"; return "application/octet-stream"; }
+static const char* guess_mime(const char* path){ const char* ext=strrchr(path,'.'); if(!ext) return "application/octet-stream"; ext++; if(!strcmp(ext,"html")) return "text/html; charset=utf-8"; if(!strcmp(ext,"css")) return "text/css"; if(!strcmp(ext,"js")) return "application/javascript"; if(!strcmp(ext,"png")) return "image/png"; if(!strcmp(ext,"jpg")||!strcmp(ext,"jpeg")) return "image/jpeg"; if(!strcmp(ext,"webp")) return "image/webp"; if(!strcmp(ext,"gif")) return "image/gif"; if(!strcmp(ext,"svg")) return "image/svg+xml"; if(!strcmp(ext,"mp4")) return "video/mp4"; if(!strcmp(ext,"webm")) return "video/webm"; return "application/octet-stream"; }
 
 // ---- Data operations (NDJSON-style internal), exposed as JSON array ----
 static char* ltrim_dup(const char* s){ while(*s && isspace((unsigned char)*s)) s++; return strdup(s); }
@@ -225,7 +263,16 @@ static char* create_article_from_body(const char* body_json){
   free(content); free(file); free(id); return obj; }
 
 // ---- request handling ----
-static void handle_api(int c, const char* method, const char* path, const char* body, size_t blen){
+static const char* ext_from_content_type(const char* ct){ if(!ct) return NULL; if(strstr(ct,"image/png")) return "png"; if(strstr(ct,"image/jpeg")) return "jpg"; if(strstr(ct,"image/jpg")) return "jpg"; if(strstr(ct,"image/webp")) return "webp"; if(strstr(ct,"image/gif")) return "gif"; return NULL; }
+
+static const char* get_qparam(const char* path, const char* key){ const char* q=strchr(path,'?'); if(!q) return NULL; q++; size_t klen=strlen(key); while(*q){ if(!strncmp(q,key,klen) && q[klen]=='='){ return q+klen+1; } while(*q && *q!='&') q++; if(*q=='&') q++; }
+  return NULL; }
+
+static char* strndup_local(const char* s, size_t n){ char* r=malloc(n+1); if(!r) return NULL; memcpy(r,s,n); r[n]='\0'; return r; }
+
+static char* save_upload(const char* body, size_t blen, const char* ext_hint){ if(!body||blen==0) return NULL; const char* updir = "uploads"; ensure_dir(updir); char* name=gen_id(); if(!name) return NULL; const char* ext = (ext_hint&&*ext_hint)? ext_hint: "bin"; size_t need=strlen(updir)+1+strlen(name)+1+strlen(ext)+1; char* path=malloc(need); if(!path){ free(name); return NULL; } snprintf(path,need,"%s/%s.%s", updir, name, ext); free(name); if(write_file_all(path, body, blen)!=0){ free(path); return NULL; } return path; }
+
+static void handle_api(int c, const char* method, const char* path, const char* body, size_t blen, const char* content_type){
   if(!strncmp(method,"OPTIONS",7)){
     send_response(c, 204, "No Content", "application/json", "", 0, true); return;
   }
@@ -235,9 +282,51 @@ static void handle_api(int c, const char* method, const char* path, const char* 
   if(!strncmp(path, base, bl)){
     if(!strcmp(method,"GET")){
       if(!strcmp(path, base)){
-        size_t L=0; char* arr=list_articles_json(&L); send_response(c, 200, "OK", "application/json", arr, L, true); free(arr); return;
+        // Load, migrate thumbs/body inline images to files if needed, persist, then return
+        char* file=data_file(); if(!file){ send_response(c,200,"OK","application/json","[]",2,true); return; }
+        size_t n=0; char* content=read_file_all(file,&n); if(!content){ free(file); send_response(c,200,"OK","application/json","[]",2,true); return; }
+        char* t=ltrim_dup(content); free(content); if(!t){ free(file); send_response(c,200,"OK","application/json","[]",2,true); return; }
+        if(t[0] != '['){ free(file); size_t L2=2; send_response(c,200,"OK","application/json","[]",2,true); free(t); return; }
+        // iterate and rebuild array
+        size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; size_t count=0, cap=8; char** objs=malloc(cap*sizeof(char*)); int changed=0;
+        for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
+              // check thumb
+              char* id=json_get_string(obj, "id"); char* title=json_get_string(obj, "title"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\"");
+              int obj_changed=0;
+              // migrate thumb if data URL
+              if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); }
+              }
+              // migrate inline images in body
+              bool bchanged=false; char* new_body=migrate_inline_images_in_body(body_s,&bchanged); if(new_body && bchanged){ free(body_s); body_s=new_body; obj_changed=1; } else { free(new_body); }
+              if(obj_changed){ changed=1; free(obj); char* obj2=build_article_json(id?id:"",title?title:"",body_s?body_s:"",thumb?thumb:"",createdAt,0); obj=obj2; }
+              free(id); free(title); free(body_s); free(thumb);
+              if(count==cap){ cap*=2; objs=realloc(objs, cap*sizeof(char*)); }
+              objs[count++]=obj;
+            }
+          }
+        }
+        // build array string
+        size_t total_len=2; for(size_t k=0;k<count;k++){ total_len+=strlen(objs[k]); if(k+1<count) total_len++; }
+        char* out=malloc(total_len+1); size_t w=0; out[w++]='['; for(size_t k=0;k<count;k++){ size_t Lx=strlen(objs[k]); memcpy(out+w, objs[k], Lx); w+=Lx; if(k+1<count) out[w++]=','; } out[w++]=']'; out[w]='\0';
+        if(changed){ write_file_all(file, out, w); }
+        send_response(c,200,"OK","application/json",out,w,true);
+        for(size_t k=0;k<count;k++) free(objs[k]); free(objs); free(out); free(file); free(t); return;
       } else if(path[bl]=='/' && strlen(path)>bl+1){
-        const char* id=path+bl+1; char* obj=find_article_by_id(id); if(!obj){ send_response(c,404,"Not Found","application/json","",0,true); return;} size_t L=strlen(obj); send_response(c,200,"OK","application/json",obj,L,true); free(obj); return;
+        const char* id=path+bl+1; char* obj=find_article_by_id(id); if(!obj){ send_response(c,404,"Not Found","application/json","",0,true); return;}
+        // migrate this object if needed
+        char* title=json_get_string(obj, "title"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\""); int obj_changed=0;
+        if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); } }
+        bool bchanged=false; char* new_body=migrate_inline_images_in_body(body_s,&bchanged); if(new_body && bchanged){ free(body_s); body_s=new_body; obj_changed=1; } else { free(new_body); }
+        if(obj_changed){ char* id_copy=json_get_string(obj, "id"); char* updated=build_article_json(id_copy?id_copy:"", title?title:"", body_s?body_s:"", thumb?thumb:"", createdAt, 0); // persist
+          if(updated){ rewrite_articles_map(NULL, id_copy, updated, false); free(updated); }
+          free(id_copy);
+          free(obj); obj=build_article_json(json_get_string("",""), title?title:"", body_s?body_s:"", thumb?thumb:"", createdAt, 0); // rebuild for response
+          // Above line uses placeholder; simpler: rebuild from previously updated string parsing is heavy; instead send the updated we built
+          // But rewrite_articles_map returned updated; safer to just re-find
+          free(obj); obj=find_article_by_id(id);
+        }
+        free(title); free(body_s); free(thumb);
+        size_t L=strlen(obj); send_response(c,200,"OK","application/json",obj,L,true); free(obj); return;
       }
     } else if(!strcmp(method,"POST") && !strcmp(path, base)){
       char* obj=create_article_from_body(body?body:""); if(!obj){ send_response(c,400,"Bad Request","application/json","",0,true); return;} size_t L=strlen(obj); send_response(c,201,"Created","application/json",obj,L,true); free(obj); return;
@@ -245,6 +334,23 @@ static void handle_api(int c, const char* method, const char* path, const char* 
       const char* id=path+bl+1; char* updated=NULL; if(rewrite_articles_map(&updated,id,body?body:"",false)==0){ size_t L=strlen(updated); send_response(c,200,"OK","application/json",updated,L,true); free(updated); } else { send_response(c,404,"Not Found","application/json","",0,true);} return;
     } else if(!strcmp(method,"DELETE") && path[bl]=='/' && strlen(path)>bl+1){
       const char* id=path+bl+1; if(rewrite_articles_map(NULL,id,NULL,true)==0){ send_response(c,204,"No Content","application/json","",0,true);} else { send_response(c,404,"Not Found","application/json","",0,true);} return;
+    }
+  }
+  // /api/upload for binary image upload
+  if(!strncmp(path, "/api/upload", 12)){
+    if(!strcmp(method,"POST")){
+      const char* ext_q = get_qparam(path, "ext"); const char* dot = NULL; const char* ext_from_ct = ext_from_content_type(content_type);
+      const char* ext = ext_from_ct ? ext_from_ct : (ext_q ? ext_q : "bin");
+      // trim ext to safe token
+      size_t elen=0; while(ext[elen] && elen<8 && isalnum((unsigned char)ext[elen])) elen++; char* ext_safe=strndup_local(ext,elen?elen:3); if(!ext_safe){ send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+      char* saved = save_upload(body, blen, ext_safe); free(ext_safe);
+      if(!saved){ send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+      // build URL
+      const char* rel = saved; // saved like "uploads/.."
+      size_t L = strlen(rel)+20; char* res=malloc(L); if(!res){ free(saved); send_response(c,500,"Internal Server Error","application/json","",0,true); return; }
+      snprintf(res, L, "{\"url\":\"/%s\"}", rel);
+      send_response(c,201,"Created","application/json",res,strlen(res),true);
+      free(res); free(saved); return;
     }
   }
   send_response(c,404,"Not Found","text/plain","Not Found",9,true);
@@ -261,7 +367,19 @@ static void handle_static(int c, const char* path){
   fseek(f,0,SEEK_END); long sz=ftell(f); fseek(f,0,SEEK_SET); char* buf=malloc((size_t)sz); if(!buf){ fclose(f); send_response(c,500,"Internal Server Error","text/plain","",0,false); return; }
   size_t n=fread(buf,1,(size_t)sz,f); fclose(f);
   const char* mime=guess_mime(full);
-  send_response(c,200,"OK",mime,buf,n,false); free(buf);
+  // Add strong cache for uploaded assets
+  int is_upload = (strncmp(rel, "/uploads/", 9)==0);
+  if(is_upload){
+    char head[SMALL_BUF];
+    int hlen=snprintf(head,sizeof(head),
+      "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %zu\r\nCache-Control: public, max-age=31536000, immutable\r\n\r\n",
+      mime, (size_t)n);
+    send(c, head, (size_t)hlen, 0);
+    if(n) send(c, buf, n, 0);
+  } else {
+    send_response(c,200,"OK",mime,buf,n,false);
+  }
+  free(buf);
 }
 
 static void handle_client(int c){
@@ -274,13 +392,14 @@ static void handle_client(int c){
   sscanf(buf, "%15s %1023s", method, path);
   // headers
   size_t content_length=0; char* cl = strcasestr(buf, "Content-Length:"); if(cl){ content_length = strtoul(cl+15, NULL, 10); }
+  char* ct_hdr = strcasestr(buf, "Content-Type:"); char ctype[128]={0}; if(ct_hdr){ ct_hdr+=13; while(*ct_hdr==' '||*ct_hdr=='\t') ct_hdr++; size_t i=0; while(*ct_hdr && *ct_hdr!='\r' && *ct_hdr!='\n' && i<sizeof(ctype)-1){ ctype[i++]=*ct_hdr++; } ctype[i]='\0'; }
   // find body start
   char* hdr_end = strstr(buf, "\r\n\r\n"); size_t header_bytes = hdr_end? (size_t)(hdr_end - buf) + 4 : (size_t)total; size_t have_body = total > (ssize_t)header_bytes ? (size_t)total - header_bytes : 0;
   char* body = NULL; if(content_length){ body = malloc(content_length+1); if(!body){ close(c); return; } size_t off=0; if(have_body){ size_t cpy = have_body>content_length?content_length:have_body; memcpy(body, buf+header_bytes, cpy); off = cpy; }
     size_t remain = content_length - off; while(remain>0){ ssize_t rr = recv(c, body+off, remain, 0); if(rr<=0) break; off+=rr; remain-=rr; } body[content_length]='\0'; }
 
   if(!strncmp(path, "/api/", 5)){
-    handle_api(c, method, path, body, content_length);
+    handle_api(c, method, path, body, content_length, ctype[0]?ctype:NULL);
   } else if(!strcmp(method,"GET")){
     handle_static(c, path);
   } else if(!strcmp(method,"OPTIONS")){
