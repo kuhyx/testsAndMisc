@@ -112,16 +112,16 @@ static char* json_get_top_string(const char* json, const char* key){
 }
 
 // Build object JSON string; caller frees
-static char* build_article_json(const char* id, const char* title, const char* body, const char* thumb, long long createdAt, long long updatedAt){
-  char *et=json_escape(title?title:""), *eb=json_escape(body?body:""), *eth=json_escape(thumb?thumb:"");
-  if(!et||!eb||!eth){ free(et); free(eb); free(eth); return NULL; }
+static char* build_article_json(const char* id, const char* title, const char* author, const char* body, const char* thumb, long long createdAt, long long updatedAt){
+  char *et=json_escape(title?title:""), *eau=json_escape(author?author:""), *eb=json_escape(body?body:""), *eth=json_escape(thumb?thumb:"");
+  if(!et||!eau||!eb||!eth){ free(et); free(eau); free(eb); free(eth); return NULL; }
   char createdBuf[64]; snprintf(createdBuf,sizeof(createdBuf),"%lld",createdAt);
   char updated[96]=""; if(updatedAt>0){ snprintf(updated,sizeof(updated),",\"updatedAt\":%lld",updatedAt); }
-  size_t need = strlen(id)+strlen(et)+strlen(eb)+strlen(eth)+strlen(createdBuf)+strlen(updated)+64;
+  size_t need = strlen(id)+strlen(et)+strlen(eau)+strlen(eb)+strlen(eth)+strlen(createdBuf)+strlen(updated)+80;
   char* out=malloc(need);
-  if(!out){ free(et); free(eb); free(eth); return NULL; }
-  snprintf(out, need, "{\"id\":\"%s\",\"title\":\"%s\",\"body\":\"%s\",\"thumb\":\"%s\",\"createdAt\":%s%s}", id, et, eb, eth, createdBuf, updated);
-  free(et); free(eb); free(eth); return out;
+  if(!out){ free(et); free(eau); free(eb); free(eth); return NULL; }
+  snprintf(out, need, "{\"id\":\"%s\",\"title\":\"%s\",\"author\":\"%s\",\"body\":\"%s\",\"thumb\":\"%s\",\"createdAt\":%s%s}", id, et, eau, eb, eth, createdBuf, updated);
+  free(et); free(eau); free(eb); free(eth); return out;
 }
 
 static char* gen_id(){ char* out=malloc(17); if(!out) return NULL; unsigned int r = (unsigned int)rand(); long long t=now_ms(); snprintf(out,17,"%08x%08x", (unsigned int)(t&0xffffffff), r); return out; }
@@ -215,7 +215,7 @@ static int rewrite_articles_map(char** out_json_updated, const char* match_id, c
   // collect objects
   size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; size_t count=0, cap=8; char** objs=malloc(cap*sizeof(char*)); bool found=false; char* updated_copy=NULL;
   for(; i<len; ++i){ char c=t[i]; if(c=='{'){ if(depth==0) start=i; depth++; } else if(c=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
-  char* id=json_get_string(obj, "id"); bool isMatch=id && strcmp(id,match_id)==0; if(isMatch){ found=true; if(!is_delete){ char* title=json_get_string(obj, "title"); char* body=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); char* ptitle=json_get_top_string(patch_json, "title"); if(ptitle&&*ptitle){ free(title); title=ptitle; } else free(ptitle); char* pbody=json_get_top_string(patch_json, "body"); if(pbody&&*pbody){ free(body); body=pbody; } else free(pbody); char* pthumb=json_get_top_string(patch_json, "thumb"); if(pthumb&&*pthumb){ free(thumb); thumb=pthumb; } else free(pthumb); long long createdAt=json_get_number(obj, "\"createdAt\""); long long updatedAt=now_ms(); char* obj2=build_article_json(id,title,body,thumb,createdAt,updatedAt); free(title); free(body); free(thumb);
+  char* id=json_get_string(obj, "id"); bool isMatch=id && strcmp(id,match_id)==0; if(isMatch){ found=true; if(!is_delete){ char* title=json_get_string(obj, "title"); char* author=json_get_string(obj, "author"); char* body=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); char* ptitle=json_get_top_string(patch_json, "title"); if(ptitle&&*ptitle){ free(title); title=ptitle; } else free(ptitle); char* pauthor=json_get_top_string(patch_json, "author"); if(pauthor&&*pauthor){ free(author); author=pauthor; } else free(pauthor); char* pbody=json_get_top_string(patch_json, "body"); if(pbody&&*pbody){ free(body); body=pbody; } else free(pbody); char* pthumb=json_get_top_string(patch_json, "thumb"); if(pthumb&&*pthumb){ free(thumb); thumb=pthumb; } else free(pthumb); long long createdAt=json_get_number(obj, "\"createdAt\""); long long updatedAt=now_ms(); char* obj2=build_article_json(id,title,author,body,thumb,createdAt,updatedAt); free(title); free(author); free(body); free(thumb);
               free(updated_copy); updated_copy=strdup(obj2); free(obj); obj=obj2; }
           }
           free(id);
@@ -238,8 +238,8 @@ static int rewrite_articles_map(char** out_json_updated, const char* match_id, c
 }
 
 static char* create_article_from_body(const char* body_json){
-  char* title=json_get_top_string(body_json, "title"); char* b=json_get_top_string(body_json, "body"); char* th=json_get_top_string(body_json, "thumb"); char* id=gen_id(); long long t=now_ms(); char* obj=build_article_json(id,title,b,th,t,0);
-  free(title); free(b); free(th); if(!id||!obj){ free(id); free(obj); return NULL; }
+  char* title=json_get_top_string(body_json, "title"); char* author=json_get_top_string(body_json, "author"); char* b=json_get_top_string(body_json, "body"); char* th=json_get_top_string(body_json, "thumb"); char* id=gen_id(); long long t=now_ms(); char* obj=build_article_json(id,title,author,b,th,t,0);
+  free(title); free(author); free(b); free(th); if(!id||!obj){ free(id); free(obj); return NULL; }
   char* file=data_file(); if(!file){ free(id); free(obj); return NULL; }
   size_t n=0; char* content=read_file_all(file,&n);
   if(!content || n==0){ // write new array
@@ -291,15 +291,15 @@ static void handle_api(int c, const char* method, const char* path, const char* 
         size_t len=strlen(t); size_t i=1; int depth=0; size_t start=0; size_t count=0, cap=8; char** objs=malloc(cap*sizeof(char*)); int changed=0;
         for(; i<len; ++i){ char ch=t[i]; if(ch=='{'){ if(depth==0) start=i; depth++; } else if(ch=='}'){ depth--; if(depth==0){ size_t end=i; size_t obj_len=end-start+1; char* obj=malloc(obj_len+1); memcpy(obj, t+start, obj_len); obj[obj_len]='\0';
               // check thumb
-              char* id=json_get_string(obj, "id"); char* title=json_get_string(obj, "title"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\"");
+              char* id=json_get_string(obj, "id"); char* title=json_get_string(obj, "title"); char* author=json_get_string(obj, "author"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\"");
               int obj_changed=0;
               // migrate thumb if data URL
               if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); }
               }
               // migrate inline images in body
               bool bchanged=false; char* new_body=migrate_inline_images_in_body(body_s,&bchanged); if(new_body && bchanged){ free(body_s); body_s=new_body; obj_changed=1; } else { free(new_body); }
-              if(obj_changed){ changed=1; free(obj); char* obj2=build_article_json(id?id:"",title?title:"",body_s?body_s:"",thumb?thumb:"",createdAt,0); obj=obj2; }
-              free(id); free(title); free(body_s); free(thumb);
+              if(obj_changed){ changed=1; free(obj); char* obj2=build_article_json(id?id:"",title?title:"",author?author:"",body_s?body_s:"",thumb?thumb:"",createdAt,0); obj=obj2; }
+              free(id); free(title); free(author); free(body_s); free(thumb);
               if(count==cap){ cap*=2; objs=realloc(objs, cap*sizeof(char*)); }
               objs[count++]=obj;
             }
@@ -314,18 +314,18 @@ static void handle_api(int c, const char* method, const char* path, const char* 
       } else if(path[bl]=='/' && strlen(path)>bl+1){
         const char* id=path+bl+1; char* obj=find_article_by_id(id); if(!obj){ send_response(c,404,"Not Found","application/json","",0,true); return;}
         // migrate this object if needed
-        char* title=json_get_string(obj, "title"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\""); int obj_changed=0;
+  char* title=json_get_string(obj, "title"); char* author=json_get_string(obj, "author"); char* body_s=json_get_string(obj, "body"); char* thumb=json_get_string(obj, "thumb"); long long createdAt=json_get_number(obj, "\"createdAt\""); int obj_changed=0;
         if(thumb && strncmp(thumb, "data:",5)==0){ char* mime=NULL; unsigned char* bytes=NULL; size_t bl2=0; if(parse_data_url(thumb,&mime,&bytes,&bl2)==0){ const char* ext=ext_from_mime(mime); char* saved=save_bytes_with_ext(bytes,bl2,ext); if(saved){ free(thumb); size_t urlL=strlen(saved)+2; thumb=malloc(urlL); snprintf(thumb,urlL,"/%s",saved); free(saved); obj_changed=1; } free(mime); free(bytes); } }
         bool bchanged=false; char* new_body=migrate_inline_images_in_body(body_s,&bchanged); if(new_body && bchanged){ free(body_s); body_s=new_body; obj_changed=1; } else { free(new_body); }
-        if(obj_changed){ char* id_copy=json_get_string(obj, "id"); char* updated=build_article_json(id_copy?id_copy:"", title?title:"", body_s?body_s:"", thumb?thumb:"", createdAt, 0); // persist
+        if(obj_changed){ char* id_copy=json_get_string(obj, "id"); char* updated=build_article_json(id_copy?id_copy:"", title?title:"", author?author:"", body_s?body_s:"", thumb?thumb:"", createdAt, 0); // persist
           if(updated){ rewrite_articles_map(NULL, id_copy, updated, false); free(updated); }
           free(id_copy);
-          free(obj); obj=build_article_json(json_get_string("",""), title?title:"", body_s?body_s:"", thumb?thumb:"", createdAt, 0); // rebuild for response
+          free(obj); obj=build_article_json(json_get_string("",""), title?title:"", author?author:"", body_s?body_s:"", thumb?thumb:"", createdAt, 0); // rebuild for response
           // Above line uses placeholder; simpler: rebuild from previously updated string parsing is heavy; instead send the updated we built
           // But rewrite_articles_map returned updated; safer to just re-find
           free(obj); obj=find_article_by_id(id);
         }
-        free(title); free(body_s); free(thumb);
+        free(title); free(author); free(body_s); free(thumb);
         size_t L=strlen(obj); send_response(c,200,"OK","application/json",obj,L,true); free(obj); return;
       }
     } else if(!strcmp(method,"POST") && !strcmp(path, base)){
