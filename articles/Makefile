@@ -9,7 +9,10 @@ server_c: server_c.c
 
 lint:
 	@echo "Running clang-tidy..."
-	@clang-tidy -checks=-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling server_c.c -- -std=gnu11 $(CFLAGS) $(LDFLAGS) || true
+		@clang-tidy \
+		  -checks=clang-analyzer-*,clang-diagnostic-*,readability-function-size,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling \
+		  -config='{ "CheckOptions": [ { "key": "readability-function-size.LineThreshold", "value": "20" } ] }' \
+		  server_c.c -- -std=gnu11 $(CFLAGS) $(LDFLAGS) || true
 	@echo "Running cppcheck..."
 	@cppcheck --enable=all --inconclusive --std=c11 --language=c --quiet --inline-suppr --check-level=exhaustive --suppress=missingIncludeSystem server_c.c || true
 
