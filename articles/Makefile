@@ -7,6 +7,12 @@ all: server_c
 server_c: server_c.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
+lint:
+	@echo "Running clang-tidy..."
+	@clang-tidy -checks=-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling server_c.c -- -std=gnu11 $(CFLAGS) $(LDFLAGS) || true
+	@echo "Running cppcheck..."
+	@cppcheck --enable=all --inconclusive --std=c11 --language=c --quiet --inline-suppr --check-level=exhaustive --suppress=missingIncludeSystem server_c.c || true
+
 build: minify
 
 minify:
