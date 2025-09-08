@@ -27,6 +27,10 @@ article img, article video{max-width:100%;height:auto;display:block;margin:.5rem
 article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
 .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
 .small{font-size:.85rem;color:#666}
+/* Loading indicator */
+#loading{display:flex;align-items:center;gap:.5rem;margin:0 0 1rem}
+.spinner{width:16px;height:16px;border:2px solid #ccc;border-top-color:#333;border-radius:50%;display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 /* Focused reading mode: keep header headline, hide nav and extras */
 .reading header nav{display:none}
 .reading #delBtn,.reading #dateInfo{display:none}
@@ -40,6 +44,10 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   </nav>
 </header>
 <main>
+  <!-- Loading indicator -->
+  <section id="loading" class="hidden" aria-live="polite">
+    <div class="small"><span class="spinner"></span><span class="msg">Loading…</span></div>
+  </section>
   <!-- List View -->
   <section id="listV" class="grid"></section>
 
@@ -88,6 +96,7 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
 (function(){
   const $=s=>document.querySelector(s);
   const listV=$('#listV'), readV=$('#readV'), editor=$('#editor');
+  const loading=$('#loading');
   const rT=$('#readTitle'), rB=$('#readBody'), rTh=$('#readThumb'), dt=$('#dateInfo');
   const toList=$('#toList'), toNew=$('#toNew'), back=$('#backBtn'), del=$('#delBtn');
   const title=$('#title'), content=$('#content');
@@ -95,17 +104,39 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   const insImg=$('#insImg'), insVid=$('#insVid'), imgFile=$('#imgFile'), vidFile=$('#vidFile');
   const saveBtn=$('#saveBtn'), cancelBtn=$('#cancelBtn');
   const KEY='articles14k';
-  let selId=null; let API=null;
+  let selId=null; let API=null; let preList; // cache first list to avoid duplicate initial fetches
+  function setLoading(on,msg){ if(!loading) return; if(msg) loading.querySelector('.msg').textContent=msg; loading.classList.toggle('hidden',!on); }
+  const supportsUpload = true; // try server upload; fallback uses data URLs
+
+  async function uploadBlobAndGetURL(blob){
+    try{
+      const ext = blob.type.startsWith('image/')? (blob.type.split('/')[1]||'bin') : 'bin';
+      const r = await fetch(`/api/upload?ext=${encodeURIComponent(ext)}`, { method:'POST', headers:{'Content-Type': blob.type || 'application/octet-stream'}, body: blob });
+      if(!r.ok) throw new Error('upload failed');
+      const j = await r.json();
+      return j && j.url ? j.url : '';
+    }catch(e){ return ''; }
+  }
+
+  function imgEl(src){ const img=new Image(); img.loading='lazy'; img.decoding='async'; img.src=src; return img; }
+  function videoEl(src){ const v=document.createElement('video'); v.controls=true; v.src=src; v.style.maxWidth='100%'; return v; }
 
   // API client with detection
   async function detectAPI(){
-    try{const r=await fetch('/api/articles'); if(r.ok){return {
-      async list(){return (await fetch('/api/articles')).json()},
-      async get(id){const r=await fetch('/api/articles/'+id); if(!r.ok) return null; return r.json()},
-      async create(a){const r=await fetch('/api/articles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(a)}); return r.json()},
-      async update(id,patch){const r=await fetch('/api/articles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}); return r.ok? r.json():null},
-      async remove(id){await fetch('/api/articles/'+id,{method:'DELETE'})}
-    }} }catch(e){}
+    // Try server once; cache the result to reuse for initial render
+    try{
+      const r=await fetch('/api/articles');
+      if(r.ok){
+        preList = await r.json();
+        return {
+          async list(){ return (await fetch('/api/articles')).json() },
+          async get(id){const r=await fetch('/api/articles/'+id); if(!r.ok) return null; return r.json()},
+          async create(a){const r=await fetch('/api/articles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(a)}); return r.json()},
+          async update(id,patch){const r=await fetch('/api/articles/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}); return r.ok? r.json():null},
+          async remove(id){await fetch('/api/articles/'+id,{method:'DELETE'})}
+        };
+      }
+    }catch(e){}
     // Fallback to localStorage
     const S={get(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}},set(a){localStorage.setItem(KEY,JSON.stringify(a))}};
     const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -120,16 +151,24 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
 
   function show(v){[listV,readV,editor].forEach(x=>x.classList.add('hidden')); v.classList.remove('hidden'); document.documentElement.classList.toggle('reading', v===readV)}
 
-  async function renderList(){
-    const a=await API.list();
-    if(!a.length){listV.innerHTML='<div class="small">No articles yet. Click New to create one.</div>';return}
-    listV.innerHTML=a.map(x=>`<div class="card" data-id="${x.id}"><img src="${x.thumb||''}" alt="thumb"><h3>${esc(x.title)}</h3></div>`).join('');
+  async function renderList(items){
+    let a;
+    if(items!==undefined){
+      a = items;
+    } else {
+      setLoading(true,'Loading articles…');
+      try{ a = await API.list(); }
+      finally{ setLoading(false); }
+    }
+  if(!a.length){listV.innerHTML='<div class="small">No articles yet. Click New to create one.</div>';return}
+  listV.innerHTML=a.map(x=>`<div class="card" data-id="${x.id}"><img loading="lazy" decoding="async" src="${x.thumb||''}" alt="thumb"><h3>${esc(x.title)}</h3></div>`).join('');
   }
 
   function esc(s){return (s||'').replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
 
   function pick(el,cb){el.onchange=e=>{const f=e.target.files&&e.target.files[0]; if(f) fileToDataURL(f).then(cb)}; el.click()}
   function fileToDataURL(f){return new Promise((res,rej)=>{const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f)})}
+  function dataURLToBlob(dataURL){ try{ const [h,b]=dataURL.split(','); const m=h.match(/data:([^;]+)(;base64)?/); if(!m) return null; const mime=m[1]; const isB64=!!m[2]; const raw=isB64? atob(b): decodeURIComponent(b); const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i); return new Blob([arr], {type:mime}); }catch(e){ return null; } }
   function insertAtSel(node){const s=window.getSelection(); if(!s||!s.rangeCount){content.appendChild(node); return} const r=s.getRangeAt(0); r.deleteContents(); r.insertNode(node); r.setStartAfter(node); r.setEndAfter(node); s.removeAllRanges(); s.addRange(r)}
   function dropHandler(zone, cb){zone.addEventListener('dragover',e=>{e.preventDefault(); zone.style.background='#f7f7f7'}); zone.addEventListener('dragleave',()=>zone.style.background=''); zone.addEventListener('drop',e=>{e.preventDefault(); zone.style.background=''; const fs=[...(e.dataTransfer.files||[])]; fs.forEach(cb)});}
 
@@ -139,19 +178,36 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   tDrop.addEventListener('click',()=>tFile.click());
 
   // Content drag/drop insert and paste
-  content.addEventListener('paste',e=>{const it=(e.clipboardData||{}).items||[]; for(const x of it){const f=x.getAsFile&&x.getAsFile(); if(!f) continue; e.preventDefault(); if(f.type.startsWith('image/')) fileToDataURL(f).then(u=>{const img=new Image(); img.src=u; insertAtSel(img)})
-      else if(f.type.startsWith('video/')) fileToDataURL(f).then(u=>{const v=document.createElement('video'); v.controls=true; v.src=u; v.style.maxWidth='100%'; insertAtSel(v)}) } });
-  dropHandler(content, f=>{ if(f.type.startsWith('image/')) { fileToDataURL(f).then(u=>{const img=new Image(); img.src=u; insertAtSel(img)}) } else if(f.type.startsWith('video/')) { fileToDataURL(f).then(u=>{const v=document.createElement('video'); v.controls=true; v.src=u; v.style.maxWidth='100%'; insertAtSel(v)}) } });
+  content.addEventListener('paste',e=>{const it=(e.clipboardData||{}).items||[]; for(const x of it){const f=x.getAsFile&&x.getAsFile(); if(!f) continue; e.preventDefault(); if(f.type.startsWith('image/')) {
+        // Insert a placeholder while uploading
+        const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph);
+        (async()=>{ const url=await uploadBlobAndGetURL(f); if(url){ ph.removeAttribute('style'); ph.src=url; } else { fileToDataURL(f).then(u=>{ ph.removeAttribute('style'); ph.src=u; }); } })();
+      } else if(f.type.startsWith('video/')) {
+        fileToDataURL(f).then(u=>{const v=videoEl(u); insertAtSel(v)});
+      } } });
+  dropHandler(content, f=>{ if(f.type.startsWith('image/')) {
+      const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph);
+      (async()=>{ const url=await uploadBlobAndGetURL(f); if(url){ ph.removeAttribute('style'); ph.src=url; } else { fileToDataURL(f).then(u=>{ ph.removeAttribute('style'); ph.src=u; }); } })();
+    } else if(f.type.startsWith('video/')) { fileToDataURL(f).then(u=>{const v=videoEl(u); insertAtSel(v)}) } });
 
   // Insert buttons
-  insImg.onclick=()=>pick(imgFile, u=>{const img=new Image(); img.src=u; insertAtSel(img)});
-  insVid.onclick=()=>pick(vidFile, u=>{const v=document.createElement('video'); v.controls=true; v.src=u; v.style.maxWidth='100%'; insertAtSel(v)});
+  insImg.onclick=()=>{ imgFile.onchange=async e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph); const url=await uploadBlobAndGetURL(f); if(url){ ph.removeAttribute('style'); ph.src=url; } else { fileToDataURL(f).then(u=>{ ph.removeAttribute('style'); ph.src=u; }); } }; imgFile.click(); };
+  insVid.onclick=()=>pick(vidFile, u=>{const v=videoEl(u); insertAtSel(v)});
 
   // Save article
   saveBtn.onclick=async()=>{
+    // Remove any empty placeholder images prior to saving
+    content.querySelectorAll('img[src=""], img:not([src])').forEach(n=>n.remove());
     let th=tPrev.src||''; if(!th){const fi=content.querySelector('img'); if(fi) th=fi.src}
+    // If thumbnail is data URL, try uploading to separate file so it loads separately
+    if(th && th.startsWith('data:')){ const blob=dataURLToBlob(th); if(blob){ const u=await uploadBlobAndGetURL(blob); if(u) th=u; } }
     const obj={title:title.value.trim()||'Untitled', body:content.innerHTML, thumb:th||''};
-    await API.create(obj); selId=null; clearEditor(); await renderList(); show(listV);
+    setLoading(true,'Saving…');
+    await API.create(obj);
+    selId=null; clearEditor();
+    await renderList();
+    setLoading(false);
+    show(listV);
   };
 
   function clearEditor(){ title.value=''; content.innerHTML=''; tPrev.removeAttribute('src') }
@@ -159,24 +215,31 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
 
   // List click -> read (ensure full focus by switching view)
   listV.addEventListener('click',async e=>{const card=e.target.closest('.card'); if(!card) return; const id=card.getAttribute('data-id'); const a=await API.get(id); if(!a) return; openRead(a)});
-  function openRead(a){ selId=a.id; rTh.src=a.thumb||''; rT.textContent=a.title||''; rB.innerHTML=a.body||''; dt.textContent=new Date(a.createdAt||Date.now()).toLocaleString(); show(readV) }
+  function openRead(a){ selId=a.id; rTh.loading='lazy'; rTh.decoding='async'; rTh.src=a.thumb||''; rT.textContent=a.title||''; rB.innerHTML=a.body||''; rB.querySelectorAll('img').forEach(im=>{ im.loading='lazy'; im.decoding='async'; }); dt.textContent=new Date(a.createdAt||Date.now()).toLocaleString(); show(readV) }
 
   // Delete
-  del.onclick=async()=>{ if(!selId) return; await API.remove(selId); selId=null; await renderList(); show(listV) };
+  del.onclick=async()=>{ if(!selId) return; setLoading(true,'Deleting…'); await API.remove(selId); selId=null; await renderList(); setLoading(false); show(listV) };
 
   // Nav
-  toList.onclick=async()=>{await renderList(); show(listV)};
+  toList.onclick=async()=>{ setLoading(true,'Loading articles…'); await renderList(); setLoading(false); show(listV)};
   toNew.onclick=()=>{selId=null; clearEditor(); show(editor)};
   back.onclick=()=>{show(listV)};
 
   // No deep linking; keep UI simple and focused
 
   (async function init(){
+    setLoading(true,'Loading articles…');
     API=await detectAPI();
-    const items=await API.list();
-    if(!items.length){await API.create({title:'Welcome to Mini Articles', body:'<p>Edit or create your first article. Drop images or videos right into the text.</p>', thumb:''});}
-    await renderList();
+    let items;
+    if(typeof preList!== 'undefined'){ items = preList; preList = undefined; }
+    else { items = await API.list(); }
+    if(!items.length){
+      const created = await API.create({title:'Welcome to Mini Articles', body:'<p>Edit or create your first article. Drop images or videos right into the text.</p>', thumb:''});
+      items = [created];
+    }
+    await renderList(items);
     show(listV);
+    setLoading(false);
   })();
 })();
 </script>
