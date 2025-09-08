@@ -72,12 +72,11 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
       <button id="insImg">Insert image</button>
       <button id="insVid">Insert video</button>
     </div>
-    <div id="content" contenteditable="true" data-ph="Write here. Drag & drop images/videos where you want them."></div>
+    <div id="content" contenteditable="true" data-ph="Write here, anything html-able should work"></div>
 
     <div class="controls">
       <button id="saveBtn">Save</button>
       <button id="cancelBtn">Cancel</button>
-      <span class="small">Stored locally or on server if available.</span>
     </div>
   <input id="imgFile" type="file" hidden>
   <input id="vidFile" type="file" hidden>
@@ -168,7 +167,6 @@ article h1{margin:.25rem 0 .5rem;font-size:1.6rem}
   tFile.addEventListener('change',e=>{const f=e.target.files[0]; if(f) fileToDataURL(f).then(u=>tPrev.src=u)});
   tDrop.addEventListener('click',()=>tFile.click());
 
-  // Content paste (keep), no drag & drop
   content.addEventListener('paste',e=>{const it=(e.clipboardData||{}).items||[]; for(const x of it){const f=x.getAsFile&&x.getAsFile(); if(!f) continue; e.preventDefault(); if(f.type.startsWith('image/')) {
         // Insert a placeholder while uploading
         const ph=imgEl(''); ph.alt='image'; ph.style.minHeight='120px'; ph.style.background='#f0f0f0'; insertAtSel(ph);
