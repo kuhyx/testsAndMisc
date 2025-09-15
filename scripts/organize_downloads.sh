@@ -7,20 +7,60 @@
 # Set strict error handling
 set -euo pipefail
 
+# Defaults / flags
+DRY_RUN=false
+SAMPLE_LIMIT=20
+
+# Simple usage helper
+usage() {
+        cat <<EOF
+Usage: $(basename "$0") [--dry-run|-n] [--sample=N]
+
+Options:
+    -n, --dry-run     Analyze and print what would be archived without creating a zip or removing files.
+            --sample=N    In dry-run, show up to N sample file paths for select extensions (default: $SAMPLE_LIMIT).
+    -h, --help        Show this help.
+EOF
+}
+
 # Define directories to scan
 DOWNLOADS_DIR="$HOME/Downloads"
 HOME_DIR="$HOME"
-# Prefer a temp dir on the same filesystem as Downloads to avoid tmpfs /tmp space limits
-TEMP_DIR="$DOWNLOADS_DIR/.media_organize_$$"
+# Prefer a temp dir outside Downloads to avoid recursive re-inclusion; fall back to /tmp
+TEMP_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/media_organize_$$"
 
 # Define image and video file extensions
-IMAGE_EXTENSIONS=("jpg" "jpeg" "png" "gif" "bmp" "tiff" "tif" "webp" "svg" "ico" "raw" "cr2" "nef" "orf" "arw" "dng" "heic" "heif")
-VIDEO_EXTENSIONS=("mp4" "avi" "mkv" "mov" "wmv" "flv" "webm" "m4v" "3gp" "ogv" "mpg" "mpeg" "ts" "mts" "m2ts" "vob")
+# Keep common raster/image formats; exclude svg/ico by default (often project assets), can be re-added if needed
+IMAGE_EXTENSIONS=("jpg" "jpeg" "png" "gif" "bmp" "tiff" "tif" "webp" "raw" "cr2" "nef" "orf" "arw" "dng" "heic" "heif")
+VIDEO_EXTENSIONS=("mp4" "avi" "mkv" "mov" "wmv" "flv" "webm" "m4v" "3gp" "ogv" "mpg" "mpeg" "mts" "m2ts" "vob")
 
 # Function to log messages with timestamp
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
+
+# Parse CLI flags early
+while [[ ${1:-} =~ ^- ]]; do
+    case "${1}" in
+        -n|--dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --sample=*)
+            SAMPLE_LIMIT="${1#*=}"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
 
 # Function to check if file has media extension
 is_media_file() {
@@ -49,6 +89,12 @@ is_media_file() {
 find_media_files() {
     local search_dir="$1"
     local files=()
+    # Directories to exclude under Downloads
+    local -a EXCLUDES=(
+        ".git" ".hg" ".svn" ".cache" "node_modules" "dist" "build" "out" "target" "coverage" "__pycache__" "venv" ".venv"
+        # previous staging dirs created by this script
+        ".media_organize_" "media_organize_"
+    )
     
     if [[ "$search_dir" == "$HOME_DIR" ]]; then
         # For home directory, only check files directly in ~ (not subdirectories)
@@ -63,12 +109,20 @@ find_media_files() {
             fi
         done < <(find "$search_dir" -maxdepth 1 -type f -print0 2>/dev/null)
     else
-        # For Downloads, search recursively
+        # For Downloads, search recursively, pruning excluded directories
+        # Build prune expression
+        local prune_expr=()
+        for ex in "${EXCLUDES[@]}"; do
+            prune_expr+=( -name "$ex*" -o )
+        done
+        # Remove trailing -o
+        unset 'prune_expr[${#prune_expr[@]}-1]'
+
         while IFS= read -r -d '' file; do
             if is_media_file "$file"; then
                 files+=("$file")
             fi
-        done < <(find "$search_dir" -type f -print0 2>/dev/null)
+        done < <(find "$search_dir" \( -type d \( ${prune_expr[@]} \) -prune \) -o -type f -print0 2>/dev/null)
     fi
     
     printf '%s\n' "${files[@]}"
@@ -257,6 +311,86 @@ main() {
         [[ -n "$file" ]] && all_files+=("$file")
     done < <(find_media_files "$HOME_DIR")
     
+    if $DRY_RUN; then
+        log "Dry-run mode: summarizing what would be archived."
+        if [[ ${#all_files[@]} -eq 0 ]]; then
+            log "No media files found to organize."
+            exit 0
+        fi
+
+        # Count by extension
+        declare -A ext_counts=()
+        # Count by top-level directory under Downloads
+        declare -A dir_counts=()
+        # Sample paths for suspect extensions
+        declare -A samples_ts=()
+        declare -A samples_svg=()
+        declare -A samples_ico=()
+
+        for f in "${all_files[@]}"; do
+            # Extension
+            ext="${f##*.}"
+            ext="${ext,,}"
+            ((ext_counts["$ext"]++)) || true
+
+            # Top directory under Downloads
+            if [[ "$f" == "$DOWNLOADS_DIR"/* ]]; then
+                rel="${f#"$DOWNLOADS_DIR"/}"
+                topdir="${rel%%/*}"
+                [[ "$topdir" == "$rel" ]] && topdir="."
+                ((dir_counts["$topdir"]++)) || true
+            else
+                ((dir_counts["~"]++)) || true
+            fi
+
+            # Samples for suspect extensions
+            case "$ext" in
+                ts)
+                    if [[ ${#samples_ts[@]} -lt $SAMPLE_LIMIT ]]; then samples_ts["$f"]=1; fi
+                    ;;
+                svg)
+                    if [[ ${#samples_svg[@]} -lt $SAMPLE_LIMIT ]]; then samples_svg["$f"]=1; fi
+                    ;;
+                ico)
+                    if [[ ${#samples_ico[@]} -lt $SAMPLE_LIMIT ]]; then samples_ico["$f"]=1; fi
+                    ;;
+            esac
+        done
+
+        echo ""
+        echo "Summary by extension (top 20):"
+        for k in "${!ext_counts[@]}"; do
+            printf "%8d %s\n" "${ext_counts[$k]}" "$k"
+        done | sort -nr | head -n 20
+
+        echo ""
+        echo "Top contributing directories under Downloads (top 20):"
+        for k in "${!dir_counts[@]}"; do
+            printf "%8d %s\n" "${dir_counts[$k]}" "$k"
+        done | sort -nr | head -n 20
+
+        echo ""
+        if [[ ${#samples_ts[@]} -gt 0 ]]; then
+            echo "Sample .ts files (TypeScript vs Transport Stream) up to $SAMPLE_LIMIT:"
+            for p in "${!samples_ts[@]}"; do echo "  $p"; done | sort
+            echo ""
+        fi
+        if [[ ${#samples_svg[@]} -gt 0 ]]; then
+            echo "Sample .svg files up to $SAMPLE_LIMIT:"
+            for p in "${!samples_svg[@]}"; do echo "  $p"; done | sort
+            echo ""
+        fi
+        if [[ ${#samples_ico[@]} -gt 0 ]]; then
+            echo "Sample .ico files up to $SAMPLE_LIMIT:"
+            for p in "${!samples_ico[@]}"; do echo "  $p"; done | sort
+            echo ""
+        fi
+
+        echo "Total files that would be archived: ${#all_files[@]}"
+        echo "(Use: $(basename "$0") --dry-run --sample=50 to see more examples.)"
+        exit 0
+    fi
+
     # Create archive if files found
     if [[ ${#all_files[@]} -gt 0 ]]; then
         create_media_archive "${all_files[@]}"
