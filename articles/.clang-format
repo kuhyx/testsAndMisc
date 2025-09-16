@@ -1,0 +1,16 @@
+BasedOnStyle: LLVM
+Language: Cpp
+ColumnLimit: 100
+ReflowComments: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+SortIncludes: false
