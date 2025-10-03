@@ -10,3 +10,19 @@ FEN:rnbqkbnr/pppp1ppp/8/4p3/8/4P3/PPPPKPPP/RNBQ1BNR b kq - 1 2
 BEST:d7d5
 LINE:e2e3 e7e5 e1e2
 .
+FEN:rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+BEST:
+LINE:
+.
+FEN:rnbqkbnr/pppppppp/8/8/8/7N/PPPPPPPP/RNBQKB1R b KQkq - 1 1
+BEST:e7e5
+LINE:g1h3
+.
+FEN:rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+BEST:
+LINE:
+.
+FEN:rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+BEST:
+LINE:
+.

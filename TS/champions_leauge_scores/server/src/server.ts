@@ -28,54 +28,91 @@ app.use((_req, res, next) => {
 app.use((req, res, next) => {
   const start = process.hrtime.bigint();
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const MAX_LOG_BODY = 2000; // chars
+  const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
+
   // Attach id so downstream handlers could use it if needed
   (res as any).locals = { ...(res as any).locals, requestId: id };
 
+  // Patch res.json and res.send to capture response payload
+  const originalJson = res.json.bind(res);
+  const originalSend = res.send.bind(res);
+  (res as any).json = (body: any) => {
+    try { (res as any).locals.bodyForLog = body; } catch { /* ignore */ }
+    return originalJson(body);
+  };
+  (res as any).send = (body: any) => {
+    try { (res as any).locals.bodyForLog = body; } catch { /* ignore */ }
+    return originalSend(body as any);
+  };
+
   // eslint-disable-next-line no-console
-  console.log(`[#${id}] -> ${req.method} ${req.originalUrl} ` +
-    (Object.keys(req.query || {}).length ? `query=${JSON.stringify(req.query)}` : ''));
+  console.log(`[#${id}] -> ${req.method} ${req.originalUrl}` + (Object.keys(req.query || {}).length ? ` query=${JSON.stringify(req.query)}` : ''));
 
   res.on('finish', () => {
     const durMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    let bodyPreview = '';
+    try {
+      const body = (res as any).locals?.bodyForLog;
+      if (body !== undefined) {
+        const str = typeof body === 'string' ? body : JSON.stringify(body);
+        bodyPreview = ` body=${clip(str)}`;
+      }
+    } catch { /* ignore */ }
     // eslint-disable-next-line no-console
-    console.log(`[#${id}] <- ${req.method} ${req.originalUrl} ${res.statusCode} ${durMs.toFixed(1)}ms`);
+    console.log(`[#${id}] <- ${req.method} ${req.originalUrl} ${res.statusCode} ${durMs.toFixed(1)}ms${bodyPreview}`);
   });
 
   next();
 });
 
 // Axios interceptors to log outgoing requests and incoming responses
-axios.interceptors.request.use((config) => {
-  (config as any).metadata = { start: Date.now() };
-  // eslint-disable-next-line no-console
-  console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
-  return config;
-}, (error) => {
-  // eslint-disable-next-line no-console
-  console.warn('[axios req error]', error?.message || error);
-  return Promise.reject(error);
-});
+axios.interceptors.request.use(
+  (config) => {
+    (config as any).metadata = { start: Date.now() };
+    // eslint-disable-next-line no-console
+    console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
+    return config;
+  },
+  (error) => {
+    // eslint-disable-next-line no-console
+    console.warn('[axios req error]', error?.message || error);
+    return Promise.reject(error);
+  }
+);
 
-axios.interceptors.response.use((response) => {
-  const started = (response.config as any).metadata?.start || Date.now();
-  const dur = Date.now() - started;
-  let size = 0;
-  try {
-    const d = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-    size = d?.length || 0;
-  } catch (_e) { /* ignore */ }
-  // eslint-disable-next-line no-console
-  console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B`);
-  return response;
-}, (error) => {
-  const cfg = error?.config || {};
-  const started = (cfg as any).metadata?.start || Date.now();
-  const dur = Date.now() - started;
-  const status = error?.response?.status;
-  // eslint-disable-next-line no-console
-  console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms`, error?.response?.data || error?.message);
-  return Promise.reject(error);
-});
+axios.interceptors.response.use(
+  (response) => {
+    const started = (response.config as any).metadata?.start || Date.now();
+    const dur = Date.now() - started;
+    let dataStr = '';
+    try {
+      dataStr = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    } catch { /* ignore */ }
+    const size = dataStr?.length || 0;
+    const MAX_LOG_BODY = 2000;
+    const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
+    // eslint-disable-next-line no-console
+    console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B data=${clip(dataStr)}`);
+    return response;
+  },
+  (error) => {
+    const cfg = error?.config || {};
+    const started = (cfg as any).metadata?.start || Date.now();
+    const dur = Date.now() - started;
+    const status = error?.response?.status;
+    let dataStr = '';
+    try {
+      const d = error?.response?.data;
+      dataStr = typeof d === 'string' ? d : JSON.stringify(d);
+    } catch { /* ignore */ }
+    const MAX_LOG_BODY = 2000;
+    const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
+    // eslint-disable-next-line no-console
+    console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms data=${dataStr ? clip(dataStr) : (error?.message || 'error')}`);
+    return Promise.reject(error);
+  }
+);
 
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true }));
 
