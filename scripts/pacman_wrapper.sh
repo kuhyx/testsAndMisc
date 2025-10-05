@@ -120,7 +120,6 @@ function is_blocked_package_name() {
 
     # Explicitly blocked names list
     local blocked=(
-        "freetube-bin" "virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-vnc" "virtualbox-guest-utils" "virtualbox-host-dkms"
         "brave" "brave-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min"
         "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter"
         "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git"
@@ -220,30 +219,6 @@ function check_for_steam() {
         done
     fi
     return 1  # No steam package found
-}
-
-# Function to check if user is trying to install virtualbox (always challenge-eligible package)
-function check_for_virtualbox() {
-    # List of packages that require challenge (virtualbox packages)
-    local virtualbox_packages=("virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-vnc" "virtualbox-guest-utils" "virtualbox-host-dkms")
-     
-    # Check if the command is an installation command
-    if [[ "$1" == "-S" || "$1" == "-Sy" || "$1" == "-Syu" || "$1" == "-Syyu" || "$1" == "-U" ]]; then
-        # Check all arguments
-        for arg in "$@"; do
-            # Strip repository prefix if present (like extra/ or community/)
-            local package_name="${arg##*/}"
-            
-            # Check if argument matches virtualbox
-            for package in "${virtualbox_packages[@]}"; do
-                if [[ "$arg" == "$package" || "$arg" == *"/$package-"* || "$arg" == *"/$package/"* || 
-                      "$arg" == *"/$package" || "$package_name" == "$package" ]]; then
-                    return 0  # VirtualBox package found
-                fi
-            done
-        done
-    fi
-    return 1  # No virtualbox package found
 }
 
 # Function to check if current day is a weekday (after 4PM Friday until midnight Sunday)
@@ -533,14 +508,6 @@ if check_for_always_blocked "$@"; then
     # Regardless of the attempted action, enforce cleanup of any installed blocked packages
     remove_installed_blocked_packages "$@"
     exit 1
-fi
-
-# Check for virtualbox (always challenge-eligible package)
-if check_for_virtualbox "$@"; then
-    prompt_for_virtualbox_challenge
-    if [[ $? -ne 0 ]]; then
-        exit 1
-    fi
 fi
 
 # Check for steam (challenge-eligible package)
