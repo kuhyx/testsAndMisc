@@ -7,8 +7,6 @@ import sys
 import time
 from datetime import timedelta
 from typing import List, Optional
-
-
 def format_timestamp(seconds: float) -> str:
     td = timedelta(seconds=seconds)
     # Ensure SRT format HH:MM:SS,mmm
@@ -162,6 +160,41 @@ def _kmeans_cosine(embs, k: int, iters: int = 50, seed: int = 0):
     return labels
 
 
+def _ffmpeg_transcode_to_wav16_mono(src_path: str) -> Optional[str]:
+    """If ffmpeg is available, transcode input to a temporary 16k mono WAV and return its path."""
+    if not shutil.which("ffmpeg"):
+        return None
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(prefix="fw_diar_", suffix=".wav", delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    # Run ffmpeg quietly
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-v",
+        "error",
+        "-i",
+        src_path,
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "wav",
+        tmp_path,
+    ]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return tmp_path
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        return None
+
+
 def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Optional[list]:
     """Simple diarization: compute speaker embeddings per segment and cluster with KMeans.
     Returns a list of speaker labels aligned with segments, or None on failure.
@@ -169,18 +202,33 @@ def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Option
     try:
         import numpy as np
         import soundfile as sf
-        from speechbrain.pretrained import EncoderClassifier
+        # Use non-deprecated import path
+        from speechbrain.inference import EncoderClassifier
         import torch
     except Exception as e:
         print(f"[WARN] Diarization dependencies missing ({e}); skipping speaker labels.", file=sys.stderr)
         return None
 
     # Load audio
+    temp_to_cleanup: Optional[str] = None
     try:
         wav, sr = sf.read(audio_path, dtype="float32", always_2d=False)
     except Exception as e:
-        print(f"[WARN] Could not read audio for diarization: {e}", file=sys.stderr)
-        return None
+        # Try ffmpeg transcoding fallback
+        alt = _ffmpeg_transcode_to_wav16_mono(audio_path)
+        if alt is None:
+            print(f"[WARN] Could not read audio for diarization and no ffmpeg fallback available: {e}", file=sys.stderr)
+            return None
+        try:
+            wav, sr = sf.read(alt, dtype="float32", always_2d=False)
+            temp_to_cleanup = alt
+        except Exception as e2:
+            print(f"[WARN] Could not read transcoded audio for diarization: {e2}", file=sys.stderr)
+            try:
+                os.unlink(alt)
+            except Exception:
+                pass
+            return None
     if wav.ndim == 2:  # mixdown
         wav = wav.mean(axis=1)
     # Resample to 16k for ECAPA
@@ -191,10 +239,15 @@ def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Option
         classifier = EncoderClassifier.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb",
             run_opts={"device": "cpu"},
-            savedir=os.path.join(os.path.expanduser("~"), ".cache", "speechbrain_ecapa")
+            savedir=os.path.join(os.path.expanduser("~"), ".cache", "speechbrain_ecapa"),
         )
     except Exception as e:
         print(f"[WARN] Could not load speaker embedding model: {e}", file=sys.stderr)
+        if temp_to_cleanup:
+            try:
+                os.unlink(temp_to_cleanup)
+            except Exception:
+                pass
         return None
 
     embs = []
@@ -222,6 +275,11 @@ def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Option
         return None
     # Cluster
     labels = _kmeans_cosine(embs, k=max(1, int(num_speakers)))
+    if temp_to_cleanup:
+        try:
+            os.unlink(temp_to_cleanup)
+        except Exception:
+            pass
     return labels.tolist()
 
 
