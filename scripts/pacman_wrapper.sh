@@ -12,6 +12,36 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 PACMAN_BIN="/usr/bin/pacman"
+# Determine if this invocation may perform a transaction (upgrade/install/remove)
+needs_unlock() {
+    # If args include -S (install/upgrade), -U (local install), or -R (remove), we unlock
+    # Also include -Su/-Syu/-Syuu when -S is part of the combined flag
+    for arg in "$@"; do
+        case "$arg" in
+            -S*|-U|-R|--sync|--upgrade|--remove)
+                return 0 ;;
+        esac
+    done
+    return 1
+}
+
+# Run pre/post hooks for /etc/hosts guard if present
+pre_unlock_hosts() {
+    local pre="/usr/local/share/hosts-guard/pacman-pre-unlock-hosts.sh"
+    if [[ -x "$pre" ]]; then
+        echo -e "${CYAN}[hosts-guard] Preparing /etc/hosts for transaction...${NC}" >&2
+        /bin/bash "$pre" || true
+    fi
+}
+
+post_relock_hosts() {
+    local post="/usr/local/share/hosts-guard/pacman-post-relock-hosts.sh"
+    if [[ -x "$post" ]]; then
+        /bin/bash "$post" || true
+        echo -e "${CYAN}[hosts-guard] Protections re-applied to /etc/hosts.${NC}" >&2
+    fi
+}
+
 
 # Ensure periodic system services (timer/monitor) are set up; if not, trigger setup
 ensure_periodic_maintenance() {
@@ -155,7 +185,7 @@ function has_noconfirm_flag() {
 
 # Cleanup: remove any installed blocked packages (in addition to the queued operation)
 function remove_installed_blocked_packages() {
-    local user_args=("$@")
+    # args not used; kept for future policy extension
     # List installed package names
     mapfile -t installed_names < <("$PACMAN_BIN" -Qq 2>/dev/null)
     local to_remove=()
@@ -223,8 +253,10 @@ function check_for_steam() {
 
 # Function to check if current day is a weekday (after 4PM Friday until midnight Sunday)
 function is_weekday() {
-    local day_of_week=$(date +%u)  # %u gives 1-7 (Monday is 1, Sunday is 7)
-    local hour=$(date +%H)         # %H gives hour in 24-hour format (00-23)
+    local day_of_week
+    day_of_week=$(date +%u)  # %u gives 1-7 (Monday is 1, Sunday is 7)
+    local hour
+    hour=$(date +%H)         # %H gives hour in 24-hour format (00-23)
     
     # Monday through Thursday are always weekdays
     if [[ $day_of_week -ge 1 && $day_of_week -le 4 ]]; then
@@ -248,7 +280,8 @@ function prompt_for_steam_challenge() {
     
     # Check if it's a weekday and block completely
     if is_weekday; then
-        local day_name=$(date +%A)
+    local day_name
+    day_name=$(date +%A)
         echo -e "${RED}Steam installation BLOCKED: Steam cannot be installed on weekdays.${NC}"
         echo -e "${RED}Today is $day_name. Please try again on the weekend (Saturday or Sunday).${NC}"
         return 1
@@ -522,14 +555,22 @@ fi
 display_operation "$1"
 
 # Echo the command that's about to be executed
-echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $@" >&2
+echo -e "${GREEN}Executing:${NC} $PACMAN_BIN $*" >&2
 
 # Record start time for statistics
 start_time=$(date +%s)
 
-# Execute the real pacman command
+# Execute the real pacman command (with /etc/hosts guard handling)
+if needs_unlock "$@"; then
+    pre_unlock_hosts
+fi
+
 "$PACMAN_BIN" "$@"
 exit_code=$?
+
+if needs_unlock "$@"; then
+    post_relock_hosts
+fi
 
 # Record end time for statistics
 end_time=$(date +%s)
