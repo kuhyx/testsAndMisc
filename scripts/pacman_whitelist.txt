@@ -1,0 +1,13 @@
+# Exact package names that should bypass the block even if matching a keyword.
+minizip
+miniupnpc
+haskell-generically
+haskell-streaming-commons
+haskell-prettyprinter-ansi-terminal
+haskell-generics-sop
+haskell-ansi-terminal
+minizip-ng
+ruby-mini_portile2
+texlive-plaingeneric
+haskell-ansi-terminal-types
+terminator

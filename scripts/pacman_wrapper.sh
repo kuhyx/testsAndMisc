@@ -12,6 +12,44 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 PACMAN_BIN="/usr/bin/pacman"
+
+declare -a BLOCKED_KEYWORDS_LIST=()
+declare -a WHITELISTED_NAMES_LIST=()
+POLICY_LISTS_LOADED=0
+
+load_policy_lists() {
+    if [[ $POLICY_LISTS_LOADED -eq 1 ]]; then
+        return
+    fi
+
+    local script_dir
+    script_dir="$(dirname "$(readlink -f "$0")")"
+    local blocked_file="$script_dir/pacman_blocked_keywords.txt"
+    local whitelist_file="$script_dir/pacman_whitelist.txt"
+
+    if [[ -f "$blocked_file" ]]; then
+        mapfile -t BLOCKED_KEYWORDS_LIST < <(sed 's/\r$//' "$blocked_file" | grep -Ev '^[[:space:]]*(#|$)' || true)
+    else
+        BLOCKED_KEYWORDS_LIST=()
+        echo -e "${YELLOW}Warning:${NC} Missing blocked keywords file at $blocked_file" >&2
+    fi
+
+    if [[ -f "$whitelist_file" ]]; then
+        mapfile -t WHITELISTED_NAMES_LIST < <(sed 's/\r$//' "$whitelist_file" | grep -Ev '^[[:space:]]*(#|$)' || true)
+    else
+        WHITELISTED_NAMES_LIST=()
+    fi
+
+    for i in "${!BLOCKED_KEYWORDS_LIST[@]}"; do
+        BLOCKED_KEYWORDS_LIST[$i]="${BLOCKED_KEYWORDS_LIST[$i],,}"
+    done
+
+    for i in "${!WHITELISTED_NAMES_LIST[@]}"; do
+        WHITELISTED_NAMES_LIST[$i]="${WHITELISTED_NAMES_LIST[$i],,}"
+    done
+
+    POLICY_LISTS_LOADED=1
+}
 # Determine if this invocation may perform a transaction (upgrade/install/remove)
 needs_unlock() {
     # If args include -S (install/upgrade), -U (local install), or -R (remove), we unlock
@@ -138,38 +176,21 @@ function display_operation() {
 
 # Helper: return 0 if the given package name is blocked by policy
 function is_blocked_package_name() {
-    local name="$1"
-    # Normalize to package base (strip any repo prefix already done by caller)
-    # Broad block: Firefox family and derivatives (covers -bin/-git and similar suffixes)
-    if [[ $name =~ ^firefox($|[-_]) ]]; then
-        return 0
-    fi
-    if [[ $name =~ ^(librewolf|waterfox|icecat|floorp|zen-browser|tor-browser|mullvad-browser|basilisk|palemoon|iceweasel|abrowser|cliqz)($|[-_]) ]]; then
-        return 0
-    fi
+    load_policy_lists
+    local normalized="${1,,}"
 
-    # Explicitly blocked names list
-    local blocked=(
-        "brave" "brave-bin" "freetube" "seamonkey-bin" "seamonkey" "min-browser-bin" "min-browser" "beaker-browser" "catalyst-browser-bin" "hamsket" "min"
-        "vieb-bin" "yt-dlp" "yt-dlp-git" "stremio" "stremio-git" "angelfish" "dooble" "eric" "falkon" "fiery" "maui" "konqueror" "liri" "otter"
-        "quotebrowser" "beaker" "catalyst" "badwolf" "eolie" "epiphany" "surf" "uzbl" "vimb" "vimb-git" "web-browser" "web-browser-git"
-        "web-browser-bin" "web-browser-bin-git" "web-browser-bin-git" "luakit" "nyxt" "tangram" "vimb" "dillo" "links" "netsurf" "amfora" "tartube"
+    for allowed in "${WHITELISTED_NAMES_LIST[@]}"; do
+        if [[ "$normalized" == "$allowed" ]]; then
+            return 1
+        fi
+    done
 
-        # Firefox and prominent Firefox-based browsers/variants (explicit names)
-        "firefox" "firefox-bin" "firefox-esr" "firefox-esr-bin" "firefox-beta" "firefox-beta-bin"
-        "firefox-developer-edition" "firefox-developer-edition-bin" "firefox-nightly" "firefox-nightly-bin"
-        "firefox-appmenu" "firefox-appmenu-bin" "firefox-kde-opensuse"
-        "librewolf" "librewolf-bin" "waterfox" "waterfox-bin" "waterfox-current-bin" "waterfox-classic-bin" "waterfox-g3-bin"
-        "icecat" "icecat-bin" "floorp" "floorp-bin" "zen-browser" "zen-browser-bin"
-        "tor-browser" "tor-browser-bin" "torbrowser-launcher" "mullvad-browser" "mullvad-browser-bin"
-        "basilisk" "basilisk-bin" "palemoon" "palemoon-bin" "iceweasel" "iceweasel-bin" "abrowser" "cliqz"
-    )
-
-    for pkg in "${blocked[@]}"; do
-        if [[ "$name" == "$pkg" ]]; then
+    for keyword in "${BLOCKED_KEYWORDS_LIST[@]}"; do
+        if [[ -n "$keyword" && "$normalized" == *"$keyword"* ]]; then
             return 0
         fi
     done
+
     return 1
 }
 
