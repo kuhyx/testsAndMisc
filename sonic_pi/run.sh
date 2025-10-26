@@ -70,6 +70,24 @@ find_repl() {
   fi
 }
 
+# Ensure TRACK_FILE is an absolute path so REPL can always find it
+resolve_track_file() {
+  # If already absolute, keep as-is
+  case "$TRACK_FILE" in
+    /*) : ;;
+    *)
+      if require_cmd realpath; then
+        TRACK_FILE="$(realpath -m "$TRACK_FILE")"
+      elif require_cmd readlink; then
+        # Some systems support -f
+        TRACK_FILE="$(readlink -f "$TRACK_FILE" 2>/dev/null || printf "%s/%s" "$(cd "$(dirname "$TRACK_FILE")" && pwd)" "$(basename "$TRACK_FILE")")"
+      else
+        TRACK_FILE="$(cd "$(dirname "$TRACK_FILE")" && pwd)/$(basename "$TRACK_FILE")"
+      fi
+      ;;
+  esac
+}
+
 # Start Sonic Pi headlessly using the built-in REPL only
 headless_play() {
   find_repl
@@ -95,26 +113,34 @@ headless_play() {
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--file path/to/track.rb] [--duration SECONDS]
+Usage: $(basename "$0") [path/to/track.rb] [--duration SECONDS]
 
 Defaults:
-  --file      $TRACK_FILE
+  track file $TRACK_FILE
   --duration  run until Ctrl+C
   (headless only)
 EOF
 }
 
 parse_args() {
+  local saw_file="false"
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -f|--file)
-        TRACK_FILE="$2"; shift 2 ;;
       -d|--duration)
         DURATION="$2"; shift 2 ;;
       -h|--help)
         usage; exit 0 ;;
+      --)
+        shift; break ;;
+      -*)
+        echo "Unknown option: $1" >&2; usage; exit 1 ;;
       *)
-        echo "Unknown argument: $1" >&2; usage; exit 1 ;;
+        if [[ "$saw_file" == "false" ]]; then
+          TRACK_FILE="$1"; saw_file="true"; shift
+        else
+          echo "Unexpected extra argument: $1" >&2; usage; exit 1
+        fi
+        ;;
     esac
   done
 }
@@ -125,6 +151,7 @@ main() {
     echo "Track file not found: $TRACK_FILE" >&2
     exit 1
   fi
+  resolve_track_file
   install_sonic_pi
   headless_play
 }
