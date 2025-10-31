@@ -11,7 +11,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-PACMAN_BIN="/usr/bin/pacman"
+PACMAN_BIN="${PACMAN_BIN:-/usr/bin/pacman}"
 
 declare -a BLOCKED_KEYWORDS_LIST=()
 declare -a WHITELISTED_NAMES_LIST=()
@@ -65,24 +65,142 @@ needs_unlock() {
 
 # Run pre/post hooks for /etc/hosts guard if present
 pre_unlock_hosts() {
-    local pre="/usr/local/share/hosts-guard/pacman-pre-unlock-hosts.sh"
-    if [[ -x "$pre" ]]; then
+        # Inline, non-exported logic to temporarily unlock /etc/hosts for the transaction
+        # This avoids a separate runnable script while keeping the behavior when using this wrapper.
+        local TARGET=/etc/hosts
+        local LOGTAG=hosts-guard-wrapper
+
+        # Allow dry run for testing
+        if [[ -n "$HOSTS_GUARD_DRY_RUN" ]]; then
+            echo "[dry-run] Would unlock /etc/hosts (stop units, drop attrs, collapse mounts, ensure rw)" >&2
+            return 0
+        fi
+
+        # Helper functions (kept local to this scope)
+        stop_units_if_present() {
+            local units=(hosts-bind-mount.service hosts-guard.path)
+            for u in "${units[@]}"; do
+                if command -v systemctl >/dev/null 2>&1; then
+                    if systemctl list-unit-files 2>/dev/null | grep -q "^$u"; then
+                        systemctl stop "$u" >/dev/null 2>&1 || true
+                    fi
+                fi
+            done
+        }
+
+        is_ro_mount() { findmnt -no OPTIONS -T "$TARGET" 2>/dev/null | grep -qw ro; }
+        mount_layers_count() { awk '$5=="/etc/hosts"{c++} END{print c+0}' /proc/self/mountinfo 2>/dev/null || echo 0; }
+
+        cleanup_mount_stacks() {
+            local i=0
+            if command -v mountpoint >/dev/null 2>&1; then
+                while mountpoint -q "$TARGET"; do
+                    umount -l "$TARGET" >/dev/null 2>&1 || break
+                    i=$((i+1))
+                    (( i > 20 )) && break
+                done
+            else
+                local cnt
+                cnt=$(mount_layers_count)
+                while (( cnt > 1 )); do
+                    umount -l "$TARGET" >/dev/null 2>&1 || break
+                    i=$((i+1))
+                    (( i > 20 )) && break
+                    cnt=$(mount_layers_count)
+                done
+            fi
+        }
+
+        # Make any protective attributes writable if present
+        if command -v lsattr >/dev/null 2>&1; then
+            local attrs
+            attrs=$(lsattr -d "$TARGET" 2>/dev/null || true)
+            echo "$attrs" | grep -q " i " && chattr -i "$TARGET" >/dev/null 2>&1 || true
+            echo "$attrs" | grep -q " a " && chattr -a "$TARGET" >/dev/null 2>&1 || true
+        fi
+
         echo -e "${CYAN}[hosts-guard] Preparing /etc/hosts for transaction...${NC}" >&2
-        /bin/bash "$pre" || true
-    fi
+        logger -t "$LOGTAG" "pre: unlocking /etc/hosts (starting)" || true
+        echo "$(date -Is) pre-unlock(wrapper)" >> /run/hosts-guard-hook.log 2>/dev/null || true
+
+        # Always collapse any existing layers; we'll operate on the plain file
+        cleanup_mount_stacks
+
+        # Ensure RW if someone left a single-layer RO bind
+        if is_ro_mount; then
+            mount -o remount,rw "$TARGET" >/dev/null 2>&1 || cleanup_mount_stacks
+        fi
+
+        # Stop related units last to avoid races where they remount immediately
+        stop_units_if_present
+
+        logger -t "$LOGTAG" "pre: unlocking /etc/hosts (done)" || true
 }
 
 post_relock_hosts() {
-    local post="/usr/local/share/hosts-guard/pacman-post-relock-hosts.sh"
-    if [[ -x "$post" ]]; then
-        /bin/bash "$post" || true
+        # Inline relock logic (mirrors pacman-post-relock-hosts.sh)
+        local TARGET=/etc/hosts
+        local ENFORCE=/usr/local/sbin/enforce-hosts.sh
+        local LOGTAG=hosts-guard-wrapper
+
+        # Allow dry run for testing
+        if [[ -n "$HOSTS_GUARD_DRY_RUN" ]]; then
+            echo "[dry-run] Would reapply protections to /etc/hosts (collapse mounts, bind ro, start path watcher)" >&2
+            return 0
+        fi
+
+        mount_layers_count() { awk '$5=="/etc/hosts"{c++} END{print c+0}' /proc/self/mountinfo 2>/dev/null || echo 0; }
+        collapse_mounts() {
+            local i=0
+            if command -v mountpoint >/dev/null 2>&1; then
+                while mountpoint -q "$TARGET"; do
+                    umount -l "$TARGET" >/dev/null 2>&1 || break
+                    i=$((i+1))
+                    (( i > 20 )) && break
+                done
+            else
+                local cnt
+                cnt=$(mount_layers_count)
+                while (( cnt > 1 )); do
+                    umount -l "$TARGET" >/dev/null 2>&1 || break
+                    i=$((i+1))
+                    (( i > 20 )) && break
+                    cnt=$(mount_layers_count)
+                done
+            fi
+        }
+
+        logger -t "$LOGTAG" "post: relocking /etc/hosts (starting)" || true
+        echo "$(date -Is) post-relock(wrapper start)" >> /run/hosts-guard-hook.log 2>/dev/null || true
+
+        collapse_mounts
+
+        if [[ -x "$ENFORCE" ]]; then
+            "$ENFORCE" >/dev/null 2>&1 || true
+        fi
+
+        # Apply exactly one ro bind layer
+        mount --bind "$TARGET" "$TARGET" >/dev/null 2>&1 || true
+        mount -o remount,ro,bind "$TARGET" >/dev/null 2>&1 || true
+
+        # Start only the path watcher
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl start hosts-guard.path >/dev/null 2>&1 || true
+        fi
+
+        logger -t "$LOGTAG" "post: relocking /etc/hosts (done)" || true
+        echo "$(date -Is) post-relock(wrapper done)" >> /run/hosts-guard-hook.log 2>/dev/null || true
+
         echo -e "${CYAN}[hosts-guard] Protections re-applied to /etc/hosts.${NC}" >&2
-    fi
 }
 
 
 # Ensure periodic system services (timer/monitor) are set up; if not, trigger setup
 ensure_periodic_maintenance() {
+    # Allow tests or callers to skip side-effectful setup
+    if [[ -n "$SKIP_PERIODIC_MAINTENANCE" ]]; then
+        return 0
+    fi
     # Only proceed if systemd/systemctl is available
     if ! command -v systemctl >/dev/null 2>&1; then
         return 0
