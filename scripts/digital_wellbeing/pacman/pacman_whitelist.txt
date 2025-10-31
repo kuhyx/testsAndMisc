@@ -170,3 +170,6 @@ python-pycryptodomex
 python-wcwidth
 python-mdurl
 python-jeepney
+python-bashate
+python-discover
+python-reno
