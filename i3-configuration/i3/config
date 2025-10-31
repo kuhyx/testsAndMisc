@@ -35,7 +35,7 @@ exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
 exec --no-startup-id nm-applet
 
 # Keep screen awake and unlocked; also treat controller input as activity
-exec --no-startup-id bash /home/kuhy/linux-configuration/scripts/turn_off_auto_idle_screen_shutdown.sh --watch-controller
+exec --no-startup-id bash /home/kuchy/linux-configuration/scripts/utils/turn_off_auto_idle_screen_shutdown.sh --watch-controller
 
 # Use pactl to adjust volume in PulseAudio.
 set $refresh_i3status killall -SIGUSR1 i3status
@@ -45,7 +45,7 @@ bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ to
 bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle && $refresh_i3status
 
 # Add a key binding to toggle the microphone
-bindsym $mod+m exec --no-startup-id /home/kuchy/i3-configuration/scripts/toggle_mic.sh
+bindsym $mod+m exec --no-startup-id /home/kuchy/linux-configuration/scripts/utils/toggle_mic.sh
 
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod

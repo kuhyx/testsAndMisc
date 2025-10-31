@@ -270,11 +270,11 @@ fi
 cd ~/linux-configuration
 sudo hosts/install.sh
 i3-configuration/install.sh
-scripts/install_pacman_wrapper.sh
-scripts/nvidia_troubleshoot.sh 
-sudo scripts/setup_activitywatch.sh 
-sudo scripts/setup_media_organizer.sh
-sudo scripts/setup_pc_startup_monitor.sh
+scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh
+scripts/fixes/nvidia_troubleshoot.sh 
+sudo scripts/features/setup_activitywatch.sh 
+sudo scripts/utils/setup_media_organizer.sh
+sudo scripts/digital_wellbeing/setup_pc_startup_monitor.sh
 yes | sudo scripts/setup_periodic_system.sh 
 sudo scripts/setup_thorium_startup.sh
 yes | protonup
@@ -285,4 +285,4 @@ yes | sudo pacman -Syuu
 #gh repo clone EpicGames/UnrealEngine -- -b release --single-branch
 #makepkg -s --nocheck --skipchecksums --skipinteg --skippgpcheck --noconfirm --needed
 
-scripts/setup_passwordless_system.sh
+scripts/utils/setup_passwordless_system.sh

@@ -58,8 +58,8 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Define paths
-PACMAN_WRAPPER_SCRIPT="$CONFIG_DIR/scripts/pacman_wrapper.sh"
-PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/scripts/install_pacman_wrapper.sh"
+PACMAN_WRAPPER_SCRIPT="$CONFIG_DIR/scripts/digital_wellbeing/pacman/pacman_wrapper.sh"
+PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh"
 HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/hosts/install.sh"
 
 echo ""
