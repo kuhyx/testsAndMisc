@@ -1,0 +1,34 @@
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  google-*,-google-runtime-references,
+  hicpp-*,
+  readability-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  misc-*,
+  llvm-*,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-non-const-global-variables
+
+WarningsAsErrors: '*'
+
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: true
+FormatStyle: file
+User: local
+CheckOptions:
+  - key: readability-magic-numbers.IgnorePowersOf2
+    value: 'false'
+  - key: readability-magic-numbers.IgnoredIntegerValues
+    value: '0,1,2'
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  - key: cppcoreguidelines-pro-bounds-array-to-pointer-decay.StrictMode
+    value: 'true'
