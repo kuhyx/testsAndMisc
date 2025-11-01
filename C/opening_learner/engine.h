@@ -1,20 +1,22 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "chess.h"
 
-typedef struct {
-    int score_cp; // centipawns relative to side to move
+typedef struct
+{
+    int  score_cp; // centipawns relative to side to move
     char uci[8];
 } EngineMove;
 
-typedef struct {
-    int pid;
-    int in_fd;  // write to engine stdin
-    int out_fd; // read from engine stdout
+typedef struct
+{
+    int  pid;
+    int  in_fd;  // write to engine stdin
+    int  out_fd; // read from engine stdout
     bool ready;
 } Engine;
 

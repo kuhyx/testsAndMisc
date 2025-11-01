@@ -1,5 +1,17 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_error.h>
+#include <SDL2/SDL_events.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_keycode.h>
+#include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_video.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,17 +19,16 @@
 #include <strings.h>
 #include <sys/stat.h>
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
-#define MAX_PATH_LEN 512
-#define MAX_FILES 1000
+enum { WINDOW_WIDTH = 800, WINDOW_HEIGHT = 600, MAX_PATH_LEN = 512, MAX_FILES = 1000 };
 
 // Auto-navigation and rendering constants
-#define AUTO_NAV_INTERVAL_MS 100
-#define BACKGROUND_COLOR_R 32
-#define BACKGROUND_COLOR_G 32
-#define BACKGROUND_COLOR_B 32
-#define BACKGROUND_COLOR_A 255
+enum {
+    AUTO_NAV_INTERVAL_MS = 100,
+    BACKGROUND_COLOR_R = 32,
+    BACKGROUND_COLOR_G = 32,
+    BACKGROUND_COLOR_B = 32,
+    BACKGROUND_COLOR_A = 255
+};
 
 typedef struct {
     char **files;
@@ -71,7 +82,8 @@ static void handle_auto_navigation(ImageViewer *viewer);
 // Rotation/saving helpers
 static SDL_Surface *rotate_surface_90_cw(SDL_Surface *src);
 static SDL_Surface *rotate_surface_quarters(SDL_Surface *src, int quartersCW);
-static SDL_Surface *crop_surface_argb8888(SDL_Surface *src, int left, int top, int right, int bottom);
+static SDL_Surface *
+crop_surface_argb8888(SDL_Surface *src, int left, int top, int right, int bottom);
 static int save_processed_image(const ImageViewer *viewer);
 
 // Safe memory copy wrapper to address static analyzer warnings
@@ -163,7 +175,7 @@ static int init_viewer(ImageViewer *viewer) {
     viewer->texture = NULL;
     viewer->original_surface = NULL;
     viewer->current_file[0] = '\0';
-    viewer->zoom_factor = 1.0f;
+    viewer->zoom_factor = 1.0F;
     viewer->trim_left = 0;
     viewer->trim_right = 0;
     viewer->trim_top = 0;
@@ -236,7 +248,7 @@ static int load_image(ImageViewer *viewer, const char *filename) {
         return 0;
     }
 
-    viewer->zoom_factor = 1.0f;
+    viewer->zoom_factor = 1.0F;
     // Reset trims on new image
     viewer->trim_left = 0;
     viewer->trim_right = 0;
@@ -246,7 +258,8 @@ static int load_image(ImageViewer *viewer, const char *filename) {
     viewer->offset_y = 0;
     viewer->rotation_degrees = 0; // reset rotation on new image
 
-    int window_w, window_h;
+    int window_w;
+    int window_h;
     SDL_GetWindowSize(viewer->window, &window_w, &window_h);
 
     float scale_x = (float)window_w / viewer->image_width;
@@ -254,7 +267,7 @@ static int load_image(ImageViewer *viewer, const char *filename) {
     float auto_scale = (scale_x < scale_y) ? scale_x : scale_y;
 
     // Only scale down if image is larger than window, never scale up
-    if (auto_scale < 1.0f) {
+    if (auto_scale < 1.0F) {
         viewer->zoom_factor = auto_scale;
     }
 
@@ -263,7 +276,11 @@ static int load_image(ImageViewer *viewer, const char *filename) {
 }
 
 static void render_image(ImageViewer *viewer) {
-    SDL_SetRenderDrawColor(viewer->renderer, BACKGROUND_COLOR_R, BACKGROUND_COLOR_G, BACKGROUND_COLOR_B, BACKGROUND_COLOR_A);
+    SDL_SetRenderDrawColor(viewer->renderer,
+                           BACKGROUND_COLOR_R,
+                           BACKGROUND_COLOR_G,
+                           BACKGROUND_COLOR_B,
+                           BACKGROUND_COLOR_A);
     SDL_RenderClear(viewer->renderer);
 
     if (!viewer->texture) {
@@ -281,31 +298,50 @@ static void render_image(ImageViewer *viewer) {
     int bottom = viewer->trim_bottom < 0 ? 0 : viewer->trim_bottom;
     if (left + right >= base_w) {
         int excess = left + right - (base_w - 1);
-        if (right >= excess) right -= excess; else left -= (excess - right);
+        if (right >= excess) {
+            right -= excess;
+        } else {
+            left -= (excess - right);
+        }
     }
     if (top + bottom >= base_h) {
         int excess = top + bottom - (base_h - 1);
-        if (bottom >= excess) bottom -= excess; else top -= (excess - bottom);
+        if (bottom >= excess) {
+            bottom -= excess;
+        } else {
+            top -= (excess - bottom);
+        }
     }
     SDL_Rect src_rect;
     src_rect.x = left;
     src_rect.y = top;
     src_rect.w = base_w - left - right;
     src_rect.h = base_h - top - bottom;
-    if (src_rect.w <= 0) src_rect.w = 1;
-    if (src_rect.h <= 0) src_rect.h = 1;
+    if (src_rect.w <= 0) {
+        src_rect.w = 1;
+    }
+    if (src_rect.h <= 0) {
+        src_rect.h = 1;
+    }
 
     int scaled_width = (int)(src_rect.w * viewer->zoom_factor);
     int scaled_height = (int)(src_rect.h * viewer->zoom_factor);
 
-    int window_w, window_h;
+    int window_w;
+    int window_h;
     SDL_GetWindowSize(viewer->window, &window_w, &window_h);
 
-    int x = (window_w - scaled_width) / 2 + viewer->offset_x;
-    int y = (window_h - scaled_height) / 2 + viewer->offset_y;
+    int x = ((window_w - scaled_width) / 2) + viewer->offset_x;
+    int y = ((window_h - scaled_height) / 2) + viewer->offset_y;
 
     SDL_Rect dest_rect = {x, y, scaled_width, scaled_height};
-    SDL_RenderCopyEx(viewer->renderer, viewer->texture, &src_rect, &dest_rect, (double)viewer->rotation_degrees, NULL, SDL_FLIP_NONE);
+    SDL_RenderCopyEx(viewer->renderer,
+                     viewer->texture,
+                     &src_rect,
+                     &dest_rect,
+                     (double)viewer->rotation_degrees,
+                     NULL,
+                     SDL_FLIP_NONE);
 
     SDL_RenderPresent(viewer->renderer);
 }
@@ -314,26 +350,29 @@ static void handle_zoom(ImageViewer *viewer, float zoom_delta, int mouse_x, int 
     float old_zoom = viewer->zoom_factor;
     viewer->zoom_factor += zoom_delta;
 
-    if (viewer->zoom_factor < 0.1f)
-        viewer->zoom_factor = 0.1f;
-    if (viewer->zoom_factor > 10.0f)
-        viewer->zoom_factor = 10.0f;
+    if (viewer->zoom_factor < 0.1F) {
+        viewer->zoom_factor = 0.1F;
+    }
+    if (viewer->zoom_factor > 10.0F) {
+        viewer->zoom_factor = 10.0F;
+    }
 
     float zoom_ratio = viewer->zoom_factor / old_zoom;
 
-    int window_w, window_h;
+    int window_w;
+    int window_h;
     SDL_GetWindowSize(viewer->window, &window_w, &window_h);
 
     int center_x = window_w / 2;
     int center_y = window_h / 2;
 
     viewer->offset_x =
-        (viewer->offset_x - (mouse_x - center_x)) * zoom_ratio + (mouse_x - center_x);
+        ((viewer->offset_x - (mouse_x - center_x)) * zoom_ratio) + (mouse_x - center_x);
     viewer->offset_y =
-        (viewer->offset_y - (mouse_y - center_y)) * zoom_ratio + (mouse_y - center_y);
+        ((viewer->offset_y - (mouse_y - center_y)) * zoom_ratio) + (mouse_y - center_y);
 }
 
-static void print_help() {
+static void print_help(void) {
     printf("\n=== Image Viewer Controls ===\n");
     printf("Mouse wheel / +/-: Zoom in/out\n");
     printf("Mouse drag: Pan image\n");
@@ -372,8 +411,9 @@ static void cleanup_viewer(ImageViewer *viewer) {
 
 static int is_image_file(const char *filename) {
     const char *ext = strrchr(filename, '.');
-    if (!ext)
+    if (!ext) {
         return 0;
+    }
 
     ext++; // Skip the dot
     return (strcasecmp(ext, "jpg") == 0 || strcasecmp(ext, "jpeg") == 0 ||
@@ -409,7 +449,7 @@ static int init_file_list(FileList *list, const char *path) {
         }
 
         // First pass: count image files
-        const struct dirent *entry;
+        const struct dirent *entry = NULL;
         while ((entry = readdir(dir)) != NULL) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
                 // Build full path and check if it's a regular file
@@ -472,7 +512,8 @@ static int init_file_list(FileList *list, const char *path) {
         for (int i = 0; i < list->count - 1; i++) {
             for (int j = 0; j < list->count - i - 1; j++) {
                 // Extract filenames without extensions
-                char name1[MAX_PATH_LEN], name2[MAX_PATH_LEN];
+                char name1[MAX_PATH_LEN];
+                char name2[MAX_PATH_LEN];
                 size_t len1 = strlen(list->files[j]);
                 size_t len2 = strlen(list->files[j + 1]);
 
@@ -483,10 +524,12 @@ static int init_file_list(FileList *list, const char *path) {
 
                 char *dot1 = strrchr(name1, '.');
                 char *dot2 = strrchr(name2, '.');
-                if (dot1)
+                if (dot1) {
                     *dot1 = '\0';
-                if (dot2)
+                }
+                if (dot2) {
                     *dot2 = '\0';
+                }
 
                 // Custom comparison: shorter names first, then alphabetical
                 int should_swap = 0;
@@ -520,7 +563,7 @@ static int init_file_list(FileList *list, const char *path) {
 
         // Extract directory and filename
         char *last_slash = strrchr(path, '/');
-        const char *target_filename;
+        const char *target_filename = NULL;
 
         if (last_slash) {
             size_t dir_len = last_slash - path;
@@ -545,7 +588,7 @@ static int init_file_list(FileList *list, const char *path) {
         }
 
         // First pass: count image files in directory
-        const struct dirent *entry;
+        const struct dirent *entry = NULL;
         list->count = 0;
         while ((entry = readdir(dir)) != NULL) {
             if (entry->d_name[0] != '.' && is_image_file(entry->d_name)) {
@@ -611,7 +654,8 @@ static int init_file_list(FileList *list, const char *path) {
         for (int i = 0; i < list->count - 1; i++) {
             for (int j = 0; j < list->count - i - 1; j++) {
                 // Extract filenames without extensions
-                char name1[MAX_PATH_LEN], name2[MAX_PATH_LEN];
+                char name1[MAX_PATH_LEN];
+                char name2[MAX_PATH_LEN];
                 size_t len1 = strlen(list->files[j]);
                 size_t len2 = strlen(list->files[j + 1]);
 
@@ -622,10 +666,12 @@ static int init_file_list(FileList *list, const char *path) {
 
                 char *dot1 = strrchr(name1, '.');
                 char *dot2 = strrchr(name2, '.');
-                if (dot1)
+                if (dot1) {
                     *dot1 = '\0';
-                if (dot2)
+                }
+                if (dot2) {
                     *dot2 = '\0';
+                }
 
                 // Custom comparison: shorter names first, then alphabetical
                 int should_swap = 0;
@@ -705,8 +751,9 @@ static int load_current_image(ImageViewer *viewer) {
 }
 
 static int navigate_next_image(ImageViewer *viewer) {
-    if (viewer->file_list.count <= 1)
+    if (viewer->file_list.count <= 1) {
         return 0;
+    }
 
     viewer->file_list.current_index =
         (viewer->file_list.current_index + 1) % viewer->file_list.count;
@@ -714,8 +761,9 @@ static int navigate_next_image(ImageViewer *viewer) {
 }
 
 static int navigate_prev_image(ImageViewer *viewer) {
-    if (viewer->file_list.count <= 1)
+    if (viewer->file_list.count <= 1) {
         return 0;
+    }
 
     viewer->file_list.current_index =
         (viewer->file_list.current_index - 1 + viewer->file_list.count) % viewer->file_list.count;
@@ -797,19 +845,24 @@ int main(int argc, char *argv[]) {
                             break;
 
                         case SDLK_r:
-                            viewer.zoom_factor = 1.0f;
+                            viewer.zoom_factor = 1.0F;
                             viewer.offset_x = 0;
                             viewer.offset_y = 0;
                             printf("Reset view\n");
                             break;
 
                         case SDLK_f: {
-                            int window_w, window_h;
+                            int window_w;
+                            int window_h;
                             SDL_GetWindowSize(viewer.window, &window_w, &window_h);
                             int eff_w = viewer.image_width - viewer.trim_left - viewer.trim_right;
                             int eff_h = viewer.image_height - viewer.trim_top - viewer.trim_bottom;
-                            if (eff_w < 1) eff_w = 1;
-                            if (eff_h < 1) eff_h = 1;
+                            if (eff_w < 1) {
+                                eff_w = 1;
+                            }
+                            if (eff_h < 1) {
+                                eff_h = 1;
+                            }
                             float scale_x = (float)window_w / eff_w;
                             float scale_y = (float)window_h / eff_h;
                             viewer.zoom_factor = (scale_x < scale_y) ? scale_x : scale_y;
@@ -820,12 +873,12 @@ int main(int argc, char *argv[]) {
 
                         case SDLK_PLUS:
                         case SDLK_EQUALS:
-                            handle_zoom(&viewer, 0.1f, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+                            handle_zoom(&viewer, 0.1F, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
                             printf("Zoom: %.2f\n", viewer.zoom_factor);
                             break;
 
                         case SDLK_MINUS:
-                            handle_zoom(&viewer, -0.1f, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+                            handle_zoom(&viewer, -0.1F, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
                             printf("Zoom: %.2f\n", viewer.zoom_factor);
                             break;
 
@@ -845,32 +898,42 @@ int main(int argc, char *argv[]) {
                             int step = (SDL_GetModState() & KMOD_SHIFT) ? 50 : 10;
                             int iw = viewer.image_width;
                             int ih = viewer.image_height;
-                            if (iw <= 0 || ih <= 0) break;
+                            if (iw <= 0 || ih <= 0) {
+                                break;
+                            }
                             switch (e.key.keysym.sym) {
                                 case SDLK_1: // left -
                                     viewer.trim_left -= step;
-                                    if (viewer.trim_left < 0) viewer.trim_left = 0;
+                                    if (viewer.trim_left < 0) {
+                                        viewer.trim_left = 0;
+                                    }
                                     break;
                                 case SDLK_2: // left +
                                     viewer.trim_left += step;
                                     break;
                                 case SDLK_3: // right -
                                     viewer.trim_right -= step;
-                                    if (viewer.trim_right < 0) viewer.trim_right = 0;
+                                    if (viewer.trim_right < 0) {
+                                        viewer.trim_right = 0;
+                                    }
                                     break;
                                 case SDLK_4: // right +
                                     viewer.trim_right += step;
                                     break;
                                 case SDLK_5: // top -
                                     viewer.trim_top -= step;
-                                    if (viewer.trim_top < 0) viewer.trim_top = 0;
+                                    if (viewer.trim_top < 0) {
+                                        viewer.trim_top = 0;
+                                    }
                                     break;
                                 case SDLK_6: // top +
                                     viewer.trim_top += step;
                                     break;
                                 case SDLK_7: // bottom -
                                     viewer.trim_bottom -= step;
-                                    if (viewer.trim_bottom < 0) viewer.trim_bottom = 0;
+                                    if (viewer.trim_bottom < 0) {
+                                        viewer.trim_bottom = 0;
+                                    }
                                     break;
                                 case SDLK_8: // bottom +
                                     viewer.trim_bottom += step;
@@ -879,38 +942,55 @@ int main(int argc, char *argv[]) {
                             // Clamp so at least 1px remains
                             if (viewer.trim_left + viewer.trim_right >= iw) {
                                 viewer.trim_right = iw - 1 - viewer.trim_left;
-                                if (viewer.trim_right < 0) viewer.trim_right = 0;
-                                if (viewer.trim_left >= iw) viewer.trim_left = iw - 1;
+                                if (viewer.trim_right < 0) {
+                                    viewer.trim_right = 0;
+                                }
+                                if (viewer.trim_left >= iw) {
+                                    viewer.trim_left = iw - 1;
+                                }
                             }
                             if (viewer.trim_top + viewer.trim_bottom >= ih) {
                                 viewer.trim_bottom = ih - 1 - viewer.trim_top;
-                                if (viewer.trim_bottom < 0) viewer.trim_bottom = 0;
-                                if (viewer.trim_top >= ih) viewer.trim_top = ih - 1;
+                                if (viewer.trim_bottom < 0) {
+                                    viewer.trim_bottom = 0;
+                                }
+                                if (viewer.trim_top >= ih) {
+                                    viewer.trim_top = ih - 1;
+                                }
                             }
                             int eff_w = iw - viewer.trim_left - viewer.trim_right;
                             int eff_h = ih - viewer.trim_top - viewer.trim_bottom;
                             printf("Trim L/R/T/B: %d/%d/%d/%d (effective %dx%d)\n",
-                                   viewer.trim_left, viewer.trim_right, viewer.trim_top, viewer.trim_bottom,
-                                   eff_w, eff_h);
+                                   viewer.trim_left,
+                                   viewer.trim_right,
+                                   viewer.trim_top,
+                                   viewer.trim_bottom,
+                                   eff_w,
+                                   eff_h);
                         } break;
 
                         case SDLK_t: // reset trimming
-                            viewer.trim_left = viewer.trim_right = viewer.trim_top = viewer.trim_bottom = 0;
+                            viewer.trim_left = viewer.trim_right = viewer.trim_top =
+                                viewer.trim_bottom = 0;
                             printf("Trims reset.\n");
                             break;
 
                         case SDLK_LEFTBRACKET: { // '[' rotate left 90
                             viewer.rotation_degrees -= 90;
-                            if (viewer.rotation_degrees <= -360)
+                            if (viewer.rotation_degrees <= -360) {
                                 viewer.rotation_degrees = 0;
-                            printf("Rotation: %d degrees\n", ((viewer.rotation_degrees%360)+360)%360);
+                            }
+                            printf("Rotation: %d degrees\n",
+                                   ((viewer.rotation_degrees % 360) + 360) % 360);
                         } break;
 
                         case SDLK_RIGHTBRACKET: { // ']' rotate right 90
                             viewer.rotation_degrees += 90;
-                            if (viewer.rotation_degrees >= 360)
+                            if (viewer.rotation_degrees >= 360) {
                                 viewer.rotation_degrees = 0;
-                            printf("Rotation: %d degrees\n", ((viewer.rotation_degrees%360)+360)%360);
+                            }
+                            printf("Rotation: %d degrees\n",
+                                   ((viewer.rotation_degrees % 360) + 360) % 360);
                         } break;
 
                         case SDLK_s: {
@@ -959,9 +1039,10 @@ int main(int argc, char *argv[]) {
                     break;
 
                 case SDL_MOUSEWHEEL: {
-                    int mouse_x, mouse_y;
+                    int mouse_x;
+                    int mouse_y;
                     SDL_GetMouseState(&mouse_x, &mouse_y);
-                    float zoom_delta = e.wheel.y * 0.1f;
+                    float zoom_delta = e.wheel.y * 0.1F;
                     handle_zoom(&viewer, zoom_delta, mouse_x, mouse_y);
                     printf("Zoom: %.2f\n", viewer.zoom_factor);
                 } break;
@@ -1002,17 +1083,21 @@ int main(int argc, char *argv[]) {
                         int window_h = e.window.data2;
                         int eff_w = viewer.image_width - viewer.trim_left - viewer.trim_right;
                         int eff_h = viewer.image_height - viewer.trim_top - viewer.trim_bottom;
-                        if (eff_w < 1) eff_w = 1;
-                        if (eff_h < 1) eff_h = 1;
+                        if (eff_w < 1) {
+                            eff_w = 1;
+                        }
+                        if (eff_h < 1) {
+                            eff_h = 1;
+                        }
                         float scale_x = (float)window_w / eff_w;
                         float scale_y = (float)window_h / eff_h;
                         float auto_scale = (scale_x < scale_y) ? scale_x : scale_y;
 
                         // Only scale down if image is larger than window, never scale up
-                        if (auto_scale < 1.0f) {
+                        if (auto_scale < 1.0F) {
                             viewer.zoom_factor = auto_scale;
                         } else {
-                            viewer.zoom_factor = 1.0f;
+                            viewer.zoom_factor = 1.0F;
                         }
 
                         // Reset offset to center the image
@@ -1039,25 +1124,36 @@ int main(int argc, char *argv[]) {
 
 // Rotate ARGB8888 surface 90 degrees clockwise
 static SDL_Surface *rotate_surface_90_cw(SDL_Surface *src) {
-    if (!src) return NULL;
+    if (!src) {
+        return NULL;
+    }
     int allocated_conv = 0;
     SDL_Surface *work = src;
     if (src->format->format != SDL_PIXELFORMAT_ARGB8888) {
         work = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
-        if (!work) return NULL;
+        if (!work) {
+            return NULL;
+        }
         allocated_conv = 1;
     }
 
     int src_w = work->w;
     int src_h = work->h;
-    SDL_Surface *dest = SDL_CreateRGBSurfaceWithFormat(0, src_h, src_w, 32, SDL_PIXELFORMAT_ARGB8888);
+    SDL_Surface *dest =
+        SDL_CreateRGBSurfaceWithFormat(0, src_h, src_w, 32, SDL_PIXELFORMAT_ARGB8888);
     if (!dest) {
-        if (allocated_conv) SDL_FreeSurface(work);
+        if (allocated_conv) {
+            SDL_FreeSurface(work);
+        }
         return NULL;
     }
 
-    if (SDL_MUSTLOCK(work)) SDL_LockSurface(work);
-    if (SDL_MUSTLOCK(dest)) SDL_LockSurface(dest);
+    if (SDL_MUSTLOCK(work)) {
+        SDL_LockSurface(work);
+    }
+    if (SDL_MUSTLOCK(dest)) {
+        SDL_LockSurface(dest);
+    }
 
     Uint32 *src_pixels = (Uint32 *)work->pixels;
     Uint32 *dst_pixels = (Uint32 *)dest->pixels;
@@ -1066,16 +1162,22 @@ static SDL_Surface *rotate_surface_90_cw(SDL_Surface *src) {
 
     for (int y = 0; y < src_h; ++y) {
         for (int x = 0; x < src_w; ++x) {
-            Uint32 pixel = src_pixels[y * src_pitch_px + x];
+            Uint32 pixel = src_pixels[(y * src_pitch_px) + x];
             int nx = src_h - 1 - y;
             int ny = x;
-            dst_pixels[ny * dst_pitch_px + nx] = pixel;
+            dst_pixels[(ny * dst_pitch_px) + nx] = pixel;
         }
     }
 
-    if (SDL_MUSTLOCK(dest)) SDL_UnlockSurface(dest);
-    if (SDL_MUSTLOCK(work)) SDL_UnlockSurface(work);
-    if (allocated_conv) SDL_FreeSurface(work);
+    if (SDL_MUSTLOCK(dest)) {
+        SDL_UnlockSurface(dest);
+    }
+    if (SDL_MUSTLOCK(work)) {
+        SDL_UnlockSurface(work);
+    }
+    if (allocated_conv) {
+        SDL_FreeSurface(work);
+    }
     return dest;
 }
 
@@ -1088,57 +1190,94 @@ static SDL_Surface *rotate_surface_quarters(SDL_Surface *src, int quartersCW) {
     }
 
     SDL_Surface *current = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
-    if (!current) return NULL;
+    if (!current) {
+        return NULL;
+    }
     for (int i = 0; i < quartersCW; ++i) {
         SDL_Surface *next = rotate_surface_90_cw(current);
         SDL_FreeSurface(current);
-        if (!next) return NULL;
+        if (!next) {
+            return NULL;
+        }
         current = next;
     }
     return current;
 }
 
 // Crop ARGB8888 surface by trimming pixels from each side; returns new surface
-static SDL_Surface *crop_surface_argb8888(SDL_Surface *src, int left, int top, int right, int bottom) {
-    if (!src) return NULL;
+static SDL_Surface *
+crop_surface_argb8888(SDL_Surface *src, int left, int top, int right, int bottom) {
+    if (!src) {
+        return NULL;
+    }
     SDL_Surface *work = src;
     int free_work = 0;
     if (src->format->format != SDL_PIXELFORMAT_ARGB8888) {
         work = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
-        if (!work) return NULL;
+        if (!work) {
+            return NULL;
+        }
         free_work = 1;
     }
 
     int iw = work->w;
     int ih = work->h;
-    if (left < 0) left = 0;
-    if (right < 0) right = 0;
-    if (top < 0) top = 0;
-    if (bottom < 0) bottom = 0;
-    if (left + right >= iw) right = iw - 1 - left;
-    if (top + bottom >= ih) bottom = ih - 1 - top;
+    if (left < 0) {
+        left = 0;
+    }
+    if (right < 0) {
+        right = 0;
+    }
+    if (top < 0) {
+        top = 0;
+    }
+    if (bottom < 0) {
+        bottom = 0;
+    }
+    if (left + right >= iw) {
+        right = iw - 1 - left;
+    }
+    if (top + bottom >= ih) {
+        bottom = ih - 1 - top;
+    }
     int cw = iw - left - right;
     int ch = ih - top - bottom;
-    if (cw < 1) cw = 1;
-    if (ch < 1) ch = 1;
+    if (cw < 1) {
+        cw = 1;
+    }
+    if (ch < 1) {
+        ch = 1;
+    }
 
     SDL_Surface *out = SDL_CreateRGBSurfaceWithFormat(0, cw, ch, 32, SDL_PIXELFORMAT_ARGB8888);
     if (!out) {
-        if (free_work) SDL_FreeSurface(work);
+        if (free_work) {
+            SDL_FreeSurface(work);
+        }
         return NULL;
     }
-    if (SDL_MUSTLOCK(work)) SDL_LockSurface(work);
-    if (SDL_MUSTLOCK(out)) SDL_LockSurface(out);
+    if (SDL_MUSTLOCK(work)) {
+        SDL_LockSurface(work);
+    }
+    if (SDL_MUSTLOCK(out)) {
+        SDL_LockSurface(out);
+    }
     Uint32 *sp = (Uint32 *)work->pixels;
     Uint32 *dp = (Uint32 *)out->pixels;
     int sp_pitch = work->pitch / 4;
     int dp_pitch = out->pitch / 4;
     for (int y = 0; y < ch; ++y) {
-        memcpy(&dp[y * dp_pitch], &sp[(y + top) * sp_pitch + left], (size_t)cw * 4);
+        memcpy(&dp[y * dp_pitch], &sp[((y + top) * sp_pitch) + left], (size_t)cw * 4);
     }
-    if (SDL_MUSTLOCK(out)) SDL_UnlockSurface(out);
-    if (SDL_MUSTLOCK(work)) SDL_UnlockSurface(work);
-    if (free_work) SDL_FreeSurface(work);
+    if (SDL_MUSTLOCK(out)) {
+        SDL_UnlockSurface(out);
+    }
+    if (SDL_MUSTLOCK(work)) {
+        SDL_UnlockSurface(work);
+    }
+    if (free_work) {
+        SDL_FreeSurface(work);
+    }
     return out;
 }
 
@@ -1149,9 +1288,11 @@ static int save_processed_image(const ImageViewer *viewer) {
     }
 
     // First, crop based on current trims (before rotation to match on-screen behavior)
-    SDL_Surface *cropped = crop_surface_argb8888(
-        viewer->original_surface,
-        viewer->trim_left, viewer->trim_top, viewer->trim_right, viewer->trim_bottom);
+    SDL_Surface *cropped = crop_surface_argb8888(viewer->original_surface,
+                                                 viewer->trim_left,
+                                                 viewer->trim_top,
+                                                 viewer->trim_right,
+                                                 viewer->trim_bottom);
     if (!cropped) {
         printf("Failed to crop surface for saving.\n");
         return 0;
@@ -1189,10 +1330,14 @@ static int save_processed_image(const ImageViewer *viewer) {
     if (ext_ptr && *(ext_ptr + 1) != '\0') {
         ext_ptr++; // skip dot
         size_t eLen = strlen(ext_ptr);
-        if (eLen >= sizeof(ext_lower)) eLen = sizeof(ext_lower) - 1;
+        if (eLen >= sizeof(ext_lower)) {
+            eLen = sizeof(ext_lower) - 1;
+        }
         for (size_t i = 0; i < eLen; ++i) {
             char c = ext_ptr[i];
-            if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+            if (c >= 'A' && c <= 'Z') {
+                c = (char)(c - 'A' + 'a');
+            }
             ext_lower[i] = c;
         }
     } else {
@@ -1202,7 +1347,9 @@ static int save_processed_image(const ImageViewer *viewer) {
 
     // Trim name_wo_ext at last dot to remove extension
     char *dot = strrchr(name_wo_ext, '.');
-    if (dot) *dot = '\0';
+    if (dot) {
+        *dot = '\0';
+    }
 
     char out_path[MAX_PATH_LEN * 2];
     char fname[MAX_PATH_LEN];
@@ -1210,32 +1357,50 @@ static int save_processed_image(const ImageViewer *viewer) {
     // Decide saving function by extension; fallback to png if unsupported
     int saved = 0;
     int fallback_png = 0;
-    int any_trim = (viewer->trim_left | viewer->trim_right | viewer->trim_top | viewer->trim_bottom) != 0;
+    int any_trim =
+        (viewer->trim_left | viewer->trim_right | viewer->trim_top | viewer->trim_bottom) != 0;
 
     if (strcmp(ext_lower, "png") == 0) {
-        int n = snprintf(fname, sizeof fname, "%s_%s.png", name_wo_ext, any_trim ? "trimmed" : "rotated");
+        int n = snprintf(
+            fname, sizeof fname, "%s_%s.png", name_wo_ext, any_trim ? "trimmed" : "rotated");
         if (n >= 0 && (size_t)n < sizeof fname &&
             safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
-            if (IMG_SavePNG(save_surf, out_path) == 0) saved = 1;
+            if (IMG_SavePNG(save_surf, out_path) == 0) {
+                saved = 1;
+            }
         }
     } else if (strcmp(ext_lower, "jpg") == 0 || strcmp(ext_lower, "jpeg") == 0) {
-        int n = snprintf(fname, sizeof fname, "%s_%s.%s", name_wo_ext, any_trim ? "trimmed" : "rotated", ext_lower);
+        int n = snprintf(fname,
+                         sizeof fname,
+                         "%s_%s.%s",
+                         name_wo_ext,
+                         any_trim ? "trimmed" : "rotated",
+                         ext_lower);
         if (n >= 0 && (size_t)n < sizeof fname &&
             safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
-            if (IMG_SaveJPG(save_surf, out_path, 90) == 0) saved = 1;
+            if (IMG_SaveJPG(save_surf, out_path, 90) == 0) {
+                saved = 1;
+            }
         }
     } else if (strcmp(ext_lower, "bmp") == 0) {
-        int n = snprintf(fname, sizeof fname, "%s_%s.bmp", name_wo_ext, any_trim ? "trimmed" : "rotated");
+        int n = snprintf(
+            fname, sizeof fname, "%s_%s.bmp", name_wo_ext, any_trim ? "trimmed" : "rotated");
         if (n >= 0 && (size_t)n < sizeof fname &&
             safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
-            if (SDL_SaveBMP(save_surf, out_path) == 0) saved = 1;
+            if (SDL_SaveBMP(save_surf, out_path) == 0) {
+                saved = 1;
+            }
         }
     } else {
         // Unsupported original extension for saving -> fallback to PNG
-        int n = snprintf(fname, sizeof fname, "%s_%s.png", name_wo_ext, any_trim ? "trimmed" : "rotated");
+        int n = snprintf(
+            fname, sizeof fname, "%s_%s.png", name_wo_ext, any_trim ? "trimmed" : "rotated");
         if (n >= 0 && (size_t)n < sizeof fname &&
             safe_format_path(out_path, sizeof out_path, viewer->file_list.base_dir, fname)) {
-            if (IMG_SavePNG(save_surf, out_path) == 0) { saved = 1; fallback_png = 1; }
+            if (IMG_SavePNG(save_surf, out_path) == 0) {
+                saved = 1;
+                fallback_png = 1;
+            }
         }
     }
 

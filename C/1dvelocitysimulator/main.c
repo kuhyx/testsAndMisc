@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <windows.h>
-#include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h>
 #define LINE_LENGTH 100
 
 void C()
@@ -17,10 +17,7 @@ void printAcceleration(int acceleration)
     return;
 }
 
-void pauseSystem()
-{
-    system("PAUSE");
-}
+void pauseSystem() { system("PAUSE"); }
 
 void clearScreen()
 {
@@ -47,7 +44,7 @@ float calculateVelocity(float starting_velocity, unsigned int physics_time, int 
 
 int calculateDisplacement(float starting_velocity, int *acceleration, unsigned int physics_time)
 {
-    return starting_velocity * physics_time + ( (1 / 2) * (*acceleration) * (physics_time ^ 2) );
+    return starting_velocity * physics_time + ((1 / 2) * (*acceleration) * (physics_time ^ 2));
 }
 
 void printXPosition(int position)
@@ -62,18 +59,17 @@ void printClock(unsigned int *time)
     return;
 }
 
-float calculateStopTime(float velocity)
-{
-    return 1 / velocity;
-}
+float calculateStopTime(float velocity) { return 1 / velocity; }
 
 void printLine(int position)
 {
     clearScreen();
-    for(int i = -(LINE_LENGTH / 2); i < LINE_LENGTH / 2; i++)
+    for (int i = -(LINE_LENGTH / 2); i < LINE_LENGTH / 2; i++)
     {
-        if(i == position) printf("x");
-        else printf("-");
+        if (i == position)
+            printf("x");
+        else
+            printf("-");
     }
     return;
 }
@@ -86,15 +82,14 @@ void printVelocity(float velocity)
 
 int calculateTimePassed(float velocity)
 {
-    if(velocity >= 1 || velocity <= -1) return 1;
+    if (velocity >= 1 || velocity <= -1)
+        return 1;
     else
     {
-    printf("Time passed is: %f\n", fabs(1 / velocity));
-    return fabs(1 / velocity);
+        printf("Time passed is: %f\n", fabs(1 / velocity));
+        return fabs(1 / velocity);
     }
 }
-
-
 
 void printAllInfo(int position, unsigned int *time, float *velocity)
 {
@@ -104,7 +99,7 @@ void printAllInfo(int position, unsigned int *time, float *velocity)
     *time += calculateTimePassed(*velocity);
     printClock(time);
     printVelocity(*velocity);
-    //pauseForASecond();
+    // pauseForASecond();
     return;
 }
 
@@ -126,17 +121,19 @@ int chooseAcceleration()
 
 int outOfLine(int position)
 {
-    if((position < LINE_LENGTH / 2) && (position > -1 * (LINE_LENGTH / 2)))
+    if ((position < LINE_LENGTH / 2) && (position > -1 * (LINE_LENGTH / 2)))
     {
         return 0;
-    }else return 1;
+    }
+    else
+        return 1;
 }
 
 void moveUntillOutOfLine(int position, unsigned int *time)
 {
-    while(!outOfLine(position))
+    while (!outOfLine(position))
     {
-        float velocity = chooseVelocity();
+        float  velocity  = chooseVelocity();
         float *Pvelocity = &velocity;
         position += calculateDisplacement(velocity, 0, 1);
         printAllInfo(position, time, Pvelocity);
@@ -146,14 +143,14 @@ void moveUntillOutOfLine(int position, unsigned int *time)
 
 void moveUntillOutOfVelocity(int position, int *acceleration, unsigned int *time)
 {
-    float velocity = 0;
+    float  velocity  = 0;
     float *Pvelocity = &velocity;
-    while(!outOfLine(position))
+    while (!outOfLine(position))
     {
         position += calculateDisplacement(velocity, acceleration, 1);
         printXPosition(position);
         pauseSystem();
-        velocity = calculateVelocity(velocity,  1, acceleration);
+        velocity = calculateVelocity(velocity, 1, acceleration);
         printAllInfo(position, time, Pvelocity);
     }
     return;
@@ -161,11 +158,11 @@ void moveUntillOutOfVelocity(int position, int *acceleration, unsigned int *time
 
 int main()
 {
-    int position = 0, acceleration = -1;
-    int *Pacceleration = &acceleration;
-    unsigned int time = 0;
-    unsigned int *Ptime = &time;
+    int           position = 0, acceleration = -1;
+    int          *Pacceleration = &acceleration;
+    unsigned int  time          = 0;
+    unsigned int *Ptime         = &time;
     moveUntillOutOfLine(position, Ptime);
-    //moveUntillOutOfVelocity(position, Pacceleration, Ptime);
+    // moveUntillOutOfVelocity(position, Pacceleration, Ptime);
     return 0;
 }
