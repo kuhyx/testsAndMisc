@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+printf 'Running shell_check before committing...\n'
+
+if ! scripts/meta/shell_check.sh --skip-install; then
+  printf '\nCommit aborted: shell_check reported issues.\n' >&2
+  printf 'Fix the lint problems and retry the commit.\n' >&2
+  exit 1
+fi
+
+printf 'shell_check passed. Proceeding with commit.\n'
