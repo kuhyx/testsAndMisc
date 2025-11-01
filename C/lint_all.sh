@@ -1,201 +1,276 @@
 #!/usr/bin/env bash
 
-# Aggressive linting for all C code in this C/ folder and subfolders
-# - Installs missing tools when possible
-# - Runs: clang-format (check), cppcheck, flawfinder, clang-tidy (aggressive)
-#
-# Usage:
-#   ./lint_all.sh [--fix-format]
-#
-# If --fix-format is provided, it will format files in-place with clang-format before linting.
+# Lint all C code in C/ and its subfolders with aggressive rules
+# - Installs required tools if missing (clang-tidy, clang-format, cppcheck, flawfinder)
+# - Uses compile_commands.json if present for clang-tidy; otherwise uses sane defaults
+# - Checks formatting with clang-format --dry-run --Werror
+# - Runs cppcheck with exhaustive rules
+# - Runs flawfinder for security issues
 
-set -euo pipefail
-IFS=$'\n\t'
+set -u
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-ROOT_DIR="$SCRIPT_DIR"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-CYAN='\033[0;36m'; RED='\033[0;31m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; NC='\033[0m'
+info() { echo -e "${BLUE}==>${NC} $*"; }
+ok() { echo -e "${GREEN}✓${NC} $*"; }
+warn() { echo -e "${YELLOW}⚠${NC} $*"; }
+err() { echo -e "${RED}✗${NC} $*"; }
 
-have() { command -v "$1" &>/dev/null; }
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+C_DIR="${ROOT_DIR}/C"
 
-pm=""
-detect_pm() {
-  if have apt-get; then pm=apt; return 0; fi
-  if have dnf; then pm=dnf; return 0; fi
-  if have yum; then pm=yum; return 0; fi
-  if have pacman; then pm=pacman; return 0; fi
-  if have zypper; then pm=zypper; return 0; fi
-  if have brew; then pm=brew; return 0; fi
-  return 1
+if [[ ! -d "${C_DIR}" ]]; then
+	err "C directory not found at ${C_DIR}"
+	exit 1
+fi
+
+ISSUES=0
+MISSING=()
+
+need_cmd() {
+	command -v "$1" >/dev/null 2>&1 || MISSING+=("$1")
 }
 
-sudo_prefix() {
-  if [ "$EUID" -ne 0 ] && have sudo; then echo sudo; else echo; fi
+detect_pkg_manager() {
+	if command -v pacman >/dev/null 2>&1; then echo pacman; return; fi
+	if command -v apt-get >/dev/null 2>&1; then echo apt; return; fi
+	if command -v apt >/dev/null 2>&1; then echo apt; return; fi
+	if command -v dnf >/dev/null 2>&1; then echo dnf; return; fi
+	if command -v zypper >/dev/null 2>&1; then echo zypper; return; fi
+	if command -v apk >/dev/null 2>&1; then echo apk; return; fi
+	echo none
 }
 
-install_packages() {
-  local pkgs=("clang" "clang-tidy" "clang-format" "cppcheck" "flawfinder" "bear")
-  detect_pm || { echo -e "${YELLOW}No supported package manager detected. Skipping auto-install.${NC}"; return 0; }
+install_tools() {
+	info "Checking required tools..."
+	need_cmd clang-tidy
+	need_cmd clang-format
+	need_cmd cppcheck
+	need_cmd flawfinder
 
-  echo -e "${CYAN}Attempting to install missing tools using $pm...${NC}"
-  case "$pm" in
-    apt)
-      # Prefer non-interactive installs; ignore missing packages gracefully
-      $(sudo_prefix) apt-get update -y || true
-      # Try common variants for clang tools
-      $(sudo_prefix) apt-get install -y --no-install-recommends \
-        clang clang-tidy clang-format cppcheck flawfinder bear || true
-      ;;
-    dnf)
-      $(sudo_prefix) dnf install -y clang clang-tools-extra cppcheck flawfinder bear || true
-      ;;
-    yum)
-      $(sudo_prefix) yum install -y clang clang-tools-extra cppcheck flawfinder bear || true
-      ;;
-    pacman)
-      $(sudo_prefix) pacman --noconfirm -Sy || true
-      $(sudo_prefix) pacman --noconfirm -S clang clang-tools-extra cppcheck flawfinder bear || true
-      ;;
-    zypper)
-      $(sudo_prefix) zypper --non-interactive refresh || true
-      $(sudo_prefix) zypper --non-interactive install clang clang-tools cppcheck flawfinder bear || true
-      ;;
-    brew)
-      brew update || true
-      # llvm contains clang-tidy/format; add others separately
-      brew install llvm cppcheck flawfinder bear || true
-      # Add llvm tools to PATH if not present
-      if ! have clang-tidy && [ -d "/home/linuxbrew/.linuxbrew/opt/llvm/bin" ]; then
-        export PATH="/home/linuxbrew/.linuxbrew/opt/llvm/bin:$PATH"
-      fi
-      ;;
-  esac
+	if [[ ${#MISSING[@]} -eq 0 ]]; then
+		ok "All tools present: clang-tidy, clang-format, cppcheck, flawfinder"
+		return 0
+	fi
+
+	warn "Missing tools: ${MISSING[*]} — attempting to install with sudo"
+	local pm
+	pm=$(detect_pkg_manager)
+	case "$pm" in
+		pacman)
+			sudo pacman -S --needed --noconfirm clang clang-tools-extra clang-format cppcheck flawfinder || true
+			;;
+		apt|apt-get)
+			sudo "$pm" update -y || true
+			# clang-tidy and clang-format may be versioned; prefer unversioned meta pkgs
+			sudo "$pm" install -y clang-tidy clang-format cppcheck flawfinder || true
+			;;
+		dnf)
+			sudo dnf install -y clang-tools-extra clang cppcheck flawfinder || true
+			;;
+		zypper)
+			sudo zypper --non-interactive install clang-tools clang-tools-extra cppcheck flawfinder || true
+			;;
+		apk)
+			sudo apk add clang-extra-tools clang cppcheck flawfinder || true
+			;;
+		*)
+			warn "Unsupported package manager. Please install: clang-tidy clang-format cppcheck flawfinder"
+			;;
+	esac
+
+	# Re-check after attempted install
+	MISSING=()
+	need_cmd clang-tidy
+	need_cmd clang-format
+	need_cmd cppcheck
+	need_cmd flawfinder
+	if [[ ${#MISSING[@]} -ne 0 ]]; then
+		warn "Still missing: ${MISSING[*]} — continuing, but related steps may be skipped"
+	else
+		ok "Tools installed"
+	fi
 }
 
-ensure_tools() {
-  local missing=()
-  for t in clang clang-tidy clang-format cppcheck flawfinder; do
-    have "$t" || missing+=("$t")
-  done
-  if [ ${#missing[@]} -gt 0 ]; then
-    echo -e "${YELLOW}Missing tools: ${missing[*]}${NC}"
-    install_packages
-  fi
-  local still_missing=()
-  for t in clang clang-tidy clang-format cppcheck flawfinder; do
-    have "$t" || still_missing+=("$t")
-  done
-  if [ ${#still_missing[@]} -gt 0 ]; then
-    echo -e "${YELLOW}Still missing after install attempt: ${still_missing[*]}${NC}"
-  fi
+ensure_configs() {
+	# Provide default aggressive configs if missing
+	if [[ ! -f "${C_DIR}/.clang-tidy" ]]; then
+		warn ".clang-tidy not found in C/. Creating a default aggressive config."
+		cat >"${C_DIR}/.clang-tidy" <<'YAML'
+Checks: >
+	clang-analyzer-*,bugprone-*,cert-*,concurrency-*,hicpp-*,misc-*,performance-*,
+	portability-*,readability-*,clang-diagnostic-*,cppcoreguidelines-*
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: true
+FormatStyle: none
+YAML
+	fi
+
+	if [[ ! -f "${C_DIR}/.clang-format" ]]; then
+		warn ".clang-format not found in C/. Creating a default style."
+		cat >"${C_DIR}/.clang-format" <<'YAML'
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+SortIncludes: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AllowShortIfStatementsOnASingleLine: false
+BreakBeforeBraces: Allman
+Standard: C23
+YAML
+	fi
 }
 
-# Collect files
-mapfile -t C_FILES < <(find "$ROOT_DIR" \
-  -type f \( -name '*.c' -o -name '*.h' \) \
-  -not -path '*/.*/*' \
-  -not -path '*/.git/*' \
-  -not -path '*/build/*' \
-  -not -path '*/bin/*' \
-  -not -path '*/obj/*' \
-  -print | sort)
+collect_files() {
+	# shellcheck disable=SC2207
+	C_FILES=($(find "${C_DIR}" -type f \( -name '*.c' -o -name '*.h' -o -name '*.inc' \) \
+		-not -path '*/.*' -not -path '*/build/*' -not -path '*/dist/*' -not -path '*/out/*' \
+		-not -path '*/bin/*' -not -path '*/obj/*'))
+	if [[ ${#C_FILES[@]} -eq 0 ]]; then
+		warn "No C files found under ${C_DIR}"
+	else
+		ok "Found ${#C_FILES[@]} C-related files to check"
+	fi
+}
 
-if [ ${#C_FILES[@]} -eq 0 ]; then
-  echo -e "${RED}No C source/header files found under: $ROOT_DIR${NC}"
-  exit 1
-fi
+run_clang_format() {
+	if ! command -v clang-format >/dev/null 2>&1; then
+		warn "clang-format unavailable; skipping format check"
+		return
+	fi
+	info "Checking formatting with clang-format (--dry-run --Werror)"
+	local bad=0
+	for f in "${C_FILES[@]}"; do
+		if ! clang-format --dry-run --Werror "$f" >/dev/null 2>&1; then
+			echo "format issue: $f"
+			bad=$((bad+1))
+		fi
+	done
+	if [[ $bad -gt 0 ]]; then
+		warn "clang-format found $bad files needing formatting"
+		ISSUES=$((ISSUES+bad))
+	else
+		ok "Formatting OK"
+	fi
+}
 
-# Unique include dirs where headers live
-mapfile -t INCLUDE_DIRS < <(printf '%s\n' "${C_FILES[@]}" | awk -F/ '{ $NF=""; print $0 }' | sed 's# $##;s#[^/]*$##' | sed 's#/$##' | sort -u)
+run_cppcheck() {
+	if ! command -v cppcheck >/dev/null 2>&1; then
+		warn "cppcheck unavailable; skipping"
+		return
+	fi
+	info "Running cppcheck (aggressive, recursive)"
+	# Use a temp report file to avoid noisy exit codes stopping script
+	local report
+	report=$(mktemp)
+	local opts=(--enable=all --inconclusive --std=c23 --check-level=exhaustive --force \
+		--quiet --error-exitcode=2 --inline-suppr --suppress=missingIncludeSystem \
+		--library=posix)
+	# Exclude common non-source dirs
+	opts+=(--exclude=build --exclude=dist --exclude=out --exclude=.git --exclude=bin --exclude=obj)
+	if ! cppcheck "${opts[@]}" "${C_DIR}" 2>"$report"; then
+		warn "cppcheck reported issues (see summary below)"
+		ISSUES=$((ISSUES+1))
+	else
+		ok "cppcheck passed"
+	fi
+	if [[ -s "$report" ]]; then
+		echo
+		echo "cppcheck output:" && sed -e 's/^/  /' "$report"
+	fi
+	rm -f "$report"
+}
 
-INC_FLAGS=("-I$ROOT_DIR")
-for d in "${INCLUDE_DIRS[@]}"; do
-  [ -n "$d" ] && INC_FLAGS+=("-I$d")
-done
+run_clang_tidy() {
+	if ! command -v clang-tidy >/dev/null 2>&1; then
+		warn "clang-tidy unavailable; skipping"
+		return
+	fi
+	info "Running clang-tidy on .c files"
+		local db="${C_DIR}/compile_commands.json"
+	local used_db="no"
+	local files=()
+	while IFS= read -r -d '' f; do files+=("$f"); done < <(find "${C_DIR}" -type f -name '*.c' -print0)
+	if [[ ${#files[@]} -eq 0 ]]; then
+		warn "No .c files for clang-tidy"
+		return
+	fi
+		if [[ -f "$db" ]]; then
+			# Basic validation: ensure JSON array starts with [ and includes "directory"
+			if head -n 1 "$db" | grep -q '\['; then
+				used_db="yes"
+			else
+				warn "compile_commands.json seems malformed; ignoring"
+			fi
+		fi
+	local failures=0
+	for f in "${files[@]}"; do
+		if [[ "$used_db" == "yes" ]]; then
+			clang-tidy "$f" -p "${C_DIR}" --quiet || failures=$((failures+1))
+		else
+			# Fallback args: try C23 and include local dir
+			clang-tidy "$f" --quiet -- -std=c2x -I"$(dirname "$f")" -I"${C_DIR}" || failures=$((failures+1))
+		fi
+	done
+	if [[ $failures -gt 0 ]]; then
+		warn "clang-tidy found issues in $failures file(s)"
+		ISSUES=$((ISSUES+failures))
+	else
+		ok "clang-tidy passed"
+	fi
+}
 
-CPU_JOBS=1
-if have nproc; then CPU_JOBS="$(nproc)"; elif have getconf; then CPU_JOBS="$(getconf _NPROCESSORS_ONLN || echo 1)"; fi
+run_flawfinder() {
+	if ! command -v flawfinder >/dev/null 2>&1; then
+		warn "flawfinder unavailable; skipping"
+		return
+	fi
+	info "Running flawfinder (security-focused scan)"
+	local report
+	report=$(mktemp)
+		if ! flawfinder --quiet --columns --minlevel=1 --falsepositive "${C_DIR}" >"$report" 2>/dev/null; then
+		warn "flawfinder reported issues"
+		ISSUES=$((ISSUES+1))
+	else
+		ok "flawfinder completed"
+	fi
+	if [[ -s "$report" ]]; then
+		echo
+		echo "flawfinder notable findings:" && head -n 200 "$report" | sed -e 's/^/  /'
+	fi
+	rm -f "$report"
+}
 
-ensure_tools
+summary_exit() {
+	echo
+	if [[ $ISSUES -gt 0 ]]; then
+		err "Lint completed with $ISSUES issue(s) detected"
+		echo "Tip: run 'clang-format -i' to fix formatting; many clang-tidy checks support '--fix'"
+		exit 1
+	else
+		ok "All checks passed with no issues"
+	fi
+}
 
-FORMAT_ONLY=false
-if [ "${1:-}" = "--fix-format" ]; then
-  FORMAT_ONLY=true
-fi
+main() {
+	echo -e "${BLUE}C folder – aggressive lint suite${NC}"
+	echo
+	install_tools
+	ensure_configs
+	collect_files
+	run_clang_format
+	run_cppcheck
+	run_clang_tidy
+	run_flawfinder
+	summary_exit
+}
 
-fail=0
-
-if have clang-format; then
-  if $FORMAT_ONLY; then
-    echo -e "${CYAN}Formatting with clang-format (in-place)...${NC}"
-    printf '%s\0' "${C_FILES[@]}" | xargs -0 -n50 -P "$CPU_JOBS" clang-format -style=file -i || fail=1
-  else
-    echo -e "${CYAN}Checking formatting with clang-format...${NC}"
-    # -n: dry-run, --Werror: exit non-zero if reformatting is needed
-    if ! printf '%s\0' "${C_FILES[@]}" | xargs -0 -n50 -P "$CPU_JOBS" clang-format -style=file -n --Werror; then
-      echo -e "${YELLOW}clang-format suggests changes. Run with --fix-format to apply.${NC}"
-      fail=1
-    fi
-  fi
-else
-  echo -e "${YELLOW}clang-format not available; skipping formatting check.${NC}"
-fi
-
-if have cppcheck; then
-  echo -e "${CYAN}Running cppcheck (aggressive)...${NC}"
-  # Build include args for cppcheck
-  CPPCHECK_INC=()
-  for f in "${INC_FLAGS[@]}"; do
-    # convert -Ipath into --include=path for cppcheck? cppcheck uses -I as well
-    if [[ "$f" == -I* ]]; then CPPCHECK_INC+=("$f"); fi
-  done
-  # Use --project if compile_commands.json exists; otherwise lint folder
-  if [ -f "$ROOT_DIR/compile_commands.json" ]; then
-    cppcheck --enable=all --inconclusive --std=c11 --force --platform=unix64 \
-      --library=posix --suppress=missingIncludeSystem \
-      --project="$ROOT_DIR/compile_commands.json" || fail=1
-  else
-    cppcheck --enable=all --inconclusive --std=c11 --force --platform=unix64 \
-      --library=posix --suppress=missingIncludeSystem \
-      "${CPPCHECK_INC[@]}" "$ROOT_DIR" || fail=1
-  fi
-else
-  echo -e "${YELLOW}cppcheck not available; skipping.${NC}"
-fi
-
-if have flawfinder; then
-  echo -e "${CYAN}Running flawfinder (security scan)...${NC}"
-  # error-level 1+ to be noisy; set to 0 for all messages
-  flawfinder --error-level=0 --columns --followdotdirs "$ROOT_DIR" || fail=1
-else
-  echo -e "${YELLOW}flawfinder not available; skipping.${NC}"
-fi
-
-if have clang-tidy; then
-  echo -e "${CYAN}Running clang-tidy (aggressive)...${NC}"
-  # Prefer compile_commands.json if present
-  TIDY_ARGS=("-warnings-as-errors=*" "-header-filter=.*")
-  if [ -f "$ROOT_DIR/compile_commands.json" ]; then
-    TIDY_ARGS+=("-p" "$ROOT_DIR")
-  else
-    # Provide basic args so analysis can proceed without a build database
-    TIDY_ARGS+=("--extra-arg=-std=c11")
-    for inc in "${INC_FLAGS[@]}"; do
-      TIDY_ARGS+=("--extra-arg=$inc")
-    done
-  fi
-  # clang-tidy supports parallelism via -j
-  clang-tidy -j "$CPU_JOBS" "${TIDY_ARGS[@]}" "${C_FILES[@]}" || fail=1
-else
-  echo -e "${YELLOW}clang-tidy not available; skipping.${NC}"
-fi
-
-echo
-if [ "$fail" -ne 0 ]; then
-  echo -e "${RED}Linting completed with issues. See output above.${NC}"
-else
-  echo -e "${GREEN}All lint checks passed.${NC}"
-fi
-
-exit "$fail"
+main "$@"

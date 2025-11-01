@@ -1,0 +1,105 @@
+[
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/1dvelocitysimulator",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/1dvelocitysimulator -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/1dvelocitysimulator/main.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/fps",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/fps -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/fps/main.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/imageViewer",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/imageViewer -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/imageViewer/main.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/main.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c micro_max.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/micro_max.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c movegen.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/movegen.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c perft.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/perft.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c search.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/search.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/misc",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc -I/home/kuchy/testsAndMisc/C -c generatingWordsEndingWIthalka.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/misc/generatingWordsEndingWIthalka.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/misc/randomJPG",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc/randomJPG -I/home/kuchy/testsAndMisc/C -c generate_images.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/misc/randomJPG/generate_images.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/misc/randomJPG",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc/randomJPG -I/home/kuchy/testsAndMisc/C -c generate_jpg.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/misc/randomJPG/generate_jpg.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/misc/split",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc/split -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/misc/split/main.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c chess.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/opening_learner/chess.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c engine.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/opening_learner/engine.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c gui.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/opening_learner/gui.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/opening_learner/main.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c mistakes.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/opening_learner/mistakes.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/scrapeWebsite",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/scrapeWebsite -I/home/kuchy/testsAndMisc/C -c scrape.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/scrapeWebsite/scrape.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/tests",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/tests -I/home/kuchy/testsAndMisc/C -c generatingPolishLettersOnWindowsTerminal.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/tests/generatingPolishLettersOnWindowsTerminal.c"
+  },
+  {
+    "directory": "/home/kuchy/testsAndMisc/C/websocketServer",
+    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/websocketServer -I/home/kuchy/testsAndMisc/C -c main.c -o /dev/null",
+    "file": "/home/kuchy/testsAndMisc/C/websocketServer/main.c"
+  }
+]
+[
+  {\n    "directory": "/home/kuchy/testsAndMisc/C/1dvelocitysimulator",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/1dvelocitysimulator -I/home/kuchy/testsAndMisc/C -c 1dvelocitysimulator/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/1dvelocitysimulator/main.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/fps",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/fps -I/home/kuchy/testsAndMisc/C -c fps/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/fps/main.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/imageViewer",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/imageViewer -I/home/kuchy/testsAndMisc/C -c imageViewer/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/imageViewer/main.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c lichess_random_engine/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/main.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c lichess_random_engine/micro_max.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/micro_max.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c lichess_random_engine/movegen.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/movegen.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c lichess_random_engine/perft.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/perft.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/lichess_random_engine",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/lichess_random_engine -I/home/kuchy/testsAndMisc/C -c lichess_random_engine/search.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/lichess_random_engine/search.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/misc",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc -I/home/kuchy/testsAndMisc/C -c misc/generatingWordsEndingWIthalka.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/misc/generatingWordsEndingWIthalka.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/misc/randomJPG",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc/randomJPG -I/home/kuchy/testsAndMisc/C -c misc/randomJPG/generate_images.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/misc/randomJPG/generate_images.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/misc/randomJPG",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc/randomJPG -I/home/kuchy/testsAndMisc/C -c misc/randomJPG/generate_jpg.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/misc/randomJPG/generate_jpg.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/misc/split",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/misc/split -I/home/kuchy/testsAndMisc/C -c misc/split/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/misc/split/main.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c opening_learner/chess.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/opening_learner/chess.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c opening_learner/engine.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/opening_learner/engine.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c opening_learner/gui.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/opening_learner/gui.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c opening_learner/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/opening_learner/main.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/opening_learner",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/opening_learner -I/home/kuchy/testsAndMisc/C -c opening_learner/mistakes.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/opening_learner/mistakes.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/scrapeWebsite",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/scrapeWebsite -I/home/kuchy/testsAndMisc/C -c scrapeWebsite/scrape.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/scrapeWebsite/scrape.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/tests",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/tests -I/home/kuchy/testsAndMisc/C -c tests/generatingPolishLettersOnWindowsTerminal.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/tests/generatingPolishLettersOnWindowsTerminal.c"\n  },  {\n    "directory": "/home/kuchy/testsAndMisc/C/websocketServer",\n    "command": "clang -std=c11 -Wall -Wextra -Wpedantic -I/home/kuchy/testsAndMisc/C/websocketServer -I/home/kuchy/testsAndMisc/C -c websocketServer/main.c -o /dev/null",\n    "file": "/home/kuchy/testsAndMisc/C/websocketServer/main.c"\n  }
+]
