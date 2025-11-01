@@ -13,30 +13,30 @@ HOSTS_INSTALL_SCRIPT="__HOSTS_INSTALL_SCRIPT__"
 
 # Function to log with timestamp
 log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
 # Function to execute with logging
 execute_with_log() {
-    local script_path="$1"
-    local script_name="$2"
-    
-    log_message "Starting $script_name"
-    echo "Executing $script_name..." >&2
-    
-    if [[ -f "$script_path" ]]; then
-        if bash "$script_path" >> "$LOG_FILE" 2>&1; then
-            log_message "$script_name completed successfully"
-            echo "✓ $script_name completed successfully" >&2
-        else
-            local ec=$?
-            log_message "$script_name failed with exit code $ec"
-            echo "✗ $script_name failed (exit $ec)" >&2
-        fi
+  local script_path="$1"
+  local script_name="$2"
+
+  log_message "Starting $script_name"
+  echo "Executing $script_name..." >&2
+
+  if [[ -f $script_path ]]; then
+    if bash "$script_path" >> "$LOG_FILE" 2>&1; then
+      log_message "$script_name completed successfully"
+      echo "✓ $script_name completed successfully" >&2
     else
-        log_message "$script_name not found at $script_path"
-        echo "✗ $script_name not found at $script_path" >&2
+      local ec=$?
+      log_message "$script_name failed with exit code $ec"
+      echo "✗ $script_name failed (exit $ec)" >&2
     fi
+  else
+    log_message "$script_name not found at $script_path"
+    echo "✗ $script_name not found at $script_path" >&2
+  fi
 }
 
 # Start maintenance

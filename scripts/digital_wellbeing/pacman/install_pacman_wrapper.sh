@@ -14,7 +14,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Script locations
@@ -57,7 +56,7 @@ else
   echo -e "${YELLOW}Warning:${NC} Missing whitelist source at ${WHITELIST_SOURCE}${NC}"
 fi
 chmod +x "$WRAPPER_DEST"
-chmod 644 "$WORDS_DEST" "$BLOCKED_DEST" "$WHITELIST_DEST" 2>/dev/null || true
+chmod 644 "$WORDS_DEST" "$BLOCKED_DEST" "$WHITELIST_DEST" 2> /dev/null || true
 
 # Automatically use symbolic link installation method
 echo -e "${YELLOW}Installing using symbolic link method...${NC}"

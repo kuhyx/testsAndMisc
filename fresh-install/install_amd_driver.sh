@@ -12,7 +12,10 @@
 #   AMD_VERBOSE=1                 # verbose output
 set -e
 
-[ "${GPU_VENDOR}" = "amd" ] || { echo "AMD installer invoked but GPU_VENDOR=${GPU_VENDOR}"; exit 0; }
+[ "${GPU_VENDOR}" = "amd" ] || {
+  echo "AMD installer invoked but GPU_VENDOR=${GPU_VENDOR}"
+  exit 0
+}
 
 AMD_INSTALL_XF86=${AMD_INSTALL_XF86:-0}
 AMD_INSTALL_AMDVLK=${AMD_INSTALL_AMDVLK:-0}
@@ -55,19 +58,22 @@ LIB32_AMDVLK_PKG="lib32-amdvlk"
 
 # Simple AUR builder (reused from NVIDIA script style)
 _build_aur_pkg() {
-  local pkg="$1" url="https://aur.archlinux.org/${pkg}.git"
-  mkdir -p "$HOME/aur"; cd "$HOME/aur"
+  local pkg="$1"
+  local url="https://aur.archlinux.org/${pkg}.git"
+  mkdir -p "$HOME/aur"
+  cd "$HOME/aur"
   if [ ! -d "$pkg" ]; then git clone "$url"; else (cd "$pkg" && git fetch -q --all && git reset -q --hard origin/HEAD || git pull --ff-only || true); fi
-  cd "$pkg"; rm -f -- *.pkg.tar.* 2>/dev/null || true
+  cd "$pkg"
+  rm -f -- *.pkg.tar.* 2> /dev/null || true
   yes | makepkg -s -c -C --noconfirm --needed
-  local built=( *.pkg.tar.zst )
+  local built=(*.pkg.tar.zst)
   yes | sudo pacman -U --noconfirm "${built[@]}"
 }
 
 _install_repo_or_aur() {
   local pkg="$1"
-  if pacman -Si "$pkg" >/dev/null 2>&1; then
-    if pacman -Qi "$pkg" >/dev/null 2>&1; then
+  if pacman -Si "$pkg" > /dev/null 2>&1; then
+    if pacman -Qi "$pkg" > /dev/null 2>&1; then
       vlog "$pkg already installed"
     else
       yes | sudo pacman -Sy --noconfirm "$pkg"
@@ -101,7 +107,8 @@ fi
 GPU_LINES=$(lspci -nn | grep -Ei 'vga|3d|display' | grep -iE 'amd|ati' || true)
 SI_NAMES=(Tahiti Pitcairn Cape Verde Oland Hainan Curacao)
 CIK_NAMES=(Bonaire Hawaii Kabini Kaveri Mullins Temash Spectre Spooky)
-IS_SI=0; IS_CIK=0
+IS_SI=0
+IS_CIK=0
 for n in "${SI_NAMES[@]}"; do echo "$GPU_LINES" | grep -q "$n" && IS_SI=1 && break; done
 for n in "${CIK_NAMES[@]}"; do echo "$GPU_LINES" | grep -q "$n" && IS_CIK=1 && break; done
 
@@ -135,7 +142,7 @@ else
 fi
 
 # Check active kernel driver
-KDRV=$(lspci -k -d ::0300 2>/dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
+KDRV=$(lspci -k -d ::0300 2> /dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
 [ -z "$KDRV" ] && KDRV=$(lsmod | grep -E 'amdgpu|radeon' | head -n1 | awk '{print $1}')
 info "Kernel driver in use: ${KDRV:-unknown}"
 

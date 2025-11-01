@@ -11,7 +11,7 @@ real_bin="/usr/bin/${prog_name}"
 
 # If run directly (not via a browser symlink) or if the target binary doesn't exist,
 # allow passing the real browser command as the first argument for testing:
-if [[ ! -x "$real_bin" || "$prog_name" == "browser-preexec-wrapper.sh" ]]; then
+if [[ ! -x $real_bin || $prog_name == "browser-preexec-wrapper.sh" ]]; then
   if [[ $# -ge 1 ]]; then
     real_bin="$1"
     shift
@@ -24,10 +24,10 @@ if [[ ! -x "$real_bin" || "$prog_name" == "browser-preexec-wrapper.sh" ]]; then
 fi
 
 # Best-effort: install hosts file quietly; don't block browser startup
-if command -v sudo >/dev/null 2>&1; then
-  sudo -n "$HOSTS_INSTALL_SCRIPT" >/dev/null 2>&1 || true
+if command -v sudo > /dev/null 2>&1; then
+  sudo -n "$HOSTS_INSTALL_SCRIPT" > /dev/null 2>&1 || true
 else
-  "$HOSTS_INSTALL_SCRIPT" >/dev/null 2>&1 || true
+  "$HOSTS_INSTALL_SCRIPT" > /dev/null 2>&1 || true
 fi
 
 exec "$real_bin" "$@"

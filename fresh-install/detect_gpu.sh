@@ -2,17 +2,20 @@
 # Lightweight GPU detection script.
 # Detects GPU vendor and invokes the corresponding vendor install/management script.
 # Exports: GPU_VENDOR
+# shellcheck source=./install_nvidia_driver.sh
+# shellcheck source=./install_amd_driver.sh
+# shellcheck source=./install_intel_driver.sh
 set -e
 
 GPU_VENDOR="unknown"
 PCI_GPU_INFO=$(lspci -nn | grep -Ei 'vga|3d|display' || true)
 
 if echo "$PCI_GPU_INFO" | grep -qi nvidia; then
-    GPU_VENDOR="nvidia"
+  GPU_VENDOR="nvidia"
 elif echo "$PCI_GPU_INFO" | grep -Eqi '\b(amd|advanced micro devices|ati)\b'; then
-    GPU_VENDOR="amd"
+  GPU_VENDOR="amd"
 elif echo "$PCI_GPU_INFO" | grep -qi intel; then
-    GPU_VENDOR="intel"
+  GPU_VENDOR="intel"
 fi
 
 export GPU_VENDOR
@@ -21,6 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "$GPU_VENDOR" in
   nvidia)
     if [ -x "$SCRIPT_DIR/install_nvidia_driver.sh" ]; then
+      # shellcheck source=./install_nvidia_driver.sh disable=SC1091
       . "$SCRIPT_DIR/install_nvidia_driver.sh"
     else
       echo "NVIDIA installer script missing: $SCRIPT_DIR/install_nvidia_driver.sh"
@@ -28,6 +32,7 @@ case "$GPU_VENDOR" in
     ;;
   amd)
     if [ -x "$SCRIPT_DIR/install_amd_driver.sh" ]; then
+      # shellcheck source=./install_amd_driver.sh disable=SC1091
       . "$SCRIPT_DIR/install_amd_driver.sh"
     else
       echo "AMD installer script missing: $SCRIPT_DIR/install_amd_driver.sh (placeholder)"
@@ -35,6 +40,7 @@ case "$GPU_VENDOR" in
     ;;
   intel)
     if [ -x "$SCRIPT_DIR/install_intel_driver.sh" ]; then
+      # shellcheck source=./install_intel_driver.sh disable=SC1091
       . "$SCRIPT_DIR/install_intel_driver.sh"
     else
       echo "Intel installer script missing: $SCRIPT_DIR/install_intel_driver.sh"

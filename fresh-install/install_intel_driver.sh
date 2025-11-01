@@ -12,7 +12,10 @@
 #   INTEL_VERBOSE=0/1            # verbose logging
 set -e
 
-[ "$GPU_VENDOR" = "intel" ] || { echo "Intel installer invoked but GPU_VENDOR=$GPU_VENDOR"; exit 0; }
+[ "$GPU_VENDOR" = "intel" ] || {
+  echo "Intel installer invoked but GPU_VENDOR=$GPU_VENDOR"
+  exit 0
+}
 
 INTEL_USE_AMBER=${INTEL_USE_AMBER:-0}
 INTEL_INSTALL_LIB32=${INTEL_INSTALL_LIB32:-auto}
@@ -41,10 +44,10 @@ fi
 
 install_pkg() {
   local pkg="$1"
-  if pacman -Qi "$pkg" >/dev/null 2>&1; then
+  if pacman -Qi "$pkg" > /dev/null 2>&1; then
     vlog "$pkg already installed"
   else
-    if pacman -Si "$pkg" >/dev/null 2>&1; then
+    if pacman -Si "$pkg" > /dev/null 2>&1; then
       yes | sudo pacman -Sy --noconfirm "$pkg"
     else
       warn "Package $pkg not found in repos (not handling AUR here)"
@@ -86,7 +89,7 @@ if [ -n "$INTEL_ENABLE_GUC" ]; then
   else
     info "Configuring enable_guc=$INTEL_ENABLE_GUC"
     sudo mkdir -p /etc/modprobe.d
-    echo "options i915 enable_guc=$INTEL_ENABLE_GUC" | sudo tee /etc/modprobe.d/i915-guc.conf >/dev/null
+    echo "options i915 enable_guc=$INTEL_ENABLE_GUC" | sudo tee /etc/modprobe.d/i915-guc.conf > /dev/null
     if [ "$INTEL_SKIP_INITRAMFS" != 1 ] && [ -f /etc/mkinitcpio.conf ]; then
       info "Regenerating initramfs (mkinitcpio -P) for GuC/HuC change"
       sudo mkinitcpio -P || warn "mkinitcpio failed; continue manually"
@@ -97,7 +100,7 @@ if [ -n "$INTEL_ENABLE_GUC" ]; then
 fi
 
 # Report kernel driver
-KDRV=$(lspci -k -d ::0300 2>/dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
+KDRV=$(lspci -k -d ::0300 2> /dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
 [ -z "$KDRV" ] && KDRV=$(lsmod | grep -E 'i915|xe' | head -n1 | awk '{print $1}')
 info "Kernel driver in use: ${KDRV:-unknown}"
 

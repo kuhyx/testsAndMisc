@@ -13,20 +13,20 @@ USER_NAME="$(whoami)"
 
 # Function to log messages
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 # Check if organize script exists
-if [[ ! -f "$ORGANIZE_SCRIPT" ]]; then
-    log "ERROR: organize_downloads.sh not found at $ORGANIZE_SCRIPT"
-    exit 1
+if [[ ! -f $ORGANIZE_SCRIPT ]]; then
+  log "ERROR: organize_downloads.sh not found at $ORGANIZE_SCRIPT"
+  exit 1
 fi
 
 # Check if running as root for systemd service creation
 if [[ $EUID -ne 0 ]]; then
-    log "This script needs to be run as root to create systemd service."
-    log "Please run: sudo $0"
-    exit 1
+  log "This script needs to be run as root to create systemd service."
+  log "Please run: sudo $0"
+  exit 1
 fi
 
 log "Setting up media organizer startup service..."
