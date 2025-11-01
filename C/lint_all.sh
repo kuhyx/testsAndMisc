@@ -22,6 +22,7 @@ err() { echo -e "${RED}✗${NC} $*"; }
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 C_DIR="${ROOT_DIR}/C"
+AUTOFIX=${LINT_AUTOFIX:-1}
 
 if [[ ! -d "${C_DIR}" ]]; then
 	err "C directory not found at ${C_DIR}"
@@ -30,6 +31,8 @@ fi
 
 ISSUES=0
 MISSING=()
+C_FILES=()
+C_SOURCES=()
 
 need_cmd() {
 	command -v "$1" >/dev/null 2>&1 || MISSING+=("$1")
@@ -139,6 +142,75 @@ collect_files() {
 	else
 		ok "Found ${#C_FILES[@]} C-related files to check"
 	fi
+	mapfile -t C_SOURCES < <(find "${C_DIR}" -type f -name '*.c' \
+		-not -path '*/.*' -not -path '*/build/*' -not -path '*/dist/*' -not -path '*/out/*' \
+		-not -path '*/bin/*' -not -path '*/obj/*')
+}
+
+apply_clang_format_fix() {
+	if ! command -v clang-format >/dev/null 2>&1; then
+		warn "clang-format unavailable; skipping auto-format"
+		return
+	fi
+	if [[ ${#C_FILES[@]} -eq 0 ]]; then
+		return
+	fi
+	info "Applying clang-format -i to source files"
+	local formatted=0
+	for f in "${C_FILES[@]}"; do
+		if clang-format -i "$f" 2>/dev/null; then
+			formatted=$((formatted+1))
+		fi
+	done
+	ok "clang-format applied to ${formatted} file(s)"
+}
+
+apply_clang_tidy_fix() {
+	if ! command -v clang-tidy >/dev/null 2>&1; then
+		warn "clang-tidy unavailable; skipping auto-fix"
+		return
+	fi
+	if [[ ${#C_SOURCES[@]} -eq 0 ]]; then
+		return
+	fi
+	local db="${C_DIR}/compile_commands.json"
+	local used_db="no"
+	if [[ -f "$db" ]] && head -n 1 "$db" | grep -q '\['; then
+		used_db="yes"
+	fi
+	info "Applying clang-tidy --fix to C sources"
+	local failures=0
+	for f in "${C_SOURCES[@]}"; do
+		local rel
+		rel=$(realpath --relative-to="${ROOT_DIR}" "$f" 2>/dev/null || echo "$f")
+		printf '  • %s\n' "$rel"
+		if [[ "$used_db" == "yes" ]]; then
+			if ! clang-tidy "$f" -p "${C_DIR}" --fix --format-style=file --quiet >/dev/null 2>&1; then
+				failures=$((failures+1))
+			fi
+		else
+			if ! clang-tidy "$f" --fix --format-style=file --quiet -- -std=c2x -I"$(dirname "$f")" -I"${C_DIR}" >/dev/null 2>&1; then
+				failures=$((failures+1))
+			fi
+		fi
+	done
+	if [[ $failures -gt 0 ]]; then
+		warn "clang-tidy auto-fix encountered $failures issue(s); manual review may be required"
+	else
+		ok "clang-tidy auto-fix pass completed"
+	fi
+}
+
+apply_autofix() {
+	if [[ "$AUTOFIX" == "0" ]]; then
+		info "Automatic fixes disabled (LINT_AUTOFIX=0)"
+		return
+	fi
+	info "Automatic fixes enabled (LINT_AUTOFIX=${AUTOFIX})"
+	apply_clang_format_fix
+	apply_clang_tidy_fix
+	# Refresh file lists in case new files were introduced by fixes
+	collect_files
 }
 
 run_clang_format() {
@@ -197,9 +269,7 @@ run_clang_tidy() {
 	info "Running clang-tidy on .c files"
 		local db="${C_DIR}/compile_commands.json"
 	local used_db="no"
-	local files=()
-	while IFS= read -r -d '' f; do files+=("$f"); done < <(find "${C_DIR}" -type f -name '*.c' -print0)
-	if [[ ${#files[@]} -eq 0 ]]; then
+	if [[ ${#C_SOURCES[@]} -eq 0 ]]; then
 		warn "No .c files for clang-tidy"
 		return
 	fi
@@ -212,7 +282,7 @@ run_clang_tidy() {
 			fi
 		fi
 	local failures=0
-	for f in "${files[@]}"; do
+	for f in "${C_SOURCES[@]}"; do
 		if [[ "$used_db" == "yes" ]]; then
 			clang-tidy "$f" -p "${C_DIR}" --quiet || failures=$((failures+1))
 		else
@@ -266,6 +336,7 @@ main() {
 	install_tools
 	ensure_configs
 	collect_files
+	apply_autofix
 	run_clang_format
 	run_cppcheck
 	run_clang_tidy
