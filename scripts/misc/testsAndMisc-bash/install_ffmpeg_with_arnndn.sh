@@ -14,12 +14,12 @@ print_info() {
 ask_yes_no() {
   read -r -p "$1 [y/N]: " ans || true
   case "${ans:-}" in
-    y|Y|yes|YES) return 0;;
-    *) return 1;;
+    y | Y | yes | YES) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
-has_cmd() { command -v "$1" >/dev/null 2>&1; }
+has_cmd() { command -v "$1" > /dev/null 2>&1; }
 
 detect_distro() {
   if [[ -f /etc/os-release ]]; then
@@ -39,13 +39,13 @@ main() {
     print_info "Your ffmpeg already supports arnndn."
   else
     case "$distro" in
-      ubuntu|debian)
+      ubuntu | debian)
         print_info "On Ubuntu/Debian, the official repo may lack newer filters. Consider a PPA or build from source."
         echo "Options:"
         echo "  - ppa: sudo add-apt-repository ppa:savoury1/ffmpeg6 && sudo apt update && sudo apt install ffmpeg"
         echo "  - source build (recommended for latest): run this script to build from source"
         ;;
-      arch|manjaro|endeavouros)
+      arch | manjaro | endeavouros)
         print_info "On Arch-based distros, ffmpeg is recent. Try: sudo pacman -Syu ffmpeg"
         ;;
       fedora)
@@ -89,12 +89,12 @@ main() {
       fi
     fi
     # Dependencies
-    if [[ "$distro" == "ubuntu" || "$distro" == "debian" ]]; then
+    if [[ $distro == "ubuntu" || $distro == "debian" ]]; then
       sudo apt update
       sudo apt install -y git build-essential yasm nasm pkg-config libx264-dev libx265-dev libvpx-dev libopus-dev libfdk-aac-dev libmp3lame-dev libvorbis-dev libass-dev libfreetype6-dev libgnutls28-dev libaom-dev libdav1d-dev libxvidcore-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-shape0-dev libdrm-dev libvulkan-dev libva-dev libvdpau-dev librtmp-dev libunistring-dev libgnutls28-dev libchromaprint-dev libbluray-dev librubberband-dev libspeex-dev libsoxr-dev libvmaf-dev libzimg-dev libsvtav1-dev libtheora-dev libwebp-dev libopenal-dev libjack-jackd2-dev libpulse-dev librnnoise-dev
-    elif [[ "$distro" == "arch" || "$distro" == "manjaro" || "$distro" == "endeavouros" ]]; then
+    elif [[ $distro == "arch" || $distro == "manjaro" || $distro == "endeavouros" ]]; then
       sudo pacman -Syu --needed base-devel yasm nasm pkgconf rnnoise
-    elif [[ "$distro" == "fedora" ]]; then
+    elif [[ $distro == "fedora" ]]; then
       sudo dnf install -y git make gcc yasm nasm pkgconf-pkg-config rnnoise-devel libX11-devel libXext-devel libXfixes-devel libXv-devel libXrandr-devel libXi-devel libXtst-devel libXinerama-devel freetype-devel fontconfig-devel libass-devel libvpx-devel libaom-devel libdav1d-devel zimg-devel rubberband-devel soxr-devel libvorbis-devel opus-devel lame-devel
     else
       echo "Note: please ensure rnnoise development headers are installed (pkg-config rnnoise)." >&2

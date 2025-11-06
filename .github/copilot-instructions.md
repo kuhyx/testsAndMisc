@@ -40,3 +40,4 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
 - Follow the sudo re-exec + idempotent install pattern from `setup_periodic_system.sh` and `hosts/guard/setup_hosts_guard.sh`.
 - Add new periodic behaviors as templates under `scripts/system-maintenance/bin` and `.../systemd`, then extend `setup_periodic_system.sh` to install/enable them.
 - Extend package policy by updating `scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt` or by adding `check_for_<pkg>` + `prompt_for_<pkg>_challenge` blocks in the wrapper.
+- Run `scripts/meta/shell_check.sh` to detect things to fix before committing.

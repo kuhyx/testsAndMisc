@@ -285,8 +285,24 @@ run_linters() {
   local cbi_out="$TMPDIR/checkbashisms.txt"
   local cbi_status=0
   if is_cmd checkbashisms; then
-    # checkbashisms exits 0 if OK, 1 if issues, other codes for tool warnings
-    checkbashisms "${FILES[@]}" > "$cbi_out" 2>&1
+    # Only run checkbashisms on scripts that are intended for /bin/sh (or unspecified),
+    # skip explicit bash/zsh scripts to avoid false positives.
+    local -a CBI_FILES
+    CBI_FILES=()
+    for f in "${FILES[@]}"; do
+      local first
+      first=$(head -n 1 -- "$f" 2> /dev/null || true)
+      if [[ $first =~ bash || $first =~ zsh ]]; then
+        continue
+      fi
+      CBI_FILES+=("$f")
+    done
+    if [[ ${#CBI_FILES[@]} -gt 0 ]]; then
+      # checkbashisms exits 0 if OK, 1 if issues, other codes for tool warnings
+      checkbashisms "${CBI_FILES[@]}" > "$cbi_out" 2>&1
+    else
+      : > "$cbi_out"
+    fi
     cbi_status=$?
     if [[ $cbi_status -eq 1 ]]; then
       issues=$((issues + 1))

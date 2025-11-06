@@ -14,18 +14,24 @@ set -euo pipefail
 ask_yes_no() {
   read -r -p "$1 [y/N]: " ans || true
   case "${ans:-}" in
-    y|Y|yes|YES) return 0;;
-    *) return 1;;
+    y | Y | yes | YES) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
-has_cmd() { command -v "$1" >/dev/null 2>&1; }
+has_cmd() { command -v "$1" > /dev/null 2>&1; }
 
 YES=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -y|--yes) YES=true; shift;;
-    *) echo "Unknown option: $1" >&2; exit 2;;
+    -y | --yes)
+      YES=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 2
+      ;;
   esac
 done
 
@@ -35,7 +41,7 @@ RN_TARGET_NAME=${RN_TARGET_NAME:-"rnnoise_model.rnnn"}
 mkdir -p "$RN_TARGET_DIR"
 dest="$RN_TARGET_DIR/$RN_TARGET_NAME"
 
-if [[ -f "$dest" ]]; then
+if [[ -f $dest ]]; then
   echo "Model already exists at: $dest"
   exit 0
 fi
@@ -53,7 +59,7 @@ if ! has_cmd curl && ! has_cmd wget; then
 fi
 
 # Priority 1: explicit URL
-if [[ -n "${RN_URL:-}" ]]; then
+if [[ -n ${RN_URL:-} ]]; then
   echo "Downloading RNNoise model from RN_URL: $RN_URL" >&2
   tmp=$(mktemp)
   if has_cmd curl; then
@@ -61,7 +67,7 @@ if [[ -n "${RN_URL:-}" ]]; then
   else
     wget -qO "$tmp" "$RN_URL"
   fi
-  if [[ -s "$tmp" ]]; then
+  if [[ -s $tmp ]]; then
     mv "$tmp" "$dest"
     echo "Saved RNNoise model to: $dest"
     exit 0
@@ -83,7 +89,7 @@ for u in "${NU_URLS[@]}"; do
   tmp=$(mktemp)
   if has_cmd curl; then
     if curl -fsSL "$u" -o "$tmp"; then
-      if [[ -s "$tmp" ]]; then
+      if [[ -s $tmp ]]; then
         mv "$tmp" "$dest"
         echo "Saved RNNoise model to: $dest" >&2
         exit 0
@@ -91,7 +97,7 @@ for u in "${NU_URLS[@]}"; do
     fi
   else
     if wget -qO "$tmp" "$u"; then
-      if [[ -s "$tmp" ]]; then
+      if [[ -s $tmp ]]; then
         mv "$tmp" "$dest"
         echo "Saved RNNoise model to: $dest" >&2
         exit 0
@@ -110,7 +116,7 @@ for u in "${RNNDN_URLS[@]}"; do
   tmp=$(mktemp)
   if has_cmd curl; then
     if curl -fsSL "$u" -o "$tmp"; then
-      if [[ -s "$tmp" ]]; then
+      if [[ -s $tmp ]]; then
         mv "$tmp" "$dest"
         echo "Saved RNNoise model to: $dest" >&2
         exit 0
@@ -118,7 +124,7 @@ for u in "${RNNDN_URLS[@]}"; do
     fi
   else
     if wget -qO "$tmp" "$u"; then
-      if [[ -s "$tmp" ]]; then
+      if [[ -s $tmp ]]; then
         mv "$tmp" "$dest"
         echo "Saved RNNoise model to: $dest" >&2
         exit 0
@@ -172,10 +178,10 @@ done
 if has_cmd yay; then
   echo "Attempting to install AUR packages that may include RNNoise models..." >&2
   set +e
-  yay -S --noconfirm denoiseit-git 2>/dev/null
-  yay -S --noconfirm speech-denoiser-git 2>/dev/null
+  yay -S --noconfirm denoiseit-git 2> /dev/null
+  yay -S --noconfirm speech-denoiser-git 2> /dev/null
   set -e
-  mapfile -t found < <(bash -lc 'shopt -s globstar nullglob; for f in /usr/share/**/*.nn /usr/share/**/*.rnnn /usr/local/share/**/*.nn /usr/local/share/**/*.rnnn; do [[ -f "$f" ]] && echo "$f"; done' 2>/dev/null || true)
+  mapfile -t found < <(bash -lc 'shopt -s globstar nullglob; for f in /usr/share/**/*.nn /usr/share/**/*.rnnn /usr/local/share/**/*.nn /usr/local/share/**/*.rnnn; do [[ -f "$f" ]] && echo "$f"; done' 2> /dev/null || true)
   if [[ ${#found[@]} -gt 0 ]]; then
     echo "Found candidate models:" >&2
     printf '  %s\n' "${found[@]}" >&2
