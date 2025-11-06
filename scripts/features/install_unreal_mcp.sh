@@ -24,7 +24,8 @@ INSTALL_ROOT="$INSTALL_ROOT_DEFAULT"
 REPO_URL="https://github.com/chongdashu/unreal-mcp.git"
 REPO_DIR="" # will be set after INSTALL_ROOT known
 
-PROJECT_UPROJECT="" # optional: path to .uproject
+PROJECT_UPROJECT=""     # optional: path to .uproject
+RESOLVED_PROJECT_DIR="" # directory containing the resolved .uproject
 CONFIGURE_CONTINUE=true
 CONFIGURE_VSCODE_USER=true
 FORCE_UPDATE=false
@@ -41,8 +42,8 @@ Usage: $SCRIPT_NAME [options]
 
 Options:
   --install-dir DIR        Install root for repo (default: $INSTALL_ROOT_DEFAULT)
-  --project /path/Game.uproject
-                           Copy UnrealMCP plugin into this Unreal project
+  --project PATH           Path to your Unreal project (.uproject file) or a directory containing one
+                           Copies UnrealMCP plugin into this Unreal project
   --no-continue            Skip configuring VS Code Continue MCP
   --no-vscode              Skip adding MCP server to VS Code user profile via --add-mcp
   --force-update           If repo exists, fetch and reset to origin/main
@@ -93,7 +94,7 @@ require_cmd() { command -v "$1" > /dev/null 2>&1; }
 
 ensure_packages_arch() {
   # Install with pacman using sudo when needed; keep idempotent with --needed
-  local pkgs=(git jq uv python)
+  local pkgs=(git jq uv python rsync)
   local to_install=()
   for p in "${pkgs[@]}"; do
     if ! pacman -Qi "$p" > /dev/null 2>&1; then
@@ -304,14 +305,30 @@ configure_vscode_user_mcp() {
 install_plugin_into_project() {
   [[ -n $PROJECT_UPROJECT ]] || return 0
   local upath="$PROJECT_UPROJECT"
-  if [[ ! -f $upath ]]; then
-    fail "--project path does not exist or is not a file: $upath"
+  if [[ -d $upath ]]; then
+    # Resolve .uproject in the provided directory
+    mapfile -t _uprojects < <(find "$upath" -maxdepth 1 -type f -name "*.uproject" 2> /dev/null || true)
+    if [[ ${#_uprojects[@]} -eq 0 ]]; then
+      fail "--project directory '$upath' contains no .uproject files"
+    elif [[ ${#_uprojects[@]} -gt 1 ]]; then
+      printf '[ERROR] Multiple .uproject files found in %s:\n' "$upath" >&2
+      printf '  - %s\n' "${_uprojects[@]}" >&2
+      fail "Please pass the specific .uproject path to --project"
+    else
+      upath="${_uprojects[0]}"
+      log "Resolved .uproject: $upath"
+    fi
+  elif [[ -f $upath ]]; then
+    true
+  else
+    fail "--project path does not exist: $upath"
   fi
   if [[ ${upath##*.} != "uproject" ]]; then
-    fail "--project must point to a .uproject file"
+    fail "--project must point to a .uproject file (got: $upath)"
   fi
   local proj_dir
   proj_dir="$(cd "$(dirname "$upath")" && pwd)"
+  RESOLVED_PROJECT_DIR="$proj_dir"
   local src_plugin="$REPO_DIR/MCPGameProject/Plugins/UnrealMCP"
   local dst_plugin="$proj_dir/Plugins/UnrealMCP"
   if [[ ! -d $src_plugin ]]; then
@@ -328,6 +345,10 @@ install_plugin_into_project() {
 # ---------- Summary ----------
 print_summary() {
   local python_dir="$REPO_DIR/Python"
+  local plugin_dest="N/A"
+  if [[ -n $RESOLVED_PROJECT_DIR ]]; then
+    plugin_dest="$RESOLVED_PROJECT_DIR/Plugins/UnrealMCP"
+  fi
   cat << EOF
 ============================================
 Unreal MCP setup complete
@@ -350,7 +371,7 @@ Optional usage:
 
 Unreal plugin:
   - Source: MCPGameProject/Plugins/UnrealMCP
-  - If you provided --project, the plugin was copied to: $(dirname "${PROJECT_UPROJECT:-}")/Plugins/UnrealMCP
+  - If you provided --project, the plugin was copied to: $plugin_dest
   - In the Unreal Editor: Edit > Plugins > search "UnrealMCP" and enable. Restart when prompted.
 
 Notes:
@@ -367,8 +388,8 @@ main() {
   setup_repo
   install_launcher
   configure_continue
-  configure_vscode_user_mcp
   install_plugin_into_project
+  configure_vscode_user_mcp
   print_summary
 }
 
