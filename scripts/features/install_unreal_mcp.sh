@@ -234,30 +234,69 @@ configure_vscode_user_mcp() {
     return 0
   fi
 
-  local code_cmd=""
-  if command -v code > /dev/null 2>&1; then
-    code_cmd="code"
-  elif command -v code-insiders > /dev/null 2>&1; then
-    code_cmd="code-insiders"
-  elif command -v codium > /dev/null 2>&1; then
-    code_cmd="codium"
-  else
-    fail "VS Code CLI not found (code/code-insiders/codium). Install VS Code and ensure 'code' CLI is available, or run with --no-vscode to skip."
+  if ! require_cmd jq; then
+    fail "jq is required to compose VS Code --add-mcp JSON and to parse profiles"
   fi
 
   local python_dir="$REPO_DIR/Python"
-  if ! require_cmd jq; then
-    fail "jq is required to compose VS Code --add-mcp JSON"
-  fi
   local json
   json=$(jq -n --arg dir "$python_dir" '{name:"unrealMCP", command:"uv", args:["--directory", $dir, "run", "unreal_mcp_server.py"]}')
 
-  log "Registering MCP server in VS Code user profile via: $code_cmd --add-mcp"
-  if "$code_cmd" --add-mcp "$json" > /tmp/vscode-add-mcp.log 2>&1; then
-    log "VS Code user MCP server 'unrealMCP' added/updated"
-  else
-    sed -n '1,120p' /tmp/vscode-add-mcp.log || true
-    fail "VS Code --add-mcp failed. Ensure your VS Code version supports MCP (update to the latest), or run with --no-vscode to skip."
+  # Handle multiple VS Code variants if present
+  local candidates=(code code-insiders codium)
+  local found_any=false
+  for cli in "${candidates[@]}"; do
+    if ! command -v "$cli" > /dev/null 2>&1; then
+      continue
+    fi
+    found_any=true
+    log "Registering MCP server in VS Code user profile via: $cli --add-mcp"
+    if "$cli" --add-mcp "$json" > "/tmp/${cli}-add-mcp.log" 2>&1; then
+      log "[$cli] user profile: unrealMCP added/updated"
+    else
+      sed -n '1,200p' "/tmp/${cli}-add-mcp.log" || true
+      fail "[$cli] --add-mcp failed for user profile. Ensure your VS Code supports MCP or rerun with --no-vscode."
+    fi
+
+    # Detect profiles with 'unreal' (case-insensitive) and add there too
+    local data_dir=""
+    case "$cli" in
+      code)
+        data_dir="$USER_HOME/.config/Code"
+        ;;
+      code-insiders)
+        data_dir="$USER_HOME/.config/Code - Insiders"
+        ;;
+      codium)
+        data_dir="$USER_HOME/.config/VSCodium"
+        ;;
+    esac
+    local profiles_json="$data_dir/User/profiles/profiles.json"
+    if [[ -f $profiles_json ]]; then
+      # Extract profile names matching /unreal/i
+      mapfile -t unreal_profiles < <(jq -r '.profiles // [] | .[] | .name // empty | select(test("unreal"; "i"))' "$profiles_json")
+      if [[ ${#unreal_profiles[@]} -gt 0 ]]; then
+        log "[$cli] Found profiles with 'unreal': ${unreal_profiles[*]}"
+        local name
+        for name in "${unreal_profiles[@]}"; do
+          log "[$cli] Adding unrealMCP to profile: $name"
+          if "$cli" --profile "$name" --add-mcp "$json" > "/tmp/${cli}-add-mcp-${name// /_}.log" 2>&1; then
+            log "[$cli] profile '$name': unrealMCP added/updated"
+          else
+            sed -n '1,200p' "/tmp/${cli}-add-mcp-${name// /_}.log" || true
+            fail "[$cli] --add-mcp failed for profile '$name'."
+          fi
+        done
+      else
+        log "[$cli] No VS Code profiles with 'unreal' in name"
+      fi
+    else
+      log "[$cli] Profiles file not found: $profiles_json (skipping profile-specific adds)"
+    fi
+  done
+
+  if [[ $found_any == false ]]; then
+    fail "VS Code CLI not found (code/code-insiders/codium). Install VS Code and ensure 'code' CLI is available, or run with --no-vscode to skip."
   fi
 }
 
