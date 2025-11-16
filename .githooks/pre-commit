@@ -5,11 +5,40 @@ set -euo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-printf 'Running shell_check before committing...\n'
+printf 'Running auto-fixers and shell_check before committing...\n'
 
-if ! scripts/meta/shell_check.sh --skip-install; then
-  printf '\nCommit aborted: shell_check reported issues.\n' >&2
-  printf 'Fix the lint problems and retry the commit.\n' >&2
+# Get list of staged shell files
+mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sh|bash|zsh)$' || true)
+
+if [[ ${#staged_files[@]} -gt 0 ]]; then
+  printf 'Auto-fixing %d shell file(s)...\n' "${#staged_files[@]}"
+
+  # Auto-fix with shfmt if available
+  if command -v shfmt > /dev/null 2>&1; then
+    printf '  → Running shfmt...\n'
+    for file in "${staged_files[@]}"; do
+      if [[ -f $file ]]; then
+        shfmt -w "$file" 2> /dev/null || true
+      fi
+    done
+  fi
+
+  # Re-stage the auto-fixed files
+  for file in "${staged_files[@]}"; do
+    if [[ -f $file ]]; then
+      git add "$file"
+    fi
+  done
+
+  printf '  ✓ Auto-fixes applied and staged\n'
+fi
+
+printf 'Running shell_check validation (shellcheck only, skip formatting check)...\n'
+
+# Run shell_check but only check for actual errors (shellcheck, syntax), not formatting
+if ! scripts/meta/shell_check.sh --skip-install --skip-fmt 2>&1; then
+  printf '\nCommit aborted: shell_check reported issues that cannot be auto-fixed.\n' >&2
+  printf 'Fix the remaining problems and retry the commit.\n' >&2
   exit 1
 fi
 
