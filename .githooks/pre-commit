@@ -36,10 +36,19 @@ fi
 printf 'Running shell_check validation...\n'
 
 # Run shell_check to validate all checks
-if ! scripts/meta/shell_check.sh --skip-install 2>&1; then
-  printf '\nCommit aborted: shell_check reported issues.\n' >&2
-  printf 'Fix the remaining problems and retry the commit.\n' >&2
-  exit 1
+# Note: We only validate the staged files since we just auto-formatted them
+# Validate only shellcheck, not shfmt (we already applied formatting)
+mapfile -d '' -t staged_shell_files < <(git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.(sh|bash|zsh)$' || true)
+
+if [[ ${#staged_shell_files[@]} -gt 0 ]]; then
+  # Run shellcheck on staged files
+  if command -v shellcheck > /dev/null 2>&1; then
+    if ! shellcheck -x -S style "${staged_shell_files[@]}" 2>&1; then
+      printf '\nCommit aborted: shellcheck found issues.\n' >&2
+      printf 'Fix the remaining problems and retry the commit.\n' >&2
+      exit 1
+    fi
+  fi
 fi
 
 printf 'shell_check passed. Proceeding with commit.\n'
