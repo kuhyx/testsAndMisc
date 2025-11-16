@@ -1,0 +1,50 @@
+name: Shell Script Linting
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**.sh'
+      - '**.bash'
+      - '**.zsh'
+      - '.github/workflows/shell-check.yml'
+      - 'scripts/meta/shell_check.sh'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**.sh'
+      - '**.bash'
+      - '**.zsh'
+      - '.github/workflows/shell-check.yml'
+      - 'scripts/meta/shell_check.sh'
+
+jobs:
+  shellcheck:
+    name: Lint Shell Scripts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+      
+      - name: Install shfmt
+        run: |
+          cd /tmp
+          SHFMT_VERSION="3.8.0"
+          wget -q "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64" -O shfmt
+          chmod +x shfmt
+          sudo mv shfmt /usr/local/bin/
+          shfmt -version
+      
+      - name: Run shell_check.sh
+        run: |
+          bash scripts/meta/shell_check.sh --skip-install
+      
+      - name: Report status
+        if: success()
+        run: echo "✅ All shell scripts passed linting checks!"
