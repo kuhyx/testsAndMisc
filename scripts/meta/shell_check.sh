@@ -23,7 +23,6 @@ ROOT_DIR="$DEFAULT_ROOT"
 SKIP_INSTALL="false"
 INSTALL_ONLY="false"
 LIST_ONLY="false"
-SKIP_FMT="false"
 VERBOSE="false"
 
 log_info() {
@@ -43,15 +42,12 @@ usage() {
 Usage: $(basename "$0") [options]
 
 Options:
-	--path DIR         Root directory to scan (default: repo root at $DEFAULT_ROOT)
-	--skip-install     Skip installing linters
-	--install-only     Only install linters, do not scan
-	--list-only        Only list discovered shell files, do not run linters
-	--skip-fmt         Skip shfmt formatting checks (useful after auto-fixing)
-	--verbose          Print additional details while running
-	-h, --help         Show this help
-
-Linters used:
+  --path DIR         Root directory to scan (default: repo root at $DEFAULT_ROOT)
+  --skip-install     Skip installing linters
+  --install-only     Only install linters, do not scan
+  --list-only        Only list discovered shell files, do not run linters
+  --verbose          Print additional details while running
+  -h, --help         Show this helpLinters used:
 	Required: shellcheck, shfmt
 	Optional (if available): checkbashisms, bashate
 	Syntax checks: bash -n, zsh -n (if installed), sh/dash -n
@@ -74,10 +70,6 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--list-only)
 		LIST_ONLY="true"
-		shift
-		;;
-	--skip-fmt)
-		SKIP_FMT="true"
 		shift
 		;;
 	--verbose)
@@ -278,9 +270,7 @@ run_linters() {
 
 	log_info "Running shfmt (diff mode)..."
 	local shfmt_out="$TMPDIR/shfmt.diff"
-	if [[ $SKIP_FMT == "true" ]]; then
-		log_info "Skipping shfmt (--skip-fmt flag)"
-	elif is_cmd shfmt; then
+	if is_cmd shfmt; then
 		if ! shfmt -d -i 2 -ci -sr -s "${FILES[@]}" >"$shfmt_out" 2>&1; then
 			# shfmt returns non-zero when diff exists
 			issues=$((issues + 1))
@@ -376,9 +366,7 @@ run_linters() {
 		printf '\n\033[1;32m-- shellcheck: PASS (no issues) --\033[0m\n'
 	fi
 
-	if [[ $SKIP_FMT == "true" ]]; then
-		printf '\n\033[1;32m-- shfmt: SKIPPED (--skip-fmt) --\033[0m\n'
-	elif [[ -s $shfmt_out ]]; then
+	if [[ -s $shfmt_out ]]; then
 		printf '\n\033[1m-- shfmt (diffs found) --\033[0m\n'
 		cat "$shfmt_out"
 	else

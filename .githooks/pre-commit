@@ -33,11 +33,11 @@ if [[ ${#staged_files[@]} -gt 0 ]]; then
   printf '  ✓ Auto-fixes applied and staged\n'
 fi
 
-printf 'Running shell_check validation (shellcheck only, skip formatting check)...\n'
+printf 'Running shell_check validation...\n'
 
-# Run shell_check but only check for actual errors (shellcheck, syntax), not formatting
-if ! scripts/meta/shell_check.sh --skip-install --skip-fmt 2>&1; then
-  printf '\nCommit aborted: shell_check reported issues that cannot be auto-fixed.\n' >&2
+# Run shell_check to validate all checks
+if ! scripts/meta/shell_check.sh --skip-install 2>&1; then
+  printf '\nCommit aborted: shell_check reported issues.\n' >&2
   printf 'Fix the remaining problems and retry the commit.\n' >&2
   exit 1
 fi
