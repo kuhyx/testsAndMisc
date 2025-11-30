@@ -43,7 +43,7 @@ import sys
 import chess
 import chess.pgn
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 # Expected columns in the log file:
 # ply, side, move, played_eval, best_eval, loss, class, best_suggestion
@@ -162,7 +162,7 @@ def fen_and_uci_for_blunders(
                 try:
                     move = board.parse_san(main_sans[bl.ply - 1])
                 except ValueError:
-                    logging.debug("Skipping blunder: failed to parse fallback move")
+                    _logger.debug("Skipping blunder: failed to parse fallback move")
                     continue
             else:
                 continue
@@ -339,7 +339,7 @@ def _process_single_log(log_path: str) -> int:
     )
     unified = os.path.abspath(unified)
     added = append_cases_to_unified_test(unified, cases)
-    logging.info(
+    _logger.info(
         f"Appended {added} new blunder checks to "
         f"{os.path.relpath(unified)} (game {game_id})."
     )
@@ -376,7 +376,7 @@ def _read_log_file(log_path: str) -> tuple[str | None, int | None]:
         with open(log_path, encoding="utf-8") as fh:
             return fh.read(), None
     except FileNotFoundError:
-        logging.exception(f"Log file not found: {log_path}")
+        _logger.exception(f"Log file not found: {log_path}")
         return None, 2
 
 
@@ -385,10 +385,10 @@ def _parse_blunders(text: str, base: str) -> tuple[list[Blunder] | None, int | N
     try:
         blunders = parse_columns_for_blunders(text)
     except Exception:
-        logging.exception(f"Error parsing Columns in {base}")
+        _logger.exception(f"Error parsing Columns in {base}")
         return None, 2
     if not blunders:
-        logging.warning(f"No blunders found in Columns section: {base}")
+        _logger.warning(f"No blunders found in Columns section: {base}")
         return None, 1
     return blunders, None
 
@@ -399,16 +399,16 @@ def _extract_cases(
     """Extract FEN/UCI cases from PGN. Returns (cases, None) or (None, error_code)."""
     pgn_text = extract_pgn(text)
     if not pgn_text:
-        logging.warning(f"No PGN section found: {base}")
+        _logger.warning(f"No PGN section found: {base}")
         return None, 1
 
     try:
         cases = fen_and_uci_for_blunders(pgn_text, blunders)
     except Exception:
-        logging.exception(f"Error converting SAN to UCI in {base}")
+        _logger.exception(f"Error converting SAN to UCI in {base}")
         return None, 2
     if not cases:
-        logging.warning(f"Failed to reconstruct any blunder positions from PGN: {base}")
+        _logger.warning(f"Failed to reconstruct any blunder positions from PGN: {base}")
         return None, 1
     return cases, None
 
@@ -421,7 +421,7 @@ def main(argv: list[str]) -> int:
     # No argument: process all logs in past_games
     if len(argv) == 1:
         if not os.path.isdir(past_dir):
-            logging.error(f"No past_games directory found at {past_dir}")
+            _logger.error(f"No past_games directory found at {past_dir}")
             return 2
         logs = [
             os.path.join(past_dir, name)
@@ -429,7 +429,7 @@ def main(argv: list[str]) -> int:
             if re.match(r"lichess_bot_game_[A-Za-z0-9]+\.log$", name)
         ]
         if not logs:
-            logging.warning(f"No logs found in {past_dir}")
+            _logger.warning(f"No logs found in {past_dir}")
             return 1
         # Sort by mtime ascending for determinism
         logs.sort(key=lambda p: os.path.getmtime(p))
@@ -438,7 +438,7 @@ def main(argv: list[str]) -> int:
             rc = _process_single_log(lp)
             if rc == 0:
                 ok += 1
-        logging.info(
+        _logger.info(
             f"Processed {len(logs)} logs from {past_dir}, "
             f"succeeded: {ok}, failed: {len(logs) - ok}"
         )
@@ -459,7 +459,7 @@ def main(argv: list[str]) -> int:
             candidate_path = maybe
 
     if not candidate_path:
-        logging.info("Usage: generate_blunder_tests.py [<game_id>|</path/to/log>]")
+        _logger.info("Usage: generate_blunder_tests.py [<game_id>|</path/to/log>]")
         return 2
 
     return _process_single_log(candidate_path)

@@ -10,6 +10,8 @@ import time
 import chess
 import requests
 
+_logger = logging.getLogger(__name__)
+
 LICHESS_API = "https://lichess.org"
 
 
@@ -43,11 +45,11 @@ class LichessAPI:
         - Optionally raises for status.
         """
         t0 = time.monotonic()
-        logging.info(f"HTTP {method} {url} -> sending")
+        _logger.info("HTTP %s %s -> sending", method, url)
         try:
             r = self.session.request(method, url, **kwargs)  # type: ignore[arg-type]
         except Exception:
-            logging.exception(f"HTTP {method} {url} -> exception")
+            _logger.exception("HTTP %s %s -> exception", method, url)
             raise
         elapsed = time.monotonic() - t0
         status = r.status_code
@@ -60,14 +62,20 @@ class LichessAPI:
             except (AttributeError, TypeError):
                 snippet = None
             if snippet:
-                logging.warning(
-                    f"HTTP {method} {url} -> {status} "
-                    f"in {elapsed:.2f}s body='{snippet}'"
+                _logger.warning(
+                    "HTTP %s %s -> %s in %.2fs body='%s'",
+                    method,
+                    url,
+                    status,
+                    elapsed,
+                    snippet,
                 )
             else:
-                logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s")
+                _logger.warning(
+                    "HTTP %s %s -> %s in %.2fs", method, url, status, elapsed
+                )
         else:
-            logging.info(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s")
+            _logger.info("HTTP %s %s -> %s in %.2fs", method, url, status, elapsed)
         if raise_for_status:
             r.raise_for_status()
         return r
@@ -91,11 +99,11 @@ class LichessAPI:
                         try:
                             yield json.loads(line)
                         except json.JSONDecodeError:
-                            logging.debug(f"Skipping non-JSON line: {line}")
+                            _logger.debug("Skipping non-JSON line: %s", line)
             except requests.HTTPError as e:
                 status = getattr(e.response, "status_code", None)
                 if status == HTTPStatus.TOO_MANY_REQUESTS:
-                    logging.warning("Event stream hit 429; backing off")
+                    _logger.warning("Event stream hit 429; backing off")
                     time.sleep(backoff)
                     backoff = min(8.0, backoff * 2)
                     continue
@@ -160,7 +168,9 @@ class LichessAPI:
                 try:
                     yield json.loads(line)
                 except json.JSONDecodeError:
-                    logging.debug(f"Skipping non-JSON line in game {game_id}: {line}")
+                    _logger.debug(
+                        "Skipping non-JSON line in game %s: %s", game_id, line
+                    )
 
     def make_move(self, game_id: str, move: chess.Move) -> None:
         """Submit a move to an active game."""
@@ -171,7 +181,7 @@ class LichessAPI:
             r.raise_for_status()
             return
         if r.status_code == HTTPStatus.TOO_MANY_REQUESTS:
-            logging.warning(f"HTTP POST {url} -> 429; retrying once after 0.5s")
+            _logger.warning("HTTP POST %s -> 429; retrying once after 0.5s", url)
             time.sleep(0.5)
             r = self._request("POST", url, timeout=30)
         r.raise_for_status()

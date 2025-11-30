@@ -34,6 +34,8 @@ ignore = [
     # Formatter conflicts - these rules conflict with ruff format
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
+    # Logging style preference - f-strings are more readable
+    "G004",    # Logging statement uses f-string (stylistic preference)
 ]
 
 # Allow ALL rules to be auto-fixed
@@ -64,26 +66,15 @@ unfixable = []
 ]
 "python_pkg/random_jpg/generate_jpeg.py" = [
     "PTH",     # os.path patterns in existing code
-    "LOG015",  # Root logger in script
-    "G004",    # f-strings in logging
 ]
 "python_pkg/tag_divider/tag_divider.py" = [
     "PTH",     # os.path patterns in existing code
-    "LOG015",  # Root logger in script
-]
-"poker_modifier_app/*.py" = [
-    "LOG015",  # Root logger in script
-    "G004",    # f-strings in logging
 ]
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
-    "LOG015",  # Root logger in app
-    "G004",    # f-strings in logging
 ]
 "python_pkg/download_cats/generate_cats.py" = [
     "PTH",     # os.path patterns in existing code
-    "LOG015",  # Root logger in script
-    "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/main.py" = [
     "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
@@ -91,60 +82,36 @@ unfixable = []
     "PLR0915", # Long function handling complete game lifecycle
     "S603",    # Subprocess call for analysis script
     "PTH",     # os.path patterns in existing code
-    "LOG015",  # Root logger in bot
-    "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/engine.py" = [
     "S603",    # Subprocess for engine communication
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger for debug messages
-]
-"python_pkg/lichess_bot/lichess_api.py" = [
-    "LOG015",  # Root logger in API client
-    "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/utils.py" = [
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger
-    "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/tools/generate_blunder_tests.py" = [
     "PTH",     # os.path patterns in tool
-    "LOG015",  # Root logger in tool
-    "G004",    # f-strings in logging
 ]
 "python_pkg/stockfish_analysis/analyze_chess_game.py" = [
     "C901",    # Complex main() with many argument combinations and analysis modes
     "PLR0912", # Complex main() with many argument combinations and analysis modes
     "PLR0915", # Long main() handling complete analysis workflow
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger in analysis tool
-    "G004",    # f-strings in logging
-]
-"python_pkg/randomize_numbers/random_digits.py" = [
-    "LOG015",  # Root logger in script
-    "G004",    # f-strings in logging
 ]
 "python_pkg/keyboard_coop/main.py" = [
     "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger in script
 ]
 "python_pkg/screen_locker/screen_lock.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger in app
-    "G004",    # f-strings in logging
 ]
 "python_pkg/scrape_website/scrape_comics.py" = [
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger in script
-    "G004",    # f-strings in logging
 ]
 "python_pkg/extract_links/main.py" = [
     "PTH",     # os.path patterns
-    "LOG015",  # Root logger in script
-    "G004",    # f-strings in logging
 ]
 
 [tool.ruff.lint.pydocstyle]

@@ -16,7 +16,7 @@ import logging
 import os
 from urllib.parse import urlparse
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 
 class _HrefParser(HTMLParser):
@@ -90,7 +90,7 @@ def main() -> int:
     with open(out_path, "w", encoding="utf-8") as f:
         f.writelines(f"*{host}*\n" for host in hosts)
 
-    logging.info(f"Wrote {len(hosts)} host(s) to {out_path}")
+    _logger.info("Wrote %s host(s) to %s", len(hosts), out_path)
     return 0
 
 

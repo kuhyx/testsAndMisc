@@ -5,7 +5,7 @@ import secrets
 import tkinter as tk
 from tkinter import ttk
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 # Use cryptographically secure random number generator
 _rng = secrets.SystemRandom()
@@ -812,21 +812,21 @@ class PokerModifierApp:
         self.debug_mode = self.debug_var.get()
         if self.debug_mode:
             self.force_endgame_button.pack(side=tk.LEFT, padx=(0, 10))
-            logging.debug("Debug mode enabled")
+            _logger.debug("Debug mode enabled")
         else:
             self.force_endgame_button.pack_forget()
             self.force_endgame = False
-            logging.debug("Debug mode disabled")
+            _logger.debug("Debug mode disabled")
 
     def toggle_force_endgame(self) -> None:
         """Toggle forced endgame mode for testing."""
         self.force_endgame = not self.force_endgame
         if self.force_endgame:
             self.force_endgame_button.config(text="Stop Force Endgame", bg="#4CAF50")
-            logging.debug("Forcing endgame modifiers")
+            _logger.debug("Forcing endgame modifiers")
         else:
             self.force_endgame_button.config(text="Force Endgame", bg="#ff6b6b")
-            logging.debug("Normal modifier selection restored")
+            _logger.debug("Normal modifier selection restored")
 
     def is_endgame(self) -> bool:
         """Determine if we're in endgame phase."""
@@ -977,7 +977,7 @@ class PokerModifierApp:
         if self.debug_mode:
             self.force_endgame_button.config(text="Force Endgame", bg="#ff6b6b")
 
-        logging.info("Game reset to initial state")
+        _logger.info("Game reset to initial state")
 
     def add_modifier(self, name: str, description: str) -> None:
         """Add a new modifier to the list."""
@@ -1005,17 +1005,17 @@ class PokerModifierApp:
 
     def run(self) -> None:
         """Start the application."""
-        logging.info("Texas Hold'em Modifier App started!")
-        logging.info(
+        _logger.info("Texas Hold'em Modifier App started!")
+        _logger.info(
             "Available methods: app.get_stats(), app.add_modifier(name, description)"
         )
-        logging.info(
+        _logger.info(
             "Debug features: Toggle debug mode to access force endgame controls"
         )
-        logging.info(f"Default game length: {self.total_game_rounds} rounds")
+        _logger.info("Default game length: %s rounds", self.total_game_rounds)
         endgame_pct = int(self.endgame_threshold * 100)
         endgame_rounds = int(self.total_game_rounds * self.endgame_threshold)
-        logging.info(f"Endgame threshold: {endgame_pct}% ({endgame_rounds} rounds)")
+        _logger.info("Endgame threshold: %s%% (%s rounds)", endgame_pct, endgame_rounds)
         self.root.mainloop()
 
 
