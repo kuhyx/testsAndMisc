@@ -56,7 +56,6 @@ ignore = [
     "ARG001",  # Unused function argument - often needed for API compatibility
     "ARG002",  # Unused method argument - often needed for API compatibility
     "N816",    # mixed-case-variable-in-global-scope - often constants
-    "N806",    # non-lowercase-variable - sometimes intentional
     "N803",    # invalid-argument-name - chess notation uses uppercase
     "N999",    # invalid-module-name - PYTHON folder name
     "LOG015",  # root-logger-call - common in scripts
