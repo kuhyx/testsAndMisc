@@ -66,7 +66,6 @@ ignore = [
     "S110",    # try-except-pass - common pattern in scripts
     "S112",    # try-except-continue - acceptable pattern
     "DTZ005",  # datetime.now without tz - acceptable for local scripts
-    "DTZ004",  # datetime.utcfromtimestamp - acceptable
     "PERF401", # manual-list-comprehension - style preference
     "RUF005",  # collection-literal-concatenation - style preference
     "SIM102",  # collapsible-if - style preference
