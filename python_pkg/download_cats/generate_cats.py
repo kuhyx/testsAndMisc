@@ -5,7 +5,6 @@ Fetches cat images in batches and saves them to a local directory.
 
 import json
 import logging
-import os
 from pathlib import Path
 
 import requests
@@ -28,8 +27,8 @@ def _download_single_image(url: str) -> None:
         response.raise_for_status()  # Raise an exception for HTTP errors
 
         # Extract the image name from the URL
-        image_name = os.path.basename(url)
-        image_path = os.path.join("./CATS2/", image_name)
+        image_name = Path(url).name
+        image_path = Path("./CATS2/") / image_name
 
         # Save the image to the directory
         with open(image_path, "wb") as file:

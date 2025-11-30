@@ -1,23 +1,23 @@
 """Test the engine against Lichess puzzles."""
 
 import csv
-import os
+from pathlib import Path
 
 import chess
 import pytest
 
 from python_pkg.lichess_bot.engine import RandomEngine
 
-_PUZZLE_CSV = os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv")
+_PUZZLE_CSV = Path(__file__).parent / "lichess_db_puzzle.csv"
 
 
-def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
+def _load_top_puzzles(csv_path: str | Path, limit: int = 8) -> list[tuple[str, str]]:
     """Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
 
     CSV columns: PuzzleId,FEN,Moves,...
     """
     puzzles: list[tuple[str, str]] = []
-    if not os.path.isfile(csv_path):
+    if not Path(csv_path).is_file():
         return puzzles
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)

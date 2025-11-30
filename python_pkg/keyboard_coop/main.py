@@ -5,7 +5,7 @@ Players take turns selecting adjacent keys to form valid English words.
 
 import json
 import logging
-import os
+from pathlib import Path
 import secrets
 import sys
 
@@ -102,9 +102,7 @@ class KeyboardCoopGame:
     def load_dictionary(self) -> set[str]:
         """Load dictionary from words_dictionary.json file."""
         try:
-            dictionary_path = os.path.join(
-                os.path.dirname(__file__), "words_dictionary.json"
-            )
+            dictionary_path = Path(__file__).parent / "words_dictionary.json"
             with open(dictionary_path, encoding="utf-8") as f:
                 dictionary_data = json.load(f)
             # Convert to set for faster lookup (we only need the keys)

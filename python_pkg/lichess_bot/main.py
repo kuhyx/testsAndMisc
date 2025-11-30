@@ -6,6 +6,7 @@ import datetime
 import json
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 import threading
@@ -65,7 +66,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
         # start at -1 so we act on the first state (0 moves)
         last_handled_len = -1
         # Prepare a per-game log file
-        game_log_path = os.path.join(os.getcwd(), f"lichess_bot_game_{game_id}.log")
+        game_log_path = Path.cwd() / f"lichess_bot_game_{game_id}.log"
         try:
             with open(game_log_path, "w") as lf:
                 lf.write(f"game {game_id} started\n")
@@ -277,12 +278,12 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                 if game_log_path:
                     analysis_text: str | None = None
                     try:
-                        analyze_script = os.path.join(
-                            os.path.dirname(os.path.dirname(__file__)),
-                            "stockfish_analysis",
-                            "analyze_chess_game.py",
+                        analyze_script = (
+                            Path(__file__).resolve().parent.parent
+                            / "stockfish_analysis"
+                            / "analyze_chess_game.py"
                         )
-                        if os.path.isfile(analyze_script):
+                        if analyze_script.is_file():
                             # Estimate total plies from the final board
                             try:
                                 total_plies = len(board.move_stack)

@@ -1,8 +1,8 @@
 """Sort images into folders using keyboard input."""
 
 import logging
-import os  # for: os.getcwd; os.mkdir; os.listdir;
-from os import path  # for: os.path.abspath
+import os  # for: os.chdir
+from pathlib import Path
 import shutil  # for: shutil.move
 
 # for: cv2.imread; cv2.namedWindow; cv2.imshow;
@@ -41,21 +41,18 @@ RIGHT_FOLDER_CODE = 97  # Default 97 - 'a'
 first_folder_name = input("Enter first folder name: [a] ")
 second_folder_name = input("Enter second folder name: [d] ")
 
-current_path = os.path.abspath(
-    os.getcwd()
-)  # Stolen from: https://stackoverflow.com/q/3430372
+current_path = Path.cwd().resolve()
 os.chdir(current_path)  # Change working directory to the path where the python file is
 
-if (
-    path.isdir(first_folder_name) != 1
-):  # Check if folder already exists, if it does not make it
-    os.mkdir(first_folder_name)
-if path.isdir(second_folder_name) != 1:
-    os.mkdir(second_folder_name)
+if not Path(
+    first_folder_name
+).is_dir():  # Check if folder already exists, if not make it
+    Path(first_folder_name).mkdir()
+if not Path(second_folder_name).is_dir():
+    Path(second_folder_name).mkdir()
 
-for filename in os.listdir(
-    os.getcwd()
-):  # Go through every file in the working directory
+for file_path in Path.cwd().iterdir():  # Go through every file in the working directory
+    filename = file_path.name
     if (filename.lower()).endswith(
         IMAGE_EXTENSION
     ):  # If the file name ends with image extension
@@ -67,12 +64,12 @@ for filename in os.listdir(
         key = cv2.waitKey()
         if key == RIGHT_FOLDER_CODE:
             shutil.move(
-                current_path + "/" + filename,
-                current_path + "/" + first_folder_name + "/" + filename,
+                current_path / filename,
+                current_path / first_folder_name / filename,
             )
         elif key == LEFT_FOLDER_CODE:
             shutil.move(
-                current_path + "/" + filename,
-                current_path + "/" + second_folder_name + "/" + filename,
+                current_path / filename,
+                current_path / second_folder_name / filename,
             )
         cv2.destroyAllWindows()

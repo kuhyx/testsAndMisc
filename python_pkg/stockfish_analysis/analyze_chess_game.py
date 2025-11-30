@@ -26,7 +26,7 @@ import contextlib
 import io
 import logging
 import multiprocessing
-import os
+from pathlib import Path
 import re
 import sys
 
@@ -271,7 +271,7 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    if not os.path.isfile(args.file):
+    if not Path(args.file).is_file():
         _logger.error(f"Input not found: {args.file}")
         sys.exit(1)
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 from html.parser import HTMLParser
 import logging
-import os
+from pathlib import Path
 from urllib.parse import urlparse
 
 _logger = logging.getLogger(__name__)
@@ -72,15 +72,16 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    input_path = args.input_html
-    if not os.path.isfile(input_path):
+    input_path = Path(args.input_html)
+    if not input_path.is_file():
         msg = f"Input file not found: {input_path}"
         raise SystemExit(msg)
 
     out_path = args.output_txt
     if not out_path:
-        base = os.path.splitext(os.path.basename(input_path))[0]
-        out_path = os.path.join(os.path.dirname(input_path), f"{base}_links.txt")
+        out_path = input_path.parent / f"{input_path.stem}_links.txt"
+    else:
+        out_path = Path(out_path)
 
     with open(input_path, encoding="utf-8", errors="ignore") as f:
         html_text = f.read()

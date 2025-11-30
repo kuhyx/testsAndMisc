@@ -36,7 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import io
 import logging
-import os
+from pathlib import Path
 import re
 import sys
 
@@ -183,10 +183,10 @@ def fen_and_uci_for_blunders(
     return results
 
 
-def ensure_unified_test_file(target_path: str) -> None:
+def ensure_unified_test_file(target_path: str | Path) -> None:
     """Create the unified test file skeleton if it doesn't exist."""
-    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    if os.path.exists(target_path):
+    Path(target_path).parent.mkdir(parents=True, exist_ok=True)
+    if Path(target_path).exists():
         return
     # Create skeleton unified test file
     with open(target_path, "w", encoding="utf-8") as f:
@@ -197,8 +197,8 @@ import chess
 import pytest
 
 # Ensure repo root is importable when running pytest directly
-REPO_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = str(
+    Path(__file__).resolve().parent.parent.parent
 )
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -239,7 +239,7 @@ def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
 
 
 def append_cases_to_unified_test(
-    unified_path: str, cases: list[tuple[str, str, str, Blunder]]
+    unified_path: str | Path, cases: list[tuple[str, str, str, Blunder]]
 ) -> int:
     """Append new cases to BLUNDER_CASES in the unified test file, skipping duplicates.
 
@@ -325,29 +325,27 @@ def append_cases_to_unified_test(
     return len(lines) + updated_existing
 
 
-def _process_single_log(log_path: str) -> int:
+def _process_single_log(log_path: str | Path) -> int:
     """Process a single log file. Returns 0 on success, non-zero otherwise."""
-    base = os.path.basename(log_path)
+    base = Path(log_path).name
     result = _parse_and_extract_blunders(log_path, base)
     if isinstance(result, int):
         return result  # Error code
 
     cases, game_id = result
     # Always append to the unified test file
-    unified = os.path.join(
-        os.path.dirname(__file__), "..", "tests", "test_blunders_all.py"
-    )
-    unified = os.path.abspath(unified)
+    unified = Path(__file__).parent.parent / "tests" / "test_blunders_all.py"
+    unified = unified.resolve()
     added = append_cases_to_unified_test(unified, cases)
     _logger.info(
         f"Appended {added} new blunder checks to "
-        f"{os.path.relpath(unified)} (game {game_id})."
+        f"{unified.relative_to(Path.cwd())} (game {game_id})."
     )
     return 0
 
 
 def _parse_and_extract_blunders(
-    log_path: str, base: str
+    log_path: str | Path, base: str
 ) -> int | tuple[list[tuple[str, str, str, Blunder]], str]:
     """Parse log file and extract blunder cases.
 
@@ -366,11 +364,11 @@ def _parse_and_extract_blunders(
         return err if err is not None else 2
 
     m = re.search(r"game_([A-Za-z0-9]+)\.log$", base)
-    game_id = m.group(1) if m else os.path.splitext(base)[0]
+    game_id = m.group(1) if m else Path(base).stem
     return cases, game_id
 
 
-def _read_log_file(log_path: str) -> tuple[str | None, int | None]:
+def _read_log_file(log_path: str | Path) -> tuple[str | None, int | None]:
     """Read log file contents. Returns (text, None) or (None, error_code)."""
     try:
         with open(log_path, encoding="utf-8") as fh:
@@ -415,24 +413,24 @@ def _extract_cases(
 
 def main(argv: list[str]) -> int:
     """Process log files and generate blunder test cases."""
-    script_dir = os.path.dirname(__file__)
-    past_dir = os.path.abspath(os.path.join(script_dir, "past_games"))
+    script_dir = Path(__file__).parent
+    past_dir = (script_dir / "past_games").resolve()
 
     # No argument: process all logs in past_games
     if len(argv) == 1:
-        if not os.path.isdir(past_dir):
+        if not past_dir.is_dir():
             _logger.error(f"No past_games directory found at {past_dir}")
             return 2
         logs = [
-            os.path.join(past_dir, name)
-            for name in os.listdir(past_dir)
-            if re.match(r"lichess_bot_game_[A-Za-z0-9]+\.log$", name)
+            path
+            for path in past_dir.iterdir()
+            if re.match(r"lichess_bot_game_[A-Za-z0-9]+\.log$", path.name)
         ]
         if not logs:
             _logger.warning(f"No logs found in {past_dir}")
             return 1
         # Sort by mtime ascending for determinism
-        logs.sort(key=lambda p: os.path.getmtime(p))
+        logs.sort(key=lambda p: Path(p).stat().st_mtime)
         ok = 0
         for lp in logs:
             rc = _process_single_log(lp)
@@ -446,16 +444,16 @@ def main(argv: list[str]) -> int:
 
     # One argument: game id or file path
     arg = argv[1]
-    candidate_path = None
-    if os.path.isfile(arg):
+    candidate_path: str | Path | None = None
+    if Path(arg).is_file():
         candidate_path = arg
     # Treat as game id, resolve within past_games
     elif re.fullmatch(r"[A-Za-z0-9]+", arg):
-        candidate_path = os.path.join(past_dir, f"lichess_bot_game_{arg}.log")
+        candidate_path = past_dir / f"lichess_bot_game_{arg}.log"
     else:
         # Fallback: if it's a bare filename, try inside past_games
-        maybe = os.path.join(past_dir, arg)
-        if os.path.isfile(maybe):
+        maybe = past_dir / arg
+        if maybe.is_file():
             candidate_path = maybe
 
     if not candidate_path:

@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import os
+from pathlib import Path
 import subprocess
 
 import chess
@@ -36,20 +37,14 @@ class RandomEngine:
         # the C engine handles its own scoring/selection.
         self.depth = depth
         # Default relative path inside this repo
-        default_path = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__),
-                "..",
-                "..",
-                "C",
-                "lichess_random_engine",
-                "random_engine",
-            )
+        default_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "C"
+            / "lichess_random_engine"
+            / "random_engine"
         )
-        self.engine_path = engine_path or default_path
-        if not os.path.isfile(self.engine_path) or not os.access(
-            self.engine_path, os.X_OK
-        ):
+        self.engine_path = Path(engine_path) if engine_path else default_path
+        if not self.engine_path.is_file() or not os.access(self.engine_path, os.X_OK):
             msg = (
                 f"C engine not found or not executable at '{self.engine_path}'. "
                 "Build it first (make -C C/lichess_random_engine)."

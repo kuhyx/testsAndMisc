@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import Path
 import time
 
 _logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ def _version_file_path() -> str:
     override = os.getenv("LICHESS_BOT_VERSION_FILE")
     if override:
         return override
-    return os.path.join(os.path.dirname(__file__), ".bot_version")
+    return str(Path(__file__).parent / ".bot_version")
 
 
 def get_and_increment_version() -> int:
@@ -36,10 +37,10 @@ def get_and_increment_version() -> int:
 
     new_version = current + 1
     try:
-        tmp_path = path + ".tmp"
+        tmp_path = Path(path + ".tmp")
         with open(tmp_path, "w") as f:
             f.write(str(new_version))
-        os.replace(tmp_path, path)
+        tmp_path.replace(path)
     except OSError:
         # As a fallback, try a direct write; failure is non-fatal to bot operation
         try:
