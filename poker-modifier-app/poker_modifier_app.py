@@ -521,24 +521,34 @@ class PokerModifierApp:
 
     def setup_gui(self) -> None:
         """Create and configure the main GUI window."""
-        # Create main window
+        self._setup_main_window()
+        main_frame = self._create_main_frame()
+        self._create_title(main_frame)
+        self._create_settings_frame(main_frame)
+        self._create_result_display(main_frame)
+        self._create_buttons(main_frame)
+        self._create_statistics_frame(main_frame)
+
+    def _setup_main_window(self) -> None:
+        """Initialize the main Tk window."""
         self.root = tk.Tk()
         self.root.title("🃏 Texas Hold'em Modifier")
         self.root.geometry("650x750")
         self.root.configure(bg="#0f4c3a")
         self.root.resizable(True, True)
-
-        # Configure style
         style = ttk.Style()
         style.theme_use("clam")
 
-        # Main container
+    def _create_main_frame(self) -> tk.Frame:
+        """Create and return the main container frame."""
         main_frame = tk.Frame(self.root, bg="#0f4c3a", padx=20, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
+        return main_frame
 
-        # Title
+    def _create_title(self, parent: tk.Frame) -> None:
+        """Create the title label."""
         title_label = tk.Label(
-            main_frame,
+            parent,
             text="🃏 Texas Hold'em Modifier",
             font=("Arial", 24, "bold"),
             fg="#ffd700",
@@ -546,9 +556,13 @@ class PokerModifierApp:
         )
         title_label.pack(pady=(0, 20))
 
-        # Settings frame
+    def _create_settings_frame(self, parent: tk.Frame) -> None:
+        """Create the settings frame.
+
+        Includes probability, debug, and game length controls.
+        """
         settings_frame = tk.LabelFrame(
-            main_frame,
+            parent,
             text="Settings",
             font=("Arial", 12, "bold"),
             fg="#ffd700",
@@ -558,8 +572,13 @@ class PokerModifierApp:
         )
         settings_frame.pack(fill=tk.X, pady=(0, 20), padx=10, ipady=10)
 
-        # Probability setting
-        prob_frame = tk.Frame(settings_frame, bg="#1a6b4d")
+        self._create_probability_controls(settings_frame)
+        self._create_debug_controls(settings_frame)
+        self._create_length_controls(settings_frame)
+
+    def _create_probability_controls(self, parent: tk.Widget) -> None:
+        """Create the probability slider and label."""
+        prob_frame = tk.Frame(parent, bg="#1a6b4d")
         prob_frame.pack(fill=tk.X, padx=10, pady=5)
 
         tk.Label(
@@ -596,11 +615,11 @@ class PokerModifierApp:
         )
         self.prob_label.pack(side=tk.RIGHT)
 
-        # Debug controls frame
-        debug_frame = tk.Frame(settings_frame, bg="#1a6b4d")
+    def _create_debug_controls(self, parent: tk.Widget) -> None:
+        """Create the debug mode checkbox and force endgame button."""
+        debug_frame = tk.Frame(parent, bg="#1a6b4d")
         debug_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        # Debug mode toggle
         self.debug_var = tk.BooleanVar(value=False)
         debug_check = tk.Checkbutton(
             debug_frame,
@@ -616,7 +635,6 @@ class PokerModifierApp:
         )
         debug_check.pack(side=tk.LEFT, padx=(0, 15))
 
-        # Force endgame button (only visible in debug mode)
         self.force_endgame_button = tk.Button(
             debug_frame,
             text="Force Endgame",
@@ -629,8 +647,9 @@ class PokerModifierApp:
         )
         # Initially hidden
 
-        # Game length setting
-        length_frame = tk.Frame(settings_frame, bg="#1a6b4d")
+    def _create_length_controls(self, parent: tk.Widget) -> None:
+        """Create the game length slider and label."""
+        length_frame = tk.Frame(parent, bg="#1a6b4d")
         length_frame.pack(fill=tk.X, padx=10, pady=5)
 
         tk.Label(
@@ -667,14 +686,14 @@ class PokerModifierApp:
         )
         self.length_label.pack(side=tk.RIGHT)
 
-        # Result display frame
+    def _create_result_display(self, parent: tk.Frame) -> None:
+        """Create the result display frame."""
         self.result_frame = tk.Frame(
-            main_frame, bg="#2d2d2d", relief=tk.RIDGE, bd=3, height=150
+            parent, bg="#2d2d2d", relief=tk.RIDGE, bd=3, height=150
         )
         self.result_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20), padx=10)
         self.result_frame.pack_propagate(False)
 
-        # Initial result text
         self.result_label = tk.Label(
             self.result_frame,
             text="Click 'Start Round' to begin!",
@@ -686,11 +705,11 @@ class PokerModifierApp:
         )
         self.result_label.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
 
-        # Button frame for Start and Reset
-        button_frame = tk.Frame(main_frame, bg="#0f4c3a")
+    def _create_buttons(self, parent: tk.Frame) -> None:
+        """Create the start and reset buttons."""
+        button_frame = tk.Frame(parent, bg="#0f4c3a")
         button_frame.pack(fill=tk.X, pady=(0, 20), padx=10)
 
-        # Start button
         self.start_button = tk.Button(
             button_frame,
             text="Start Round",
@@ -708,7 +727,6 @@ class PokerModifierApp:
             side=tk.LEFT, fill=tk.X, expand=True, ipady=10, padx=(0, 5)
         )
 
-        # Reset button
         self.reset_button = tk.Button(
             button_frame,
             text="Reset Game",
@@ -724,8 +742,9 @@ class PokerModifierApp:
         )
         self.reset_button.pack(side=tk.RIGHT, ipady=10, padx=(5, 0))
 
-        # Statistics frame
-        stats_frame = tk.Frame(main_frame, bg="#0f4c3a")
+    def _create_statistics_frame(self, parent: tk.Frame) -> None:
+        """Create the statistics display frame with rounds, modifiers, and phase."""
+        stats_frame = tk.Frame(parent, bg="#0f4c3a")
         stats_frame.pack(fill=tk.X, padx=10)
 
         # Rounds played
