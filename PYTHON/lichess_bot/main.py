@@ -295,7 +295,9 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                             lines: list[str] = []
                             ply_line_re = __import__("re").compile(r"^\s*(\d+)\s")
                             # Read stdout line by line
-                            assert proc.stdout is not None
+                            if proc.stdout is None:
+                                msg = "subprocess stdout is None"
+                                raise RuntimeError(msg)
                             for line in proc.stdout:
                                 lines.append(line)
                                 m = ply_line_re.match(line)
@@ -321,7 +323,9 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                         )
 
                             # Capture any remaining stderr and ensure process ends
-                            assert proc.stderr is not None
+                            if proc.stderr is None:
+                                msg = "subprocess stderr is None"
+                                raise RuntimeError(msg)
                             stderr_text = proc.stderr.read() or ""
                             ret = proc.wait()
                             analysis_text = "".join(lines)

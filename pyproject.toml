@@ -34,7 +34,6 @@ ignore = [
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     # Relaxed for script-heavy repository
-    "S101",    # Use of assert - acceptable in this codebase
     "ANN001",  # Missing type annotation for function argument
     "ANN002",  # Missing type annotation for *args
     "ANN003",  # Missing type annotation for **kwargs
@@ -101,6 +100,9 @@ unfixable = []
 "**/tests/**/*.py" = [
     "S101",    # Allow assert in tests
     "PLR2004", # Allow magic values in tests
+]
+"**/test_*.py" = [
+    "S101",    # Allow assert in tests
 ]
 "**/conftest.py" = [
     "D100",    # Allow missing module docstring
