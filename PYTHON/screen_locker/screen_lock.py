@@ -5,9 +5,12 @@ Requires user to log their workout to unlock the screen.
 
 from datetime import datetime
 import json
+import logging
 import os
 import sys
 import tkinter as tk
+
+logging.basicConfig(level=logging.INFO)
 
 
 class ScreenLocker:
@@ -18,7 +21,7 @@ class ScreenLocker:
 
         # Check if already logged today
         if self.has_logged_today():
-            print("Workout already logged today. Skipping screen lock.")
+            logging.info("Workout already logged today. Skipping screen lock.")
             sys.exit(0)
 
         self.root = tk.Tk()
@@ -632,7 +635,7 @@ class ScreenLocker:
             with open(self.log_file, "w") as f:
                 json.dump(logs, f, indent=2)
         except OSError as e:
-            print(f"Warning: Could not save workout log: {e}")
+            logging.warning(f"Could not save workout log: {e}")
 
     def close(self):
         self.root.destroy()

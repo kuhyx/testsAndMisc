@@ -35,12 +35,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import io
+import logging
 import os
 import re
 import sys
 
 import chess
 import chess.pgn
+
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass
@@ -316,30 +319,34 @@ def _process_single_log(log_path: str) -> int:
         with open(log_path, encoding="utf-8") as fh:
             text = fh.read()
     except FileNotFoundError:
-        print(f"Log file not found: {log_path}")
+        logging.exception(f"Log file not found: {log_path}")
         return 2
 
     try:
         blunders = parse_columns_for_blunders(text)
     except Exception as e:
-        print(f"Error parsing Columns in {os.path.basename(log_path)}: {e}")
+        logging.exception(f"Error parsing Columns in {os.path.basename(log_path)}: {e}")
         return 2
     if not blunders:
-        print(f"No blunders found in Columns section: {os.path.basename(log_path)}")
+        logging.warning(
+            f"No blunders found in Columns section: {os.path.basename(log_path)}"
+        )
         return 1
 
     pgn_text = extract_pgn(text)
     if not pgn_text:
-        print(f"No PGN section found: {os.path.basename(log_path)}")
+        logging.warning(f"No PGN section found: {os.path.basename(log_path)}")
         return 1
 
     try:
         cases = fen_and_uci_for_blunders(pgn_text, blunders)
     except Exception as e:
-        print(f"Error converting SAN to UCI in {os.path.basename(log_path)}: {e}")
+        logging.exception(
+            f"Error converting SAN to UCI in {os.path.basename(log_path)}: {e}"
+        )
         return 2
     if not cases:
-        print(
+        logging.warning(
             f"Failed to reconstruct any blunder positions "
             f"from PGN: {os.path.basename(log_path)}"
         )
@@ -355,7 +362,7 @@ def _process_single_log(log_path: str) -> int:
     )
     unified = os.path.abspath(unified)
     added = append_cases_to_unified_test(unified, cases)
-    print(
+    logging.info(
         f"Appended {added} new blunder checks to "
         f"{os.path.relpath(unified)} (game {game_id})."
     )
@@ -369,7 +376,7 @@ def main(argv: list[str]) -> int:
     # No argument: process all logs in past_games
     if len(argv) == 1:
         if not os.path.isdir(past_dir):
-            print(f"No past_games directory found at {past_dir}")
+            logging.error(f"No past_games directory found at {past_dir}")
             return 2
         logs = [
             os.path.join(past_dir, name)
@@ -377,7 +384,7 @@ def main(argv: list[str]) -> int:
             if re.match(r"lichess_bot_game_[A-Za-z0-9]+\.log$", name)
         ]
         if not logs:
-            print(f"No logs found in {past_dir}")
+            logging.warning(f"No logs found in {past_dir}")
             return 1
         # Sort by mtime ascending for determinism
         logs.sort(key=lambda p: os.path.getmtime(p))
@@ -386,7 +393,7 @@ def main(argv: list[str]) -> int:
             rc = _process_single_log(lp)
             if rc == 0:
                 ok += 1
-        print(
+        logging.info(
             f"Processed {len(logs)} logs from {past_dir}, "
             f"succeeded: {ok}, failed: {len(logs) - ok}"
         )
@@ -407,7 +414,7 @@ def main(argv: list[str]) -> int:
             candidate_path = maybe
 
     if not candidate_path:
-        print("Usage: generate_blunder_tests.py [<game_id>|</path/to/log>]")
+        logging.info("Usage: generate_blunder_tests.py [<game_id>|</path/to/log>]")
         return 2
 
     return _process_single_log(candidate_path)

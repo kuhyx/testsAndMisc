@@ -1,9 +1,12 @@
 import json
+import logging
 import os
 import random
 import sys
 
 import pygame
+
+logging.basicConfig(level=logging.INFO)
 
 # Initialize Pygame
 pygame.init()
@@ -95,7 +98,9 @@ class KeyboardCoopGame:
             # Convert to set for faster lookup (we only need the keys)
             return set(dictionary_data.keys())
         except FileNotFoundError:
-            print("Warning: words_dictionary.json not found, using fallback dictionary")
+            logging.warning(
+                "words_dictionary.json not found, using fallback dictionary"
+            )
             # Fallback to a smaller dictionary if file not found
             return {
                 "cat",
@@ -149,9 +154,8 @@ class KeyboardCoopGame:
                 "good",
             }
         except json.JSONDecodeError:
-            print(
-                "Warning: Error reading words_dictionary.json, "
-                "using fallback dictionary"
+            logging.warning(
+                "Error reading words_dictionary.json, " "using fallback dictionary"
             )
             return {
                 "cat",

@@ -1,7 +1,10 @@
 import contextlib
+import logging
 import random
 import re
 import sys
+
+logging.basicConfig(level=logging.INFO)
 
 
 def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
@@ -38,7 +41,7 @@ def parse_input(input_string):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(
+        logging.info(
             "Usage: python random_digits.py <number1> <number2> ... "
             "[min_percentage max_percentage]"
         )
@@ -67,9 +70,9 @@ if __name__ == "__main__":
             format_str = f".{decimal_counts[i]}f"
             formatted_numbers.append(float(format(num, format_str)))
 
-        print("Original numbers:", numbers)
-        print("Randomized numbers:", formatted_numbers)
+        logging.info(f"Original numbers: {numbers}")
+        logging.info(f"Randomized numbers: {formatted_numbers}")
     except ValueError as e:
-        print(f"Error: {e}")
-        print("Please provide valid numbers and percentages.")
+        logging.exception(f"Error: {e}")
+        logging.exception("Please provide valid numbers and percentages.")
         sys.exit(1)
