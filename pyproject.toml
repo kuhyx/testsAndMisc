@@ -64,7 +64,6 @@ ignore = [
     "S311",    # suspicious-non-cryptographic-random - not security critical
     "S310",    # suspicious-url-open - acceptable for scripts
     "S110",    # try-except-pass - common pattern in scripts
-    "S112",    # try-except-continue - acceptable pattern
     "DTZ005",  # datetime.now without tz - acceptable for local scripts
     "PERF401", # manual-list-comprehension - style preference
     "RUF005",  # collection-literal-concatenation - style preference
