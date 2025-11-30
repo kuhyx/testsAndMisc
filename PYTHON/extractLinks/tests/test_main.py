@@ -13,7 +13,7 @@ SCRIPT = ROOT / "main.py"
 
 def read_lines(p: Path):
     """Read lines from a file, stripping newlines."""
-    return [l.rstrip("\n") for l in p.read_text(encoding="utf-8").splitlines()]
+    return [line.rstrip("\n") for line in p.read_text(encoding="utf-8").splitlines()]
 
 
 def test_extract_hosts_function():
