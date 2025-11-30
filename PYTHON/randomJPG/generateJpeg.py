@@ -1,7 +1,7 @@
 """Generate random colorful JPEG images with configurable parameters."""
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 import random
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Create folder named after the current timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     folder = f"generated_images_{timestamp}"
 
     # Display used parameters

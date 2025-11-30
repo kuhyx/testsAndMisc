@@ -4,7 +4,7 @@
 Requires user to log their workout to unlock the screen.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -635,7 +635,7 @@ class ScreenLocker:
             with open(self.log_file) as f:
                 logs = json.load(f)
 
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
             return today in logs
         except (OSError, json.JSONDecodeError):
             return False
@@ -652,9 +652,9 @@ class ScreenLocker:
                 logs = {}
 
         # Add today's workout
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
         logs[today] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "workout_data": self.workout_data,
         }
 
