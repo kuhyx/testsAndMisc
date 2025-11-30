@@ -103,7 +103,7 @@ class KeyboardCoopGame:
         """Load dictionary from words_dictionary.json file."""
         try:
             dictionary_path = Path(__file__).parent / "words_dictionary.json"
-            with open(dictionary_path, encoding="utf-8") as f:
+            with dictionary_path.open(encoding="utf-8") as f:
                 dictionary_data = json.load(f)
             # Convert to set for faster lookup (we only need the keys)
             return set(dictionary_data.keys())

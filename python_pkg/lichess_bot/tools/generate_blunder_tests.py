@@ -189,7 +189,7 @@ def ensure_unified_test_file(target_path: str | Path) -> None:
     if Path(target_path).exists():
         return
     # Create skeleton unified test file
-    with open(target_path, "w", encoding="utf-8") as f:
+    with Path(target_path).open("w", encoding="utf-8") as f:
         f.write(
             """import os
 import sys
@@ -246,7 +246,7 @@ def append_cases_to_unified_test(
     Returns the number of cases actually appended.
     """
     ensure_unified_test_file(unified_path)
-    with open(unified_path, encoding="utf-8") as f:
+    with Path(unified_path).open(encoding="utf-8") as f:
         content = f.read()
 
     # Extract current cases as a set of (fen, uci) to de-duplicate
@@ -320,7 +320,7 @@ def append_cases_to_unified_test(
     )
 
     # Apply the changes (either updates to existing labels and/or appended lines)
-    with open(unified_path, "w", encoding="utf-8") as f:
+    with Path(unified_path).open("w", encoding="utf-8") as f:
         f.write(new_content)
     return len(lines) + updated_existing
 
@@ -338,8 +338,10 @@ def _process_single_log(log_path: str | Path) -> int:
     unified = unified.resolve()
     added = append_cases_to_unified_test(unified, cases)
     _logger.info(
-        f"Appended {added} new blunder checks to "
-        f"{unified.relative_to(Path.cwd())} (game {game_id})."
+        "Appended %s new blunder checks to %s (game %s).",
+        added,
+        unified.relative_to(Path.cwd()),
+        game_id,
     )
     return 0
 
@@ -371,10 +373,10 @@ def _parse_and_extract_blunders(
 def _read_log_file(log_path: str | Path) -> tuple[str | None, int | None]:
     """Read log file contents. Returns (text, None) or (None, error_code)."""
     try:
-        with open(log_path, encoding="utf-8") as fh:
+        with Path(log_path).open(encoding="utf-8") as fh:
             return fh.read(), None
     except FileNotFoundError:
-        _logger.exception(f"Log file not found: {log_path}")
+        _logger.exception("Log file not found: %s", log_path)
         return None, 2
 
 
@@ -383,10 +385,10 @@ def _parse_blunders(text: str, base: str) -> tuple[list[Blunder] | None, int | N
     try:
         blunders = parse_columns_for_blunders(text)
     except Exception:
-        _logger.exception(f"Error parsing Columns in {base}")
+        _logger.exception("Error parsing Columns in %s", base)
         return None, 2
     if not blunders:
-        _logger.warning(f"No blunders found in Columns section: {base}")
+        _logger.warning("No blunders found in Columns section: %s", base)
         return None, 1
     return blunders, None
 
@@ -397,16 +399,18 @@ def _extract_cases(
     """Extract FEN/UCI cases from PGN. Returns (cases, None) or (None, error_code)."""
     pgn_text = extract_pgn(text)
     if not pgn_text:
-        _logger.warning(f"No PGN section found: {base}")
+        _logger.warning("No PGN section found: %s", base)
         return None, 1
 
     try:
         cases = fen_and_uci_for_blunders(pgn_text, blunders)
     except Exception:
-        _logger.exception(f"Error converting SAN to UCI in {base}")
+        _logger.exception("Error converting SAN to UCI in %s", base)
         return None, 2
     if not cases:
-        _logger.warning(f"Failed to reconstruct any blunder positions from PGN: {base}")
+        _logger.warning(
+            "Failed to reconstruct any blunder positions from PGN: %s", base
+        )
         return None, 1
     return cases, None
 
@@ -419,7 +423,7 @@ def main(argv: list[str]) -> int:
     # No argument: process all logs in past_games
     if len(argv) == 1:
         if not past_dir.is_dir():
-            _logger.error(f"No past_games directory found at {past_dir}")
+            _logger.error("No past_games directory found at %s", past_dir)
             return 2
         logs = [
             path
@@ -427,7 +431,7 @@ def main(argv: list[str]) -> int:
             if re.match(r"lichess_bot_game_[A-Za-z0-9]+\.log$", path.name)
         ]
         if not logs:
-            _logger.warning(f"No logs found in {past_dir}")
+            _logger.warning("No logs found in %s", past_dir)
             return 1
         # Sort by mtime ascending for determinism
         logs.sort(key=lambda p: Path(p).stat().st_mtime)
@@ -437,8 +441,11 @@ def main(argv: list[str]) -> int:
             if rc == 0:
                 ok += 1
         _logger.info(
-            f"Processed {len(logs)} logs from {past_dir}, "
-            f"succeeded: {ok}, failed: {len(logs) - ok}"
+            "Processed %s logs from %s, succeeded: %s, failed: %s",
+            len(logs),
+            past_dir,
+            ok,
+            len(logs) - ok,
         )
         return 0 if ok > 0 else 1
 

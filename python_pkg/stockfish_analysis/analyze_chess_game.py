@@ -185,7 +185,7 @@ def _detect_total_mem_mb() -> int | None:
     # Fallback approach for Linux systems using proc meminfo.
     with (
         contextlib.suppress(Exception),
-        open("/proc/meminfo", encoding="utf-8", errors="ignore") as f,
+        Path("/proc/meminfo").open(encoding="utf-8", errors="ignore") as f,
     ):
         for line in f:
             if line.startswith("MemTotal:"):
@@ -301,10 +301,10 @@ def _build_argument_parser() -> argparse.ArgumentParser:
 def _load_game(file_path: str) -> chess.pgn.Game:
     """Load and parse a chess game from a file."""
     if not Path(file_path).is_file():
-        _logger.error(f"Input not found: {file_path}")
+        _logger.error("Input not found: %s", file_path)
         sys.exit(1)
 
-    with open(file_path, encoding="utf-8", errors="replace") as f:
+    with Path(file_path).open(encoding="utf-8", errors="replace") as f:
         raw = f.read()
 
     pgn_text = extract_pgn_text(raw)
@@ -398,7 +398,7 @@ def _setup_engine(
     try:
         engine = chess.engine.SimpleEngine.popen_uci([args.engine])
     except FileNotFoundError:
-        _logger.exception(f"Could not launch engine at: {args.engine}")
+        _logger.exception("Could not launch engine at: %s", args.engine)
         _logger.exception(
             "Ensure Stockfish is installed and in PATH, or specify with --engine."
         )
@@ -435,11 +435,13 @@ def _log_engine_config(
         hash_show = None
     if hash_show is not None:
         _logger.info(
-            f"Using engine options: Threads={threads}, "
-            f"Hash={hash_show} MB, MultiPV={multipv}"
+            "Using engine options: Threads=%s, Hash=%s MB, MultiPV=%s",
+            threads,
+            hash_show,
+            multipv,
         )
     else:
-        _logger.info(f"Using engine options: Threads={threads}, MultiPV={multipv}")
+        _logger.info("Using engine options: Threads=%s, MultiPV=%s", threads, multipv)
 
 
 def _get_best_move(
@@ -539,10 +541,15 @@ def _log_move_analysis(ply: int, result: MoveAnalysis, *, mover_white: bool) -> 
     side = "W" if mover_white else "B"
     loss_str = str(result.cp_loss) if result.cp_loss is not None else "—"
     _logger.info(
-        f"{ply:>3}  {side}   {result.san:<8}  "
-        f"{fmt_eval(result.played_cp, result.played_mate):>10}  "
-        f"{fmt_eval(result.best_cp, result.best_mate):>9}  "
-        f"{loss_str:>5}  {result.classification:<12}  {result.best_san}"
+        "%3d  %s   %-8s  %10s  %9s  %5s  %-12s  %s",
+        ply,
+        side,
+        result.san,
+        fmt_eval(result.played_cp, result.played_mate),
+        fmt_eval(result.best_cp, result.best_mate),
+        loss_str,
+        result.classification,
+        result.best_san,
     )
 
 
@@ -555,7 +562,7 @@ def _run_analysis(
     white = game.headers.get("White", "White")
     black = game.headers.get("Black", "Black")
     result = game.headers.get("Result", "*")
-    _logger.info(f"  {white} vs {black}  Result: {result}")
+    _logger.info("  %s vs %s  Result: %s", white, black, result)
     _logger.info("")
     _logger.info(
         "Columns: ply  side  move  played_eval  best_eval  loss  class  best_suggestion"

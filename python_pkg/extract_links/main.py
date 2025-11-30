@@ -83,12 +83,12 @@ def main() -> int:
     else:
         out_path = Path(out_path)
 
-    with open(input_path, encoding="utf-8", errors="ignore") as f:
+    with input_path.open(encoding="utf-8", errors="ignore") as f:
         html_text = f.read()
 
     hosts = extract_hosts_from_html(html_text)
 
-    with open(out_path, "w", encoding="utf-8") as f:
+    with out_path.open("w", encoding="utf-8") as f:
         f.writelines(f"*{host}*\n" for host in hosts)
 
     _logger.info("Wrote %s host(s) to %s", len(hosts), out_path)

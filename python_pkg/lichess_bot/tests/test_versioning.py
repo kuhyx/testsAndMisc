@@ -21,5 +21,5 @@ def test_version_file_increments_and_persists(
     assert v2 == 2
 
     # Ensure it persisted
-    with open(version_file) as f:
+    with version_file.open() as f:
         assert f.read().strip() == "2"
