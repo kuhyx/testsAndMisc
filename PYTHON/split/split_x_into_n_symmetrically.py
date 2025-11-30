@@ -41,19 +41,12 @@ def scale_to_total(X, weights):
 
 
 def split_x_into_n_symmetrically(X, N, factors):
-    """X: Total value to distribute.
-    N: Number in which we split.
-    factors: List controlling the difference in weights between consecutive days.
-             Must have length of N // 2 (if N is odd) or (N // 2 - 1) (if N is even).
-    """
+    """Split X into N parts with symmetric weights controlled by factors."""
     weights = calculate_symmetric_weights(N, middle_weight=1, factors=factors)
     return scale_to_total(X, weights)
 
 
 def split_x_into_n_middle(X, N, middle_value):
-    """X: Total value to distribute.
-    N: Number in which we split.
-    middle_value: Value of the middle number (the biggest weight).
-    """
+    """Split X into N parts with symmetric weights using middle_value as peak."""
     weights = calculate_symmetric_weights(N, middle_weight=middle_value)
     return scale_to_total(X, weights)

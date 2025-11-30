@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Screen locker with workout verification for Arch Linux / i3wm
+"""Screen locker with workout verification for Arch Linux / i3wm.
+
 Requires user to log their workout to unlock the screen.
 """
 
