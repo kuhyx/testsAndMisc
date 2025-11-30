@@ -75,11 +75,6 @@ unfixable = []
 "python_pkg/lichess_bot/engine.py" = [
     "S603",    # Subprocess for engine communication
 ]
-"python_pkg/stockfish_analysis/analyze_chess_game.py" = [
-    "C901",    # Complex main() with many argument combinations and analysis modes
-    "PLR0912", # Complex main() with many argument combinations and analysis modes
-    "PLR0915", # Long main() handling complete analysis workflow
-]
 "python_pkg/keyboard_coop/main.py" = [
     "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)
 ]
