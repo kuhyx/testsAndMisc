@@ -10,6 +10,8 @@ from PIL import Image
 
 logging.basicConfig(level=logging.INFO)
 
+MAX_IMAGE_SIZE = 1000
+
 
 def generate_bloated_jpeg(
     size, color_list, block_size, output_path, quality, image_index, folder
@@ -26,9 +28,11 @@ def generate_bloated_jpeg(
     image_index (int): Index of the image for unique naming.
     folder (str): Folder to save the image.
     """
-    # Ensure size is divisible by block_size and does not exceed 1000 pixels
-    if size > 1000 or size % block_size != 0:
-        msg = "Size must be 1000 pixels or less and divisible by block_size"
+    # Ensure size is divisible by block_size and does not exceed MAX_IMAGE_SIZE
+    if size > MAX_IMAGE_SIZE or size % block_size != 0:
+        msg = (
+            f"Size must be {MAX_IMAGE_SIZE} pixels or less and divisible by block_size"
+        )
         raise ValueError(msg)
 
     # Create a new image

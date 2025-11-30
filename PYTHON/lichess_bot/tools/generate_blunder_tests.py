@@ -45,6 +45,10 @@ import chess.pgn
 
 logging.basicConfig(level=logging.INFO)
 
+# Expected columns in the log file:
+# ply, side, move, played_eval, best_eval, loss, class, best_suggestion
+EXPECTED_COLUMNS = 8
+
 
 @dataclass
 class Blunder:
@@ -79,7 +83,7 @@ def parse_columns_for_blunders(text: str) -> list[Blunder]:
         parts = re.split(r"\s{2,}", ln.strip())
         # Expected columns:
         # ply, side, move, played_eval, best_eval, loss, class, best_suggestion
-        if len(parts) < 8:
+        if len(parts) < EXPECTED_COLUMNS:
             continue
         try:
             ply = int(parts[0])

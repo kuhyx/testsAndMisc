@@ -44,6 +44,10 @@ except Exception:  # pragma: no cover
     logging.exception("  pip install -r PYTHON/stockfish_analysis/requirements.txt")
     raise
 
+# Memory configuration constants
+MEMINFO_PARTS_MIN = 2
+HIGH_THREAD_COUNT = 16
+
 
 def extract_pgn_text(raw: str) -> str | None:
     """Try to extract a PGN block from a possibly noisy file.
@@ -97,6 +101,14 @@ def score_to_cp(
     return s.score(mate_score=None), None
 
 
+# Centipawn loss thresholds for move quality classification (Lichess-like bands)
+CP_LOSS_BEST = 10
+CP_LOSS_EXCELLENT = 20
+CP_LOSS_GOOD = 50
+CP_LOSS_INACCURACY = 99
+CP_LOSS_MISTAKE = 299
+
+
 def classify_cp_loss(cp_loss: int | None) -> str:
     """Classify move quality using Lichess-like centipawn loss bands.
 
@@ -111,15 +123,15 @@ def classify_cp_loss(cp_loss: int | None) -> str:
     """
     if cp_loss is None:
         return "Unknown"
-    if cp_loss <= 10:
+    if cp_loss <= CP_LOSS_BEST:
         return "Best"
-    if cp_loss <= 20:
+    if cp_loss <= CP_LOSS_EXCELLENT:
         return "Excellent"
-    if cp_loss <= 50:
+    if cp_loss <= CP_LOSS_GOOD:
         return "Good"
-    if cp_loss <= 99:
+    if cp_loss <= CP_LOSS_INACCURACY:
         return "Inaccuracy"
-    if cp_loss <= 299:
+    if cp_loss <= CP_LOSS_MISTAKE:
         return "Mistake"
     return "Blunder"
 
@@ -172,7 +184,7 @@ def _detect_total_mem_mb() -> int | None:
             for line in f:
                 if line.startswith("MemTotal:"):
                     parts = line.split()
-                    if len(parts) >= 2 and parts[1].isdigit():
+                    if len(parts) >= MEMINFO_PARTS_MIN and parts[1].isdigit():
                         # Value is in kB
                         kb = int(parts[1])
                         return kb // 1024
@@ -196,7 +208,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
     if isinstance(max_allowed, int):
         target = min(target, max_allowed)
     # Some rough scaling: if very many threads, give a bit more (but not huge)
-    if threads_wanted >= 16:
+    if threads_wanted >= HIGH_THREAD_COUNT:
         target = min(target + 1024, (total_mb * 3) // 4)
     return max(64, int(target))
 

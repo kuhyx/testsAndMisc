@@ -8,8 +8,15 @@ import sys
 
 logging.basicConfig(level=logging.INFO)
 
+DEFAULT_MIN_PERCENTAGE = 1
+DEFAULT_MAX_PERCENTAGE = 20
 
-def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
+
+def randomize_numbers(
+    numbers,
+    min_percentage=DEFAULT_MIN_PERCENTAGE,
+    max_percentage=DEFAULT_MAX_PERCENTAGE,
+):
     """Apply random percentage variation to a list of numbers."""
     randomized_numbers = []
     for number in numbers:
@@ -43,8 +50,10 @@ def parse_input(input_string):
     return numbers, decimal_counts
 
 
+MIN_ARGS = 2
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < MIN_ARGS:
         logging.info(
             "Usage: python random_digits.py <number1> <number2> ... "
             "[min_percentage max_percentage]"
@@ -54,8 +63,8 @@ if __name__ == "__main__":
     try:
         input_string = " ".join(sys.argv[1:])
         numbers, decimal_counts = parse_input(input_string)
-        min_percentage = 1
-        max_percentage = 20
+        min_percentage = DEFAULT_MIN_PERCENTAGE
+        max_percentage = DEFAULT_MAX_PERCENTAGE
 
         if len(numbers) == 0:
             msg = "No valid numbers provided."
