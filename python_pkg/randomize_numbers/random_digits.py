@@ -43,14 +43,30 @@ def parse_input(input_string: str) -> tuple[list[float], list[int]]:
     numbers: list[float] = []
     decimal_counts: list[int] = []
     for num in number_strings:
-        try:
-            float_num = float(num)
-            digits_count = len(num.split(".")[-1]) if "." in num else 0
+        parsed = _parse_single_number(num)
+        if parsed is not None:
+            float_num, digits_count = parsed
             numbers.append(float_num)
             decimal_counts.append(digits_count)
-        except ValueError:
-            continue
     return numbers, decimal_counts
+
+
+def _parse_single_number(num: str) -> tuple[float, int] | None:
+    """Parse a single number string into float and decimal count.
+
+    Args:
+        num: The number string to parse.
+
+    Returns:
+        Tuple of (float value, decimal count) or None if invalid.
+    """
+    try:
+        float_num = float(num)
+        digits_count = len(num.split(".")[-1]) if "." in num else 0
+    except ValueError:
+        return None
+    else:
+        return float_num, digits_count
 
 
 MIN_ARGS = 2
