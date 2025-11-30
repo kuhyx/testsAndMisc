@@ -52,9 +52,7 @@ def extract_hosts_from_html(html_text: str) -> list[str]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(
-        description="Extract hosts from hrefs in an HTML file."
-    )
+    ap = argparse.ArgumentParser(description="Extract hosts from hrefs in an HTML file.")
     ap.add_argument("input_html", help="Path to input HTML file")
     ap.add_argument(
         "output_txt",
@@ -65,7 +63,8 @@ def main() -> int:
 
     input_path = args.input_html
     if not os.path.isfile(input_path):
-        raise SystemExit(f"Input file not found: {input_path}")
+        msg = f"Input file not found: {input_path}"
+        raise SystemExit(msg)
 
     out_path = args.output_txt
     if not out_path:

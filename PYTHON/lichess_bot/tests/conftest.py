@@ -15,6 +15,4 @@ def pytest_ignore_collect(collection_path: Path, config):
     This lets us keep historical files in the repo without collecting them.
     """
     basename = collection_path.name
-    if basename.startswith("test_blunders_") and basename != "test_blunders_all.py":
-        return True
-    return False
+    return bool(basename.startswith("test_blunders_") and basename != "test_blunders_all.py")

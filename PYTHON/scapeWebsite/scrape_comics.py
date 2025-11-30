@@ -8,9 +8,7 @@ from selenium.webdriver.common.by import By
 
 # Initialize argument parser to accept the website URL as an argument
 parser = argparse.ArgumentParser(description="Download images from a comic website.")
-parser.add_argument(
-    "url", type=str, help="The URL of the website to start downloading images from"
-)
+parser.add_argument("url", type=str, help="The URL of the website to start downloading images from")
 args = parser.parse_args()
 
 # Initialize WebDriver (Use the appropriate driver for your browser)

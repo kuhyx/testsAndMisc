@@ -40,9 +40,7 @@ def test_crud_roundtrip(tmp_path):
         # wait briefly for server to be ready
         for _ in range(30):
             try:
-                with urllib.request.urlopen(
-                    base + "/api/articles", timeout=0.2
-                ) as resp:
+                with urllib.request.urlopen(base + "/api/articles", timeout=0.2) as resp:
                     resp.read()
                     break
             except Exception:
@@ -75,9 +73,7 @@ def test_crud_roundtrip(tmp_path):
         assert got["title"] == "T1"
 
         # Update
-        code, body = _req(
-            base + f"/api/articles/{art_id}", method="PUT", data={"title": "T2"}
-        )
+        code, body = _req(base + f"/api/articles/{art_id}", method="PUT", data={"title": "T2"})
         assert code == 200
         updated = json.loads(body)
         assert updated["title"] == "T2"
@@ -89,7 +85,8 @@ def test_crud_roundtrip(tmp_path):
         # Ensure gone
         try:
             _req(base + f"/api/articles/{art_id}")
-            assert False, "Expected 404"
+            msg = "Expected 404"
+            raise AssertionError(msg)
         except urllib.error.HTTPError as e:
             assert e.code == 404
 

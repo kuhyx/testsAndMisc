@@ -39,18 +39,17 @@ class RandomEngine:
             )
         )
         self.engine_path = engine_path or default_path
-        if not os.path.isfile(self.engine_path) or not os.access(
-            self.engine_path, os.X_OK
-        ):
-            raise FileNotFoundError(
+        if not os.path.isfile(self.engine_path) or not os.access(self.engine_path, os.X_OK):
+            msg = (
                 f"C engine not found or not executable at '{self.engine_path}'. "
                 "Build it first (make -C C/lichess_random_engine)."
             )
+            raise FileNotFoundError(msg)
 
     def _call_engine(self, args: list[str], *, timeout: float) -> str:
         try:
             proc = subprocess.run(
-                [self.engine_path] + args,
+                [self.engine_path, *args],
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -58,16 +57,15 @@ class RandomEngine:
             )
         except subprocess.CalledProcessError as e:
             stderr = (e.stderr or "").strip()
-            raise RuntimeError(f"C engine failed: {stderr or e}") from e
+            msg = f"C engine failed: {stderr or e}"
+            raise RuntimeError(msg) from e
         except subprocess.TimeoutExpired as e:
-            raise TimeoutError("C engine timed out") from e
-        out = (proc.stdout or "").strip()
-        return out
+            msg = "C engine timed out"
+            raise TimeoutError(msg) from e
+        return (proc.stdout or "").strip()
 
     def choose_move(self, board: chess.Board) -> chess.Move:
-        mv, _ = self.choose_move_with_explanation(
-            board, time_budget_sec=self.max_time_sec
-        )
+        mv, _ = self.choose_move_with_explanation(board, time_budget_sec=self.max_time_sec)
         return mv
 
     def choose_move_with_explanation(
@@ -89,14 +87,12 @@ class RandomEngine:
         try:
             move = chess.Move.from_uci(chosen_uci)
         except Exception:
-            raise RuntimeError(
-                f"Engine returned invalid move: '{chosen_uci}' (output: {output!r})"
-            )
+            msg = f"Engine returned invalid move: '{chosen_uci}' (output: {output!r})"
+            raise RuntimeError(msg)
 
         if move not in board.legal_moves:
-            raise RuntimeError(
-                f"Engine returned illegal move for position: {chosen_uci}"
-            )
+            msg = f"Engine returned illegal move for position: {chosen_uci}"
+            raise RuntimeError(msg)
 
         return move, "from_c_engine"
 
@@ -117,9 +113,7 @@ class RandomEngine:
         if not legal:
             return 0.0, "no_legal_moves", None, "no_best_move"
 
-        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [
-            m.uci() for m in legal
-        ]
+        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [m.uci() for m in legal]
         out = self._call_engine(args, timeout=max(0.1, time_budget_sec))
 
         # Try to parse the engine's JSON explanation

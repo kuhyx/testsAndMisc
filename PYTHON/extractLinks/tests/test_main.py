@@ -35,7 +35,7 @@ def test_cli_writes_expected_output(tmp_path: Path):
 
     # Run CLI
     out_file = tmp_path / "out.txt"
-    proc = subprocess.run(
+    subprocess.run(
         [sys.executable, str(SCRIPT), str(html_copy), str(out_file)],
         capture_output=True,
         text=True,
@@ -53,7 +53,7 @@ def test_cli_default_output_name(tmp_path: Path):
     html_copy = tmp_path / "sample2.html"
     html_copy.write_text(sample.read_text(encoding="utf-8"), encoding="utf-8")
 
-    proc = subprocess.run(
+    subprocess.run(
         [sys.executable, str(SCRIPT), str(html_copy)],
         capture_output=True,
         text=True,

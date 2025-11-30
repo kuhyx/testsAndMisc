@@ -125,7 +125,9 @@ class PokerModifierApp:
             },
             {
                 "name": "Time Warp",
-                "description": "Play the hand completely backwards: showdown first, then remove random cards from table !",
+                "description": (
+                    "Play the hand completely backwards: showdown first, " "then remove random cards from table!"
+                ),
             },
             # Economic Effects (Clear Money Sources)
             {
@@ -160,11 +162,16 @@ class PokerModifierApp:
             # Skill Challenges (With Clear Rewards/Penalties)
             {
                 "name": "Memory Challenge",
-                "description": " Dealers holder names all community cards in order. Success = collect 1 chip from each player. Fail = pay 1 chip to each player.",
+                "description": (
+                    "Dealer names all community cards in order. "
+                    "Success = collect 1 chip from each player. Fail = pay 1 chip to each."
+                ),
             },
             {
                 "name": "Quick Draw",
-                "description": "Everyone pays 1 chip to quick-draw pot. First to correctly announce their hand wins the pot and cant pass.",
+                "description": (
+                    "Everyone pays 1 chip to quick-draw pot. " "First to correctly announce their hand wins the pot."
+                ),
             },
             {
                 "name": "Bluff Bonus",
@@ -193,7 +200,10 @@ class PokerModifierApp:
             },
             {
                 "name": "Power Couple",
-                "description": "If both partners make it to showdown, they both get +1 chip bonus from other players (revalt at the end of round).",
+                "description": (
+                    "If both partners make it to showdown, they both get +1 chip bonus "
+                    "from other players (revealed at end of round)."
+                ),
             },
         ]
 
@@ -320,7 +330,10 @@ class PokerModifierApp:
             # Chaos Theory
             {
                 "name": "Butterfly Effect",
-                "description": "One random decision by dealer changes everything: flip a coin for each community card to reverse it.",
+                "description": (
+                    "One random decision by dealer changes everything: "
+                    "flip a coin for each community card to reverse it."
+                ),
             },
             {
                 "name": "Time Paradox",
@@ -334,9 +347,7 @@ class PokerModifierApp:
 
         # Remove endgame modifiers from regular modifier list
         endgame_modifier_names = [mod["name"] for mod in self.endgame_modifiers]
-        self.modifiers = [
-            mod for mod in self.modifiers if mod["name"] not in endgame_modifier_names
-        ]
+        self.modifiers = [mod for mod in self.modifiers if mod["name"] not in endgame_modifier_names]
 
         # Game state tracking
         self.rounds_played = 0
@@ -496,9 +507,7 @@ class PokerModifierApp:
         self.length_label.pack(side=tk.RIGHT)
 
         # Result display frame
-        self.result_frame = tk.Frame(
-            main_frame, bg="#2d2d2d", relief=tk.RIDGE, bd=3, height=150
-        )
+        self.result_frame = tk.Frame(main_frame, bg="#2d2d2d", relief=tk.RIDGE, bd=3, height=150)
         self.result_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20), padx=10)
         self.result_frame.pack_propagate(False)
 
@@ -532,9 +541,7 @@ class PokerModifierApp:
             command=self.start_round,
             cursor="hand2",
         )
-        self.start_button.pack(
-            side=tk.LEFT, fill=tk.X, expand=True, ipady=10, padx=(0, 5)
-        )
+        self.start_button.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=10, padx=(0, 5))
 
         # Reset button
         self.reset_button = tk.Button(
@@ -589,9 +596,7 @@ class PokerModifierApp:
         )
         mods_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(3, 3))
 
-        self.mods_label = tk.Label(
-            mods_frame, text="0", font=("Arial", 20, "bold"), fg="#ffd700", bg="#1a6b4d"
-        )
+        self.mods_label = tk.Label(mods_frame, text="0", font=("Arial", 20, "bold"), fg="#ffd700", bg="#1a6b4d")
         self.mods_label.pack(pady=10)
 
         # Game phase indicator
@@ -616,16 +621,16 @@ class PokerModifierApp:
         self.phase_label.pack(pady=10)
 
     def update_prob_display(self, value):
-        """Update the probability percentage display"""
+        """Update the probability percentage display."""
         self.prob_label.config(text=f"{value}%")
 
     def update_length_display(self, value):
-        """Update the game length display"""
+        """Update the game length display."""
         self.length_label.config(text=str(value))
         self.total_game_rounds = int(value)
 
     def toggle_debug_mode(self):
-        """Toggle debug mode and show/hide debug controls"""
+        """Toggle debug mode and show/hide debug controls."""
         self.debug_mode = self.debug_var.get()
         if self.debug_mode:
             self.force_endgame_button.pack(side=tk.LEFT, padx=(0, 10))
@@ -636,7 +641,7 @@ class PokerModifierApp:
             print("🐛 Debug mode disabled")
 
     def toggle_force_endgame(self):
-        """Toggle forced endgame mode for testing"""
+        """Toggle forced endgame mode for testing."""
         self.force_endgame = not self.force_endgame
         if self.force_endgame:
             self.force_endgame_button.config(text="Stop Force Endgame", bg="#4CAF50")
@@ -646,7 +651,7 @@ class PokerModifierApp:
             print("🎯 Normal modifier selection restored")
 
     def is_endgame(self):
-        """Determine if we're in endgame phase"""
+        """Determine if we're in endgame phase."""
         if self.debug_mode and self.force_endgame:
             return True
 
@@ -654,7 +659,7 @@ class PokerModifierApp:
         return self.rounds_played >= endgame_round
 
     def start_round(self):
-        """Start a new poker round and determine if modifier should be applied"""
+        """Start a new poker round and determine if modifier should be applied."""
         # Button animation effect
         self.start_button.config(relief=tk.SUNKEN)
         self.root.after(100, lambda: self.start_button.config(relief=tk.RAISED))
@@ -679,7 +684,7 @@ class PokerModifierApp:
             self.show_no_modifier()
 
     def update_phase_indicator(self):
-        """Update the game phase indicator based on current round"""
+        """Update the game phase indicator based on current round."""
         if self.is_endgame():
             self.phase_label.config(text="Endgame", fg="#ff6b6b")
         elif self.rounds_played >= self.total_game_rounds * 0.6:
@@ -690,7 +695,7 @@ class PokerModifierApp:
             self.phase_label.config(text="Early", fg="#4CAF50")
 
     def apply_random_modifier(self):
-        """Apply a random modifier and update display"""
+        """Apply a random modifier and update display."""
         # Update modifier counter
         self.modifiers_applied += 1
         self.mods_label.config(text=str(self.modifiers_applied))
@@ -726,14 +731,10 @@ class PokerModifierApp:
                 "Ace",
             ]
             steel_rank = random.choice(ranks)
-            selected_modifier["description"] = selected_modifier["description"].format(
-                steel_rank=steel_rank
-            )
+            selected_modifier["description"] = selected_modifier["description"].format(steel_rank=steel_rank)
 
         # Update result frame styling for modifier
-        self.result_frame.config(
-            bg=bg_color, highlightbackground="#ffd700", highlightthickness=2
-        )
+        self.result_frame.config(bg=bg_color, highlightbackground="#ffd700", highlightthickness=2)
 
         # Update display with modifier info
         modifier_text = f"{modifier_type} {selected_modifier['name']}\n\n{selected_modifier['description']}"
@@ -746,16 +747,12 @@ class PokerModifierApp:
             else:
                 modifier_text += "\n\n⚠️ FINAL ROUND!"
 
-        self.result_label.config(
-            text=modifier_text, fg="#ffd700", bg=bg_color, font=("Arial", 14, "bold")
-        )
+        self.result_label.config(text=modifier_text, fg="#ffd700", bg=bg_color, font=("Arial", 14, "bold"))
 
     def show_no_modifier(self):
-        """Show no modifier message"""
+        """Show no modifier message."""
         # Update result frame styling for no modifier
-        self.result_frame.config(
-            bg="#2d2d2d", highlightbackground="#666666", highlightthickness=1
-        )
+        self.result_frame.config(bg="#2d2d2d", highlightbackground="#666666", highlightthickness=1)
 
         # Update display
         self.result_label.config(
@@ -766,7 +763,7 @@ class PokerModifierApp:
         )
 
     def reset_game(self):
-        """Reset the game to initial state"""
+        """Reset the game to initial state."""
         self.rounds_played = 0
         self.modifiers_applied = 0
         self.force_endgame = False
@@ -777,9 +774,7 @@ class PokerModifierApp:
         self.phase_label.config(text="Early", fg="#4CAF50")
 
         # Reset result frame
-        self.result_frame.config(
-            bg="#2d2d2d", highlightbackground="#666666", highlightthickness=1
-        )
+        self.result_frame.config(bg="#2d2d2d", highlightbackground="#666666", highlightthickness=1)
         self.result_label.config(
             text="Click 'Start Round' to begin!",
             fg="#cccccc",
@@ -794,16 +789,12 @@ class PokerModifierApp:
         print("🔄 Game reset to initial state")
 
     def add_modifier(self, name, description):
-        """Add a new modifier to the list"""
+        """Add a new modifier to the list."""
         self.modifiers.append({"name": name, "description": description})
 
     def get_stats(self):
-        """Get current statistics"""
-        modifier_rate = (
-            0
-            if self.rounds_played == 0
-            else (self.modifiers_applied / self.rounds_played) * 100
-        )
+        """Get current statistics."""
+        modifier_rate = 0 if self.rounds_played == 0 else (self.modifiers_applied / self.rounds_played) * 100
         rounds_remaining = max(0, self.total_game_rounds - self.rounds_played)
 
         return {
@@ -818,14 +809,14 @@ class PokerModifierApp:
         }
 
     def run(self):
-        """Start the application"""
+        """Start the application."""
         print("🃏 Texas Hold'em Modifier App started!")
         print("Available methods: app.get_stats(), app.add_modifier(name, description)")
         print("Debug features: Toggle debug mode to access force endgame controls")
         print(f"Default game length: {self.total_game_rounds} rounds")
-        print(
-            f"Endgame threshold: {int(self.endgame_threshold * 100)}% ({int(self.total_game_rounds * self.endgame_threshold)} rounds)"
-        )
+        endgame_pct = int(self.endgame_threshold * 100)
+        endgame_rounds = int(self.total_game_rounds * self.endgame_threshold)
+        print(f"Endgame threshold: {endgame_pct}% ({endgame_rounds} rounds)")
         self.root.mainloop()
 
 
