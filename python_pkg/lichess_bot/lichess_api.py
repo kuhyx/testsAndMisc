@@ -57,7 +57,7 @@ class LichessAPI:
             try:
                 text = r.text or ""
                 snippet = text[:200].replace("\n", " ")
-            except Exception:
+            except (AttributeError, TypeError):
                 snippet = None
             if snippet:
                 logging.warning(

@@ -32,14 +32,14 @@ import sys
 
 try:
     import psutil  # type: ignore[import-untyped]
-except Exception:  # pragma: no cover - optional dependency; we fall back if unavailable
+except ImportError:  # pragma: no cover
     psutil = None  # type: ignore[assignment]
 
 try:
     import chess
     import chess.engine
     import chess.pgn
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     logging.exception("Missing dependency. Please install python-chess:")
     logging.exception("  pip install -r python_pkg/stockfish_analysis/requirements.txt")
     raise
@@ -204,7 +204,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options: dict[str, object]) -> int
     max_allowed = None
     try:
         max_allowed = opt.max if opt is not None else None  # type: ignore[attr-defined]
-    except Exception:
+    except AttributeError:
         max_allowed = None
     if isinstance(max_allowed, int):
         target = min(target, max_allowed)
@@ -300,7 +300,7 @@ def main() -> None:
     # Configure engine performance options if available
     try:
         options = engine.options  # type: ignore[attr-defined]
-    except Exception:
+    except AttributeError:
         options = {}
 
     # Threads
@@ -317,7 +317,7 @@ def main() -> None:
             if isinstance(min_thr, int):
                 wanted_threads = max(wanted_threads, min_thr)
             engine.configure({"Threads": int(wanted_threads)})
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             logging.debug("Failed to configure Threads option")
 
     # Configure hash table size in MB.
@@ -335,7 +335,7 @@ def main() -> None:
             if isinstance(min_hash, int):
                 target_hash = max(target_hash, min_hash)
             engine.configure({"Hash": int(target_hash)})
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             logging.debug("Failed to configure Hash option")
 
     # MultiPV
@@ -346,7 +346,7 @@ def main() -> None:
             if isinstance(max_mpv, int):
                 effective_mpv = min(effective_mpv, max_mpv)
             engine.configure({"MultiPV": int(effective_mpv)})
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             logging.debug("Failed to configure MultiPV option")
 
     # Enable NNUE if the option exists
@@ -374,7 +374,7 @@ def main() -> None:
     # Brief performance summary (best-effort)
     try:
         thr_show = int(wanted_threads)
-    except Exception:
+    except (ValueError, TypeError):
         thr_show = 1
     try:
         hash_show = (
@@ -382,7 +382,7 @@ def main() -> None:
             if hasattr(engine, "options") and engine.options.get("Hash")
             else None
         )
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         hash_show = None
     if hash_show is not None:
         logging.info(

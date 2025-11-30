@@ -12,6 +12,7 @@ import threading
 
 import chess
 import chess.pgn
+import requests
 
 from python_pkg.lichess_bot.engine import RandomEngine
 from python_pkg.lichess_bot.lichess_api import LichessAPI
@@ -28,7 +29,7 @@ def _apply_move_to_board(board: chess.Board, move: str, game_id: str) -> None:
     """
     try:
         board.push_uci(move)
-    except Exception:
+    except ValueError:
         logging.debug(f"Game {game_id}: could not apply move {move}")
 
 
@@ -66,7 +67,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
             with open(game_log_path, "w") as lf:
                 lf.write(f"game {game_id} started\n")
                 lf.write(f"bot_version v{bot_version}\n")
-        except Exception:
+        except OSError:
             game_log_path = None
         # Simple time manager state
         my_ms = None
@@ -229,7 +230,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                             f"{move.uci()}\n{reason}\n\n"
                                         )
                                 api.make_move(game_id, move)
-                        except Exception as e:
+                        except requests.RequestException as e:
                             logging.warning(
                                 f"Game {game_id}: move {move.uci()} failed: {e}"
                             )
@@ -243,7 +244,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                         break
                 elif et in {"chatLine", "opponentGone"}:
                     continue
-        except Exception:
+        except requests.RequestException:
             logging.exception(f"Game {game_id} thread error")
         finally:
             # On game end, write full PGN to the log file
@@ -282,7 +283,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             # Estimate total plies from the final board
                             try:
                                 total_plies = len(board.move_stack)
-                            except Exception:
+                            except TypeError:
                                 total_plies = 0
 
                             logging.info(
@@ -345,7 +346,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                 f"Game {game_id}: analysis script not found "
                                 f"at {analyze_script}; skipping analysis"
                             )
-                    except Exception as e:
+                    except (subprocess.SubprocessError, OSError) as e:
                         logging.debug(f"Game {game_id}: analysis run failed: {e}")
 
                     # Insert analysis before the PGN section so future runs
@@ -397,11 +398,11 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             )
                             with open(game_log_path, "w", encoding="utf-8") as f:
                                 f.write(new_content)
-                        except Exception as e:
+                        except OSError as e:
                             logging.debug(
                                 f"Game {game_id}: could not write analysis to log: {e}"
                             )
-            except Exception as e:
+            except OSError as e:
                 logging.debug(f"Game {game_id}: could not write PGN: {e}")
             logging.info(f"Ending game thread for {game_id}")
 
@@ -456,7 +457,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
         """
         try:
             _process_event_stream()
-        except Exception as e:
+        except requests.RequestException as e:
             logging.warning(f"Event stream error: {e}")
             return backoff_sleep(backoff)
         else:

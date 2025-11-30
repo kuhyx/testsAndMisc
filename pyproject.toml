@@ -47,7 +47,6 @@ unfixable = []
     "S101",    # Allow assert in tests
     "S603",    # Allow subprocess calls in tests
     "PLR2004", # Allow magic values in tests
-    "BLE001",  # Allow blind except in test cleanup
     "PTH",     # Allow os.path in tests for simplicity
 ]
 "**/test_*.py" = [
@@ -56,7 +55,6 @@ unfixable = []
     "S310",    # Allow URL open in tests
     "S607",    # Allow partial executable path in tests
     "PLC0415", # Allow late imports for test isolation
-    "BLE001",  # Allow blind except in test cleanup
     "PTH",     # Allow os.path in tests for simplicity
 ]
 "**/conftest.py" = [
@@ -91,31 +89,26 @@ unfixable = []
     "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
     "PLR0912", # Complex nested game event handling with many branches
     "PLR0915", # Long function handling complete game lifecycle
-    "BLE001",  # Blind except for resilient bot operation
     "S603",    # Subprocess call for analysis script
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in bot
     "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/engine.py" = [
-    "BLE001",  # Blind except for engine error handling
     "S603",    # Subprocess for engine communication
     "PTH",     # os.path patterns
     "LOG015",  # Root logger for debug messages
 ]
 "python_pkg/lichess_bot/lichess_api.py" = [
-    "BLE001",  # Blind except for API resilience
     "LOG015",  # Root logger in API client
     "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/utils.py" = [
-    "BLE001",  # Blind except for file operations
     "PTH",     # os.path patterns
     "LOG015",  # Root logger
     "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/tools/generate_blunder_tests.py" = [
-    "BLE001",  # Blind except for test generation
     "PTH",     # os.path patterns in tool
     "LOG015",  # Root logger in tool
     "G004",    # f-strings in logging
@@ -124,7 +117,6 @@ unfixable = []
     "C901",    # Complex main() with many argument combinations and analysis modes
     "PLR0912", # Complex main() with many argument combinations and analysis modes
     "PLR0915", # Long main() handling complete analysis workflow
-    "BLE001",  # Blind except for engine configuration
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in analysis tool
     "G004",    # f-strings in logging
@@ -145,7 +137,6 @@ unfixable = []
     "G004",    # f-strings in logging
 ]
 "python_pkg/scrape_website/scrape_comics.py" = [
-    "BLE001",  # Blind except for web scraping resilience
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
