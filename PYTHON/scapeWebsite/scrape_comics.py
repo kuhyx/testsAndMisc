@@ -71,7 +71,7 @@ while True:
         next_button_url = next_button.get_attribute("href")
         driver.get(next_button_url)
 
-    except:
+    except Exception:
         # If the 'Next' button is not found, it means we've reached the last image
         logging.info("No 'Next' button found. Reached the end of images.")
         break
