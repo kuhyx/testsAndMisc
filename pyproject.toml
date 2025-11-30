@@ -34,7 +34,6 @@ ignore = [
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     # Relaxed for script-heavy repository
-    "D205",    # Missing blank line after summary - relaxed
     "D415",    # Missing terminal punctuation - relaxed for scripts
     "INP001",  # Implicit namespace package - this is a scripts repo
     "PLR2004", # Magic value comparison - common in scripts
@@ -64,17 +63,8 @@ ignore = [
     "ARG001",  # Unused function argument - often needed for API compatibility
     "ARG002",  # Unused method argument - often needed for API compatibility
     "TRY401",  # Verbose log message - acceptable
-    "TRY300",  # try-consider-else - style preference
-    "TRY301",  # raise-within-try - style preference
     "PERF203", # try-except-in-loop - often necessary
-    "PERF401", # manual-list-comprehension - style preference
-    "RUF005",  # collection-literal-concatenation - style preference
     "PGH003",  # blanket-type-ignore - existing code
-    "SIM102",  # collapsible-if - style preference
-    "SIM103",  # needless-bool - style preference
-    "SIM105",  # suppressible-exception - style preference
-    "SIM108",  # if-else-block - style preference
-    "SIM113",  # enumerate-for-loop - style preference
     "PLC0415", # import-outside-top-level - sometimes necessary
     "N816",    # mixed-case-variable-in-global-scope - often constants
     "N806",    # non-lowercase-variable - sometimes intentional
@@ -88,12 +78,21 @@ ignore = [
     "S112",    # try-except-continue - acceptable pattern
     "ERA001",  # commented-out-code - keeping for reference
     "B023",    # function-uses-loop-variable - common pattern with closures
-    "B904",    # raise-without-from - style preference
     "DTZ005",  # datetime.now without tz - acceptable for local scripts
     "E741",    # ambiguous-variable-name - sometimes intentional (e.g. l for list)
     "DTZ004",  # datetime.utcfromtimestamp - acceptable
     "E722",    # bare-except - will be fixed where critical
     "PT017",   # pytest-assert-in-except - acceptable pattern
+    "PERF401", # manual-list-comprehension - style preference
+    "RUF005",  # collection-literal-concatenation - style preference
+    "SIM102",  # collapsible-if - style preference
+    "SIM103",  # needless-bool - style preference
+    "SIM105",  # suppressible-exception - style preference
+    "SIM108",  # if-else-block - style preference
+    "SIM113",  # enumerate-for-loop - style preference
+    "B904",    # raise-without-from - style preference
+    "TRY300",  # try-consider-else - style preference
+    "TRY301",  # raise-within-try - style preference
 ]
 
 # Allow ALL rules to be auto-fixed
