@@ -46,9 +46,6 @@ ignore = [
     "PLR0915", # Too many statements - relaxed for scripts
     "PLR0911", # Too many return statements - relaxed
     "PLR0913", # Too many arguments - relaxed
-    "TRY003",  # Raise vanilla args - common pattern in scripts
-    "EM101",   # Exception must not use string literal - common in scripts
-    "EM102",   # Exception must not use f-string - common in scripts
     "BLE001",  # Blind except - will fix critical ones manually
     "S113",    # Request without timeout - will fix manually where critical
     "S603",    # subprocess without shell - known pattern
