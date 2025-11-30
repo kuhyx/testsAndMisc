@@ -38,20 +38,20 @@ LEFT_FOLDER_CODE = 100  # Default 100 - 'd'
 RIGHT_FOLDER_CODE = 97  # Default 97 - 'a'
 # Change by checking: https://www.ascii-code.com/
 
-firstFolderName = input("Enter first folder name: [a] ")
-secondFolderName = input("Enter second folder name: [d] ")
+first_folder_name = input("Enter first folder name: [a] ")
+second_folder_name = input("Enter second folder name: [d] ")
 
-currentPath = os.path.abspath(
+current_path = os.path.abspath(
     os.getcwd()
 )  # Stolen from: https://stackoverflow.com/q/3430372
-os.chdir(currentPath)  # Change working directory to the path where the python file is
+os.chdir(current_path)  # Change working directory to the path where the python file is
 
 if (
-    path.isdir(firstFolderName) != 1
+    path.isdir(first_folder_name) != 1
 ):  # Check if folder already exists, if it does not make it
-    os.mkdir(firstFolderName)
-if path.isdir(secondFolderName) != 1:
-    os.mkdir(secondFolderName)
+    os.mkdir(first_folder_name)
+if path.isdir(second_folder_name) != 1:
+    os.mkdir(second_folder_name)
 
 for filename in os.listdir(
     os.getcwd()
@@ -67,12 +67,12 @@ for filename in os.listdir(
         key = cv2.waitKey()
         if key == RIGHT_FOLDER_CODE:
             shutil.move(
-                currentPath + "/" + filename,
-                currentPath + "/" + firstFolderName + "/" + filename,
+                current_path + "/" + filename,
+                current_path + "/" + first_folder_name + "/" + filename,
             )
         elif key == LEFT_FOLDER_CODE:
             shutil.move(
-                currentPath + "/" + filename,
-                currentPath + "/" + secondFolderName + "/" + filename,
+                current_path + "/" + filename,
+                current_path + "/" + second_folder_name + "/" + filename,
             )
         cv2.destroyAllWindows()
