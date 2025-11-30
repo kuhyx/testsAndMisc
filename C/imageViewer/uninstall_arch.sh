@@ -79,7 +79,8 @@ reset_default_associations() {
     for mime_type in "${mime_types[@]}"; do
         if command -v xdg-mime &> /dev/null; then
             # Check if imageviewer was the default
-            local current_default=$(xdg-mime query default "$mime_type" 2>/dev/null)
+            local current_default
+            current_default=$(xdg-mime query default "$mime_type" 2>/dev/null)
             if [[ "$current_default" == "imageviewer.desktop" ]]; then
                 # Remove the association (this will fall back to system defaults)
                 local mimeapps_file="$HOME/.config/mimeapps.list"

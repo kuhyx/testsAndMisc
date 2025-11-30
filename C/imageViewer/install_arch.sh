@@ -254,7 +254,8 @@ test_installation() {
 
         # Test default application association
         if command -v xdg-mime &> /dev/null; then
-            local default_app=$(xdg-mime query default image/jpeg 2>/dev/null)
+            local default_app
+            default_app=$(xdg-mime query default image/jpeg 2>/dev/null)
             if [[ "$default_app" == "imageviewer.desktop" ]]; then
                 print_success "imageviewer is set as default image viewer"
             else

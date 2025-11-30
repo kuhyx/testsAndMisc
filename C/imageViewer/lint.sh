@@ -115,8 +115,10 @@ compile_check() {
     print_step "Running compile check..."
 
     # Try to compile with extra warnings
+    local sdl_cflags
+    sdl_cflags=$(pkg-config --cflags sdl2 2>/dev/null || echo "-I/usr/include/SDL2")
     if gcc -Wall -Wextra -Wpedantic -std=c99 -O2 \
-           $(pkg-config --cflags sdl2 2>/dev/null || echo "-I/usr/include/SDL2") \
+           ${sdl_cflags} \
            -c main.c -o /tmp/main.o 2>/dev/null; then
         print_success "Compile check passed"
         rm -f /tmp/main.o
@@ -124,7 +126,7 @@ compile_check() {
         print_error "Compile check failed"
         print_step "Trying compile with detailed errors..."
         gcc -Wall -Wextra -Wpedantic -std=c99 -O2 \
-            $(pkg-config --cflags sdl2 2>/dev/null || echo "-I/usr/include/SDL2") \
+            ${sdl_cflags} \
             -c main.c -o /tmp/main.o
     fi
 }
