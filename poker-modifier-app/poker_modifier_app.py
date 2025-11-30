@@ -247,7 +247,7 @@ class PokerModifierApp:
             {
                 "name": "Underdog Victory",
                 "description": "Worst hand wins the pot instead of best hand this round."
-            }
+            },
             # Winner Takes All Variants
             {
                 "name": "Crown Jewels",
