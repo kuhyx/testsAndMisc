@@ -27,6 +27,7 @@ KEY_SELECTED_COLOR = (150, 150, 200)
 KEY_AVAILABLE_COLOR = (100, 150, 100)
 TEXT_COLOR = (255, 255, 255)
 PLAYER_COLORS = [(255, 100, 100), (100, 100, 255)]
+MIN_WORD_LENGTH = 3
 
 # Keyboard layout
 KEYBOARD_LAYOUT = [
@@ -286,7 +287,7 @@ class KeyboardCoopGame:
 
     def calculate_score(self, word_length):
         """Calculate score exponentially based on word length."""
-        if word_length < 3:
+        if word_length < MIN_WORD_LENGTH:
             return 0
         return 2 ** (word_length - 2)
 
@@ -317,7 +318,9 @@ class KeyboardCoopGame:
 
     def submit_word(self):
         """Submit the current word and check if it's valid."""
-        if len(self.current_word) >= 3 and self.is_valid_word(self.current_word):
+        if len(self.current_word) >= MIN_WORD_LENGTH and self.is_valid_word(
+            self.current_word
+        ):
             points = self.calculate_score(len(self.current_word))
             self.score += points
             self.message = (
@@ -329,8 +332,11 @@ class KeyboardCoopGame:
             self.generate_random_keyboard()
             self.key_positions = self.calculate_key_positions()
 
-        elif len(self.current_word) < 3:
-            self.message = f"'{self.current_word}' is too short! (minimum 3 letters)"
+        elif len(self.current_word) < MIN_WORD_LENGTH:
+            self.message = (
+                f"'{self.current_word}' is too short! "
+                f"(minimum {MIN_WORD_LENGTH} letters)"
+            )
         else:
             self.message = f"'{self.current_word}' is not a valid word!"
 

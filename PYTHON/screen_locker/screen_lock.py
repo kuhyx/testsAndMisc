@@ -13,6 +13,15 @@ import tkinter as tk
 
 logging.basicConfig(level=logging.INFO)
 
+# Validation limits for workout data
+MAX_DISTANCE_KM = 100
+MAX_TIME_MINUTES = 600
+MAX_PACE_MIN_PER_KM = 20
+MIN_EXERCISE_NAME_LEN = 3
+MAX_SETS = 20
+MAX_REPS = 100
+MAX_WEIGHT_KG = 500
+
 
 class ScreenLocker:
     """Screen locker that requires workout logging to unlock."""
@@ -294,16 +303,20 @@ class ScreenLocker:
             pace = float(self.pace_entry.get())
 
             # Sanity checks
-            if distance <= 0 or distance > 100:
-                self.show_error("Distance seems unrealistic (0-100 km)")
+            if distance <= 0 or distance > MAX_DISTANCE_KM:
+                self.show_error(f"Distance seems unrealistic (0-{MAX_DISTANCE_KM} km)")
                 return
 
-            if time_mins <= 0 or time_mins > 600:
-                self.show_error("Time seems unrealistic (0-600 minutes)")
+            if time_mins <= 0 or time_mins > MAX_TIME_MINUTES:
+                self.show_error(
+                    f"Time seems unrealistic (0-{MAX_TIME_MINUTES} minutes)"
+                )
                 return
 
-            if pace <= 0 or pace > 20:
-                self.show_error("Pace seems unrealistic (0-20 min/km)")
+            if pace <= 0 or pace > MAX_PACE_MIN_PER_KM:
+                self.show_error(
+                    f"Pace seems unrealistic (0-{MAX_PACE_MIN_PER_KM} min/km)"
+                )
                 return
 
             # Calculate expected pace and check if close enough
@@ -463,21 +476,21 @@ class ScreenLocker:
                 return
 
             # Check for empty or lazy entries
-            if any(len(ex) < 3 for ex in exercises):
+            if any(len(ex) < MIN_EXERCISE_NAME_LEN for ex in exercises):
                 self.show_error("Exercise names too short - be specific")
                 return
 
             # Sanity checks
-            if any(s < 1 or s > 20 for s in sets):
-                self.show_error("Sets should be between 1-20")
+            if any(s < 1 or s > MAX_SETS for s in sets):
+                self.show_error(f"Sets should be between 1-{MAX_SETS}")
                 return
 
-            if any(r < 1 or r > 100 for r in reps):
-                self.show_error("Reps should be between 1-100")
+            if any(r < 1 or r > MAX_REPS for r in reps):
+                self.show_error(f"Reps should be between 1-{MAX_REPS}")
                 return
 
-            if any(w < 0 or w > 500 for w in weights):
-                self.show_error("Weights should be between 0-500 kg")
+            if any(w < 0 or w > MAX_WEIGHT_KG for w in weights):
+                self.show_error(f"Weights should be between 0-{MAX_WEIGHT_KG} kg")
                 return
 
             # Calculate expected total weight

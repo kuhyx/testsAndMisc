@@ -2,6 +2,7 @@
 
 from collections.abc import Generator
 import contextlib
+from http import HTTPStatus
 import json
 import logging
 import time
@@ -45,7 +46,7 @@ class LichessAPI:
             raise
         elapsed = time.monotonic() - t0
         status = r.status_code
-        if status >= 400:
+        if status >= HTTPStatus.BAD_REQUEST:
             # Log a brief error body snippet if available
             snippet = None
             try:
@@ -88,7 +89,7 @@ class LichessAPI:
                             logging.debug(f"Skipping non-JSON line: {line}")
             except requests.HTTPError as e:
                 status = getattr(e.response, "status_code", None)
-                if status == 429:
+                if status == HTTPStatus.TOO_MANY_REQUESTS:
                     logging.warning("Event stream hit 429; backing off")
                     time.sleep(backoff)
                     backoff = min(8.0, backoff * 2)
@@ -160,11 +161,11 @@ class LichessAPI:
         """Submit a move to an active game."""
         url = f"{LICHESS_API}/api/board/game/{game_id}/move/{move.uci()}"
         r = self._request("POST", url, timeout=30)
-        if r.status_code in (400, 409):
+        if r.status_code in (HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT):
             # Likely not our turn or move already played; do not retry to avoid spam
             r.raise_for_status()
             return
-        if r.status_code == 429:
+        if r.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             logging.warning(f"HTTP POST {url} -> 429; retrying once after 0.5s")
             time.sleep(0.5)
             r = self._request("POST", url, timeout=30)
@@ -178,6 +179,6 @@ class LichessAPI:
         """Fetch the authenticated user's ID."""
         url = f"{LICHESS_API}/api/account"
         r = self._request("GET", url, timeout=30)
-        if r.status_code == 200:
+        if r.status_code == HTTPStatus.OK:
             return r.json().get("id")
         return None

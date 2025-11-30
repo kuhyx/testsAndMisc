@@ -1,5 +1,6 @@
 """Integration tests for the articles C server API."""
 
+from http import HTTPStatus
 import json
 import os
 from pathlib import Path
@@ -62,19 +63,19 @@ def test_crud_roundtrip(tmp_path):
                 "thumb": "data:image/png;base64,xyz",
             },
         )
-        assert code == 201
+        assert code == HTTPStatus.CREATED
         created = json.loads(body)
         art_id = created["id"]
 
         # List
         code, body = _req(base + "/api/articles")
-        assert code == 200
+        assert code == HTTPStatus.OK
         items = json.loads(body)
         assert any(a["id"] == art_id for a in items)
 
         # Get one
         code, body = _req(base + f"/api/articles/{art_id}")
-        assert code == 200
+        assert code == HTTPStatus.OK
         got = json.loads(body)
         assert got["title"] == "T1"
 
@@ -82,13 +83,13 @@ def test_crud_roundtrip(tmp_path):
         code, body = _req(
             base + f"/api/articles/{art_id}", method="PUT", data={"title": "T2"}
         )
-        assert code == 200
+        assert code == HTTPStatus.OK
         updated = json.loads(body)
         assert updated["title"] == "T2"
 
         # Delete
         code, _ = _req(base + f"/api/articles/{art_id}", method="DELETE")
-        assert code == 204
+        assert code == HTTPStatus.NO_CONTENT
 
         # Ensure gone
         try:
@@ -96,7 +97,7 @@ def test_crud_roundtrip(tmp_path):
             msg = "Expected 404"
             raise AssertionError(msg)
         except urllib.error.HTTPError as e:
-            assert e.code == 404
+            assert e.code == HTTPStatus.NOT_FOUND
 
     finally:
         srv.terminate()

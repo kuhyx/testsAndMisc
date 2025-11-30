@@ -12,8 +12,10 @@ import requests
 
 logging.basicConfig(level=logging.INFO)
 
+MAX_REQUESTS = 90
+
 requests_send = 0
-while requests_send < 90:
+while requests_send < MAX_REQUESTS:
     res = requests.get("https://api.thecatapi.com/v1/images/search?limit=100&api_key=")
     requests_send += 1
     response = json.loads(res.text)
