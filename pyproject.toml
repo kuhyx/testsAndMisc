@@ -83,14 +83,12 @@ unfixable = []
     "G004",    # f-strings in logging
 ]
 "python_pkg/download_cats/generate_cats.py" = [
-    "PERF203", # Try-except needed for download resilience in loop
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
 ]
 "python_pkg/lichess_bot/main.py" = [
     "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
-    "PERF203", # Try-except needed for stream/move error handling in loops
     "PLR0912", # Complex nested game event handling with many branches
     "PLR0915", # Long function handling complete game lifecycle
     "BLE001",  # Blind except for resilient bot operation
@@ -132,7 +130,6 @@ unfixable = []
     "G004",    # f-strings in logging
 ]
 "python_pkg/randomize_numbers/random_digits.py" = [
-    "PERF203", # Try-except needed for parsing user input in loop
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
 ]

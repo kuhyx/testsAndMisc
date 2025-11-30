@@ -15,6 +15,32 @@ logging.basicConfig(level=logging.INFO)
 MAX_REQUESTS = 90
 REQUEST_TIMEOUT = 30  # seconds
 
+
+def _download_single_image(url: str) -> None:
+    """Download and save a single image from URL.
+
+    Args:
+        url: The URL of the image to download.
+    """
+    try:
+        # Get the image content
+        response = requests.get(url, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+
+        # Extract the image name from the URL
+        image_name = os.path.basename(url)
+        image_path = os.path.join("./CATS2/", image_name)
+
+        # Save the image to the directory
+        with open(image_path, "wb") as file:
+            file.write(response.content)
+
+        logging.info(f"Saved {url} as {image_path}")
+
+    except requests.exceptions.RequestException:
+        logging.exception(f"Failed to download {url}")
+
+
 requests_send = 0
 while requests_send < MAX_REQUESTS:
     res = requests.get(
@@ -27,20 +53,4 @@ while requests_send < MAX_REQUESTS:
 
     Path("./CATS2").mkdir(parents=True, exist_ok=True)
     for url in urls:
-        try:
-            # Get the image content
-            response = requests.get(url, timeout=REQUEST_TIMEOUT)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-
-            # Extract the image name from the URL
-            image_name = os.path.basename(url)
-            image_path = os.path.join("./CATS2/", image_name)
-
-            # Save the image to the directory
-            with open(image_path, "wb") as file:
-                file.write(response.content)
-
-            logging.info(f"Saved {url} as {image_path}")
-
-        except requests.exceptions.RequestException:
-            logging.exception(f"Failed to download {url}")
+        _download_single_image(url)

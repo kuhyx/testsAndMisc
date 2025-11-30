@@ -18,6 +18,20 @@ from python_pkg.lichess_bot.lichess_api import LichessAPI
 from python_pkg.lichess_bot.utils import backoff_sleep, get_and_increment_version
 
 
+def _apply_move_to_board(board: chess.Board, move: str, game_id: str) -> None:
+    """Apply a single move to the board, logging errors.
+
+    Args:
+        board: The chess board to apply the move to.
+        move: The UCI move string.
+        game_id: The game ID for logging purposes.
+    """
+    try:
+        board.push_uci(move)
+    except Exception:
+        logging.debug(f"Game {game_id}: could not apply move {move}")
+
+
 def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) -> None:
     """Start the bot and listen for incoming events."""
     logging.basicConfig(
@@ -136,10 +150,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                     # Rebuild board from moves
                     board = chess.Board()
                     for m in moves_list:
-                        try:
-                            board.push_uci(m)
-                        except Exception:
-                            logging.debug(f"Game {game_id}: could not apply move {m}")
+                        _apply_move_to_board(board, m, game_id)
 
                     if color is None:
                         logging.info(
@@ -394,56 +405,69 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                 logging.debug(f"Game {game_id}: could not write PGN: {e}")
             logging.info(f"Ending game thread for {game_id}")
 
+    def _process_event_stream() -> None:
+        """Process events from the Lichess event stream.
+
+        Handles challenges and game start/finish events.
+        """
+        for event in api.stream_events():
+            if event.get("type") == "challenge":
+                challenge = event["challenge"]
+                ch_id = challenge["id"]
+                variant = challenge.get("variant", {}).get("key", "standard")
+                speed = challenge.get("speed")
+                perf_ok = speed in {"bullet", "blitz", "rapid", "classical"}
+                not_corr = (
+                    challenge.get("speed") != "correspondence"
+                    or not decline_correspondence
+                )
+                if variant == "standard" and perf_ok and not_corr:
+                    logging.info(f"Accepting challenge {ch_id} ({speed})")
+                    api.accept_challenge(ch_id)
+                else:
+                    logging.info(
+                        f"Declining challenge {ch_id} "
+                        f"(variant={variant}, speed={speed})"
+                    )
+                    api.decline_challenge(ch_id)
+
+            elif event.get("type") == "gameStart":
+                game_id = event["game"]["id"]
+                # Spin up a game thread
+                if game_id not in game_threads or not game_threads[game_id].is_alive():
+                    t = threading.Thread(
+                        target=handle_game, args=(game_id,), name=f"game-{game_id}"
+                    )
+                    t.daemon = True
+                    game_threads[game_id] = t
+                    t.start()
+
+            elif event.get("type") == "gameFinish":
+                game_id = event["game"]["id"]
+                logging.info(f"Game finished event: {game_id}")
+            else:
+                logging.debug(f"Unhandled event: {json.dumps(event)}")
+
+    def _run_event_loop_iteration() -> int:
+        """Run one iteration of the event loop with error handling.
+
+        Returns:
+            New backoff value (0 on success, increased on error).
+        """
+        try:
+            _process_event_stream()
+        except Exception as e:
+            logging.warning(f"Event stream error: {e}")
+            return backoff_sleep(backoff)
+        else:
+            # If stream ends normally, reset backoff
+            return 0
+
     # Main event stream: challenge and game start events
     logging.info("Connecting to Lichess event stream. Waiting for challenges...")
     backoff = 0
     while True:
-        try:
-            for event in api.stream_events():
-                if event.get("type") == "challenge":
-                    challenge = event["challenge"]
-                    ch_id = challenge["id"]
-                    variant = challenge.get("variant", {}).get("key", "standard")
-                    speed = challenge.get("speed")
-                    perf_ok = speed in {"bullet", "blitz", "rapid", "classical"}
-                    not_corr = (
-                        challenge.get("speed") != "correspondence"
-                        or not decline_correspondence
-                    )
-                    if variant == "standard" and perf_ok and not_corr:
-                        logging.info(f"Accepting challenge {ch_id} ({speed})")
-                        api.accept_challenge(ch_id)
-                    else:
-                        logging.info(
-                            f"Declining challenge {ch_id} "
-                            f"(variant={variant}, speed={speed})"
-                        )
-                        api.decline_challenge(ch_id)
-
-                elif event.get("type") == "gameStart":
-                    game_id = event["game"]["id"]
-                    # Spin up a game thread
-                    if (
-                        game_id not in game_threads
-                        or not game_threads[game_id].is_alive()
-                    ):
-                        t = threading.Thread(
-                            target=handle_game, args=(game_id,), name=f"game-{game_id}"
-                        )
-                        t.daemon = True
-                        game_threads[game_id] = t
-                        t.start()
-
-                elif event.get("type") == "gameFinish":
-                    game_id = event["game"]["id"]
-                    logging.info(f"Game finished event: {game_id}")
-                else:
-                    logging.debug(f"Unhandled event: {json.dumps(event)}")
-            # If stream ends normally, reset backoff
-            backoff = 0
-        except Exception as e:
-            logging.warning(f"Event stream error: {e}")
-            backoff = backoff_sleep(backoff)
+        backoff = _run_event_loop_iteration()
 
 
 def main() -> None:
