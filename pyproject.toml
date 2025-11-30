@@ -31,19 +31,9 @@ ignore = [
     "D203",    # 1 blank line required before class docstring (conflicts with D211)
     # D212 vs D213 conflict - we use D212 (summary on first line after """)
     "D213",    # Multi-line docstring summary should start at second line (conflicts with D212)
+    # Formatter conflicts - these rules conflict with ruff format
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
-    # Style preferences - relaxed for script-heavy repository
-    "PERF401", # manual-list-comprehension - style preference
-    "RUF005",  # collection-literal-concatenation - style preference
-    "SIM102",  # collapsible-if - style preference
-    "SIM103",  # needless-bool - style preference
-    "SIM105",  # suppressible-exception - style preference
-    "SIM108",  # if-else-block - style preference
-    "SIM113",  # enumerate-for-loop - style preference
-    "B904",    # raise-without-from - style preference
-    "TRY300",  # try-consider-else - style preference
-    "TRY301",  # raise-within-try - style preference
 ]
 
 # Allow ALL rules to be auto-fixed
@@ -120,6 +110,7 @@ unfixable = []
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in bot
     "G004",    # f-strings in logging
+    "TRY301",  # Raise in try block for null checks on subprocess streams
 ]
 "PYTHON/lichess_bot/engine.py" = [
     "BLE001",  # Blind except for engine error handling
@@ -159,6 +150,7 @@ unfixable = []
     "S311",    # Random for number randomization, not crypto
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
+    "TRY301",  # Raise in try block for input validation
 ]
 "PYTHON/keyboardCoop/main.py" = [
     "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)

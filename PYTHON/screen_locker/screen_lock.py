@@ -634,11 +634,11 @@ class ScreenLocker:
         try:
             with open(self.log_file) as f:
                 logs = json.load(f)
-
-            today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-            return today in logs
         except (OSError, json.JSONDecodeError):
             return False
+        else:
+            today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+            return today in logs
 
     def save_workout_log(self) -> None:
         """Save workout data to log file."""

@@ -159,7 +159,7 @@ def _parse_threads(value: str) -> int | None:
         return max(1, n)
     except ValueError:
         msg = "--threads must be an integer or 'auto'"
-        raise argparse.ArgumentTypeError(msg)
+        raise argparse.ArgumentTypeError(msg) from None
 
 
 def _parse_hash_mb(value: str) -> int | None:
@@ -171,7 +171,7 @@ def _parse_hash_mb(value: str) -> int | None:
         return max(16, mb)
     except ValueError:
         msg = "--hash-mb must be an integer (MB) or 'auto'"
-        raise argparse.ArgumentTypeError(msg)
+        raise argparse.ArgumentTypeError(msg) from None
 
 
 def _detect_total_mem_mb() -> int | None:

@@ -178,7 +178,7 @@ def fen_and_uci_for_blunders(
                 f"side {bl.side} in position FEN: {fen_before}. "
                 f"Error: {e}"
             )
-            raise ValueError(msg)
+            raise ValueError(msg) from e
         results.append((fen_before, move.uci(), best_uci, bl))
     return results
 

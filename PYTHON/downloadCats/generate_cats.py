@@ -23,9 +23,7 @@ while requests_send < MAX_REQUESTS:
     )
     requests_send += 1
     response = json.loads(res.text)
-    urls = []
-    for cat in response:
-        urls.append(cat.get("url"))
+    urls = [cat.get("url") for cat in response]
 
     Path("./CATS2").mkdir(parents=True, exist_ok=True)
     for url in urls:
