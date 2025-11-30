@@ -1,0 +1,20 @@
+{
+  "2025-11-27": {
+    "timestamp": "2025-11-27T19:45:38.894904",
+    "workout_data": {
+      "type": "strength"
+    }
+  },
+  "2025-11-28": {
+    "timestamp": "2025-11-28T12:46:09.077724",
+    "workout_data": {
+      "type": "strength"
+    }
+  },
+  "2025-11-30": {
+    "timestamp": "2025-11-30T12:12:44.884093",
+    "workout_data": {
+      "type": "strength"
+    }
+  }
+}

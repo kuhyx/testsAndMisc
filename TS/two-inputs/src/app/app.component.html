@@ -1,0 +1,30 @@
+<mat-form-field class="example-form-field">
+  <mat-label>min</mat-label>
+  <input matInput type="number" [(ngModel)]="min" (input)="updateInput()">
+</mat-form-field>
+<mat-form-field class="example-form-field">
+  <mat-label>max</mat-label>
+  <input matInput type="number" [(ngModel)]="max" (input)="updateInput()">
+</mat-form-field>
+<mat-form-field class="example-form-field">
+  <mat-label>step</mat-label>
+  <input matInput type="number" [(ngModel)]="step" (input)="updateInput()">
+</mat-form-field>
+<mat-form-field class="example-form-field">
+  <mat-label>targetValue</mat-label>
+  <input matInput type="number" [(ngModel)]="targetValue" (input)="updateInput()">
+</mat-form-field> <br>
+<mat-form-field class="example-form-field">
+  <mat-label>inputOne</mat-label>
+  <input disabled="true" matInput type="number" [min]="min" [step]="step" [max]="max" [(ngModel)]="inputOne">
+</mat-form-field>
+<button mat-button (click)="upOne()"> UP </button>
+<button mat-button (click)="downOne()"> DOWN </button>
+<br>
+<mat-form-field class="example-form-field">
+  <mat-label>inputTwo</mat-label>
+  <input disabled="true" matInput type="number" [min]="min" [step]="step" [max]="max" [(ngModel)]="inputTwo">
+</mat-form-field>
+<button mat-button (click)="upTwo()"> UP </button>
+<button mat-button (click)="downTwo()"> DOWN </button>
+<br>

@@ -476,4 +476,3 @@ server_c.c:44:12: style: The function 'append_file_line' is never used. [unusedF
 static int append_file_line(const char* path, const char* line){ FILE* f=fopen(path,"ab"); if(!f) return -1; size_t n=fwrite(line,1,strlen(line),f); n+=fwrite("\n",1,1,f); fclose(f); return (int)n>=0?0:-1; }
            ^
 nofile:0:0: information: Active checkers: 117/966 (use --checkers-report=<filename> to see details) [checkersReport]
-

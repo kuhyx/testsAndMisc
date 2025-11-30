@@ -1,5 +1,3 @@
-import builtins
-
 from PYTHON.lichess_bot.utils import backoff_sleep
 
 

@@ -1,0 +1,191 @@
+# ==============================================================================
+# Python Development Dependencies - Linting, Formatting, and Testing
+# ==============================================================================
+# Install with: pip install -r requirements-dev.txt
+# ==============================================================================
+
+# Include base requirements
+-r requirements.txt
+
+# add-trailing-comma - Add trailing commas
+add-trailing-comma>=3.1.0
+
+# autoflake - Remove unused imports and variables
+autoflake>=2.2.0
+
+# autopep8 - PEP 8 formatting (alternative formatter)
+autopep8>=2.0.0
+
+# ==============================================================================
+# SECURITY LINTERS
+# ==============================================================================
+
+# Bandit - Security linter
+bandit>=1.7.0
+
+# Black - The uncompromising code formatter (fallback/comparison)
+black>=24.0.0
+
+# ==============================================================================
+# SPELL CHECKING
+# ==============================================================================
+
+# codespell - Fix common misspellings
+codespell>=2.2.0
+
+# Coverage.py - Code coverage measurement
+coverage>=7.4.0
+
+# darglint - Check docstrings match function signatures
+darglint>=1.8.0
+
+# dead - Find dead code
+dead>=1.5.0
+
+# docformatter - Formats docstrings
+docformatter>=1.7.0
+
+# fixit - Auto-fix linting errors
+fixit>=2.1.0
+
+# Flake8 - Linting tool (wraps pyflakes, pycodestyle, mccabe)
+flake8>=7.0.0
+flake8-annotations>=3.0.0       # Type annotation checks
+flake8-bandit>=4.1.0            # Security checks via bandit
+
+# Flake8 plugins for maximum coverage
+flake8-bugbear>=24.0.0          # Additional bug detection
+flake8-comprehensions>=3.14.0   # Better list/dict/set comprehensions
+flake8-docstrings>=1.7.0        # Docstring checks
+flake8-eradicate>=1.5.0         # Dead code detection
+flake8-pie>=0.16.0              # Miscellaneous lints
+flake8-print>=5.0.0             # Detect print statements
+flake8-pyi>=24.0.0              # Type stub file checks
+flake8-pytest-style>=2.0.0      # Pytest style checks
+flake8-return>=1.2.0            # Better return statement checks
+flake8-simplify>=0.21.0         # Simplification suggestions
+
+# Hypothesis - Property-based testing
+hypothesis>=6.98.0
+
+# ==============================================================================
+# IMPORT CHECKING
+# ==============================================================================
+
+# importlib-metadata for import analysis
+importlib-metadata>=7.0.0
+
+# ==============================================================================
+# DOCUMENTATION
+# ==============================================================================
+
+# pep257 - PEP 257 docstring checker (legacy, use pydocstyle)
+# interrogate - Check docstring coverage
+interrogate>=1.5.0
+
+# isort - Import sorting (ruff handles this, but useful standalone)
+isort>=5.13.0
+
+# mccabe - McCabe complexity checker
+mccabe>=0.7.0
+
+# ==============================================================================
+# TYPE CHECKING
+# ==============================================================================
+
+# MyPy - Static type checker
+mypy>=1.8.0
+
+# pip-audit - Audit Python packages for known vulnerabilities
+pip-audit>=2.6.0
+
+# pipdeptree - Show dependency tree
+pipdeptree>=2.14.0
+
+# ==============================================================================
+# PRE-COMMIT
+# ==============================================================================
+
+# pre-commit - Git hook management
+pre-commit>=3.6.0
+
+# prospector - Python static analysis tool
+prospector>=1.10.0
+
+# pycodestyle - Python style guide checker (PEP 8)
+pycodestyle>=2.11.0
+
+# pydocstyle - Docstring style checker (PEP 257)
+pydocstyle>=6.3.0
+
+# pyflakes - Passive checker of Python programs
+pyflakes>=3.2.0
+
+# pylama - Code audit tool (wraps multiple linters)
+pylama>=8.4.0
+
+# ==============================================================================
+# LINTERS
+# ==============================================================================
+
+# Pylint - Comprehensive Python linter
+pylint>=3.0.0
+
+# Pyright - Microsoft's type checker (very strict)
+pyright>=1.1.350
+
+# ==============================================================================
+# TESTING
+# ==============================================================================
+
+# pytest - Testing framework
+pytest>=8.0.0
+
+# pytest plugins
+pytest-cov>=4.1.0              # Coverage plugin
+pytest-randomly>=3.15.0        # Randomize test order
+pytest-sugar>=1.0.0            # Better test output
+pytest-timeout>=2.2.0          # Test timeouts
+pytest-xdist>=3.5.0            # Parallel test execution
+
+# ==============================================================================
+# ADDITIONAL TOOLS
+# ==============================================================================
+
+# pyupgrade - Upgrade Python syntax
+pyupgrade>=3.15.0
+
+# Radon - Code metrics (complexity, maintainability)
+radon>=6.0.0
+
+# reorder-python-imports - Reorder imports
+reorder-python-imports>=3.12.0
+
+# ==============================================================================
+# CODE FORMATTERS
+# ==============================================================================
+
+# Ruff - Extremely fast Python linter and formatter (replaces many tools)
+ruff>=0.8.0
+
+# Safety - Check dependencies for known security vulnerabilities
+safety>=2.3.0
+types-python-dateutil>=2.8.0
+types-PyYAML>=6.0.0
+
+# Type stubs for common packages
+types-requests>=2.31.0
+types-setuptools>=69.0.0
+
+# ==============================================================================
+# CODE QUALITY & DEAD CODE DETECTION
+# ==============================================================================
+
+# Vulture - Find dead code
+vulture>=2.10
+
+# xenon - Monitor code complexity
+xenon>=0.9.0
+
+# yapf - Yet Another Python Formatter (Google's formatter)
+yapf>=0.40.0

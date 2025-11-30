@@ -11,21 +11,21 @@
     "C_Cpp.default.compilerPath": "/usr/bin/gcc",
     "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_fallbackStyle": "LLVM",
-    
+
     "files.associations": {
         "*.h": "c",
         "*.c": "c"
     },
-    
+
     "editor.formatOnSave": true,
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
     "editor.rulers": [100],
-    
+
     "clang-tidy.executable": "clang-tidy",
     "clang-tidy.checks": [
         "clang-diagnostic-*",
-        "clang-analyzer-*", 
+        "clang-analyzer-*",
         "bugprone-*",
         "cert-*",
         "misc-*",
@@ -33,7 +33,7 @@
         "portability-*",
         "readability-*"
     ],
-    
+
     "cppcheck.enable": true,
     "cppcheck.standard": ["c99"],
     "cppcheck.suppress": [

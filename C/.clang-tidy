@@ -14,5 +14,5 @@ WarningsAsErrors: >
   cert-err33-c,
   cert-err34-c,
   cert-fio38-c
-HeaderFilterRegex: '.*'
+HeaderFilterRegex: ".*"
 FormatStyle: none

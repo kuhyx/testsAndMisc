@@ -1,15 +1,11 @@
 import os
-import shutil
 import subprocess
-import logging
-from typing import Optional, Tuple
 
 import chess
 
 
 class RandomEngine:
-    """
-    Thin wrapper around the C engine in C/lichess_random_engine/random_engine.
+    """Thin wrapper around the C engine in C/lichess_random_engine/random_engine.
 
     Contract:
     - Given a chess.Board, call the C binary with all legal moves encoded as
@@ -20,7 +16,13 @@ class RandomEngine:
     - If the binary is missing or returns an invalid/illegal move, raise.
     """
 
-    def __init__(self, *, engine_path: Optional[str] = None, max_time_sec: float = 2.0, depth: Optional[int] = None):
+    def __init__(
+        self,
+        *,
+        engine_path: str | None = None,
+        max_time_sec: float = 2.0,
+        depth: int | None = None,
+    ):
         self.max_time_sec = max_time_sec
         # depth is accepted for compatibility with existing callers but is unused;
         # the C engine handles its own scoring/selection.
@@ -29,12 +31,17 @@ class RandomEngine:
         default_path = os.path.abspath(
             os.path.join(
                 os.path.dirname(__file__),
-                "..", "..",
-                "C", "lichess_random_engine", "random_engine",
+                "..",
+                "..",
+                "C",
+                "lichess_random_engine",
+                "random_engine",
             )
         )
         self.engine_path = engine_path or default_path
-        if not os.path.isfile(self.engine_path) or not os.access(self.engine_path, os.X_OK):
+        if not os.path.isfile(self.engine_path) or not os.access(
+            self.engine_path, os.X_OK
+        ):
             raise FileNotFoundError(
                 f"C engine not found or not executable at '{self.engine_path}'. "
                 "Build it first (make -C C/lichess_random_engine)."
@@ -58,10 +65,14 @@ class RandomEngine:
         return out
 
     def choose_move(self, board: chess.Board) -> chess.Move:
-        mv, _ = self.choose_move_with_explanation(board, time_budget_sec=self.max_time_sec)
+        mv, _ = self.choose_move_with_explanation(
+            board, time_budget_sec=self.max_time_sec
+        )
         return mv
 
-    def choose_move_with_explanation(self, board: chess.Board, *, time_budget_sec: float) -> Tuple[Optional[chess.Move], str]:
+    def choose_move_with_explanation(
+        self, board: chess.Board, *, time_budget_sec: float
+    ) -> tuple[chess.Move | None, str]:
         # Collect legal moves and send to engine as plain UCI tokens.
         legal = list(board.legal_moves)
         if not legal:
@@ -78,10 +89,14 @@ class RandomEngine:
         try:
             move = chess.Move.from_uci(chosen_uci)
         except Exception:
-            raise RuntimeError(f"Engine returned invalid move: '{chosen_uci}' (output: {output!r})")
+            raise RuntimeError(
+                f"Engine returned invalid move: '{chosen_uci}' (output: {output!r})"
+            )
 
         if move not in board.legal_moves:
-            raise RuntimeError(f"Engine returned illegal move for position: {chosen_uci}")
+            raise RuntimeError(
+                f"Engine returned illegal move for position: {chosen_uci}"
+            )
 
         return move, "from_c_engine"
 
@@ -91,9 +106,8 @@ class RandomEngine:
         proposed_move_uci: str,
         *,
         time_budget_sec: float,
-    ) -> Tuple[float, str, Optional[chess.Move], str]:
-        """
-        Ask the C engine to explain the current move list and analyze a specific candidate.
+    ) -> tuple[float, str, chess.Move | None, str]:
+        """Ask the C engine to explain the current move list and analyze a specific candidate.
 
         Returns (candidate_score, candidate_expl, best_move, best_expl)
         where explanations are concise JSON snippets from the engine. All logic is
@@ -103,13 +117,16 @@ class RandomEngine:
         if not legal:
             return 0.0, "no_legal_moves", None, "no_best_move"
 
-        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [m.uci() for m in legal]
+        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [
+            m.uci() for m in legal
+        ]
         out = self._call_engine(args, timeout=max(0.1, time_budget_sec))
 
         # Try to parse the engine's JSON explanation
         import json as _json
+
         cand_score = 0.0
-        best_move: Optional[chess.Move] = None
+        best_move: chess.Move | None = None
         cand_expl = out
         best_expl = out
         try:
@@ -130,10 +147,13 @@ class RandomEngine:
                     best_move = None
             # Store compact explanations for debugging
             cand_expl = _json.dumps(analyze, ensure_ascii=False)
-            best_expl = _json.dumps({
-                "chosen_index": data.get("chosen_index"),
-                "chosen_move": data.get("chosen_move"),
-            }, ensure_ascii=False)
+            best_expl = _json.dumps(
+                {
+                    "chosen_index": data.get("chosen_index"),
+                    "chosen_move": data.get("chosen_move"),
+                },
+                ensure_ascii=False,
+            )
         except Exception:
             # Leave defaults with raw output text
             pass

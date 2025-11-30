@@ -1,0 +1,299 @@
+[project]
+name = "testsandmisc"
+version = "0.1.0"
+description = "Collection of miscellaneous tests and scripts"
+requires-python = ">=3.10"
+
+# ============================================================================
+# RUFF - Extremely fast Python linter and formatter (written in Rust)
+# ============================================================================
+[tool.ruff]
+line-length = 88  # Black-compatible line length (stricter)
+target-version = "py310"
+# Include all Python files
+include = ["*.py", "**/*.py"]
+# Exclude vendored/build directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "Bash/ffmpeg-build",  # Vendored FFmpeg tools
+]
+
+[tool.ruff.lint]
+# AGGRESSIVE: Select ALL rules from all categories
+select = ["ALL"]
+# Minimal ignores - only conflicting rules
+ignore = [
+    "D203",    # 1 blank line required before class docstring (conflicts with D211)
+    "D213",    # Multi-line docstring summary should start at second line (conflicts with D212)
+    "COM812",  # Trailing comma missing (conflicts with formatter)
+    "ISC001",  # Implicit string concatenation (conflicts with formatter)
+    "ANN101",  # Missing type annotation for self (deprecated)
+    "ANN102",  # Missing type annotation for cls (deprecated)
+]
+
+# Allow ALL rules to be auto-fixed
+fixable = ["ALL"]
+unfixable = []
+
+# Per-file ignores for test files
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = [
+    "S101",    # Allow assert in tests
+    "PLR2004", # Allow magic values in tests
+    "D100",    # Allow missing module docstring in tests
+    "D103",    # Allow missing function docstring in tests
+]
+"**/conftest.py" = [
+    "D100",    # Allow missing module docstring
+    "D103",    # Allow missing function docstring
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"  # Use Google docstring convention
+
+[tool.ruff.lint.isort]
+force-single-line = false
+force-sort-within-sections = true
+known-first-party = ["PYTHON"]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+# ============================================================================
+# MYPY - Static type checker (most aggressive settings)
+# ============================================================================
+[tool.mypy]
+python_version = "3.10"
+# Strict mode enables most checks
+strict = true
+# Additional aggressive settings
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+# Extra strict settings
+disallow_any_unimported = true
+disallow_any_explicit = false  # Too aggressive for practical use
+disallow_any_generics = true
+disallow_subclassing_any = true
+strict_equality = true
+extra_checks = true
+# Allow missing imports for third-party packages
+ignore_missing_imports = true
+# Show error codes
+show_error_codes = true
+# Enable colored output
+color_output = true
+# Exclude vendored directories
+exclude = [
+    "Bash/ffmpeg-build/",
+    ".venv/",
+]
+
+# ============================================================================
+# PYLINT - Comprehensive Python linter
+# ============================================================================
+[tool.pylint.main]
+# Analyse import fallback blocks
+analyse-fallback-blocks = true
+# Pickle collected data for later comparisons
+persistent = true
+# Jobs to use for parallel execution (0 = auto)
+jobs = 0
+# Minimum Python version
+py-version = "3.10"
+# Ignore vendored directories
+ignore = ["Bash", ".venv", "__pycache__"]
+# Ignore patterns
+ignore-patterns = [".*\\.pyi$"]
+
+[tool.pylint.messages_control]
+# Enable all checks by disabling disable
+enable = "all"
+# Minimal disabled checks - only truly problematic ones
+disable = [
+    "raw-checker-failed",
+    "bad-inline-option",
+    "locally-disabled",
+    "file-ignored",
+    "suppressed-message",
+    "useless-suppression",
+    "deprecated-pragma",
+    "use-symbolic-message-instead",
+    "too-few-public-methods",  # Often false positive for data classes
+]
+
+[tool.pylint.format]
+# Maximum line length (same as ruff/black)
+max-line-length = 88
+# Maximum module lines
+max-module-lines = 1000
+
+[tool.pylint.design]
+# Maximum arguments for function/method
+max-args = 5
+# Maximum local variables
+max-locals = 15
+# Maximum return statements
+max-returns = 6
+# Maximum branches in function body
+max-branches = 12
+# Maximum statements in function body
+max-statements = 50
+# Maximum parents for a class
+max-parents = 7
+# Maximum attributes for a class
+max-attributes = 10
+# Maximum public methods for a class
+max-public-methods = 20
+# Minimum public methods for a class
+min-public-methods = 1
+
+[tool.pylint.similarities]
+# Minimum lines for similarity check
+min-similarity-lines = 4
+# Ignore comments when computing similarities
+ignore-comments = true
+# Ignore docstrings when computing similarities
+ignore-docstrings = true
+# Ignore imports when computing similarities
+ignore-imports = true
+
+[tool.pylint.spelling]
+# No spelling dictionary to avoid false positives
+spelling-dict = ""
+
+[tool.pylint.typecheck]
+# Ignore missing members for dynamic modules
+ignored-modules = ["chess", "pygame", "cv2", "PIL"]
+
+# ============================================================================
+# BANDIT - Security linter
+# ============================================================================
+[tool.bandit]
+# Exclude test directories and vendored code
+exclude_dirs = ["tests", ".venv", "Bash/ffmpeg-build"]
+# Use all tests
+tests = []
+# No skipped tests (most aggressive)
+skips = []
+# Severity level: all (1=low, 2=medium, 3=high)
+severity = 1
+# Confidence level: all
+confidence = 1
+
+# ============================================================================
+# BLACK - Code formatter (for comparison/fallback)
+# ============================================================================
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.venv
+    | __pycache__
+    | Bash/ffmpeg-build
+)/
+'''
+
+# ============================================================================
+# ISORT - Import sorting (for comparison/fallback, ruff handles this)
+# ============================================================================
+[tool.isort]
+profile = "black"
+line_length = 88
+force_single_line = false
+force_sort_within_sections = true
+known_first_party = ["PYTHON"]
+skip = [".venv", "__pycache__", "Bash/ffmpeg-build"]
+
+# ============================================================================
+# PYTEST - Testing framework configuration
+# ============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests", "PYTHON", "articles"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+]
+
+# ============================================================================
+# COVERAGE - Code coverage configuration
+# ============================================================================
+[tool.coverage.run]
+source = ["PYTHON", "articles", "poker-modifier-app"]
+branch = true
+omit = [
+    "*/__pycache__/*",
+    "*/tests/*",
+    "*/.venv/*",
+    "Bash/*",
+]
+
+[tool.coverage.report]
+# Fail under this percentage
+fail_under = 0
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+# ============================================================================
+# VULTURE - Dead code detection
+# ============================================================================
+# Note: Vulture uses command-line args, but we can document settings here
+# vulture --min-confidence 80 --exclude ".venv,Bash" .
+
+# ============================================================================
+# PYDOCSTYLE - Docstring style checker (ruff handles this, but for standalone)
+# ============================================================================
+# Configured in ruff.lint.pydocstyle above

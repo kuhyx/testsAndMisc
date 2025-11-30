@@ -1,2 +1,2 @@
-python-chess>=1.999
 pytest>=7.0
+python-chess>=1.999

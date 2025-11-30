@@ -1,6 +1,3 @@
-import os
-import tempfile
-
 from PYTHON.lichess_bot.utils import get_and_increment_version
 
 
@@ -15,5 +12,5 @@ def test_version_file_increments_and_persists(tmp_path, monkeypatch):
     assert v2 == 2
 
     # Ensure it persisted
-    with open(version_file, "r") as f:
+    with open(version_file) as f:
         assert f.read().strip() == "2"

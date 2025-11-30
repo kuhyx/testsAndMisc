@@ -1,11 +1,11 @@
 import json
 import os
-import time
-import urllib.request
-import urllib.error
-import subprocess
-import socket
 from pathlib import Path
+import socket
+import subprocess
+import time
+import urllib.error
+import urllib.request
 
 
 def _req(url, method="GET", data=None):
@@ -40,47 +40,55 @@ def test_crud_roundtrip(tmp_path):
         # wait briefly for server to be ready
         for _ in range(30):
             try:
-                with urllib.request.urlopen(base + "/api/articles", timeout=0.2) as resp:
+                with urllib.request.urlopen(
+                    base + "/api/articles", timeout=0.2
+                ) as resp:
                     resp.read()
                     break
             except Exception:
                 time.sleep(0.05)
 
         # Create
-        code, body = _req(base+"/api/articles", method="POST", data={
-            "title": "T1",
-            "body": "<p>Hello</p>",
-            "thumb": "data:image/png;base64,xyz"
-        })
+        code, body = _req(
+            base + "/api/articles",
+            method="POST",
+            data={
+                "title": "T1",
+                "body": "<p>Hello</p>",
+                "thumb": "data:image/png;base64,xyz",
+            },
+        )
         assert code == 201
         created = json.loads(body)
         art_id = created["id"]
 
         # List
-        code, body = _req(base+"/api/articles")
+        code, body = _req(base + "/api/articles")
         assert code == 200
         items = json.loads(body)
         assert any(a["id"] == art_id for a in items)
 
         # Get one
-        code, body = _req(base+f"/api/articles/{art_id}")
+        code, body = _req(base + f"/api/articles/{art_id}")
         assert code == 200
         got = json.loads(body)
         assert got["title"] == "T1"
 
         # Update
-        code, body = _req(base+f"/api/articles/{art_id}", method="PUT", data={"title": "T2"})
+        code, body = _req(
+            base + f"/api/articles/{art_id}", method="PUT", data={"title": "T2"}
+        )
         assert code == 200
         updated = json.loads(body)
         assert updated["title"] == "T2"
 
         # Delete
-        code, _ = _req(base+f"/api/articles/{art_id}", method="DELETE")
+        code, _ = _req(base + f"/api/articles/{art_id}", method="DELETE")
         assert code == 204
 
         # Ensure gone
         try:
-            _req(base+f"/api/articles/{art_id}")
+            _req(base + f"/api/articles/{art_id}")
             assert False, "Expected 404"
         except urllib.error.HTTPError as e:
             assert e.code == 404

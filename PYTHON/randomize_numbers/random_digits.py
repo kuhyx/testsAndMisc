@@ -1,6 +1,7 @@
 import random
-import sys
 import re
+import sys
+
 
 def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
     randomized_numbers = []
@@ -13,9 +14,10 @@ def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
         randomized_numbers.append(new_number)
     return randomized_numbers
 
+
 def parse_input(input_string):
     # Replace commas with dots and remove non-numeric characters except dots, commas, and digits
-    cleaned_input = re.sub(r'[^\d.,\s]', '', input_string).replace(',', '.')
+    cleaned_input = re.sub(r"[^\d.,\s]", "", input_string).replace(",", ".")
     # Split the cleaned input into individual numbers
     number_strings = cleaned_input.split()
     # Convert the number strings to floats
@@ -24,8 +26,8 @@ def parse_input(input_string):
     for num in number_strings:
         try:
             float_num = float(num)
-            if '.' in num:
-                digits_count = len(num.split('.')[-1])
+            if "." in num:
+                digits_count = len(num.split(".")[-1])
             else:
                 digits_count = 0
             numbers.append(float_num)
@@ -34,13 +36,16 @@ def parse_input(input_string):
             continue
     return numbers, decimal_counts
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python random_digits.py <number1> <number2> ... [min_percentage max_percentage]")
+        print(
+            "Usage: python random_digits.py <number1> <number2> ... [min_percentage max_percentage]"
+        )
         sys.exit(1)
 
     try:
-        input_string = ' '.join(sys.argv[1:])
+        input_string = " ".join(sys.argv[1:])
         numbers, decimal_counts = parse_input(input_string)
         min_percentage = 1
         max_percentage = 20
@@ -62,7 +67,7 @@ if __name__ == "__main__":
         randomized_numbers = randomize_numbers(numbers, min_percentage, max_percentage)
         formatted_numbers = []
         for i, num in enumerate(randomized_numbers):
-            format_str = f'.{decimal_counts[i]}f'
+            format_str = f".{decimal_counts[i]}f"
             formatted_numbers.append(float(format(num, format_str)))
 
         print("Original numbers:", numbers)
@@ -71,4 +76,3 @@ if __name__ == "__main__":
         print(f"Error: {e}")
         print("Please provide valid numbers and percentages.")
         sys.exit(1)
-

@@ -1,6 +1,5 @@
 import csv
 import os
-from typing import List, Tuple
 
 import chess
 import pytest
@@ -8,12 +7,11 @@ import pytest
 from PYTHON.lichess_bot.engine import RandomEngine
 
 
-def _load_top_puzzles(csv_path: str, limit: int = 8) -> List[Tuple[str, str]]:
-    """
-    Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
+def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
+    """Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
     CSV columns: PuzzleId,FEN,Moves,...
     """
-    puzzles: List[Tuple[str, str]] = []
+    puzzles: list[tuple[str, str]] = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -28,7 +26,9 @@ def _load_top_puzzles(csv_path: str, limit: int = 8) -> List[Tuple[str, str]]:
 
 @pytest.mark.parametrize(
     "fen,moves_str",
-    _load_top_puzzles(os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv"), limit=8),
+    _load_top_puzzles(
+        os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv"), limit=8
+    ),
 )
 def test_puzzle_engine_follow_solution(fen: str, moves_str: str):
     board = chess.Board(fen)
@@ -46,7 +46,11 @@ def test_puzzle_engine_follow_solution(fen: str, moves_str: str):
         # If engine move differs from solution, fail immediately but provide analysis of the correct move
         if mv.uci() != uci:
             # Ask the engine to analyze the correct move for debug
-            score_cp, proposed_expl, best_mv, best_expl = eng.evaluate_proposed_move_with_suggestion(board, uci, time_budget_sec=0.5)
+            score_cp, proposed_expl, best_mv, best_expl = (
+                eng.evaluate_proposed_move_with_suggestion(
+                    board, uci, time_budget_sec=0.5
+                )
+            )
             details = [
                 f"Puzzle failed at step {step}.",
                 f"FEN: {fen}",

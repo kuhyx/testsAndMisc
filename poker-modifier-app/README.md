@@ -47,7 +47,10 @@ A fun web application that randomly applies modifiers to Texas Hold'em poker gam
 You can easily add new modifiers by using the `addModifier()` method:
 
 ```javascript
-window.pokerApp.addModifier("Your Modifier Name", "Description of what it does");
+window.pokerApp.addModifier(
+  "Your Modifier Name",
+  "Description of what it does",
+);
 ```
 
 ## Browser Compatibility

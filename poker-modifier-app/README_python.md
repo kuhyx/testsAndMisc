@@ -32,6 +32,7 @@ python poker_modifier_app.py
 ## Modifiers Included
 
 ### Classic Poker Modifiers
+
 - **High Stakes**: All bets are doubled
 - **Wild Card**: Next card can be used as any card
 - **Bluff Master**: See one opponent's card before betting
@@ -51,6 +52,7 @@ python poker_modifier_app.py
 ## Modifiers Included
 
 ### Classic Poker Modifiers
+
 - **High Stakes**: All bets are doubled
 - **Wild Card**: Next card can be used as any card
 - **Bluff Master**: See one opponent's card before betting
@@ -68,6 +70,7 @@ python poker_modifier_app.py
 - **Chip Challenge**: Winner gets extra house chips
 
 ### Drinking Game Modifiers
+
 - **Red or Black**: Guess community card colors for double winnings
 - **Pocket Rockets**: Pocket Aces trigger drinks for everyone else
 - **Rainbow Flop**: 3-suit flop boosts flush draws

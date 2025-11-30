@@ -9,7 +9,9 @@ Mini Articles (<=14KB)
   - Local persistence via localStorage (no server required)
 
 How to open
+
 - Open `site/index.html` in a browser.
 
 Tests
+
 - `pytest` includes a test to enforce the 14KB budget for `index.html`.

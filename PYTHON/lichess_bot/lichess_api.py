@@ -1,26 +1,29 @@
+from collections.abc import Generator
 import json
 import logging
 import time
-from typing import Dict, Generator, Optional, Tuple
 
-import requests
 import chess
-
+import requests
 
 LICHESS_API = "https://lichess.org"
 
 
 class LichessAPI:
-    def __init__(self, token: str, session: Optional[requests.Session] = None):
+    def __init__(self, token: str, session: requests.Session | None = None):
         self.token = token
         self.session = session or requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {self.token}",
-            "Accept": "application/json",
-            "User-Agent": "minimal-lichess-bot/0.1 (+https://lichess.org)"
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {self.token}",
+                "Accept": "application/json",
+                "User-Agent": "minimal-lichess-bot/0.1 (+https://lichess.org)",
+            }
+        )
 
-    def _request(self, method: str, url: str, *, raise_for_status: bool = False, **kwargs) -> requests.Response:
+    def _request(
+        self, method: str, url: str, *, raise_for_status: bool = False, **kwargs
+    ) -> requests.Response:
         """Wrapper around session.request that logs every request/response.
 
         - Logs start (method+URL) and end (status, elapsed).
@@ -32,7 +35,7 @@ class LichessAPI:
         try:
             r = self.session.request(method, url, **kwargs)
         except Exception as e:
-            logging.error(f"HTTP {method} {url} -> exception: {e}")
+            logging.exception(f"HTTP {method} {url} -> exception: {e}")
             raise
         elapsed = time.monotonic() - t0
         status = r.status_code
@@ -45,7 +48,9 @@ class LichessAPI:
             except Exception:
                 snippet = None
             if snippet:
-                logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s body='{snippet}'")
+                logging.warning(
+                    f"HTTP {method} {url} -> {status} in {elapsed:.2f}s body='{snippet}'"
+                )
             else:
                 logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s")
         else:
@@ -54,14 +59,16 @@ class LichessAPI:
             r.raise_for_status()
         return r
 
-    def stream_events(self) -> Generator[Dict, None, None]:
+    def stream_events(self) -> Generator[dict, None, None]:
         url = f"{LICHESS_API}/api/stream/event"
         backoff = 0.5
         while True:
             try:
                 # Use NDJSON Accept and no timeout for long-lived stream
                 headers = {"Accept": "application/x-ndjson"}
-                with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
+                with self._request(
+                    "GET", url, headers=headers, stream=True, timeout=None
+                ) as r:
                     r.raise_for_status()
                     backoff = 0.5  # reset on success
                     for line in r.iter_lines(decode_unicode=True):
@@ -89,7 +96,9 @@ class LichessAPI:
         data = {"reason": reason}
         self._request("POST", url, data=data, timeout=30, raise_for_status=True)
 
-    def join_game_stream(self, game_id: str, my_color: Optional[str]) -> Tuple[chess.Board, str]:
+    def join_game_stream(
+        self, game_id: str, my_color: str | None
+    ) -> tuple[chess.Board, str]:
         """Deprecated: use stream_game_events and parse initial state there."""
         # Fallback to initial behavior for compatibility
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
@@ -125,7 +134,7 @@ class LichessAPI:
                     break
         return board, color
 
-    def stream_game_events(self, game_id: str) -> Generator[Dict, None, None]:
+    def stream_game_events(self, game_id: str) -> Generator[dict, None, None]:
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
         headers = {"Accept": "application/x-ndjson"}
         with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
@@ -151,11 +160,11 @@ class LichessAPI:
             r = self._request("POST", url, timeout=30)
         r.raise_for_status()
 
-    def get_game_state(self, game_id: str) -> Optional[Dict]:
+    def get_game_state(self, game_id: str) -> dict | None:
         """Deprecated: use stream_game_events in a persistent loop."""
         return None
 
-    def get_my_user_id(self) -> Optional[str]:
+    def get_my_user_id(self) -> str | None:
         url = f"{LICHESS_API}/api/account"
         r = self._request("GET", url, timeout=30)
         if r.status_code == 200:

@@ -7,7 +7,7 @@ The imageviewer project uses secure coding practices with proper bounds checking
 ### Why These Warnings Appear
 
 The static analyzer flags standard C library functions like:
-- `memcpy()` - suggests using `memcpy_s()` 
+- `memcpy()` - suggests using `memcpy_s()`
 - `snprintf()` - suggests using `snprintf_s()`
 - `strncpy()` - suggests using `strncpy_s()`
 

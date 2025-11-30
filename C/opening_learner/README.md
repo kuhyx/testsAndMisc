@@ -18,9 +18,11 @@ Run:
 ```
 
 Tips:
+
 - ESC clears selection.
 - Press `m` to cycle to a stored mistake position and practice the best move there.
 - If you play Black, the board flips so Black is at the bottom.
 
 Notes:
+
 - Rendering avoids TTF dependency; pieces are clear, high-contrast geometric glyphs.
