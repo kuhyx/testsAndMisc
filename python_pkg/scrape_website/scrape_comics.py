@@ -2,7 +2,7 @@
 
 import argparse
 import logging
-import os
+from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
@@ -34,15 +34,16 @@ driver.get(url)
 def download_image(url: str) -> bool:
     """Download an image from a URL and save it locally."""
     # Extract image name from URL
-    image_name = os.path.basename(urlparse(url).path)
+    image_name = Path(urlparse(url).path).name
+    image_path = Path(image_name)
 
     # Check if the image already exists
-    if os.path.exists(image_name):
+    if image_path.exists():
         _logger.info("Image %s already exists, skipping download.", image_name)
         return False
     _logger.info("Downloading image from URL: %s", url)
     img_data = requests.get(url, timeout=REQUEST_TIMEOUT).content
-    with open(image_name, "wb") as handler:
+    with open(image_path, "wb") as handler:
         handler.write(img_data)
     _logger.info("Image %s downloaded successfully", image_name)
     return True

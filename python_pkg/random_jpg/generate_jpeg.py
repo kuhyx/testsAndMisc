@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
-import os
+from pathlib import Path
 import secrets
 
 from PIL import Image
@@ -66,20 +66,18 @@ def generate_bloated_jpeg(config: ImageConfig, image_index: int, folder: str) ->
                     pixels[x + i, y + j] = color
 
     # Create the folder if it does not exist
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    folder_path = Path(folder)
+    folder_path.mkdir(parents=True, exist_ok=True)
 
     # Generate unique output path
-    unique_output_path = os.path.join(
-        folder,
-        f"{os.path.splitext(config.output_path)[0]}_{image_index}"
-        f"{os.path.splitext(config.output_path)[1]}",
-    )
+    output_stem = Path(config.output_path).stem
+    output_suffix = Path(config.output_path).suffix
+    unique_output_path = folder_path / f"{output_stem}_{image_index}{output_suffix}"
 
     # Save the image with specified quality to maximize file size
     image.save(unique_output_path, "JPEG", quality=config.quality, optimize=False)
 
-    return unique_output_path
+    return str(unique_output_path)
 
 
 if __name__ == "__main__":
@@ -162,4 +160,4 @@ if __name__ == "__main__":
     )
     for i in range(1, args.num_images + 1):
         output_path = generate_bloated_jpeg(config, i, folder)
-        _logger.info("Image %s saved to %s", i, os.path.abspath(output_path))
+        _logger.info("Image %s saved to %s", i, Path(output_path).resolve())

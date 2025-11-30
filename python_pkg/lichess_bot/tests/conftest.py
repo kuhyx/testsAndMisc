@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import sys
 
@@ -6,7 +5,7 @@ import pytest
 
 # Add repository root to sys.path so 'import python_pkg.*' works when running
 # pytest with a subdirectory as rootdir.
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+ROOT = str(Path(__file__).resolve().parent.parent.parent.parent)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
