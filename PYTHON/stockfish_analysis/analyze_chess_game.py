@@ -125,6 +125,7 @@ def classify_cp_loss(cp_loss: int | None) -> str:
 
 
 def fmt_eval(cp: int | None, mate_in: int | None) -> str:
+    """Format evaluation score as human-readable string."""
     if mate_in is not None:
         sign = "+" if mate_in > 0 else ""
         return f"M{sign}{mate_in}"
@@ -201,6 +202,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
 
 
 def main():
+    """Parse arguments and run chess game analysis."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(
         description="Analyze a chess game's moves with Stockfish and rate each move."

@@ -1,3 +1,5 @@
+"""Test the engine against Lichess puzzles."""
+
 import csv
 import os
 
@@ -9,6 +11,7 @@ from PYTHON.lichess_bot.engine import RandomEngine
 
 def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
     """Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
+
     CSV columns: PuzzleId,FEN,Moves,...
     """
     puzzles: list[tuple[str, str]] = []
@@ -31,6 +34,7 @@ def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
     ),
 )
 def test_puzzle_engine_follow_solution(fen: str, moves_str: str):
+    """Verify the engine follows puzzle solutions correctly."""
     board = chess.Board(fen)
     eng = RandomEngine(max_time_sec=1.0)
 

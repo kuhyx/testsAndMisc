@@ -48,6 +48,8 @@ logging.basicConfig(level=logging.INFO)
 
 @dataclass
 class Blunder:
+    """Data class representing a blunder move from analysis."""
+
     ply: int
     side: str  # 'W' or 'B'
     san: str  # SAN of the played blunder
@@ -55,6 +57,7 @@ class Blunder:
 
 
 def parse_columns_for_blunders(text: str) -> list[Blunder]:
+    """Parse the Columns section of a log file to extract blunders."""
     lines = text.splitlines()
     # Find start of "Columns:" block
     try:
@@ -107,6 +110,7 @@ def parse_columns_for_blunders(text: str) -> list[Blunder]:
 
 
 def extract_pgn(text: str) -> str | None:
+    """Extract the PGN block from a log file."""
     # Extract the PGN block after a line that is exactly 'PGN:' or starts with it
     m = re.search(r"^PGN:\s*$", text, flags=re.MULTILINE)
     if not m:
@@ -117,6 +121,7 @@ def extract_pgn(text: str) -> str | None:
 
 
 def san_list_from_game(game: chess.pgn.Game) -> list[str]:
+    """Extract the list of SAN moves from a PGN game."""
     san_moves: list[str] = []
     node = game
     while node.variations:
@@ -128,6 +133,7 @@ def san_list_from_game(game: chess.pgn.Game) -> list[str]:
 def fen_and_uci_for_blunders(
     pgn_text: str, blunders: list[Blunder]
 ) -> list[tuple[str, str, str, Blunder]]:
+    """Convert blunders to (FEN, UCI, best_UCI, Blunder) tuples."""
     game = chess.pgn.read_game(io.StringIO(pgn_text))
     if game is None:
         msg = "Failed to parse PGN from log"
@@ -173,6 +179,7 @@ def fen_and_uci_for_blunders(
 
 
 def ensure_unified_test_file(target_path: str) -> None:
+    """Create the unified test file skeleton if it doesn't exist."""
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
     if os.path.exists(target_path):
         return
@@ -370,6 +377,7 @@ def _process_single_log(log_path: str) -> int:
 
 
 def main(argv: list[str]) -> int:
+    """Process log files and generate blunder test cases."""
     script_dir = os.path.dirname(__file__)
     past_dir = os.path.abspath(os.path.join(script_dir, "past_games"))
 

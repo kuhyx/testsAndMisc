@@ -33,15 +33,7 @@ ignore = [
     "D213",    # Multi-line docstring summary should start at second line (conflicts with D212)
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
-    "ANN101",  # Missing type annotation for self (deprecated)
-    "ANN102",  # Missing type annotation for cls (deprecated)
     # Relaxed for script-heavy repository
-    "D100",    # Missing docstring in public module - scripts don't need module docstrings
-    "D101",    # Missing docstring in public class - relaxed
-    "D102",    # Missing docstring in public method - relaxed
-    "D103",    # Missing docstring in public function - relaxed
-    "D104",    # Missing docstring in public package - relaxed
-    "D107",    # Missing docstring in __init__ - relaxed
     "D205",    # Missing blank line after summary - relaxed
     "D415",    # Missing terminal punctuation - relaxed for scripts
     "INP001",  # Implicit namespace package - this is a scripts repo
@@ -98,11 +90,9 @@ ignore = [
     "B023",    # function-uses-loop-variable - common pattern with closures
     "B904",    # raise-without-from - style preference
     "DTZ005",  # datetime.now without tz - acceptable for local scripts
-    "UP038",   # isinstance union type - py3.10+ style, not required
     "E741",    # ambiguous-variable-name - sometimes intentional (e.g. l for list)
     "DTZ004",  # datetime.utcfromtimestamp - acceptable
     "E722",    # bare-except - will be fixed where critical
-    "E741",    # ambiguous-variable-name - sometimes intentional
     "PT017",   # pytest-assert-in-except - acceptable pattern
 ]
 

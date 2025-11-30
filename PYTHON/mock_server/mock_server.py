@@ -1,7 +1,10 @@
+"""Mitmproxy addon to simulate connection failures."""
+
 from mitmproxy import http
 
 
 def request(flow: http.HTTPFlow) -> None:
+    """Intercept requests and simulate failures for specific hosts."""
     # Only intercept traffic to example.com
     if "example.com" in flow.request.host:
         flow.response = http.Response.make(

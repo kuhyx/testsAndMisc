@@ -1,3 +1,5 @@
+"""Integration tests for the articles C server API."""
+
 import json
 import os
 from pathlib import Path
@@ -9,7 +11,8 @@ import urllib.request
 
 
 def _req(url, method="GET", data=None):
-    if data is not None and not isinstance(data, (bytes, bytearray)):
+    """Send an HTTP request and return status code and body."""
+    if data is not None and not isinstance(data, bytes | bytearray):
         data = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
@@ -19,6 +22,7 @@ def _req(url, method="GET", data=None):
 
 
 def test_crud_roundtrip(tmp_path):
+    """Test full CRUD lifecycle for articles API."""
     # Build C server
     here = Path(__file__).resolve().parent
     subprocess.run(["make", "-s", "server_c"], check=True, cwd=str(here))

@@ -1,3 +1,5 @@
+"""Chess engine wrapper for the C-based random/scoring engine."""
+
 import os
 import subprocess
 
@@ -23,6 +25,7 @@ class RandomEngine:
         max_time_sec: float = 2.0,
         depth: int | None = None,
     ):
+        """Initialize the engine wrapper with path and time settings."""
         self.max_time_sec = max_time_sec
         # depth is accepted for compatibility with existing callers but is unused;
         # the C engine handles its own scoring/selection.
@@ -67,6 +70,7 @@ class RandomEngine:
         return (proc.stdout or "").strip()
 
     def choose_move(self, board: chess.Board) -> chess.Move:
+        """Choose a move for the given board position."""
         mv, _ = self.choose_move_with_explanation(
             board, time_budget_sec=self.max_time_sec
         )
@@ -75,6 +79,7 @@ class RandomEngine:
     def choose_move_with_explanation(
         self, board: chess.Board, *, time_budget_sec: float
     ) -> tuple[chess.Move | None, str]:
+        """Choose a move and return explanation for the decision."""
         # Collect legal moves and send to engine as plain UCI tokens.
         legal = list(board.legal_moves)
         if not legal:
@@ -135,7 +140,7 @@ class RandomEngine:
             # candidate score if provided
             analyze = data.get("analyze") or {}
             cs = analyze.get("candidate_score")
-            if isinstance(cs, (int, float)):
+            if isinstance(cs, int | float):
                 cand_score = float(cs)
             # best move
             chosen = data.get("chosen_move")

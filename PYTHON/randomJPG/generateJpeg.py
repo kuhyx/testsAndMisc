@@ -1,3 +1,5 @@
+"""Generate random colorful JPEG images with configurable parameters."""
+
 import argparse
 from datetime import datetime
 import logging

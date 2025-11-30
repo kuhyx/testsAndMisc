@@ -1,3 +1,6 @@
+"""Distribute values symmetrically across N parts."""
+
+
 def calculate_symmetric_weights(N, middle_weight, factors=None):
     """Calculate symmetric weights for both even and odd N.
 

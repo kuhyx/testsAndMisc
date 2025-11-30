@@ -1,3 +1,8 @@
+"""Download cat images from TheCatAPI.
+
+Fetches cat images in batches and saves them to a local directory.
+"""
+
 import json
 import logging
 import os

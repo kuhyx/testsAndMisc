@@ -1,7 +1,10 @@
+"""Tests for utility functions."""
+
 from PYTHON.lichess_bot.utils import backoff_sleep
 
 
 def test_backoff_sleep_increments_and_caps(monkeypatch):
+    """Test that backoff sleep increments and respects the cap."""
     slept = []
 
     def fake_sleep(sec):
