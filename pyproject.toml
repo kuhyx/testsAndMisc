@@ -44,9 +44,9 @@ ignore = [
 fixable = ["ALL"]
 unfixable = []
 
-# Per-file ignores for test files
+# Per-file ignores
 [tool.ruff.lint.per-file-ignores]
-# Test files - allow test-specific patterns
+# Test files - allow test-specific patterns (assert, magic values, subprocess)
 "**/tests/**/*.py" = [
     "S101",    # Allow assert in tests
     "S603",    # Allow subprocess calls in tests
@@ -58,6 +58,7 @@ unfixable = []
     "S310",    # Allow URL open in tests
     "S607",    # Allow partial executable path in tests
     "PLC0415", # Allow late imports for test isolation
+    "PLR2004", # Allow magic values in tests
 ]
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
