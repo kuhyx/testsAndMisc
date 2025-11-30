@@ -35,12 +35,9 @@ ignore = [
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     # Relaxed for script-heavy repository
     "PTH",     # Use pathlib instead of os.path - too invasive for existing code
-    "C901",    # Function is too complex - many scripts have complex logic
     "BLE001",  # Blind except - will fix critical ones manually
     "S603",    # subprocess without shell - known pattern
     "S607",    # start-process with partial path - acceptable
-    "N803",    # invalid-argument-name - chess notation uses uppercase
-    "N999",    # invalid-module-name - PYTHON folder name
     "LOG015",  # root-logger-call - common in scripts
     "G004",    # logging-f-string - common pattern
     "S311",    # suspicious-non-cryptographic-random - not security critical
@@ -76,6 +73,16 @@ unfixable = []
     "D100",    # Allow missing module docstring
     "D103",    # Allow missing function docstring
 ]
+# N999 ignores for PYTHON folder naming (uppercase folder)
+"PYTHON/**/__init__.py" = [
+    "N999",    # Invalid module name due to PYTHON folder naming
+]
+"PYTHON/randomJPG/generateJpeg.py" = [
+    "N999",    # camelCase filename preserved for compatibility
+]
+"PYTHON/tagDivider/tagDivider.py" = [
+    "N999",    # camelCase filename preserved for compatibility
+]
 "poker-modifier-app/*.py" = [
     "INP001",  # Folder has hyphen, can't be a valid Python package
 ]
@@ -83,11 +90,13 @@ unfixable = []
     "PERF203", # Try-except needed for download resilience in loop
 ]
 "PYTHON/lichess_bot/main.py" = [
+    "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
     "PERF203", # Try-except needed for stream/move error handling in loops
     "PLR0912", # Complex nested game event handling with many branches
     "PLR0915", # Long function handling complete game lifecycle
 ]
 "PYTHON/stockfish_analysis/analyze_chess_game.py" = [
+    "C901",    # Complex main() with many argument combinations and analysis modes
     "PLR0912", # Complex main() with many argument combinations and analysis modes
     "PLR0915", # Long main() handling complete analysis workflow
 ]
