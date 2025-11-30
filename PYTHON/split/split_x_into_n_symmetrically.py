@@ -20,7 +20,7 @@ def calculate_symmetric_weights(N, middle_weight, factors=None):
     if N % 2 == 0:
         weights = weights_left[::-1] + weights_left
     else:
-        weights = weights_left[::-1] + [middle_weight] + weights_left
+        weights = [*weights_left[::-1], middle_weight, *weights_left]
 
     return weights
 
@@ -33,9 +33,7 @@ def scale_to_total(X, weights):
     """
     total_weight = sum(weights)
     base_unit = X / total_weight
-    distances = [base_unit * weight for weight in weights]
-
-    return distances
+    return [base_unit * weight for weight in weights]
 
 
 def split_x_into_n_symmetrically(X, N, factors):

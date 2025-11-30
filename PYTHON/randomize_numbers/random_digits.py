@@ -1,3 +1,4 @@
+import contextlib
 import random
 import re
 import sys
@@ -26,10 +27,7 @@ def parse_input(input_string):
     for num in number_strings:
         try:
             float_num = float(num)
-            if "." in num:
-                digits_count = len(num.split(".")[-1])
-            else:
-                digits_count = 0
+            digits_count = len(num.split(".")[-1]) if "." in num else 0
             numbers.append(float_num)
             decimal_counts.append(digits_count)
         except ValueError:
@@ -39,9 +37,7 @@ def parse_input(input_string):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(
-            "Usage: python random_digits.py <number1> <number2> ... [min_percentage max_percentage]"
-        )
+        print("Usage: python random_digits.py <number1> <number2> ... [min_percentage max_percentage]")
         sys.exit(1)
 
     try:
@@ -51,18 +47,15 @@ if __name__ == "__main__":
         max_percentage = 20
 
         if len(numbers) == 0:
-            raise ValueError("No valid numbers provided.")
+            msg = "No valid numbers provided."
+            raise ValueError(msg)
 
         if len(sys.argv) > len(numbers) + 1:
-            try:
+            with contextlib.suppress(ValueError):
                 min_percentage = float(sys.argv[len(numbers) + 1])
-            except ValueError:
-                pass
         if len(sys.argv) > len(numbers) + 2:
-            try:
+            with contextlib.suppress(ValueError):
                 max_percentage = float(sys.argv[len(numbers) + 2])
-            except ValueError:
-                pass
 
         randomized_numbers = randomize_numbers(numbers, min_percentage, max_percentage)
         formatted_numbers = []

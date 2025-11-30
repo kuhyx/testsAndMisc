@@ -84,10 +84,11 @@ def parse_columns_for_blunders(text: str) -> list[Blunder]:
         if clazz == "Blunder":
             # Require best suggestion to be provided; if it's missing, raise
             if not best_suggestion_san:
-                raise ValueError(
+                msg = (
                     f"Missing best_suggestion in Columns for blunder row: ply={ply} side={side} move={move_san}.\n"
                     f"Raw line: '{ln.strip()}'"
                 )
+                raise ValueError(msg)
             blunders.append(
                 Blunder(
                     ply=ply,
@@ -118,12 +119,11 @@ def san_list_from_game(game: chess.pgn.Game) -> list[str]:
     return san_moves
 
 
-def fen_and_uci_for_blunders(
-    pgn_text: str, blunders: list[Blunder]
-) -> list[tuple[str, str, str, Blunder]]:
+def fen_and_uci_for_blunders(pgn_text: str, blunders: list[Blunder]) -> list[tuple[str, str, str, Blunder]]:
     game = chess.pgn.read_game(io.StringIO(pgn_text))
     if game is None:
-        raise RuntimeError("Failed to parse PGN from log")
+        msg = "Failed to parse PGN from log"
+        raise RuntimeError(msg)
 
     main_sans = san_list_from_game(game)
     results: list[tuple[str, str, str, Blunder]] = []
@@ -152,10 +152,11 @@ def fen_and_uci_for_blunders(
             best_move = board.parse_san(bl.best_suggestion_san)
             best_uci = best_move.uci()
         except Exception as e:
-            raise ValueError(
+            msg = (
                 f"Failed to parse best_suggestion SAN '{bl.best_suggestion_san}' at ply {bl.ply} side {bl.side} "
                 f"in position FEN: {fen_before}. Error: {e}"
             )
+            raise ValueError(msg)
         results.append((fen_before, move.uci(), best_uci, bl))
     return results
 
@@ -205,9 +206,7 @@ def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
         )
 
 
-def append_cases_to_unified_test(
-    unified_path: str, cases: list[tuple[str, str, str, Blunder]]
-) -> int:
+def append_cases_to_unified_test(unified_path: str, cases: list[tuple[str, str, str, Blunder]]) -> int:
     """Append new cases to BLUNDER_CASES in the unified test file, skipping duplicates.
 
     Returns the number of cases actually appended.
@@ -243,9 +242,7 @@ def append_cases_to_unified_test(
                 if re.search(pattern_no_best, content):
                     content = re.sub(
                         pattern_no_best,
-                        lambda m: m.group(0).replace(
-                            m.group(1), f"{base_label}_best_{best_uci}"
-                        ),
+                        lambda m: m.group(0).replace(m.group(1), f"{base_label}_best_{best_uci}"),
                         content,
                         count=1,
                     )
@@ -253,9 +250,7 @@ def append_cases_to_unified_test(
                 elif re.search(pattern_with_best, content):
                     content = re.sub(
                         pattern_with_best,
-                        lambda m: m.group(0).replace(
-                            m.group(1), f"{base_label}_best_{best_uci}"
-                        ),
+                        lambda m: m.group(0).replace(m.group(1), f"{base_label}_best_{best_uci}"),
                         content,
                         count=1,
                     )
@@ -312,9 +307,7 @@ def _process_single_log(log_path: str) -> int:
         print(f"Error converting SAN to UCI in {os.path.basename(log_path)}: {e}")
         return 2
     if not cases:
-        print(
-            f"Failed to reconstruct any blunder positions from PGN: {os.path.basename(log_path)}"
-        )
+        print(f"Failed to reconstruct any blunder positions from PGN: {os.path.basename(log_path)}")
         return 1
 
     base = os.path.basename(log_path)
@@ -322,14 +315,10 @@ def _process_single_log(log_path: str) -> int:
     game_id = m.group(1) if m else os.path.splitext(base)[0]
 
     # Always append to the unified test file
-    unified = os.path.join(
-        os.path.dirname(__file__), "..", "tests", "test_blunders_all.py"
-    )
+    unified = os.path.join(os.path.dirname(__file__), "..", "tests", "test_blunders_all.py")
     unified = os.path.abspath(unified)
     added = append_cases_to_unified_test(unified, cases)
-    print(
-        f"Appended {added} new blunder checks to {os.path.relpath(unified)} (game {game_id})."
-    )
+    print(f"Appended {added} new blunder checks to {os.path.relpath(unified)} (game {game_id}).")
     return 0
 
 
@@ -357,9 +346,7 @@ def main(argv: list[str]) -> int:
             rc = _process_single_log(lp)
             if rc == 0:
                 ok += 1
-        print(
-            f"Processed {len(logs)} logs from {past_dir}, succeeded: {ok}, failed: {len(logs) - ok}"
-        )
+        print(f"Processed {len(logs)} logs from {past_dir}, succeeded: {ok}, failed: {len(logs) - ok}")
         return 0 if ok > 0 else 1
 
     # One argument: game id or file path

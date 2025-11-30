@@ -16,4 +16,6 @@ def test_backoff_sleep_increments_and_caps(monkeypatch):
     assert b >= 1
     assert len(slept) == 3
     # 0.1, 0.2, 0.3 (capped)
-    assert slept[0] == 0.1 and slept[1] == 0.2 and slept[2] == 0.3
+    assert slept[0] == 0.1
+    assert slept[1] == 0.2
+    assert slept[2] == 0.3

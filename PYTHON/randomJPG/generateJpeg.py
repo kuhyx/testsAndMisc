@@ -6,9 +6,7 @@ import random
 from PIL import Image
 
 
-def generate_bloated_jpeg(
-    size, color_list, block_size, output_path, quality, image_index, folder
-):
+def generate_bloated_jpeg(size, color_list, block_size, output_path, quality, image_index, folder):
     """Generates a random JPEG image with given size, list of colors, and block size.
 
     Args:
@@ -22,16 +20,15 @@ def generate_bloated_jpeg(
     """
     # Ensure size is divisible by block_size and does not exceed 1000 pixels
     if size > 1000 or size % block_size != 0:
-        raise ValueError("Size must be 1000 pixels or less and divisible by block_size")
+        msg = "Size must be 1000 pixels or less and divisible by block_size"
+        raise ValueError(msg)
 
     # Create a new image
     image = Image.new("RGB", (size, size))
     pixels = image.load()
 
     # Convert hex colors to RGB
-    rgb_colors = [
-        tuple(int(color[i : i + 2], 16) for i in (1, 3, 5)) for color in color_list
-    ]
+    rgb_colors = [tuple(int(color[i : i + 2], 16) for i in (1, 3, 5)) for color in color_list]
 
     # Fill the image with block_size x block_size pixel squares of random colors from the list
     for y in range(0, size, block_size):
@@ -58,9 +55,7 @@ def generate_bloated_jpeg(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate bloated JPEG images with random colors."
-    )
+    parser = argparse.ArgumentParser(description="Generate bloated JPEG images with random colors.")
     parser.add_argument(
         "-n",
         "--num_images",
@@ -80,7 +75,7 @@ if __name__ == "__main__":
         "--colors",
         nargs="+",
         default=["#FF5733", "#33FF57", "#3357FF", "#F3FF33", "#FF33F6", "#33FFF6"],
-        help="List of colors in hex format. Default is ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F6', '#33FFF6'].",
+        help="List of colors in hex format. Uses 6 default colors if not specified.",
     )
     parser.add_argument(
         "-b",
