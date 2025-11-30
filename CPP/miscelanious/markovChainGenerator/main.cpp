@@ -43,7 +43,7 @@ std::vector <std::string> divideIntoWords(const std::string userInput)
 			words.push_back(userInput.substr(i - wordLength, wordLength));
 			wordLength = 0;
 		}else wordLength++;
-		
+
 		if(i + 1 == inputLength)
 		{
 			words.push_back(userInput.substr(i - wordLength + 1, wordLength + 1));
@@ -89,7 +89,7 @@ std::vector <previousWords> getWordsAndTheirPrevious(const std::vector <std::str
 			wordsList.push_back(temp);
 		}else
 		{
-			
+
 			wordsList.at(position).previousWords.push_back(temp.previousWords.at(0));
 		}
 	}
@@ -110,7 +110,7 @@ void printPreviousWordsVector(const std::vector <previousWords> v)
 {
 	for(unsigned int i = 0; i < v.size(); i++)
 	{
-		printPreviousWord(v.at(i));		
+		printPreviousWord(v.at(i));
 	}
 }
 

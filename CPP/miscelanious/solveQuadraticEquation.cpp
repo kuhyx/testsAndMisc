@@ -31,18 +31,18 @@ int main()
 	std::cin >> b;
 	std::cin >> c;
 	float delta = getDelta(a, b, c);
-	if(delta < 0) 
+	if(delta < 0)
 	{
 		print("delta smaller than 0");
 		return -1;
 	}
-	
+
 	float x_1 = calculateFirstTerm(a, b, delta);
 	float x_2 = calculateSecondTerm(a, b, delta);
 	print("Solutions:");
 	std::cout << "x_1 = " << x_1 << std::endl;
 	std::cout << "x_2 = " << x_2 <<  std::endl;
 	return 0;
-	
-	
+
+
 }

@@ -4,20 +4,19 @@
 
 Install: https://mitmproxy.org/ (install it the way they recommend for your OS, for Ubuntu specifically apt version is 4 main versions behind newest version)
 
-Run it using `mitmproxy` 
+Run it using `mitmproxy`
 
-Run your webbrowser using `127.0.0.1:8080`  as proxy 
+Run your webbrowser using `127.0.0.1:8080` as proxy
 on chromium-based browser it should be enough to do:
-`google-chrome --proxy-server=127.0.0.1:8080` 
+`google-chrome --proxy-server=127.0.0.1:8080`
 
-
-Run `mitmweb` 
+Run `mitmweb`
 
 open 127.0.0.1:808**1**
 
-Click `File` in upper left corner and then `Install Certificates`  
+Click `File` in upper left corner and then `Install Certificates`
 
-You should get a list of Windows/Linux/macOS/Firefox with certificates and how to install them 
+You should get a list of Windows/Linux/macOS/Firefox with certificates and how to install them
 
 Install certificates using those instructions
 
@@ -26,13 +25,13 @@ Install certificates using those instructions
 1. mitmproxy certificate is imported
 2. **it is set to trusted**
 
-Now all of your network communication should go through mitmproxy, you can verify it by going to 127.0.0.1:808**1** and seeing constant flow of requests 
+Now all of your network communication should go through mitmproxy, you can verify it by going to 127.0.0.1:808**1** and seeing constant flow of requests
 
 ## What can we do with it?
 
 1. Install mitmproxy python library using pip
 
-`pip install mitmproxy` 
+`pip install mitmproxy`
 
 2. Copy and paste this “hello world”:
 
@@ -51,5 +50,5 @@ def request(flow: http.HTTPFlow) -> None:
 ```
 
 3. Run it: `mitmdump -s mitm_world.py`
-4. Go to [example.com](http://example.com) 
+4. Go to [example.com](http://example.com)
 5. You should see “simulated connection failure” in plain text

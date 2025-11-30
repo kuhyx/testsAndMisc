@@ -63,10 +63,10 @@ export class AppComponent {
       const result = AppComponent.findCorrespondingValue(this.possibleValues, this.inputOne);
       if(result !== null) {
         [this.inputTwo, this.indexTwo] = result;
-        return; 
+        return;
       }
       console.error(`result is null!`);
-    } 
+    }
       console.error(`this.inputOne is null or undefined!: `, this.inputOne, this.possibleValues, this.indexOne);
     }
   }

@@ -8,8 +8,8 @@ int multiplication(int a, int b)
 	{
 		answer += b;
 	}
-	if(answer != a*b) 
-	{	
+	if(answer != a*b)
+	{
 		std::cout << "There is a mistake in your code!" << std::endl;
 		return -1;
 	} else return answer;

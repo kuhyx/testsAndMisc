@@ -1,15 +1,16 @@
-import requests 
-import json 
+import json
 import os
 from pathlib import Path
 
+import requests
+
 requests_send = 0
 while requests_send < 90:
-    res = requests.get('https://api.thecatapi.com/v1/images/search?limit=100&api_key=')
+    res = requests.get("https://api.thecatapi.com/v1/images/search?limit=100&api_key=")
     requests_send += 1
     response = json.loads(res.text)
     urls = []
-    for cat in response: 
+    for cat in response:
         urls.append(cat.get("url"))
 
     Path("./CATS2").mkdir(parents=True, exist_ok=True)
@@ -24,7 +25,7 @@ while requests_send < 90:
             image_path = os.path.join("./CATS2/", image_name)
 
             # Save the image to the directory
-            with open(image_path, 'wb') as file:
+            with open(image_path, "wb") as file:
                 file.write(response.content)
 
             print(f"Saved {url} as {image_path}")

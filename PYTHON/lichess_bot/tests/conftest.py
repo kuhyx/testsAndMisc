@@ -1,6 +1,6 @@
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Add repository root to sys.path so 'import PYTHON.*' works when running
 # pytest with a subdirectory as rootdir.

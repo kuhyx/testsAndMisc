@@ -16,7 +16,7 @@ void printCharOccurenceVector(const std::vector <charOccurence> v)
 		std::cout << "(\"" << v.at(i).c << "\", " << v.at(i).occurrence << ")" << (i + 1 == v.size() ? "" : ", ");
 	}
 	std::cout << "]" << std::endl;
-	
+
 }
 
 

@@ -23,55 +23,55 @@ void printStringNewLine(const std::string s)
 void printStringContainsNotNumbers(const std::string s, const int position)
 {
 	printStringNewLine(s);
-	std::cout << "contains character different than number at position: " << position 
-	<< "; this character is: " << s.at(position) << std::endl; 
+	std::cout << "contains character different than number at position: " << position
+	<< "; this character is: " << s.at(position) << std::endl;
 }
 
 void printStringContainsNumbers(const std::string s, const int position)
 {
 	printStringNewLine(s);
-	std::cout << "contains number at postion: " << position 
-	<< "; this number is: " << s.at(position) << std::endl; 
+	std::cout << "contains number at postion: " << position
+	<< "; this number is: " << s.at(position) << std::endl;
 }
 
 void printNumberTooLow(const int number, const int min)
 {
-	std::cout << "number: " << number 
+	std::cout << "number: " << number
 	<< " is too low. Minimal number is: " << min << std::endl;
 }
 
 void printNumberTooHigh(const int number, const int max)
 {
-	std::cout << "number: " << number 
+	std::cout << "number: " << number
 	<< " is too high. Maximal number is: " << max << std::endl;
 }
 
 void printNotValidStringLength(const std::string s, const int desiredLength)
 {
 	printStringNewLine(s);
-	std::cout << "is too short/too long, it is: " 
-	<< s.length() << " characters long but should be: " << desiredLength 
+	std::cout << "is too short/too long, it is: "
+	<< s.length() << " characters long but should be: " << desiredLength
 	<< " characters long " << std::endl;
 }
 
 void printInvalidCharacter(const char c, const char desiredCharacter)
 {
-	std::cout << "[ " << c << " ] Is invalid character, expected: [ " 
+	std::cout << "[ " << c << " ] Is invalid character, expected: [ "
 	<< desiredCharacter << " ]" << std::endl;
 }
 
-void printContainsIllegalCharacter(	const std::string s, 
+void printContainsIllegalCharacter(	const std::string s,
 									const char illegalCharacter )
 {
 	printStringNewLine(s);
-	std::cout << " consists of illegal sign: [" 
+	std::cout << " consists of illegal sign: ["
 	<< illegalCharacter << "]!" << std::endl;
 }
 
 
 bool numberTooLow(const int number, const int min)
 {
-	if(number < min) 
+	if(number < min)
 	{
 		printNumberTooLow(number, min);
 		return 1;
@@ -81,7 +81,7 @@ bool numberTooLow(const int number, const int min)
 
 bool numberTooHigh(const int number, const int max)
 {
-	if(number > max) 
+	if(number > max)
 	{
 		printNumberTooHigh(number, max);
 		return 1;
@@ -96,7 +96,7 @@ bool containsIllegalCharacter(const std::string s, const char illegalCharacter)
 		printContainsIllegalCharacter(s, illegalCharacter);
 		return 1;
 	}
-	return 0; 
+	return 0;
 }
 
 void printStringVector(const std::vector <std::string> vector)
@@ -143,7 +143,7 @@ bool validStringLength(const std::string s, const int desiredLength)
 
 bool validCharacter(const char inputC, const char desiredC)
 {
-	if(inputC != desiredC) 
+	if(inputC != desiredC)
 	{
 		printInvalidCharacter(inputC, desiredC);
 		return 0;
@@ -159,7 +159,7 @@ void vectorToFile(const std::vector <std::string> strings, std::ofstream &file)
 	}
 }
 
-std::vector <std::string> fileToVector(std::ifstream &file, 
+std::vector <std::string> fileToVector(std::ifstream &file,
 									   std::vector <std::string> strings)
 {
 	std::string line;

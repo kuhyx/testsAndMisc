@@ -1,0 +1,268 @@
+# ==============================================================================
+# Pre-commit Configuration - AGGRESSIVE Python Linting & Formatting
+# ==============================================================================
+# Install: pre-commit install
+# Run all: pre-commit run --all-files
+# Update hooks: pre-commit autoupdate
+# ==============================================================================
+
+# Global settings
+default_language_version:
+  python: python3
+
+# Fail fast on first error (set to false to see all errors)
+fail_fast: false
+
+# Configuration
+ci:
+  autofix_commit_msg: "style: auto-fix by pre-commit hooks"
+  autoupdate_commit_msg: "chore: update pre-commit hooks"
+
+repos:
+  # ===========================================================================
+  # GENERAL HOOKS - File formatting and validation
+  # ===========================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+      - id: check-toml
+      - id: check-xml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      - id: debug-statements
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-docstring-first
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: requirements-txt-fixer
+
+  # ===========================================================================
+  # RUFF - Fast Python linter and formatter (replaces black, isort, flake8, etc.)
+  # ===========================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.1
+    hooks:
+      # Linter - run first to catch issues
+      - id: ruff
+        args:
+          - --fix
+          - --exit-non-zero-on-fix
+          - --show-fixes
+        types_or: [python, pyi]
+      # Formatter - run after linting
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # ===========================================================================
+  # MYPY - Static type checking (strict mode)
+  # ===========================================================================
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args:
+          - --strict
+          - --ignore-missing-imports
+          - --show-error-codes
+          - --no-error-summary
+        additional_dependencies:
+          - types-requests
+          - types-PyYAML
+          - types-python-dateutil
+        exclude: ^(Bash/|\.venv/)
+
+  # ===========================================================================
+  # PYLINT - Comprehensive Python linter
+  # ===========================================================================
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v3.3.2
+    hooks:
+      - id: pylint
+        args:
+          - --rcfile=pyproject.toml
+          - --fail-under=5.0
+          - --jobs=0
+        additional_dependencies:
+          - python-chess
+          - requests
+          - pygame
+        exclude: ^(Bash/|\.venv/)
+
+  # ===========================================================================
+  # BANDIT - Security linter
+  # ===========================================================================
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args:
+          - -c
+          - pyproject.toml
+          - --severity-level=low
+          - --confidence-level=low
+        additional_dependencies: ["bandit[toml]"]
+        exclude: ^(Bash/|\.venv/|tests/|.*test.*\.py$)
+
+  # ===========================================================================
+  # VULTURE - Dead code detection
+  # ===========================================================================
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.13
+    hooks:
+      - id: vulture
+        args:
+          - --min-confidence=80
+          - --exclude=.venv,Bash,__pycache__
+        exclude: ^(Bash/|\.venv/)
+
+  # ===========================================================================
+  # PYUPGRADE - Upgrade Python syntax
+  # ===========================================================================
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.19.0
+    hooks:
+      - id: pyupgrade
+        args:
+          - --py310-plus
+
+  # ===========================================================================
+  # CODESPELL - Spell checking in code
+  # ===========================================================================
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args:
+          - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv
+          - --ignore-words-list=ans,ect,nd,som,sur
+        exclude: ^(Bash/ffmpeg-build/)
+
+  # ===========================================================================
+  # DOCFORMATTER - Format docstrings (using local hook due to compatibility)
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: docformatter
+        name: docformatter
+        entry: docformatter
+        language: system
+        types: [python]
+        args:
+          - --in-place
+          - --wrap-summaries=88
+          - --wrap-descriptions=88
+
+  # ===========================================================================
+  # INTERROGATE - Docstring coverage
+  # ===========================================================================
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+      - id: interrogate
+        args:
+          - --fail-under=0
+          - --verbose
+          - --ignore-init-method
+          - --ignore-init-module
+          - --ignore-magic
+          - --ignore-private
+          - --ignore-semiprivate
+          - --exclude=Bash,.venv,__pycache__
+        pass_filenames: false
+
+  # ===========================================================================
+  # AUTOFLAKE - Remove unused imports/variables
+  # ===========================================================================
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
+    hooks:
+      - id: autoflake
+        args:
+          - --in-place
+          - --remove-all-unused-imports
+          - --remove-unused-variables
+          - --remove-duplicate-keys
+          - --expand-star-imports
+
+  # ===========================================================================
+  # SAFETY - Check for security vulnerabilities in dependencies
+  # ===========================================================================
+  # Note: Safety requires API key for full functionality, disabled by default
+  # - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+  #   rev: v1.3.2
+  #   hooks:
+  #     - id: python-safety-dependencies-check
+  #       files: requirements.*\.txt$
+
+  # ===========================================================================
+  # PYRIGHT - Microsoft's type checker (very strict, optional)
+  # ===========================================================================
+  # Uncomment to enable - can be slow and very strict
+  # - repo: https://github.com/RobertCraiworthy/pyright-action
+  #   rev: v1.1.350
+  #   hooks:
+  #     - id: pyright
+
+  # ===========================================================================
+  # FLAKE8 - Traditional linter (supplementary to ruff)
+  # ===========================================================================
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args:
+          - --max-line-length=88
+          - --extend-ignore=E203,W503
+          - --max-complexity=10
+          - --statistics
+        additional_dependencies:
+          - flake8-bugbear
+          - flake8-comprehensions
+          - flake8-simplify
+          - flake8-print
+        exclude: ^(Bash/|\.venv/)
+
+  # ===========================================================================
+  # CHECK JSON/YAML/TOML formatting
+  # ===========================================================================
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [yaml, json, markdown]
+        exclude: ^(Bash/|\.venv/|.*\.lock$)
+
+  # ===========================================================================
+  # SHELLCHECK - Shell script linting
+  # ===========================================================================
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # ===========================================================================
+  # COMMITIZEN - Conventional commits (optional)
+  # ===========================================================================
+  # - repo: https://github.com/commitizen-tools/commitizen
+  #   rev: v3.13.0
+  #   hooks:
+  #     - id: commitizen
+  #     - id: commitizen-branch
+  #       stages: [push]

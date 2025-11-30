@@ -19,7 +19,7 @@ std::vector <int> fillVector(const int min, const int max)
 const int MAX_SPOT = 20;
 const int MIN_SPOT = 1;
 const std::vector <int> NORMAL_POINTS = fillVector(MIN_SPOT, MAX_SPOT);
-									
+
 std::vector <int> multiplyVector(const std::vector <int> v, int multiplyBy)
 {
 	std::vector <int> newVector;
@@ -70,7 +70,7 @@ bool validInput(const std::string s)
 
 std::vector <int> requiredShoots(const int pointsLeft)
 {
-	
+
 }
 
 
@@ -86,4 +86,4 @@ int main()
 	return 0;
 }
 
-#endif 
+#endif

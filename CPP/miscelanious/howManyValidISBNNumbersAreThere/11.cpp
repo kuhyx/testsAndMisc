@@ -41,7 +41,7 @@ bool checkInput(const std::string input)
 		}
 		for(int i = 0; i <= ISBN_LENGTH - 1; i++)
 		{
-			if(input.at(i) < '0' || input.at(i) > '9') 
+			if(input.at(i) < '0' || input.at(i) > '9')
 			{
 				print("Your number consists of illegal characters");
 				return 0;
@@ -81,12 +81,12 @@ bool checkISBN(const std::vector <int> isbn)
 		t += isbn[i];
 		sum += t;
 	}
-	
-	/*if(DEBUG) 
+
+	/*if(DEBUG)
 	{
 		if(!(sum % CHECK_NUMBER)) print("^^^ VALID NUMBER ^^^");
 	} */
-	
+
 	return !(sum % CHECK_NUMBER);
 }
 
@@ -99,7 +99,7 @@ std::vector <int> intToVector(unsigned long long int number)
 	   number /= 10;
 	}
 	std::reverse(numbers.begin(), numbers.end());
-	
+
 	return numbers;
 }
 
@@ -110,7 +110,7 @@ int checkAll()
 	int sum = 0;
 	std::ofstream file;
 	file.open("ISBN.txt");
-	for(unsigned long long int i = HIGHEST_ISBN; i >= 1; i--) 
+	for(unsigned long long int i = HIGHEST_ISBN; i >= 1; i--)
 		{
 			//if(DEBUG) std::cout << i << std::endl;
 			if( checkISBN(intToVector(i)) )

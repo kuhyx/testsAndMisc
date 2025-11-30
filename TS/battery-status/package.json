@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-  "dev": "vite",
-  "typecheck": "tsc --noEmit",
-  "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
     "preview": "vite preview --strictPort --port 5173"
   },
   "dependencies": {
@@ -14,7 +14,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-  "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "typescript": "^5.5.4",

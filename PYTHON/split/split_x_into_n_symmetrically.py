@@ -1,6 +1,5 @@
 def calculate_symmetric_weights(N, middle_weight, factors=None):
-    """
-    Calculate symmetric weights for both even and odd N.
+    """Calculate symmetric weights for both even and odd N.
 
     N: Number in which to split.
     middle_weight: The middle value for symmetry.
@@ -22,25 +21,25 @@ def calculate_symmetric_weights(N, middle_weight, factors=None):
         weights = weights_left[::-1] + weights_left
     else:
         weights = weights_left[::-1] + [middle_weight] + weights_left
-    
+
     return weights
 
+
 def scale_to_total(X, weights):
-    """
-    Scale the weights so that their sum is proportional to X.
-    
+    """Scale the weights so that their sum is proportional to X.
+
     X: Total value to distribute.
     weights: The list of weights to be scaled.
     """
     total_weight = sum(weights)
     base_unit = X / total_weight
     distances = [base_unit * weight for weight in weights]
-    
+
     return distances
 
+
 def split_x_into_n_symmetrically(X, N, factors):
-    """
-    X: Total value to distribute.
+    """X: Total value to distribute.
     N: Number in which we split.
     factors: List controlling the difference in weights between consecutive days.
              Must have length of N // 2 (if N is odd) or (N // 2 - 1) (if N is even).
@@ -48,9 +47,9 @@ def split_x_into_n_symmetrically(X, N, factors):
     weights = calculate_symmetric_weights(N, middle_weight=1, factors=factors)
     return scale_to_total(X, weights)
 
+
 def split_x_into_n_middle(X, N, middle_value):
-    """
-    X: Total value to distribute.
+    """X: Total value to distribute.
     N: Number in which we split.
     middle_value: Value of the middle number (the biggest weight).
     """

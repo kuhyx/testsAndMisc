@@ -71,13 +71,13 @@ bool game(std::string playerSequence, std::string botSequence)
         if(distribution(gen)) generatedSequence.push_back('R');
         else  generatedSequence.push_back('B');
     }
-    
+
     while(compareGeneratedAndPlayers(playerSequence, botSequence, generatedSequence) == NOBODY_WON)
     {
     	if(distribution(gen)) generatedSequence.push_back('R');
         else  generatedSequence.push_back('B');
     }
-    
+
     print(generatedSequence);
 	if(compareGeneratedAndPlayers(playerSequence, botSequence, generatedSequence) == PLAYER_WON) return PLAYER_WON;
 	else return BOT_WON;
@@ -110,13 +110,13 @@ int main()
         std::string botSequence = botChoice(playerSequence);
         print("Bot has chosen this sequence:");
         print(botSequence);
-        if(game(playerSequence, botSequence)) 
+        if(game(playerSequence, botSequence))
         {
         	print("You won!");
         	playerWins++;
         	score(playerWins, botWins);
         }
-        else 
+        else
         {
         	print("Bot won!");
         	botWins++;

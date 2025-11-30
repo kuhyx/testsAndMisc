@@ -10,7 +10,7 @@ A fun 2-player cooperative word game where players take turns selecting adjacent
 4. **Word Formation**: Continue taking turns until you want to submit a word
 5. **Scoring**: Press ENTER to submit the word. Valid words score points exponentially based on length:
    - 3 letters: 2 points
-   - 4 letters: 4 points  
+   - 4 letters: 4 points
    - 5 letters: 8 points
    - 6 letters: 16 points
    - And so on...
@@ -25,6 +25,7 @@ A fun 2-player cooperative word game where players take turns selecting adjacent
 ## Keyboard Adjacency
 
 Each key is adjacent to its neighbors (including diagonals). For example:
+
 - 'S' is adjacent to: Q, W, E, A, D, Z, X, C
 - 'F' is adjacent to: E, R, T, D, G, C, V, B
 

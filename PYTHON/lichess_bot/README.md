@@ -27,10 +27,10 @@ pip install -r PYTHON/lichess_bot/requirements.txt
 
 ## Activate BOT and get a token
 
-1) Create or use an existing Lichess account for your bot.
-2) Activate it as a BOT (one-time): https://lichess.org/api#tag/Bot
+1. Create or use an existing Lichess account for your bot.
+2. Activate it as a BOT (one-time): https://lichess.org/api#tag/Bot
    - If not already BOT, you need to convert the account; follow Lichess docs.
-3) Create a personal API token: https://lichess.org/account/oauth/token/create
+3. Create a personal API token: https://lichess.org/account/oauth/token/create
    - Grant scopes: bot:play, challenge:read, challenge:write
 
 Export the token in your shell (recommended):

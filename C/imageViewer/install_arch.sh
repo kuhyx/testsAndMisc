@@ -112,16 +112,16 @@ install_dependencies() {
 
 build_imageviewer() {
     print_step "Building imageviewer..."
-    
+
     # Check if we're in the right directory
     if [[ ! -f "main.c" ]] || [[ ! -f "Makefile" ]]; then
         print_error "main.c or Makefile not found. Please run this script from the imageViewer directory."
         exit 1
     fi
-    
+
     # Clean any previous builds
     make clean 2>/dev/null || true
-    
+
     # Build the project
     if make; then
         print_success "Build completed successfully"
@@ -129,35 +129,35 @@ build_imageviewer() {
         print_error "Build failed"
         exit 1
     fi
-    
+
     # Verify the binary was created
     if [[ ! -f "imageviewer" ]]; then
         print_error "imageviewer binary not found after build"
         exit 1
     fi
-    
+
     print_success "imageviewer binary created"
 }
 
 install_binary() {
     print_step "Installing imageviewer to ${INSTALL_DIR}..."
-    
+
     # Create install directory if it doesn't exist
     sudo mkdir -p "${INSTALL_DIR}"
-    
+
     # Copy the binary
     sudo cp imageviewer "${INSTALL_DIR}/"
     sudo chmod +x "${INSTALL_DIR}/imageviewer"
-    
+
     print_success "imageviewer installed to ${INSTALL_DIR}/imageviewer"
 }
 
 create_desktop_entry() {
     print_step "Creating desktop entry..."
-    
+
     # Create applications directory if it doesn't exist
     sudo mkdir -p "${DESKTOP_FILE_DIR}"
-    
+
     # Create desktop file
     sudo tee "${DESKTOP_FILE_DIR}/imageviewer.desktop" > /dev/null << EOF
 [Desktop Entry]
@@ -179,10 +179,10 @@ EOF
 
 create_simple_icon() {
     print_step "Creating application icon..."
-    
+
     # Create icon directory if it doesn't exist
     sudo mkdir -p "${ICON_DIR}"
-    
+
     # Create a simple text-based icon (SVG)
     sudo tee "${ICON_DIR}/imageviewer.svg" > /dev/null << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -201,7 +201,7 @@ EOF
 
 update_desktop_database() {
     print_step "Updating desktop database..."
-    
+
     if command -v update-desktop-database &> /dev/null; then
         sudo update-desktop-database "${DESKTOP_FILE_DIR}" 2>/dev/null || true
         print_success "Desktop database updated"
@@ -212,11 +212,11 @@ update_desktop_database() {
 
 set_default_image_viewer() {
     print_step "Setting imageviewer as default image viewer..."
-    
+
     # List of MIME types for images
     local mime_types=(
         "image/jpeg"
-        "image/jpg" 
+        "image/jpg"
         "image/png"
         "image/bmp"
         "image/gif"
@@ -224,34 +224,34 @@ set_default_image_viewer() {
         "image/tif"
         "image/webp"
     )
-    
+
     # Set default application for each MIME type
     for mime_type in "${mime_types[@]}"; do
         if command -v xdg-mime &> /dev/null; then
             xdg-mime default imageviewer.desktop "$mime_type" 2>/dev/null || true
         fi
     done
-    
+
     # Also update MIME database if available
     if command -v update-mime-database &> /dev/null; then
         sudo update-mime-database /usr/share/mime 2>/dev/null || true
     fi
-    
+
     print_success "imageviewer set as default image viewer"
 }
 
 test_installation() {
     print_step "Testing installation..."
-    
+
     # Check if binary is in PATH
     if command -v imageviewer &> /dev/null; then
         print_success "imageviewer is available in PATH"
-        
+
         # Show version/help
         echo -e "${BLUE}Running imageviewer --help equivalent:${NC}"
         echo "Usage: imageviewer <image_file_or_directory>"
         echo "Supported formats: JPG, JPEG, PNG, BMP, GIF, TIF"
-        
+
         # Test default application association
         if command -v xdg-mime &> /dev/null; then
             local default_app=$(xdg-mime query default image/jpeg 2>/dev/null)
@@ -261,7 +261,7 @@ test_installation() {
                 print_warning "Default image viewer association may not have been set correctly"
             fi
         fi
-        
+
     else
         print_error "imageviewer not found in PATH. Installation may have failed."
         exit 1
@@ -311,10 +311,10 @@ main() {
     echo -e "${BLUE}ImageViewer Installation Script for Arch Linux${NC}"
     echo "=============================================="
     echo
-    
+
     check_arch
     check_permissions
-    
+
     # Show what the script will do
     echo -e "${YELLOW}This script will:${NC}"
     echo "  1. Install SDL2 dependencies via pacman"
@@ -323,7 +323,7 @@ main() {
     echo "  4. Create a desktop entry"
     echo "  5. Set imageviewer as default image viewer"
     echo
-    
+
     install_dependencies
     build_imageviewer
     install_binary

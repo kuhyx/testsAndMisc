@@ -4,7 +4,7 @@ import os
 BUDGET = 14 * 1024  # 14 KiB
 
 HERE = os.path.dirname(__file__)
-SITE_FILE = os.path.join(HERE, 'index.html')
+SITE_FILE = os.path.join(HERE, "index.html")
 
 
 def test_site_file_exists():

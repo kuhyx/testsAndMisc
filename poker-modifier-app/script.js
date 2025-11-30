@@ -62,15 +62,15 @@ class PokerModifierApp {
                 description: "Winner gets extra chips from the house!"
             }
         ];
-        
+
         this.roundsPlayed = 0;
         this.modifiersApplied = 0;
-        
+
         this.initializeElements();
         this.attachEventListeners();
         this.updateChanceDisplay();
     }
-    
+
     initializeElements() {
         this.startButton = document.getElementById('startRoundBtn');
         this.resultDisplay = document.getElementById('resultDisplay');
@@ -79,60 +79,60 @@ class PokerModifierApp {
         this.roundsCountDisplay = document.getElementById('roundsCount');
         this.modifiersCountDisplay = document.getElementById('modifiersCount');
     }
-    
+
     attachEventListeners() {
         this.startButton.addEventListener('click', () => this.startRound());
         this.modifierChanceSlider.addEventListener('input', () => this.updateChanceDisplay());
     }
-    
+
     updateChanceDisplay() {
         const chance = this.modifierChanceSlider.value;
         this.chanceValueDisplay.textContent = `${chance}%`;
     }
-    
+
     startRound() {
         // Add button animation
         this.startButton.style.transform = 'scale(0.95)';
         setTimeout(() => {
             this.startButton.style.transform = '';
         }, 150);
-        
+
         // Update round counter
         this.roundsPlayed++;
         this.roundsCountDisplay.textContent = this.roundsPlayed;
-        
+
         // Get current probability
         const modifierChance = parseInt(this.modifierChanceSlider.value);
-        
+
         // Determine if a modifier should be applied
         const randomValue = Math.random() * 100;
         const shouldApplyModifier = randomValue < modifierChance;
-        
+
         if (shouldApplyModifier) {
             this.applyRandomModifier();
         } else {
             this.showNoModifier();
         }
-        
+
         // Add some visual feedback with animation
         this.resultDisplay.style.opacity = '0';
         this.resultDisplay.style.transform = 'scale(0.8)';
-        
+
         setTimeout(() => {
             this.resultDisplay.style.opacity = '1';
             this.resultDisplay.style.transform = 'scale(1)';
         }, 200);
     }
-    
+
     applyRandomModifier() {
         // Update modifier counter
         this.modifiersApplied++;
         this.modifiersCountDisplay.textContent = this.modifiersApplied;
-        
+
         // Select random modifier
         const randomIndex = Math.floor(Math.random() * this.modifiers.length);
         const selectedModifier = this.modifiers[randomIndex];
-        
+
         // Update display
         this.resultDisplay.className = 'result-display has-modifier';
         this.resultDisplay.innerHTML = `
@@ -140,7 +140,7 @@ class PokerModifierApp {
             <div class="modifier-description">${selectedModifier.description}</div>
         `;
     }
-    
+
     showNoModifier() {
         this.resultDisplay.className = 'result-display no-modifier';
         this.resultDisplay.innerHTML = `
@@ -148,12 +148,12 @@ class PokerModifierApp {
             <div style="font-size: 0.9rem; color: #999; margin-top: 0.5rem;">Play normally</div>
         `;
     }
-    
+
     // Method to add new modifiers (for future expansion)
     addModifier(name, description) {
         this.modifiers.push({ name, description });
     }
-    
+
     // Method to get statistics
     getStats() {
         return {
@@ -167,7 +167,7 @@ class PokerModifierApp {
 // Initialize the app when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     window.pokerApp = new PokerModifierApp();
-    
+
     // Add some console info for developers
     console.log('🃏 Texas Hold\'em Modifier App loaded!');
     console.log('Access the app instance via window.pokerApp');
