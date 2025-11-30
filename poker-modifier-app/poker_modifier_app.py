@@ -39,7 +39,7 @@ class PokerModifierApp:
             {
                 "name": "Full House Party",
                 "description": (
-                    "Make full house: everyone else pays 2 chips " "+ takes 2 drinks."
+                    "Make full house: everyone else pays 2 chips + takes 2 drinks."
                 ),
             },
             {
@@ -57,14 +57,13 @@ class PokerModifierApp:
             {
                 "name": "Red Suit Boost",
                 "description": (
-                    "Hearts and Diamonds are worth +1 rank "
-                    "(Jack becomes Queen, etc.)"
+                    "Hearts and Diamonds are worth +1 rank (Jack becomes Queen, etc.)"
                 ),
             },
             {
                 "name": "Black Magic",
                 "description": (
-                    "Spades and Clubs can be used as any suit " "for straights/flushes."
+                    "Spades and Clubs can be used as any suit for straights/flushes."
                 ),
             },
             {
@@ -97,13 +96,13 @@ class PokerModifierApp:
             {
                 "name": "Extra Draw",
                 "description": (
-                    "Deal each player a 3rd hole card. " "Discard one before the flop."
+                    "Deal each player a 3rd hole card. Discard one before the flop."
                 ),
             },
             {
                 "name": "Phantom Cards",
                 "description": (
-                    "Deal 6 community cards, " "but randomly remove 1 before showdown."
+                    "Deal 6 community cards, but randomly remove 1 before showdown."
                 ),
             },
             # Special Betting Rules (Realistic Economics)
@@ -122,16 +121,14 @@ class PokerModifierApp:
             {
                 "name": "Call Penalty",
                 "description": (
-                    "Anyone who only calls (never raises) "
-                    "pays 1 chip penalty to pot."
+                    "Anyone who only calls (never raises) pays 1 chip penalty to pot."
                 ),
             },
             # Information Warfare
             {
                 "name": "Poker Face",
                 "description": (
-                    "No talking, no expressions allowed. "
-                    "Pure silent poker this hand."
+                    "No talking, no expressions allowed. Pure silent poker this hand."
                 ),
             },
             {
@@ -149,13 +146,13 @@ class PokerModifierApp:
             {
                 "name": "Liquid Courage",
                 "description": (
-                    "Take a drink before betting " "to get chip bonus to all your bets."
+                    "Take a drink before betting to get chip bonus to all your bets."
                 ),
             },
             {
                 "name": "Last Call",
                 "description": (
-                    "Everyone must finish their current drink " "before the river card."
+                    "Everyone must finish their current drink before the river card."
                 ),
             },
             {
@@ -165,15 +162,14 @@ class PokerModifierApp:
             {
                 "name": "Drink Tax",
                 "description": (
-                    "Each red card in your final hand = one sip " "(reveal after play)."
+                    "Each red card in your final hand = one sip (reveal after play)."
                 ),
             },
             # Wild and Chaos Effects
             {
                 "name": "Joker's Wild",
                 "description": (
-                    "All Jacks become completely wild - "
-                    "any suit, any rank you choose."
+                    "All Jacks become completely wild - any suit, any rank you choose."
                 ),
             },
             {
@@ -203,8 +199,7 @@ class PokerModifierApp:
             {
                 "name": "Charity Case",
                 "description": (
-                    "Player with fewest chips gets their ante "
-                    "funded by richest player."
+                    "Player with fewest chips gets their ante funded by richest player."
                 ),
             },
             # Penalty-Based Modifiers (Clear Consequences)
@@ -219,13 +214,13 @@ class PokerModifierApp:
             {
                 "name": "Speed Fine",
                 "description": (
-                    "Take longer than 10 seconds to act " "= pay 1 chip to pot."
+                    "Take longer than 10 seconds to act = pay 1 chip to pot."
                 ),
             },
             {
                 "name": "Talk Tax",
                 "description": (
-                    "Every word spoken during betting " "costs 1 chip to the pot."
+                    "Every word spoken during betting costs 1 chip to the pot."
                 ),
             },
             # Skill Challenges (With Clear Rewards/Penalties)
@@ -276,8 +271,7 @@ class PokerModifierApp:
             {
                 "name": "Shared Vision",
                 "description": (
-                    "Partners can show each other one hole card "
-                    "before betting starts."
+                    "Partners can show each other one hole card before betting starts."
                 ),
             },
             {
@@ -302,7 +296,7 @@ class PokerModifierApp:
             {
                 "name": "Final Boss",
                 "description": (
-                    "This is the last hand. " "Winner takes all remaining chips."
+                    "This is the last hand. Winner takes all remaining chips."
                 ),
             },
             {
@@ -319,16 +313,14 @@ class PokerModifierApp:
             {
                 "name": "Double or Nothing",
                 "description": (
-                    "Winner gets double payout, "
-                    "but everyone else pays double penalty."
+                    "Winner gets double payout, but everyone else pays double penalty."
                 ),
             },
             # High Stakes Endgame
             {
                 "name": "All In Madness",
                 "description": (
-                    "Everyone must go all-in. "
-                    "No calling, no folding allowed this hand."
+                    "Everyone must go all-in. No calling, no folding allowed this hand."
                 ),
             },
             {
@@ -341,15 +333,14 @@ class PokerModifierApp:
             {
                 "name": "Last Stand",
                 "description": (
-                    "Player with fewest chips gets to act last "
-                    "in ALL betting rounds."
+                    "Player with fewest chips gets to act last in ALL betting rounds."
                 ),
             },
             # Dramatic Reversals
             {
                 "name": "Underdog Victory",
                 "description": (
-                    "Worst hand wins the pot " "instead of best hand this round."
+                    "Worst hand wins the pot instead of best hand this round."
                 ),
             },
             # Winner Takes All Variants
@@ -383,14 +374,13 @@ class PokerModifierApp:
             {
                 "name": "Speed Round",
                 "description": (
-                    "3 seconds to act or auto-fold. " "No exceptions, no delays."
+                    "3 seconds to act or auto-fold. No exceptions, no delays."
                 ),
             },
             {
                 "name": "Auction House",
                 "description": (
-                    "Players bid chips to see each other's hole cards "
-                    "before betting."
+                    "Players bid chips to see each other's hole cards before betting."
                 ),
             },
             {
@@ -411,21 +401,20 @@ class PokerModifierApp:
             {
                 "name": "Truth Serum",
                 "description": (
-                    "Everyone must honestly rate their hand 1-10 " "before any betting."
+                    "Everyone must honestly rate their hand 1-10 before any betting."
                 ),
             },
             {
                 "name": "Poker Face Off",
                 "description": (
-                    "Staring contest: losers must reveal " "one hole card to the table."
+                    "Staring contest: losers must reveal one hole card to the table."
                 ),
             },
             # Endgame Economics
             {
                 "name": "Wealth Redistribution",
                 "description": (
-                    "Before the hand, richest player "
-                    "gives 3 chips to poorest player."
+                    "Before the hand, richest player gives 3 chips to poorest player."
                 ),
             },
             {
@@ -453,7 +442,7 @@ class PokerModifierApp:
             {
                 "name": "Meteor Strike",
                 "description": (
-                    "Remove all face cards from the deck " "for this hand only."
+                    "Remove all face cards from the deck for this hand only."
                 ),
             },
             {
@@ -464,13 +453,13 @@ class PokerModifierApp:
             {
                 "name": "Hall of Fame",
                 "description": (
-                    "Winner's name gets written down " "as 'Champion of the Session'."
+                    "Winner's name gets written down as 'Champion of the Session'."
                 ),
             },
             {
                 "name": "Legendary Hand",
                 "description": (
-                    "This hand will be retold as a story. " "Play like legends."
+                    "This hand will be retold as a story. Play like legends."
                 ),
             },
             {
@@ -491,7 +480,7 @@ class PokerModifierApp:
             {
                 "name": "Time Paradox",
                 "description": (
-                    "Play the hand twice with same cards. " "Best average result wins."
+                    "Play the hand twice with same cards. Best average result wins."
                 ),
             },
             {

@@ -164,7 +164,7 @@ class KeyboardCoopGame:
             }
         except json.JSONDecodeError:
             logging.warning(
-                "Error reading words_dictionary.json, " "using fallback dictionary"
+                "Error reading words_dictionary.json, using fallback dictionary"
             )
             return {
                 "cat",
