@@ -31,7 +31,7 @@ def _download_single_image(url: str) -> None:
         image_path = Path("./CATS2/") / image_name
 
         # Save the image to the directory
-        with open(image_path, "wb") as file:
+        with image_path.open("wb") as file:
             file.write(response.content)
 
         _logger.info("Saved %s as %s", url, image_path)

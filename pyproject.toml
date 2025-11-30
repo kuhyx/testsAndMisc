@@ -34,10 +34,6 @@ ignore = [
     # Formatter conflicts - these rules conflict with ruff format
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
-    # Logging style preference - f-strings are more readable
-    "G004",    # Logging statement uses f-string (stylistic preference)
-    # Path style preference - open() with Path objects is valid Python
-    "PTH123",  # open() should be Path.open() (style preference, not required)
 ]
 
 # Allow ALL rules to be auto-fixed

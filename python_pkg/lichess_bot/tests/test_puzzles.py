@@ -19,7 +19,7 @@ def _load_top_puzzles(csv_path: str | Path, limit: int = 8) -> list[tuple[str, s
     puzzles: list[tuple[str, str]] = []
     if not Path(csv_path).is_file():
         return puzzles
-    with open(csv_path, newline="", encoding="utf-8") as f:
+    with Path(csv_path).open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             fen = row["FEN"].strip()

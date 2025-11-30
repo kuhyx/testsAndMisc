@@ -76,14 +76,14 @@ def _apply_move_to_board(board: chess.Board, move: str, game_id: str) -> None:
     try:
         board.push_uci(move)
     except ValueError:
-        _logger.debug(f"Game {game_id}: could not apply move {move}")
+        _logger.debug("Game %s: could not apply move %s", game_id, move)
 
 
 def _init_game_log(game_id: str, bot_version: int) -> Path | None:
     """Initialize the game log file."""
     game_log_path = Path.cwd() / f"lichess_bot_game_{game_id}.log"
     try:
-        with open(game_log_path, "w") as lf:
+        with game_log_path.open("w") as lf:
             lf.write(f"game {game_id} started\n")
             lf.write(f"bot_version v{bot_version}\n")
     except OSError:
@@ -192,7 +192,7 @@ def _log_move_to_file(
 ) -> None:
     """Log a move to the game log file."""
     if log_path:
-        with open(log_path, "a") as lf:
+        with log_path.open("a") as lf:
             lf.write(f"ply {ply}: {move.uci()}\n{reason}\n\n")
 
 
@@ -209,7 +209,7 @@ def _attempt_move(
     )
 
     if move is None:
-        _logger.info(f"Game {meta.game_id}: no legal moves (game likely over)")
+        _logger.info("Game %s: no legal moves (game likely over)", meta.game_id)
         return False
 
     time_left_sec = (state.my_ms or 0) / 1000.0
@@ -218,18 +218,21 @@ def _attempt_move(
     try:
         if move not in board.legal_moves:
             _logger.info(
-                f"Game {meta.game_id}: selected move no longer legal; skipping send"
+                "Game %s: selected move no longer legal; skipping send", meta.game_id
             )
         else:
             _logger.info(
-                f"Game {meta.game_id}: playing {move.uci()} "
-                f"(budget={budget:.2f}s, my_time_left={time_left_sec:.1f}s, "
-                f"inc={inc_sec:.2f}s)"
+                "Game %s: playing %s (budget=%.2fs, my_time_left=%.1fs, inc=%.2fs)",
+                meta.game_id,
+                move.uci(),
+                budget,
+                time_left_sec,
+                inc_sec,
             )
             _log_move_to_file(state.log_path, state.last_handled_len + 1, move, reason)
             ctx.api.make_move(meta.game_id, move)
     except requests.RequestException as e:
-        _logger.warning(f"Game {meta.game_id}: move {move.uci()} failed: {e}")
+        _logger.warning("Game %s: move %s failed: %s", meta.game_id, move.uci(), e)
 
     return True
 
@@ -260,7 +263,7 @@ def _handle_move_if_needed(
     """Handle making a move if it's our turn. Returns False if game ends."""
     my_turn = _is_my_turn(state.board, state.color)
     turn_str = "white" if state.board.turn else "black"
-    _logger.info(f"Game {meta.game_id}: turn={turn_str}, my_turn={my_turn}")
+    _logger.info("Game %s: turn=%s, my_turn=%s", meta.game_id, turn_str, my_turn)
 
     # Move policy
     allow_move = (et == "gameState") or (et == "gameFull" and new_len == 0)
@@ -293,7 +296,7 @@ def _process_game_event(
     # Extract moves and status based on event type
     if event_type == "gameFull":
         moves, status = _extract_game_full_data(event, state, meta, ctx.api)
-        _logger.info(f"Game {meta.game_id}: joined as {state.color} (gameFull)")
+        _logger.info("Game %s: joined as %s (gameFull)", meta.game_id, state.color)
     else:
         moves, status = _extract_game_state_data(event, state)
 
@@ -301,12 +304,16 @@ def _process_game_event(
     new_len = len(moves_list)
 
     _logger.info(
-        f"Game {meta.game_id}: event={event_type}, moves={new_len}, color={state.color}"
+        "Game %s: event=%s, moves=%s, color=%s",
+        meta.game_id,
+        event_type,
+        new_len,
+        state.color,
     )
 
     if new_len == state.last_handled_len:
         _logger.debug(
-            f"Game {meta.game_id}: position unchanged (len={new_len}), skipping"
+            "Game %s: position unchanged (len=%s), skipping", meta.game_id, new_len
         )
         return True
 
@@ -314,7 +321,7 @@ def _process_game_event(
     state.board = _rebuild_board_from_moves(moves_list, meta.game_id)
 
     if state.color is None:
-        _logger.info(f"Game {meta.game_id}: color unknown yet; waiting for gameFull")
+        _logger.info("Game %s: color unknown yet; waiting for gameFull", meta.game_id)
         if event_type == "gameState":
             state.last_handled_len = new_len
         return True
@@ -324,7 +331,7 @@ def _process_game_event(
 
     # Check for game end
     if status in _GAME_END_STATUSES:
-        _logger.info(f"Game {meta.game_id} finished: {status}")
+        _logger.info("Game %s finished: %s", meta.game_id, status)
         return False
 
     return True
@@ -344,7 +351,7 @@ def _write_pgn_to_log(log_path: Path, board: chess.Board, meta: GameMeta) -> Non
         if meta.black_name:
             game.headers["Black"] = meta.black_name
 
-    with open(log_path, "a") as lf:
+    with log_path.open("a") as lf:
         lf.write("\nPGN:\n")
         exporter = chess.pgn.StringExporter(
             headers=True, variations=False, comments=False
@@ -365,12 +372,15 @@ def _run_analysis_subprocess(
 
     if not analyze_script.is_file():
         _logger.info(
-            f"Game {game_id}: analysis script not found at {analyze_script}; "
-            "skipping analysis"
+            "Game %s: analysis script not found at %s; skipping analysis",
+            game_id,
+            analyze_script,
         )
         return None
 
-    _logger.info(f"Game {game_id}: starting post-game analysis ({total_plies} plies)")
+    _logger.info(
+        "Game %s: starting post-game analysis (%s plies)", game_id, total_plies
+    )
 
     proc = subprocess.Popen(  # noqa: S603 - trusted internal analysis script
         [sys.executable, "-u", str(analyze_script), str(log_path)],
@@ -399,11 +409,11 @@ def _run_analysis_subprocess(
     analysis_text = "".join(lines)
 
     if ret != 0:
-        _logger.warning(f"Game {game_id}: analysis script exited with code {ret}")
+        _logger.warning("Game %s: analysis script exited with code %s", game_id, ret)
         if stderr_text:
             analysis_text += "\n[stderr]\n" + stderr_text
 
-    _logger.info(f"Game {game_id}: analysis complete")
+    _logger.info("Game %s: analysis complete", game_id)
     return analysis_text
 
 
@@ -413,12 +423,16 @@ def _log_analysis_progress(game_id: str, analyzed: int, total_plies: int) -> Non
         left = max(0, total_plies - analyzed)
         pct = analyzed / total_plies * 100.0
         _logger.info(
-            f"Game {game_id}: analysis progress "
-            f"{analyzed}/{total_plies} ({pct:.0f}%), left {left}"
+            "Game %s: analysis progress %s/%s (%.0f%%), left %s",
+            game_id,
+            analyzed,
+            total_plies,
+            pct,
+            left,
         )
     else:
         _logger.info(
-            f"Game {game_id}: analysis progress {analyzed} plies (total unknown)"
+            "Game %s: analysis progress %s plies (total unknown)", game_id, analyzed
         )
 
 
@@ -427,7 +441,7 @@ def _insert_analysis_into_log(
 ) -> None:
     """Insert analysis text into the log file before PGN section."""
     try:
-        with open(log_path, encoding="utf-8", errors="replace") as f:
+        with log_path.open(encoding="utf-8", errors="replace") as f:
             content = f.read()
 
         # Find insertion point (before PGN)
@@ -453,10 +467,10 @@ def _insert_analysis_into_log(
         analysis_block = f"{meta_block}ANALYSIS:\n{analysis_text.rstrip()}\n\n"
         new_content = content[:insert_idx] + analysis_block + content[insert_idx:]
 
-        with open(log_path, "w", encoding="utf-8") as f:
+        with log_path.open("w", encoding="utf-8") as f:
             f.write(new_content)
     except OSError as e:
-        _logger.debug(f"Game {meta.game_id}: could not write analysis to log: {e}")
+        _logger.debug("Game %s: could not write analysis to log: %s", meta.game_id, e)
 
 
 def _finalize_game(state: GameState, meta: GameMeta) -> None:
@@ -467,7 +481,7 @@ def _finalize_game(state: GameState, meta: GameMeta) -> None:
     try:
         _write_pgn_to_log(state.log_path, state.board, meta)
     except OSError as e:
-        _logger.debug(f"Game {meta.game_id}: could not write PGN: {e}")
+        _logger.debug("Game %s: could not write PGN: %s", meta.game_id, e)
         return
 
     # Run analysis
@@ -483,12 +497,12 @@ def _finalize_game(state: GameState, meta: GameMeta) -> None:
         if analysis_text:
             _insert_analysis_into_log(state.log_path, analysis_text, meta)
     except (subprocess.SubprocessError, OSError) as e:
-        _logger.debug(f"Game {meta.game_id}: analysis run failed: {e}")
+        _logger.debug("Game %s: analysis run failed: %s", meta.game_id, e)
 
 
 def _handle_game(game_id: str, ctx: BotContext, my_color: str | None = None) -> None:
     """Handle a single game from start to finish."""
-    _logger.info(f"Starting game thread for {game_id} [bot v{ctx.bot_version}]")
+    _logger.info("Starting game thread for %s [bot v%s]", game_id, ctx.bot_version)
 
     meta = GameMeta(game_id=game_id, bot_version=ctx.bot_version)
     state = GameState(color=my_color)
@@ -502,10 +516,10 @@ def _handle_game(game_id: str, ctx: BotContext, my_color: str | None = None) -> 
             if not _process_game_event(event, ctx, state, meta):
                 break
     except requests.RequestException:
-        _logger.exception(f"Game {game_id} thread error")
+        _logger.exception("Game %s thread error", game_id)
     finally:
         _finalize_game(state, meta)
-        _logger.info(f"Ending game thread for {game_id}")
+        _logger.info("Ending game thread for %s", game_id)
 
 
 def _handle_challenge(
@@ -525,10 +539,12 @@ def _handle_challenge(
     not_corr = speed != "correspondence" or not decline_correspondence
 
     if variant == "standard" and perf_ok and not_corr:
-        _logger.info(f"Accepting challenge {ch_id} ({speed})")
+        _logger.info("Accepting challenge %s (%s)", ch_id, speed)
         api.accept_challenge(str(ch_id))
     else:
-        _logger.info(f"Declining challenge {ch_id} (variant={variant}, speed={speed})")
+        _logger.info(
+            "Declining challenge %s (variant=%s, speed=%s)", ch_id, variant, speed
+        )
         api.decline_challenge(str(ch_id))
 
 
@@ -567,10 +583,10 @@ def _process_bot_event(
         game_data = event.get("game", {})
         if isinstance(game_data, dict):
             game_id = game_data.get("id", "")
-            _logger.info(f"Game finished event: {game_id}")
+            _logger.info("Game finished event: %s", game_id)
 
     else:
-        _logger.debug(f"Unhandled event: {json.dumps(event)}")
+        _logger.debug("Unhandled event: %s", json.dumps(event))
 
 
 def _stream_bot_events(ctx: BotContext) -> Iterator[dict[str, object]]:
@@ -605,7 +621,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
 
     _logger.info("Token present. Initializing client and engine...")
     bot_version = get_and_increment_version()
-    _logger.info(f"Bot version: v{bot_version}")
+    _logger.info("Bot version: v%s", bot_version)
 
     ctx = BotContext(
         api=LichessAPI(token),
@@ -623,7 +639,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
         try:
             backoff = _run_event_loop_iteration(ctx, game_threads)
         except requests.RequestException as e:  # noqa: PERF203 - intentional reconnection loop
-            _logger.warning(f"Event stream error: {e}")
+            _logger.warning("Event stream error: %s", e)
             backoff = backoff_sleep(backoff)
 
 

@@ -43,7 +43,7 @@ def download_image(url: str) -> bool:
         return False
     _logger.info("Downloading image from URL: %s", url)
     img_data = requests.get(url, timeout=REQUEST_TIMEOUT).content
-    with open(image_path, "wb") as handler:
+    with image_path.open("wb") as handler:
         handler.write(img_data)
     _logger.info("Image %s downloaded successfully", image_name)
     return True
