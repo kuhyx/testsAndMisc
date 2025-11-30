@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import logging
 import multiprocessing
 import os
 import re
@@ -39,10 +40,8 @@ try:
     import chess.engine
     import chess.pgn
 except Exception:  # pragma: no cover
-    print("Missing dependency. Please install python-chess:", file=sys.stderr)
-    print(
-        "  pip install -r PYTHON/stockfish_analysis/requirements.txt", file=sys.stderr
-    )
+    logging.exception("Missing dependency. Please install python-chess:")
+    logging.exception("  pip install -r PYTHON/stockfish_analysis/requirements.txt")
     raise
 
 
@@ -202,6 +201,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(
         description="Analyze a chess game's moves with Stockfish and rate each move."
     )
@@ -256,7 +256,7 @@ def main():
     args = ap.parse_args()
 
     if not os.path.isfile(args.file):
-        print(f"Input not found: {args.file}", file=sys.stderr)
+        logging.error(f"Input not found: {args.file}")
         sys.exit(1)
 
     with open(args.file, encoding="utf-8", errors="replace") as f:
@@ -264,22 +264,21 @@ def main():
 
     pgn_text = extract_pgn_text(raw)
     if not pgn_text:
-        print("Could not locate PGN text in the file.", file=sys.stderr)
+        logging.error("Could not locate PGN text in the file.")
         sys.exit(2)
 
     game = chess.pgn.read_game(io.StringIO(pgn_text))
     if game is None:
-        print("Failed to parse PGN.", file=sys.stderr)
+        logging.error("Failed to parse PGN.")
         sys.exit(3)
 
     # Prepare engine
     try:
         engine = chess.engine.SimpleEngine.popen_uci([args.engine])
     except FileNotFoundError:
-        print(f"Could not launch engine at: {args.engine}", file=sys.stderr)
-        print(
-            "Ensure Stockfish is installed and in PATH, or specify with --engine.",
-            file=sys.stderr,
+        logging.exception(f"Could not launch engine at: {args.engine}")
+        logging.exception(
+            "Ensure Stockfish is installed and in PATH, or specify with --engine."
         )
         sys.exit(4)
 
@@ -348,13 +347,13 @@ def main():
         limit = chess.engine.Limit(time=max(0.05, args.time))
 
     board = game.board()
-    print("Game:")
+    logging.info("Game:")
     white = game.headers.get("White", "White")
     black = game.headers.get("Black", "Black")
     result = game.headers.get("Result", "*")
-    print(f"  {white} vs {black}  Result: {result}")
-    print()
-    print(
+    logging.info(f"  {white} vs {black}  Result: {result}")
+    logging.info("")
+    logging.info(
         "Columns: ply  side  move  played_eval  best_eval  loss  class  best_suggestion"
     )
     # Brief performance summary (best-effort)
@@ -371,12 +370,14 @@ def main():
     except Exception:
         hash_show = None
     if hash_show is not None:
-        print(
+        logging.info(
             f"Using engine options: Threads={thr_show}, "
             f"Hash={hash_show} MB, MultiPV={effective_mpv}"
         )
     else:
-        print(f"Using engine options: Threads={thr_show}, " f"MultiPV={effective_mpv}")
+        logging.info(
+            f"Using engine options: Threads={thr_show}, MultiPV={effective_mpv}"
+        )
 
     ply = 1
     try:
@@ -385,7 +386,7 @@ def main():
         if args.last_move_only:
             # Walk to the last move in the main line and analyze only that ply.
             if not node.variations:
-                print("No moves found in the game.")
+                logging.warning("No moves found in the game.")
             else:
                 while node.variations:
                     move_node = node.variations[0]
@@ -486,7 +487,7 @@ def main():
                             classification = classify_cp_loss(cp_loss)
 
                         side = "W" if mover_white else "B"
-                        print(
+                        logging.info(
                             f"{ply:>3}  {side}   {san:<8}  "
                             f"{fmt_eval(played_cp, played_mate):>10}  "
                             f"{fmt_eval(best_cp, best_mate):>9}  "
@@ -601,7 +602,7 @@ def main():
                     classification = classify_cp_loss(cp_loss)
 
                 side = "W" if mover_white else "B"
-                print(
+                logging.info(
                     f"{ply:>3}  {side}   {san:<8}  "
                     f"{fmt_eval(played_cp, played_mate):>10}  "
                     f"{fmt_eval(best_cp, best_mate):>9}  "

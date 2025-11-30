@@ -8,7 +8,6 @@ requires-python = ">=3.10"
 # RUFF - Extremely fast Python linter and formatter (written in Rust)
 # ============================================================================
 [tool.ruff]
-line-length = 88
 target-version = "py310"
 # Include all Python files
 include = ["*.py", "**/*.py"]
@@ -28,14 +27,15 @@ exclude = [
 select = ["ALL"]
 # Ignores for rules that are too strict for this mixed script repository
 ignore = [
+    # D203 vs D211 conflict - we use D211 (no blank line before class docstring)
     "D203",    # 1 blank line required before class docstring (conflicts with D211)
+    # D212 vs D213 conflict - we use D212 (summary on first line after """)
     "D213",    # Multi-line docstring summary should start at second line (conflicts with D212)
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     "ANN101",  # Missing type annotation for self (deprecated)
     "ANN102",  # Missing type annotation for cls (deprecated)
     # Relaxed for script-heavy repository
-    "T201",    # print found - these are scripts, print is expected
     "D100",    # Missing docstring in public module - scripts don't need module docstrings
     "D101",    # Missing docstring in public class - relaxed
     "D102",    # Missing docstring in public method - relaxed

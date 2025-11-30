@@ -12,8 +12,11 @@ from __future__ import annotations
 
 import argparse
 from html.parser import HTMLParser
+import logging
 import os
 from urllib.parse import urlparse
+
+logging.basicConfig(level=logging.INFO)
 
 
 class _HrefParser(HTMLParser):
@@ -84,7 +87,7 @@ def main() -> int:
     with open(out_path, "w", encoding="utf-8") as f:
         f.writelines(f"*{host}*\n" for host in hosts)
 
-    print(f"Wrote {len(hosts)} host(s) to {out_path}")
+    logging.info(f"Wrote {len(hosts)} host(s) to {out_path}")
     return 0
 
 

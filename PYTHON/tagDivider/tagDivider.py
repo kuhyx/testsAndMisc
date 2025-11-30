@@ -1,3 +1,4 @@
+import logging
 import os  # for: os.getcwd; os.mkdir; os.listdir;
 from os import path  # for: os.path.abspath
 import shutil  # for: shutil.move
@@ -5,6 +6,8 @@ import shutil  # for: shutil.move
 # for: cv2.imread; cv2.namedWindow; cv2.imshow;
 # cv2.waitKey; cv2.destroyAllWindows; cv2.IMREAD_COLOR
 import cv2
+
+logging.basicConfig(level=logging.INFO)
 
 IMAGE_EXTENSION = (
     ".bmp",
@@ -54,7 +57,7 @@ for filename in os.listdir(
     if (filename.lower()).endswith(
         IMAGE_EXTENSION
     ):  # If the file name ends with image extension
-        print(filename)
+        logging.info(filename)
         image = cv2.imread(filename, cv2.IMREAD_COLOR)
         window_name = filename.split(".")[0]
         cv2.namedWindow(window_name)  # Window name is the same as image file name

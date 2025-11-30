@@ -1,8 +1,11 @@
 import json
+import logging
 import os
 from pathlib import Path
 
 import requests
+
+logging.basicConfig(level=logging.INFO)
 
 requests_send = 0
 while requests_send < 90:
@@ -28,7 +31,7 @@ while requests_send < 90:
             with open(image_path, "wb") as file:
                 file.write(response.content)
 
-            print(f"Saved {url} as {image_path}")
+            logging.info(f"Saved {url} as {image_path}")
 
         except requests.exceptions.RequestException as e:
-            print(f"Failed to download {url}: {e}")
+            logging.exception(f"Failed to download {url}: {e}")

@@ -1,9 +1,12 @@
 import argparse
 from datetime import datetime
+import logging
 import os
 import random
 
 from PIL import Image
+
+logging.basicConfig(level=logging.INFO)
 
 
 def generate_bloated_jpeg(
@@ -120,13 +123,15 @@ if __name__ == "__main__":
     folder = f"generated_images_{timestamp}"
 
     # Display used parameters
-    print(f"Generating {args.num_images} image(s) with the following parameters:")
-    print(f"  Size: {args.size}")
-    print(f"  Colors: {args.colors}")
-    print(f"  Block size: {args.block_size}")
-    print(f"  Base output path: {args.output_path}")
-    print(f"  Quality: {args.quality}")
-    print(f"  Output folder: {folder}")
+    logging.info(
+        f"Generating {args.num_images} image(s) with the following parameters:"
+    )
+    logging.info(f"  Size: {args.size}")
+    logging.info(f"  Colors: {args.colors}")
+    logging.info(f"  Block size: {args.block_size}")
+    logging.info(f"  Base output path: {args.output_path}")
+    logging.info(f"  Quality: {args.quality}")
+    logging.info(f"  Output folder: {folder}")
 
     # Generate the specified number of images
     for i in range(1, args.num_images + 1):
@@ -139,4 +144,4 @@ if __name__ == "__main__":
             i,
             folder,
         )
-        print(f"Image {i} saved to {os.path.abspath(output_path)}")
+        logging.info(f"Image {i} saved to {os.path.abspath(output_path)}")
