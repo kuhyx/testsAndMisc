@@ -40,5 +40,5 @@ while requests_send < MAX_REQUESTS:
 
             logging.info(f"Saved {url} as {image_path}")
 
-        except requests.exceptions.RequestException as e:
-            logging.exception(f"Failed to download {url}: {e}")
+        except requests.exceptions.RequestException:
+            logging.exception(f"Failed to download {url}")
