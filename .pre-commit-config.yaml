@@ -31,6 +31,8 @@ repos:
       - id: check-yaml
         args: [--unsafe]
       - id: check-json
+        # Exclude JSONC files (VS Code configs, TypeScript configs) and compile_commands.json
+        exclude: ^(\.vscode/|.*/\.vscode/|C/compile_commands\.json|.*tsconfig.*\.json)
       - id: check-toml
       - id: check-xml
       - id: check-added-large-files
