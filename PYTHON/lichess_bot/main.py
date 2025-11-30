@@ -38,7 +38,7 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
 
     game_threads = {}
 
-    def handle_game(game_id: str, my_color: str | None = None):
+    def handle_game(game_id: str, my_color: str | None = None) -> None:
         logging.info(f"Starting game thread for {game_id} [bot v{bot_version}]")
         board = chess.Board()
         color: str | None = my_color
@@ -453,7 +453,7 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
             backoff = backoff_sleep(backoff)
 
 
-def main():
+def main() -> None:
     """Parse arguments and run the Lichess bot."""
     parser = argparse.ArgumentParser(description="Run a minimal Lichess bot")
     parser.add_argument(

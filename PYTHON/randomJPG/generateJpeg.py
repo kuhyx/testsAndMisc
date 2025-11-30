@@ -14,19 +14,28 @@ MAX_IMAGE_SIZE = 1000
 
 
 def generate_bloated_jpeg(
-    size, color_list, block_size, output_path, quality, image_index, folder
-):
+    size: int,
+    color_list: list[str],
+    block_size: int,
+    output_path: str,
+    quality: int,
+    image_index: int,
+    folder: str,
+) -> str:
     """Generates a random JPEG image with given size, list of colors, and block size.
 
     Args:
-    size (int): Size of the image (both width and height,
-        must be divisible by block_size).
-    color_list (list of str): List of colors in hex format.
-    block_size (int): Size of the pixel blocks.
-    output_path (str): Output path for the JPEG image.
-    quality (int): Quality setting for the JPEG image (0-100).
-    image_index (int): Index of the image for unique naming.
-    folder (str): Folder to save the image.
+        size: Size of the image (both width and height,
+            must be divisible by block_size).
+        color_list: List of colors in hex format.
+        block_size: Size of the pixel blocks.
+        output_path: Output path for the JPEG image.
+        quality: Quality setting for the JPEG image (0-100).
+        image_index: Index of the image for unique naming.
+        folder: Folder to save the image.
+
+    Returns:
+        Path to the generated image.
     """
     # Ensure size is divisible by block_size and does not exceed MAX_IMAGE_SIZE
     if size > MAX_IMAGE_SIZE or size % block_size != 0:

@@ -7,13 +7,16 @@ from pathlib import Path
 import socket
 import subprocess
 import time
+from typing import Any
 import urllib.error
 import urllib.request
 
 import pytest
 
 
-def _req(url, method="GET", data=None):
+def _req(
+    url: str, method: str = "GET", data: dict[str, Any] | bytes | None = None
+) -> tuple[int, bytes]:
     """Send an HTTP request and return status code and body."""
     if data is not None and not isinstance(data, bytes | bytearray):
         data = json.dumps(data).encode("utf-8")
@@ -24,7 +27,7 @@ def _req(url, method="GET", data=None):
         return resp.getcode(), body
 
 
-def test_crud_roundtrip(tmp_path):
+def test_crud_roundtrip(tmp_path: Path) -> None:
     """Test full CRUD lifecycle for articles API."""
     # Build C server
     here = Path(__file__).resolve().parent

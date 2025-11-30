@@ -9,12 +9,12 @@ HERE = os.path.dirname(__file__)
 SITE_FILE = os.path.join(HERE, "index.html")
 
 
-def test_site_file_exists():
+def test_site_file_exists() -> None:
     """Verify the main site HTML file exists."""
     assert os.path.exists(SITE_FILE), f"Missing site file: {SITE_FILE}"
 
 
-def test_site_size_under_budget():
+def test_site_size_under_budget() -> None:
     """Verify site size is under the defined budget."""
     size = os.path.getsize(SITE_FILE)
     assert size <= BUDGET, f"Site size {size} bytes exceeds budget {BUDGET}"

@@ -11,12 +11,12 @@ if str(ROOT) not in sys.path:
 SCRIPT = ROOT / "main.py"
 
 
-def read_lines(p: Path):
+def read_lines(p: Path) -> list[str]:
     """Read lines from a file, stripping newlines."""
     return [line.rstrip("\n") for line in p.read_text(encoding="utf-8").splitlines()]
 
 
-def test_extract_hosts_function():
+def test_extract_hosts_function() -> None:
     """Test extract_hosts_from_html extracts unique hosts in order."""
     from main import extract_hosts_from_html
 
@@ -31,7 +31,7 @@ def test_extract_hosts_function():
     assert hosts == ["wiby.me", "example.com"], hosts
 
 
-def test_cli_writes_expected_output(tmp_path: Path):
+def test_cli_writes_expected_output(tmp_path: Path) -> None:
     """Test CLI writes correctly formatted output file."""
     # copy sample1.html to tmpdir and run the script
     sample = ROOT / "tests" / "sample1.html"
@@ -53,7 +53,7 @@ def test_cli_writes_expected_output(tmp_path: Path):
     assert lines == ["*wiby.me*", "*example.com*"], lines
 
 
-def test_cli_default_output_name(tmp_path: Path):
+def test_cli_default_output_name(tmp_path: Path) -> None:
     """Test CLI generates default output filename from input."""
     sample = ROOT / "tests" / "sample2.html"
     html_copy = tmp_path / "sample2.html"

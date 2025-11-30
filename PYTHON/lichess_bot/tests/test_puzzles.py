@@ -33,7 +33,7 @@ def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
         os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv"), limit=8
     ),
 )
-def test_puzzle_engine_follow_solution(fen: str, moves_str: str):
+def test_puzzle_engine_follow_solution(fen: str, moves_str: str) -> None:
     """Verify the engine follows puzzle solutions correctly."""
     board = chess.Board(fen)
     eng = RandomEngine(max_time_sec=1.0)

@@ -1,9 +1,15 @@
 """Tests for bot version management."""
 
+from pathlib import Path
+
+import pytest
+
 from PYTHON.lichess_bot.utils import get_and_increment_version
 
 
-def test_version_file_increments_and_persists(tmp_path, monkeypatch):
+def test_version_file_increments_and_persists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that version increments and persists to file."""
     version_file = tmp_path / "version.txt"
     monkeypatch.setenv("LICHESS_BOT_VERSION_FILE", str(version_file))

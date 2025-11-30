@@ -193,7 +193,7 @@ def _detect_total_mem_mb() -> int | None:
     return None
 
 
-def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
+def _auto_hash_mb(threads_wanted: int, engine_options: dict[str, object]) -> int:
     total_mb = _detect_total_mem_mb() or 2048
     # Heuristic: cap at 4 GiB by default; keep at most half of RAM; ensure >= 64MB
     half_ram = max(64, total_mb // 2)
@@ -202,7 +202,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
     opt = engine_options.get("Hash")
     max_allowed = None
     try:
-        max_allowed = opt.max if opt is not None else None
+        max_allowed = opt.max if opt is not None else None  # type: ignore[attr-defined]
     except Exception:
         max_allowed = None
     if isinstance(max_allowed, int):
@@ -213,7 +213,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
     return max(64, int(target))
 
 
-def main():
+def main() -> None:
     """Parse arguments and run chess game analysis."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(

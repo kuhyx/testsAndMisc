@@ -26,7 +26,7 @@ MAX_WEIGHT_KG = 500
 class ScreenLocker:
     """Screen locker that requires workout logging to unlock."""
 
-    def __init__(self, demo_mode=True):
+    def __init__(self, demo_mode: bool = True) -> None:
         """Initialize screen locker with optional demo mode."""
         # Set up log file path
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -86,12 +86,12 @@ class ScreenLocker:
         self.root.focus_force()
         self.root.grab_set_global()
 
-    def clear_container(self):
+    def clear_container(self) -> None:
         """Remove all widgets from the main container."""
         for widget in self.container.winfo_children():
             widget.destroy()
 
-    def ask_workout_done(self):
+    def ask_workout_done(self) -> None:
         """Display the initial workout question dialog."""
         self.clear_container()
 
@@ -131,7 +131,7 @@ class ScreenLocker:
         )
         no_btn.pack(side="left", padx=20)
 
-    def lockout(self):
+    def lockout(self) -> None:
         """Display lockout screen with countdown timer."""
         self.clear_container()
 
@@ -156,7 +156,7 @@ class ScreenLocker:
         self.remaining_time = self.lockout_time
         self.update_lockout_countdown()
 
-    def update_lockout_countdown(self):
+    def update_lockout_countdown(self) -> None:
         """Update the lockout countdown timer display."""
         if self.remaining_time > 0:
             self.countdown_label.config(text=str(self.remaining_time))
@@ -165,7 +165,7 @@ class ScreenLocker:
         else:
             self.ask_workout_done()
 
-    def ask_workout_type(self):
+    def ask_workout_type(self) -> None:
         """Display workout type selection dialog."""
         self.clear_container()
 
@@ -205,7 +205,7 @@ class ScreenLocker:
         )
         strength_btn.pack(side="left", padx=20)
 
-    def ask_running_details(self):
+    def ask_running_details(self) -> None:
         """Display running workout input form."""
         self.clear_container()
         self.workout_data["type"] = "running"
@@ -295,7 +295,7 @@ class ScreenLocker:
         self.submit_command = self.verify_running_data
         self.update_submit_timer()
 
-    def verify_running_data(self):
+    def verify_running_data(self) -> None:
         """Validate running workout data and unlock if valid."""
         try:
             distance = float(self.distance_entry.get())
@@ -337,7 +337,7 @@ class ScreenLocker:
         except ValueError:
             self.show_error("Please enter valid numbers")
 
-    def ask_strength_details(self):
+    def ask_strength_details(self) -> None:
         """Display strength training input form."""
         self.clear_container()
         self.workout_data["type"] = "strength"
@@ -459,7 +459,7 @@ class ScreenLocker:
         self.submit_command = self.verify_strength_data
         self.update_submit_timer()
 
-    def verify_strength_data(self):
+    def verify_strength_data(self) -> None:
         """Validate strength workout data and unlock if valid."""
         try:
             exercises = [e.strip() for e in self.exercises_entry.get().split(",")]
@@ -513,7 +513,7 @@ class ScreenLocker:
         except ValueError:
             self.show_error("Please enter valid data in correct format")
 
-    def update_submit_timer(self):
+    def update_submit_timer(self) -> None:
         """Update countdown timer and check if submit can be enabled."""
         # Check if widgets still exist (user might have clicked back)
         try:
@@ -544,7 +544,7 @@ class ScreenLocker:
             # Widgets were destroyed (user clicked back), stop the timer
             pass
 
-    def check_entries_filled(self):
+    def check_entries_filled(self) -> None:
         """Continuously check if entries are filled after timer expires."""
         try:
             all_filled = all(entry.get().strip() for entry in self.entries_to_check)
@@ -564,7 +564,7 @@ class ScreenLocker:
             # Widgets were destroyed (user clicked back), stop checking
             pass
 
-    def show_error(self, message):
+    def show_error(self, message: str) -> None:
         """Display error message with retry option."""
         self.clear_container()
 
@@ -599,7 +599,7 @@ class ScreenLocker:
         )
         retry_btn.pack(pady=30)
 
-    def unlock_screen(self):
+    def unlock_screen(self) -> None:
         """Save workout log and display success message."""
         # Save workout data to log
         self.save_workout_log()
@@ -626,7 +626,7 @@ class ScreenLocker:
 
         self.root.after(1500, self.close)
 
-    def has_logged_today(self):
+    def has_logged_today(self) -> bool:
         """Check if workout has been logged today."""
         if not os.path.exists(self.log_file):
             return False
@@ -640,7 +640,7 @@ class ScreenLocker:
         except (OSError, json.JSONDecodeError):
             return False
 
-    def save_workout_log(self):
+    def save_workout_log(self) -> None:
         """Save workout data to log file."""
         # Load existing logs
         logs = {}
@@ -665,12 +665,12 @@ class ScreenLocker:
         except OSError as e:
             logging.warning(f"Could not save workout log: {e}")
 
-    def close(self):
+    def close(self) -> None:
         """Close the application and exit."""
         self.root.destroy()
         sys.exit(0)
 
-    def run(self):
+    def run(self) -> None:
         """Start the Tkinter main event loop."""
         self.root.mainloop()
 

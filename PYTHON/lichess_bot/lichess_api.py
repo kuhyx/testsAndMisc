@@ -16,7 +16,7 @@ LICHESS_API = "https://lichess.org"
 class LichessAPI:
     """Client for interacting with the Lichess Bot API."""
 
-    def __init__(self, token: str, session: requests.Session | None = None):
+    def __init__(self, token: str, session: requests.Session | None = None) -> None:
         """Initialize the API client with authentication token."""
         self.token = token
         self.session = session or requests.Session()
@@ -29,7 +29,12 @@ class LichessAPI:
         )
 
     def _request(
-        self, method: str, url: str, *, raise_for_status: bool = False, **kwargs
+        self,
+        method: str,
+        url: str,
+        *,
+        raise_for_status: bool = False,
+        **kwargs: object,
     ) -> requests.Response:
         """Wrapper around session.request that logs every request/response.
 
@@ -40,7 +45,7 @@ class LichessAPI:
         t0 = time.monotonic()
         logging.info(f"HTTP {method} {url} -> sending")
         try:
-            r = self.session.request(method, url, **kwargs)
+            r = self.session.request(method, url, **kwargs)  # type: ignore[arg-type]
         except Exception:
             logging.exception(f"HTTP {method} {url} -> exception")
             raise
