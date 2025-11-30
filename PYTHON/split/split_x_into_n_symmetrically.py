@@ -10,7 +10,7 @@ def calculate_symmetric_weights(N, middle_weight, factors=None):
         `split_x_into_n_symmetrically` function).
         Must have length N // 2 or N // 2 - 1 depending on N.
     """
-    half_N = N // 2
+    half_n = N // 2
     weights_left = [middle_weight]
 
     if factors:
@@ -18,7 +18,7 @@ def calculate_symmetric_weights(N, middle_weight, factors=None):
             next_weight = weights_left[-1] + factor
             weights_left.append(next_weight)
     else:
-        for i in range(half_N - 1):
+        for i in range(half_n - 1):
             weights_left.append(middle_weight - (i + 1))
 
     if N % 2 == 0:
