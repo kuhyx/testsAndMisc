@@ -52,7 +52,6 @@ FIX_MODE=false
 QUICK_MODE=false
 REPORT_MODE=false
 TARGET_FILES=""
-VERBOSE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -68,10 +67,6 @@ while [[ $# -gt 0 ]]; do
             REPORT_MODE=true
             shift
             ;;
-        --verbose|-v)
-            VERBOSE=true
-            shift
-            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS] [FILES...]"
             echo ""
@@ -79,7 +74,6 @@ while [[ $# -gt 0 ]]; do
             echo "  --fix, -f      Auto-fix issues where possible"
             echo "  --quick, -q    Quick mode (ruff + mypy only)"
             echo "  --report, -r   Generate detailed reports to ./lint-reports/"
-            echo "  --verbose, -v  Show verbose output"
             echo "  --help, -h     Show this help message"
             echo ""
             echo "Examples:"
@@ -335,7 +329,7 @@ fi
 print_header "Linting Summary"
 echo ""
 
-if [[ ${#FAILED_TOOLS[@]} -gt 0 ]]; then
+if [[ ${OVERALL_STATUS} -ne 0 ]]; then
     print_error "The following tools reported issues:"
     for tool in "${FAILED_TOOLS[@]}"; do
         echo "  - ${tool}"
@@ -345,7 +339,7 @@ if [[ ${#FAILED_TOOLS[@]} -gt 0 ]]; then
         print_info "Detailed reports saved to: ${PROJECT_ROOT}/lint-reports/"
     fi
     print_info "Run with --fix to auto-fix issues where possible"
-    exit 1
+    exit ${OVERALL_STATUS}
 else
     print_success "All linting checks passed!"
     exit 0
