@@ -129,7 +129,7 @@ def fmt_eval(cp: int | None, mate_in: int | None) -> str:
     if cp is None:
         return "?"
     # Convert cp to pawns with sign and 2 decimals
-    return f"{cp/100.0:+.2f}"
+    return f"{cp / 100.0:+.2f}"
 
 
 def _parse_threads(value: str) -> int | None:

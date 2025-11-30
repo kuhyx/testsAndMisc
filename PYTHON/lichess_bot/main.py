@@ -198,7 +198,7 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                 if game_log_path:
                                     with open(game_log_path, "a") as lf:
                                         lf.write(
-                                            f"ply {last_handled_len+1}: {move.uci()}\n{reason}\n\n"
+                                            f"ply {last_handled_len + 1}: {move.uci()}\n{reason}\n\n"
                                         )
                                 api.make_move(game_id, move)
                         except Exception as e:

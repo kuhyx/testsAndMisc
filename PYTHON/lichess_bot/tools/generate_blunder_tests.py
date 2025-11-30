@@ -261,7 +261,7 @@ def append_cases_to_unified_test(
                     )
                     updated_existing += 1
             continue
-        label = f"ply{bl.ply}_{'W' if bl.side=='W' else 'B'}_{uci}"
+        label = f"ply{bl.ply}_{'W' if bl.side == 'W' else 'B'}_{uci}"
         # Encode the best move UCI in the label so tests can extract it without changing tuple shape
         label += f"_best_{best_uci}"
         lines.append(f'    ("{fen}", "{uci}", "{label}"),\n')
@@ -358,7 +358,7 @@ def main(argv: list[str]) -> int:
             if rc == 0:
                 ok += 1
         print(
-            f"Processed {len(logs)} logs from {past_dir}, succeeded: {ok}, failed: {len(logs)-ok}"
+            f"Processed {len(logs)} logs from {past_dir}, succeeded: {ok}, failed: {len(logs) - ok}"
         )
         return 0 if ok > 0 else 1
 

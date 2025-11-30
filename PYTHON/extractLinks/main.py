@@ -78,8 +78,7 @@ def main() -> int:
     hosts = extract_hosts_from_html(html_text)
 
     with open(out_path, "w", encoding="utf-8") as f:
-        for host in hosts:
-            f.write(f"*{host}*\n")
+        f.writelines(f"*{host}*\n" for host in hosts)
 
     print(f"Wrote {len(hosts)} host(s) to {out_path}")
     return 0
