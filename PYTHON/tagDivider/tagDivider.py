@@ -75,6 +75,4 @@ for filename in os.listdir(
                 currentPath + "/" + filename,
                 currentPath + "/" + secondFolderName + "/" + filename,
             )
-        # else:
-        #    print(key)
         cv2.destroyAllWindows()
