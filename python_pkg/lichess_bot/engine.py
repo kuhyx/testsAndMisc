@@ -99,7 +99,7 @@ class RandomEngine:
         chosen_uci = output.splitlines()[-1].strip() if output else ""
         try:
             move = chess.Move.from_uci(chosen_uci)
-        except Exception:
+        except ValueError:
             msg = f"Engine returned invalid move: '{chosen_uci}' (output: {output!r})"
             raise RuntimeError(msg) from None
 
@@ -159,7 +159,7 @@ class RandomEngine:
                 },
                 ensure_ascii=False,
             )
-        except Exception:
+        except (json.JSONDecodeError, KeyError, TypeError):
             logging.debug("Failed to parse engine JSON output")
 
         return cand_score, cand_expl, best_move, best_expl

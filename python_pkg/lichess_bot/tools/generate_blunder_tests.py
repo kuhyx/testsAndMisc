@@ -161,7 +161,7 @@ def fen_and_uci_for_blunders(
             if bl.ply - 1 < len(main_sans):
                 try:
                     move = board.parse_san(main_sans[bl.ply - 1])
-                except Exception:
+                except ValueError:
                     logging.debug("Skipping blunder: failed to parse fallback move")
                     continue
             else:
@@ -171,7 +171,7 @@ def fen_and_uci_for_blunders(
         try:
             best_move = board.parse_san(bl.best_suggestion_san)
             best_uci = best_move.uci()
-        except Exception as e:
+        except ValueError as e:
             msg = (
                 f"Failed to parse best_suggestion SAN "
                 f"'{bl.best_suggestion_san}' at ply {bl.ply} "

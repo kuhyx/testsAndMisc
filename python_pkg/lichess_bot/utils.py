@@ -28,7 +28,7 @@ def get_and_increment_version() -> int:
             raw = f.read().strip()
             if raw:
                 current = int(raw)
-    except Exception:
+    except (OSError, ValueError):
         # Missing or unreadable file -> treat as version 0
         current = 0
 
@@ -38,12 +38,12 @@ def get_and_increment_version() -> int:
         with open(tmp_path, "w") as f:
             f.write(str(new_version))
         os.replace(tmp_path, path)
-    except Exception:
+    except OSError:
         # As a fallback, try a direct write; failure is non-fatal to bot operation
         try:
             with open(path, "w") as f:
                 f.write(str(new_version))
-        except Exception:
+        except OSError:
             logging.debug("Could not persist bot version to %s", path)
 
     return new_version

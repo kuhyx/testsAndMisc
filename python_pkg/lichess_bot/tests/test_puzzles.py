@@ -8,6 +8,8 @@ import pytest
 
 from python_pkg.lichess_bot.engine import RandomEngine
 
+_PUZZLE_CSV = os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv")
+
 
 def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
     """Return a list of (FEN, solution_moves_str) for the first `limit` rows in the CSV.
@@ -15,6 +17,8 @@ def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
     CSV columns: PuzzleId,FEN,Moves,...
     """
     puzzles: list[tuple[str, str]] = []
+    if not os.path.isfile(csv_path):
+        return puzzles
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -27,11 +31,13 @@ def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:
     return puzzles
 
 
+_PUZZLES = _load_top_puzzles(_PUZZLE_CSV, limit=8)
+
+
+@pytest.mark.skipif(not _PUZZLES, reason="Puzzle CSV not found")
 @pytest.mark.parametrize(
     ("fen", "moves_str"),
-    _load_top_puzzles(
-        os.path.join(os.path.dirname(__file__), "lichess_db_puzzle.csv"), limit=8
-    ),
+    _PUZZLES or [("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4")],
 )
 def test_puzzle_engine_follow_solution(fen: str, moves_str: str) -> None:
     """Verify the engine follows puzzle solutions correctly."""

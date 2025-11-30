@@ -55,7 +55,7 @@ def test_crud_roundtrip(tmp_path: Path) -> None:
                 ) as resp:
                     resp.read()
                     break
-            except Exception:
+            except (OSError, urllib.error.URLError):
                 time.sleep(0.05)
 
         # Create
@@ -105,5 +105,5 @@ def test_crud_roundtrip(tmp_path: Path) -> None:
         srv.terminate()
         try:
             srv.wait(timeout=2)
-        except Exception:
+        except subprocess.TimeoutExpired:
             srv.kill()
