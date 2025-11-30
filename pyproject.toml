@@ -68,7 +68,6 @@ ignore = [
     "DTZ005",  # datetime.now without tz - acceptable for local scripts
     "E741",    # ambiguous-variable-name - sometimes intentional (e.g. l for list)
     "DTZ004",  # datetime.utcfromtimestamp - acceptable
-    "E722",    # bare-except - will be fixed where critical
     "PERF401", # manual-list-comprehension - style preference
     "RUF005",  # collection-literal-concatenation - style preference
     "SIM102",  # collapsible-if - style preference
