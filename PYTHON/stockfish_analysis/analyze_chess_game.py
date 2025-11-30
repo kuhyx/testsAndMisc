@@ -31,9 +31,9 @@ import re
 import sys
 
 try:
-    import psutil  # type: ignore
+    import psutil  # type: ignore[import-untyped]
 except Exception:  # pragma: no cover - optional dependency; we fall back if unavailable
-    psutil = None  # type: ignore
+    psutil = None  # type: ignore[assignment]
 
 try:
     import chess

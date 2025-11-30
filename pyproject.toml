@@ -58,7 +58,6 @@ ignore = [
     "FBT003",  # Boolean positional value - common pattern
     "ARG001",  # Unused function argument - often needed for API compatibility
     "ARG002",  # Unused method argument - often needed for API compatibility
-    "PGH003",  # blanket-type-ignore - existing code
     "PLC0415", # import-outside-top-level - sometimes necessary
     "N816",    # mixed-case-variable-in-global-scope - often constants
     "N806",    # non-lowercase-variable - sometimes intentional
