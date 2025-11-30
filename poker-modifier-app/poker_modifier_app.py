@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 class PokerModifierApp:
     """GUI application for poker game modifiers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the poker modifier app with default settings."""
         self.modifiers = [
             # Hand Bonus Modifiers (Balatro-inspired)
@@ -519,7 +519,7 @@ class PokerModifierApp:
 
         self.setup_gui()
 
-    def setup_gui(self):
+    def setup_gui(self) -> None:
         """Create and configure the main GUI window."""
         # Create main window
         self.root = tk.Tk()
@@ -787,16 +787,16 @@ class PokerModifierApp:
         )
         self.phase_label.pack(pady=10)
 
-    def update_prob_display(self, value):
+    def update_prob_display(self, value: str) -> None:
         """Update the probability percentage display."""
         self.prob_label.config(text=f"{value}%")
 
-    def update_length_display(self, value):
+    def update_length_display(self, value: str) -> None:
         """Update the game length display."""
         self.length_label.config(text=str(value))
         self.total_game_rounds = int(value)
 
-    def toggle_debug_mode(self):
+    def toggle_debug_mode(self) -> None:
         """Toggle debug mode and show/hide debug controls."""
         self.debug_mode = self.debug_var.get()
         if self.debug_mode:
@@ -807,7 +807,7 @@ class PokerModifierApp:
             self.force_endgame = False
             logging.debug("Debug mode disabled")
 
-    def toggle_force_endgame(self):
+    def toggle_force_endgame(self) -> None:
         """Toggle forced endgame mode for testing."""
         self.force_endgame = not self.force_endgame
         if self.force_endgame:
@@ -817,7 +817,7 @@ class PokerModifierApp:
             self.force_endgame_button.config(text="Force Endgame", bg="#ff6b6b")
             logging.debug("Normal modifier selection restored")
 
-    def is_endgame(self):
+    def is_endgame(self) -> bool:
         """Determine if we're in endgame phase."""
         if self.debug_mode and self.force_endgame:
             return True
@@ -825,7 +825,7 @@ class PokerModifierApp:
         endgame_round = int(self.total_game_rounds * self.endgame_threshold)
         return self.rounds_played >= endgame_round
 
-    def start_round(self):
+    def start_round(self) -> None:
         """Start a new poker round and determine if modifier should be applied."""
         # Button animation effect
         self.start_button.config(relief=tk.SUNKEN)
@@ -850,7 +850,7 @@ class PokerModifierApp:
         else:
             self.show_no_modifier()
 
-    def update_phase_indicator(self):
+    def update_phase_indicator(self) -> None:
         """Update the game phase indicator based on current round."""
         if self.is_endgame():
             self.phase_label.config(text="Endgame", fg="#ff6b6b")
@@ -861,7 +861,7 @@ class PokerModifierApp:
         else:
             self.phase_label.config(text="Early", fg="#4CAF50")
 
-    def apply_random_modifier(self):
+    def apply_random_modifier(self) -> None:
         """Apply a random modifier and update display."""
         # Update modifier counter
         self.modifiers_applied += 1
@@ -925,7 +925,7 @@ class PokerModifierApp:
             text=modifier_text, fg="#ffd700", bg=bg_color, font=("Arial", 14, "bold")
         )
 
-    def show_no_modifier(self):
+    def show_no_modifier(self) -> None:
         """Show no modifier message."""
         # Update result frame styling for no modifier
         self.result_frame.config(
@@ -940,7 +940,7 @@ class PokerModifierApp:
             font=("Arial", 14),
         )
 
-    def reset_game(self):
+    def reset_game(self) -> None:
         """Reset the game to initial state."""
         self.rounds_played = 0
         self.modifiers_applied = 0
@@ -968,11 +968,11 @@ class PokerModifierApp:
 
         logging.info("Game reset to initial state")
 
-    def add_modifier(self, name, description):
+    def add_modifier(self, name: str, description: str) -> None:
         """Add a new modifier to the list."""
         self.modifiers.append({"name": name, "description": description})
 
-    def get_stats(self):
+    def get_stats(self) -> dict[str, int | float | bool]:
         """Get current statistics."""
         modifier_rate = (
             0
@@ -992,7 +992,7 @@ class PokerModifierApp:
             "force_endgame": self.force_endgame,
         }
 
-    def run(self):
+    def run(self) -> None:
         """Start the application."""
         logging.info("Texas Hold'em Modifier App started!")
         logging.info(

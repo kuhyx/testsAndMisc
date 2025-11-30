@@ -34,12 +34,6 @@ ignore = [
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     # Relaxed for script-heavy repository
-    "ANN001",  # Missing type annotation for function argument
-    "ANN002",  # Missing type annotation for *args
-    "ANN003",  # Missing type annotation for **kwargs
-    "ANN201",  # Missing return type annotation for public function
-    "ANN202",  # Missing return type annotation for private function
-    "ANN204",  # Missing return type annotation for special method
     "PTH",     # Use pathlib instead of os.path - too invasive for existing code
     "C901",    # Function is too complex - many scripts have complex logic
     "PLR0912", # Too many branches - relaxed for scripts

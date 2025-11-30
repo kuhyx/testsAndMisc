@@ -24,8 +24,10 @@ class _HrefParser(HTMLParser):
         super().__init__()
         self.hrefs: list[str] = []
 
-    def handle_starttag(self, tag: str, attrs):  # type: ignore[override]
-        # Collect any href attribute on any tag
+    def handle_starttag(  # type: ignore[override]
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        """Collect href attributes from start tags."""
         for k, v in attrs:
             if k.lower() == "href" and v is not None:
                 self.hrefs.append(v)

@@ -25,7 +25,7 @@ class RandomEngine:
         engine_path: str | None = None,
         max_time_sec: float = 2.0,
         depth: int | None = None,
-    ):
+    ) -> None:
         """Initialize the engine wrapper with path and time settings."""
         self.max_time_sec = max_time_sec
         # depth is accepted for compatibility with existing callers but is unused;

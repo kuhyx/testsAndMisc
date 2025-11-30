@@ -13,10 +13,10 @@ DEFAULT_MAX_PERCENTAGE = 20
 
 
 def randomize_numbers(
-    numbers,
-    min_percentage=DEFAULT_MIN_PERCENTAGE,
-    max_percentage=DEFAULT_MAX_PERCENTAGE,
-):
+    numbers: list[float],
+    min_percentage: float = DEFAULT_MIN_PERCENTAGE,
+    max_percentage: float = DEFAULT_MAX_PERCENTAGE,
+) -> list[float]:
     """Apply random percentage variation to a list of numbers."""
     randomized_numbers = []
     for number in numbers:
@@ -29,7 +29,7 @@ def randomize_numbers(
     return randomized_numbers
 
 
-def parse_input(input_string):
+def parse_input(input_string: str) -> tuple[list[float], list[int]]:
     """Parse a string of numbers and return floats with decimal counts."""
     # Replace commas with dots and remove non-numeric characters
     # except dots, commas, and digits
@@ -37,8 +37,8 @@ def parse_input(input_string):
     # Split the cleaned input into individual numbers
     number_strings = cleaned_input.split()
     # Convert the number strings to floats
-    numbers = []
-    decimal_counts = []
+    numbers: list[float] = []
+    decimal_counts: list[int] = []
     for num in number_strings:
         try:
             float_num = float(num)
