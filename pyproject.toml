@@ -58,7 +58,6 @@ ignore = [
     "FBT003",  # Boolean positional value - common pattern
     "ARG001",  # Unused function argument - often needed for API compatibility
     "ARG002",  # Unused method argument - often needed for API compatibility
-    "PERF203", # try-except-in-loop - often necessary
     "PGH003",  # blanket-type-ignore - existing code
     "PLC0415", # import-outside-top-level - sometimes necessary
     "N816",    # mixed-case-variable-in-global-scope - often constants
@@ -109,6 +108,15 @@ unfixable = []
 ]
 "poker-modifier-app/*.py" = [
     "INP001",  # Folder has hyphen, can't be a valid Python package
+]
+"PYTHON/downloadCats/generate_cats.py" = [
+    "PERF203", # Try-except needed for download resilience in loop
+]
+"PYTHON/lichess_bot/main.py" = [
+    "PERF203", # Try-except needed for stream/move error handling in loops
+]
+"PYTHON/randomize_numbers/random_digits.py" = [
+    "PERF203", # Try-except needed for parsing user input in loop
 ]
 
 [tool.ruff.lint.pydocstyle]
