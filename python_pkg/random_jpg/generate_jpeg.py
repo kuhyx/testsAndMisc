@@ -5,11 +5,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
 import os
-import random
+import secrets
 
 from PIL import Image
 
 logging.basicConfig(level=logging.INFO)
+
+# Use cryptographically secure random number generator
+_rng = secrets.SystemRandom()
 
 MAX_IMAGE_SIZE = 1000
 
@@ -57,7 +60,7 @@ def generate_bloated_jpeg(config: ImageConfig, image_index: int, folder: str) ->
     # of random colors from the list
     for y in range(0, config.size, config.block_size):
         for x in range(0, config.size, config.block_size):
-            color = random.choice(rgb_colors)
+            color = _rng.choice(rgb_colors)
             for i in range(config.block_size):
                 for j in range(config.block_size):
                     pixels[x + i, y + j] = color

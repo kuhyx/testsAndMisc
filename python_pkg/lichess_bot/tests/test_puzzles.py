@@ -6,7 +6,7 @@ import os
 import chess
 import pytest
 
-from PYTHON.lichess_bot.engine import RandomEngine
+from python_pkg.lichess_bot.engine import RandomEngine
 
 
 def _load_top_puzzles(csv_path: str, limit: int = 8) -> list[tuple[str, str]]:

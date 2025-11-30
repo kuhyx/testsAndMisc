@@ -64,112 +64,96 @@ unfixable = []
     "D103",    # Allow missing function docstring
     "PTH",     # Allow os.path in conftest
 ]
-# N999 ignores for PYTHON folder naming (uppercase folder)
-"PYTHON/**/__init__.py" = [
-    "N999",    # Invalid module name due to PYTHON folder naming
-]
-"PYTHON/randomJPG/generateJpeg.py" = [
-    "N999",    # camelCase filename preserved for compatibility
-    "S311",    # Random for image generation, not crypto
+"python_pkg/random_jpg/generate_jpeg.py" = [
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
 ]
-"PYTHON/tagDivider/tagDivider.py" = [
-    "N999",    # camelCase filename preserved for compatibility
+"python_pkg/tag_divider/tag_divider.py" = [
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in script
 ]
-"poker-modifier-app/*.py" = [
-    "INP001",  # Folder has hyphen, can't be a valid Python package
-    "S311",    # Random for game mechanics, not crypto
+"poker_modifier_app/*.py" = [
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
 ]
-"poker-modifier-app/poker_modifier_app.py" = [
-    "INP001",  # Folder has hyphen, can't be a valid Python package
+"poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
-    "S311",    # Random for game mechanics, not crypto
     "LOG015",  # Root logger in app
     "G004",    # f-strings in logging
 ]
-"PYTHON/downloadCats/generate_cats.py" = [
+"python_pkg/download_cats/generate_cats.py" = [
     "PERF203", # Try-except needed for download resilience in loop
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
 ]
-"PYTHON/lichess_bot/main.py" = [
+"python_pkg/lichess_bot/main.py" = [
     "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
     "PERF203", # Try-except needed for stream/move error handling in loops
     "PLR0912", # Complex nested game event handling with many branches
     "PLR0915", # Long function handling complete game lifecycle
     "BLE001",  # Blind except for resilient bot operation
-    "S110",    # Try-except-pass for non-critical error handling
     "S603",    # Subprocess call for analysis script
     "PTH",     # os.path patterns in existing code
     "LOG015",  # Root logger in bot
     "G004",    # f-strings in logging
-    "TRY301",  # Raise in try block for null checks on subprocess streams
 ]
-"PYTHON/lichess_bot/engine.py" = [
+"python_pkg/lichess_bot/engine.py" = [
     "BLE001",  # Blind except for engine error handling
-    "S110",    # Try-except-pass for optional features
     "S603",    # Subprocess for engine communication
     "PTH",     # os.path patterns
+    "LOG015",  # Root logger for debug messages
 ]
-"PYTHON/lichess_bot/lichess_api.py" = [
+"python_pkg/lichess_bot/lichess_api.py" = [
     "BLE001",  # Blind except for API resilience
     "LOG015",  # Root logger in API client
     "G004",    # f-strings in logging
 ]
-"PYTHON/lichess_bot/utils.py" = [
+"python_pkg/lichess_bot/utils.py" = [
     "BLE001",  # Blind except for file operations
     "PTH",     # os.path patterns
     "LOG015",  # Root logger
     "G004",    # f-strings in logging
 ]
-"PYTHON/lichess_bot/tools/generate_blunder_tests.py" = [
+"python_pkg/lichess_bot/tools/generate_blunder_tests.py" = [
     "BLE001",  # Blind except for test generation
     "PTH",     # os.path patterns in tool
     "LOG015",  # Root logger in tool
     "G004",    # f-strings in logging
 ]
-"PYTHON/stockfish_analysis/analyze_chess_game.py" = [
+"python_pkg/stockfish_analysis/analyze_chess_game.py" = [
     "C901",    # Complex main() with many argument combinations and analysis modes
     "PLR0912", # Complex main() with many argument combinations and analysis modes
     "PLR0915", # Long main() handling complete analysis workflow
     "BLE001",  # Blind except for engine configuration
-    "S110",    # Try-except-pass for optional engine features
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in analysis tool
     "G004",    # f-strings in logging
 ]
-"PYTHON/randomize_numbers/random_digits.py" = [
+"python_pkg/randomize_numbers/random_digits.py" = [
     "PERF203", # Try-except needed for parsing user input in loop
-    "S311",    # Random for number randomization, not crypto
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
-    "TRY301",  # Raise in try block for input validation
 ]
-"PYTHON/keyboardCoop/main.py" = [
+"python_pkg/keyboard_coop/main.py" = [
     "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in script
 ]
-"PYTHON/screen_locker/screen_lock.py" = [
+"python_pkg/screen_locker/screen_lock.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in app
     "G004",    # f-strings in logging
 ]
-"PYTHON/scapeWebsite/scrape_comics.py" = [
+"python_pkg/scrape_website/scrape_comics.py" = [
     "BLE001",  # Blind except for web scraping resilience
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
 ]
-"PYTHON/extractLinks/main.py" = [
+"python_pkg/extract_links/main.py" = [
     "PTH",     # os.path patterns
     "LOG015",  # Root logger in script
     "G004",    # f-strings in logging
@@ -181,7 +165,7 @@ convention = "google"  # Use Google docstring convention
 [tool.ruff.lint.isort]
 force-single-line = false
 force-sort-within-sections = true
-known-first-party = ["PYTHON"]
+known-first-party = ["python_pkg"]
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"

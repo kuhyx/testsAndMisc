@@ -1,6 +1,7 @@
 """Main entry point for the Lichess bot."""
 
 import argparse
+import contextlib
 import datetime
 import json
 import logging
@@ -12,9 +13,9 @@ import threading
 import chess
 import chess.pgn
 
-from PYTHON.lichess_bot.engine import RandomEngine
-from PYTHON.lichess_bot.lichess_api import LichessAPI
-from PYTHON.lichess_bot.utils import backoff_sleep, get_and_increment_version
+from python_pkg.lichess_bot.engine import RandomEngine
+from python_pkg.lichess_bot.lichess_api import LichessAPI
+from python_pkg.lichess_bot.utils import backoff_sleep, get_and_increment_version
 
 
 def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) -> None:
@@ -91,7 +92,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                         white_name = event["white"].get("name") or white_id or "?"
                         black_name = event["black"].get("name") or black_id or "?"
                         # Set site and date if available
-                        try:
+                        with contextlib.suppress(Exception):
                             # Lichess event may include 'createdAt' ms epoch
                             created_ms = event.get("createdAt") or event.get(
                                 "createdAtDate"
@@ -100,8 +101,6 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                 game_date_iso = datetime.datetime.fromtimestamp(
                                     int(created_ms) / 1000, tz=datetime.timezone.utc
                                 ).strftime("%Y.%m.%d")
-                        except Exception:
-                            pass
                         site_url = f"https://lichess.org/{game_id}"
                         me = api.get_my_user_id()
                         if me == white_id:
@@ -241,7 +240,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                 if game_log_path:
                     game = chess.pgn.Game.from_board(board)
                     # Record the bot version in the PGN headers
-                    try:
+                    with contextlib.suppress(Exception):
                         game.headers["BotVersion"] = f"v{bot_version}"
                         if site_url:
                             game.headers["Site"] = site_url
@@ -251,8 +250,6 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             game.headers["White"] = white_name
                         if black_name:
                             game.headers["Black"] = black_name
-                    except Exception:
-                        pass
                     with open(game_log_path, "a") as lf:
                         lf.write("\nPGN:\n")
                         exporter = chess.pgn.StringExporter(
@@ -293,9 +290,9 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             lines: list[str] = []
                             ply_line_re = __import__("re").compile(r"^\s*(\d+)\s")
                             # Read stdout line by line
-                            if proc.stdout is None:
-                                msg = "subprocess stdout is None"
-                                raise RuntimeError(msg)
+                            # stdout/stderr are guaranteed non-None with PIPE
+                            assert proc.stdout is not None  # noqa: S101
+                            assert proc.stderr is not None  # noqa: S101
                             for line in proc.stdout:
                                 lines.append(line)
                                 m = ply_line_re.match(line)
@@ -321,9 +318,6 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                         )
 
                             # Capture any remaining stderr and ensure process ends
-                            if proc.stderr is None:
-                                msg = "subprocess stderr is None"
-                                raise RuntimeError(msg)
                             stderr_text = proc.stderr.read() or ""
                             ret = proc.wait()
                             analysis_text = "".join(lines)

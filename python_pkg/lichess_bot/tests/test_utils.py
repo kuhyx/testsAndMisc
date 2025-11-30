@@ -2,7 +2,7 @@
 
 import pytest
 
-from PYTHON.lichess_bot.utils import backoff_sleep
+from python_pkg.lichess_bot.utils import backoff_sleep
 
 
 def test_backoff_sleep_increments_and_caps(monkeypatch: pytest.MonkeyPatch) -> None:
