@@ -13,10 +13,14 @@ import requests
 logging.basicConfig(level=logging.INFO)
 
 MAX_REQUESTS = 90
+REQUEST_TIMEOUT = 30  # seconds
 
 requests_send = 0
 while requests_send < MAX_REQUESTS:
-    res = requests.get("https://api.thecatapi.com/v1/images/search?limit=100&api_key=")
+    res = requests.get(
+        "https://api.thecatapi.com/v1/images/search?limit=100&api_key=",
+        timeout=REQUEST_TIMEOUT,
+    )
     requests_send += 1
     response = json.loads(res.text)
     urls = []
@@ -27,7 +31,7 @@ while requests_send < MAX_REQUESTS:
     for url in urls:
         try:
             # Get the image content
-            response = requests.get(url)
+            response = requests.get(url, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()  # Raise an exception for HTTP errors
 
             # Extract the image name from the URL

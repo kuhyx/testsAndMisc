@@ -11,6 +11,8 @@ from selenium.webdriver.common.by import By
 
 logging.basicConfig(level=logging.INFO)
 
+REQUEST_TIMEOUT = 30  # seconds
+
 # Initialize argument parser to accept the website URL as an argument
 parser = argparse.ArgumentParser(description="Download images from a comic website.")
 parser.add_argument(
@@ -38,7 +40,7 @@ def download_image(url):
         logging.info(f"Image {image_name} already exists, skipping download.")
         return False
     logging.info(f"Downloading image from URL: {url}")
-    img_data = requests.get(url).content
+    img_data = requests.get(url, timeout=REQUEST_TIMEOUT).content
     with open(image_name, "wb") as handler:
         handler.write(img_data)
     logging.info(f"Image {image_name} downloaded successfully")
