@@ -178,7 +178,7 @@ def _detect_total_mem_mb() -> int | None:
             return int(psutil.virtual_memory().total // (1024 * 1024))
         except Exception:
             pass
-    # Fallback: Linux /proc/meminfo
+    # Fallback approach for Linux systems using proc meminfo.
     try:
         with open("/proc/meminfo", encoding="utf-8", errors="ignore") as f:
             for line in f:
@@ -319,7 +319,7 @@ def main():
         except Exception:
             pass
 
-    # Hash (MB)
+    # Configure hash table size in MB.
     if "Hash" in options:
         try:
             if args.hash_mb is not None:
