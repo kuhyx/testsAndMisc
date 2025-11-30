@@ -40,7 +40,9 @@ try:
     import chess.pgn
 except Exception:  # pragma: no cover
     print("Missing dependency. Please install python-chess:", file=sys.stderr)
-    print("  pip install -r PYTHON/stockfish_analysis/requirements.txt", file=sys.stderr)
+    print(
+        "  pip install -r PYTHON/stockfish_analysis/requirements.txt", file=sys.stderr
+    )
     raise
 
 
@@ -80,11 +82,13 @@ def extract_pgn_text(raw: str) -> str | None:
     return None
 
 
-def score_to_cp(score: chess.engine.PovScore, pov_white: bool) -> tuple[int | None, int | None]:
+def score_to_cp(
+    score: chess.engine.PovScore, pov_white: bool
+) -> tuple[int | None, int | None]:
     """Return tuple (cp, mate_in) from a PovScore for the given POV color.
 
-    If it's a mate score, cp will be None and mate_in will be +/-N (positive means mate for POV side).
-    If it's a cp score, mate_in will be None.
+    If it's a mate score, cp will be None and mate_in will be +/-N
+    (positive means mate for POV side). If it's a cp score, mate_in will be None.
     """
     pov = chess.WHITE if pov_white else chess.BLACK
     s = score.pov(pov)
@@ -198,7 +202,9 @@ def _auto_hash_mb(threads_wanted: int, engine_options) -> int:
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Analyze a chess game's moves with Stockfish and rate each move.")
+    ap = argparse.ArgumentParser(
+        description="Analyze a chess game's moves with Stockfish and rate each move."
+    )
     ap.add_argument("file", help="Path to a PGN file or a log containing a PGN section")
     ap.add_argument(
         "--engine",
@@ -242,7 +248,10 @@ def main():
     ap.add_argument(
         "--last-move-only",
         action="store_true",
-        help="Analyze only the last move of the main line (reports its eval and the best move)",
+        help=(
+            "Analyze only the last move of the main line "
+            "(reports its eval and the best move)"
+        ),
     )
     args = ap.parse_args()
 
@@ -281,7 +290,9 @@ def main():
         options = {}
 
     # Threads
-    wanted_threads = args.threads if args.threads is not None else (multiprocessing.cpu_count() or 1)
+    wanted_threads = (
+        args.threads if args.threads is not None else (multiprocessing.cpu_count() or 1)
+    )
     # Respect engine bounds if present
     if "Threads" in options:
         try:
@@ -343,7 +354,9 @@ def main():
     result = game.headers.get("Result", "*")
     print(f"  {white} vs {black}  Result: {result}")
     print()
-    print("Columns: ply  side  move  played_eval  best_eval  loss  class  best_suggestion")
+    print(
+        "Columns: ply  side  move  played_eval  best_eval  loss  class  best_suggestion"
+    )
     # Brief performance summary (best-effort)
     try:
         thr_show = int(wanted_threads)
@@ -351,14 +364,19 @@ def main():
         thr_show = 1
     try:
         hash_show = (
-            int(engine.options.get("Hash").value) if hasattr(engine, "options") and engine.options.get("Hash") else None
+            int(engine.options.get("Hash").value)
+            if hasattr(engine, "options") and engine.options.get("Hash")
+            else None
         )
     except Exception:
         hash_show = None
     if hash_show is not None:
-        print(f"Using engine options: Threads={thr_show}, Hash={hash_show} MB, MultiPV={effective_mpv}")
+        print(
+            f"Using engine options: Threads={thr_show}, "
+            f"Hash={hash_show} MB, MultiPV={effective_mpv}"
+        )
     else:
-        print(f"Using engine options: Threads={thr_show}, MultiPV={effective_mpv}")
+        print(f"Using engine options: Threads={thr_show}, " f"MultiPV={effective_mpv}")
 
     ply = 1
     try:
@@ -377,10 +395,20 @@ def main():
                     # If this is the final move in the mainline, analyze it and stop.
                     if not move_node.variations:
                         # Analyse current position to get engine best move suggestion
-                        info_root_raw = engine.analyse(board, limit=limit, multipv=effective_mpv)
-                        info_root = info_root_raw[0] if isinstance(info_root_raw, list) else info_root_raw
+                        info_root_raw = engine.analyse(
+                            board, limit=limit, multipv=effective_mpv
+                        )
+                        info_root = (
+                            info_root_raw[0]
+                            if isinstance(info_root_raw, list)
+                            else info_root_raw
+                        )
                         best_move = None
-                        if info_root is not None and "pv" in info_root and info_root["pv"]:
+                        if (
+                            info_root is not None
+                            and "pv" in info_root
+                            and info_root["pv"]
+                        ):
                             best_move = info_root["pv"][0]
                         if best_move is None:
                             res = engine.play(board, limit)
@@ -391,24 +419,42 @@ def main():
                         # Evaluate played move
                         board_played = board.copy()
                         board_played.push(move)
-                        info_played_raw = engine.analyse(board_played, limit=limit, multipv=effective_mpv)
-                        info_played = info_played_raw[0] if isinstance(info_played_raw, list) else info_played_raw
+                        info_played_raw = engine.analyse(
+                            board_played, limit=limit, multipv=effective_mpv
+                        )
+                        info_played = (
+                            info_played_raw[0]
+                            if isinstance(info_played_raw, list)
+                            else info_played_raw
+                        )
                         if info_played is None or "score" not in info_played:
                             played_cp, played_mate = None, None
                         else:
-                            played_cp, played_mate = score_to_cp(info_played["score"], pov_white=mover_white)
+                            played_cp, played_mate = score_to_cp(
+                                info_played["score"], pov_white=mover_white
+                            )
 
                         # Evaluate best move position (for mover POV)
-                        best_san = board.san(best_move) if best_move is not None else "?"
+                        best_san = (
+                            board.san(best_move) if best_move is not None else "?"
+                        )
                         if best_move is not None:
                             board_best = board.copy()
                             board_best.push(best_move)
-                            info_best_raw = engine.analyse(board_best, limit=limit, multipv=effective_mpv)
-                            info_best = info_best_raw[0] if isinstance(info_best_raw, list) else info_best_raw
+                            info_best_raw = engine.analyse(
+                                board_best, limit=limit, multipv=effective_mpv
+                            )
+                            info_best = (
+                                info_best_raw[0]
+                                if isinstance(info_best_raw, list)
+                                else info_best_raw
+                            )
                             if info_best is None or "score" not in info_best:
                                 best_cp, best_mate = None, None
                             else:
-                                best_cp, best_mate = score_to_cp(info_best["score"], pov_white=mover_white)
+                                best_cp, best_mate = score_to_cp(
+                                    info_best["score"], pov_white=mover_white
+                                )
                         else:
                             best_cp, best_mate = None, None
 
@@ -441,9 +487,11 @@ def main():
 
                         side = "W" if mover_white else "B"
                         print(
-                            f"{ply:>3}  {side}   {san:<8}  {fmt_eval(played_cp, played_mate):>10}  "
+                            f"{ply:>3}  {side}   {san:<8}  "
+                            f"{fmt_eval(played_cp, played_mate):>10}  "
                             f"{fmt_eval(best_cp, best_mate):>9}  "
-                            f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  {classification:<12}  {best_san}"
+                            f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  "
+                            f"{classification:<12}  {best_san}"
                         )
                         break
 
@@ -459,8 +507,14 @@ def main():
                 mover_white = board.turn
 
                 # Analyse position to get engine best move suggestion
-                info_root_raw = engine.analyse(board, limit=limit, multipv=effective_mpv)
-                info_root = info_root_raw[0] if isinstance(info_root_raw, list) else info_root_raw
+                info_root_raw = engine.analyse(
+                    board, limit=limit, multipv=effective_mpv
+                )
+                info_root = (
+                    info_root_raw[0]
+                    if isinstance(info_root_raw, list)
+                    else info_root_raw
+                )
                 best_move = None
                 if info_root is not None and "pv" in info_root and info_root["pv"]:
                     best_move = info_root["pv"][0]
@@ -473,24 +527,40 @@ def main():
                 san = board.san(move)
                 board_played = board.copy()
                 board_played.push(move)
-                info_played_raw = engine.analyse(board_played, limit=limit, multipv=effective_mpv)
-                info_played = info_played_raw[0] if isinstance(info_played_raw, list) else info_played_raw
+                info_played_raw = engine.analyse(
+                    board_played, limit=limit, multipv=effective_mpv
+                )
+                info_played = (
+                    info_played_raw[0]
+                    if isinstance(info_played_raw, list)
+                    else info_played_raw
+                )
                 if info_played is None or "score" not in info_played:
                     played_cp, played_mate = None, None
                 else:
-                    played_cp, played_mate = score_to_cp(info_played["score"], pov_white=mover_white)
+                    played_cp, played_mate = score_to_cp(
+                        info_played["score"], pov_white=mover_white
+                    )
 
                 # Evaluate best move position (for mover POV)
                 best_san = board.san(best_move) if best_move is not None else "?"
                 if best_move is not None:
                     board_best = board.copy()
                     board_best.push(best_move)
-                    info_best_raw = engine.analyse(board_best, limit=limit, multipv=effective_mpv)
-                    info_best = info_best_raw[0] if isinstance(info_best_raw, list) else info_best_raw
+                    info_best_raw = engine.analyse(
+                        board_best, limit=limit, multipv=effective_mpv
+                    )
+                    info_best = (
+                        info_best_raw[0]
+                        if isinstance(info_best_raw, list)
+                        else info_best_raw
+                    )
                     if info_best is None or "score" not in info_best:
                         best_cp, best_mate = None, None
                     else:
-                        best_cp, best_mate = score_to_cp(info_best["score"], pov_white=mover_white)
+                        best_cp, best_mate = score_to_cp(
+                            info_best["score"], pov_white=mover_white
+                        )
                 else:
                     best_cp, best_mate = None, None
 
@@ -502,7 +572,8 @@ def main():
                     if best_mate is not None and played_mate is not None:
                         # Same sign -> compare speed
                         if (best_mate > 0) and (played_mate > 0):
-                            # Keeping a mate: equal speed Best; slower -> Inaccuracy; faster -> Best
+                            # Keeping a mate: equal speed Best;
+                            # slower -> Inaccuracy; faster -> Best
                             if abs(played_mate) == abs(best_mate):
                                 classification = "Best"
                             elif abs(played_mate) > abs(best_mate):
@@ -510,7 +581,8 @@ def main():
                             else:
                                 classification = "Best"
                         elif (best_mate < 0) and (played_mate < 0):
-                            # Defending: equal delay Best; sooner mate -> Blunder;
+                            # Defending: equal delay Best;
+                            # sooner mate -> Blunder;
                             # if played delays more -> Good
                             if abs(played_mate) == abs(best_mate):
                                 classification = "Best"
@@ -530,9 +602,11 @@ def main():
 
                 side = "W" if mover_white else "B"
                 print(
-                    f"{ply:>3}  {side}   {san:<8}  {fmt_eval(played_cp, played_mate):>10}  "
+                    f"{ply:>3}  {side}   {san:<8}  "
+                    f"{fmt_eval(played_cp, played_mate):>10}  "
                     f"{fmt_eval(best_cp, best_mate):>9}  "
-                    f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  {classification:<12}  {best_san}"
+                    f"{(str(cp_loss) if cp_loss is not None else '—'):>5}  "
+                    f"{classification:<12}  {best_san}"
                 )
 
                 node = move_node

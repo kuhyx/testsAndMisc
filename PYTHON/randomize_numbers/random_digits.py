@@ -17,7 +17,8 @@ def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
 
 
 def parse_input(input_string):
-    # Replace commas with dots and remove non-numeric characters except dots, commas, and digits
+    # Replace commas with dots and remove non-numeric characters
+    # except dots, commas, and digits
     cleaned_input = re.sub(r"[^\d.,\s]", "", input_string).replace(",", ".")
     # Split the cleaned input into individual numbers
     number_strings = cleaned_input.split()
@@ -37,7 +38,10 @@ def parse_input(input_string):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python random_digits.py <number1> <number2> ... [min_percentage max_percentage]")
+        print(
+            "Usage: python random_digits.py <number1> <number2> ... "
+            "[min_percentage max_percentage]"
+        )
         sys.exit(1)
 
     try:

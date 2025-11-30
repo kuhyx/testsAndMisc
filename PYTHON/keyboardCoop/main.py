@@ -87,7 +87,9 @@ class KeyboardCoopGame:
     def load_dictionary(self):
         """Load dictionary from words_dictionary.json file."""
         try:
-            dictionary_path = os.path.join(os.path.dirname(__file__), "words_dictionary.json")
+            dictionary_path = os.path.join(
+                os.path.dirname(__file__), "words_dictionary.json"
+            )
             with open(dictionary_path, encoding="utf-8") as f:
                 dictionary_data = json.load(f)
             # Convert to set for faster lookup (we only need the keys)
@@ -147,7 +149,10 @@ class KeyboardCoopGame:
                 "good",
             }
         except json.JSONDecodeError:
-            print("Warning: Error reading words_dictionary.json, using fallback dictionary")
+            print(
+                "Warning: Error reading words_dictionary.json, "
+                "using fallback dictionary"
+            )
             return {
                 "cat",
                 "dog",
@@ -280,13 +285,19 @@ class KeyboardCoopGame:
             self.current_word += letter
 
             # Update available letters to include adjacent letters AND the same letter
-            adjacent_letters = set(self.key_adjacency[letter]) if letter in self.key_adjacency else set()
+            adjacent_letters = (
+                set(self.key_adjacency[letter])
+                if letter in self.key_adjacency
+                else set()
+            )
             adjacent_letters.add(letter)  # Allow selecting the same letter again
             self.available_letters = adjacent_letters
 
             # Switch player
             self.current_player = 1 - self.current_player
-            self.message = f"Player {self.current_player + 1}: Choose an adjacent letter!"
+            self.message = (
+                f"Player {self.current_player + 1}: Choose an adjacent letter!"
+            )
 
             # If no valid moves available, force word submission
             if not self.available_letters:
@@ -297,7 +308,10 @@ class KeyboardCoopGame:
         if len(self.current_word) >= 3 and self.is_valid_word(self.current_word):
             points = self.calculate_score(len(self.current_word))
             self.score += points
-            self.message = f"'{self.current_word}' is valid! +{points} points (Total: {self.score}) - New keyboard!"
+            self.message = (
+                f"'{self.current_word}' is valid! +{points} points "
+                f"(Total: {self.score}) - New keyboard!"
+            )
 
             # Randomize keyboard layout after scoring
             self.generate_random_keyboard()
@@ -357,7 +371,9 @@ class KeyboardCoopGame:
         self.screen.blit(title, (30, 20))
 
         # Current word
-        word_text = self.font.render(f"Current Word: {self.current_word.upper()}", True, TEXT_COLOR)
+        word_text = self.font.render(
+            f"Current Word: {self.current_word.upper()}", True, TEXT_COLOR
+        )
         self.screen.blit(word_text, (30, 50))
 
         # Score
@@ -366,7 +382,9 @@ class KeyboardCoopGame:
 
         # Current player
         player_color = PLAYER_COLORS[self.current_player]
-        player_text = self.font.render(f"Current Player: {self.current_player + 1}", True, player_color)
+        player_text = self.font.render(
+            f"Current Player: {self.current_player + 1}", True, player_color
+        )
         self.screen.blit(player_text, (30, 100))
 
         # Message

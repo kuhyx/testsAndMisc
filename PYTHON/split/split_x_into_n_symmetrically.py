@@ -3,8 +3,9 @@ def calculate_symmetric_weights(N, middle_weight, factors=None):
 
     N: Number in which to split.
     middle_weight: The middle value for symmetry.
-    factors: If provided, controls the difference in weights (used for the `split_x_into_n_symmetrically` function).
-             Must have length N // 2 or N // 2 - 1 depending on N.
+    factors: If provided, controls the difference in weights (used for the
+        `split_x_into_n_symmetrically` function).
+        Must have length N // 2 or N // 2 - 1 depending on N.
     """
     half_N = N // 2
     weights_left = [middle_weight]
