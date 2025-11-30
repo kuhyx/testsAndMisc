@@ -52,12 +52,17 @@ def extract_hosts_from_html(html_text: str) -> list[str]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Extract hosts from hrefs in an HTML file.")
+    ap = argparse.ArgumentParser(
+        description="Extract hosts from hrefs in an HTML file."
+    )
     ap.add_argument("input_html", help="Path to input HTML file")
     ap.add_argument(
         "output_txt",
         nargs="?",
-        help="Path to output text file (defaults to <input_basename>_links.txt in the same directory)",
+        help=(
+            "Path to output text file "
+            "(defaults to <input_basename>_links.txt in the same directory)"
+        ),
     )
     args = ap.parse_args()
 

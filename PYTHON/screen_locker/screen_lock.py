@@ -24,7 +24,9 @@ class ScreenLocker:
         self.root = tk.Tk()
         self.root.title("Workout Locker" + (" [DEMO MODE]" if demo_mode else ""))
         self.demo_mode = demo_mode
-        self.lockout_time = 10 if demo_mode else 1800  # 10 seconds for demo, 30 minutes for production
+        self.lockout_time = (
+            10 if demo_mode else 1800
+        )  # 10 seconds for demo, 30 minutes for production
         self.workout_data = {}
 
         # Get total screen dimensions across all monitors
@@ -235,7 +237,9 @@ class ScreenLocker:
         self.pace_entry.pack(side="left", padx=10)
 
         # Timer countdown label
-        self.timer_label = tk.Label(self.container, text="", font=("Arial", 16), fg="#ffaa00", bg="#1a1a1a")
+        self.timer_label = tk.Label(
+            self.container, text="", font=("Arial", 16), fg="#ffaa00", bg="#1a1a1a"
+        )
         self.timer_label.pack(pady=10)
 
         self.submit_btn = tk.Button(
@@ -294,7 +298,10 @@ class ScreenLocker:
             tolerance = expected_pace * 0.15  # 15% tolerance
 
             if pace_diff > tolerance:
-                self.show_error(f"Pace doesn't match! Expected ~{expected_pace:.2f} min/km, got {pace:.2f}")
+                self.show_error(
+                    f"Pace doesn't match! "
+                    f"Expected ~{expected_pace:.2f} min/km, got {pace:.2f}"
+                )
                 return
 
             # Data looks good
@@ -382,7 +389,9 @@ class ScreenLocker:
         self.total_weight_entry.pack(side="left", padx=10)
 
         # Timer countdown label
-        self.timer_label = tk.Label(self.container, text="", font=("Arial", 16), fg="#ffaa00", bg="#1a1a1a")
+        self.timer_label = tk.Label(
+            self.container, text="", font=("Arial", 16), fg="#ffaa00", bg="#1a1a1a"
+        )
         self.timer_label.pack(pady=10)
 
         self.submit_btn = tk.Button(
@@ -432,7 +441,9 @@ class ScreenLocker:
 
             # Check all lists have same length
             if not (len(exercises) == len(sets) == len(reps) == len(weights)):
-                self.show_error("Number of exercises, sets, reps, and weights must match")
+                self.show_error(
+                    "Number of exercises, sets, reps, and weights must match"
+                )
                 return
 
             # Check for empty or lazy entries
@@ -454,13 +465,16 @@ class ScreenLocker:
                 return
 
             # Calculate expected total weight
-            expected_total = sum(sets[i] * reps[i] * weights[i] for i in range(len(exercises)))
+            expected_total = sum(
+                sets[i] * reps[i] * weights[i] for i in range(len(exercises))
+            )
             weight_diff = abs(total_weight - expected_total)
             tolerance = expected_total * 0.15  # 15% tolerance
 
             if weight_diff > tolerance:
                 self.show_error(
-                    f"Total weight doesn't match! Expected ~{expected_total:.1f} kg, got {total_weight:.1f}"
+                    f"Total weight doesn't match! "
+                    f"Expected ~{expected_total:.1f} kg, got {total_weight:.1f}"
                 )
                 return
 
@@ -475,7 +489,9 @@ class ScreenLocker:
         # Check if widgets still exist (user might have clicked back)
         try:
             if self.submit_unlock_time > 0:
-                self.timer_label.config(text=f"Submit available in {self.submit_unlock_time} seconds...")
+                self.timer_label.config(
+                    text=f"Submit available in {self.submit_unlock_time} seconds..."
+                )
                 self.submit_unlock_time -= 1
                 self.root.after(1000, self.update_submit_timer)
             else:

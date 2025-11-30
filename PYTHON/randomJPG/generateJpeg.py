@@ -6,11 +6,14 @@ import random
 from PIL import Image
 
 
-def generate_bloated_jpeg(size, color_list, block_size, output_path, quality, image_index, folder):
+def generate_bloated_jpeg(
+    size, color_list, block_size, output_path, quality, image_index, folder
+):
     """Generates a random JPEG image with given size, list of colors, and block size.
 
     Args:
-    size (int): Size of the image (both width and height, must be divisible by block_size).
+    size (int): Size of the image (both width and height,
+        must be divisible by block_size).
     color_list (list of str): List of colors in hex format.
     block_size (int): Size of the pixel blocks.
     output_path (str): Output path for the JPEG image.
@@ -28,9 +31,12 @@ def generate_bloated_jpeg(size, color_list, block_size, output_path, quality, im
     pixels = image.load()
 
     # Convert hex colors to RGB
-    rgb_colors = [tuple(int(color[i : i + 2], 16) for i in (1, 3, 5)) for color in color_list]
+    rgb_colors = [
+        tuple(int(color[i : i + 2], 16) for i in (1, 3, 5)) for color in color_list
+    ]
 
-    # Fill the image with block_size x block_size pixel squares of random colors from the list
+    # Fill the image with block_size x block_size pixel squares
+    # of random colors from the list
     for y in range(0, size, block_size):
         for x in range(0, size, block_size):
             color = random.choice(rgb_colors)
@@ -55,7 +61,9 @@ def generate_bloated_jpeg(size, color_list, block_size, output_path, quality, im
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate bloated JPEG images with random colors.")
+    parser = argparse.ArgumentParser(
+        description="Generate bloated JPEG images with random colors."
+    )
     parser.add_argument(
         "-n",
         "--num_images",
@@ -68,7 +76,10 @@ if __name__ == "__main__":
         "--size",
         type=int,
         default=1000,
-        help="Size of the images (must be 1000 or less and divisible by block size). Default is 1000.",
+        help=(
+            "Size of the images (must be 1000 or less "
+            "and divisible by block size). Default is 1000."
+        ),
     )
     parser.add_argument(
         "-c",
@@ -82,7 +93,10 @@ if __name__ == "__main__":
         "--block_size",
         type=int,
         default=4,
-        help="Size of the pixel blocks (must divide the image size evenly). Default is 4.",
+        help=(
+            "Size of the pixel blocks (must divide the "
+            "image size evenly). Default is 4."
+        ),
     )
     parser.add_argument(
         "-o",

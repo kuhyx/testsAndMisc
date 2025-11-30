@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 # RUFF - Extremely fast Python linter and formatter (written in Rust)
 # ============================================================================
 [tool.ruff]
-line-length = 120  # Relaxed for scripts with long strings
+line-length = 88
 target-version = "py310"
 # Include all Python files
 include = ["*.py", "**/*.py"]

@@ -22,7 +22,9 @@ class LichessAPI:
             }
         )
 
-    def _request(self, method: str, url: str, *, raise_for_status: bool = False, **kwargs) -> requests.Response:
+    def _request(
+        self, method: str, url: str, *, raise_for_status: bool = False, **kwargs
+    ) -> requests.Response:
         """Wrapper around session.request that logs every request/response.
 
         - Logs start (method+URL) and end (status, elapsed).
@@ -47,7 +49,10 @@ class LichessAPI:
             except Exception:
                 snippet = None
             if snippet:
-                logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s body='{snippet}'")
+                logging.warning(
+                    f"HTTP {method} {url} -> {status} "
+                    f"in {elapsed:.2f}s body='{snippet}'"
+                )
             else:
                 logging.warning(f"HTTP {method} {url} -> {status} in {elapsed:.2f}s")
         else:
@@ -63,7 +68,9 @@ class LichessAPI:
             try:
                 # Use NDJSON Accept and no timeout for long-lived stream
                 headers = {"Accept": "application/x-ndjson"}
-                with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
+                with self._request(
+                    "GET", url, headers=headers, stream=True, timeout=None
+                ) as r:
                     r.raise_for_status()
                     backoff = 0.5  # reset on success
                     for line in r.iter_lines(decode_unicode=True):
@@ -91,7 +98,9 @@ class LichessAPI:
         data = {"reason": reason}
         self._request("POST", url, data=data, timeout=30, raise_for_status=True)
 
-    def join_game_stream(self, game_id: str, my_color: str | None) -> tuple[chess.Board, str]:
+    def join_game_stream(
+        self, game_id: str, my_color: str | None
+    ) -> tuple[chess.Board, str]:
         """Deprecated: use stream_game_events and parse initial state there."""
         # Fallback to initial behavior for compatibility
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"

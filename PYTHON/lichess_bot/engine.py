@@ -39,7 +39,9 @@ class RandomEngine:
             )
         )
         self.engine_path = engine_path or default_path
-        if not os.path.isfile(self.engine_path) or not os.access(self.engine_path, os.X_OK):
+        if not os.path.isfile(self.engine_path) or not os.access(
+            self.engine_path, os.X_OK
+        ):
             msg = (
                 f"C engine not found or not executable at '{self.engine_path}'. "
                 "Build it first (make -C C/lichess_random_engine)."
@@ -65,7 +67,9 @@ class RandomEngine:
         return (proc.stdout or "").strip()
 
     def choose_move(self, board: chess.Board) -> chess.Move:
-        mv, _ = self.choose_move_with_explanation(board, time_budget_sec=self.max_time_sec)
+        mv, _ = self.choose_move_with_explanation(
+            board, time_budget_sec=self.max_time_sec
+        )
         return mv
 
     def choose_move_with_explanation(
@@ -77,7 +81,8 @@ class RandomEngine:
             return None, "no_legal_moves"
 
         args = ["--fen", board.fen()] + [m.uci() for m in legal]
-        # Optionally pass a seed for reproducibility when desired; keep default behavior otherwise.
+        # Optionally pass a seed for reproducibility when desired;
+        # keep default behavior otherwise.
         # We deliberately avoid adding annotations here per request.
 
         output = self._call_engine(args, timeout=max(0.1, time_budget_sec))
@@ -103,7 +108,7 @@ class RandomEngine:
         *,
         time_budget_sec: float,
     ) -> tuple[float, str, chess.Move | None, str]:
-        """Ask the C engine to explain the current move list and analyze a specific candidate.
+        """Ask the C engine to explain and analyze a specific candidate.
 
         Returns (candidate_score, candidate_expl, best_move, best_expl)
         where explanations are concise JSON snippets from the engine. All logic is
@@ -113,7 +118,9 @@ class RandomEngine:
         if not legal:
             return 0.0, "no_legal_moves", None, "no_best_move"
 
-        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [m.uci() for m in legal]
+        args = ["--fen", board.fen(), "--explain", "--analyze", proposed_move_uci] + [
+            m.uci() for m in legal
+        ]
         out = self._call_engine(args, timeout=max(0.1, time_budget_sec))
 
         # Try to parse the engine's JSON explanation
