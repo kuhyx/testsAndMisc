@@ -58,7 +58,6 @@ ignore = [
     "FBT003",  # Boolean positional value - common pattern
     "ARG001",  # Unused function argument - often needed for API compatibility
     "ARG002",  # Unused method argument - often needed for API compatibility
-    "PLC0415", # import-outside-top-level - sometimes necessary
     "N816",    # mixed-case-variable-in-global-scope - often constants
     "N806",    # non-lowercase-variable - sometimes intentional
     "N803",    # invalid-argument-name - chess notation uses uppercase
@@ -100,6 +99,7 @@ unfixable = []
 ]
 "**/test_*.py" = [
     "S101",    # Allow assert in tests
+    "PLC0415", # Allow late imports for test isolation
 ]
 "**/conftest.py" = [
     "D100",    # Allow missing module docstring

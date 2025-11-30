@@ -1,6 +1,7 @@
 """Main entry point for the Lichess bot."""
 
 import argparse
+import datetime
 import json
 import logging
 import os
@@ -96,8 +97,6 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                 "createdAtDate"
                             )
                             if created_ms:
-                                import datetime
-
                                 game_date_iso = datetime.datetime.utcfromtimestamp(
                                     int(created_ms) / 1000
                                 ).strftime("%Y.%m.%d")

@@ -1,5 +1,6 @@
 """Chess engine wrapper for the C-based random/scoring engine."""
 
+import json
 import os
 import subprocess
 
@@ -129,14 +130,12 @@ class RandomEngine:
         out = self._call_engine(args, timeout=max(0.1, time_budget_sec))
 
         # Try to parse the engine's JSON explanation
-        import json as _json
-
         cand_score = 0.0
         best_move: chess.Move | None = None
         cand_expl = out
         best_expl = out
         try:
-            data = _json.loads(out)
+            data = json.loads(out)
             # candidate score if provided
             analyze = data.get("analyze") or {}
             cs = analyze.get("candidate_score")
@@ -152,8 +151,8 @@ class RandomEngine:
                 except Exception:
                     best_move = None
             # Store compact explanations for debugging
-            cand_expl = _json.dumps(analyze, ensure_ascii=False)
-            best_expl = _json.dumps(
+            cand_expl = json.dumps(analyze, ensure_ascii=False)
+            best_expl = json.dumps(
                 {
                     "chosen_index": data.get("chosen_index"),
                     "chosen_move": data.get("chosen_move"),
