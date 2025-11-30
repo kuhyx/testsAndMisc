@@ -144,8 +144,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
 
                     if color is None:
                         logging.info(
-                            f"Game {game_id}: color unknown yet; "
-                            "waiting for gameFull"
+                            f"Game {game_id}: color unknown yet; waiting for gameFull"
                         )
                         # Do not mark this position handled on gameFull;
                         # wait for authoritative gameState
@@ -222,7 +221,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                 api.make_move(game_id, move)
                         except Exception as e:
                             logging.warning(
-                                f"Game {game_id}: " f"move {move.uci()} failed: {e}"
+                                f"Game {game_id}: move {move.uci()} failed: {e}"
                             )
                     # Mark this position as handled on authoritative
                     # gameState, or after we've actually attempted a move
