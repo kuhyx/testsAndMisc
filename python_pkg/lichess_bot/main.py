@@ -372,7 +372,7 @@ def _run_analysis_subprocess(
 
     _logger.info(f"Game {game_id}: starting post-game analysis ({total_plies} plies)")
 
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # noqa: S603 - trusted internal analysis script
         [sys.executable, "-u", str(analyze_script), str(log_path)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
