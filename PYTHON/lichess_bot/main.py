@@ -97,8 +97,8 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                                 "createdAtDate"
                             )
                             if created_ms:
-                                game_date_iso = datetime.datetime.utcfromtimestamp(
-                                    int(created_ms) / 1000
+                                game_date_iso = datetime.datetime.fromtimestamp(
+                                    int(created_ms) / 1000, tz=datetime.timezone.utc
                                 ).strftime("%Y.%m.%d")
                         except Exception:
                             pass
