@@ -235,8 +235,8 @@ def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> No
                         break
                 elif et in {"chatLine", "opponentGone"}:
                     continue
-        except Exception as e:
-            logging.exception(f"Game {game_id} thread error: {e}")
+        except Exception:
+            logging.exception(f"Game {game_id} thread error")
         finally:
             # On game end, write full PGN to the log file
             try:

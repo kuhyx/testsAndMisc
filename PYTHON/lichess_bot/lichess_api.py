@@ -41,8 +41,8 @@ class LichessAPI:
         logging.info(f"HTTP {method} {url} -> sending")
         try:
             r = self.session.request(method, url, **kwargs)
-        except Exception as e:
-            logging.exception(f"HTTP {method} {url} -> exception: {e}")
+        except Exception:
+            logging.exception(f"HTTP {method} {url} -> exception")
             raise
         elapsed = time.monotonic() - t0
         status = r.status_code

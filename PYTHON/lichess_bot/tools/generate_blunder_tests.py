@@ -335,8 +335,8 @@ def _process_single_log(log_path: str) -> int:
 
     try:
         blunders = parse_columns_for_blunders(text)
-    except Exception as e:
-        logging.exception(f"Error parsing Columns in {os.path.basename(log_path)}: {e}")
+    except Exception:
+        logging.exception(f"Error parsing Columns in {os.path.basename(log_path)}")
         return 2
     if not blunders:
         logging.warning(
@@ -351,9 +351,9 @@ def _process_single_log(log_path: str) -> int:
 
     try:
         cases = fen_and_uci_for_blunders(pgn_text, blunders)
-    except Exception as e:
+    except Exception:
         logging.exception(
-            f"Error converting SAN to UCI in {os.path.basename(log_path)}: {e}"
+            f"Error converting SAN to UCI in {os.path.basename(log_path)}"
         )
         return 2
     if not cases:

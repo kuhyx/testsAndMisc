@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
         logging.info(f"Original numbers: {numbers}")
         logging.info(f"Randomized numbers: {formatted_numbers}")
-    except ValueError as e:
-        logging.exception(f"Error: {e}")
+    except ValueError:
+        logging.exception("Error processing numbers")
         logging.exception("Please provide valid numbers and percentages.")
         sys.exit(1)
