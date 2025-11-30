@@ -34,7 +34,6 @@ ignore = [
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     # Relaxed for script-heavy repository
-    "INP001",  # Implicit namespace package - this is a scripts repo
     "PLR2004", # Magic value comparison - common in scripts
     "S101",    # Use of assert - acceptable in this codebase
     "ANN001",  # Missing type annotation for function argument
@@ -107,6 +106,9 @@ unfixable = []
 "**/conftest.py" = [
     "D100",    # Allow missing module docstring
     "D103",    # Allow missing function docstring
+]
+"poker-modifier-app/*.py" = [
+    "INP001",  # Folder has hyphen, can't be a valid Python package
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -191,7 +193,7 @@ jobs = 0
 # Minimum Python version
 py-version = "3.10"
 # Ignore vendored directories
-ignore = ["Bash", ".venv", "__pycache__"]
+ignore = ["Bash", ".venv", "__pycache__", "downloadCats", "keyboardCoop", "randomJPG", "scapeWebsite", "tagDivider"]
 # Ignore patterns
 ignore-patterns = [".*\\.pyi$"]
 
@@ -209,6 +211,7 @@ disable = [
     "deprecated-pragma",
     "use-symbolic-message-instead",
     "too-few-public-methods",  # Often false positive for data classes
+    "invalid-name",  # Existing camelCase folder names (downloadCats, etc.)
 ]
 
 [tool.pylint.format]

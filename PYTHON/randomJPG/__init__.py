@@ -1,0 +1,1 @@
+"""Random JPEG generator package."""
