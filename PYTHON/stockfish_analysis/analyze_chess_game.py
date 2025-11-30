@@ -109,6 +109,16 @@ CP_LOSS_INACCURACY = 99
 CP_LOSS_MISTAKE = 299
 
 
+# Centipawn loss thresholds for move classification
+_CP_LOSS_BANDS = [
+    (CP_LOSS_BEST, "Best"),
+    (CP_LOSS_EXCELLENT, "Excellent"),
+    (CP_LOSS_GOOD, "Good"),
+    (CP_LOSS_INACCURACY, "Inaccuracy"),
+    (CP_LOSS_MISTAKE, "Mistake"),
+]
+
+
 def classify_cp_loss(cp_loss: int | None) -> str:
     """Classify move quality using Lichess-like centipawn loss bands.
 
@@ -123,16 +133,9 @@ def classify_cp_loss(cp_loss: int | None) -> str:
     """
     if cp_loss is None:
         return "Unknown"
-    if cp_loss <= CP_LOSS_BEST:
-        return "Best"
-    if cp_loss <= CP_LOSS_EXCELLENT:
-        return "Excellent"
-    if cp_loss <= CP_LOSS_GOOD:
-        return "Good"
-    if cp_loss <= CP_LOSS_INACCURACY:
-        return "Inaccuracy"
-    if cp_loss <= CP_LOSS_MISTAKE:
-        return "Mistake"
+    for threshold, classification in _CP_LOSS_BANDS:
+        if cp_loss <= threshold:
+            return classification
     return "Blunder"
 
 

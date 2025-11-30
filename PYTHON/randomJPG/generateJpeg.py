@@ -1,6 +1,7 @@
 """Generate random colorful JPEG images with configurable parameters."""
 
 import argparse
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
 import os
@@ -13,24 +14,22 @@ logging.basicConfig(level=logging.INFO)
 MAX_IMAGE_SIZE = 1000
 
 
-def generate_bloated_jpeg(
-    size: int,
-    color_list: list[str],
-    block_size: int,
-    output_path: str,
-    quality: int,
-    image_index: int,
-    folder: str,
-) -> str:
-    """Generates a random JPEG image with given size, list of colors, and block size.
+@dataclass
+class ImageConfig:
+    """Configuration for generating a bloated JPEG image."""
+
+    size: int
+    color_list: list[str]
+    block_size: int
+    output_path: str
+    quality: int
+
+
+def generate_bloated_jpeg(config: ImageConfig, image_index: int, folder: str) -> str:
+    """Generates a random JPEG image with given configuration.
 
     Args:
-        size: Size of the image (both width and height,
-            must be divisible by block_size).
-        color_list: List of colors in hex format.
-        block_size: Size of the pixel blocks.
-        output_path: Output path for the JPEG image.
-        quality: Quality setting for the JPEG image (0-100).
+        config: Image generation configuration.
         image_index: Index of the image for unique naming.
         folder: Folder to save the image.
 
@@ -38,28 +37,29 @@ def generate_bloated_jpeg(
         Path to the generated image.
     """
     # Ensure size is divisible by block_size and does not exceed MAX_IMAGE_SIZE
-    if size > MAX_IMAGE_SIZE or size % block_size != 0:
+    if config.size > MAX_IMAGE_SIZE or config.size % config.block_size != 0:
         msg = (
             f"Size must be {MAX_IMAGE_SIZE} pixels or less and divisible by block_size"
         )
         raise ValueError(msg)
 
     # Create a new image
-    image = Image.new("RGB", (size, size))
+    image = Image.new("RGB", (config.size, config.size))
     pixels = image.load()
 
     # Convert hex colors to RGB
     rgb_colors = [
-        tuple(int(color[i : i + 2], 16) for i in (1, 3, 5)) for color in color_list
+        tuple(int(color[i : i + 2], 16) for i in (1, 3, 5))
+        for color in config.color_list
     ]
 
     # Fill the image with block_size x block_size pixel squares
     # of random colors from the list
-    for y in range(0, size, block_size):
-        for x in range(0, size, block_size):
+    for y in range(0, config.size, config.block_size):
+        for x in range(0, config.size, config.block_size):
             color = random.choice(rgb_colors)
-            for i in range(block_size):
-                for j in range(block_size):
+            for i in range(config.block_size):
+                for j in range(config.block_size):
                     pixels[x + i, y + j] = color
 
     # Create the folder if it does not exist
@@ -69,11 +69,12 @@ def generate_bloated_jpeg(
     # Generate unique output path
     unique_output_path = os.path.join(
         folder,
-        f"{os.path.splitext(output_path)[0]}_{image_index}{os.path.splitext(output_path)[1]}",
+        f"{os.path.splitext(config.output_path)[0]}_{image_index}"
+        f"{os.path.splitext(config.output_path)[1]}",
     )
 
     # Save the image with specified quality to maximize file size
-    image.save(unique_output_path, "JPEG", quality=quality, optimize=False)
+    image.save(unique_output_path, "JPEG", quality=config.quality, optimize=False)
 
     return unique_output_path
 
@@ -149,14 +150,13 @@ if __name__ == "__main__":
     logging.info(f"  Output folder: {folder}")
 
     # Generate the specified number of images
+    config = ImageConfig(
+        size=args.size,
+        color_list=args.colors,
+        block_size=args.block_size,
+        output_path=args.output_path,
+        quality=args.quality,
+    )
     for i in range(1, args.num_images + 1):
-        output_path = generate_bloated_jpeg(
-            args.size,
-            args.colors,
-            args.block_size,
-            args.output_path,
-            args.quality,
-            i,
-            folder,
-        )
+        output_path = generate_bloated_jpeg(config, i, folder)
         logging.info(f"Image {i} saved to {os.path.abspath(output_path)}")

@@ -36,10 +36,6 @@ ignore = [
     # Relaxed for script-heavy repository
     "PTH",     # Use pathlib instead of os.path - too invasive for existing code
     "C901",    # Function is too complex - many scripts have complex logic
-    "PLR0912", # Too many branches - relaxed for scripts
-    "PLR0915", # Too many statements - relaxed for scripts
-    "PLR0911", # Too many return statements - relaxed
-    "PLR0913", # Too many arguments - relaxed
     "BLE001",  # Blind except - will fix critical ones manually
     "S603",    # subprocess without shell - known pattern
     "S607",    # start-process with partial path - acceptable
@@ -93,6 +89,12 @@ unfixable = []
 ]
 "PYTHON/lichess_bot/main.py" = [
     "PERF203", # Try-except needed for stream/move error handling in loops
+    "PLR0912", # Complex nested game event handling with many branches
+    "PLR0915", # Long function handling complete game lifecycle
+]
+"PYTHON/stockfish_analysis/analyze_chess_game.py" = [
+    "PLR0912", # Complex main() with many argument combinations and analysis modes
+    "PLR0915", # Long main() handling complete analysis workflow
 ]
 "PYTHON/randomize_numbers/random_digits.py" = [
     "PERF203", # Try-except needed for parsing user input in loop

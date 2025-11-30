@@ -327,47 +327,12 @@ def append_cases_to_unified_test(
 
 def _process_single_log(log_path: str) -> int:
     """Process a single log file. Returns 0 on success, non-zero otherwise."""
-    try:
-        with open(log_path, encoding="utf-8") as fh:
-            text = fh.read()
-    except FileNotFoundError:
-        logging.exception(f"Log file not found: {log_path}")
-        return 2
-
-    try:
-        blunders = parse_columns_for_blunders(text)
-    except Exception:
-        logging.exception(f"Error parsing Columns in {os.path.basename(log_path)}")
-        return 2
-    if not blunders:
-        logging.warning(
-            f"No blunders found in Columns section: {os.path.basename(log_path)}"
-        )
-        return 1
-
-    pgn_text = extract_pgn(text)
-    if not pgn_text:
-        logging.warning(f"No PGN section found: {os.path.basename(log_path)}")
-        return 1
-
-    try:
-        cases = fen_and_uci_for_blunders(pgn_text, blunders)
-    except Exception:
-        logging.exception(
-            f"Error converting SAN to UCI in {os.path.basename(log_path)}"
-        )
-        return 2
-    if not cases:
-        logging.warning(
-            f"Failed to reconstruct any blunder positions "
-            f"from PGN: {os.path.basename(log_path)}"
-        )
-        return 1
-
     base = os.path.basename(log_path)
-    m = re.search(r"game_([A-Za-z0-9]+)\.log$", base)
-    game_id = m.group(1) if m else os.path.splitext(base)[0]
+    result = _parse_and_extract_blunders(log_path, base)
+    if isinstance(result, int):
+        return result  # Error code
 
+    cases, game_id = result
     # Always append to the unified test file
     unified = os.path.join(
         os.path.dirname(__file__), "..", "tests", "test_blunders_all.py"
@@ -379,6 +344,73 @@ def _process_single_log(log_path: str) -> int:
         f"{os.path.relpath(unified)} (game {game_id})."
     )
     return 0
+
+
+def _parse_and_extract_blunders(
+    log_path: str, base: str
+) -> int | tuple[list[tuple[str, str, str, Blunder]], str]:
+    """Parse log file and extract blunder cases.
+
+    Returns error code or (cases, game_id).
+    """
+    text, err = _read_log_file(log_path)
+    if err is not None or text is None:
+        return err if err is not None else 2
+
+    blunders, err = _parse_blunders(text, base)
+    if err is not None or blunders is None:
+        return err if err is not None else 2
+
+    cases, err = _extract_cases(text, blunders, base)
+    if err is not None or cases is None:
+        return err if err is not None else 2
+
+    m = re.search(r"game_([A-Za-z0-9]+)\.log$", base)
+    game_id = m.group(1) if m else os.path.splitext(base)[0]
+    return cases, game_id
+
+
+def _read_log_file(log_path: str) -> tuple[str | None, int | None]:
+    """Read log file contents. Returns (text, None) or (None, error_code)."""
+    try:
+        with open(log_path, encoding="utf-8") as fh:
+            return fh.read(), None
+    except FileNotFoundError:
+        logging.exception(f"Log file not found: {log_path}")
+        return None, 2
+
+
+def _parse_blunders(text: str, base: str) -> tuple[list[Blunder] | None, int | None]:
+    """Parse blunders from text. Returns (blunders, None) or (None, error_code)."""
+    try:
+        blunders = parse_columns_for_blunders(text)
+    except Exception:
+        logging.exception(f"Error parsing Columns in {base}")
+        return None, 2
+    if not blunders:
+        logging.warning(f"No blunders found in Columns section: {base}")
+        return None, 1
+    return blunders, None
+
+
+def _extract_cases(
+    text: str, blunders: list[Blunder], base: str
+) -> tuple[list[tuple[str, str, str, Blunder]] | None, int | None]:
+    """Extract FEN/UCI cases from PGN. Returns (cases, None) or (None, error_code)."""
+    pgn_text = extract_pgn(text)
+    if not pgn_text:
+        logging.warning(f"No PGN section found: {base}")
+        return None, 1
+
+    try:
+        cases = fen_and_uci_for_blunders(pgn_text, blunders)
+    except Exception:
+        logging.exception(f"Error converting SAN to UCI in {base}")
+        return None, 2
+    if not cases:
+        logging.warning(f"Failed to reconstruct any blunder positions from PGN: {base}")
+        return None, 1
+    return cases, None
 
 
 def main(argv: list[str]) -> int:
