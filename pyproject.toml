@@ -59,21 +59,8 @@ unfixable = []
     "S607",    # Allow partial executable path in tests
     "PLC0415", # Allow late imports for test isolation
 ]
-"**/conftest.py" = [
-    "D100",    # Allow missing module docstring
-    "D103",    # Allow missing function docstring
-]
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
-]
-"python_pkg/lichess_bot/main.py" = [
-    "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
-    "PLR0912", # Complex nested game event handling with many branches
-    "PLR0915", # Long function handling complete game lifecycle
-    "S603",    # Subprocess call for analysis script
-]
-"python_pkg/lichess_bot/engine.py" = [
-    "S603",    # Subprocess for engine communication
 ]
 "python_pkg/keyboard_coop/main.py" = [
     "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)

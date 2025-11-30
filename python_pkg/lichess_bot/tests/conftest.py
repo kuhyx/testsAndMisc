@@ -1,3 +1,5 @@
+"""Pytest configuration and fixtures for lichess_bot tests."""
+
 from pathlib import Path
 import sys
 

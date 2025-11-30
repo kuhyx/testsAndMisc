@@ -53,7 +53,7 @@ class RandomEngine:
 
     def _call_engine(self, args: list[str], *, timeout: float) -> str:
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: S603 - trusted internal C engine binary
                 [self.engine_path, *args],
                 capture_output=True,
                 text=True,
