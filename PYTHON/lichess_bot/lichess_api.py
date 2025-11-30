@@ -176,7 +176,7 @@ class LichessAPI:
             r = self._request("POST", url, timeout=30)
         r.raise_for_status()
 
-    def get_game_state(self, game_id: str) -> dict | None:
+    def get_game_state(self, _game_id: str) -> dict | None:
         """Deprecated: use stream_game_events in a persistent loop."""
         return None
 

@@ -86,7 +86,7 @@ def extract_pgn_text(raw: str) -> str | None:
 
 
 def score_to_cp(
-    score: chess.engine.PovScore, pov_white: bool
+    score: chess.engine.PovScore, *, pov_white: bool
 ) -> tuple[int | None, int | None]:
     """Return tuple (cp, mate_in) from a PovScore for the given POV color.
 
