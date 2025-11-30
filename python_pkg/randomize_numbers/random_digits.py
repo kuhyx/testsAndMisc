@@ -2,11 +2,14 @@
 
 import contextlib
 import logging
-import random
 import re
+import secrets
 import sys
 
 logging.basicConfig(level=logging.INFO)
+
+# Use cryptographically secure random number generator
+_rng = secrets.SystemRandom()
 
 DEFAULT_MIN_PERCENTAGE = 1
 DEFAULT_MAX_PERCENTAGE = 20
@@ -20,8 +23,8 @@ def randomize_numbers(
     """Apply random percentage variation to a list of numbers."""
     randomized_numbers = []
     for number in numbers:
-        percentage = random.uniform(min_percentage, max_percentage) / 100
-        if random.choice([True, False]):
+        percentage = _rng.uniform(min_percentage, max_percentage) / 100
+        if _rng.choice([True, False]):
             new_number = number + (number * percentage)
         else:
             new_number = number - (number * percentage)
@@ -60,16 +63,17 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
+    input_string = " ".join(sys.argv[1:])
+    numbers, decimal_counts = parse_input(input_string)
+
+    if len(numbers) == 0:
+        logging.error("No valid numbers provided.")
+        sys.exit(1)
+
+    min_percentage = DEFAULT_MIN_PERCENTAGE
+    max_percentage = DEFAULT_MAX_PERCENTAGE
+
     try:
-        input_string = " ".join(sys.argv[1:])
-        numbers, decimal_counts = parse_input(input_string)
-        min_percentage = DEFAULT_MIN_PERCENTAGE
-        max_percentage = DEFAULT_MAX_PERCENTAGE
-
-        if len(numbers) == 0:
-            msg = "No valid numbers provided."
-            raise ValueError(msg)
-
         if len(sys.argv) > len(numbers) + 1:
             with contextlib.suppress(ValueError):
                 min_percentage = float(sys.argv[len(numbers) + 1])

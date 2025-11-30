@@ -16,17 +16,17 @@ Where logs are loaded from:
 
 Usage examples:
     # Process all logs in tools/past_games
-    python PYTHON/lichess_bot/tools/generate_blunder_tests.py
+    python python_pkg/lichess_bot/tools/generate_blunder_tests.py
 
     # Process a specific game by id from tools/past_games
-    python PYTHON/lichess_bot/tools/generate_blunder_tests.py OVmR29MI
+    python python_pkg/lichess_bot/tools/generate_blunder_tests.py OVmR29MI
 
     # Process an explicit file path
-    python PYTHON/lichess_bot/tools/generate_blunder_tests.py \
+    python python_pkg/lichess_bot/tools/generate_blunder_tests.py \
         /path/to/lichess_bot_game_xxxxx.log
 
 It will create files like:
-    PYTHON/lichess_bot/tests/test_blunders_<gameid>.py
+    python_pkg/lichess_bot/tests/test_blunders_<gameid>.py
 
 Dependencies: python-chess, pytest (already in requirements.txt)
 """
@@ -203,7 +203,7 @@ REPO_ROOT = os.path.dirname(
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from PYTHON.lichess_bot.engine import RandomEngine  # noqa: E402
+from python_pkg.lichess_bot.engine import RandomEngine  # noqa: E402
 
 BLUNDER_CASES = [
 ]

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from PYTHON.lichess_bot.utils import get_and_increment_version
+from python_pkg.lichess_bot.utils import get_and_increment_version
 
 
 def test_version_file_increments_and_persists(

@@ -6,12 +6,15 @@ Players take turns selecting adjacent keys to form valid English words.
 import json
 import logging
 import os
-import random
+import secrets
 import sys
 
 import pygame
 
 logging.basicConfig(level=logging.INFO)
+
+# Use cryptographically secure random number generator
+_rng = secrets.SystemRandom()
 
 # Initialize Pygame
 pygame.init()
@@ -202,7 +205,7 @@ class KeyboardCoopGame:
         """Generate a random keyboard layout and calculate adjacencies."""
         # All 26 letters
         all_letters = list("abcdefghijklmnopqrstuvwxyz")
-        random.shuffle(all_letters)
+        _rng.shuffle(all_letters)
 
         # Create random layout with same structure as QWERTY (10-9-7)
         self.keyboard_layout = [

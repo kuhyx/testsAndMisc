@@ -2,7 +2,7 @@
 """Analyze a chess game's moves using a local Stockfish engine and rate each move.
 
 Usage:
-    python3 PYTHON/analyze_chess_game.py <path-to-file>
+    python3 python_pkg/analyze_chess_game.py <path-to-file>
         [--engine stockfish]
         [--time 0.5 | --depth 20]
         [--threads auto|N]
@@ -11,7 +11,7 @@ Usage:
         [--last-move-only]
 
 Notes:
-    - Requires python-chess. Install from PYTHON/stockfish_analysis/requirements.txt
+    - Requires python-chess. Install from python_pkg/stockfish_analysis/requirements.txt
     - The input file can be a pure PGN or a log file containing a PGN section.
     - The script tries to locate the PGN by looking for a 'PGN:' marker,
       PGN tags '[...]', or a move list starting with '1.'.
@@ -41,7 +41,7 @@ try:
     import chess.pgn
 except Exception:  # pragma: no cover
     logging.exception("Missing dependency. Please install python-chess:")
-    logging.exception("  pip install -r PYTHON/stockfish_analysis/requirements.txt")
+    logging.exception("  pip install -r python_pkg/stockfish_analysis/requirements.txt")
     raise
 
 # Memory configuration constants
@@ -177,22 +177,20 @@ def _parse_hash_mb(value: str) -> int | None:
 def _detect_total_mem_mb() -> int | None:
     # Prefer psutil if available
     if psutil is not None:
-        try:
+        with contextlib.suppress(Exception):
             return int(psutil.virtual_memory().total // (1024 * 1024))
-        except Exception:
-            pass
     # Fallback approach for Linux systems using proc meminfo.
-    try:
-        with open("/proc/meminfo", encoding="utf-8", errors="ignore") as f:
-            for line in f:
-                if line.startswith("MemTotal:"):
-                    parts = line.split()
-                    if len(parts) >= MEMINFO_PARTS_MIN and parts[1].isdigit():
-                        # Value is in kB
-                        kb = int(parts[1])
-                        return kb // 1024
-    except Exception:
-        pass
+    with (
+        contextlib.suppress(Exception),
+        open("/proc/meminfo", encoding="utf-8", errors="ignore") as f,
+    ):
+        for line in f:
+            if line.startswith("MemTotal:"):
+                parts = line.split()
+                if len(parts) >= MEMINFO_PARTS_MIN and parts[1].isdigit():
+                    # Value is in kB
+                    kb = int(parts[1])
+                    return kb // 1024
     return None
 
 
@@ -320,7 +318,7 @@ def main() -> None:
                 wanted_threads = max(wanted_threads, min_thr)
             engine.configure({"Threads": int(wanted_threads)})
         except Exception:
-            pass
+            logging.debug("Failed to configure Threads option")
 
     # Configure hash table size in MB.
     if "Hash" in options:
@@ -338,7 +336,7 @@ def main() -> None:
                 target_hash = max(target_hash, min_hash)
             engine.configure({"Hash": int(target_hash)})
         except Exception:
-            pass
+            logging.debug("Failed to configure Hash option")
 
     # MultiPV
     effective_mpv = max(1, int(args.multipv))
@@ -349,7 +347,7 @@ def main() -> None:
                 effective_mpv = min(effective_mpv, max_mpv)
             engine.configure({"MultiPV": int(effective_mpv)})
         except Exception:
-            pass
+            logging.debug("Failed to configure MultiPV option")
 
     # Enable NNUE if the option exists
     for nnue_key in ("Use NNUE", "UseNNUE"):

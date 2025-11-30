@@ -1,11 +1,14 @@
 """Texas Hold'em poker game modifier application."""
 
 import logging
-import random
+import secrets
 import tkinter as tk
 from tkinter import ttk
 
 logging.basicConfig(level=logging.INFO)
+
+# Use cryptographically secure random number generator
+_rng = secrets.SystemRandom()
 
 
 class PokerModifierApp:
@@ -850,7 +853,7 @@ class PokerModifierApp:
         modifier_chance = self.prob_var.get()
 
         # Determine if modifier should be applied
-        random_value = random.random() * 100
+        random_value = _rng.random() * 100
         should_apply_modifier = random_value < modifier_chance
 
         if should_apply_modifier:
@@ -886,7 +889,7 @@ class PokerModifierApp:
             bg_color = "#2d4a2d"  # Green for normal
 
         # Select random modifier from appropriate pool
-        selected_modifier = random.choice(modifier_pool).copy()
+        selected_modifier = _rng.choice(modifier_pool).copy()
 
         # Special handling for Steel Cards - randomize the rank
         if selected_modifier["name"] == "Steel Cards":
@@ -905,7 +908,7 @@ class PokerModifierApp:
                 "King",
                 "Ace",
             ]
-            steel_rank = random.choice(ranks)
+            steel_rank = _rng.choice(ranks)
             selected_modifier["description"] = selected_modifier["description"].format(
                 steel_rank=steel_rank
             )

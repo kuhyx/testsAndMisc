@@ -1,6 +1,8 @@
 """Chess engine wrapper for the C-based random/scoring engine."""
 
+import contextlib
 import json
+import logging
 import os
 import subprocess
 
@@ -144,12 +146,10 @@ class RandomEngine:
             # best move
             chosen = data.get("chosen_move")
             if isinstance(chosen, str):
-                try:
+                with contextlib.suppress(Exception):
                     bm = chess.Move.from_uci(chosen)
                     if bm in board.legal_moves:
                         best_move = bm
-                except Exception:
-                    best_move = None
             # Store compact explanations for debugging
             cand_expl = json.dumps(analyze, ensure_ascii=False)
             best_expl = json.dumps(
@@ -160,7 +160,6 @@ class RandomEngine:
                 ensure_ascii=False,
             )
         except Exception:
-            # Leave defaults with raw output text
-            pass
+            logging.debug("Failed to parse engine JSON output")
 
         return cand_score, cand_expl, best_move, best_expl

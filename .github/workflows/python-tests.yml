@@ -4,15 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - "PYTHON/lichess_bot/**"
-      - "PYTHON/**"
+      - "python_pkg/lichess_bot/**"
+      - "python_pkg/**"
       - "tests/**"
       - "requirements.txt"
   pull_request:
     branches: [main]
     paths:
-      - "PYTHON/lichess_bot/**"
-      - "PYTHON/**"
+      - "python_pkg/lichess_bot/**"
+      - "python_pkg/**"
       - "tests/**"
       - "requirements.txt"
 
