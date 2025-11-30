@@ -162,6 +162,7 @@ def fen_and_uci_for_blunders(
                 try:
                     move = board.parse_san(main_sans[bl.ply - 1])
                 except Exception:
+                    logging.debug("Skipping blunder: failed to parse fallback move")
                     continue
             else:
                 continue
