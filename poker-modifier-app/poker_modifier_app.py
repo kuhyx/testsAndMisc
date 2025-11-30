@@ -1,3 +1,5 @@
+"""Texas Hold'em poker game modifier application."""
+
 import logging
 import random
 import tkinter as tk
@@ -7,7 +9,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 class PokerModifierApp:
+    """GUI application for poker game modifiers."""
+
     def __init__(self):
+        """Initialize the poker modifier app with default settings."""
         self.modifiers = [
             # Hand Bonus Modifiers (Balatro-inspired)
             {
@@ -515,6 +520,7 @@ class PokerModifierApp:
         self.setup_gui()
 
     def setup_gui(self):
+        """Create and configure the main GUI window."""
         # Create main window
         self.root = tk.Tk()
         self.root.title("🃏 Texas Hold'em Modifier")

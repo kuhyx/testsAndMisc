@@ -1,3 +1,5 @@
+"""Lichess API client for bot interactions."""
+
 from collections.abc import Generator
 import contextlib
 import json
@@ -11,7 +13,10 @@ LICHESS_API = "https://lichess.org"
 
 
 class LichessAPI:
+    """Client for interacting with the Lichess Bot API."""
+
     def __init__(self, token: str, session: requests.Session | None = None):
+        """Initialize the API client with authentication token."""
         self.token = token
         self.session = session or requests.Session()
         self.session.headers.update(
@@ -62,6 +67,7 @@ class LichessAPI:
         return r
 
     def stream_events(self) -> Generator[dict, None, None]:
+        """Stream incoming events (challenges, game starts, etc.)."""
         url = f"{LICHESS_API}/api/stream/event"
         backoff = 0.5
         while True:
@@ -90,10 +96,12 @@ class LichessAPI:
                 raise
 
     def accept_challenge(self, challenge_id: str) -> None:
+        """Accept a challenge by its ID."""
         url = f"{LICHESS_API}/api/challenge/{challenge_id}/accept"
         self._request("POST", url, timeout=30, raise_for_status=True)
 
     def decline_challenge(self, challenge_id: str, reason: str = "generic") -> None:
+        """Decline a challenge with an optional reason."""
         url = f"{LICHESS_API}/api/challenge/{challenge_id}/decline"
         data = {"reason": reason}
         self._request("POST", url, data=data, timeout=30, raise_for_status=True)
@@ -135,6 +143,7 @@ class LichessAPI:
         return board, color
 
     def stream_game_events(self, game_id: str) -> Generator[dict, None, None]:
+        """Stream game state events for a specific game."""
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
         headers = {"Accept": "application/x-ndjson"}
         with self._request("GET", url, headers=headers, stream=True, timeout=None) as r:
@@ -148,6 +157,7 @@ class LichessAPI:
                     logging.debug(f"Skipping non-JSON line in game {game_id}: {line}")
 
     def make_move(self, game_id: str, move: chess.Move) -> None:
+        """Submit a move to an active game."""
         url = f"{LICHESS_API}/api/board/game/{game_id}/move/{move.uci()}"
         r = self._request("POST", url, timeout=30)
         if r.status_code in (400, 409):
@@ -165,6 +175,7 @@ class LichessAPI:
         return None
 
     def get_my_user_id(self) -> str | None:
+        """Fetch the authenticated user's ID."""
         url = f"{LICHESS_API}/api/account"
         r = self._request("GET", url, timeout=30)
         if r.status_code == 200:

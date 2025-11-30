@@ -1,3 +1,5 @@
+"""Randomize numbers by applying a random percentage variation."""
+
 import contextlib
 import logging
 import random
@@ -8,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
+    """Apply random percentage variation to a list of numbers."""
     randomized_numbers = []
     for number in numbers:
         percentage = random.uniform(min_percentage, max_percentage) / 100
@@ -20,6 +23,7 @@ def randomize_numbers(numbers, min_percentage=1, max_percentage=20):
 
 
 def parse_input(input_string):
+    """Parse a string of numbers and return floats with decimal counts."""
     # Replace commas with dots and remove non-numeric characters
     # except dots, commas, and digits
     cleaned_input = re.sub(r"[^\d.,\s]", "", input_string).replace(",", ".")

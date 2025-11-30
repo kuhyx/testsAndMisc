@@ -1,3 +1,5 @@
+"""Download comic images from a website using Selenium."""
+
 import argparse
 import logging
 import os
@@ -27,6 +29,7 @@ driver.get(url)
 
 # A function to download images by URL
 def download_image(url):
+    """Download an image from a URL and save it locally."""
     # Extract image name from URL
     image_name = os.path.basename(urlparse(url).path)
 

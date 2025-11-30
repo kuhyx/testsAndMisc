@@ -55,6 +55,7 @@ def extract_hosts_from_html(html_text: str) -> list[str]:
 
 
 def main() -> int:
+    """Parse command-line arguments and extract hosts from an HTML file."""
     ap = argparse.ArgumentParser(
         description="Extract hosts from hrefs in an HTML file."
     )

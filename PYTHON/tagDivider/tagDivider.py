@@ -1,3 +1,5 @@
+"""Sort images into folders using keyboard input."""
+
 import logging
 import os  # for: os.getcwd; os.mkdir; os.listdir;
 from os import path  # for: os.path.abspath

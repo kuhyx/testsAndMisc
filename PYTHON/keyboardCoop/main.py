@@ -1,3 +1,8 @@
+"""Keyboard cooperative word game using Pygame.
+
+Players take turns selecting adjacent keys to form valid English words.
+"""
+
 import json
 import logging
 import os
@@ -62,7 +67,10 @@ KEY_ADJACENCY = {
 
 
 class KeyboardCoopGame:
+    """Main game class for the keyboard cooperative word game."""
+
     def __init__(self):
+        """Initialize the game window, fonts, and game state."""
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Keyboard Coop Game")
         self.clock = pygame.time.Clock()

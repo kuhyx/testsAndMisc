@@ -1,3 +1,5 @@
+"""Utility functions for the Lichess bot."""
+
 import logging
 import os
 import time
