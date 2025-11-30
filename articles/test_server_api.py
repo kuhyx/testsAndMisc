@@ -10,6 +10,8 @@ import time
 import urllib.error
 import urllib.request
 
+import pytest
+
 
 def _req(url, method="GET", data=None):
     """Send an HTTP request and return status code and body."""
@@ -92,12 +94,9 @@ def test_crud_roundtrip(tmp_path):
         assert code == HTTPStatus.NO_CONTENT
 
         # Ensure gone
-        try:
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
             _req(base + f"/api/articles/{art_id}")
-            msg = "Expected 404"
-            raise AssertionError(msg)
-        except urllib.error.HTTPError as e:
-            assert e.code == HTTPStatus.NOT_FOUND
+        assert exc_info.value.code == HTTPStatus.NOT_FOUND
 
     finally:
         srv.terminate()

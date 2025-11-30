@@ -283,8 +283,8 @@ def append_cases_to_unified_test(
                 if re.search(pattern_no_best, content):
                     content = re.sub(
                         pattern_no_best,
-                        lambda m: m.group(0).replace(
-                            m.group(1), f"{base_label}_best_{best_uci}"
+                        lambda m, lbl=base_label, bst=best_uci: m.group(0).replace(
+                            m.group(1), f"{lbl}_best_{bst}"
                         ),
                         content,
                         count=1,
@@ -293,8 +293,8 @@ def append_cases_to_unified_test(
                 elif re.search(pattern_with_best, content):
                     content = re.sub(
                         pattern_with_best,
-                        lambda m: m.group(0).replace(
-                            m.group(1), f"{base_label}_best_{best_uci}"
+                        lambda m, lbl=base_label, bst=best_uci: m.group(0).replace(
+                            m.group(1), f"{lbl}_best_{bst}"
                         ),
                         content,
                         count=1,
