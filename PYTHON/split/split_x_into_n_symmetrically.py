@@ -23,8 +23,7 @@ def calculate_symmetric_weights(
             next_weight = weights_left[-1] + factor
             weights_left.append(next_weight)
     else:
-        for i in range(half_n - 1):
-            weights_left.append(middle_weight - (i + 1))
+        weights_left.extend(middle_weight - (i + 1) for i in range(half_n - 1))
 
     if n % 2 == 0:
         weights = weights_left[::-1] + weights_left

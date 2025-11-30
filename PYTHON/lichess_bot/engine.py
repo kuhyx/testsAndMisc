@@ -99,7 +99,7 @@ class RandomEngine:
             move = chess.Move.from_uci(chosen_uci)
         except Exception:
             msg = f"Engine returned invalid move: '{chosen_uci}' (output: {output!r})"
-            raise RuntimeError(msg)
+            raise RuntimeError(msg) from None
 
         if move not in board.legal_moves:
             msg = f"Engine returned illegal move for position: {chosen_uci}"

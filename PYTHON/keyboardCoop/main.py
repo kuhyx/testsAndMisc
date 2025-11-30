@@ -242,9 +242,10 @@ class KeyboardCoopGame:
                     new_col = col_idx + dc
 
                     # Check bounds
-                    if 0 <= new_row < len(self.keyboard_layout):
-                        if 0 <= new_col < len(self.keyboard_layout[new_row]):
-                            adjacents.append(self.keyboard_layout[new_row][new_col])
+                    if 0 <= new_row < len(self.keyboard_layout) and 0 <= new_col < len(
+                        self.keyboard_layout[new_row]
+                    ):
+                        adjacents.append(self.keyboard_layout[new_row][new_col])
 
                 self.key_adjacency[letter] = adjacents
 

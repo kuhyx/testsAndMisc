@@ -41,9 +41,7 @@ def test_puzzle_engine_follow_solution(fen: str, moves_str: str) -> None:
     # Moves are space-separated UCIs alternating sides
     # starting from side-to-move in the FEN
     solution_moves = moves_str.split()
-    step = 0
-    for uci in solution_moves:
-        step += 1
+    for step, uci in enumerate(solution_moves, start=1):
         # Engine move on this ply
         mv, expl = eng.choose_move_with_explanation(board, time_budget_sec=0.5)
         assert mv is not None, f"No move returned at step {step}.\nExplanation: {expl}"
