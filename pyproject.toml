@@ -63,14 +63,8 @@ unfixable = []
     "D100",    # Allow missing module docstring
     "D103",    # Allow missing function docstring
 ]
-"python_pkg/random_jpg/generate_jpeg.py" = [
-]
-"python_pkg/tag_divider/tag_divider.py" = [
-]
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
-]
-"python_pkg/download_cats/generate_cats.py" = [
 ]
 "python_pkg/lichess_bot/main.py" = [
     "C901",    # Complex functions handling game lifecycle (run_bot, handle_game)
@@ -80,10 +74,6 @@ unfixable = []
 ]
 "python_pkg/lichess_bot/engine.py" = [
     "S603",    # Subprocess for engine communication
-]
-"python_pkg/lichess_bot/utils.py" = [
-]
-"python_pkg/lichess_bot/tools/generate_blunder_tests.py" = [
 ]
 "python_pkg/stockfish_analysis/analyze_chess_game.py" = [
     "C901",    # Complex main() with many argument combinations and analysis modes
@@ -95,10 +85,6 @@ unfixable = []
 ]
 "python_pkg/screen_locker/screen_lock.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
-]
-"python_pkg/scrape_website/scrape_comics.py" = [
-]
-"python_pkg/extract_links/main.py" = [
 ]
 
 [tool.ruff.lint.pydocstyle]
