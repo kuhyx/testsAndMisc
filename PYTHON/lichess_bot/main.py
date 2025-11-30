@@ -17,7 +17,7 @@ from PYTHON.lichess_bot.lichess_api import LichessAPI
 from PYTHON.lichess_bot.utils import backoff_sleep, get_and_increment_version
 
 
-def run_bot(log_level: str = "INFO", decline_correspondence: bool = False) -> None:
+def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) -> None:
     """Start the bot and listen for incoming events."""
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),
@@ -465,7 +465,7 @@ def main() -> None:
         help="Decline correspondence challenges",
     )
     args = parser.parse_args()
-    run_bot(args.log_level, args.decline_correspondence)
+    run_bot(args.log_level, decline_correspondence=args.decline_correspondence)
 
 
 if __name__ == "__main__":

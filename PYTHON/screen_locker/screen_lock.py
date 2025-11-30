@@ -26,7 +26,7 @@ MAX_WEIGHT_KG = 500
 class ScreenLocker:
     """Screen locker that requires workout logging to unlock."""
 
-    def __init__(self, demo_mode: bool = True) -> None:
+    def __init__(self, *, demo_mode: bool = True) -> None:
         """Initialize screen locker with optional demo mode."""
         # Set up log file path
         script_dir = os.path.dirname(os.path.abspath(__file__))

@@ -11,7 +11,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 
-def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
+def pytest_ignore_collect(collection_path: Path, _config: pytest.Config) -> bool | None:
     """Ignore per-game blunder test files; keep only the unified one.
 
     This lets us keep historical files in the repo without collecting them.

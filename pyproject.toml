@@ -39,11 +39,6 @@ ignore = [
     "BLE001",  # Blind except - will fix critical ones manually
     "S603",    # subprocess without shell - known pattern
     "S607",    # start-process with partial path - acceptable
-    "FBT001",  # Boolean positional arg - common pattern
-    "FBT002",  # Boolean default value - common pattern
-    "FBT003",  # Boolean positional value - common pattern
-    "ARG001",  # Unused function argument - often needed for API compatibility
-    "ARG002",  # Unused method argument - often needed for API compatibility
     "N803",    # invalid-argument-name - chess notation uses uppercase
     "N999",    # invalid-module-name - PYTHON folder name
     "LOG015",  # root-logger-call - common in scripts
@@ -98,6 +93,15 @@ unfixable = []
 ]
 "PYTHON/randomize_numbers/random_digits.py" = [
     "PERF203", # Try-except needed for parsing user input in loop
+]
+"PYTHON/keyboardCoop/main.py" = [
+    "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)
+]
+"PYTHON/screen_locker/screen_lock.py" = [
+    "FBT003",  # Boolean positional values in tkinter API calls
+]
+"poker-modifier-app/poker_modifier_app.py" = [
+    "FBT003",  # Boolean positional values in tkinter API calls
 ]
 
 [tool.ruff.lint.pydocstyle]
