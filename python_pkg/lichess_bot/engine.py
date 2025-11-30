@@ -8,6 +8,8 @@ import subprocess
 
 import chess
 
+_logger = logging.getLogger(__name__)
+
 
 class RandomEngine:
     """Thin wrapper around the C engine in C/lichess_random_engine/random_engine.
@@ -160,6 +162,6 @@ class RandomEngine:
                 ensure_ascii=False,
             )
         except (json.JSONDecodeError, KeyError, TypeError):
-            logging.debug("Failed to parse engine JSON output")
+            _logger.debug("Failed to parse engine JSON output")
 
         return cand_score, cand_expl, best_move, best_expl

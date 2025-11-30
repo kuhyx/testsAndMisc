@@ -9,7 +9,7 @@ import secrets
 
 from PIL import Image
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 # Use cryptographically secure random number generator
 _rng = secrets.SystemRandom()
@@ -142,15 +142,15 @@ if __name__ == "__main__":
     folder = f"generated_images_{timestamp}"
 
     # Display used parameters
-    logging.info(
-        f"Generating {args.num_images} image(s) with the following parameters:"
+    _logger.info(
+        "Generating %s image(s) with the following parameters:", args.num_images
     )
-    logging.info(f"  Size: {args.size}")
-    logging.info(f"  Colors: {args.colors}")
-    logging.info(f"  Block size: {args.block_size}")
-    logging.info(f"  Base output path: {args.output_path}")
-    logging.info(f"  Quality: {args.quality}")
-    logging.info(f"  Output folder: {folder}")
+    _logger.info("  Size: %s", args.size)
+    _logger.info("  Colors: %s", args.colors)
+    _logger.info("  Block size: %s", args.block_size)
+    _logger.info("  Base output path: %s", args.output_path)
+    _logger.info("  Quality: %s", args.quality)
+    _logger.info("  Output folder: %s", folder)
 
     # Generate the specified number of images
     config = ImageConfig(
@@ -162,4 +162,4 @@ if __name__ == "__main__":
     )
     for i in range(1, args.num_images + 1):
         output_path = generate_bloated_jpeg(config, i, folder)
-        logging.info(f"Image {i} saved to {os.path.abspath(output_path)}")
+        _logger.info("Image %s saved to %s", i, os.path.abspath(output_path))

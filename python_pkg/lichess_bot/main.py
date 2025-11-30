@@ -18,6 +18,8 @@ from python_pkg.lichess_bot.engine import RandomEngine
 from python_pkg.lichess_bot.lichess_api import LichessAPI
 from python_pkg.lichess_bot.utils import backoff_sleep, get_and_increment_version
 
+_logger = logging.getLogger(__name__)
+
 
 def _apply_move_to_board(board: chess.Board, move: str, game_id: str) -> None:
     """Apply a single move to the board, logging errors.
@@ -30,11 +32,12 @@ def _apply_move_to_board(board: chess.Board, move: str, game_id: str) -> None:
     try:
         board.push_uci(move)
     except ValueError:
-        logging.debug(f"Game {game_id}: could not apply move {move}")
+        _logger.debug(f"Game {game_id}: could not apply move {move}")
 
 
 def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) -> None:
     """Start the bot and listen for incoming events."""
+    # Configure root logger for console output
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),
         format="[%(asctime)s] %(levelname)s %(threadName)s: %(message)s",
@@ -45,17 +48,17 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
         msg = "LICHESS_TOKEN environment variable is required"
         raise RuntimeError(msg)
 
-    logging.info("Token present. Initializing client and engine...")
+    _logger.info("Token present. Initializing client and engine...")
     # Self-incrementing bot version (persisted on disk)
     bot_version = get_and_increment_version()
-    logging.info(f"Bot version: v{bot_version}")
+    _logger.info(f"Bot version: v{bot_version}")
     api = LichessAPI(token)
     engine = RandomEngine()
 
     game_threads = {}
 
     def handle_game(game_id: str, my_color: str | None = None) -> None:
-        logging.info(f"Starting game thread for {game_id} [bot v{bot_version}]")
+        _logger.info(f"Starting game thread for {game_id} [bot v{bot_version}]")
         board = chess.Board()
         color: str | None = my_color
         # Track how many moves we have already processed;
@@ -122,7 +125,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             color = "white"
                         elif me == black_id:
                             color = "black"
-                        logging.info(f"Game {game_id}: joined as {color} (gameFull)")
+                        _logger.info(f"Game {game_id}: joined as {color} (gameFull)")
                     else:
                         moves = event.get("moves", "")
                         status = event.get("status")
@@ -138,11 +141,11 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
 
                     moves_list = moves.split() if moves else []
                     new_len = len(moves_list)
-                    logging.info(
+                    _logger.info(
                         f"Game {game_id}: event={et}, moves={new_len}, color={color}"
                     )
                     if new_len == last_handled_len:
-                        logging.debug(
+                        _logger.debug(
                             f"Game {game_id}: position unchanged "
                             f"(len={new_len}), skipping"
                         )
@@ -154,7 +157,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                         _apply_move_to_board(board, m, game_id)
 
                     if color is None:
-                        logging.info(
+                        _logger.info(
                             f"Game {game_id}: color unknown yet; waiting for gameFull"
                         )
                         # Do not mark this position handled on gameFull;
@@ -167,7 +170,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                     my_turn = (is_white_turn and color == "white") or (
                         (not is_white_turn) and color == "black"
                     )
-                    logging.info(
+                    _logger.info(
                         f"Game {game_id}: "
                         f"turn={'white' if is_white_turn else 'black'}, "
                         f"my_turn={my_turn}"
@@ -204,7 +207,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             board, time_budget_sec=budget
                         )
                         if move is None:
-                            logging.info(
+                            _logger.info(
                                 f"Game {game_id}: no legal moves (game likely over)"
                             )
                             break
@@ -212,12 +215,12 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             # Double-check legality just before sending
                             # to avoid 400s when state changed.
                             if move not in board.legal_moves:
-                                logging.info(
+                                _logger.info(
                                     f"Game {game_id}: selected move "
                                     "no longer legal; skipping send"
                                 )
                             else:
-                                logging.info(
+                                _logger.info(
                                     f"Game {game_id}: playing {move.uci()} "
                                     f"(budget={budget:.2f}s, "
                                     f"my_time_left={time_left_sec:.1f}s, "
@@ -231,7 +234,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                         )
                                 api.make_move(game_id, move)
                         except requests.RequestException as e:
-                            logging.warning(
+                            _logger.warning(
                                 f"Game {game_id}: move {move.uci()} failed: {e}"
                             )
                     # Mark this position as handled on authoritative
@@ -240,12 +243,12 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                     if et == "gameState" or (my_turn and allow_move):
                         last_handled_len = new_len
                     if status in {"mate", "resign", "stalemate", "timeout", "draw"}:
-                        logging.info(f"Game {game_id} finished: {status}")
+                        _logger.info(f"Game {game_id} finished: {status}")
                         break
                 elif et in {"chatLine", "opponentGone"}:
                     continue
         except requests.RequestException:
-            logging.exception(f"Game {game_id} thread error")
+            _logger.exception(f"Game {game_id} thread error")
         finally:
             # On game end, write full PGN to the log file
             try:
@@ -286,7 +289,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             except TypeError:
                                 total_plies = 0
 
-                            logging.info(
+                            _logger.info(
                                 f"Game {game_id}: starting post-game "
                                 f"analysis ({total_plies} plies)"
                             )
@@ -318,13 +321,13 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                                     )
                                     if total_plies:
                                         pct = analyzed / total_plies * 100.0
-                                        logging.info(
+                                        _logger.info(
                                             f"Game {game_id}: analysis progress "
                                             f"{analyzed}/{total_plies} "
                                             f"({pct:.0f}%), left {left}"
                                         )
                                     else:
-                                        logging.info(
+                                        _logger.info(
                                             f"Game {game_id}: analysis progress "
                                             f"{analyzed} plies (total unknown)"
                                         )
@@ -334,20 +337,20 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             ret = proc.wait()
                             analysis_text = "".join(lines)
                             if ret != 0:
-                                logging.warning(
+                                _logger.warning(
                                     f"Game {game_id}: analysis script "
                                     f"exited with code {ret}"
                                 )
                                 if stderr_text:
                                     analysis_text += "\n[stderr]\n" + stderr_text
-                            logging.info(f"Game {game_id}: analysis complete")
+                            _logger.info(f"Game {game_id}: analysis complete")
                         else:
-                            logging.info(
+                            _logger.info(
                                 f"Game {game_id}: analysis script not found "
                                 f"at {analyze_script}; skipping analysis"
                             )
                     except (subprocess.SubprocessError, OSError) as e:
-                        logging.debug(f"Game {game_id}: analysis run failed: {e}")
+                        _logger.debug(f"Game {game_id}: analysis run failed: {e}")
 
                     # Insert analysis before the PGN section so future runs
                     # can still parse PGN cleanly
@@ -399,12 +402,12 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                             with open(game_log_path, "w", encoding="utf-8") as f:
                                 f.write(new_content)
                         except OSError as e:
-                            logging.debug(
+                            _logger.debug(
                                 f"Game {game_id}: could not write analysis to log: {e}"
                             )
             except OSError as e:
-                logging.debug(f"Game {game_id}: could not write PGN: {e}")
-            logging.info(f"Ending game thread for {game_id}")
+                _logger.debug(f"Game {game_id}: could not write PGN: {e}")
+            _logger.info(f"Ending game thread for {game_id}")
 
     def _process_event_stream() -> None:
         """Process events from the Lichess event stream.
@@ -423,10 +426,10 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
                     or not decline_correspondence
                 )
                 if variant == "standard" and perf_ok and not_corr:
-                    logging.info(f"Accepting challenge {ch_id} ({speed})")
+                    _logger.info(f"Accepting challenge {ch_id} ({speed})")
                     api.accept_challenge(ch_id)
                 else:
-                    logging.info(
+                    _logger.info(
                         f"Declining challenge {ch_id} "
                         f"(variant={variant}, speed={speed})"
                     )
@@ -445,9 +448,9 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
 
             elif event.get("type") == "gameFinish":
                 game_id = event["game"]["id"]
-                logging.info(f"Game finished event: {game_id}")
+                _logger.info(f"Game finished event: {game_id}")
             else:
-                logging.debug(f"Unhandled event: {json.dumps(event)}")
+                _logger.debug(f"Unhandled event: {json.dumps(event)}")
 
     def _run_event_loop_iteration() -> int:
         """Run one iteration of the event loop with error handling.
@@ -458,14 +461,14 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
         try:
             _process_event_stream()
         except requests.RequestException as e:
-            logging.warning(f"Event stream error: {e}")
+            _logger.warning(f"Event stream error: {e}")
             return backoff_sleep(backoff)
         else:
             # If stream ends normally, reset backoff
             return 0
 
     # Main event stream: challenge and game start events
-    logging.info("Connecting to Lichess event stream. Waiting for challenges...")
+    _logger.info("Connecting to Lichess event stream. Waiting for challenges...")
     backoff = 0
     while True:
         backoff = _run_event_loop_iteration()

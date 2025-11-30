@@ -10,7 +10,7 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 30  # seconds
 
@@ -26,7 +26,7 @@ driver = webdriver.Chrome()
 
 # Open the website from the passed argument
 url = args.url
-logging.info(f"Opening the website: {url}")
+_logger.info("Opening the website: %s", url)
 driver.get(url)
 
 
@@ -38,13 +38,13 @@ def download_image(url: str) -> bool:
 
     # Check if the image already exists
     if os.path.exists(image_name):
-        logging.info(f"Image {image_name} already exists, skipping download.")
+        _logger.info("Image %s already exists, skipping download.", image_name)
         return False
-    logging.info(f"Downloading image from URL: {url}")
+    _logger.info("Downloading image from URL: %s", url)
     img_data = requests.get(url, timeout=REQUEST_TIMEOUT).content
     with open(image_name, "wb") as handler:
         handler.write(img_data)
-    logging.info(f"Image {image_name} downloaded successfully")
+    _logger.info("Image %s downloaded successfully", image_name)
     return True
 
 
@@ -52,14 +52,14 @@ def download_image(url: str) -> bool:
 count = 1
 
 while True:
-    logging.info(f"Processing image {count}...")
+    _logger.info("Processing image %s...", count)
 
     # Find the image element by its ID
     image_element = driver.find_element(By.ID, "cc-comic")
 
     # Get the image URL from the 'src' attribute
     image_url = image_element.get_attribute("src")
-    logging.info(f"Found image URL: {image_url}")
+    _logger.info("Found image URL: %s", image_url)
 
     # Download the image if it doesn't already exist
     if download_image(image_url):
@@ -67,7 +67,7 @@ while True:
 
     # Try to find the 'Next' button by its class
     try:
-        logging.info("Clicking the 'Next' button to load the next image...")
+        _logger.info("Clicking the 'Next' button to load the next image...")
         next_button = driver.find_element(By.CSS_SELECTOR, "a.cc-next")
 
         # Navigate to the URL in the 'href' of the next button
@@ -76,9 +76,9 @@ while True:
 
     except NoSuchElementException:
         # If the 'Next' button is not found, it means we've reached the last image
-        logging.info("No 'Next' button found. Reached the end of images.")
+        _logger.info("No 'Next' button found. Reached the end of images.")
         break
 
 # Close the browser
-logging.info("All images processed, closing the browser.")
+_logger.info("All images processed, closing the browser.")
 driver.quit()

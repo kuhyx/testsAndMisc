@@ -4,6 +4,8 @@ import logging
 import os
 import time
 
+_logger = logging.getLogger(__name__)
+
 
 def _version_file_path() -> str:
     """Return the path to the persistent bot version file.
@@ -44,7 +46,7 @@ def get_and_increment_version() -> int:
             with open(path, "w") as f:
                 f.write(str(new_version))
         except OSError:
-            logging.debug("Could not persist bot version to %s", path)
+            _logger.debug("Could not persist bot version to %s", path)
 
     return new_version
 
@@ -57,6 +59,6 @@ def backoff_sleep(current_backoff: int, base: float = 0.5, cap: float = 8.0) -> 
     - cap: maximum delay in seconds
     """
     delay = min(cap, base * (2**current_backoff))
-    logging.info(f"Backing off for {delay:.1f}s")
+    _logger.info("Backing off for %.1fs", delay)
     time.sleep(delay)
     return min(current_backoff + 1, 10)

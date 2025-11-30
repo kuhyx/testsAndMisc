@@ -30,6 +30,8 @@ import os
 import re
 import sys
 
+_logger = logging.getLogger(__name__)
+
 try:
     import psutil  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover
@@ -40,8 +42,8 @@ try:
     import chess.engine
     import chess.pgn
 except ImportError:  # pragma: no cover
-    logging.exception("Missing dependency. Please install python-chess:")
-    logging.exception("  pip install -r python_pkg/stockfish_analysis/requirements.txt")
+    _logger.exception("Missing dependency. Please install python-chess:")
+    _logger.exception("  pip install -r python_pkg/stockfish_analysis/requirements.txt")
     raise
 
 # Memory configuration constants
@@ -216,7 +218,6 @@ def _auto_hash_mb(threads_wanted: int, engine_options: dict[str, object]) -> int
 
 def main() -> None:
     """Parse arguments and run chess game analysis."""
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(
         description="Analyze a chess game's moves with Stockfish and rate each move."
     )
@@ -271,7 +272,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if not os.path.isfile(args.file):
-        logging.error(f"Input not found: {args.file}")
+        _logger.error(f"Input not found: {args.file}")
         sys.exit(1)
 
     with open(args.file, encoding="utf-8", errors="replace") as f:
@@ -279,20 +280,20 @@ def main() -> None:
 
     pgn_text = extract_pgn_text(raw)
     if not pgn_text:
-        logging.error("Could not locate PGN text in the file.")
+        _logger.error("Could not locate PGN text in the file.")
         sys.exit(2)
 
     game = chess.pgn.read_game(io.StringIO(pgn_text))
     if game is None:
-        logging.error("Failed to parse PGN.")
+        _logger.error("Failed to parse PGN.")
         sys.exit(3)
 
     # Prepare engine
     try:
         engine = chess.engine.SimpleEngine.popen_uci([args.engine])
     except FileNotFoundError:
-        logging.exception(f"Could not launch engine at: {args.engine}")
-        logging.exception(
+        _logger.exception(f"Could not launch engine at: {args.engine}")
+        _logger.exception(
             "Ensure Stockfish is installed and in PATH, or specify with --engine."
         )
         sys.exit(4)
@@ -318,7 +319,7 @@ def main() -> None:
                 wanted_threads = max(wanted_threads, min_thr)
             engine.configure({"Threads": int(wanted_threads)})
         except (AttributeError, TypeError, ValueError):
-            logging.debug("Failed to configure Threads option")
+            _logger.debug("Failed to configure Threads option")
 
     # Configure hash table size in MB.
     if "Hash" in options:
@@ -336,7 +337,7 @@ def main() -> None:
                 target_hash = max(target_hash, min_hash)
             engine.configure({"Hash": int(target_hash)})
         except (AttributeError, TypeError, ValueError):
-            logging.debug("Failed to configure Hash option")
+            _logger.debug("Failed to configure Hash option")
 
     # MultiPV
     effective_mpv = max(1, int(args.multipv))
@@ -347,7 +348,7 @@ def main() -> None:
                 effective_mpv = min(effective_mpv, max_mpv)
             engine.configure({"MultiPV": int(effective_mpv)})
         except (AttributeError, TypeError, ValueError):
-            logging.debug("Failed to configure MultiPV option")
+            _logger.debug("Failed to configure MultiPV option")
 
     # Enable NNUE if the option exists
     for nnue_key in ("Use NNUE", "UseNNUE"):
@@ -362,13 +363,13 @@ def main() -> None:
         limit = chess.engine.Limit(time=max(0.05, args.time))
 
     board = game.board()
-    logging.info("Game:")
+    _logger.info("Game:")
     white = game.headers.get("White", "White")
     black = game.headers.get("Black", "Black")
     result = game.headers.get("Result", "*")
-    logging.info(f"  {white} vs {black}  Result: {result}")
-    logging.info("")
-    logging.info(
+    _logger.info(f"  {white} vs {black}  Result: {result}")
+    _logger.info("")
+    _logger.info(
         "Columns: ply  side  move  played_eval  best_eval  loss  class  best_suggestion"
     )
     # Brief performance summary (best-effort)
@@ -385,12 +386,12 @@ def main() -> None:
     except (AttributeError, TypeError, ValueError):
         hash_show = None
     if hash_show is not None:
-        logging.info(
+        _logger.info(
             f"Using engine options: Threads={thr_show}, "
             f"Hash={hash_show} MB, MultiPV={effective_mpv}"
         )
     else:
-        logging.info(
+        _logger.info(
             f"Using engine options: Threads={thr_show}, MultiPV={effective_mpv}"
         )
 
@@ -401,7 +402,7 @@ def main() -> None:
         if args.last_move_only:
             # Walk to the last move in the main line and analyze only that ply.
             if not node.variations:
-                logging.warning("No moves found in the game.")
+                _logger.warning("No moves found in the game.")
             else:
                 while node.variations:
                     move_node = node.variations[0]
@@ -502,7 +503,7 @@ def main() -> None:
                             classification = classify_cp_loss(cp_loss)
 
                         side = "W" if mover_white else "B"
-                        logging.info(
+                        _logger.info(
                             f"{ply:>3}  {side}   {san:<8}  "
                             f"{fmt_eval(played_cp, played_mate):>10}  "
                             f"{fmt_eval(best_cp, best_mate):>9}  "
@@ -617,7 +618,7 @@ def main() -> None:
                     classification = classify_cp_loss(cp_loss)
 
                 side = "W" if mover_white else "B"
-                logging.info(
+                _logger.info(
                     f"{ply:>3}  {side}   {san:<8}  "
                     f"{fmt_eval(played_cp, played_mate):>10}  "
                     f"{fmt_eval(best_cp, best_mate):>9}  "

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 MAX_REQUESTS = 90
 REQUEST_TIMEOUT = 30  # seconds
@@ -35,10 +35,10 @@ def _download_single_image(url: str) -> None:
         with open(image_path, "wb") as file:
             file.write(response.content)
 
-        logging.info(f"Saved {url} as {image_path}")
+        _logger.info("Saved %s as %s", url, image_path)
 
     except requests.exceptions.RequestException:
-        logging.exception(f"Failed to download {url}")
+        _logger.exception("Failed to download %s", url)
 
 
 requests_send = 0

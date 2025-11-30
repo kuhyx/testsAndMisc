@@ -6,7 +6,7 @@ import re
 import secrets
 import sys
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 # Use cryptographically secure random number generator
 _rng = secrets.SystemRandom()
@@ -73,7 +73,7 @@ MIN_ARGS = 2
 
 if __name__ == "__main__":
     if len(sys.argv) < MIN_ARGS:
-        logging.info(
+        _logger.info(
             "Usage: python random_digits.py <number1> <number2> ... "
             "[min_percentage max_percentage]"
         )
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     numbers, decimal_counts = parse_input(input_string)
 
     if len(numbers) == 0:
-        logging.error("No valid numbers provided.")
+        _logger.error("No valid numbers provided.")
         sys.exit(1)
 
     min_percentage = DEFAULT_MIN_PERCENTAGE
@@ -103,9 +103,9 @@ if __name__ == "__main__":
             format_str = f".{decimal_counts[i]}f"
             formatted_numbers.append(float(format(num, format_str)))
 
-        logging.info(f"Original numbers: {numbers}")
-        logging.info(f"Randomized numbers: {formatted_numbers}")
+        _logger.info("Original numbers: %s", numbers)
+        _logger.info("Randomized numbers: %s", formatted_numbers)
     except ValueError:
-        logging.exception("Error processing numbers")
-        logging.exception("Please provide valid numbers and percentages.")
+        _logger.exception("Error processing numbers")
+        _logger.exception("Please provide valid numbers and percentages.")
         sys.exit(1)

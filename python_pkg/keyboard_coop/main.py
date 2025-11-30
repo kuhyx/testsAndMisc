@@ -11,7 +11,7 @@ import sys
 
 import pygame
 
-logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 # Use cryptographically secure random number generator
 _rng = secrets.SystemRandom()
@@ -110,7 +110,7 @@ class KeyboardCoopGame:
             # Convert to set for faster lookup (we only need the keys)
             return set(dictionary_data.keys())
         except FileNotFoundError:
-            logging.warning(
+            _logger.warning(
                 "words_dictionary.json not found, using fallback dictionary"
             )
             # Fallback to a smaller dictionary if file not found
@@ -166,7 +166,7 @@ class KeyboardCoopGame:
                 "good",
             }
         except json.JSONDecodeError:
-            logging.warning(
+            _logger.warning(
                 "Error reading words_dictionary.json, using fallback dictionary"
             )
             return {
