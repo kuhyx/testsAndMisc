@@ -6,9 +6,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+
+# pylint: disable=import-error
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
+
+# pylint: enable=import-error
 
 _logger = logging.getLogger(__name__)
 
@@ -31,18 +35,18 @@ driver.get(url)
 
 
 # A function to download images by URL
-def download_image(url: str) -> bool:
+def download_image(image_url: str) -> bool:
     """Download an image from a URL and save it locally."""
     # Extract image name from URL
-    image_name = Path(urlparse(url).path).name
+    image_name = Path(urlparse(image_url).path).name
     image_path = Path(image_name)
 
     # Check if the image already exists
     if image_path.exists():
         _logger.info("Image %s already exists, skipping download.", image_name)
         return False
-    _logger.info("Downloading image from URL: %s", url)
-    img_data = requests.get(url, timeout=REQUEST_TIMEOUT).content
+    _logger.info("Downloading image from URL: %s", image_url)
+    img_data = requests.get(image_url, timeout=REQUEST_TIMEOUT).content
     with image_path.open("wb") as handler:
         handler.write(img_data)
     _logger.info("Image %s downloaded successfully", image_name)
@@ -59,11 +63,11 @@ while True:
     image_element = driver.find_element(By.ID, "cc-comic")
 
     # Get the image URL from the 'src' attribute
-    image_url = image_element.get_attribute("src")
-    _logger.info("Found image URL: %s", image_url)
+    current_image_url = image_element.get_attribute("src")
+    _logger.info("Found image URL: %s", current_image_url)
 
     # Download the image if it doesn't already exist
-    if download_image(image_url):
+    if download_image(current_image_url):
         count += 1  # Increment count only if the image was downloaded
 
     # Try to find the 'Next' button by its class

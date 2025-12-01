@@ -1,6 +1,6 @@
 """Lichess API client for bot interactions."""
 
-from collections.abc import Generator
+from collections.abc import Generator  # pylint: disable=import-error
 import contextlib
 from http import HTTPStatus
 import json
@@ -120,11 +120,29 @@ class LichessAPI:
         data = {"reason": reason}
         self._request("POST", url, data=data, timeout=30, raise_for_status=True)
 
+    def _parse_game_full_event(
+        self, event: dict, board: chess.Board, color: str
+    ) -> str:
+        """Parse gameFull event and update board. Returns determined color."""
+        white_id = event["white"].get("id")
+        black_id = event["black"].get("id")
+        me = self.get_my_user_id()
+        if me == white_id:
+            color = "white"
+        elif me == black_id:
+            color = "black"
+        state = event.get("state", {})
+        moves = state.get("moves", "")
+        if moves:
+            for m in moves.split():
+                with contextlib.suppress(Exception):
+                    board.push_uci(m)
+        return color
+
     def join_game_stream(
         self, game_id: str, my_color: str | None
     ) -> tuple[chess.Board, str]:
         """Deprecated: use stream_game_events and parse initial state there."""
-        # Fallback to initial behavior for compatibility
         url = f"{LICHESS_API}/api/board/game/stream/{game_id}"
         board = chess.Board()
         color = my_color or "white"
@@ -138,21 +156,8 @@ class LichessAPI:
                     event = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                t = event.get("type")
-                if t == "gameFull":
-                    white_id = event["white"].get("id")
-                    black_id = event["black"].get("id")
-                    me = self.get_my_user_id()
-                    if me == white_id:
-                        color = "white"
-                    elif me == black_id:
-                        color = "black"
-                    state = event.get("state", {})
-                    moves = state.get("moves", "")
-                    if moves:
-                        for m in moves.split():
-                            with contextlib.suppress(Exception):
-                                board.push_uci(m)
+                if event.get("type") == "gameFull":
+                    color = self._parse_game_full_event(event, board, color)
                     break
         return board, color
 

@@ -3,6 +3,7 @@
 Players take turns selecting adjacent keys to form valid English words.
 """
 
+from dataclasses import dataclass, field
 import json
 import logging
 from pathlib import Path
@@ -70,6 +71,28 @@ KEY_ADJACENCY = {
 }
 
 
+@dataclass
+class GameState:
+    """State for an ongoing keyboard coop game."""
+
+    current_player: int = 0
+    current_word: str = ""
+    selected_letters: list[str] = field(default_factory=list)
+    score: int = 0
+    game_over: bool = False
+    message: str = "Player 1: Choose any letter to start!"
+
+
+@dataclass
+class KeyboardState:
+    """State for the keyboard layout and adjacency."""
+
+    layout: list[list[str]] = field(default_factory=list)
+    available_letters: set[str] = field(default_factory=set)
+    adjacency: dict[str, list[str]] = field(default_factory=dict)
+    positions: dict[str, pygame.Rect] = field(default_factory=dict)
+
+
 class KeyboardCoopGame:
     """Main game class for the keyboard cooperative word game."""
 
@@ -83,23 +106,18 @@ class KeyboardCoopGame:
         self.small_font = pygame.font.Font(None, 20)
 
         # Load dictionary
-        self.dictionary = self.load_dictionary()
+        self.dictionary = self._load_dictionary()
 
         # Initialize game state
-        self.current_player = 0
-        self.current_word = ""
-        self.selected_letters = []
-        self.score = 0
-        self.game_over = False
-        self.message = "Player 1: Choose any letter to start!"
+        self.state = GameState()
+
+        # Initialize keyboard state
+        self.keyboard = KeyboardState()
 
         # Generate random keyboard layout and adjacency
-        self.generate_random_keyboard()
+        self._generate_random_keyboard()
 
-        # Key positions
-        self.key_positions = self.calculate_key_positions()
-
-    def load_dictionary(self) -> set[str]:
+    def _load_dictionary(self) -> set[str]:
         """Load dictionary from words_dictionary.json file."""
         try:
             dictionary_path = Path(__file__).parent / "words_dictionary.json"
@@ -199,30 +217,33 @@ class KeyboardCoopGame:
                 "good",
             }
 
-    def generate_random_keyboard(self) -> None:
+    def _generate_random_keyboard(self) -> None:
         """Generate a random keyboard layout and calculate adjacencies."""
         # All 26 letters
         all_letters = list("abcdefghijklmnopqrstuvwxyz")
         _rng.shuffle(all_letters)
 
         # Create random layout with same structure as QWERTY (10-9-7)
-        self.keyboard_layout = [
+        self.keyboard.layout = [
             all_letters[0:10],  # Top row: 10 keys
             all_letters[10:19],  # Middle row: 9 keys
             all_letters[19:26],  # Bottom row: 7 keys
         ]
 
         # Update available letters
-        self.available_letters = set(all_letters)
+        self.keyboard.available_letters = set(all_letters)
 
         # Calculate adjacencies based on new layout
-        self.calculate_adjacencies()
+        self._calculate_adjacencies()
 
-    def calculate_adjacencies(self) -> None:
+        # Calculate key positions
+        self.keyboard.positions = self._calculate_key_positions()
+
+    def _calculate_adjacencies(self) -> None:
         """Calculate adjacencies based on current keyboard layout."""
-        self.key_adjacency = {}
+        self.keyboard.adjacency = {}
 
-        for row_idx, row in enumerate(self.keyboard_layout):
+        for row_idx, row in enumerate(self.keyboard.layout):
             for col_idx, letter in enumerate(row):
                 adjacents = []
 
@@ -243,14 +264,14 @@ class KeyboardCoopGame:
                     new_col = col_idx + dc
 
                     # Check bounds
-                    if 0 <= new_row < len(self.keyboard_layout) and 0 <= new_col < len(
-                        self.keyboard_layout[new_row]
+                    if 0 <= new_row < len(self.keyboard.layout) and 0 <= new_col < len(
+                        self.keyboard.layout[new_row]
                     ):
-                        adjacents.append(self.keyboard_layout[new_row][new_col])
+                        adjacents.append(self.keyboard.layout[new_row][new_col])
 
-                self.key_adjacency[letter] = adjacents
+                self.keyboard.adjacency[letter] = adjacents
 
-    def calculate_key_positions(self) -> dict[str, pygame.Rect]:
+    def _calculate_key_positions(self) -> dict[str, pygame.Rect]:
         """Calculate the position of each key on screen."""
         positions: dict[str, pygame.Rect] = {}
         key_width = 60
@@ -259,7 +280,7 @@ class KeyboardCoopGame:
         start_x = 50
         start_y = 320
 
-        for row_idx, row in enumerate(self.keyboard_layout):
+        for row_idx, row in enumerate(self.keyboard.layout):
             row_offset = row_idx * 30  # Offset for layout
             for col_idx, key in enumerate(row):
                 x = start_x + col_idx * (key_width + key_spacing) + row_offset
@@ -268,109 +289,105 @@ class KeyboardCoopGame:
 
         return positions
 
-    def get_key_at_position(self, pos: tuple[int, int]) -> str | None:
+    def _get_key_at_position(self, pos: tuple[int, int]) -> str | None:
         """Get the key at the given mouse position."""
-        for key, rect in self.key_positions.items():
+        for key, rect in self.keyboard.positions.items():
             if rect.collidepoint(pos):
                 return key
         return None
 
-    def is_valid_move(self, letter: str) -> bool:
+    def _is_valid_move(self, letter: str) -> bool:
         """Check if the letter is a valid move."""
-        if not self.selected_letters:
+        if not self.state.selected_letters:
             return True  # First move can be any letter
 
-        last_letter = self.selected_letters[-1]
-        return letter in self.key_adjacency[last_letter]
+        last_letter = self.state.selected_letters[-1]
+        return letter in self.keyboard.adjacency[last_letter]
 
-    def is_valid_word(self, word: str) -> bool:
+    def _is_valid_word(self, word: str) -> bool:
         """Check if the word is in the dictionary."""
         return word.lower() in self.dictionary
 
-    def calculate_score(self, word_length: int) -> int:
+    def _calculate_score(self, word_length: int) -> int:
         """Calculate score exponentially based on word length."""
         if word_length < MIN_WORD_LENGTH:
             return 0
         return 2 ** (word_length - 2)
 
-    def handle_letter_click(self, letter: str) -> None:
+    def _handle_letter_click(self, letter: str) -> None:
         """Handle clicking on a letter."""
-        if letter in self.available_letters and self.is_valid_move(letter):
-            self.selected_letters.append(letter)
-            self.current_word += letter
+        if letter in self.keyboard.available_letters and self._is_valid_move(letter):
+            self.state.selected_letters.append(letter)
+            self.state.current_word += letter
 
             # Update available letters to include adjacent letters AND the same letter
             adjacent_letters = (
-                set(self.key_adjacency[letter])
-                if letter in self.key_adjacency
+                set(self.keyboard.adjacency[letter])
+                if letter in self.keyboard.adjacency
                 else set()
             )
             adjacent_letters.add(letter)  # Allow selecting the same letter again
-            self.available_letters = adjacent_letters
+            self.keyboard.available_letters = adjacent_letters
 
             # Switch player
-            self.current_player = 1 - self.current_player
-            self.message = (
-                f"Player {self.current_player + 1}: Choose an adjacent letter!"
+            self.state.current_player = 1 - self.state.current_player
+            self.state.message = (
+                f"Player {self.state.current_player + 1}: Choose an adjacent letter!"
             )
 
             # If no valid moves available, force word submission
-            if not self.available_letters:
-                self.submit_word()
+            if not self.keyboard.available_letters:
+                self._submit_word()
 
-    def submit_word(self) -> None:
+    def _submit_word(self) -> None:
         """Submit the current word and check if it's valid."""
-        if len(self.current_word) >= MIN_WORD_LENGTH and self.is_valid_word(
-            self.current_word
+        if len(self.state.current_word) >= MIN_WORD_LENGTH and self._is_valid_word(
+            self.state.current_word
         ):
-            points = self.calculate_score(len(self.current_word))
-            self.score += points
-            self.message = (
-                f"'{self.current_word}' is valid! +{points} points "
-                f"(Total: {self.score}) - New keyboard!"
+            points = self._calculate_score(len(self.state.current_word))
+            self.state.score += points
+            self.state.message = (
+                f"'{self.state.current_word}' is valid! +{points} points "
+                f"(Total: {self.state.score}) - New keyboard!"
             )
 
             # Randomize keyboard layout after scoring
-            self.generate_random_keyboard()
-            self.key_positions = self.calculate_key_positions()
+            self._generate_random_keyboard()
 
-        elif len(self.current_word) < MIN_WORD_LENGTH:
-            self.message = (
-                f"'{self.current_word}' is too short! "
+        elif len(self.state.current_word) < MIN_WORD_LENGTH:
+            self.state.message = (
+                f"'{self.state.current_word}' is too short! "
                 f"(minimum {MIN_WORD_LENGTH} letters)"
             )
         else:
-            self.message = f"'{self.current_word}' is not a valid word!"
+            self.state.message = f"'{self.state.current_word}' is not a valid word!"
 
         # Reset for next word
-        self.current_word = ""
-        self.selected_letters = []
-        self.current_player = 0
+        self.state.current_word = ""
+        self.state.selected_letters = []
+        self.state.current_player = 0
 
-    def reset_game(self) -> None:
+    def _reset_game(self) -> None:
         """Reset the game to initial state."""
-        self.current_player = 0
-        self.current_word = ""
-        self.selected_letters = []
-        self.score = 0
-        self.game_over = False
-        self.message = "Player 1: Choose any letter to start!"
+        self.state = GameState()
 
         # Generate new random keyboard layout
-        self.generate_random_keyboard()
-        self.key_positions = self.calculate_key_positions()
+        self._generate_random_keyboard()
 
-    def draw_keyboard(self) -> None:
+    def _draw_keyboard(self) -> None:
         """Draw the virtual keyboard."""
         mouse_pos = pygame.mouse.get_pos()
 
-        for letter, rect in self.key_positions.items():
+        for letter, rect in self.keyboard.positions.items():
             # Determine key color
-            if letter in self.selected_letters:
+            if letter in self.state.selected_letters:
                 color = KEY_SELECTED_COLOR
-            elif letter in self.available_letters:
+            elif letter in self.keyboard.available_letters:
                 color = KEY_AVAILABLE_COLOR
-            elif rect.collidepoint(mouse_pos) and letter in self.available_letters:
+            elif (
+                rect.collidepoint(mouse_pos)
+                and letter in self.keyboard.available_letters
+            ):
                 color = KEY_HOVER_COLOR
             else:
                 color = KEY_COLOR
@@ -384,34 +401,40 @@ class KeyboardCoopGame:
             text_rect = text.get_rect(center=rect.center)
             self.screen.blit(text, text_rect)
 
-    def draw_ui(self) -> tuple[pygame.Rect, pygame.Rect]:
+    def _draw_text_line(
+        self, text: str, pos: tuple[int, int], font: pygame.font.Font
+    ) -> None:
+        """Draw a single line of text at the given position."""
+        rendered = font.render(text, True, TEXT_COLOR)
+        self.screen.blit(rendered, pos)
+
+    def _draw_button(self, rect: pygame.Rect, label: str) -> None:
+        """Draw a button with the given label."""
+        pygame.draw.rect(self.screen, KEY_COLOR, rect)
+        pygame.draw.rect(self.screen, TEXT_COLOR, rect, 2)
+        text = self.small_font.render(label, True, TEXT_COLOR)
+        self.screen.blit(text, text.get_rect(center=rect.center))
+
+    def _draw_ui(self) -> tuple[pygame.Rect, pygame.Rect]:
         """Draw the user interface."""
-        # Title
-        title = self.large_font.render("Keyboard Coop Game", True, TEXT_COLOR)
-        self.screen.blit(title, (30, 20))
-
-        # Current word
-        word_text = self.font.render(
-            f"Current Word: {self.current_word.upper()}", True, TEXT_COLOR
+        # Title and status
+        self._draw_text_line("Keyboard Coop Game", (30, 20), self.large_font)
+        self._draw_text_line(
+            f"Current Word: {self.state.current_word.upper()}", (30, 50), self.font
         )
-        self.screen.blit(word_text, (30, 50))
+        self._draw_text_line(f"Score: {self.state.score}", (30, 75), self.font)
 
-        # Score
-        score_text = self.font.render(f"Score: {self.score}", True, TEXT_COLOR)
-        self.screen.blit(score_text, (30, 75))
-
-        # Current player
-        player_color = PLAYER_COLORS[self.current_player]
+        # Current player with color
+        player_color = PLAYER_COLORS[self.state.current_player]
         player_text = self.font.render(
-            f"Current Player: {self.current_player + 1}", True, player_color
+            f"Current Player: {self.state.current_player + 1}", True, player_color
         )
         self.screen.blit(player_text, (30, 100))
 
         # Message
-        message_text = self.font.render(self.message, True, TEXT_COLOR)
-        self.screen.blit(message_text, (30, 125))
+        self._draw_text_line(self.state.message, (30, 125), self.font)
 
-        # Instructions - Move to right side and make more compact
+        # Instructions
         instructions = [
             "Instructions:",
             "• Take turns selecting adjacent letters",
@@ -422,45 +445,32 @@ class KeyboardCoopGame:
             "• Score increases exponentially",
             "• Keyboard randomizes after each valid word!",
         ]
+        for idx, instruction in enumerate(instructions):
+            self._draw_text_line(instruction, (750, 20 + idx * 22), self.small_font)
 
-        start_x = 750
-        for i, instruction in enumerate(instructions):
-            inst_text = self.small_font.render(instruction, True, TEXT_COLOR)
-            self.screen.blit(inst_text, (start_x, 20 + i * 22))
-
-        # Enter button - smaller and repositioned
+        # Buttons
         enter_rect = pygame.Rect(750, 190, 120, 40)
-        pygame.draw.rect(self.screen, KEY_COLOR, enter_rect)
-        pygame.draw.rect(self.screen, TEXT_COLOR, enter_rect, 2)
-        enter_text = self.small_font.render("ENTER", True, TEXT_COLOR)
-        enter_text_rect = enter_text.get_rect(center=enter_rect.center)
-        self.screen.blit(enter_text, enter_text_rect)
-
-        # Reset button - smaller and repositioned
         reset_rect = pygame.Rect(880, 190, 120, 40)
-        pygame.draw.rect(self.screen, KEY_COLOR, reset_rect)
-        pygame.draw.rect(self.screen, TEXT_COLOR, reset_rect, 2)
-        reset_text = self.small_font.render("RESET", True, TEXT_COLOR)
-        reset_text_rect = reset_text.get_rect(center=reset_rect.center)
-        self.screen.blit(reset_text, reset_text_rect)
+        self._draw_button(enter_rect, "ENTER")
+        self._draw_button(reset_rect, "RESET")
 
         return enter_rect, reset_rect
 
-    def handle_click(self, pos: tuple[int, int]) -> None:
+    def _handle_click(self, pos: tuple[int, int]) -> None:
         """Handle mouse clicks."""
         # Check if clicked on a key
-        key = self.get_key_at_position(pos)
+        key = self._get_key_at_position(pos)
         if key:
-            self.handle_letter_click(key)
+            self._handle_letter_click(key)
 
         # Check UI buttons
         enter_rect = pygame.Rect(750, 190, 120, 40)
         reset_rect = pygame.Rect(880, 190, 120, 40)
 
         if enter_rect.collidepoint(pos):
-            self.submit_word()
+            self._submit_word()
         elif reset_rect.collidepoint(pos):
-            self.reset_game()
+            self._reset_game()
 
     def run(self) -> None:
         """Main game loop."""
@@ -472,24 +482,24 @@ class KeyboardCoopGame:
                     running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
-                        self.handle_click(event.pos)
+                        self._handle_click(event.pos)
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN:
-                        self.submit_word()
+                        self._submit_word()
                     elif event.key == pygame.K_r:
-                        self.reset_game()
+                        self._reset_game()
                     else:
                         # Handle letter key presses
                         key_name = pygame.key.name(event.key)
                         if len(key_name) == 1 and key_name.isalpha():
-                            self.handle_letter_click(key_name.lower())
+                            self._handle_letter_click(key_name.lower())
 
             # Clear screen
             self.screen.fill(BACKGROUND_COLOR)
 
             # Draw everything
-            self.draw_keyboard()
-            self.draw_ui()
+            self._draw_keyboard()
+            self._draw_ui()
 
             # Update display
             pygame.display.flip()

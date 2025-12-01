@@ -28,55 +28,61 @@ class ImageConfig:
     quality: int
 
 
-def generate_bloated_jpeg(config: ImageConfig, image_index: int, folder: str) -> str:
+def generate_bloated_jpeg(
+    cfg: ImageConfig, image_index: int, output_folder: str
+) -> str:
     """Generates a random JPEG image with given configuration.
 
     Args:
-        config: Image generation configuration.
+        cfg: Image generation configuration.
         image_index: Index of the image for unique naming.
-        folder: Folder to save the image.
+        output_folder: Folder to save the image.
 
     Returns:
         Path to the generated image.
     """
     # Ensure size is divisible by block_size and does not exceed MAX_IMAGE_SIZE
-    if config.size > MAX_IMAGE_SIZE or config.size % config.block_size != 0:
+    if cfg.size > MAX_IMAGE_SIZE or cfg.size % cfg.block_size:
         msg = (
             f"Size must be {MAX_IMAGE_SIZE} pixels or less and divisible by block_size"
         )
         raise ValueError(msg)
 
-    # Create a new image
-    image = Image.new("RGB", (config.size, config.size))
+    image = _create_random_image(cfg)
+    return _save_image(image, cfg, image_index, output_folder)
+
+
+def _create_random_image(cfg: ImageConfig) -> Image.Image:
+    """Create a random colorful image based on configuration."""
+    image = Image.new("RGB", (cfg.size, cfg.size))
     pixels = image.load()
 
     # Convert hex colors to RGB
     rgb_colors = [
-        tuple(int(color[i : i + 2], 16) for i in (1, 3, 5))
-        for color in config.color_list
+        tuple(int(color[idx : idx + 2], 16) for idx in (1, 3, 5))
+        for color in cfg.color_list
     ]
 
     # Fill the image with block_size x block_size pixel squares
-    # of random colors from the list
-    for y in range(0, config.size, config.block_size):
-        for x in range(0, config.size, config.block_size):
+    for y in range(0, cfg.size, cfg.block_size):
+        for x in range(0, cfg.size, cfg.block_size):
             color = _rng.choice(rgb_colors)
-            for i in range(config.block_size):
-                for j in range(config.block_size):
-                    pixels[x + i, y + j] = color
+            for dy in range(cfg.block_size):
+                for dx in range(cfg.block_size):
+                    pixels[x + dx, y + dy] = color
+    return image
 
-    # Create the folder if it does not exist
-    folder_path = Path(folder)
+
+def _save_image(
+    image: Image.Image, cfg: ImageConfig, image_index: int, output_folder: str
+) -> str:
+    """Save image to disk and return the path."""
+    folder_path = Path(output_folder)
     folder_path.mkdir(parents=True, exist_ok=True)
-
-    # Generate unique output path
-    output_stem = Path(config.output_path).stem
-    output_suffix = Path(config.output_path).suffix
+    output_stem = Path(cfg.output_path).stem
+    output_suffix = Path(cfg.output_path).suffix
     unique_output_path = folder_path / f"{output_stem}_{image_index}{output_suffix}"
-
-    # Save the image with specified quality to maximize file size
-    image.save(unique_output_path, "JPEG", quality=config.quality, optimize=False)
-
+    image.save(unique_output_path, "JPEG", quality=cfg.quality, optimize=False)
     return str(unique_output_path)
 
 

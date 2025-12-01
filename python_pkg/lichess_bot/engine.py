@@ -52,8 +52,10 @@ class RandomEngine:
             raise FileNotFoundError(msg)
 
     def _call_engine(self, args: list[str], *, timeout: float) -> str:
+        # S603: subprocess call is safe - engine_path is validated in __init__
+        # with is_file() and X_OK permission check, args are explicit strings
         try:
-            proc = subprocess.run(  # noqa: S603 - trusted internal C engine binary
+            proc = subprocess.run(
                 [self.engine_path, *args],
                 capture_output=True,
                 text=True,
@@ -106,6 +108,40 @@ class RandomEngine:
 
         return move, "from_c_engine"
 
+    def _parse_engine_analysis(
+        self, out: str, legal_moves: list[chess.Move]
+    ) -> tuple[float, str, chess.Move | None, str]:
+        """Parse JSON output from engine analysis.
+
+        Returns (candidate_score, candidate_expl, best_move, best_expl).
+        """
+        cand_score = 0.0
+        best_move: chess.Move | None = None
+        cand_expl = out
+        best_expl = out
+
+        try:
+            data = json.loads(out)
+            analyze = data.get("analyze") or {}
+            cs = analyze.get("candidate_score")
+            if isinstance(cs, int | float):
+                cand_score = float(cs)
+            chosen = data.get("chosen_move")
+            if isinstance(chosen, str):
+                with contextlib.suppress(Exception):
+                    bm = chess.Move.from_uci(chosen)
+                    if bm in legal_moves:
+                        best_move = bm
+            cand_expl = json.dumps(analyze, ensure_ascii=False)
+            best_expl = json.dumps(
+                {"chosen_index": data.get("chosen_index"), "chosen_move": chosen},
+                ensure_ascii=False,
+            )
+        except (json.JSONDecodeError, KeyError, TypeError):
+            _logger.debug("Failed to parse engine JSON output")
+
+        return cand_score, cand_expl, best_move, best_expl
+
     def evaluate_proposed_move_with_suggestion(
         self,
         board: chess.Board,
@@ -127,36 +163,4 @@ class RandomEngine:
             m.uci() for m in legal
         ]
         out = self._call_engine(args, timeout=max(0.1, time_budget_sec))
-
-        # Try to parse the engine's JSON explanation
-        cand_score = 0.0
-        best_move: chess.Move | None = None
-        cand_expl = out
-        best_expl = out
-        try:
-            data = json.loads(out)
-            # candidate score if provided
-            analyze = data.get("analyze") or {}
-            cs = analyze.get("candidate_score")
-            if isinstance(cs, int | float):
-                cand_score = float(cs)
-            # best move
-            chosen = data.get("chosen_move")
-            if isinstance(chosen, str):
-                with contextlib.suppress(Exception):
-                    bm = chess.Move.from_uci(chosen)
-                    if bm in board.legal_moves:
-                        best_move = bm
-            # Store compact explanations for debugging
-            cand_expl = json.dumps(analyze, ensure_ascii=False)
-            best_expl = json.dumps(
-                {
-                    "chosen_index": data.get("chosen_index"),
-                    "chosen_move": data.get("chosen_move"),
-                },
-                ensure_ascii=False,
-            )
-        except (json.JSONDecodeError, KeyError, TypeError):
-            _logger.debug("Failed to parse engine JSON output")
-
-        return cand_score, cand_expl, best_move, best_expl
+        return self._parse_engine_analysis(out, legal)

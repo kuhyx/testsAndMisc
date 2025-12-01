@@ -91,6 +91,39 @@ def _init_game_log(game_id: str, bot_version: int) -> Path | None:
     return game_log_path
 
 
+def _update_clocks_from_state(state_data: dict[str, object], state: GameState) -> None:
+    """Update clock values from state data."""
+    wtime = state_data.get("wtime")
+    btime = state_data.get("btime")
+    if state.color == "white":
+        state.my_ms = int(wtime) if isinstance(wtime, int | float) else None
+        state.opp_ms = int(btime) if isinstance(btime, int | float) else None
+    else:
+        state.my_ms = int(btime) if isinstance(btime, int | float) else None
+        state.opp_ms = int(wtime) if isinstance(wtime, int | float) else None
+    inc = state_data.get("winc") or state_data.get("binc")
+    state.inc_ms = int(inc) if isinstance(inc, int | float) else 0
+
+
+def _extract_player_info(
+    event: dict[str, object], state: GameState, meta: GameMeta, api: LichessAPI
+) -> None:
+    """Extract player info and determine color."""
+    white_data = event.get("white", {})
+    black_data = event.get("black", {})
+    if not isinstance(white_data, dict) or not isinstance(black_data, dict):
+        return
+    white_id = white_data.get("id")
+    black_id = black_data.get("id")
+    meta.white_name = str(white_data.get("name") or white_id or "?")
+    meta.black_name = str(black_data.get("name") or black_id or "?")
+    me = api.get_my_user_id()
+    if me == white_id:
+        state.color = "white"
+    elif me == black_id:
+        state.color = "black"
+
+
 def _extract_game_full_data(
     event: dict[str, object],
     state: GameState,
@@ -108,33 +141,8 @@ def _extract_game_full_data(
     moves = str(state_data.get("moves", ""))
     status = state_data.get("status")
 
-    # Update clocks - values are int milliseconds from API
-    wtime = state_data.get("wtime")
-    btime = state_data.get("btime")
-    if state.color == "white":
-        state.my_ms = int(wtime) if isinstance(wtime, int | float) else None
-        state.opp_ms = int(btime) if isinstance(btime, int | float) else None
-    else:
-        state.my_ms = int(btime) if isinstance(btime, int | float) else None
-        state.opp_ms = int(wtime) if isinstance(wtime, int | float) else None
-    inc = state_data.get("winc") or state_data.get("binc")
-    state.inc_ms = int(inc) if isinstance(inc, int | float) else 0
-
-    # Extract player info
-    white_data = event.get("white", {})
-    black_data = event.get("black", {})
-    if isinstance(white_data, dict) and isinstance(black_data, dict):
-        white_id = white_data.get("id")
-        black_id = black_data.get("id")
-        meta.white_name = str(white_data.get("name") or white_id or "?")
-        meta.black_name = str(black_data.get("name") or black_id or "?")
-
-        # Determine color
-        me = api.get_my_user_id()
-        if me == white_id:
-            state.color = "white"
-        elif me == black_id:
-            state.color = "black"
+    _update_clocks_from_state(state_data, state)
+    _extract_player_info(event, state, meta, api)
 
     # Extract date
     with contextlib.suppress(Exception):
@@ -266,7 +274,7 @@ def _handle_move_if_needed(
     _logger.info("Game %s: turn=%s, my_turn=%s", meta.game_id, turn_str, my_turn)
 
     # Move policy
-    allow_move = (et == "gameState") or (et == "gameFull" and new_len == 0)
+    allow_move = (et == "gameState") or (et == "gameFull" and not new_len)
 
     if my_turn and allow_move and not _attempt_move(ctx, state, meta, state.board):
         return False
@@ -382,20 +390,30 @@ def _run_analysis_subprocess(
         "Game %s: starting post-game analysis (%s plies)", game_id, total_plies
     )
 
-    proc = subprocess.Popen(  # noqa: S603 - trusted internal analysis script
+    # S603: subprocess call is safe - analyze_script is validated with is_file()
+    # above and all arguments are explicit strings from trusted sources
+    with subprocess.Popen(
         [sys.executable, "-u", str(analyze_script), str(log_path)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
-    )
+    ) as proc:
+        return _process_analysis_output(proc, game_id, total_plies)
 
+
+def _process_analysis_output(
+    proc: subprocess.Popen[str], game_id: str, total_plies: int
+) -> str | None:
+    """Process analysis subprocess output and return analysis text."""
     analyzed = 0
     lines: list[str] = []
 
-    # stdout/stderr are guaranteed non-None with PIPE
-    assert proc.stdout is not None  # noqa: S101
-    assert proc.stderr is not None  # noqa: S101
+    # stdout/stderr are guaranteed non-None with PIPE, but verify at runtime
+    if proc.stdout is None or proc.stderr is None:
+        proc.terminate()
+        msg = "subprocess pipes unexpectedly None"
+        raise RuntimeError(msg)
 
     for line in proc.stdout:
         lines.append(line)
@@ -408,7 +426,7 @@ def _run_analysis_subprocess(
     ret = proc.wait()
     analysis_text = "".join(lines)
 
-    if ret != 0:
+    if ret:
         _logger.warning("Game %s: analysis script exited with code %s", game_id, ret)
         if stderr_text:
             analysis_text += "\n[stderr]\n" + stderr_text
@@ -607,6 +625,23 @@ def _run_event_loop_iteration(
     return 0
 
 
+def _safe_event_loop_iteration(
+    ctx: BotContext, game_threads: dict[str, threading.Thread], backoff: int
+) -> int:
+    """Run event loop iteration with error handling.
+
+    This wrapper exists to avoid try-except inside while True loop (PERF203).
+
+    Returns:
+        New backoff value.
+    """
+    try:
+        return _run_event_loop_iteration(ctx, game_threads)
+    except requests.RequestException as e:
+        _logger.warning("Event stream error: %s", e)
+        return backoff_sleep(backoff)
+
+
 def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) -> None:
     """Start the bot and listen for incoming events."""
     logging.basicConfig(
@@ -636,11 +671,7 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
     backoff = 0
 
     while True:
-        try:
-            backoff = _run_event_loop_iteration(ctx, game_threads)
-        except requests.RequestException as e:  # noqa: PERF203 - intentional reconnection loop
-            _logger.warning("Event stream error: %s", e)
-            backoff = backoff_sleep(backoff)
+        backoff = _safe_event_loop_iteration(ctx, game_threads, backoff)
 
 
 def main() -> None:
