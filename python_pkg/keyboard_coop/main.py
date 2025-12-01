@@ -26,7 +26,6 @@ SCREEN_HEIGHT = 768
 BACKGROUND_COLOR = (30, 30, 40)
 KEYBOARD_COLOR = (60, 60, 70)
 KEY_COLOR = (80, 80, 90)
-KEY_HOVER_COLOR = (100, 100, 110)
 KEY_SELECTED_COLOR = (150, 150, 200)
 KEY_AVAILABLE_COLOR = (100, 150, 100)
 TEXT_COLOR = (255, 255, 255)
@@ -346,10 +345,6 @@ class KeyboardCoopGame:
                 f"Player {self.state.current_player + 1}: Choose an adjacent letter!"
             )
 
-            # If no valid moves available, force word submission
-            if not self.keyboard.available_letters:
-                self._submit_word()
-
     def _submit_word(self) -> None:
         """Submit the current word and check if it's valid."""
         if len(self.state.current_word) >= MIN_WORD_LENGTH and self._is_valid_word(
@@ -387,19 +382,12 @@ class KeyboardCoopGame:
 
     def _draw_keyboard(self) -> None:
         """Draw the virtual keyboard."""
-        mouse_pos = pygame.mouse.get_pos()
-
         for letter, rect in self.keyboard.positions.items():
             # Determine key color
             if letter in self.state.selected_letters:
                 color = KEY_SELECTED_COLOR
             elif letter in self.keyboard.available_letters:
                 color = KEY_AVAILABLE_COLOR
-            elif (
-                rect.collidepoint(mouse_pos)
-                and letter in self.keyboard.available_letters
-            ):
-                color = KEY_HOVER_COLOR
             else:
                 color = KEY_COLOR
 
