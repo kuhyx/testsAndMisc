@@ -760,15 +760,14 @@ class TestDrawKeyboard:
         colors_used = [call[0][1] for call in calls]
         assert KEY_SELECTED_COLOR in colors_used
 
-    def test_draw_keyboard_hover_color(self) -> None:
-        """Test hover color when mouse is over available key."""
+    def test_draw_keyboard_unavailable_key_color(self) -> None:
+        """Test unavailable keys get default key color."""
         mock_pg = MagicMock()
         mock_pg.draw = MagicMock()
-        # Mouse is at position that collides with the key
-        mock_pg.mouse.get_pos.return_value = (100, 100)
 
         with patch.dict("sys.modules", {"pygame": mock_pg}):
             from python_pkg.keyboard_coop.main import (
+                KEY_COLOR,
                 FontSet,
                 GameState,
                 KeyboardCoopGame,
@@ -785,18 +784,18 @@ class TestDrawKeyboard:
             )
 
             mock_rect_a = MagicMock()
-            # Mouse collides with this rect
-            mock_rect_a.collidepoint.return_value = True
             mock_rect_a.center = (100, 100)
 
             game.keyboard.positions = {"a": mock_rect_a}
-            # Key is available (required for hover color)
-            game.keyboard.available_letters = {"a"}
+            # Key is NOT available - should get KEY_COLOR
+            game.keyboard.available_letters = set()
 
             game._draw_keyboard()
 
-        # draw.rect should have been called
-        assert mock_pg.draw.rect.call_count >= 2
+        # Check that KEY_COLOR was used for unavailable key
+        calls = mock_pg.draw.rect.call_args_list
+        colors_used = [call[0][1] for call in calls]
+        assert KEY_COLOR in colors_used
 
 
 class TestDrawUI:
