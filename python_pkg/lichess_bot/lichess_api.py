@@ -1,6 +1,6 @@
 """Lichess API client for bot interactions."""
 
-from collections.abc import Generator  # pylint: disable=import-error
+from collections.abc import Generator
 import contextlib
 from http import HTTPStatus
 import json

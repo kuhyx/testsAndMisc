@@ -27,7 +27,7 @@ def get_and_increment_version() -> int:
     path = _version_file_path()
     current = 0
     try:
-        with Path(path).open() as f:
+        with Path(path).open(encoding="utf-8") as f:
             raw = f.read().strip()
             if raw:
                 current = int(raw)
@@ -38,13 +38,13 @@ def get_and_increment_version() -> int:
     new_version = current + 1
     try:
         tmp_path = Path(path + ".tmp")
-        with tmp_path.open("w") as f:
+        with tmp_path.open("w", encoding="utf-8") as f:
             f.write(str(new_version))
         tmp_path.replace(path)
     except OSError:
         # As a fallback, try a direct write; failure is non-fatal to bot operation
         try:
-            with Path(path).open("w") as f:
+            with Path(path).open("w", encoding="utf-8") as f:
                 f.write(str(new_version))
         except OSError:
             _logger.debug("Could not persist bot version to %s", path)
