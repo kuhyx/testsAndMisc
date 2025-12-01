@@ -149,17 +149,8 @@ ignore-patterns = [".*\\.pyi$"]
 [tool.pylint.messages_control]
 # Enable all checks by disabling disable
 enable = "all"
-# Minimal disabled checks - pylint internal/meta messages only
-disable = [
-    "raw-checker-failed",
-    "bad-inline-option",
-    "locally-disabled",
-    "file-ignored",
-    "suppressed-message",
-    "useless-suppression",
-    "deprecated-pragma",
-    "use-symbolic-message-instead",
-]
+# No disabled checks - maximum strictness
+disable = []
 
 [tool.pylint.format]
 # Maximum line length (same as ruff/black)
@@ -202,8 +193,8 @@ ignore-imports = true
 spelling-dict = ""
 
 [tool.pylint.typecheck]
-# Ignore missing members for dynamic modules
-ignored-modules = ["chess", "pygame", "cv2", "PIL"]
+# Ignore missing members for dynamic modules (optional dependencies)
+ignored-modules = ["chess", "pygame", "cv2", "PIL", "mitmproxy", "selenium", "bs4", "lxml", "berserk", "bottle"]
 
 # ============================================================================
 # BANDIT - Security linter

@@ -6,13 +6,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
-
-# pylint: disable=import-error
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-
-# pylint: enable=import-error
 
 _logger = logging.getLogger(__name__)
 
