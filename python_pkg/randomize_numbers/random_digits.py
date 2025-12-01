@@ -39,15 +39,14 @@ def parse_input(text: str) -> tuple[list[float], list[int]]:
     cleaned_input = re.sub(r"[^\d.,\s]", "", text).replace(",", ".")
     # Split the cleaned input into individual numbers
     number_strings = cleaned_input.split()
-    # Convert the number strings to floats
-    nums: list[float] = []
-    decimals: list[int] = []
-    for num_str in number_strings:
-        parsed = _parse_single_number(num_str)
-        if parsed is not None:
-            float_num, digits_count = parsed
-            nums.append(float_num)
-            decimals.append(digits_count)
+    # Convert the number strings to floats, filtering out invalid ones
+    parsed_results = [
+        result
+        for num_str in number_strings
+        if (result := _parse_single_number(num_str)) is not None
+    ]
+    nums = [float_num for float_num, _ in parsed_results]
+    decimals = [digits_count for _, digits_count in parsed_results]
     return nums, decimals
 
 
