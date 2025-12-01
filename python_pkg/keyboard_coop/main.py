@@ -93,6 +93,15 @@ class KeyboardState:
     positions: dict[str, pygame.Rect] = field(default_factory=dict)
 
 
+@dataclass
+class FontSet:
+    """Collection of fonts used in the game."""
+
+    normal: pygame.font.Font
+    large: pygame.font.Font
+    small: pygame.font.Font
+
+
 class KeyboardCoopGame:
     """Main game class for the keyboard cooperative word game."""
 
@@ -101,9 +110,11 @@ class KeyboardCoopGame:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Keyboard Coop Game")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 24)
-        self.large_font = pygame.font.Font(None, 32)
-        self.small_font = pygame.font.Font(None, 20)
+        self.fonts = FontSet(
+            normal=pygame.font.Font(None, 24),
+            large=pygame.font.Font(None, 32),
+            small=pygame.font.Font(None, 20),
+        )
 
         # Load dictionary
         self.dictionary = self._load_dictionary()
@@ -397,7 +408,7 @@ class KeyboardCoopGame:
             pygame.draw.rect(self.screen, TEXT_COLOR, rect, 2)
 
             # Draw letter
-            text = self.small_font.render(letter.upper(), True, TEXT_COLOR)
+            text = self.fonts.small.render(letter.upper(), True, TEXT_COLOR)
             text_rect = text.get_rect(center=rect.center)
             self.screen.blit(text, text_rect)
 
@@ -412,27 +423,29 @@ class KeyboardCoopGame:
         """Draw a button with the given label."""
         pygame.draw.rect(self.screen, KEY_COLOR, rect)
         pygame.draw.rect(self.screen, TEXT_COLOR, rect, 2)
-        text = self.small_font.render(label, True, TEXT_COLOR)
+        text = self.fonts.small.render(label, True, TEXT_COLOR)
         self.screen.blit(text, text.get_rect(center=rect.center))
 
     def _draw_ui(self) -> tuple[pygame.Rect, pygame.Rect]:
         """Draw the user interface."""
         # Title and status
-        self._draw_text_line("Keyboard Coop Game", (30, 20), self.large_font)
+        self._draw_text_line("Keyboard Coop Game", (30, 20), self.fonts.large)
         self._draw_text_line(
-            f"Current Word: {self.state.current_word.upper()}", (30, 50), self.font
+            f"Current Word: {self.state.current_word.upper()}",
+            (30, 50),
+            self.fonts.normal,
         )
-        self._draw_text_line(f"Score: {self.state.score}", (30, 75), self.font)
+        self._draw_text_line(f"Score: {self.state.score}", (30, 75), self.fonts.normal)
 
         # Current player with color
         player_color = PLAYER_COLORS[self.state.current_player]
-        player_text = self.font.render(
+        player_text = self.fonts.normal.render(
             f"Current Player: {self.state.current_player + 1}", True, player_color
         )
         self.screen.blit(player_text, (30, 100))
 
         # Message
-        self._draw_text_line(self.state.message, (30, 125), self.font)
+        self._draw_text_line(self.state.message, (30, 125), self.fonts.normal)
 
         # Instructions
         instructions = [
@@ -446,7 +459,7 @@ class KeyboardCoopGame:
             "• Keyboard randomizes after each valid word!",
         ]
         for idx, instruction in enumerate(instructions):
-            self._draw_text_line(instruction, (750, 20 + idx * 22), self.small_font)
+            self._draw_text_line(instruction, (750, 20 + idx * 22), self.fonts.small)
 
         # Buttons
         enter_rect = pygame.Rect(750, 190, 120, 40)
