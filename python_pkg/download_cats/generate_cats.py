@@ -40,16 +40,22 @@ def _download_single_image(image_url: str) -> None:
         _logger.exception("Failed to download %s", image_url)
 
 
-requests_send = 0
-while requests_send < MAX_REQUESTS:
-    res = requests.get(
-        "https://api.thecatapi.com/v1/images/search?limit=100&api_key=",
-        timeout=REQUEST_TIMEOUT,
-    )
-    requests_send += 1
-    response = json.loads(res.text)
-    urls = [cat.get("url") for cat in response]
+def main() -> None:
+    """Download cat images from TheCatAPI."""
+    requests_sent = 0
+    while requests_sent < MAX_REQUESTS:
+        res = requests.get(
+            "https://api.thecatapi.com/v1/images/search?limit=100&api_key=",
+            timeout=REQUEST_TIMEOUT,
+        )
+        requests_sent += 1
+        response = json.loads(res.text)
+        urls = [cat.get("url") for cat in response]
 
-    Path("./CATS2").mkdir(parents=True, exist_ok=True)
-    for url in urls:
-        _download_single_image(url)
+        Path("./CATS2").mkdir(parents=True, exist_ok=True)
+        for url in urls:
+            _download_single_image(url)
+
+
+if __name__ == "__main__":
+    main()
