@@ -18,24 +18,8 @@ _logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 30  # seconds
 
-# Initialize argument parser to accept the website URL as an argument
-parser = argparse.ArgumentParser(description="Download images from a comic website.")
-parser.add_argument(
-    "url", type=str, help="The URL of the website to start downloading images from"
-)
-args = parser.parse_args()
 
-# Initialize WebDriver (Use the appropriate driver for your browser)
-driver = webdriver.Chrome()
-
-# Open the website from the passed argument
-url = args.url
-_logger.info("Opening the website: %s", url)
-driver.get(url)
-
-
-# A function to download images by URL
-def download_image(image_url: str) -> bool:
+def _download_image(image_url: str) -> bool:
     """Download an image from a URL and save it locally."""
     # Extract image name from URL
     image_name = Path(urlparse(image_url).path).name
@@ -53,37 +37,58 @@ def download_image(image_url: str) -> bool:
     return True
 
 
-# No need to define a specific number of images now
-count = 1
+def main() -> None:
+    """Download comic images from a website using Selenium."""
+    # Initialize argument parser to accept the website URL as an argument
+    parser = argparse.ArgumentParser(
+        description="Download images from a comic website."
+    )
+    parser.add_argument(
+        "url", type=str, help="The URL of the website to start downloading images from"
+    )
+    args = parser.parse_args()
 
-while True:
-    _logger.info("Processing image %s...", count)
+    # Initialize WebDriver (Use the appropriate driver for your browser)
+    driver = webdriver.Chrome()
 
-    # Find the image element by its ID
-    image_element = driver.find_element(By.ID, "cc-comic")
+    # Open the website from the passed argument
+    _logger.info("Opening the website: %s", args.url)
+    driver.get(args.url)
 
-    # Get the image URL from the 'src' attribute
-    current_image_url = image_element.get_attribute("src")
-    _logger.info("Found image URL: %s", current_image_url)
+    image_count = 1
 
-    # Download the image if it doesn't already exist
-    if download_image(current_image_url):
-        count += 1  # Increment count only if the image was downloaded
+    while True:
+        _logger.info("Processing image %s...", image_count)
 
-    # Try to find the 'Next' button by its class
-    try:
-        _logger.info("Clicking the 'Next' button to load the next image...")
-        next_button = driver.find_element(By.CSS_SELECTOR, "a.cc-next")
+        # Find the image element by its ID
+        image_element = driver.find_element(By.ID, "cc-comic")
 
-        # Navigate to the URL in the 'href' of the next button
-        next_button_url = next_button.get_attribute("href")
-        driver.get(next_button_url)
+        # Get the image URL from the 'src' attribute
+        current_image_url = image_element.get_attribute("src")
+        _logger.info("Found image URL: %s", current_image_url)
 
-    except NoSuchElementException:
-        # If the 'Next' button is not found, it means we've reached the last image
-        _logger.info("No 'Next' button found. Reached the end of images.")
-        break
+        # Download the image if it doesn't already exist
+        if _download_image(current_image_url):
+            image_count += 1  # Increment count only if the image was downloaded
 
-# Close the browser
-_logger.info("All images processed, closing the browser.")
-driver.quit()
+        # Try to find the 'Next' button by its class
+        try:
+            _logger.info("Clicking the 'Next' button to load the next image...")
+            next_button = driver.find_element(By.CSS_SELECTOR, "a.cc-next")
+
+            # Navigate to the URL in the 'href' of the next button
+            next_button_url = next_button.get_attribute("href")
+            driver.get(next_button_url)
+
+        except NoSuchElementException:
+            # If the 'Next' button is not found, it means we've reached the last image
+            _logger.info("No 'Next' button found. Reached the end of images.")
+            break
+
+    # Close the browser
+    _logger.info("All images processed, closing the browser.")
+    driver.quit()
+
+
+if __name__ == "__main__":
+    main()

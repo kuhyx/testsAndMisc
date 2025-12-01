@@ -70,7 +70,9 @@ def _parse_single_number(num_str: str) -> tuple[float, int] | None:
 
 MIN_ARGS = 2
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Run the number randomizer from command line arguments."""
     if len(sys.argv) < MIN_ARGS:
         _logger.info(
             "Usage: python random_digits.py <number1> <number2> ... "
@@ -78,27 +80,27 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    input_string = " ".join(sys.argv[1:])
-    numbers, decimal_counts = parse_input(input_string)
+    args_string = " ".join(sys.argv[1:])
+    numbers, decimal_counts = parse_input(args_string)
 
     if not numbers:
         _logger.error("No valid numbers provided.")
         sys.exit(1)
 
-    min_percentage = DEFAULT_MIN_PERCENTAGE
-    max_percentage = DEFAULT_MAX_PERCENTAGE
+    min_pct = DEFAULT_MIN_PERCENTAGE
+    max_pct = DEFAULT_MAX_PERCENTAGE
 
     try:
         if len(sys.argv) > len(numbers) + 1:
             with contextlib.suppress(ValueError):
-                min_percentage = float(sys.argv[len(numbers) + 1])
+                min_pct = float(sys.argv[len(numbers) + 1])
         if len(sys.argv) > len(numbers) + 2:
             with contextlib.suppress(ValueError):
-                max_percentage = float(sys.argv[len(numbers) + 2])
+                max_pct = float(sys.argv[len(numbers) + 2])
 
-        randomized_numbers = randomize_numbers(numbers, min_percentage, max_percentage)
+        randomized = randomize_numbers(numbers, min_pct, max_pct)
         formatted_numbers = []
-        for i, num in enumerate(randomized_numbers):
+        for i, num in enumerate(randomized):
             format_str = f".{decimal_counts[i]}f"
             formatted_numbers.append(float(format(num, format_str)))
 
@@ -108,3 +110,7 @@ if __name__ == "__main__":
         _logger.exception("Error processing numbers")
         _logger.exception("Please provide valid numbers and percentages.")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

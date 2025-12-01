@@ -86,7 +86,8 @@ def _save_image(
     return str(unique_output_path)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Generate bloated JPEG images from command line arguments."""
     parser = argparse.ArgumentParser(
         description="Generate bloated JPEG images with random colors."
     )
@@ -165,5 +166,9 @@ if __name__ == "__main__":
         quality=args.quality,
     )
     for i in range(1, args.num_images + 1):
-        output_path = generate_bloated_jpeg(config, i, folder)
-        _logger.info("Image %s saved to %s", i, Path(output_path).resolve())
+        result_path = generate_bloated_jpeg(config, i, folder)
+        _logger.info("Image %s saved to %s", i, Path(result_path).resolve())
+
+
+if __name__ == "__main__":
+    main()

@@ -149,7 +149,7 @@ ignore-patterns = [".*\\.pyi$"]
 [tool.pylint.messages_control]
 # Enable all checks by disabling disable
 enable = "all"
-# Minimal disabled checks - only truly problematic ones
+# Minimal disabled checks - pylint internal/meta messages only
 disable = [
     "raw-checker-failed",
     "bad-inline-option",
@@ -159,8 +159,6 @@ disable = [
     "useless-suppression",
     "deprecated-pragma",
     "use-symbolic-message-instead",
-    "too-few-public-methods",  # Often false positive for data classes
-    "invalid-name",  # Existing camelCase folder names (downloadCats, etc.)
 ]
 
 [tool.pylint.format]
