@@ -167,6 +167,36 @@ class TestMain:
 
             mock_driver.quit.assert_called_once()
 
+    def test_main_download_returns_false(self) -> None:
+        """Test main handles case when download returns False (existing image)."""
+        mock_driver = MagicMock()
+        mock_image = MagicMock()
+        mock_image.get_attribute.return_value = "https://example.com/img.jpg"
+
+        from selenium.common.exceptions import NoSuchElementException
+
+        def find_element_side_effect(_by: str, value: str) -> MagicMock:
+            if value == "cc-comic":
+                return mock_image
+            raise NoSuchElementException
+
+        mock_driver.find_element.side_effect = find_element_side_effect
+
+        with (
+            patch("sys.argv", ["scrape_comics.py", "https://comics.com/page1"]),
+            patch(
+                "python_pkg.scrape_website.scrape_comics.webdriver.Chrome",
+                return_value=mock_driver,
+            ),
+            patch(
+                "python_pkg.scrape_website.scrape_comics._download_image",
+                return_value=False,  # Simulate existing image
+            ),
+        ):
+            main()
+
+            mock_driver.quit.assert_called_once()
+
 
 class TestConstants:
     """Tests for module constants."""
