@@ -15,29 +15,29 @@ MAX_REQUESTS = 90
 REQUEST_TIMEOUT = 30  # seconds
 
 
-def _download_single_image(url: str) -> None:
+def _download_single_image(image_url: str) -> None:
     """Download and save a single image from URL.
 
     Args:
-        url: The URL of the image to download.
+        image_url: The URL of the image to download.
     """
     try:
         # Get the image content
-        response = requests.get(url, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        resp = requests.get(image_url, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()  # Raise an exception for HTTP errors
 
         # Extract the image name from the URL
-        image_name = Path(url).name
+        image_name = Path(image_url).name
         image_path = Path("./CATS2/") / image_name
 
         # Save the image to the directory
         with image_path.open("wb") as file:
-            file.write(response.content)
+            file.write(resp.content)
 
-        _logger.info("Saved %s as %s", url, image_path)
+        _logger.info("Saved %s as %s", image_url, image_path)
 
     except requests.exceptions.RequestException:
-        _logger.exception("Failed to download %s", url)
+        _logger.exception("Failed to download %s", image_url)
 
 
 requests_send = 0

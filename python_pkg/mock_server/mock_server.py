@@ -1,6 +1,6 @@
 """Mitmproxy addon to simulate connection failures."""
 
-from mitmproxy import http
+from mitmproxy import http  # pylint: disable=import-error
 
 
 def request(flow: http.HTTPFlow) -> None:

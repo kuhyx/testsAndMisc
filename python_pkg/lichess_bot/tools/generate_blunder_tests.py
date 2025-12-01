@@ -189,23 +189,26 @@ def ensure_unified_test_file(target_path: str | Path) -> None:
     if Path(target_path).exists():
         return
     # Create skeleton unified test file
+    # Note: sys.path manipulation must come before the import that needs it
     with Path(target_path).open("w", encoding="utf-8") as f:
         f.write(
-            """import os
+            '''"""Test cases for blunders detected in past games."""
+
 import sys
+from pathlib import Path
+
+# Ensure repo root is importable when running pytest directly
+# This must be before importing from python_pkg
+_REPO_ROOT = str(Path(__file__).resolve().parent.parent.parent.parent)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 import chess
 import pytest
 
-# Ensure repo root is importable when running pytest directly
-REPO_ROOT = str(
-    Path(__file__).resolve().parent.parent.parent
-)
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
+from python_pkg.lichess_bot.engine import RandomEngine
 
-from python_pkg.lichess_bot.engine import RandomEngine  # noqa: E402
-
-BLUNDER_CASES = [
+BLUNDER_CASES: list[tuple[str, str, str]] = [
 ]
 
 
@@ -214,7 +217,8 @@ BLUNDER_CASES = [
     BLUNDER_CASES,
     ids=[c[2] for c in BLUNDER_CASES],
 )
-def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
+def test_engine_avoids_logged_blunder(fen: str, blunder_uci: str, label: str) -> None:
+    """Test that the engine avoids a logged blunder move."""
     board = chess.Board(fen)
     eng = RandomEngine(depth=4, max_time_sec=1.2)
     # Prefer explanation variant if available for better failure messages
@@ -224,7 +228,7 @@ def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
         try:
             mv, expl = eng.choose_move_with_explanation(board, time_budget_sec=1.2)
             move, explanation = mv, expl or ''
-        except Exception:
+        except (RuntimeError, TimeoutError, ValueError):
             move = eng.choose_move(board)
     else:
         move = eng.choose_move(board)
@@ -234,7 +238,7 @@ def test_engine_avoids_logged_blunder(fen, blunder_uci, label):
         f'Engine repeated blunder {blunder_uci} at {label}. '
         f'Explanation: {explanation}'
     )
-"""
+'''
         )
 
 

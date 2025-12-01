@@ -16,57 +16,56 @@ DEFAULT_MAX_PERCENTAGE = 20
 
 
 def randomize_numbers(
-    numbers: list[float],
-    min_percentage: float = DEFAULT_MIN_PERCENTAGE,
-    max_percentage: float = DEFAULT_MAX_PERCENTAGE,
+    nums: list[float],
+    min_pct: float = DEFAULT_MIN_PERCENTAGE,
+    max_pct: float = DEFAULT_MAX_PERCENTAGE,
 ) -> list[float]:
     """Apply random percentage variation to a list of numbers."""
-    randomized_numbers = []
-    for number in numbers:
-        percentage = _rng.uniform(min_percentage, max_percentage) / 100
+    result = []
+    for number in nums:
+        percentage = _rng.uniform(min_pct, max_pct) / 100
         if _rng.choice([True, False]):
             new_number = number + (number * percentage)
         else:
             new_number = number - (number * percentage)
-        randomized_numbers.append(new_number)
-    return randomized_numbers
+        result.append(new_number)
+    return result
 
 
-def parse_input(input_string: str) -> tuple[list[float], list[int]]:
+def parse_input(text: str) -> tuple[list[float], list[int]]:
     """Parse a string of numbers and return floats with decimal counts."""
     # Replace commas with dots and remove non-numeric characters
     # except dots, commas, and digits
-    cleaned_input = re.sub(r"[^\d.,\s]", "", input_string).replace(",", ".")
+    cleaned_input = re.sub(r"[^\d.,\s]", "", text).replace(",", ".")
     # Split the cleaned input into individual numbers
     number_strings = cleaned_input.split()
     # Convert the number strings to floats
-    numbers: list[float] = []
-    decimal_counts: list[int] = []
-    for num in number_strings:
-        parsed = _parse_single_number(num)
+    nums: list[float] = []
+    decimals: list[int] = []
+    for num_str in number_strings:
+        parsed = _parse_single_number(num_str)
         if parsed is not None:
             float_num, digits_count = parsed
-            numbers.append(float_num)
-            decimal_counts.append(digits_count)
-    return numbers, decimal_counts
+            nums.append(float_num)
+            decimals.append(digits_count)
+    return nums, decimals
 
 
-def _parse_single_number(num: str) -> tuple[float, int] | None:
+def _parse_single_number(num_str: str) -> tuple[float, int] | None:
     """Parse a single number string into float and decimal count.
 
     Args:
-        num: The number string to parse.
+        num_str: The number string to parse.
 
     Returns:
         Tuple of (float value, decimal count) or None if invalid.
     """
     try:
-        float_num = float(num)
-        digits_count = len(num.split(".")[-1]) if "." in num else 0
+        float_num = float(num_str)
+        digits_count = len(num_str.split(".")[-1]) if "." in num_str else 0
     except ValueError:
         return None
-    else:
-        return float_num, digits_count
+    return float_num, digits_count
 
 
 MIN_ARGS = 2
@@ -82,7 +81,7 @@ if __name__ == "__main__":
     input_string = " ".join(sys.argv[1:])
     numbers, decimal_counts = parse_input(input_string)
 
-    if len(numbers) == 0:
+    if not numbers:
         _logger.error("No valid numbers provided.")
         sys.exit(1)
 

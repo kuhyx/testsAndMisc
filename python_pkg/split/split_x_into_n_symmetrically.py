@@ -23,9 +23,9 @@ def calculate_symmetric_weights(
             next_weight = weights_left[-1] + factor
             weights_left.append(next_weight)
     else:
-        weights_left.extend(middle_weight - (i + 1) for i in range(half_n - 1))
+        weights_left.extend(middle_weight - (idx + 1) for idx in range(half_n - 1))
 
-    if n % 2 == 0:
+    if not n % 2:
         weights = weights_left[::-1] + weights_left
     else:
         weights = [*weights_left[::-1], middle_weight, *weights_left]
