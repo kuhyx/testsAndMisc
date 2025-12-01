@@ -297,6 +297,23 @@ class TestParseGameFullEvent:
 
         assert color == "black"
 
+    def test_parse_game_full_as_spectator(self, api: LichessAPI) -> None:
+        """Test parsing gameFull event when not a player (spectator/unknown)."""
+        event = {
+            "white": {"id": "player1"},
+            "black": {"id": "player2"},
+            "state": {"moves": "e2e4"},
+        }
+        board = chess.Board()
+
+        # User ID doesn't match either player
+        with patch.object(api, "get_my_user_id", return_value="spectator"):
+            color = api._parse_game_full_event(event, board, "default_color")
+
+        # Should keep the original color passed in
+        assert color == "default_color"
+        assert len(board.move_stack) == 1
+
 
 class TestJoinGameStream:
     """Tests for join_game_stream method."""
@@ -583,6 +600,53 @@ class TestJoinGameStreamEdgeCases:
             __board, color = api.join_game_stream("game123", None)
 
         assert color == "white"
+
+    def test_join_game_stream_skips_non_gamefull_events(self, api: LichessAPI) -> None:
+        """Test join_game_stream skips non-gameFull events before gameFull."""
+        mock_response = MagicMock()
+        mock_response.status_code = HTTPStatus.OK
+        # Emit a non-gameFull event first, then gameFull
+        non_game_full = json.dumps({"type": "gameState", "moves": "e2e4"})
+        game_full = json.dumps(
+            {
+                "type": "gameFull",
+                "white": {"id": "my_user"},
+                "black": {"id": "opponent"},
+                "state": {"moves": ""},
+            }
+        )
+        mock_response.iter_lines.return_value = iter([non_game_full, game_full])
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.object(api, "_request", return_value=mock_response),
+            patch.object(api, "get_my_user_id", return_value="my_user"),
+        ):
+            __board, color = api.join_game_stream("game123", None)
+
+        assert color == "white"
+
+    def test_join_game_stream_no_gamefull_event(self, api: LichessAPI) -> None:
+        """Test join_game_stream when stream ends without gameFull event."""
+        mock_response = MagicMock()
+        mock_response.status_code = HTTPStatus.OK
+        # Only non-gameFull events, no gameFull - loop exhausts without break
+        events = [
+            json.dumps({"type": "gameState", "moves": "e2e4"}),
+            json.dumps({"type": "chatLine", "text": "hello"}),
+        ]
+        mock_response.iter_lines.return_value = iter(events)
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch.object(api, "_request", return_value=mock_response):
+            board, color = api.join_game_stream("game123", "black")
+
+        # When no gameFull is found, returns default/provided color
+        assert color == "black"
+        # Board should be empty since no moves were parsed
+        assert board.fen() == chess.STARTING_FEN
 
 
 class TestStreamGameEventsEdgeCases:
