@@ -184,7 +184,6 @@ class LichessAPI:
         if r.status_code in (HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT):
             # Likely not our turn or move already played; do not retry to avoid spam
             r.raise_for_status()
-            return
         if r.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             _logger.warning("HTTP POST %s -> 429; retrying once after 0.5s", url)
             time.sleep(0.5)
