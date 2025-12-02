@@ -13,7 +13,34 @@ A mixed-language monorepo containing Python packages, C programs, TypeScript app
   - `lichess_api.py` - Lichess API client (NDJSON streaming)
   - `engine.py` - Wraps C engine at `C/lichess_random_engine/`
   - `tests/` - Comprehensive pytest tests using `MagicMock`, `PropertyMock`, `patch`
-- Other packages are standalone scripts (download_cats, screen_locker, etc.)
+- **stockfish_analysis/** - Post-game analysis using Stockfish engine
+  - Called by lichess_bot after games to analyze move quality
+  - Parses PGN from game logs, outputs per-move evaluations
+- **keyboard_coop/** - 2-player cooperative word game (pygame)
+  - Players form words using adjacent QWERTY keys
+- **mock_server/** - mitmproxy-based connection failure simulator
+- **screen_locker/** - Tkinter screen lock with systemd integration
+- Other standalone scripts: download_cats, extract_links, random_jpg, etc.
+
+### C Engine (`C/lichess_random_engine/`)
+
+Chess move selection engine called by Python via subprocess:
+
+```bash
+# Build the engine
+cd C/lichess_random_engine && make
+
+# Binary usage (called by python_pkg/lichess_bot/engine.py)
+./random_engine --fen "<FEN>" move1 move2 move3...  # Returns chosen UCI move
+./random_engine --fen "<FEN>" --explain move1...     # Returns JSON with analysis
+```
+
+**Key files:**
+
+- `main.c` - CLI interface, argument parsing
+- `movegen.c/h` - Legal move generation
+- `search.c/h` - Alpha-beta search with scoring
+- `Makefile` - Build with `make`, clean with `make clean`
 
 ### Cross-Language Integration
 
