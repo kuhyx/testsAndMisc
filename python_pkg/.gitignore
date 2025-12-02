@@ -216,3 +216,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 *lichess_db_puzzle.csv*
+
+# Screen locker workout log
+screen_locker/workout_log.json
