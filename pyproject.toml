@@ -200,7 +200,7 @@ filterwarnings = [
 # COVERAGE - Code coverage configuration
 # ============================================================================
 [tool.coverage.run]
-source = ["PYTHON", "articles", "poker-modifier-app"]
+source = ["PYTHON", "articles", "poker-modifier-app", "python_pkg/lichess_bot"]
 branch = true
 omit = [
     "*/__pycache__/*",
@@ -211,7 +211,7 @@ omit = [
 
 [tool.coverage.report]
 # Fail under this percentage
-fail_under = 0
+fail_under = 100
 show_missing = true
 skip_covered = false
 exclude_lines = [
