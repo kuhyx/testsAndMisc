@@ -181,7 +181,7 @@ exclude_dirs = ["tests", ".venv", "Bash/ffmpeg-build", "python_pkg/lichess_bot/.
 # PYTEST - Testing framework configuration
 # ============================================================================
 [tool.pytest.ini_options]
-testpaths = ["tests", "PYTHON", "articles"]
+testpaths = ["tests", "python_pkg", "articles"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
