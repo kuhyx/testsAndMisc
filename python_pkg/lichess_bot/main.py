@@ -406,21 +406,13 @@ def _process_analysis_output(
     proc: subprocess.Popen[str], game_id: str, total_plies: int
 ) -> str | None:
     """Process analysis subprocess output and return analysis text."""
-    analyzed = 0
-    lines: list[str] = []
-
     # stdout/stderr are guaranteed non-None with PIPE, but verify at runtime
     if proc.stdout is None or proc.stderr is None:
         proc.terminate()
         msg = "subprocess pipes unexpectedly None"
         raise RuntimeError(msg)
 
-    for line in proc.stdout:
-        lines.append(line)
-        m = _PLY_LINE_RE.match(line)
-        if m:
-            analyzed += 1
-            _log_analysis_progress(game_id, analyzed, total_plies)
+    __analyzed, lines = _collect_analysis_lines(proc.stdout, game_id, total_plies)
 
     stderr_text = proc.stderr.read() or ""
     ret = proc.wait()
@@ -433,6 +425,29 @@ def _process_analysis_output(
 
     _logger.info("Game %s: analysis complete", game_id)
     return analysis_text
+
+
+def _collect_analysis_lines(
+    stdout: Iterator[str], game_id: str, total_plies: int
+) -> tuple[int, list[str]]:
+    """Collect and process analysis lines from stdout.
+
+    Returns:
+        Tuple of (analyzed_count, lines_list).
+    """
+    analyzed = 0
+    lines: list[str] = []
+    while True:
+        try:
+            line = next(stdout)
+        except StopIteration:
+            break
+        lines.append(line)
+        m = _PLY_LINE_RE.match(line)
+        if m:
+            analyzed += 1
+            _log_analysis_progress(game_id, analyzed, total_plies)
+    return analyzed, lines
 
 
 def _log_analysis_progress(game_id: str, analyzed: int, total_plies: int) -> None:
@@ -518,6 +533,28 @@ def _finalize_game(state: GameState, meta: GameMeta) -> None:
         _logger.debug("Game %s: analysis run failed: %s", meta.game_id, e)
 
 
+def _process_game_events_loop(
+    events: Iterator[dict[str, object]],
+    ctx: BotContext,
+    state: GameState,
+    meta: GameMeta,
+) -> None:
+    """Process game events from an iterator until game ends.
+
+    This is extracted to allow testing the loop exhaustion branch.
+    """
+    while True:
+        try:
+            event = next(events)
+        except StopIteration:
+            break
+        et = event.get("type")
+        if et in ("chatLine", "opponentGone"):
+            continue
+        if not _process_game_event(event, ctx, state, meta):
+            break
+
+
 def _handle_game(game_id: str, ctx: BotContext, my_color: str | None = None) -> None:
     """Handle a single game from start to finish."""
     _logger.info("Starting game thread for %s [bot v%s]", game_id, ctx.bot_version)
@@ -527,12 +564,8 @@ def _handle_game(game_id: str, ctx: BotContext, my_color: str | None = None) -> 
     state.log_path = _init_game_log(game_id, ctx.bot_version)
 
     try:
-        for event in ctx.api.stream_game_events(game_id):
-            et = event.get("type")
-            if et in ("chatLine", "opponentGone"):
-                continue
-            if not _process_game_event(event, ctx, state, meta):
-                break
+        events = ctx.api.stream_game_events(game_id)
+        _process_game_events_loop(events, ctx, state, meta)
     except requests.RequestException:
         _logger.exception("Game %s thread error", game_id)
     finally:
@@ -642,8 +675,20 @@ def _safe_event_loop_iteration(
         return backoff_sleep(backoff)
 
 
-def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) -> None:
-    """Start the bot and listen for incoming events."""
+def run_bot(
+    log_level: str = "INFO",
+    *,
+    decline_correspondence: bool = False,
+    max_iterations: int | None = None,
+) -> None:
+    """Start the bot and listen for incoming events.
+
+    Args:
+        log_level: Logging level (default: INFO).
+        decline_correspondence: Whether to decline correspondence challenges.
+        max_iterations: Maximum event loop iterations (None for infinite).
+            Used for testing.
+    """
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),
         format="[%(asctime)s] %(levelname)s %(threadName)s: %(message)s",
@@ -670,8 +715,27 @@ def run_bot(log_level: str = "INFO", *, decline_correspondence: bool = False) ->
     _logger.info("Connecting to Lichess event stream. Waiting for challenges...")
     backoff = 0
 
-    while True:
+    _run_event_loop(ctx, game_threads, backoff, max_iterations)
+
+
+def _run_event_loop(
+    ctx: BotContext,
+    game_threads: dict[str, threading.Thread],
+    backoff: int,
+    max_iterations: int | None,
+) -> None:
+    """Run the main event loop.
+
+    Args:
+        ctx: Bot context.
+        game_threads: Dictionary of active game threads.
+        backoff: Initial backoff value.
+        max_iterations: Maximum iterations (None for infinite).
+    """
+    iteration = 0
+    while max_iterations is None or iteration < max_iterations:
         backoff = _safe_event_loop_iteration(ctx, game_threads, backoff)
+        iteration += 1
 
 
 def main() -> None:
