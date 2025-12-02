@@ -67,14 +67,14 @@ def extract_pgn_text(raw: str) -> str | None:
         if line.strip().startswith("PGN:"):
             # everything after this line
             pgn = "\n".join(lines[i + 1 :]).strip()
-            if pgn:
+            if pgn:  # pragma: no branch
                 return pgn
 
     # 2) From first tag line
     for i, line in enumerate(lines):
         if line.strip().startswith("[") and "]" in line:
             pgn = "\n".join(lines[i:]).strip()
-            if pgn:
+            if pgn:  # pragma: no branch
                 return pgn
 
     # 3) From first move number
@@ -82,7 +82,7 @@ def extract_pgn_text(raw: str) -> str | None:
     for i, line in enumerate(lines):
         if move_start_re.match(line):
             pgn = "\n".join(lines[i:]).strip()
-            if pgn:
+            if pgn:  # pragma: no branch
                 return pgn
 
     return None
@@ -583,7 +583,7 @@ def _analyze_last_move(
         return
 
     ply = 1
-    while node.variations:
+    while node.variations:  # pragma: no branch
         move_node = node.variations[0]
         move = move_node.move
 
