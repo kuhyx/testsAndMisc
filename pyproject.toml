@@ -214,6 +214,21 @@ omit = [
 fail_under = 100
 show_missing = true
 skip_covered = false
+exclude_lines = [
+    # Standard exclusions
+    "pragma: no cover",
+    # Unreachable defensive code
+    "raise NotImplementedError",
+    "raise AssertionError",
+    # Type checking imports
+    "if TYPE_CHECKING:",
+    # Main script entry point
+    'if __name__ == "__main__":',
+]
+# Partial branch exclusions for unreachable branches
+partial_branches = [
+    "pragma: no branch",
+]
 
 # ============================================================================
 # VULTURE - Dead code detection
