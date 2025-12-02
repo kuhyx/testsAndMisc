@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import threading
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import chess
 import pytest
@@ -781,10 +781,8 @@ class TestFinalizeGame:
         meta = GameMeta(game_id="game1", bot_version=1)
 
         mock_board = MagicMock()
-        # Create a property that raises TypeError when accessed
-        type(mock_board).move_stack = property(
-            lambda _self: (_ for _ in ()).throw(TypeError())
-        )
+        # Use PropertyMock to raise TypeError when move_stack is accessed
+        type(mock_board).move_stack = PropertyMock(side_effect=TypeError())
         state.board = mock_board
 
         with patch("python_pkg.lichess_bot.main._write_pgn_to_log"):
@@ -1061,25 +1059,20 @@ class TestProcessBotEvent:
         _process_bot_event(event, ctx, game_threads)
         api.accept_challenge.assert_called_once()
 
-    def test_process_game_start_event(self, tmp_path: Path) -> None:
+    def test_process_game_start_event(self) -> None:
         """Test processing gameStart event."""
         api = MagicMock()
-        api.stream_game_events.return_value = iter([])
         ctx = BotContext(api=api, engine=MagicMock(), bot_version=1)
         game_threads: GameThreads = {}
         event: Event = {"type": "gameStart", "game": {"id": "game1"}}
 
-        with (
-            patch("python_pkg.lichess_bot.main.Path.cwd", return_value=tmp_path),
-            patch(
-                "python_pkg.lichess_bot.main._run_analysis_subprocess",
-                return_value=None,
-            ),
-        ):
+        with patch("python_pkg.lichess_bot.main.threading.Thread") as mock_thread_class:
+            mock_thread = MagicMock()
+            mock_thread_class.return_value = mock_thread
             _process_bot_event(event, ctx, game_threads)
 
         assert "game1" in game_threads
-        game_threads["game1"].join(timeout=1)
+        mock_thread.start.assert_called_once()
 
     def test_process_game_start_existing_thread(self) -> None:
         """Test processing gameStart with existing alive thread."""
