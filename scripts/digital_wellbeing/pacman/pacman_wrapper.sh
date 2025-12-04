@@ -15,6 +15,7 @@ PACMAN_BIN="/usr/bin/pacman"
 
 declare -a BLOCKED_KEYWORDS_LIST=()
 declare -a WHITELISTED_NAMES_LIST=()
+declare -a GREYLISTED_KEYWORDS_LIST=()
 POLICY_LISTS_LOADED=0
 
 load_policy_lists() {
@@ -26,6 +27,7 @@ load_policy_lists() {
 	script_dir="$(dirname "$(readlink -f "$0")")"
 	local blocked_file="$script_dir/pacman_blocked_keywords.txt"
 	local whitelist_file="$script_dir/pacman_whitelist.txt"
+	local greylist_file="$script_dir/pacman_greylist.txt"
 
 	if [[ -f $blocked_file ]]; then
 		mapfile -t BLOCKED_KEYWORDS_LIST < <(sed 's/\r$//' "$blocked_file" | grep -Ev '^[[:space:]]*(#|$)' || true)
@@ -40,12 +42,22 @@ load_policy_lists() {
 		WHITELISTED_NAMES_LIST=()
 	fi
 
+	if [[ -f $greylist_file ]]; then
+		mapfile -t GREYLISTED_KEYWORDS_LIST < <(sed 's/\r$//' "$greylist_file" | grep -Ev '^[[:space:]]*(#|$)' || true)
+	else
+		GREYLISTED_KEYWORDS_LIST=()
+	fi
+
 	for i in "${!BLOCKED_KEYWORDS_LIST[@]}"; do
 		BLOCKED_KEYWORDS_LIST[i]="${BLOCKED_KEYWORDS_LIST[i],,}"
 	done
 
 	for i in "${!WHITELISTED_NAMES_LIST[@]}"; do
 		WHITELISTED_NAMES_LIST[i]="${WHITELISTED_NAMES_LIST[i],,}"
+	done
+
+	for i in "${!GREYLISTED_KEYWORDS_LIST[@]}"; do
+		GREYLISTED_KEYWORDS_LIST[i]="${GREYLISTED_KEYWORDS_LIST[i],,}"
 	done
 
 	POLICY_LISTS_LOADED=1
@@ -186,13 +198,29 @@ function is_blocked_package_name() {
 	done
 
 	for keyword in "${BLOCKED_KEYWORDS_LIST[@]}"; do
-		if [[ -n $keyword && $normalized == *"$keyword"* ]]; then
+		if [[ $normalized == *"$keyword"* ]]; then
 			return 0
 		fi
 	done
 
 	return 1
 }
+
+# Helper: return 0 if the given package name is greylisted (challenge required)
+function is_greylisted_package_name() {
+	load_policy_lists
+	local normalized="${1,,}"
+
+	for keyword in "${GREYLISTED_KEYWORDS_LIST[@]}"; do
+		if [[ $normalized == *"$keyword"* ]]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+# Helper: detect if current invocation includes --noconfirm
 
 # Helper: detect if current invocation includes --noconfirm
 function has_noconfirm_flag() {
@@ -337,6 +365,33 @@ function remove_installed_blocked_packages() {
 		echo -e "${RED}Cleanup removal failed with exit code ${rc}.${NC}" >&2
 	else
 		echo -e "${GREEN}Cleanup removal completed for: ${to_remove[*]}${NC}" >&2
+	fi
+	return $rc
+}
+
+# Cleanup: remove any installed greylisted packages (challenge-required packages)
+function remove_installed_greylisted_packages() {
+	# List installed package names
+	mapfile -t installed_names < <("$PACMAN_BIN" -Qq 2>/dev/null)
+	local to_remove=()
+	for name in "${installed_names[@]}"; do
+		if is_greylisted_package_name "$name"; then
+			to_remove+=("$name")
+		fi
+	done
+
+	if [[ ${#to_remove[@]} -eq 0 ]]; then
+		return 0
+	fi
+
+	echo -e "${YELLOW}Greylist cleanup:${NC} Removing greylisted installed packages: ${BOLD}${to_remove[*]}${NC}" >&2
+	local remove_cmd=("$PACMAN_BIN" -Rns --noconfirm)
+	"${remove_cmd[@]}" "${to_remove[@]}"
+	local rc=$?
+	if [[ $rc -ne 0 ]]; then
+		echo -e "${RED}Greylist cleanup removal failed with exit code ${rc}.${NC}" >&2
+	else
+		echo -e "${GREEN}Greylist cleanup removal completed for: ${to_remove[*]}${NC}" >&2
 	fi
 	return $rc
 }
@@ -536,10 +591,7 @@ function prompt_for_steam_challenge() {
 	fi
 }
 
-function check_for_virtualbox() {
-	# List of VirtualBox-related packages
-	local vbox_packages=("virtualbox" "virtualbox-host-modules-arch" "virtualbox-guest-iso" "virtualbox-ext-oracle")
-
+function check_for_greylisted() {
 	# Check if the command is an installation command
 	if [[ $1 == "-S" || $1 == "-Sy" || $1 == "-Syu" || $1 == "-Syyu" || $1 == "-U" ]]; then
 		# Check all arguments
@@ -547,22 +599,19 @@ function check_for_virtualbox() {
 			# Strip repository prefix if present
 			local package_name="${arg##*/}"
 
-			# Check if argument matches any VirtualBox package
-			for package in "${vbox_packages[@]}"; do
-				if [[ $arg == "$package" || $arg == *"/$package-"* || $arg == *"/$package/"* ||
-					$arg == *"/$package" || $package_name == "$package" ]]; then
-					return 0 # VirtualBox package found
-				fi
-			done
+			# Check if package name matches any greylisted keyword
+			if is_greylisted_package_name "$package_name"; then
+				return 0 # Greylisted package found
+			fi
 		done
 	fi
-	return 1 # No VirtualBox package found
+	return 1 # No greylisted package found
 }
 
-# Function to prompt for solving a word unscrambling challenge (for virtualbox - always active)
-function prompt_for_virtualbox_challenge() {
-	echo -e "${YELLOW}WARNING: You are trying to install VirtualBox.${NC}"
-	echo -e "${YELLOW}VirtualBox challenge will begin shortly...${NC}"
+# Function to prompt for solving a word unscrambling challenge (for greylisted packages - always active)
+function prompt_for_greylist_challenge() {
+	echo -e "${YELLOW}WARNING: You are trying to install a greylisted package.${NC}"
+	echo -e "${YELLOW}Greylist challenge will begin shortly...${NC}"
 
 	# Sleep for random 10-30 seconds
 	sleep_duration=$((RANDOM % 20 + 10))
@@ -578,9 +627,9 @@ function prompt_for_virtualbox_challenge() {
 		return 1
 	fi
 
-	# Choose a specific word length (6, 7, or 8 characters for VirtualBox)
+	# Choose a specific word length (6 characters for greylist challenge)
 	word_length=6
-	echo -e "${CYAN}VirtualBox challenge: Words with ${word_length} letters${NC}"
+	echo -e "${CYAN}Greylist challenge: Words with ${word_length} letters${NC}"
 
 	# Filter words by the specific chosen length and load random words
 	words_count=120
@@ -625,7 +674,7 @@ function prompt_for_virtualbox_challenge() {
 	fi
 
 	echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
-	echo -e "${YELLOW}Unscramble the word to proceed with VirtualBox installation (you have 90 seconds):${NC}"
+	echo -e "${YELLOW}Unscramble the word to proceed with installation (you have 90 seconds):${NC}"
 
 	# Set up a background process to display the timer
 	(
@@ -657,7 +706,7 @@ function prompt_for_virtualbox_challenge() {
 
 	# Check if read timed out
 	if [[ $read_status -ne 0 ]]; then
-		echo -e "${RED}Time's up! VirtualBox challenge failed. The correct word was '$target_word'.${NC}"
+		echo -e "${RED}Time's up! Greylist challenge failed. The correct word was '$target_word'.${NC}"
 		return 1
 	fi
 
@@ -665,7 +714,7 @@ function prompt_for_virtualbox_challenge() {
 	user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
 
 	if [[ $user_input == "$target_word" ]]; then
-		echo -e "${GREEN}Correct! Proceeding with VirtualBox installation...${NC}"
+		echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
 
 		# Add sleep after successful challenge completion (15-35 seconds)
 		post_challenge_sleep=$((RANDOM % 20 + 15))
@@ -673,7 +722,7 @@ function prompt_for_virtualbox_challenge() {
 
 		return 0
 	else
-		echo -e "${RED}Incorrect answer. VirtualBox installation aborted. The correct word was '$target_word'.${NC}"
+		echo -e "${RED}Incorrect answer. Installation aborted. The correct word was '$target_word'.${NC}"
 		return 1
 	fi
 }
@@ -703,9 +752,9 @@ if check_for_steam "$@"; then
 	fi
 fi
 
-# Check for VirtualBox (challenge-eligible package)
-if check_for_virtualbox "$@"; then
-	if ! prompt_for_virtualbox_challenge; then
+# Check for greylisted packages (challenge-eligible)
+if check_for_greylisted "$@"; then
+	if ! prompt_for_greylist_challenge; then
 		exit 1
 	fi
 fi
@@ -749,6 +798,9 @@ fi
 
 # After any operation, remove installed blocked packages as part of policy enforcement
 remove_installed_blocked_packages "$@"
+
+# Also remove installed greylisted packages
+remove_installed_greylisted_packages "$@"
 
 # Display some helpful tips depending on the operation
 if [[ $1 == "-S" || $1 == "-S "* ]] && [ $exit_code -eq 0 ]; then
