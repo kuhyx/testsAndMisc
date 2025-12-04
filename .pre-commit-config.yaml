@@ -270,6 +270,18 @@ repos:
         args: [--severity=warning]
 
   # ===========================================================================
+  # REMOVE EMPTY DIRECTORIES - Clean up empty folders in the repo
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: remove-empty-dirs
+        name: remove empty directories
+        entry: find . -type d -empty -not -path './.git/*' -delete -print
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # ===========================================================================
   # COMMITIZEN - Conventional commits (optional)
   # ===========================================================================
   # - repo: https://github.com/commitizen-tools/commitizen
