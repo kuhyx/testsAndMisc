@@ -9,30 +9,36 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ORGANIZE_SCRIPT="$SCRIPT_DIR/organize_downloads.sh"
 SERVICE_NAME="media-organizer"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-USER_NAME="$(whoami)"
+
+# Get the actual user (not root when running with sudo)
+if [[ -n ${SUDO_USER:-} ]]; then
+	USER_NAME="$SUDO_USER"
+else
+	USER_NAME="$(whoami)"
+fi
 
 # Function to log messages
 log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 # Check if organize script exists
 if [[ ! -f $ORGANIZE_SCRIPT ]]; then
-  log "ERROR: organize_downloads.sh not found at $ORGANIZE_SCRIPT"
-  exit 1
+	log "ERROR: organize_downloads.sh not found at $ORGANIZE_SCRIPT"
+	exit 1
 fi
 
 # Check if running as root for systemd service creation
 if [[ $EUID -ne 0 ]]; then
-  log "This script needs to be run as root to create systemd service."
-  log "Please run: sudo $0"
-  exit 1
+	log "This script needs to be run as root to create systemd service."
+	log "Re-executing with sudo..."
+	exec sudo "$0" "$@"
 fi
 
 log "Setting up media organizer startup service..."
 
 # Create systemd service file
-cat > "$SERVICE_FILE" << EOF
+cat >"$SERVICE_FILE" <<EOF
 [Unit]
 Description=Media File Organizer
 After=graphical-session.target
