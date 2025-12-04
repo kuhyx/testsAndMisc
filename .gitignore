@@ -249,3 +249,6 @@ __marimo__/
 fps_demo
 server_c
 Bash/ffmpeg-build/FFmpeg
+
+# Screen locker workout log
+python_pkg/screen_locker/workout_log.json
