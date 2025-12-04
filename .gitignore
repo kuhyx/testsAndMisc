@@ -252,3 +252,4 @@ Bash/ffmpeg-build/FFmpeg
 
 # Screen locker workout log
 python_pkg/screen_locker/workout_log.json
+python_pkg/music_gen/output/
