@@ -68,6 +68,13 @@ unfixable = []
 "python_pkg/screen_locker/screen_lock.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
+# Music generator - CLI script with intentional patterns
+"python_pkg/music_gen/music_generator.py" = [
+    "T201",    # print() is intentional for CLI feedback
+    "PLC0415", # Late imports for dependency checking
+    "C901",    # Complex interactive mode is acceptable
+    "PLR0912", # Too many branches in interactive mode
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"  # Use Google docstring convention
@@ -127,6 +134,7 @@ color_output = true
 exclude = [
     "Bash/ffmpeg-build/",
     ".venv/",
+    "python_pkg/music_gen/",  # Uses dynamic imports from transformers
 ]
 
 # ============================================================================

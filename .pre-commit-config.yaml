@@ -96,7 +96,7 @@ repos:
           - types-requests
           - types-PyYAML
           - types-python-dateutil
-        exclude: ^(Bash/|\.venv/)
+        exclude: ^(Bash/|\.venv/|python_pkg/music_gen/)
 
   # ===========================================================================
   # PYLINT - Comprehensive Python linter
