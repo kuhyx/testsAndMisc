@@ -1,0 +1,5 @@
+# Raspberry Pi setup config (contains auto-discovered IPs and passwords)
+scripts/features/.nextcloud_raspberry.conf
+scripts/features/.raspberry_pi.conf
+.nextcloud_raspberry.conf
+.raspberry_pi.conf
