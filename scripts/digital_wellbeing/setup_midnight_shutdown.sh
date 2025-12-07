@@ -8,186 +8,132 @@ set -e # Exit on any error
 
 # Function to show usage
 show_usage() {
-  echo "Day-Specific Auto-Shutdown Setup for Arch Linux"
-  echo "==============================================="
-  echo "Usage: $0 [enable|disable|status]"
-  echo ""
-  echo "Commands:"
-  echo "  enable   - Set up automatic shutdown with day-specific windows (default)"
-  echo "  disable  - Remove automatic shutdown"
-  echo "  status   - Show current status"
-  echo ""
-  echo "Shutdown Schedule:"
-  echo "  Monday-Wednesday: 21:00-05:00"
-  echo "  Thursday-Sunday:  22:00-05:00"
-  echo ""
+	echo "Day-Specific Auto-Shutdown Setup for Arch Linux"
+	echo "==============================================="
+	echo "Usage: $0 [enable|status]"
+	echo ""
+	echo "Commands:"
+	echo "  enable   - Set up automatic shutdown with day-specific windows (default)"
+	echo "  status   - Show current status"
+	echo ""
+	echo "Shutdown Schedule:"
+	echo "  Monday-Wednesday: 21:00-05:00"
+	echo "  Thursday-Sunday:  22:00-05:00"
+	echo ""
+	echo "NOTE: There is no 'disable' option. This is intentional."
+	echo "      The shutdown timer is protected by a monitor service."
+	echo ""
 }
 
 # Function to check and request sudo privileges
 check_sudo() {
-  if [[ $EUID -ne 0 ]]; then
-    echo "This script requires sudo privileges to manage systemd services."
-    echo "Requesting sudo access..."
-    exec sudo "$0" "$@"
-  fi
+	if [[ $EUID -ne 0 ]]; then
+		echo "This script requires sudo privileges to manage systemd services."
+		echo "Requesting sudo access..."
+		exec sudo "$0" "$@"
+	fi
 }
 
 # Get the actual user (even when running with sudo)
 if [[ -n $SUDO_USER ]]; then
-  ACTUAL_USER="$SUDO_USER"
-  USER_HOME="/home/$SUDO_USER"
+	ACTUAL_USER="$SUDO_USER"
+	USER_HOME="/home/$SUDO_USER"
 else
-  ACTUAL_USER="$USER"
-  USER_HOME="$HOME"
+	ACTUAL_USER="$USER"
+	USER_HOME="$HOME"
 fi
-
-# Function to disable and remove midnight shutdown
-disable_midnight_shutdown() {
-  echo "Disabling Day-Specific Auto-Shutdown"
-  echo "===================================="
-  echo "Current Date: $(date)"
-  echo "User: $ACTUAL_USER"
-  echo ""
-
-  local timer_file="/etc/systemd/system/day-specific-shutdown.timer"
-  local service_file="/etc/systemd/system/day-specific-shutdown.service"
-  local script_file="/usr/local/bin/day-specific-shutdown-manager.sh"
-  local check_script="/usr/local/bin/day-specific-shutdown-check.sh"
-  local removed_files=()
-
-  # Stop and disable timer if it exists
-  if systemctl is-active day-specific-shutdown.timer &> /dev/null; then
-    echo "Stopping day-specific-shutdown timer..."
-    systemctl stop day-specific-shutdown.timer
-    echo "✓ Timer stopped"
-  fi
-
-  if systemctl is-enabled day-specific-shutdown.timer &> /dev/null; then
-    echo "Disabling day-specific-shutdown timer..."
-    systemctl disable day-specific-shutdown.timer
-    echo "✓ Timer disabled"
-  fi
-
-  # Remove timer file
-  if [[ -f $timer_file ]]; then
-    rm -f "$timer_file"
-    removed_files+=("$timer_file")
-    echo "✓ Removed timer file: $timer_file"
-  fi
-
-  # Remove service file
-  if [[ -f $service_file ]]; then
-    rm -f "$service_file"
-    removed_files+=("$service_file")
-    echo "✓ Removed service file: $service_file"
-  fi
-
-  # Remove management script
-  if [[ -f $script_file ]]; then
-    rm -f "$script_file"
-    removed_files+=("$script_file")
-    echo "✓ Removed management script: $script_file"
-  fi
-
-  # Remove check script
-  if [[ -f $check_script ]]; then
-    rm -f "$check_script"
-    removed_files+=("$check_script")
-    echo "✓ Removed check script: $check_script"
-  fi
-
-  # Reload systemd daemon
-  if [[ ${#removed_files[@]} -gt 0 ]]; then
-    echo "Reloading systemd daemon..."
-    systemctl daemon-reload
-    echo "✓ Systemd daemon reloaded"
-  fi
-
-  echo ""
-  echo "============================================="
-  echo "Day-Specific Auto-Shutdown Removal Complete"
-  echo "============================================="
-
-  if [[ ${#removed_files[@]} -gt 0 ]]; then
-    echo "Removed files:"
-    printf "  %s\n" "${removed_files[@]}"
-    echo ""
-    echo "✓ Automatic day-specific shutdown has been completely disabled"
-    echo "✓ Your PC will no longer shutdown automatically"
-  else
-    echo "No day-specific shutdown configuration was found to remove."
-  fi
-
-  echo ""
-}
 
 # Function to show current status
 show_current_status() {
-  echo "Day-Specific Auto-Shutdown Status"
-  echo "================================="
-  echo "Current Date: $(date)"
-  echo "User: $ACTUAL_USER"
-  echo ""
+	echo "Day-Specific Auto-Shutdown Status"
+	echo "================================="
+	echo "Current Date: $(date)"
+	echo "User: $ACTUAL_USER"
+	echo ""
 
-  local timer_exists=false
+	local timer_exists=false
 
-  # Check if files exist
-  if [[ -f "/etc/systemd/system/day-specific-shutdown.timer" ]]; then
-    timer_exists=true
-    echo "✓ Timer file exists"
-  else
-    echo "✗ Timer file missing"
-  fi
+	# Check if files exist
+	if [[ -f "/etc/systemd/system/day-specific-shutdown.timer" ]]; then
+		timer_exists=true
+		echo "✓ Timer file exists"
+	else
+		echo "✗ Timer file missing"
+	fi
 
-  if [[ -f "/etc/systemd/system/day-specific-shutdown.service" ]]; then
-    echo "✓ Service file exists"
-  else
-    echo "✗ Service file missing"
-  fi
+	if [[ -f "/etc/systemd/system/day-specific-shutdown.service" ]]; then
+		echo "✓ Service file exists"
+	else
+		echo "✗ Service file missing"
+	fi
 
-  if [[ -f "/usr/local/bin/day-specific-shutdown-manager.sh" ]]; then
-    echo "✓ Management script exists"
-  else
-    echo "✗ Management script missing"
-  fi
+	if [[ -f "/usr/local/bin/day-specific-shutdown-manager.sh" ]]; then
+		echo "✓ Management script exists"
+	else
+		echo "✗ Management script missing"
+	fi
 
-  echo ""
+	if [[ -f "/usr/local/bin/shutdown-timer-monitor.sh" ]]; then
+		echo "✓ Monitor script exists"
+	else
+		echo "✗ Monitor script missing"
+	fi
 
-  # Check systemd status
-  if $timer_exists; then
-    if systemctl is-enabled day-specific-shutdown.timer &> /dev/null; then
-      echo "✓ Timer is enabled"
-      if systemctl is-active day-specific-shutdown.timer &> /dev/null; then
-        echo "✓ Timer is active"
-        echo ""
-        echo "Next scheduled shutdown check:"
-        systemctl list-timers day-specific-shutdown.timer --no-pager 2> /dev/null | grep day-specific-shutdown || echo "Timer information not available"
-      else
-        echo "✗ Timer is not active"
-      fi
-    else
-      echo "✗ Timer is not enabled"
-    fi
-  else
-    echo "Status: NOT CONFIGURED"
-  fi
+	echo ""
 
-  echo ""
-  echo "Shutdown Schedule:"
-  echo "  Monday-Wednesday: 21:00-05:00"
-  echo "  Thursday-Sunday:  22:00-05:00"
-  echo ""
+	# Check systemd status
+	if $timer_exists; then
+		if systemctl is-enabled day-specific-shutdown.timer &>/dev/null; then
+			echo "✓ Timer is enabled"
+			if systemctl is-active day-specific-shutdown.timer &>/dev/null; then
+				echo "✓ Timer is active"
+				echo ""
+				echo "Next scheduled shutdown check:"
+				systemctl list-timers day-specific-shutdown.timer --no-pager 2>/dev/null | grep day-specific-shutdown || echo "Timer information not available"
+			else
+				echo "✗ Timer is not active"
+			fi
+		else
+			echo "✗ Timer is not enabled"
+		fi
+	else
+		echo "Status: NOT CONFIGURED"
+	fi
+
+	echo ""
+
+	# Check monitor service status
+	echo "Monitor Service Status:"
+	if systemctl is-enabled shutdown-timer-monitor.service &>/dev/null; then
+		echo "✓ Monitor is enabled"
+		if systemctl is-active shutdown-timer-monitor.service &>/dev/null; then
+			echo "✓ Monitor is active (will re-enable timer if disabled)"
+		else
+			echo "✗ Monitor is not active"
+		fi
+	else
+		echo "✗ Monitor is not enabled"
+	fi
+
+	echo ""
+	echo "Shutdown Schedule:"
+	echo "  Monday-Wednesday: 21:00-05:00"
+	echo "  Thursday-Sunday:  22:00-05:00"
+	echo ""
+	echo "NOTE: The shutdown timer is protected by a monitor service."
+	echo "      If you try to disable the timer, it will be automatically re-enabled."
+	echo ""
 }
 
 # Function to create the shutdown service
 create_shutdown_service() {
-  echo ""
-  echo "1. Creating Systemd Shutdown Service..."
-  echo "======================================"
+	echo ""
+	echo "1. Creating Systemd Shutdown Service..."
+	echo "======================================"
 
-  local service_file="/etc/systemd/system/day-specific-shutdown.service"
+	local service_file="/etc/systemd/system/day-specific-shutdown.service"
 
-  cat > "$service_file" << 'EOF'
+	cat >"$service_file" <<'EOF'
 [Unit]
 Description=Automatic PC shutdown with day-specific time windows
 DefaultDependencies=false
@@ -201,18 +147,18 @@ StandardOutput=journal
 StandardError=journal
 EOF
 
-  echo "✓ Created systemd service: $service_file"
+	echo "✓ Created systemd service: $service_file"
 }
 
 # Function to create the shutdown timer
 create_shutdown_timer() {
-  echo ""
-  echo "2. Creating Systemd Shutdown Timer..."
-  echo "==================================="
+	echo ""
+	echo "2. Creating Systemd Shutdown Timer..."
+	echo "==================================="
 
-  local timer_file="/etc/systemd/system/day-specific-shutdown.timer"
+	local timer_file="/etc/systemd/system/day-specific-shutdown.timer"
 
-  cat > "$timer_file" << 'EOF'
+	cat >"$timer_file" <<'EOF'
 [Unit]
 Description=Timer for automatic PC shutdown with day-specific windows
 Requires=day-specific-shutdown.service
@@ -244,18 +190,18 @@ RandomizedDelaySec=0
 WantedBy=timers.target
 EOF
 
-  echo "✓ Created systemd timer: $timer_file"
+	echo "✓ Created systemd timer: $timer_file"
 }
 
 # Function to create management script
 create_management_script() {
-  echo ""
-  echo "3. Creating Management Script..."
-  echo "=============================="
+	echo ""
+	echo "3. Creating Management Script..."
+	echo "=============================="
 
-  local script_file="/usr/local/bin/day-specific-shutdown-manager.sh"
+	local script_file="/usr/local/bin/day-specific-shutdown-manager.sh"
 
-  cat > "$script_file" << 'EOF'
+	cat >"$script_file" <<'EOF'
 #!/bin/bash
 # Day-Specific Auto-Shutdown Manager
 # Provides easy management of the day-specific shutdown feature
@@ -318,19 +264,19 @@ case "$1" in
 esac
 EOF
 
-  chmod +x "$script_file"
-  echo "✓ Created management script: $script_file"
+	chmod +x "$script_file"
+	echo "✓ Created management script: $script_file"
 }
 
 # Function to create smart shutdown check script
 create_shutdown_check_script() {
-  echo ""
-  echo "4. Creating Smart Shutdown Check Script..."
-  echo "========================================"
+	echo ""
+	echo "4. Creating Smart Shutdown Check Script..."
+	echo "========================================"
 
-  local check_script="/usr/local/bin/day-specific-shutdown-check.sh"
+	local check_script="/usr/local/bin/day-specific-shutdown-check.sh"
 
-  cat > "$check_script" << 'EOF'
+	cat >"$check_script" <<'EOF'
 #!/bin/bash
 # Smart day-specific shutdown check script
 # Different shutdown windows based on day of week:
@@ -397,206 +343,324 @@ else
 fi
 EOF
 
-  chmod +x "$check_script"
-  echo "✓ Created smart shutdown check script: $check_script"
+	chmod +x "$check_script"
+	echo "✓ Created smart shutdown check script: $check_script"
 }
 
 # Function to enable the timer
 enable_timer() {
-  echo ""
-  echo "5. Enabling Shutdown Timer..."
-  echo "============================"
+	echo ""
+	echo "5. Enabling Shutdown Timer..."
+	echo "============================"
 
-  # Reload systemd daemon
-  systemctl daemon-reload
-  echo "✓ Reloaded systemd daemon"
+	# Reload systemd daemon
+	systemctl daemon-reload
+	echo "✓ Reloaded systemd daemon"
 
-  # Enable the timer
-  systemctl enable day-specific-shutdown.timer
-  echo "✓ Enabled day-specific-shutdown timer"
+	# Enable the timer
+	systemctl enable day-specific-shutdown.timer
+	echo "✓ Enabled day-specific-shutdown timer"
 
-  # Start the timer
-  systemctl start day-specific-shutdown.timer
-  echo "✓ Started day-specific-shutdown timer"
+	# Start the timer
+	systemctl start day-specific-shutdown.timer
+	echo "✓ Started day-specific-shutdown timer"
+}
+
+# Function to install the monitor service
+install_monitor_service() {
+	echo ""
+	echo "6. Installing Shutdown Timer Monitor Service..."
+	echo "=============================================="
+
+	local monitor_script="/usr/local/bin/shutdown-timer-monitor.sh"
+	local monitor_service="/etc/systemd/system/shutdown-timer-monitor.service"
+
+	# Create the monitor script
+	cat >"$monitor_script" <<'EOF'
+#!/bin/bash
+# Shutdown timer monitor script
+# Watches the day-specific-shutdown timer and re-enables it if disabled
+
+set -euo pipefail
+
+LOG_FILE="/var/log/shutdown-timer-monitor.log"
+TIMER_NAME="day-specific-shutdown.timer"
+SERVICE_NAME="day-specific-shutdown.service"
+CHECK_INTERVAL=30
+
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE" >&2
+}
+
+timer_needs_restoration() {
+    if ! systemctl is-enabled "$TIMER_NAME" &>/dev/null; then
+        log_message "Timer $TIMER_NAME is not enabled"
+        return 0
+    fi
+    if ! systemctl is-active "$TIMER_NAME" &>/dev/null; then
+        log_message "Timer $TIMER_NAME is not active"
+        return 0
+    fi
+    if [[ ! -f "/etc/systemd/system/$TIMER_NAME" ]]; then
+        log_message "Timer unit file missing"
+        return 0
+    fi
+    if [[ ! -f "/etc/systemd/system/$SERVICE_NAME" ]]; then
+        log_message "Service unit file missing"
+        return 0
+    fi
+    if [[ ! -f "/usr/local/bin/day-specific-shutdown-check.sh" ]]; then
+        log_message "Check script missing"
+        return 0
+    fi
+    return 1
+}
+
+restore_timer() {
+    log_message "Shutdown timer tampering detected - initiating restoration"
+    systemctl daemon-reload
+    if ! systemctl is-enabled "$TIMER_NAME" &>/dev/null; then
+        log_message "Re-enabling $TIMER_NAME"
+        systemctl enable "$TIMER_NAME" 2>/dev/null || true
+    fi
+    if ! systemctl is-active "$TIMER_NAME" &>/dev/null; then
+        log_message "Re-starting $TIMER_NAME"
+        systemctl start "$TIMER_NAME" 2>/dev/null || true
+    fi
+    if systemctl is-active "$TIMER_NAME" &>/dev/null; then
+        log_message "Timer restoration completed successfully"
+    else
+        log_message "WARNING: Timer restoration may have failed"
+    fi
+}
+
+log_message "=== Shutdown Timer Monitor Started ==="
+log_message "Monitoring timer: $TIMER_NAME"
+
+if timer_needs_restoration; then
+    log_message "Initial check: Timer needs restoration"
+    restore_timer
+else
+    log_message "Initial check: Timer is properly configured"
+fi
+
+while true; do
+    if timer_needs_restoration; then
+        restore_timer
+    fi
+    sleep "$CHECK_INTERVAL"
+done
+EOF
+
+	chmod +x "$monitor_script"
+	echo "✓ Created monitor script: $monitor_script"
+
+	# Create the monitor service
+	cat >"$monitor_service" <<'EOF'
+[Unit]
+Description=Shutdown Timer Monitor and Auto-Restore Service
+After=network-online.target day-specific-shutdown.timer
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/shutdown-timer-monitor.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+NoNewPrivileges=false
+PrivateTmp=true
+MemoryMax=50M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+	echo "✓ Created monitor service: $monitor_service"
+
+	# Reload and enable monitor
+	systemctl daemon-reload
+	systemctl enable shutdown-timer-monitor.service
+	systemctl start shutdown-timer-monitor.service
+	echo "✓ Enabled and started shutdown-timer-monitor.service"
 }
 
 # Function to test the setup
 test_setup() {
-  echo ""
-  echo "6. Testing Setup..."
-  echo "=================="
+	echo ""
+	echo "7. Testing Setup..."
+	echo "=================="
 
-  echo "Service files:"
-  if [[ -f "/etc/systemd/system/day-specific-shutdown.service" ]]; then
-    echo "✓ Service file exists"
-  else
-    echo "✗ Service file missing"
-  fi
+	echo "Service files:"
+	if [[ -f "/etc/systemd/system/day-specific-shutdown.service" ]]; then
+		echo "✓ Service file exists"
+	else
+		echo "✗ Service file missing"
+	fi
 
-  if [[ -f "/etc/systemd/system/day-specific-shutdown.timer" ]]; then
-    echo "✓ Timer file exists"
-  else
-    echo "✗ Timer file missing"
-  fi
+	if [[ -f "/etc/systemd/system/day-specific-shutdown.timer" ]]; then
+		echo "✓ Timer file exists"
+	else
+		echo "✗ Timer file missing"
+	fi
 
-  echo ""
-  echo "Timer status:"
-  if systemctl is-enabled day-specific-shutdown.timer &> /dev/null; then
-    echo "✓ Timer is enabled"
-  else
-    echo "✗ Timer is not enabled"
-  fi
+	if [[ -f "/etc/systemd/system/shutdown-timer-monitor.service" ]]; then
+		echo "✓ Monitor service file exists"
+	else
+		echo "✗ Monitor service file missing"
+	fi
 
-  if systemctl is-active day-specific-shutdown.timer &> /dev/null; then
-    echo "✓ Timer is active"
-  else
-    echo "✗ Timer is not active"
-  fi
+	echo ""
+	echo "Timer status:"
+	if systemctl is-enabled day-specific-shutdown.timer &>/dev/null; then
+		echo "✓ Timer is enabled"
+	else
+		echo "✗ Timer is not enabled"
+	fi
 
-  echo ""
-  echo "Next scheduled checks:"
-  systemctl list-timers day-specific-shutdown.timer --no-pager 2> /dev/null | head -5 | grep day-specific-shutdown || echo "Timer information not available"
+	if systemctl is-active day-specific-shutdown.timer &>/dev/null; then
+		echo "✓ Timer is active"
+	else
+		echo "✗ Timer is not active"
+	fi
+
+	echo ""
+	echo "Monitor status:"
+	if systemctl is-enabled shutdown-timer-monitor.service &>/dev/null; then
+		echo "✓ Monitor is enabled"
+	else
+		echo "✗ Monitor is not enabled"
+	fi
+
+	if systemctl is-active shutdown-timer-monitor.service &>/dev/null; then
+		echo "✓ Monitor is active"
+	else
+		echo "✗ Monitor is not active"
+	fi
+
+	echo ""
+	echo "Next scheduled checks:"
+	systemctl list-timers day-specific-shutdown.timer --no-pager 2>/dev/null | head -5 | grep day-specific-shutdown || echo "Timer information not available"
 }
 
 # Function to show final instructions
 show_instructions() {
-  echo ""
-  echo "================================================="
-  echo "Day-Specific Auto-Shutdown Setup Complete"
-  echo "================================================="
-  echo "Summary:"
-  echo "✓ Systemd service created (/etc/systemd/system/day-specific-shutdown.service)"
-  echo "✓ Systemd timer created (/etc/systemd/system/day-specific-shutdown.timer)"
-  echo "✓ Management script created (/usr/local/bin/day-specific-shutdown-manager.sh)"
-  echo "✓ Smart check script created (/usr/local/bin/day-specific-shutdown-check.sh)"
-  echo "✓ Timer enabled and started"
-  echo ""
-  echo "Shutdown Schedule:"
-  echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
-  echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
-  echo ""
-  echo "Management commands:"
-  echo "  sudo day-specific-shutdown-manager.sh status   - Check status"
-  echo "  sudo day-specific-shutdown-manager.sh logs     - View shutdown logs"
-  echo ""
-  echo "How it works:"
-  echo "• Timer checks every 30 minutes during potential shutdown windows"
-  echo "• Smart logic determines shutdown eligibility based on day and time"
-  echo "• Prevents accidental shutdowns outside designated time windows"
-  echo ""
-  echo "WARNING: This will automatically shutdown your PC during designated hours."
-  echo "Make sure to save your work before the shutdown windows!"
-  echo ""
+	echo ""
+	echo "================================================="
+	echo "Day-Specific Auto-Shutdown Setup Complete"
+	echo "================================================="
+	echo "Summary:"
+	echo "✓ Systemd service created (/etc/systemd/system/day-specific-shutdown.service)"
+	echo "✓ Systemd timer created (/etc/systemd/system/day-specific-shutdown.timer)"
+	echo "✓ Management script created (/usr/local/bin/day-specific-shutdown-manager.sh)"
+	echo "✓ Smart check script created (/usr/local/bin/day-specific-shutdown-check.sh)"
+	echo "✓ Timer enabled and started"
+	echo "✓ Monitor service installed and started (protects timer from being disabled)"
+	echo ""
+	echo "Shutdown Schedule:"
+	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
+	echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
+	echo ""
+	echo "Management commands:"
+	echo "  sudo day-specific-shutdown-manager.sh status   - Check status"
+	echo "  sudo day-specific-shutdown-manager.sh logs     - View shutdown logs"
+	echo ""
+	echo "How it works:"
+	echo "• Timer checks every 30 minutes during potential shutdown windows"
+	echo "• Smart logic determines shutdown eligibility based on day and time"
+	echo "• Monitor service watches the timer and re-enables it if disabled"
+	echo "• There is NO disable option - this is intentional for digital wellbeing"
+	echo ""
+	echo "WARNING: This will automatically shutdown your PC during designated hours."
+	echo "Make sure to save your work before the shutdown windows!"
+	echo ""
 }
 
 # Function to prompt for confirmation
 confirm_setup() {
-  echo ""
-  echo "WARNING: Day-Specific Auto-Shutdown Confirmation"
-  echo "==============================================="
-  echo "This will set up your PC to automatically shutdown during specific time windows."
-  echo ""
-  echo "Shutdown Schedule:"
-  echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
-  echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
-  echo ""
-  echo "Important considerations:"
-  echo "- Any unsaved work will be lost during shutdown windows"
-  echo "- Running processes will be terminated"
-  echo "- Downloads/uploads in progress will be interrupted"
-  echo "- You'll need to manually power on your PC each day"
-  echo "- Timer checks every 30 minutes during potential shutdown windows"
-  echo ""
-  read -r -p "Do you want to proceed? (y/N): " confirm
+	echo ""
+	echo "WARNING: Day-Specific Auto-Shutdown Confirmation"
+	echo "==============================================="
+	echo "This will set up your PC to automatically shutdown during specific time windows."
+	echo ""
+	echo "Shutdown Schedule:"
+	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
+	echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
+	echo ""
+	echo "Important considerations:"
+	echo "- Any unsaved work will be lost during shutdown windows"
+	echo "- Running processes will be terminated"
+	echo "- Downloads/uploads in progress will be interrupted"
+	echo "- You'll need to manually power on your PC each day"
+	echo "- Timer checks every 30 minutes during potential shutdown windows"
+	echo "- There is NO disable option - this is protected by a monitor service"
+	echo ""
+	read -r -p "Do you want to proceed? (y/N): " confirm
 
-  case "$confirm" in
-    [yY] | [yY][eE][sS])
-      echo "Proceeding with setup..."
-      return 0
-      ;;
-    *)
-      echo "Setup cancelled."
-      exit 0
-      ;;
-  esac
-}
-
-# Function to confirm disable
-confirm_disable() {
-  echo ""
-  echo "Disable Day-Specific Auto-Shutdown Confirmation"
-  echo "==============================================="
-  echo "This will completely remove the automatic day-specific shutdown configuration."
-  echo ""
-  echo "After disabling:"
-  echo "- Your PC will no longer shutdown automatically during any time windows"
-  echo "- All related systemd services and timers will be removed"
-  echo "- The management and check scripts will be deleted"
-  echo ""
-  read -r -p "Do you want to proceed with disabling? (y/N): " confirm
-
-  case "$confirm" in
-    [yY] | [yY][eE][sS])
-      echo "Proceeding with disable..."
-      return 0
-      ;;
-    *)
-      echo "Disable cancelled."
-      exit 0
-      ;;
-  esac
+	case "$confirm" in
+	[yY] | [yY][eE][sS])
+		echo "Proceeding with setup..."
+		return 0
+		;;
+	*)
+		echo "Setup cancelled."
+		exit 0
+		;;
+	esac
 }
 
 # Main execution flow for enable
 enable_midnight_shutdown() {
-  echo "Day-Specific Auto-Shutdown Setup for Arch Linux"
-  echo "==============================================="
-  echo "Current Date: $(date)"
-  echo "User: $ACTUAL_USER"
-  echo "Target user: $ACTUAL_USER"
-  echo "User home: $USER_HOME"
+	echo "Day-Specific Auto-Shutdown Setup for Arch Linux"
+	echo "==============================================="
+	echo "Current Date: $(date)"
+	echo "User: $ACTUAL_USER"
+	echo "Target user: $ACTUAL_USER"
+	echo "User home: $USER_HOME"
 
-  # Confirm setup
-  confirm_setup
+	# Confirm setup
+	confirm_setup
 
-  # Create systemd files
-  create_shutdown_service
-  create_shutdown_timer
-  create_management_script
-  create_shutdown_check_script
+	# Create systemd files
+	create_shutdown_service
+	create_shutdown_timer
+	create_management_script
+	create_shutdown_check_script
 
-  # Enable and start timer
-  enable_timer
+	# Enable and start timer
+	enable_timer
 
-  # Test setup
-  test_setup
+	# Install monitor service (protects timer from being disabled)
+	install_monitor_service
 
-  # Show instructions
-  show_instructions
+	# Test setup
+	test_setup
+
+	# Show instructions
+	show_instructions
 }
 
 # Parse command line arguments
 case "${1:-enable}" in
-  "enable")
-    check_sudo "$@"
-    enable_midnight_shutdown
-    ;;
-  "disable")
-    check_sudo "$@"
-    confirm_disable
-    disable_midnight_shutdown
-    ;;
-  "status")
-    check_sudo "$@"
-    show_current_status
-    ;;
-  "help" | "-h" | "--help")
-    show_usage
-    ;;
-  *)
-    echo "Error: Unknown command '$1'"
-    echo ""
-    show_usage
-    exit 1
-    ;;
+"enable")
+	check_sudo "$@"
+	enable_midnight_shutdown
+	;;
+"status")
+	check_sudo "$@"
+	show_current_status
+	;;
+"help" | "-h" | "--help")
+	show_usage
+	;;
+*)
+	echo "Error: Unknown command '$1'"
+	echo ""
+	show_usage
+	exit 1
+	;;
 esac
