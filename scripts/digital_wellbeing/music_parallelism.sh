@@ -15,32 +15,36 @@ mkdir -p "$LOG_DIR" 2>/dev/null || true
 LOG_FILE="$LOG_DIR/music-parallelism.log"
 CHECK_INTERVAL=3
 
-# Focus applications - window class names or process names
-# These are apps that require focus and shouldn't have music playing
-FOCUS_APPS=(
-	# IDEs and code editors
-	"code"         # VS Code
-	"Code"         # VS Code (window class)
-	"vscodium"     # VSCodium
-	"cursor"       # Cursor IDE
-	"jetbrains"    # JetBrains IDEs
-	"idea"         # IntelliJ IDEA
-	"pycharm"      # PyCharm
-	"webstorm"     # WebStorm
-	"clion"        # CLion
-	"rider"        # Rider
-	"sublime_text" # Sublime Text
-	"atom"         # Atom
-	"neovide"      # Neovide (Neovim GUI)
+# Focus applications - window class names for xdotool detection
+# Only apps with VISIBLE WINDOWS should block music
+# We use window detection, not process detection, to avoid matching background services
+FOCUS_APPS_WINDOWS=(
+	# IDEs and code editors - match window titles
+	"Visual Studio Code"
+	"VSCodium"
+	"Cursor"
+	"IntelliJ IDEA"
+	"PyCharm"
+	"WebStorm"
+	"CLion"
+	"Rider"
+	"Sublime Text"
+	"Atom"
+	"Neovide"
 	# Gaming
-	"steam_app"      # Steam games (they run as steam_app_XXXXX)
-	"steamwebhelper" # Steam client
-	"gamescope"      # Gamescope (Steam Deck compositor)
-	# Other focus apps (add more as needed)
-	"blender"      # Blender
-	"godot"        # Godot Engine
-	"unity"        # Unity Editor
-	"UnrealEditor" # Unreal Engine
+	"Steam"
+	# Creative apps
+	"Blender"
+	"Godot"
+	"Unity"
+	"Unreal Editor"
+)
+
+# Process patterns that definitively indicate focus apps
+# These are checked with pgrep -x (exact match) to avoid false positives
+FOCUS_APPS_PROCESSES=(
+	"steam_app_" # Steam games
+	"gamescope"  # Gamescope compositor
 )
 
 # Music streaming services - browser tabs or electron apps
@@ -78,21 +82,26 @@ log_message() {
 }
 
 # Check if any focus application is running
+# Uses window detection primarily to avoid matching background services
 is_focus_app_running() {
-	for app in "${FOCUS_APPS[@]}"; do
-		# Check running processes
-		if pgrep -i -f "$app" &>/dev/null; then
-			echo "$app"
-			return 0
-		fi
-		# Check window names using xdotool if available
-		if command -v xdotool &>/dev/null; then
+	# First check for visible windows using xdotool
+	if command -v xdotool &>/dev/null; then
+		for app in "${FOCUS_APPS_WINDOWS[@]}"; do
 			if xdotool search --name "$app" &>/dev/null 2>&1; then
 				echo "$app"
 				return 0
 			fi
+		done
+	fi
+
+	# Then check for specific process patterns (like steam games)
+	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
+		if pgrep -f "$app" &>/dev/null; then
+			echo "$app"
+			return 0
 		fi
 	done
+
 	return 1
 }
 
@@ -213,7 +222,8 @@ notify_user() {
 # This runs every 0.5 seconds for near-instant detection
 instant_monitor_loop() {
 	log_message "=== Music Parallelism INSTANT Monitor Started ==="
-	log_message "Focus apps monitored: ${FOCUS_APPS[*]}"
+	log_message "Focus apps (windows): ${FOCUS_APPS_WINDOWS[*]}"
+	log_message "Focus apps (processes): ${FOCUS_APPS_PROCESSES[*]}"
 	log_message "Polling every 0.5 seconds for instant kill"
 
 	while true; do
@@ -238,7 +248,8 @@ instant_monitor_loop() {
 # Main monitoring loop
 monitor_loop() {
 	log_message "=== Music Parallelism Monitor Started ==="
-	log_message "Focus apps monitored: ${FOCUS_APPS[*]}"
+	log_message "Focus apps (windows): ${FOCUS_APPS_WINDOWS[*]}"
+	log_message "Focus apps (processes): ${FOCUS_APPS_PROCESSES[*]}"
 	log_message "Music services monitored: ${MUSIC_SERVICES[*]}"
 	log_message "Check interval: ${CHECK_INTERVAL}s"
 
@@ -269,14 +280,27 @@ show_status() {
 	echo "================================="
 	echo ""
 
-	echo "Focus Applications:"
+	echo "Focus Applications (window-based detection):"
 	local focus_running=false
-	for app in "${FOCUS_APPS[@]}"; do
-		if pgrep -i -f "$app" &>/dev/null; then
-			echo "  ✓ $app (RUNNING)"
+
+	# Check windows
+	if command -v xdotool &>/dev/null; then
+		for app in "${FOCUS_APPS_WINDOWS[@]}"; do
+			if xdotool search --name "$app" &>/dev/null 2>&1; then
+				echo "  ✓ $app (WINDOW OPEN)"
+				focus_running=true
+			fi
+		done
+	fi
+
+	# Check processes
+	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
+		if pgrep -f "$app" &>/dev/null; then
+			echo "  ✓ $app (PROCESS RUNNING)"
 			focus_running=true
 		fi
 	done
+
 	if ! $focus_running; then
 		echo "  (none detected)"
 	fi

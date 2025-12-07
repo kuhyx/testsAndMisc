@@ -14,23 +14,49 @@ log_message() {
 	echo "$msg" >>"$LOG_FILE" 2>/dev/null || true
 }
 
-# Focus apps that block music
-FOCUS_APPS=(
-	"code" "Code" "vscodium" "cursor"
-	"jetbrains" "idea" "pycharm" "webstorm" "clion" "rider"
-	"sublime_text" "atom" "neovide"
-	"steam_app" "steamwebhelper" "gamescope"
-	"blender" "godot" "unity" "UnrealEditor"
+# Focus apps - window titles to check (only visible windows count)
+FOCUS_APPS_WINDOWS=(
+	"Visual Studio Code"
+	"VSCodium"
+	"Cursor"
+	"IntelliJ IDEA"
+	"PyCharm"
+	"WebStorm"
+	"CLion"
+	"Rider"
+	"Sublime Text"
+	"Blender"
+	"Godot"
+	"Unity"
+	"Unreal Editor"
 )
 
-# Check if any focus app is running
+# Focus apps - process patterns to check
+FOCUS_APPS_PROCESSES=(
+	"steam_app_"
+	"gamescope"
+)
+
+# Check if any focus app is running (window-based detection)
 is_focus_app_running() {
-	for app in "${FOCUS_APPS[@]}"; do
-		if pgrep -i -f "$app" &>/dev/null; then
+	# Check windows first
+	if command -v xdotool &>/dev/null; then
+		for app in "${FOCUS_APPS_WINDOWS[@]}"; do
+			if xdotool search --name "$app" &>/dev/null 2>&1; then
+				echo "$app"
+				return 0
+			fi
+		done
+	fi
+
+	# Check specific processes
+	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
+		if pgrep -f "$app" &>/dev/null; then
 			echo "$app"
 			return 0
 		fi
 	done
+
 	return 1
 }
 
