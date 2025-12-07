@@ -13,7 +13,7 @@ set -euo pipefail
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/music-parallelism"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 LOG_FILE="$LOG_DIR/music-parallelism.log"
-CHECK_INTERVAL=10
+CHECK_INTERVAL=3
 
 # Focus applications - window class names or process names
 # These are apps that require focus and shouldn't have music playing
