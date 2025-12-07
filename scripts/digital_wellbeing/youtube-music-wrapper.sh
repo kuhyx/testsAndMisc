@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-REAL_BINARY="/opt/YouTube Music/youtube-music"
+REAL_BINARY="/opt/YouTube Music/youtube-music.real"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/music-parallelism/music-parallelism.log"
 
 log_message() {
