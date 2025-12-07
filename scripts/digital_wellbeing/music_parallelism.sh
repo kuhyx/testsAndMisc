@@ -10,7 +10,9 @@
 set -euo pipefail
 
 # Configuration
-LOG_FILE="/var/log/music-parallelism.log"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/music-parallelism"
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+LOG_FILE="$LOG_DIR/music-parallelism.log"
 CHECK_INTERVAL=10
 
 # Focus applications - window class names or process names
