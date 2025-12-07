@@ -209,6 +209,32 @@ notify_user() {
 	log_message "$message"
 }
 
+# Instant monitoring loop - uses polling at high frequency
+# This runs every 0.5 seconds for near-instant detection
+instant_monitor_loop() {
+	log_message "=== Music Parallelism INSTANT Monitor Started ==="
+	log_message "Focus apps monitored: ${FOCUS_APPS[*]}"
+	log_message "Polling every 0.5 seconds for instant kill"
+
+	while true; do
+		# Only check if focus app is running
+		if is_focus_app_running &>/dev/null; then
+			# Instant kill youtube-music if detected
+			if pgrep -f "youtube-music" &>/dev/null; then
+				pkill -9 -f "youtube-music" 2>/dev/null || true
+				log_message "INSTANT KILL: YouTube Music terminated"
+				notify-send -u normal -t 2000 "🎵 YouTube Music killed" "Focus mode active" 2>/dev/null || true
+			fi
+			# Also check other music services
+			if pgrep -x "spotify" &>/dev/null; then
+				pkill -9 -x "spotify" 2>/dev/null || true
+				log_message "INSTANT KILL: Spotify terminated"
+			fi
+		fi
+		sleep 0.5
+	done
+}
+
 # Main monitoring loop
 monitor_loop() {
 	log_message "=== Music Parallelism Monitor Started ==="
@@ -289,7 +315,8 @@ show_usage() {
 	echo "Usage: $0 [command]"
 	echo ""
 	echo "Commands:"
-	echo "  monitor  - Start monitoring (default, runs in foreground)"
+	echo "  monitor  - Start monitoring (default, checks every ${CHECK_INTERVAL}s)"
+	echo "  instant  - Instant monitoring (checks every 0.5s for immediate kill)"
 	echo "  status   - Show current status of focus apps and music services"
 	echo "  kill     - Immediately kill all music services"
 	echo "  help     - Show this help message"
@@ -304,9 +331,12 @@ show_usage() {
 }
 
 # Main
-case "${1:-monitor}" in
+case "${1:-instant}" in
 monitor | start | run)
 	monitor_loop
+	;;
+instant | fast)
+	instant_monitor_loop
 	;;
 status)
 	show_status

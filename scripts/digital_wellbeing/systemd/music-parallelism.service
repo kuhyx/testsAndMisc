@@ -5,7 +5,7 @@ Wants=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/music-parallelism.sh monitor
+ExecStart=/usr/local/bin/music-parallelism.sh instant
 Restart=always
 RestartSec=10
 StandardOutput=journal
