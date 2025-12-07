@@ -374,18 +374,22 @@ install_monitor_service() {
 
 	local monitor_script="/usr/local/bin/shutdown-timer-monitor.sh"
 	local monitor_service="/etc/systemd/system/shutdown-timer-monitor.service"
+	local monitor_timer="/etc/systemd/system/shutdown-timer-monitor-watchdog.timer"
+	local monitor_watchdog_service="/etc/systemd/system/shutdown-timer-monitor-watchdog.service"
 
 	# Create the monitor script
 	cat >"$monitor_script" <<'EOF'
 #!/bin/bash
 # Shutdown timer monitor script
 # Watches the day-specific-shutdown timer and re-enables it if disabled
+# Also ensures the monitor service itself stays running
 
 set -euo pipefail
 
 LOG_FILE="/var/log/shutdown-timer-monitor.log"
 TIMER_NAME="day-specific-shutdown.timer"
 SERVICE_NAME="day-specific-shutdown.service"
+MONITOR_SERVICE="shutdown-timer-monitor.service"
 CHECK_INTERVAL=30
 
 log_message() {
@@ -455,19 +459,24 @@ EOF
 	chmod +x "$monitor_script"
 	echo "✓ Created monitor script: $monitor_script"
 
-	# Create the monitor service
+	# Create the monitor service with RefuseManualStop to prevent manual stopping
 	cat >"$monitor_service" <<'EOF'
 [Unit]
 Description=Shutdown Timer Monitor and Auto-Restore Service
 After=network-online.target day-specific-shutdown.timer
 Wants=network-online.target
+# Make it hard to stop - refuse manual stop/restart
+RefuseManualStop=true
+RefuseManualStart=false
 
 [Service]
 Type=simple
 User=root
 ExecStart=/usr/local/bin/shutdown-timer-monitor.sh
 Restart=always
-RestartSec=10
+RestartSec=5
+# Restart even on success exit
+RestartForceExitStatus=0 1 2 SIGTERM SIGKILL
 StandardOutput=journal
 StandardError=journal
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -482,11 +491,44 @@ EOF
 
 	echo "✓ Created monitor service: $monitor_service"
 
-	# Reload and enable monitor
+	# Create a watchdog timer that ensures the monitor stays running
+	cat >"$monitor_watchdog_service" <<'EOF'
+[Unit]
+Description=Watchdog for Shutdown Timer Monitor
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'systemctl is-active shutdown-timer-monitor.service || systemctl start shutdown-timer-monitor.service'
+ExecStart=/bin/bash -c 'systemctl is-active day-specific-shutdown.timer || systemctl start day-specific-shutdown.timer'
+EOF
+
+	echo "✓ Created watchdog service: $monitor_watchdog_service"
+
+	cat >"$monitor_timer" <<'EOF'
+[Unit]
+Description=Watchdog Timer for Shutdown Timer Monitor
+After=multi-user.target
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+	echo "✓ Created watchdog timer: $monitor_timer"
+
+	# Reload and enable everything
 	systemctl daemon-reload
 	systemctl enable shutdown-timer-monitor.service
+	systemctl enable shutdown-timer-monitor-watchdog.timer
 	systemctl start shutdown-timer-monitor.service
+	systemctl start shutdown-timer-monitor-watchdog.timer
 	echo "✓ Enabled and started shutdown-timer-monitor.service"
+	echo "✓ Enabled and started shutdown-timer-monitor-watchdog.timer"
 }
 
 # Function to test the setup
@@ -543,6 +585,20 @@ test_setup() {
 	fi
 
 	echo ""
+	echo "Watchdog timer status:"
+	if systemctl is-enabled shutdown-timer-monitor-watchdog.timer &>/dev/null; then
+		echo "✓ Watchdog timer is enabled"
+	else
+		echo "✗ Watchdog timer is not enabled"
+	fi
+
+	if systemctl is-active shutdown-timer-monitor-watchdog.timer &>/dev/null; then
+		echo "✓ Watchdog timer is active"
+	else
+		echo "✗ Watchdog timer is not active"
+	fi
+
+	echo ""
 	echo "Next scheduled checks:"
 	systemctl list-timers day-specific-shutdown.timer --no-pager 2>/dev/null | head -5 | grep day-specific-shutdown || echo "Timer information not available"
 }
@@ -559,7 +615,8 @@ show_instructions() {
 	echo "✓ Management script created (/usr/local/bin/day-specific-shutdown-manager.sh)"
 	echo "✓ Smart check script created (/usr/local/bin/day-specific-shutdown-check.sh)"
 	echo "✓ Timer enabled and started"
-	echo "✓ Monitor service installed and started (protects timer from being disabled)"
+	echo "✓ Monitor service installed (protects timer from being disabled)"
+	echo "✓ Watchdog timer installed (restarts monitor if stopped)"
 	echo ""
 	echo "Shutdown Schedule:"
 	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
@@ -573,6 +630,8 @@ show_instructions() {
 	echo "• Timer checks every 30 minutes during potential shutdown windows"
 	echo "• Smart logic determines shutdown eligibility based on day and time"
 	echo "• Monitor service watches the timer and re-enables it if disabled"
+	echo "• Watchdog timer restarts the monitor every 60 seconds if stopped"
+	echo "• Monitor has RefuseManualStop=true to prevent easy stopping"
 	echo "• There is NO disable option - this is intentional for digital wellbeing"
 	echo ""
 	echo "WARNING: This will automatically shutdown your PC during designated hours."
