@@ -151,14 +151,14 @@ kill_music_services() {
 	# Kill YouTube Music Electron app
 	if pgrep -f "youtube-music" &>/dev/null; then
 		log_message "Killing YouTube Music app"
-		pkill -9 -f "youtube-music" 2>/dev/null || true
+		pkill -f "youtube-music" 2>/dev/null || true
 		killed=true
 	fi
 
 	# Kill Spotify
 	if pgrep -x "spotify" &>/dev/null; then
 		log_message "Killing Spotify"
-		pkill -9 -x "spotify" 2>/dev/null || true
+		pkill -x "spotify" 2>/dev/null || true
 		killed=true
 	fi
 
@@ -167,7 +167,7 @@ kill_music_services() {
 	for proc in "${music_processes[@]}"; do
 		if pgrep -i -f "$proc" &>/dev/null; then
 			log_message "Killing $proc"
-			pkill -9 -i -f "$proc" 2>/dev/null || true
+			pkill -i -f "$proc" 2>/dev/null || true
 			killed=true
 		fi
 	done
