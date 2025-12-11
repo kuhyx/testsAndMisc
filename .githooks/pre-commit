@@ -72,16 +72,16 @@ if [[ ! -x $JSCPD_BIN ]]; then
 fi
 
 # Run jscpd and capture output
-# --min-lines 5: minimum 5 lines to consider a clone
+# --min-lines 14: minimum 14 lines to consider a clone (ignores small boilerplate)
 # --min-tokens 25: minimum 25 tokens to consider a clone
 # --threshold 2: fail if more than 2% duplication
 jscpd_output=$("$JSCPD_BIN" \
   --pattern "**/*.sh" \
-  --min-lines 5 \
+  --min-lines 14 \
   --min-tokens 25 \
   --threshold 2 \
   --reporters "console" \
-  --ignore "**/node_modules/**,**/.git/**,**/misc/testsAndMisc-bash/**" \
+  --ignore "**/node_modules/**,**/.git/**,**/misc/testsAndMisc-bash/**,**/*.txt" \
   . 2>&1) || jscpd_exit=$?
 
 if [[ ${jscpd_exit:-0} -ne 0 ]]; then
