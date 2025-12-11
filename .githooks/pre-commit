@@ -57,32 +57,38 @@ printf 'shell_check passed.\n'
 printf 'Running duplicate code detection...\n'
 
 JSCPD_BIN="${HOME}/.local/node_modules/.bin/jscpd"
-if [[ -x "$JSCPD_BIN" ]]; then
-  # Run jscpd and capture output
-  # Using threshold to fail if duplication exceeds limit
-  # --min-lines 10: minimum 10 lines to consider a clone
-  # --min-tokens 50: minimum 50 tokens to consider a clone
-  # --threshold 5: fail if more than 5% duplication
-  jscpd_output=$("$JSCPD_BIN" \
-    --pattern "**/*.sh" \
-    --min-lines 10 \
-    --min-tokens 50 \
-    --threshold 5 \
-    --reporters "console" \
-    --ignore "**/node_modules/**,**/.git/**" \
-    . 2>&1) || jscpd_exit=$?
 
-  if [[ ${jscpd_exit:-0} -ne 0 ]]; then
-    printf '\n%s\n' "$jscpd_output"
-    printf '\nCommit aborted: code duplication exceeds threshold (5%%).\n' >&2
-    printf 'Consider extracting common code to scripts/lib/common.sh\n' >&2
-    printf 'To see all duplicates: %s --pattern "**/*.sh" --min-lines 5 .\n' "$JSCPD_BIN" >&2
+# Install jscpd if not present
+if [[ ! -x "$JSCPD_BIN" ]]; then
+  printf '  → jscpd not found, installing...\n'
+  if ! npm install --prefix ~/.local jscpd 2>&1; then
+    printf '\nCommit aborted: failed to install jscpd.\n' >&2
+    printf 'Please install manually: npm install --prefix ~/.local jscpd\n' >&2
     exit 1
   fi
-  printf '  ✓ Duplication check passed (below 5%% threshold)\n'
-else
-  printf '  ⚠ jscpd not installed, skipping duplication check\n'
-  printf '    Install with: npm install --prefix ~/.local jscpd\n'
+  printf '  ✓ jscpd installed\n'
 fi
+
+# Run jscpd and capture output
+# --min-lines 5: minimum 5 lines to consider a clone
+# --min-tokens 25: minimum 25 tokens to consider a clone
+# --threshold 0: fail if any duplication detected
+jscpd_output=$("$JSCPD_BIN" \
+  --pattern "**/*.sh" \
+  --min-lines 5 \
+  --min-tokens 25 \
+  --threshold 0 \
+  --reporters "console" \
+  --ignore "**/node_modules/**,**/.git/**" \
+  . 2>&1) || jscpd_exit=$?
+
+if [[ ${jscpd_exit:-0} -ne 0 ]]; then
+  printf '\n%s\n' "$jscpd_output"
+  printf '\nCommit aborted: duplicate code detected.\n' >&2
+  printf 'Consider extracting common code to scripts/lib/common.sh\n' >&2
+  printf 'To see all duplicates: %s --pattern "**/*.sh" --min-lines 5 .\n' "$JSCPD_BIN" >&2
+  exit 1
+fi
+printf '  ✓ No duplicate code detected\n'
 
 printf 'All checks passed. Proceeding with commit.\n'
