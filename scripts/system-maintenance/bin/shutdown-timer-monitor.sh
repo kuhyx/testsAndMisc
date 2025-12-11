@@ -10,9 +10,9 @@ TIMER_NAME="day-specific-shutdown.timer"
 SERVICE_NAME="day-specific-shutdown.service"
 CHECK_INTERVAL=30
 
-# Function to log with timestamp
+# Log with timestamp (shutdown-timer-monitor specific)
 log_message() {
-	echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE" >&2
+	printf '%s [shutdown-monitor] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" | tee -a "$LOG_FILE" >&2
 }
 
 # Function to check if timer needs to be re-enabled

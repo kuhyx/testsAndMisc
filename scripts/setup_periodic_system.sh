@@ -10,14 +10,8 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 
-# Parse interactive/help arguments
-parse_interactive_args "$@"
-shift "$COMMON_ARGS_SHIFT"
-
-# Check for sudo privileges
-require_root "$@"
-
-print_setup_header "Periodic System Setup - Pacman Wrapper & Hosts File"
+# Initialize setup script (parse args, require root, print header)
+init_setup_script "Periodic System Setup - Pacman Wrapper & Hosts File" "$@"
 
 # Get the directory where this script is located
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")"

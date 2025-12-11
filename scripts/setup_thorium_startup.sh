@@ -9,14 +9,8 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 
-# Parse interactive/help arguments
-parse_interactive_args "$@"
-shift "$COMMON_ARGS_SHIFT"
-
-# Check for sudo privileges
-require_root "$@"
-
-print_setup_header "Thorium Browser Auto-Startup Setup"
+# Initialize setup script (parse args, require root, print header)
+init_setup_script "Thorium Browser Auto-Startup Setup" "$@"
 
 # Target URL
 TARGET_URL="https://www.fitatu.com/app/planner"

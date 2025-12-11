@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# update_android_hosts.sh - Update Android hosts file from Linux config
 set -euo pipefail
 
 # Source common library
@@ -9,10 +9,8 @@ source "$SCRIPT_DIR/../lib/common.sh"
 # shellcheck source=../lib/android.sh
 source "$SCRIPT_DIR/../lib/android.sh"
 
-# Re-run with sudo if needed for reading /etc/hosts
-require_hosts_readable "$@"
-
-WORK_DIR="$ANDROID_WORK_DIR"
+# Initialize Android script (handles sudo, sets WORK_DIR)
+init_android_script "$@"
 
 log "Updating Android hosts file from Linux configuration..."
 

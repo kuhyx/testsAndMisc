@@ -24,6 +24,15 @@ print_header() {
 	echo
 }
 
+# Initialize an Android script with common setup
+# Usage: init_android_script "$@"
+# This combines: require_hosts_readable, sets WORK_DIR
+init_android_script() {
+	require_hosts_readable "$@"
+	WORK_DIR="$ANDROID_WORK_DIR"
+	export WORK_DIR
+}
+
 # Check if ADB device is connected
 check_adb_device() {
 	log "Checking device connection..."

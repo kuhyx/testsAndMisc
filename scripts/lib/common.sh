@@ -138,6 +138,18 @@ handle_arg_help_or_unknown() {
 	return 0
 }
 
+# Initialize a setup script with common boilerplate
+# Usage: init_setup_script "Script Title" "$@"
+# This combines: parse_interactive_args, shift, require_root, print_setup_header
+init_setup_script() {
+	local title="$1"
+	shift
+	parse_interactive_args "$@"
+	shift "$COMMON_ARGS_SHIFT"
+	require_root "$@"
+	print_setup_header "$title"
+}
+
 # =============================================================================
 # FOCUS APP DETECTION (for digital wellbeing scripts)
 # =============================================================================
