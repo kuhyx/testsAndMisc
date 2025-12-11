@@ -1,0 +1,1793 @@
+{
+  "statistics": {
+    "detectionDate": "2025-12-11T17:15:21.387Z",
+    "formats": {
+      "python": {
+        "sources": {
+          "scripts/misc/testsAndMisc-bash/tools/transcribe_fw.py": {
+            "lines": 395,
+            "tokens": 4125,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 395,
+          "tokens": 4125,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "json": {
+        "sources": {
+          "scripts/misc/testsAndMisc-bash/.vscode/tasks.json": {
+            "lines": 20,
+            "tokens": 96,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 20,
+          "tokens": 96,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "bash": {
+        "sources": {
+          "scripts/system-maintenance/bin/shutdown-timer-monitor.sh": {
+            "lines": 130,
+            "tokens": 684,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 5,
+            "duplicatedTokens": 38,
+            "percentage": 3.85,
+            "percentageTokens": 5.56,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/system-maintenance/bin/periodic-system-maintenance.sh": {
+            "lines": 51,
+            "tokens": 270,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/system-maintenance/bin/hosts-file-monitor.sh": {
+            "lines": 109,
+            "tokens": 602,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 5,
+            "duplicatedTokens": 38,
+            "percentage": 4.59,
+            "percentageTokens": 6.31,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/system-maintenance/bin/browser-preexec-wrapper.sh": {
+            "lines": 32,
+            "tokens": 206,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/upgrade.sh": {
+            "lines": 3,
+            "tokens": 50,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/transcribe.sh": {
+            "lines": 490,
+            "tokens": 677,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/process_table.sh": {
+            "lines": 51,
+            "tokens": 305,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/libre_translate.sh": {
+            "lines": 487,
+            "tokens": 2995,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/install_unity_mcp.sh": {
+            "lines": 232,
+            "tokens": 1385,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 6,
+            "duplicatedTokens": 49,
+            "percentage": 2.59,
+            "percentageTokens": 3.54,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/install_ffmpeg_with_arnndn.sh": {
+            "lines": 124,
+            "tokens": 457,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/get_rnnoise_model.sh": {
+            "lines": 190,
+            "tokens": 521,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 50,
+            "duplicatedTokens": 120,
+            "percentage": 26.32,
+            "percentageTokens": 23.03,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/generate_subfolders.sh": {
+            "lines": 81,
+            "tokens": 532,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/fix_unity.sh": {
+            "lines": 301,
+            "tokens": 751,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/fix_thorium_unity.sh": {
+            "lines": 159,
+            "tokens": 329,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/download.sh": {
+            "lines": 45,
+            "tokens": 324,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/copyFolder.sh": {
+            "lines": 27,
+            "tokens": 173,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/convert.sh": {
+            "lines": 85,
+            "tokens": 532,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/compress_images.sh": {
+            "lines": 28,
+            "tokens": 145,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/clean_audio.sh": {
+            "lines": 418,
+            "tokens": 2424,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/pacman/pacman_wrapper.sh": {
+            "lines": 667,
+            "tokens": 3868,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh": {
+            "lines": 84,
+            "tokens": 570,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/psychological/unlock-hosts.sh": {
+            "lines": 69,
+            "tokens": 549,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/pacman-hooks/pacman-pre-unlock-hosts.sh": {
+            "lines": 28,
+            "tokens": 60,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 9,
+            "duplicatedTokens": 34,
+            "percentage": 32.14,
+            "percentageTokens": 56.67,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/pacman-hooks/pacman-post-relock-hosts.sh": {
+            "lines": 31,
+            "tokens": 62,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 9,
+            "duplicatedTokens": 34,
+            "percentage": 29.03,
+            "percentageTokens": 54.84,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/pacman-hooks/hosts-guard-common.sh": {
+            "lines": 90,
+            "tokens": 750,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/update_android_hosts.sh": {
+            "lines": 189,
+            "tokens": 418,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 17,
+            "duplicatedTokens": 37,
+            "percentage": 8.99,
+            "percentageTokens": 8.85,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/txt_to_image.sh": {
+            "lines": 169,
+            "tokens": 509,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 9,
+            "duplicatedTokens": 47,
+            "percentage": 5.33,
+            "percentageTokens": 9.23,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/turn_off_auto_idle_screen_shutdown.sh": {
+            "lines": 270,
+            "tokens": 1650,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/toggle_window_manager.sh": {
+            "lines": 105,
+            "tokens": 601,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 6,
+            "duplicatedTokens": 49,
+            "percentage": 5.71,
+            "percentageTokens": 8.15,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/toggle_wheel.sh": {
+            "lines": 56,
+            "tokens": 376,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/toggle_mic.sh": {
+            "lines": 47,
+            "tokens": 278,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/to_webm.sh": {
+            "lines": 3,
+            "tokens": 20,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/to_mp4.sh": {
+            "lines": 3,
+            "tokens": 20,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/steam_compatibility.sh": {
+            "lines": 662,
+            "tokens": 5317,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/sort_downloads.sh": {
+            "lines": 34,
+            "tokens": 203,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/setup_passwordless_system.sh": {
+            "lines": 373,
+            "tokens": 1662,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/setup_media_organizer.sh": {
+            "lines": 71,
+            "tokens": 245,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/setup_android_adblock.sh": {
+            "lines": 173,
+            "tokens": 670,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 17,
+            "duplicatedTokens": 37,
+            "percentage": 9.83,
+            "percentageTokens": 5.52,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/pdf_to_image.sh": {
+            "lines": 116,
+            "tokens": 576,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 23,
+            "duplicatedTokens": 47,
+            "percentage": 19.83,
+            "percentageTokens": 8.16,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/organize_downloads.sh": {
+            "lines": 407,
+            "tokens": 2847,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/image_to_resolution.sh": {
+            "lines": 89,
+            "tokens": 271,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 9,
+            "duplicatedTokens": 47,
+            "percentage": 10.11,
+            "percentageTokens": 17.34,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/format_sd_card.sh": {
+            "lines": 322,
+            "tokens": 1962,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/convert_words.sh": {
+            "lines": 28,
+            "tokens": 140,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/utils/convert_video.sh": {
+            "lines": 237,
+            "tokens": 1546,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 23,
+            "duplicatedTokens": 47,
+            "percentage": 9.7,
+            "percentageTokens": 3.04,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/meta/shell_check.sh": {
+            "lines": 427,
+            "tokens": 2943,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/lib/common.sh": {
+            "lines": 396,
+            "tokens": 2080,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/lib/android.sh": {
+            "lines": 49,
+            "tokens": 268,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/fixes/nvidia_troubleshoot.sh": {
+            "lines": 332,
+            "tokens": 1554,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/fixes/fix_virtualbox.sh": {
+            "lines": 182,
+            "tokens": 550,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/fixes/fix_systemctl.sh": {
+            "lines": 83,
+            "tokens": 299,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/fixes/fix_controller.sh": {
+            "lines": 195,
+            "tokens": 1327,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/features/setup_activitywatch.sh": {
+            "lines": 456,
+            "tokens": 1399,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/features/raspberry_pi_flash_sd.sh": {
+            "lines": 660,
+            "tokens": 3149,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/features/install_unreal_mcp_kvick.sh": {
+            "lines": 242,
+            "tokens": 1488,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/features/install_unreal_mcp.sh": {
+            "lines": 394,
+            "tokens": 1181,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/features/control_from_mobile.sh": {
+            "lines": 414,
+            "tokens": 2172,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/youtube-music-wrapper.sh": {
+            "lines": 21,
+            "tokens": 85,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/setup_pc_startup_monitor.sh": {
+            "lines": 556,
+            "tokens": 1874,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/setup_midnight_shutdown.sh": {
+            "lines": 723,
+            "tokens": 2372,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 12,
+            "duplicatedTokens": 82,
+            "percentage": 1.66,
+            "percentageTokens": 3.46,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/remove_guest_mode.sh": {
+            "lines": 162,
+            "tokens": 908,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/pc_startup_visual_status.sh": {
+            "lines": 285,
+            "tokens": 2252,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/music_parallelism.sh": {
+            "lines": 347,
+            "tokens": 988,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/install_leechblock.sh": {
+            "lines": 377,
+            "tokens": 2360,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 15,
+            "duplicatedTokens": 59,
+            "percentage": 3.98,
+            "percentageTokens": 2.5,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/block_compulsive_opening.sh": {
+            "lines": 422,
+            "tokens": 1563,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/wifi_monitor.sh": {
+            "lines": 26,
+            "tokens": 173,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/warp_status.sh": {
+            "lines": 25,
+            "tokens": 148,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/volume.sh": {
+            "lines": 18,
+            "tokens": 101,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/pc_startup_status.sh": {
+            "lines": 71,
+            "tokens": 433,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/network_monitor.sh": {
+            "lines": 87,
+            "tokens": 550,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/motherboard_temp.sh": {
+            "lines": 25,
+            "tokens": 164,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/gpu_monitor.sh": {
+            "lines": 63,
+            "tokens": 460,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/cpu_monitor.sh": {
+            "lines": 47,
+            "tokens": 337,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/bluetooth.sh": {
+            "lines": 13,
+            "tokens": 83,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/battery_status.sh": {
+            "lines": 10,
+            "tokens": 20,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/i3blocks/activitywatch_status.sh": {
+            "lines": 47,
+            "tokens": 228,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/setup_hosts_guard.sh": {
+            "lines": 405,
+            "tokens": 1449,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 15,
+            "duplicatedTokens": 59,
+            "percentage": 3.7,
+            "percentageTokens": 4.07,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/install_pacman_hooks.sh": {
+            "lines": 48,
+            "tokens": 109,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/enforce-hosts.sh": {
+            "lines": 31,
+            "tokens": 193,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/test_removal.sh": {
+            "lines": 40,
+            "tokens": 240,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/test_bad.sh": {
+            "lines": 4,
+            "tokens": 23,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/setup_thorium_startup.sh": {
+            "lines": 448,
+            "tokens": 1071,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 14,
+            "duplicatedTokens": 30,
+            "percentage": 3.13,
+            "percentageTokens": 2.8,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/setup_periodic_system.sh": {
+            "lines": 324,
+            "tokens": 1265,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 14,
+            "duplicatedTokens": 30,
+            "percentage": 4.32,
+            "percentageTokens": 2.37,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/check_and_enable_services.sh": {
+            "lines": 608,
+            "tokens": 1406,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "i3-configuration/install.sh": {
+            "lines": 48,
+            "tokens": 344,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/install.sh": {
+            "lines": 425,
+            "tokens": 1765,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/main.sh": {
+            "lines": 307,
+            "tokens": 2262,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/install_nvidia_driver.sh": {
+            "lines": 106,
+            "tokens": 1264,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/install_intel_driver.sh": {
+            "lines": 107,
+            "tokens": 769,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/install_amd_driver.sh": {
+            "lines": 153,
+            "tokens": 1344,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/detect_gpu_and_install.sh": {
+            "lines": 4,
+            "tokens": 28,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/detect_gpu.sh": {
+            "lines": 51,
+            "tokens": 214,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 17630,
+          "tokens": 85787,
+          "sources": 91,
+          "clones": 10,
+          "duplicatedLines": 129,
+          "duplicatedTokens": 442,
+          "percentage": 0.73,
+          "percentageTokens": 0.52,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "markdown": {
+        "sources": {
+          "scripts/misc/testsAndMisc-bash/mcp_readme.md": {
+            "lines": 186,
+            "tokens": 1416,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/misc/testsAndMisc-bash/README_clean_audio.md": {
+            "lines": 101,
+            "tokens": 1095,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/pacman/pacman_whitelist.txt": {
+            "lines": 209,
+            "tokens": 280,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/pacman/pacman_greylist.txt": {
+            "lines": 0,
+            "tokens": 0,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt": {
+            "lines": 52,
+            "tokens": 104,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "hosts/guard/README.md": {
+            "lines": 27,
+            "tokens": 397,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/pacman_packages.txt": {
+            "lines": 300,
+            "tokens": 548,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 88,
+            "duplicatedTokens": 176,
+            "percentage": 29.33,
+            "percentageTokens": 32.12,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/packages.txt": {
+            "lines": 264,
+            "tokens": 528,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 88,
+            "duplicatedTokens": 176,
+            "percentage": 33.33,
+            "percentageTokens": 33.33,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/aur_packages.txt": {
+            "lines": 98,
+            "tokens": 394,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "fresh-install/README.md": {
+            "lines": 55,
+            "tokens": 396,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          ".github/copilot-instructions.md": {
+            "lines": 40,
+            "tokens": 1150,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1332,
+          "tokens": 6308,
+          "sources": 11,
+          "clones": 2,
+          "duplicatedLines": 88,
+          "duplicatedTokens": 176,
+          "percentage": 6.61,
+          "percentageTokens": 2.79,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "yaml": {
+        "sources": {
+          ".github/workflows/shell-check.yml": {
+            "lines": 49,
+            "tokens": 247,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 49,
+          "tokens": 247,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      }
+    },
+    "total": {
+      "lines": 19426,
+      "tokens": 96563,
+      "sources": 105,
+      "clones": 12,
+      "duplicatedLines": 217,
+      "duplicatedTokens": 618,
+      "percentage": 1.12,
+      "percentageTokens": 0.64,
+      "newDuplicatedLines": 0,
+      "newClones": 0
+    }
+  },
+  "duplicates": [
+    {
+      "format": "bash",
+      "lines": 6,
+      "fragment": "# Function to log with timestamp\nlog_message() {\n  echo \"$(date '+%Y-%m-%d %H:%M:%S') - $1\" | tee -a \"$LOG_FILE\" >&2\n}\n\n# Function to check if hosts file needs restoration",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/system-maintenance/bin/hosts-file-monitor.sh",
+        "start": 12,
+        "end": 17,
+        "startLoc": {
+          "line": 12,
+          "column": 1,
+          "position": 29
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 52,
+          "position": 67
+        }
+      },
+      "secondFile": {
+        "name": "scripts/system-maintenance/bin/shutdown-timer-monitor.sh",
+        "start": 13,
+        "end": 18,
+        "startLoc": {
+          "line": 13,
+          "column": 1,
+          "position": 33
+        },
+        "endLoc": {
+          "line": 18,
+          "column": 52,
+          "position": 71
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 26,
+      "fragment": "\"; do\n  echo \"Attempting to download RNNoise model from: $u\" >&2\n  tmp=$(mktemp)\n  if has_cmd curl; then\n    if curl -fsSL \"$u\" -o \"$tmp\"; then\n      if [[ -s $tmp ]]; then\n        mv \"$tmp\" \"$dest\"\n        echo \"Saved RNNoise model to: $dest\" >&2\n        exit 0\n      fi\n    fi\n  else\n    if wget -qO \"$tmp\" \"$u\"; then\n      if [[ -s $tmp ]]; then\n        mv \"$tmp\" \"$dest\"\n        echo \"Saved RNNoise model to: $dest\" >&2\n        exit 0\n      fi\n    fi\n  fi\n  rm -f \"$tmp\" || true\ndone\n\n# Priority 3: repo archives (rnnoise-nu and arnndn-models)\nARCHIVES=(\n  \"",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/misc/testsAndMisc-bash/get_rnnoise_model.sh",
+        "start": 109,
+        "end": 134,
+        "startLoc": {
+          "line": 109,
+          "column": 17,
+          "position": 255
+        },
+        "endLoc": {
+          "line": 134,
+          "column": 4,
+          "position": 315
+        }
+      },
+      "secondFile": {
+        "name": "scripts/misc/testsAndMisc-bash/get_rnnoise_model.sh",
+        "start": 82,
+        "end": 107,
+        "startLoc": {
+          "line": 82,
+          "column": 14,
+          "position": 191
+        },
+        "endLoc": {
+          "line": 107,
+          "column": 4,
+          "position": 251
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 10,
+      "fragment": "set -euo pipefail\n\n# Source shared functions\nSCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"\n# shellcheck source=hosts-guard-common.sh\nsource \"$SCRIPT_DIR/hosts-guard-common.sh\"\n\nENFORCE=/usr/local/sbin/enforce-hosts.sh\n\nlog_hook \"",
+      "tokens": 0,
+      "firstFile": {
+        "name": "hosts/guard/pacman-hooks/pacman-post-relock-hosts.sh",
+        "start": 4,
+        "end": 13,
+        "startLoc": {
+          "line": 4,
+          "column": 1,
+          "position": 5
+        },
+        "endLoc": {
+          "line": 13,
+          "column": 11,
+          "position": 39
+        }
+      },
+      "secondFile": {
+        "name": "hosts/guard/pacman-hooks/pacman-pre-unlock-hosts.sh",
+        "start": 4,
+        "end": 17,
+        "startLoc": {
+          "line": 4,
+          "column": 1,
+          "position": 5
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 11,
+          "position": 39
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 7,
+      "fragment": "\"; do\n    if ! pacman -Qi \"$pkg\" > /dev/null 2>&1; then\n      missing+=(\"$pkg\")\n    fi\n  done\n\n  if [",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/utils/toggle_window_manager.sh",
+        "start": 42,
+        "end": 48,
+        "startLoc": {
+          "line": 42,
+          "column": 22,
+          "position": 264
+        },
+        "endLoc": {
+          "line": 48,
+          "column": 2,
+          "position": 313
+        }
+      },
+      "secondFile": {
+        "name": "scripts/misc/testsAndMisc-bash/install_unity_mcp.sh",
+        "start": 41,
+        "end": 47,
+        "startLoc": {
+          "line": 41,
+          "column": 15,
+          "position": 277
+        },
+        "endLoc": {
+          "line": 47,
+          "column": 3,
+          "position": 326
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 18,
+      "fragment": "#!/bin/bash\n\nset -euo pipefail\n\n# Source common library\nSCRIPT_DIR=\"$(dirname \"$(readlink -f \"$0\")\")\"\n# shellcheck source=../lib/common.sh\nsource \"$SCRIPT_DIR/../lib/common.sh\"\n# shellcheck source=../lib/android.sh\nsource \"$SCRIPT_DIR/../lib/android.sh\"\n\n# Re-run with sudo if needed for reading /etc/hosts\nrequire_hosts_readable \"$@\"\n\nWORK_DIR=\"$ANDROID_WORK_DIR\"\n\ninstall_adaway() {\n\tprint_header \"",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/utils/setup_android_adblock.sh",
+        "start": 1,
+        "end": 18,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 18,
+          "column": 16,
+          "position": 37
+        }
+      },
+      "secondFile": {
+        "name": "scripts/utils/update_android_hosts.sh",
+        "start": 1,
+        "end": 17,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 6,
+          "position": 37
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 10,
+      "fragment": "is not installed.\"\n  echo \"Install it with:\"\n  echo \"  Arch Linux: sudo pacman -S imagemagick\"\n  echo \"  Ubuntu/Debian: sudo apt install imagemagick\"\n  exit 1\nfi\n\n# Parse arguments\nif [[ $# -lt 1 ]]; then\n  echo \"Error: Missing required argument <input_image",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/utils/image_to_resolution.sh",
+        "start": 39,
+        "end": 48,
+        "startLoc": {
+          "line": 39,
+          "column": 2,
+          "position": 57
+        },
+        "endLoc": {
+          "line": 48,
+          "column": 12,
+          "position": 104
+        }
+      },
+      "secondFile": {
+        "name": "scripts/utils/txt_to_image.sh",
+        "start": 43,
+        "end": 52,
+        "startLoc": {
+          "line": 43,
+          "column": 2,
+          "position": 57
+        },
+        "endLoc": {
+          "line": 52,
+          "column": 16,
+          "position": 104
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 24,
+      "fragment": ")\n\nlog() {\n\tprintf '[%s] %s\\n' \"$(date '+%Y-%m-%d %H:%M:%S')\" \"$*\"\n}\n\nusage() {\n\tcat <<EOF\nUsage:\n  $(basename \"$0\") [OPTIONS] PATH\n\nConvert video files to mp4 or webm format using ffmpeg.\nPATH can be a single video file or a directory (will recurse into subdirectories).\n\nOptions:\n  -f FORMAT    Target format: mp4 or webm (default: mp4)\n  -c CRF       Quality level (default: 23 for mp4, 30 for webm; lower = better)\n  -p PRESET    Encoding preset (default: medium)\n               Options: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow\n  -d           Delete original file after successful conversion\n  -h           Show this help\n\nExamples:\n  ",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/utils/convert_video.sh",
+        "start": 18,
+        "end": 41,
+        "startLoc": {
+          "line": 18,
+          "column": 6,
+          "position": 90
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 3,
+          "position": 137
+        }
+      },
+      "secondFile": {
+        "name": "scripts/utils/pdf_to_image.sh",
+        "start": 12,
+        "end": 31,
+        "startLoc": {
+          "line": 12,
+          "column": 2,
+          "position": 30
+        },
+        "endLoc": {
+          "line": 31,
+          "column": 3,
+          "position": 78
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 7,
+      "fragment": "\"\n\techo \"\"\n\techo \"Shutdown Schedule:\"\n\techo \"  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)\"\n\techo \"  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)\"\n\techo \"\"\n\techo \"Important",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/digital_wellbeing/setup_midnight_shutdown.sh",
+        "start": 646,
+        "end": 652,
+        "startLoc": {
+          "line": 646,
+          "column": 9,
+          "position": 2242
+        },
+        "endLoc": {
+          "line": 652,
+          "column": 10,
+          "position": 2283
+        }
+      },
+      "secondFile": {
+        "name": "scripts/digital_wellbeing/setup_midnight_shutdown.sh",
+        "start": 618,
+        "end": 624,
+        "startLoc": {
+          "line": 618,
+          "column": 2,
+          "position": 1930
+        },
+        "endLoc": {
+          "line": 624,
+          "column": 11,
+          "position": 1971
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 16,
+      "fragment": "=1\n      shift\n      ;;\n    -h | --help)\n      usage\n      exit 0\n      ;;\n    *)\n      err \"Unknown argument: $1\"\n      usage\n      exit 2\n      ;;\n  esac\ndone\n\nrequire_root",
+      "tokens": 0,
+      "firstFile": {
+        "name": "hosts/guard/setup_hosts_guard.sh",
+        "start": 124,
+        "end": 139,
+        "startLoc": {
+          "line": 124,
+          "column": 10,
+          "position": 584
+        },
+        "endLoc": {
+          "line": 139,
+          "column": 13,
+          "position": 643
+        }
+      },
+      "secondFile": {
+        "name": "scripts/digital_wellbeing/install_leechblock.sh",
+        "start": 57,
+        "end": 72,
+        "startLoc": {
+          "line": 57,
+          "column": 13,
+          "position": 221
+        },
+        "endLoc": {
+          "line": 72,
+          "column": 15,
+          "position": 280
+        }
+      }
+    },
+    {
+      "format": "bash",
+      "lines": 15,
+      "fragment": "set -e # Exit on any error\n\n# Source common library for shared functions\nSCRIPT_DIR=\"$(dirname \"$(readlink -f \"$0\")\")\"\n# shellcheck source=lib/common.sh\nsource \"$SCRIPT_DIR/lib/common.sh\"\n\n# Parse interactive/help arguments\nparse_interactive_args \"$@\"\nshift \"$COMMON_ARGS_SHIFT\"\n\n# Check for sudo privileges\nrequire_root \"$@\"\n\nprint_setup_header \"Periodic",
+      "tokens": 0,
+      "firstFile": {
+        "name": "scripts/setup_periodic_system.sh",
+        "start": 6,
+        "end": 20,
+        "startLoc": {
+          "line": 6,
+          "column": 1,
+          "position": 9
+        },
+        "endLoc": {
+          "line": 20,
+          "column": 9,
+          "position": 39
+        }
+      },
+      "secondFile": {
+        "name": "scripts/setup_thorium_startup.sh",
+        "start": 5,
+        "end": 19,
+        "startLoc": {
+          "line": 5,
+          "column": 1,
+          "position": 7
+        },
+        "endLoc": {
+          "line": 19,
+          "column": 8,
+          "position": 37
+        }
+      }
+    },
+    {
+      "format": "markdown",
+      "lines": 64,
+      "fragment": "texlive-latexextra\nbiber\ntexlive-bibtexextra\ntexlive-pictures\ntexlive-fontsextra\ntexlive-formatsextra\ntexlive-pstricks\ntexlive-games\ntexlive-humanities\ntexlive-science\nnode-gyp\nplantuml\nnpm\nruby-ronn\ngo-tools\nasciidoctor\nman-db\ngit-lfs\nnodejs\nelectron\nyarn\nopenssl-1.1\ntk\njasper\nlibdc1394\ncblas\npegtl\nhdf5\nproj\ngcc-fortran\npython-nose\npython-pyproject-metadata\nmeson-python\nlapack\npython-numpy\nopenmpi\nboost\nsuitesparse\nvtk\njunit\njava-hamcrest\nant\nchrpath\nsource-highlight\ngdb\npython-markdown\ngtk-doc\ngobject-introspection\ncdparanoia\nadobe-source-sans-pro-fonts\nperl-font-ttf\nperl-sort-versions\nttf-liberation\naalib\nlibcaca\nlibdv\nqt5-wayland\nqt6-tools\nqt6-shadertools\ngst-plugins-base\nlibgphoto2\nlapacke\nopencv\ncuda",
+      "tokens": 0,
+      "firstFile": {
+        "name": "fresh-install/packages.txt",
+        "start": 30,
+        "end": 93,
+        "startLoc": {
+          "line": 30,
+          "column": 1,
+          "position": 58
+        },
+        "endLoc": {
+          "line": 93,
+          "column": 5,
+          "position": 184
+        }
+      },
+      "secondFile": {
+        "name": "fresh-install/pacman_packages.txt",
+        "start": 52,
+        "end": 144,
+        "startLoc": {
+          "line": 52,
+          "column": 1,
+          "position": 82
+        },
+        "endLoc": {
+          "line": 144,
+          "column": 25,
+          "position": 237
+        }
+      }
+    },
+    {
+      "format": "markdown",
+      "lines": 26,
+      "fragment": "liblqr\ndjvulibre\nimagemagick\nzbar\nwpewebkit\nopenh264\nlibmpeg2\nladspa\ncheck\nlirc\nrtkit\nxmltoman\npython-pyqt5\nsmbclient\nlibomxil-bellagio\nrhash\navisynthplus\nlibrist\nexpac\ngn\ngperf\nlld\nlldb\nocaml\nocaml-ctypes\nocaml-findlib",
+      "tokens": 0,
+      "firstFile": {
+        "name": "fresh-install/packages.txt",
+        "start": 104,
+        "end": 129,
+        "startLoc": {
+          "line": 104,
+          "column": 1,
+          "position": 206
+        },
+        "endLoc": {
+          "line": 129,
+          "column": 14,
+          "position": 256
+        }
+      },
+      "secondFile": {
+        "name": "fresh-install/pacman_packages.txt",
+        "start": 152,
+        "end": 177,
+        "startLoc": {
+          "line": 152,
+          "column": 1,
+          "position": 253
+        },
+        "endLoc": {
+          "line": 177,
+          "column": 17,
+          "position": 303
+        }
+      }
+    }
+  ]
+}

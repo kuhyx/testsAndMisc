@@ -7,6 +7,11 @@ set -euo pipefail
 # Convert video files to a target format (mp4 or webm) using ffmpeg.
 # Accepts either a single video file or a directory (will recurse into subdirectories).
 
+# Source common library
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # Default settings
 TARGET_FORMAT="mp4"
 CRF="" # Will be set based on format if not specified
@@ -16,10 +21,6 @@ TARGET_PATH=""
 
 # Video extensions to search for
 ALL_VIDEO_EXTENSIONS=("mp4" "webm" "mkv" "avi" "mov" "wmv" "flv" "m4v" "mpg" "mpeg" "3gp" "ogv" "ts" "mts" "m2ts" "vob" "asf" "rm" "rmvb" "divx" "f4v")
-
-log() {
-	printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
-}
 
 usage() {
 	cat <<EOF
@@ -56,7 +57,7 @@ get_video_extensions_except() {
 	local exclude="$1"
 	local exts=()
 	for ext in "${ALL_VIDEO_EXTENSIONS[@]}"; do
-		if [[ "${ext,,}" != "${exclude,,}" ]]; then
+		if [[ ${ext,,} != "${exclude,,}" ]]; then
 			exts+=("$ext")
 		fi
 	done
@@ -69,7 +70,7 @@ is_video_file() {
 	ext="${ext,,}" # lowercase
 
 	for video_ext in "${ALL_VIDEO_EXTENSIONS[@]}"; do
-		if [[ "$ext" == "${video_ext,,}" ]]; then
+		if [[ $ext == "${video_ext,,}" ]]; then
 			return 0
 		fi
 	done
@@ -81,7 +82,7 @@ convert_video() {
 	local output_file="${input_file%.*}.${TARGET_FORMAT}"
 
 	# Skip if output already exists
-	if [[ -f "$output_file" ]]; then
+	if [[ -f $output_file ]]; then
 		log "Skipping '$input_file': output '$output_file' already exists"
 		return 0
 	fi
@@ -91,12 +92,12 @@ convert_video() {
 	local ffmpeg_args=()
 	ffmpeg_args+=(-hide_banner -loglevel warning -i "$input_file")
 
-	if [[ "$TARGET_FORMAT" == "mp4" ]]; then
+	if [[ $TARGET_FORMAT == "mp4" ]]; then
 		# H.264 codec for video and AAC for audio (maximum compatibility)
 		ffmpeg_args+=(-c:v libx264 -crf "$CRF" -preset "$PRESET")
 		ffmpeg_args+=(-c:a aac -b:a 192k)
 		ffmpeg_args+=(-movflags +faststart)
-	elif [[ "$TARGET_FORMAT" == "webm" ]]; then
+	elif [[ $TARGET_FORMAT == "webm" ]]; then
 		# VP9 codec for video and Opus for audio
 		ffmpeg_args+=(-c:v libvpx-vp9 -crf "$CRF" -b:v 0)
 		ffmpeg_args+=(-c:a libopus -b:a 128k)
@@ -107,13 +108,13 @@ convert_video() {
 	if ffmpeg "${ffmpeg_args[@]}"; then
 		log "Successfully converted '$input_file'"
 
-		if [[ "$DELETE_ORIGINAL" == true ]]; then
+		if [[ $DELETE_ORIGINAL == true ]]; then
 			log "Deleting original: '$input_file'"
 			rm "$input_file"
 		fi
 	else
 		log "Error converting '$input_file'"
-		[[ -f "$output_file" ]] && rm "$output_file"
+		[[ -f $output_file ]] && rm "$output_file"
 		return 1
 	fi
 }
@@ -129,8 +130,8 @@ process_directory() {
 	local find_args=(-type f \()
 	local first=true
 	for ext in "${ALL_VIDEO_EXTENSIONS[@]}"; do
-		if [[ "${ext,,}" != "${TARGET_FORMAT,,}" ]]; then
-			if [[ "$first" == true ]]; then
+		if [[ ${ext,,} != "${TARGET_FORMAT,,}" ]]; then
+			if [[ $first == true ]]; then
 				first=false
 			else
 				find_args+=(-o)
@@ -159,7 +160,7 @@ parse_args() {
 		case "$opt" in
 		f)
 			TARGET_FORMAT="${OPTARG,,}"
-			if [[ "$TARGET_FORMAT" != "mp4" && "$TARGET_FORMAT" != "webm" ]]; then
+			if [[ $TARGET_FORMAT != "mp4" && $TARGET_FORMAT != "webm" ]]; then
 				echo "Error: Format must be 'mp4' or 'webm'" >&2
 				exit 1
 			fi
@@ -194,8 +195,8 @@ parse_args() {
 	TARGET_PATH="$1"
 
 	# Set default CRF based on format if not specified
-	if [[ -z "$CRF" ]]; then
-		if [[ "$TARGET_FORMAT" == "mp4" ]]; then
+	if [[ -z $CRF ]]; then
+		if [[ $TARGET_FORMAT == "mp4" ]]; then
 			CRF=23
 		else
 			CRF=30
@@ -207,14 +208,14 @@ main() {
 	ensure_ffmpeg
 	parse_args "$@"
 
-	if [[ ! -e "$TARGET_PATH" ]]; then
+	if [[ ! -e $TARGET_PATH ]]; then
 		echo "Error: Path '$TARGET_PATH' does not exist." >&2
 		exit 1
 	fi
 
-	if [[ -f "$TARGET_PATH" ]]; then
+	if [[ -f $TARGET_PATH ]]; then
 		# Single file
-		if [[ "${TARGET_PATH,,}" == *."$TARGET_FORMAT" ]]; then
+		if [[ ${TARGET_PATH,,} == *."$TARGET_FORMAT" ]]; then
 			log "File '$TARGET_PATH' is already in $TARGET_FORMAT format, skipping."
 			exit 0
 		fi
@@ -225,7 +226,7 @@ main() {
 			echo "Error: '$TARGET_PATH' is not a recognized video file." >&2
 			exit 1
 		fi
-	elif [[ -d "$TARGET_PATH" ]]; then
+	elif [[ -d $TARGET_PATH ]]; then
 		process_directory "$TARGET_PATH"
 	else
 		echo "Error: '$TARGET_PATH' is neither a file nor a directory." >&2

@@ -221,8 +221,6 @@ function is_greylisted_package_name() {
 }
 
 # Helper: detect if current invocation includes --noconfirm
-
-# Helper: detect if current invocation includes --noconfirm
 function has_noconfirm_flag() {
 	for arg in "$@"; do
 		if [[ $arg == "--noconfirm" ]]; then
@@ -230,6 +228,27 @@ function has_noconfirm_flag() {
 		fi
 	done
 	return 1
+}
+
+# Helper: get list of PIDs holding a lock file (excluding our own PID)
+# Populates the $holders array
+get_lock_holders() {
+	local lock_file="$1"
+	holders=()
+	if command -v fuser >/dev/null 2>&1; then
+		mapfile -t holders < <(fuser "$lock_file" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
+	elif command -v lsof >/dev/null 2>&1; then
+		mapfile -t holders < <(lsof -t "$lock_file" 2>/dev/null | grep -E '^[0-9]+$' || true)
+	fi
+	# Filter out our own PID
+	if [[ ${#holders[@]} -gt 0 ]]; then
+		local -a filtered=()
+		for pid in "${holders[@]}"; do
+			[[ $pid -eq $$ ]] && continue
+			filtered+=("$pid")
+		done
+		holders=("${filtered[@]}")
+	fi
 }
 
 # Handle stale pacman database lock if present and no package managers are running
@@ -242,23 +261,7 @@ check_and_handle_db_lock() {
 
 	# Determine which processes actually have the lock open
 	local -a holders=()
-	if command -v fuser >/dev/null 2>&1; then
-		mapfile -t holders < <(fuser "$lock_file" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
-	elif command -v lsof >/dev/null 2>&1; then
-		mapfile -t holders < <(lsof -t "$lock_file" 2>/dev/null | grep -E '^[0-9]+$' || true)
-	else
-		holders=()
-	fi
-
-	# Filter out our own PID if it somehow appears
-	if [[ ${#holders[@]} -gt 0 ]]; then
-		local -a filtered=()
-		for pid in "${holders[@]}"; do
-			[[ $pid -eq $$ ]] && continue
-			filtered+=("$pid")
-		done
-		holders=("${filtered[@]}")
-	fi
+	get_lock_holders "$lock_file"
 
 	if [[ ${#holders[@]} -gt 0 ]]; then
 		local pac_holder=0
@@ -292,18 +295,23 @@ check_and_handle_db_lock() {
 			sleep 1
 
 			# Re-check holders
-			holders=()
-			if command -v fuser >/dev/null 2>&1; then
-				mapfile -t holders < <(fuser "$lock_file" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
-			elif command -v lsof >/dev/null 2>&1; then
-				mapfile -t holders < <(lsof -t "$lock_file" 2>/dev/null | grep -E '^[0-9]+$' || true)
-			fi
+			get_lock_holders "$lock_file"
 			if [[ ${#holders[@]} -gt 0 ]]; then
 				echo -e "${RED}Cannot free the pacman lock; another process still holds it. Try again later.${NC}" >&2
 				return 1
 			fi
 		fi
 	fi
+
+	# Helper to remove a file with sudo if needed
+	remove_file_as_root() {
+		local f="$1"
+		if [[ $EUID -ne 0 ]]; then
+			sudo rm -f "$f"
+		else
+			rm -f "$f"
+		fi
+	}
 
 	# Decide whether to remove the lock
 	local now epoch age
@@ -317,11 +325,7 @@ check_and_handle_db_lock() {
 	# Auto-remove in non-interactive mode (--noconfirm) or if the lock is older than 10 minutes
 	if has_noconfirm_flag "$@" || [[ $age -ge 600 ]]; then
 		echo -e "${YELLOW}Stale pacman lock detected (age: ${age}s). Removing it automatically...${NC}" >&2
-		if [[ $EUID -ne 0 ]]; then
-			sudo rm -f "$lock_file" || return 1
-		else
-			rm -f "$lock_file" || return 1
-		fi
+		remove_file_as_root "$lock_file" || return 1
 		return 0
 	fi
 
@@ -330,25 +334,23 @@ check_and_handle_db_lock() {
 	echo -e "${CYAN}Lock path:${NC} $lock_file (age: ${age}s)" >&2
 	read -r -t 15 -p $'Remove stale lock and continue? [y/N]: ' reply || reply="n"
 	if [[ ${reply,,} == "y" || ${reply,,} == "yes" ]]; then
-		if [[ $EUID -ne 0 ]]; then
-			sudo rm -f "$lock_file" || return 1
-		else
-			rm -f "$lock_file" || return 1
-		fi
+		remove_file_as_root "$lock_file" || return 1
 		return 0
 	fi
 	echo -e "${RED}Aborting due to existing pacman lock. Close other updaters and retry, or run with --noconfirm to auto-clear stale locks.${NC}" >&2
 	return 1
 }
 
-# Cleanup: remove any installed blocked packages (in addition to the queued operation)
-function remove_installed_blocked_packages() {
-	# args not used; kept for future policy extension
-	# List installed package names
+# Generic function to remove installed packages matching a filter
+# Args: check_function label_prefix
+function remove_installed_packages_matching() {
+	local check_function="$1"
+	local label="$2"
+
 	mapfile -t installed_names < <("$PACMAN_BIN" -Qq 2>/dev/null)
 	local to_remove=()
 	for name in "${installed_names[@]}"; do
-		if is_blocked_package_name "$name"; then
+		if "$check_function" "$name"; then
 			to_remove+=("$name")
 		fi
 	done
@@ -357,83 +359,59 @@ function remove_installed_blocked_packages() {
 		return 0
 	fi
 
-	echo -e "${YELLOW}Policy cleanup:${NC} Removing blocked installed packages: ${BOLD}${to_remove[*]}${NC}" >&2
-	local remove_cmd=("$PACMAN_BIN" -Rns --noconfirm)
-	"${remove_cmd[@]}" "${to_remove[@]}"
+	echo -e "${YELLOW}${label} cleanup:${NC} Removing packages: ${BOLD}${to_remove[*]}${NC}" >&2
+	"$PACMAN_BIN" -Rns --noconfirm "${to_remove[@]}"
 	local rc=$?
 	if [[ $rc -ne 0 ]]; then
-		echo -e "${RED}Cleanup removal failed with exit code ${rc}.${NC}" >&2
+		echo -e "${RED}${label} cleanup removal failed with exit code ${rc}.${NC}" >&2
 	else
-		echo -e "${GREEN}Cleanup removal completed for: ${to_remove[*]}${NC}" >&2
+		echo -e "${GREEN}${label} cleanup removal completed for: ${to_remove[*]}${NC}" >&2
 	fi
 	return $rc
 }
 
-# Cleanup: remove any installed greylisted packages (challenge-required packages)
+# Cleanup: remove any installed blocked packages
+function remove_installed_blocked_packages() {
+	remove_installed_packages_matching is_blocked_package_name "Policy"
+}
+
+# Cleanup: remove any installed greylisted packages
 function remove_installed_greylisted_packages() {
-	# List installed package names
-	mapfile -t installed_names < <("$PACMAN_BIN" -Qq 2>/dev/null)
-	local to_remove=()
-	for name in "${installed_names[@]}"; do
-		if is_greylisted_package_name "$name"; then
-			to_remove+=("$name")
-		fi
-	done
+	remove_installed_packages_matching is_greylisted_package_name "Greylist"
+}
 
-	if [[ ${#to_remove[@]} -eq 0 ]]; then
-		return 0
+# Helper: Check if this is an install command and run a filter on each package name
+# Usage: check_install_for filter_func "$@"
+# Returns 0 if filter_func matches any package
+function check_install_for() {
+	local filter_func="$1"
+	shift
+	# Check if the command is an installation command
+	if [[ ${1:-} == "-S" || ${1:-} == "-Sy" || ${1:-} == "-Syu" || ${1:-} == "-Syyu" || ${1:-} == "-U" ]]; then
+		for arg in "$@"; do
+			# Strip repository prefix if present (like extra/ or community/)
+			local package_name="${arg##*/}"
+			if "$filter_func" "$package_name"; then
+				return 0
+			fi
+		done
 	fi
-
-	echo -e "${YELLOW}Greylist cleanup:${NC} Removing greylisted installed packages: ${BOLD}${to_remove[*]}${NC}" >&2
-	local remove_cmd=("$PACMAN_BIN" -Rns --noconfirm)
-	"${remove_cmd[@]}" "${to_remove[@]}"
-	local rc=$?
-	if [[ $rc -ne 0 ]]; then
-		echo -e "${RED}Greylist cleanup removal failed with exit code ${rc}.${NC}" >&2
-	else
-		echo -e "${GREEN}Greylist cleanup removal completed for: ${to_remove[*]}${NC}" >&2
-	fi
-	return $rc
+	return 1
 }
 
 # Function to check if user is trying to install packages that are always blocked
 function check_for_always_blocked() {
-	# Check if the command is an installation command
-	if [[ $1 == "-S" || $1 == "-Sy" || $1 == "-Syu" || $1 == "-Syyu" || $1 == "-U" ]]; then
-		# Check all arguments
-		for arg in "$@"; do
-			# Strip repository prefix if present (like extra/ or community/)
-			local package_name="${arg##*/}"
-			if is_blocked_package_name "$package_name"; then
-				return 0 # Always blocked package found
-			fi
-		done
-	fi
-	return 1 # No always blocked package found
+	check_install_for is_blocked_package_name "$@"
+}
+
+# Helper to check if a package name is steam
+function is_steam_package() {
+	[[ $1 == "steam" ]]
 }
 
 # Function to check if user is trying to install steam (challenge-eligible package)
 function check_for_steam() {
-	# List of packages that require challenge (only steam in this case)
-	local steam_packages=("steam")
-
-	# Check if the command is an installation command
-	if [[ $1 == "-S" || $1 == "-Sy" || $1 == "-Syu" || $1 == "-Syyu" || $1 == "-U" ]]; then
-		# Check all arguments
-		for arg in "$@"; do
-			# Strip repository prefix if present (like extra/ or community/)
-			local package_name="${arg##*/}"
-
-			# Check if argument matches steam
-			for package in "${steam_packages[@]}"; do
-				if [[ $arg == "$package" || $arg == *"/$package-"* || $arg == *"/$package/"* ||
-					$arg == *"/$package" || $package_name == "$package" ]]; then
-					return 0 # Steam package found
-				fi
-			done
-		done
-	fi
-	return 1 # No steam package found
+	check_install_for is_steam_package "$@"
 }
 
 # Function to check if current day is a weekday (after 4PM Friday until midnight Sunday)
@@ -459,6 +437,121 @@ function is_weekday() {
 	fi
 }
 
+# Unified word unscrambling challenge function
+# Args: challenge_name word_length words_count timeout_seconds initial_delay_max post_delay_min post_delay_range
+function run_word_challenge() {
+	local challenge_name="$1"
+	local word_length="$2"
+	local words_count="$3"
+	local timeout_seconds="$4"
+	local initial_delay_max="${5:-20}"
+	local post_delay_min="${6:-0}"
+	local post_delay_range="${7:-20}"
+
+	echo -e "${YELLOW}${challenge_name} challenge will begin shortly...${NC}"
+
+	# Initial delay
+	local sleep_duration=$((RANDOM % initial_delay_max))
+	sleep "$sleep_duration"
+
+	# Load words file
+	local script_dir words_file
+	script_dir="$(dirname "$(readlink -f "$0")")"
+	words_file="$script_dir/words.txt"
+
+	if [[ ! -f $words_file ]]; then
+		echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
+		return 1
+	fi
+
+	echo -e "${CYAN}Challenge: Words with ${word_length} letters${NC}"
+
+	# Load random words of specified length
+	local -a selected_words
+	mapfile -t selected_words < <(grep -E "^[a-zA-Z]{$word_length}$" "$words_file" | shuf -n "$words_count")
+
+	if [[ ${#selected_words[@]} -lt $words_count ]]; then
+		echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of length $word_length.${NC}"
+		words_count=${#selected_words[@]}
+		if [[ $words_count -eq 0 ]]; then
+			echo -e "${RED}Error: No words of length $word_length found in $words_file${NC}"
+			return 1
+		fi
+	fi
+
+	# Convert to uppercase
+	for i in "${!selected_words[@]}"; do
+		selected_words[i]=$(echo "${selected_words[i]}" | tr '[:lower:]' '[:upper:]')
+	done
+
+	echo -e "${CYAN}Here are ${words_count} random words. Remember them:${NC}"
+
+	# Display words in grid
+	for ((i = 0; i < words_count; i++)); do
+		printf "${BLUE}%-15s${NC}" "${selected_words[i]}"
+		if (((i + 1) % 4 == 0)); then
+			echo ""
+		fi
+	done
+
+	# Select and scramble a word
+	local target_index target_word scrambled_word
+	target_index=$((RANDOM % words_count))
+	target_word="${selected_words[target_index]}"
+	scrambled_word=$(echo "$target_word" | fold -w1 | shuf | tr -d '\n')
+
+	if [[ $scrambled_word == "$target_word" ]]; then
+		scrambled_word=$(echo "$target_word" | rev)
+	fi
+
+	echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
+	echo -e "${YELLOW}Unscramble the word to proceed (you have $timeout_seconds seconds):${NC}"
+
+	# Timer display background process
+	(
+		local start_time current_time elapsed remaining
+		start_time=$(date +%s)
+		while true; do
+			current_time=$(date +%s)
+			elapsed=$((current_time - start_time))
+			remaining=$((timeout_seconds - elapsed))
+			if [[ $remaining -le 0 ]]; then
+				echo -ne "\r${YELLOW}Time remaining: 0 seconds${NC}    "
+				break
+			fi
+			echo -ne "\r${YELLOW}Time remaining: ${remaining} seconds${NC}    "
+			sleep 1
+		done
+	) &
+	local display_pid=$!
+
+	# Read input with timeout
+	local user_input read_status
+	read -t "$timeout_seconds" -r user_input
+	read_status=$?
+
+	kill "$display_pid" 2>/dev/null
+	wait "$display_pid" 2>/dev/null
+	echo
+
+	if [[ $read_status -ne 0 ]]; then
+		echo -e "${RED}Time's up! Challenge failed. The correct word was '$target_word'.${NC}"
+		return 1
+	fi
+
+	user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
+
+	if [[ $user_input == "$target_word" ]]; then
+		echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
+		local post_challenge_sleep=$((RANDOM % post_delay_range + post_delay_min))
+		[[ $post_challenge_sleep -gt 0 ]] && sleep "$post_challenge_sleep"
+		return 0
+	else
+		echo -e "${RED}Incorrect answer. Installation aborted. The correct word was '$target_word'.${NC}"
+		return 1
+	fi
+}
+
 # Function to prompt for solving a word unscrambling challenge (only for steam)
 function prompt_for_steam_challenge() {
 	echo -e "${YELLOW}WARNING: You are trying to install Steam.${NC}"
@@ -472,259 +565,20 @@ function prompt_for_steam_challenge() {
 		return 1
 	fi
 
-	echo -e "${YELLOW}Weekend Steam challenge will begin shortly...${NC}"
-
-	# Sleep for random 20-40 seconds
-	# sleep_duration=$((RANDOM % 20 + 20))
-	sleep_duration=$((RANDOM % 20))
-	sleep "$sleep_duration"
-
-	# Define path to words.txt (in the same directory as the script)
-	script_dir="$(dirname "$(readlink -f "$0")")"
-	words_file="$script_dir/words.txt"
-
-	# Check if words.txt exists
-	if [[ ! -f $words_file ]]; then
-		echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
-		return 1
-	fi
-
-	# Choose a specific word length (5, 6, 7, or 8 characters)
-	#
-	word_length=5
-	echo -e "${CYAN}Today's challenge: Words with ${word_length} letters${NC}"
-
-	# Filter words by the specific chosen length and load random words
-	words_count=160
-	mapfile -t selected_words < <(grep -E "^[a-zA-Z]{$word_length}$" "$words_file" | shuf -n "$words_count")
-
-	# If we couldn't get enough words of the right length
-	if [[ ${#selected_words[@]} -lt $words_count ]]; then
-		echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of length $word_length.${NC}"
-		words_count=${#selected_words[@]}
-		if [[ $words_count -eq 0 ]]; then
-			echo -e "${RED}Error: No words of length $word_length found in $words_file${NC}"
-			return 1
-		fi
-	fi
-
-	# Convert all words to uppercase
-	for i in "${!selected_words[@]}"; do
-		selected_words[i]=$(echo "${selected_words[i]}" | tr '[:lower:]' '[:upper:]')
-	done
-
-	echo -e "${CYAN}Here are ${words_count} random words. Remember them:${NC}"
-
-	# Display the words in a grid (4 columns)
-	for ((i = 0; i < words_count; i++)); do
-		printf "${BLUE}%-15s${NC}" "${selected_words[i]}"
-		if (((i + 1) % 4 == 0)); then
-			echo ""
-		fi
-	done
-
-	# Select a random word to scramble (already in uppercase)
-	target_index=$((RANDOM % words_count))
-	target_word="${selected_words[target_index]}"
-
-	# Scramble the word
-	scrambled_word=$(echo "$target_word" | fold -w1 | shuf | tr -d '\n')
-
-	# Ensure scrambled word is different from original
-	if [[ $scrambled_word == "$target_word" ]]; then
-		# Use simple reversal as fallback
-		scrambled_word=$(echo "$target_word" | rev)
-	fi
-
-	echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
-	echo -e "${YELLOW}Unscramble the word to proceed with installation (you have 2 minutes):${NC}"
-
-	# Set up a background process to display the timer
-	(
-		start_time=$(date +%s)
-		while true; do
-			current_time=$(date +%s)
-			elapsed=$((current_time - start_time))
-			remaining=$((60 - elapsed))
-
-			if [[ $remaining -le 0 ]]; then
-				echo -ne "\r${YELLOW}Time remaining: 0 seconds${NC}    "
-				break
-			fi
-
-			echo -ne "\r${YELLOW}Time remaining: ${remaining} seconds${NC}    "
-			sleep 1
-		done
-	) &
-	display_pid=$!
-
-	# Read user input with timeout
-	read -t 60 -r user_input
-	read_status=$?
-
-	# Kill the timer display
-	kill "$display_pid" 2>/dev/null
-	wait "$display_pid" 2>/dev/null
-	echo # Add a newline after the timer
-
-	# Check if read timed out
-	if [[ $read_status -ne 0 ]]; then
-		echo -e "${RED}Time's up! Challenge failed. The correct word was '$target_word'.${NC}"
-		return 1
-	fi
-
-	# Convert user input to uppercase and trim whitespaces
-	user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
-
-	if [[ $user_input == "$target_word" ]]; then
-		echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
-
-		# Add sleep after successful challenge completion (20-40 seconds)
-		# post_challenge_sleep=$((RANDOM % 20 + 20))
-		post_challenge_sleep=$((RANDOM % 20))
-		sleep "$post_challenge_sleep"
-
-		return 0
-	else
-		echo -e "${RED}Incorrect answer. Installation aborted. The correct word was '$target_word'.${NC}"
-		return 1
-	fi
+	# word_length=5, words_count=160, timeout=60s, initial_delay=20, post_delay=0-20
+	run_word_challenge "Weekend Steam" 5 160 60 20 0 20
 }
 
 function check_for_greylisted() {
-	# Check if the command is an installation command
-	if [[ $1 == "-S" || $1 == "-Sy" || $1 == "-Syu" || $1 == "-Syyu" || $1 == "-U" ]]; then
-		# Check all arguments
-		for arg in "$@"; do
-			# Strip repository prefix if present
-			local package_name="${arg##*/}"
-
-			# Check if package name matches any greylisted keyword
-			if is_greylisted_package_name "$package_name"; then
-				return 0 # Greylisted package found
-			fi
-		done
-	fi
-	return 1 # No greylisted package found
+	check_install_for is_greylisted_package_name "$@"
 }
 
 # Function to prompt for solving a word unscrambling challenge (for greylisted packages - always active)
 function prompt_for_greylist_challenge() {
 	echo -e "${YELLOW}WARNING: You are trying to install a greylisted package.${NC}"
-	echo -e "${YELLOW}Greylist challenge will begin shortly...${NC}"
 
-	# Sleep for random 10-30 seconds
-	sleep_duration=$((RANDOM % 20 + 10))
-	sleep "$sleep_duration"
-
-	# Define path to words.txt (in the same directory as the script)
-	script_dir="$(dirname "$(readlink -f "$0")")"
-	words_file="$script_dir/words.txt"
-
-	# Check if words.txt exists
-	if [[ ! -f $words_file ]]; then
-		echo -e "${RED}Error: words.txt file not found at $words_file${NC}"
-		return 1
-	fi
-
-	# Choose a specific word length (6 characters for greylist challenge)
-	word_length=6
-	echo -e "${CYAN}Greylist challenge: Words with ${word_length} letters${NC}"
-
-	# Filter words by the specific chosen length and load random words
-	words_count=120
-	mapfile -t selected_words < <(grep -E "^[a-zA-Z]{$word_length}$" "$words_file" | shuf -n "$words_count")
-
-	# If we couldn't get enough words of the right length
-	if [[ ${#selected_words[@]} -lt $words_count ]]; then
-		echo -e "${RED}Warning: Could only find ${#selected_words[@]} words of length $word_length.${NC}"
-		words_count=${#selected_words[@]}
-		if [[ $words_count -eq 0 ]]; then
-			echo -e "${RED}Error: No words of length $word_length found in $words_file${NC}"
-			return 1
-		fi
-	fi
-
-	# Convert all words to uppercase
-	for i in "${!selected_words[@]}"; do
-		selected_words[i]=$(echo "${selected_words[i]}" | tr '[:lower:]' '[:upper:]')
-	done
-
-	echo -e "${CYAN}Here are ${words_count} random words. Remember them:${NC}"
-
-	# Display the words in a grid (4 columns)
-	for ((i = 0; i < words_count; i++)); do
-		printf "${BLUE}%-15s${NC}" "${selected_words[i]}"
-		if (((i + 1) % 4 == 0)); then
-			echo ""
-		fi
-	done
-
-	# Select a random word to scramble (already in uppercase)
-	target_index=$((RANDOM % words_count))
-	target_word="${selected_words[target_index]}"
-
-	# Scramble the word
-	scrambled_word=$(echo "$target_word" | fold -w1 | shuf | tr -d '\n')
-
-	# Ensure scrambled word is different from original
-	if [[ $scrambled_word == "$target_word" ]]; then
-		# Use simple reversal as fallback
-		scrambled_word=$(echo "$target_word" | rev)
-	fi
-
-	echo -e "\n${YELLOW}One of those words has been scrambled to:${NC} ${CYAN}$scrambled_word${NC}"
-	echo -e "${YELLOW}Unscramble the word to proceed with installation (you have 90 seconds):${NC}"
-
-	# Set up a background process to display the timer
-	(
-		start_time=$(date +%s)
-		while true; do
-			current_time=$(date +%s)
-			elapsed=$((current_time - start_time))
-			remaining=$((90 - elapsed))
-
-			if [[ $remaining -le 0 ]]; then
-				echo -ne "\r${YELLOW}Time remaining: 0 seconds${NC}    "
-				break
-			fi
-
-			echo -ne "\r${YELLOW}Time remaining: ${remaining} seconds${NC}    "
-			sleep 1
-		done
-	) &
-	display_pid=$!
-
-	# Read user input with timeout (90 seconds for VirtualBox)
-	read -t 90 -r user_input
-	read_status=$?
-
-	# Kill the timer display
-	kill "$display_pid" 2>/dev/null
-	wait "$display_pid" 2>/dev/null
-	echo # Add a newline after the timer
-
-	# Check if read timed out
-	if [[ $read_status -ne 0 ]]; then
-		echo -e "${RED}Time's up! Greylist challenge failed. The correct word was '$target_word'.${NC}"
-		return 1
-	fi
-
-	# Convert user input to uppercase and trim whitespaces
-	user_input=$(echo "$user_input" | tr '[:lower:]' '[:upper:]' | xargs)
-
-	if [[ $user_input == "$target_word" ]]; then
-		echo -e "${GREEN}Correct! Proceeding with installation...${NC}"
-
-		# Add sleep after successful challenge completion (15-35 seconds)
-		post_challenge_sleep=$((RANDOM % 20 + 15))
-		sleep "$post_challenge_sleep"
-
-		return 0
-	else
-		echo -e "${RED}Incorrect answer. Installation aborted. The correct word was '$target_word'.${NC}"
-		return 1
-	fi
+	# word_length=6, words_count=120, timeout=90s, initial_delay=30, post_delay=15-35
+	run_word_challenge "Greylist" 6 120 90 30 15 20
 }
 
 # Check for wrapper-specific commands

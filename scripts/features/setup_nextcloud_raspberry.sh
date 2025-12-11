@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/.nextcloud_raspberry.conf"
 
 # Load configuration from gitignored config file if it exists
-if [[ -f "$CONFIG_FILE" ]]; then
+if [[ -f $CONFIG_FILE ]]; then
 	# shellcheck source=/dev/null
 	source "$CONFIG_FILE"
 fi
@@ -108,14 +108,14 @@ generate_password() {
 }
 
 auto_generate_pi_password() {
-	if [[ -z "$PI_PASSWORD" ]]; then
+	if [[ -z $PI_PASSWORD ]]; then
 		PI_PASSWORD=$(generate_password 16)
 		log_info "Auto-generated Pi password (will be saved to config file)"
 	fi
 }
 
 auto_generate_nextcloud_password() {
-	if [[ -z "$NEXTCLOUD_ADMIN_PASSWORD" ]]; then
+	if [[ -z $NEXTCLOUD_ADMIN_PASSWORD ]]; then
 		NEXTCLOUD_ADMIN_PASSWORD=$(generate_password 20)
 		log_info "Auto-generated Nextcloud admin password (will be saved to config file)"
 	fi
@@ -133,8 +133,8 @@ prompt_password() {
 		read -r -s -p "Confirm password: " password_confirm
 		echo
 
-		if [[ "$password" == "$password_confirm" ]]; then
-			if [[ -z "$password" ]]; then
+		if [[ $password == "$password_confirm" ]]; then
+			if [[ -z $password ]]; then
 				log_warning "Password cannot be empty. Please try again."
 				continue
 			fi
@@ -157,7 +157,7 @@ detect_sd_card() {
 	local devices
 	devices=$(lsblk -d -o NAME,SIZE,TYPE,RM,TRAN | grep -E "disk.*1.*usb|disk.*1.*mmc" | awk '{print "/dev/"$1" ("$2")"}')
 
-	if [[ -z "$devices" ]]; then
+	if [[ -z $devices ]]; then
 		log_warning "No removable devices detected automatically."
 		log_info "Available block devices:"
 		lsblk -d -o NAME,SIZE,TYPE,RM,TRAN
@@ -171,14 +171,14 @@ detect_sd_card() {
 	fi
 
 	# Validate device exists
-	if [[ ! -b "$SD_CARD_DEVICE" ]]; then
+	if [[ ! -b $SD_CARD_DEVICE ]]; then
 		die "Device $SD_CARD_DEVICE does not exist or is not a block device"
 	fi
 
 	# Safety check - don't flash system drive
 	local root_device
 	root_device=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//' | sed 's/p[0-9]*$//')
-	if [[ "$SD_CARD_DEVICE" == "$root_device" ]]; then
+	if [[ $SD_CARD_DEVICE == "$root_device" ]]; then
 		die "Cannot flash to the system drive!"
 	fi
 }
@@ -192,17 +192,17 @@ download_raspberry_pi_os() {
 
 	mkdir -p "$download_dir"
 
-	if [[ -f "$extracted_image" ]]; then
+	if [[ -f $extracted_image ]]; then
 		log_info "Using existing image at $extracted_image"
 		echo "$extracted_image"
 		return
 	fi
 
 	# Check if download exists and is complete
-	if [[ -f "$image_file" ]]; then
+	if [[ -f $image_file ]]; then
 		local actual_size
 		actual_size=$(stat -c%s "$image_file" 2>/dev/null || stat -f%z "$image_file" 2>/dev/null || echo 0)
-		if [[ "$actual_size" -lt "$expected_size" ]]; then
+		if [[ $actual_size -lt $expected_size ]]; then
 			log_warning "Incomplete download detected ($actual_size < $expected_size bytes), re-downloading..."
 			rm -f "$image_file"
 		else
@@ -210,7 +210,7 @@ download_raspberry_pi_os() {
 		fi
 	fi
 
-	if [[ ! -f "$image_file" ]]; then
+	if [[ ! -f $image_file ]]; then
 		log_info "Downloading Raspberry Pi OS Lite (64-bit)..."
 		log_info "This may take a while depending on your internet connection..."
 
@@ -229,7 +229,7 @@ download_raspberry_pi_os() {
 		# Verify download size
 		local actual_size
 		actual_size=$(stat -c%s "$image_file" 2>/dev/null || stat -f%z "$image_file" 2>/dev/null || echo 0)
-		if [[ "$actual_size" -lt "$expected_size" ]]; then
+		if [[ $actual_size -lt $expected_size ]]; then
 			die "Download incomplete: got $actual_size bytes, expected $expected_size"
 		fi
 		log_success "Download complete: $actual_size bytes"
@@ -238,7 +238,7 @@ download_raspberry_pi_os() {
 	log_info "Extracting image..."
 	xz -dk "$image_file"
 
-	if [[ ! -f "$extracted_image" ]]; then
+	if [[ ! -f $extracted_image ]]; then
 		die "Failed to extract image"
 	fi
 
@@ -251,7 +251,7 @@ flash_sd_card() {
 	log_warning "This will ERASE ALL DATA on $SD_CARD_DEVICE"
 	read -r -p "Are you sure you want to continue? (yes/no): " confirm
 
-	if [[ "$confirm" != "yes" ]]; then
+	if [[ $confirm != "yes" ]]; then
 		die "Aborted by user"
 	fi
 
@@ -300,7 +300,7 @@ configure_headless_boot() {
 
 	# Configure WiFi (optional)
 	read -r -p "Do you want to configure WiFi? (y/n): " configure_wifi
-	if [[ "$configure_wifi" == "y" ]]; then
+	if [[ $configure_wifi == "y" ]]; then
 		read -r -p "WiFi SSID: " wifi_ssid
 		read -r -s -p "WiFi Password: " wifi_password
 		echo
@@ -320,7 +320,7 @@ EOF
 	fi
 
 	# Create userconf.txt for first user (Raspberry Pi OS Bookworm+)
-	if [[ -z "$PI_PASSWORD" ]]; then
+	if [[ -z $PI_PASSWORD ]]; then
 		prompt_password "Enter password for Pi user '$PI_USER'" PI_PASSWORD
 	fi
 
@@ -337,7 +337,7 @@ EOF
 		root_partition="${SD_CARD_DEVICE}p2"
 	fi
 
-	if [[ -n "$root_partition" ]]; then
+	if [[ -n $root_partition ]]; then
 		local root_mount="/tmp/rpi-root"
 		mkdir -p "$root_mount"
 		mount "$root_partition" "$root_mount"
@@ -474,7 +474,7 @@ discover_remote_laptop() {
 	# Extract IPs from nmap output - grep for report lines then extract IP
 	ssh_hosts=$(nmap -p 22 --open -sT -T4 "$network" 2>/dev/null | grep "Nmap scan report" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | grep -vw "$my_ip" | sort -u)
 
-	if [[ -z "$ssh_hosts" ]]; then
+	if [[ -z $ssh_hosts ]]; then
 		die "No SSH-enabled devices found on network"
 	fi
 
@@ -489,7 +489,7 @@ discover_remote_laptop() {
 	for u in "${common_users[@]}"; do
 		local is_dup=0
 		for existing in "${users[@]}"; do
-			if [[ "$u" == "$existing" ]]; then
+			if [[ $u == "$existing" ]]; then
 				is_dup=1
 				break
 			fi
@@ -510,7 +510,7 @@ discover_remote_laptop() {
 		idx=$((idx + 1))
 
 		# Skip gateway
-		if [[ "$ip" == "$gateway" ]]; then
+		if [[ $ip == "$gateway" ]]; then
 			log_info "[$idx/$host_count] Skipping $ip (gateway)"
 			continue
 		fi
@@ -528,13 +528,13 @@ discover_remote_laptop() {
 				local has_sd
 				has_sd=$(ssh -o BatchMode=yes -o ConnectTimeout=2 "${try_user}@${ip}" "lsblk -d -o NAME,RM,TRAN 2>/dev/null | grep -E '1.*(usb|mmc)' | head -1" 2>/dev/null || true)
 
-				if [[ -n "$has_sd" ]]; then
+				if [[ -n $has_sd ]]; then
 					log_success "[$idx/$host_count] $ip - Found SD card: $has_sd"
 					found_laptop="$ip"
 					break 2 # Break out of both loops
 				else
 					log_warning "[$idx/$host_count] $ip - No SD card detected, saving as fallback..."
-					if [[ -z "$found_laptop" ]]; then
+					if [[ -z $found_laptop ]]; then
 						found_laptop="$ip"
 					fi
 				fi
@@ -542,26 +542,26 @@ discover_remote_laptop() {
 			fi
 		done
 
-		if [[ -z "$found_user" ]]; then
+		if [[ -z $found_user ]]; then
 			log_info "[$idx/$host_count] $ip - No SSH key access with any common username"
 		fi
 	done
 
 	# If no passwordless access found, prompt user for username
-	if [[ -z "$found_laptop" ]] || [[ -z "$found_user" ]]; then
+	if [[ -z $found_laptop ]] || [[ -z $found_user ]]; then
 		log_warning "No device with passwordless SSH found using common usernames."
 
 		# Pick first available SSH host
 		found_laptop=$(echo "$ssh_hosts" | grep -vw "$gateway" | head -1)
 
-		if [[ -z "$found_laptop" ]]; then
+		if [[ -z $found_laptop ]]; then
 			die "Could not find any suitable SSH-enabled device"
 		fi
 
 		log_info "Found SSH host at $found_laptop but need credentials."
 		read -r -p "Enter username for $found_laptop: " found_user
 
-		if [[ -z "$found_user" ]]; then
+		if [[ -z $found_user ]]; then
 			die "No username provided"
 		fi
 	fi
@@ -596,7 +596,7 @@ phase_flash_remote() {
 	local sd_device
 	sd_device=$(ssh "$remote" "lsblk -d -o NAME,RM,TRAN | grep -E '1.*(usb|mmc)' | awk '{print \"/dev/\"\$1}' | head -1" 2>/dev/null || true)
 
-	if [[ -z "$sd_device" ]]; then
+	if [[ -z $sd_device ]]; then
 		die "No SD card detected on remote laptop. Please insert an SD card and try again."
 	fi
 
@@ -657,7 +657,7 @@ phase_flash_remote_execute() {
 
 	log_info "=== Executing Flash on Remote Laptop ==="
 
-	if [[ -z "$SD_CARD_DEVICE" ]]; then
+	if [[ -z $SD_CARD_DEVICE ]]; then
 		die "SD_CARD_DEVICE not set"
 	fi
 
@@ -703,7 +703,7 @@ phase_flash_remote_execute() {
 	log_success "SSH enabled"
 
 	# Create userconf.txt for first user
-	if [[ -n "$encrypted_password" ]]; then
+	if [[ -n $encrypted_password ]]; then
 		echo "${PI_USER}:${encrypted_password}" >"$boot_mount/userconf.txt"
 		log_success "User '$PI_USER' configured"
 	fi
@@ -716,7 +716,7 @@ phase_flash_remote_execute() {
 		root_partition="${SD_CARD_DEVICE}p2"
 	fi
 
-	if [[ -n "$root_partition" ]]; then
+	if [[ -n $root_partition ]]; then
 		local root_mount="/tmp/rpi-root"
 		mkdir -p "$root_mount"
 		mount "$root_partition" "$root_mount"
@@ -951,7 +951,7 @@ download_nextcloud() {
 	local download_dir="/tmp"
 	local nc_zip="$download_dir/nextcloud.zip"
 
-	if [[ -f "$nc_zip" ]]; then
+	if [[ -f $nc_zip ]]; then
 		log_info "Nextcloud archive already downloaded"
 	else
 		wget -O "$nc_zip" "$nc_url"
@@ -1069,7 +1069,7 @@ install_nextcloud() {
 	local db_password
 	db_password=$(cat /root/.nextcloud_db_password)
 
-	if [[ -z "$NEXTCLOUD_ADMIN_PASSWORD" ]]; then
+	if [[ -z $NEXTCLOUD_ADMIN_PASSWORD ]]; then
 		prompt_password "Enter Nextcloud admin password" NEXTCLOUD_ADMIN_PASSWORD
 	fi
 
@@ -1206,11 +1206,11 @@ discover_raspberry_pi() {
 
 	# Try resolving hostname directly
 	pi_ip=$(getent hosts "$PI_HOSTNAME" 2>/dev/null | awk '{print $1}' | head -1) || true
-	if [[ -z "$pi_ip" ]]; then
+	if [[ -z $pi_ip ]]; then
 		pi_ip=$(getent hosts "${PI_HOSTNAME}.local" 2>/dev/null | awk '{print $1}' | head -1) || true
 	fi
 
-	if [[ -n "$pi_ip" ]]; then
+	if [[ -n $pi_ip ]]; then
 		log_success "Found Pi by hostname: $pi_ip"
 		echo "$pi_ip"
 		return
@@ -1224,7 +1224,7 @@ discover_raspberry_pi() {
 	local ssh_hosts
 	ssh_hosts=$(nmap -p 22 --open -sT -T4 "$network" 2>/dev/null | grep "Nmap scan report" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | grep -vw "$my_ip" | grep -vw "$REMOTE_LAPTOP_IP" 2>/dev/null | sort -u) || true
 
-	if [[ -z "$ssh_hosts" ]]; then
+	if [[ -z $ssh_hosts ]]; then
 		die "No new SSH-enabled devices found. Is the Pi connected and booted?"
 	fi
 
@@ -1259,14 +1259,14 @@ phase_all_remote() {
 	local pi_ip
 	pi_ip=$(discover_raspberry_pi)
 
-	if [[ -z "$pi_ip" ]]; then
+	if [[ -z $pi_ip ]]; then
 		die "Failed to discover Raspberry Pi"
 	fi
 
 	log_info "Using Raspberry Pi at: $pi_ip"
 
 	# PI_PASSWORD should already be set from config file
-	if [[ -z "$PI_PASSWORD" ]]; then
+	if [[ -z $PI_PASSWORD ]]; then
 		die "PI_PASSWORD not set. Did you run flash-remote first?"
 	fi
 

@@ -17,16 +17,7 @@ shift "$COMMON_ARGS_SHIFT"
 # Check for sudo privileges
 require_root "$@"
 
-echo "Periodic System Setup - Pacman Wrapper & Hosts File"
-echo "==================================================="
-echo "Current Date: $(date)"
-echo "User: $USER"
-echo "Original user: $(get_actual_user)"
-if [[ $INTERACTIVE_MODE == "true" ]]; then
-	echo "Mode: Interactive (prompts enabled)"
-else
-	echo "Mode: Automatic (auto-yes, use --interactive for prompts)"
-fi
+print_setup_header "Periodic System Setup - Pacman Wrapper & Hosts File"
 
 # Get the directory where this script is located
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")"

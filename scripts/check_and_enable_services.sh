@@ -121,6 +121,48 @@ ISSUES_FOUND=0
 FIXES_APPLIED=0
 
 ######################################################################
+# Report issues and optionally run fix script
+# Usage: report_and_fix issues_array status_var status_key fix_note setup_script verify_service [args...]
+######################################################################
+report_and_fix() {
+	local -n _issues=$1
+	local -n _status=$2
+	local status_key="$3"
+	local fix_note="$4"
+	local setup_script="$5"
+	local verify_service="${6:-}"
+	shift 6
+	local script_args=("$@")
+
+	if [[ $_status != "ok" ]]; then
+		for issue in "${_issues[@]}"; do
+			if [[ $_status == "error" ]]; then
+				err "$issue"
+			else
+				warn "$issue"
+			fi
+		done
+		((ISSUES_FOUND++)) || true
+
+		if [[ $STATUS_ONLY -eq 0 && $_status == "error" ]]; then
+			note "$fix_note"
+			if [[ -f $setup_script ]]; then
+				run bash "$setup_script" "${script_args[@]}"
+				((FIXES_APPLIED++)) || true
+				# Re-verify after fix
+				if [[ $DRY_RUN -eq 0 && -n $verify_service ]] && systemctl is-enabled "$verify_service" &>/dev/null; then
+					_status="ok"
+				fi
+			else
+				err "Setup script not found: $setup_script"
+			fi
+		fi
+	fi
+
+	SERVICE_STATUS["$status_key"]=$_status
+}
+
+######################################################################
 # Check functions
 ######################################################################
 
@@ -134,7 +176,7 @@ check_pacman_wrapper() {
 	if [[ -L /usr/bin/pacman ]]; then
 		local target
 		target=$(readlink -f /usr/bin/pacman)
-		if [[ "$target" == "/usr/local/bin/pacman_wrapper" ]]; then
+		if [[ $target == "/usr/local/bin/pacman_wrapper" ]]; then
 			msg "Pacman symlink points to wrapper"
 		else
 			issues+=("Pacman symlink points to: $target (expected /usr/local/bin/pacman_wrapper)")
@@ -171,7 +213,7 @@ check_pacman_wrapper() {
 	done
 
 	# Report and fix
-	if [[ "$status" == "error" ]]; then
+	if [[ $status == "error" ]]; then
 		for issue in "${issues[@]}"; do
 			err "$issue"
 		done
@@ -179,7 +221,7 @@ check_pacman_wrapper() {
 
 		if [[ $STATUS_ONLY -eq 0 ]]; then
 			note "Installing pacman wrapper..."
-			if [[ -f "$PACMAN_WRAPPER_INSTALL" ]]; then
+			if [[ -f $PACMAN_WRAPPER_INSTALL ]]; then
 				run bash "$PACMAN_WRAPPER_INSTALL"
 				((FIXES_APPLIED++)) || true
 				# Re-verify after fix
@@ -232,33 +274,11 @@ check_midnight_shutdown() {
 		status="error"
 	fi
 
-	# Report and fix
-	if [[ "$status" != "ok" ]]; then
-		for issue in "${issues[@]}"; do
-			if [[ "$status" == "error" ]]; then
-				err "$issue"
-			else
-				warn "$issue"
-			fi
-		done
-		((ISSUES_FOUND++)) || true
-
-		if [[ $STATUS_ONLY -eq 0 && "$status" == "error" ]]; then
-			note "Setting up midnight shutdown..."
-			if [[ -f "$MIDNIGHT_SHUTDOWN_SCRIPT" ]]; then
-				run bash "$MIDNIGHT_SHUTDOWN_SCRIPT" enable
-				((FIXES_APPLIED++)) || true
-				# Re-verify after fix
-				if [[ $DRY_RUN -eq 0 ]] && systemctl is-enabled day-specific-shutdown.timer &>/dev/null; then
-					status="ok"
-				fi
-			else
-				err "Setup script not found: $MIDNIGHT_SHUTDOWN_SCRIPT"
-			fi
-		fi
-	fi
-
-	SERVICE_STATUS["midnight_shutdown"]=$status
+	report_and_fix issues status "midnight_shutdown" \
+		"Setting up midnight shutdown..." \
+		"$MIDNIGHT_SHUTDOWN_SCRIPT" \
+		"day-specific-shutdown.timer" \
+		enable
 }
 
 check_startup_monitor() {
@@ -298,33 +318,10 @@ check_startup_monitor() {
 		status="error"
 	fi
 
-	# Report and fix
-	if [[ "$status" != "ok" ]]; then
-		for issue in "${issues[@]}"; do
-			if [[ "$status" == "error" ]]; then
-				err "$issue"
-			else
-				warn "$issue"
-			fi
-		done
-		((ISSUES_FOUND++)) || true
-
-		if [[ $STATUS_ONLY -eq 0 && "$status" == "error" ]]; then
-			note "Setting up startup monitor..."
-			if [[ -f "$STARTUP_MONITOR_SCRIPT" ]]; then
-				run bash "$STARTUP_MONITOR_SCRIPT"
-				((FIXES_APPLIED++)) || true
-				# Re-verify after fix
-				if [[ $DRY_RUN -eq 0 ]] && systemctl is-enabled pc-startup-monitor.timer &>/dev/null; then
-					status="ok"
-				fi
-			else
-				err "Setup script not found: $STARTUP_MONITOR_SCRIPT"
-			fi
-		fi
-	fi
-
-	SERVICE_STATUS["startup_monitor"]=$status
+	report_and_fix issues status "startup_monitor" \
+		"Setting up startup monitor..." \
+		"$STARTUP_MONITOR_SCRIPT" \
+		"pc-startup-monitor.timer"
 }
 
 check_periodic_systems() {
@@ -379,33 +376,10 @@ check_periodic_systems() {
 		status="error"
 	fi
 
-	# Report and fix
-	if [[ "$status" != "ok" ]]; then
-		for issue in "${issues[@]}"; do
-			if [[ "$status" == "error" ]]; then
-				err "$issue"
-			else
-				warn "$issue"
-			fi
-		done
-		((ISSUES_FOUND++)) || true
-
-		if [[ $STATUS_ONLY -eq 0 && "$status" == "error" ]]; then
-			note "Setting up periodic systems..."
-			if [[ -f "$PERIODIC_SYSTEM_SCRIPT" ]]; then
-				run bash "$PERIODIC_SYSTEM_SCRIPT"
-				((FIXES_APPLIED++)) || true
-				# Re-verify after fix
-				if [[ $DRY_RUN -eq 0 ]] && systemctl is-enabled periodic-system-maintenance.timer &>/dev/null; then
-					status="ok"
-				fi
-			else
-				err "Setup script not found: $PERIODIC_SYSTEM_SCRIPT"
-			fi
-		fi
-	fi
-
-	SERVICE_STATUS["periodic_systems"]=$status
+	report_and_fix issues status "periodic_systems" \
+		"Setting up periodic systems..." \
+		"$PERIODIC_SYSTEM_SCRIPT" \
+		"periodic-system-maintenance.timer"
 }
 
 check_hosts() {
@@ -432,7 +406,7 @@ check_hosts() {
 	# Check if hosts file is immutable
 	local attrs
 	attrs=$(lsattr /etc/hosts 2>/dev/null | cut -d' ' -f1 || echo "")
-	if [[ "$attrs" == *"i"* ]]; then
+	if [[ $attrs == *"i"* ]]; then
 		msg "/etc/hosts has immutable attribute set"
 	else
 		issues+=("/etc/hosts is not immutable")
@@ -503,9 +477,9 @@ check_hosts() {
 	fi
 
 	# Report issues
-	if [[ "$status" != "ok" ]]; then
+	if [[ $status != "ok" ]]; then
 		for issue in "${issues[@]}"; do
-			if [[ "$status" == "error" ]]; then
+			if [[ $status == "error" ]]; then
 				err "$issue"
 			else
 				warn "$issue"
@@ -517,7 +491,7 @@ check_hosts() {
 			# Run hosts install first
 			if [[ ! -f /etc/hosts ]] || [[ $(wc -l </etc/hosts) -lt 100 ]]; then
 				note "Installing hosts file..."
-				if [[ -f "$HOSTS_INSTALL_SCRIPT" ]]; then
+				if [[ -f $HOSTS_INSTALL_SCRIPT ]]; then
 					run bash "$HOSTS_INSTALL_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else
@@ -528,7 +502,7 @@ check_hosts() {
 			# Run hosts guard setup
 			if ! systemctl is-enabled hosts-guard.path &>/dev/null || [[ ! -f /usr/local/sbin/enforce-hosts.sh ]]; then
 				note "Setting up hosts guard..."
-				if [[ -f "$HOSTS_GUARD_SCRIPT" ]]; then
+				if [[ -f $HOSTS_GUARD_SCRIPT ]]; then
 					run bash "$HOSTS_GUARD_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else
@@ -539,7 +513,7 @@ check_hosts() {
 			# Install pacman hooks if missing
 			if [[ ! -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]]; then
 				note "Installing pacman hooks..."
-				if [[ -f "$HOSTS_PACMAN_HOOKS_SCRIPT" ]]; then
+				if [[ -f $HOSTS_PACMAN_HOOKS_SCRIPT ]]; then
 					run bash "$HOSTS_PACMAN_HOOKS_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else

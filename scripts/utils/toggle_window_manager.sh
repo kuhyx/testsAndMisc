@@ -2,64 +2,42 @@
 
 set -euo pipefail
 
+# Source common library for shared functions
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # Configuration -----------------------------------------------------------------
 TARGET_SESSION_NAME="Xfce Session"
 TARGET_PACKAGES=(
-  xfwm4          # Compositing window manager with XFCE integration
-  xfce4-session  # Provides the Xfce session entry for display managers
-  xfce4-panel    # Panel with system tray support
-  xfce4-settings # Settings daemon (enables compositing toggle, theming, etc.)
-  xfce4-terminal # Handy default terminal for the new environment
+	xfwm4          # Compositing window manager with XFCE integration
+	xfce4-session  # Provides the Xfce session entry for display managers
+	xfce4-panel    # Panel with system tray support
+	xfce4-settings # Settings daemon (enables compositing toggle, theming, etc.)
+	xfce4-terminal # Handy default terminal for the new environment
 )
 
 # Utility functions --------------------------------------------------------------
 info() { echo "[INFO] $*"; }
 warn() { echo "[WARN] $*" >&2; }
 error() {
-  echo "[ERROR] $*" >&2
-  exit 1
-}
-
-require_command() {
-  local cmd="$1" pkg_hint="${2:-}"
-  if ! command -v "$cmd" > /dev/null 2>&1; then
-    if [[ -n $pkg_hint ]]; then
-      warn "Install '$pkg_hint' to obtain the '$cmd' command."
-    fi
-    error "Required command '$cmd' not found."
-  fi
+	echo "[ERROR] $*" >&2
+	exit 1
 }
 
 ensure_pacman() {
-  require_command pacman "pacman"
-  if ! grep -qi "arch" /etc/os-release 2> /dev/null; then
-    warn "This script was designed for Arch Linux; continuing anyway."
-  fi
+	require_command pacman "pacman" || error "Required command 'pacman' not found."
+	if ! grep -qi "arch" /etc/os-release 2>/dev/null; then
+		warn "This script was designed for Arch Linux; continuing anyway."
+	fi
 }
 
 install_packages() {
-  local missing=()
-  for pkg in "${TARGET_PACKAGES[@]}"; do
-    if ! pacman -Qi "$pkg" > /dev/null 2>&1; then
-      missing+=("$pkg")
-    fi
-  done
-
-  if [[ ${#missing[@]} -eq 0 ]]; then
-    info "All target packages are already installed."
-    return
-  fi
-
-  if ! command -v sudo > /dev/null 2>&1; then
-    error "sudo is required to install packages. Install sudo or run this script as root."
-  fi
-
-  info "Installing missing packages: ${missing[*]}"
-  sudo pacman -S --needed --noconfirm "${missing[@]}"
+	install_missing_pacman_packages "${TARGET_PACKAGES[@]}"
 }
 
 print_post_install_tips() {
-  cat << EOF
+	cat <<EOF
 
 ------------------------------------------------------------------------
 XFCE session installed.
@@ -76,31 +54,31 @@ EOF
 }
 
 logout_user() {
-  local session_id="${XDG_SESSION_ID:-}"
+	local session_id="${XDG_SESSION_ID:-}"
 
-  if [[ -n $session_id ]] && loginctl show-session "$session_id" > /dev/null 2>&1; then
-    info "Terminating current session (ID: $session_id) via loginctl."
-    loginctl terminate-session "$session_id"
-    return
-  fi
+	if [[ -n $session_id ]] && loginctl show-session "$session_id" >/dev/null 2>&1; then
+		info "Terminating current session (ID: $session_id) via loginctl."
+		loginctl terminate-session "$session_id"
+		return
+	fi
 
-  if loginctl list-sessions 2> /dev/null | awk '{print $1" "$3}' | grep -q " $USER$"; then
-    info "Terminating all sessions for user '$USER' via loginctl."
-    loginctl terminate-user "$USER"
-    return
-  fi
+	if loginctl list-sessions 2>/dev/null | awk '{print $1" "$3}' | grep -q " $USER$"; then
+		info "Terminating all sessions for user '$USER' via loginctl."
+		loginctl terminate-user "$USER"
+		return
+	fi
 
-  warn "loginctl could not terminate the session; attempting fallback logout."
-  pkill -KILL -u "$USER" || error "Failed to terminate user sessions. Please log out manually."
+	warn "loginctl could not terminate the session; attempting fallback logout."
+	pkill -KILL -u "$USER" || error "Failed to terminate user sessions. Please log out manually."
 }
 
 main() {
-  ensure_pacman
-  install_packages
-  print_post_install_tips
+	ensure_pacman
+	install_packages
+	print_post_install_tips
 
-  # Give the user a moment to read the instructions before logging out.
-  logout_user
+	# Give the user a moment to read the instructions before logging out.
+	logout_user
 }
 
 main "$@"

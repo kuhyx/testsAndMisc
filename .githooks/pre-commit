@@ -61,7 +61,7 @@ printf 'Running duplicate code detection...\n'
 JSCPD_BIN="${HOME}/.local/node_modules/.bin/jscpd"
 
 # Install jscpd if not present
-if [[ ! -x "$JSCPD_BIN" ]]; then
+if [[ ! -x $JSCPD_BIN ]]; then
   printf '  → jscpd not found, installing...\n'
   if ! npm install --prefix ~/.local jscpd 2>&1; then
     printf '\nCommit aborted: failed to install jscpd.\n' >&2

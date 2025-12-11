@@ -17,16 +17,7 @@ shift "$COMMON_ARGS_SHIFT"
 # Check for sudo privileges
 require_root "$@"
 
-echo "NVIDIA Comprehensive Troubleshooter & GSP Disabler"
-echo "=================================================="
-echo "Current Date: $(date)"
-echo "User: $USER"
-echo "Original user: $(get_actual_user)"
-if [[ $INTERACTIVE_MODE == "true" ]]; then
-	echo "Mode: Interactive (prompts enabled)"
-else
-	echo "Mode: Automatic (auto-yes, use --interactive for prompts)"
-fi
+print_setup_header "NVIDIA Comprehensive Troubleshooter & GSP Disabler"
 
 # Check if nvidia module is loaded
 if ! lsmod | grep -q nvidia; then

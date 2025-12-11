@@ -6,31 +6,21 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
+# shellcheck source=../lib/android.sh
+source "$SCRIPT_DIR/../lib/android.sh"
 
 # Re-run with sudo if needed for reading /etc/hosts
-if [[ $EUID -ne 0 ]] && [[ ! -r /etc/hosts ]]; then
-	exec sudo -E bash "$0" "$@"
-fi
+require_hosts_readable "$@"
 
-WORK_DIR="${HOME}/.cache/android-adblock"
-ensure_dir "$WORK_DIR"
-
-die() {
-	echo "[ERROR] $*" >&2
-	exit 1
-}
+WORK_DIR="$ANDROID_WORK_DIR"
 
 log "Updating Android hosts file from Linux configuration..."
 
 # Check device connection
-if ! adb devices | grep -q "device$"; then
-	die "No device connected. Enable USB debugging and connect your phone."
-fi
+check_adb_device
 
 # Check root access
-if ! adb shell "su -c 'echo test'" 2>/dev/null | grep -q "test"; then
-	die "Root access not available. Make sure Magisk is installed and grant root to Shell."
-fi
+check_adb_root
 
 # Use the StevenBlack cache or /etc/hosts
 HOSTS_FILE="$WORK_DIR/hosts"

@@ -214,7 +214,7 @@ setup_udev_rules() {
 	# Install MTKClient udev rules if mtkclient is present
 	if [[ -d "${WORK_DIR}/mtkclient" ]]; then
 		log "Installing MTKClient udev rules..."
-		if [[ -d "$mtk_udev_dir" ]]; then
+		if [[ -d $mtk_udev_dir ]]; then
 			sudo cp "$mtk_udev_dir"/*.rules /etc/udev/rules.d/ 2>/dev/null || warn "Failed to copy MTKClient rules"
 		fi
 	fi
@@ -634,7 +634,7 @@ install_mtkclient() {
 
 	local mtk_dir="${WORK_DIR}/mtkclient"
 
-	if [[ -d "$mtk_dir" && -f "$mtk_dir/mtk.py" ]]; then
+	if [[ -d $mtk_dir && -f "$mtk_dir/mtk.py" ]]; then
 		log "MTKClient already installed at $mtk_dir"
 		return 0
 	fi
@@ -667,7 +667,7 @@ extract_boot_with_mtkclient() {
 	local boot_a_img="$WORK_DIR/boot_a.img"
 	local vbmeta_a_img="$WORK_DIR/vbmeta_a.img"
 
-	if [[ ! -d "$mtk_dir" ]]; then
+	if [[ ! -d $mtk_dir ]]; then
 		error "MTKClient not installed. Run: $SCRIPT_NAME install-mtk"
 		return 1
 	fi

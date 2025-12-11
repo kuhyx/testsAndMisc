@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/.raspberry_pi.conf"
 
 # Load configuration from gitignored config file if it exists
-if [[ -f "$CONFIG_FILE" ]]; then
+if [[ -f $CONFIG_FILE ]]; then
 	# shellcheck source=/dev/null
 	source "$CONFIG_FILE"
 fi
@@ -102,7 +102,7 @@ generate_password() {
 }
 
 auto_generate_nextcloud_password() {
-	if [[ -z "$NEXTCLOUD_ADMIN_PASSWORD" ]]; then
+	if [[ -z $NEXTCLOUD_ADMIN_PASSWORD ]]; then
 		NEXTCLOUD_ADMIN_PASSWORD=$(generate_password 20)
 		log_info "Auto-generated Nextcloud admin password (will be saved to config file)"
 	fi
@@ -180,11 +180,11 @@ discover_raspberry_pi() {
 
 	# Try resolving hostname directly
 	pi_ip=$(getent hosts "$PI_HOSTNAME" 2>/dev/null | awk '{print $1}' | head -1) || true
-	if [[ -z "$pi_ip" ]]; then
+	if [[ -z $pi_ip ]]; then
 		pi_ip=$(getent hosts "${PI_HOSTNAME}.local" 2>/dev/null | awk '{print $1}' | head -1) || true
 	fi
 
-	if [[ -n "$pi_ip" ]]; then
+	if [[ -n $pi_ip ]]; then
 		log_success "Found Pi by hostname: $pi_ip"
 		echo "$pi_ip"
 		return
@@ -196,7 +196,7 @@ discover_raspberry_pi() {
 	local ssh_hosts
 	ssh_hosts=$(nmap -p 22 --open -sT -T4 "$network" 2>/dev/null | grep "Nmap scan report" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | grep -vw "$my_ip" | sort -u) || true
 
-	if [[ -z "$ssh_hosts" ]]; then
+	if [[ -z $ssh_hosts ]]; then
 		die "No SSH-enabled devices found. Is the Pi connected and booted?"
 	fi
 
@@ -599,7 +599,7 @@ phase_fix_issues() {
 
 	# Generate server certificate signed by our CA
 	local regenerate="${1:-}"
-	if [[ ! -f "$ssl_dir/server.crt" ]] || [[ "$regenerate" == "--regenerate" ]]; then
+	if [[ ! -f "$ssl_dir/server.crt" ]] || [[ $regenerate == "--regenerate" ]]; then
 		log_info "Generating server certificate signed by CA..."
 
 		# Generate server private key
@@ -718,7 +718,7 @@ EOF
 
 	# Enable SVG in ImageMagick policy
 	local policy_file="/etc/ImageMagick-6/policy.xml"
-	if [[ -f "$policy_file" ]]; then
+	if [[ -f $policy_file ]]; then
 		# Remove SVG restrictions if present
 		sed -i 's/<policy domain="coder" rights="none" pattern="SVG" \/>/<policy domain="coder" rights="read|write" pattern="SVG" \/>/' "$policy_file"
 		# If no SVG policy exists, add one allowing it
@@ -777,7 +777,7 @@ phase_setup_ssl() {
 	log_info "=== Setting up Let's Encrypt SSL with DuckDNS ==="
 
 	# Check if DuckDNS is configured
-	if [[ -z "$DUCKDNS_DOMAIN" ]] || [[ -z "$DUCKDNS_TOKEN" ]]; then
+	if [[ -z $DUCKDNS_DOMAIN ]] || [[ -z $DUCKDNS_TOKEN ]]; then
 		echo
 		log_info "To get auto-trusted HTTPS, you need a free DuckDNS domain."
 		log_info "1. Go to https://www.duckdns.org/ and sign in with Google/GitHub/etc."
@@ -789,7 +789,7 @@ phase_setup_ssl() {
 		read -r -p "Enter your DuckDNS token: " DUCKDNS_TOKEN
 		read -r -p "Enter your email (for Let's Encrypt notifications): " LETSENCRYPT_EMAIL
 
-		if [[ -z "$DUCKDNS_DOMAIN" ]] || [[ -z "$DUCKDNS_TOKEN" ]] || [[ -z "$LETSENCRYPT_EMAIL" ]]; then
+		if [[ -z $DUCKDNS_DOMAIN ]] || [[ -z $DUCKDNS_TOKEN ]] || [[ -z $LETSENCRYPT_EMAIL ]]; then
 			die "All fields are required"
 		fi
 	fi
@@ -817,7 +817,7 @@ phase_setup_ssl() {
 	echo
 	read -r -p "Have you set up port forwarding? (yes/no): " port_forward_done
 
-	if [[ "$port_forward_done" != "yes" ]]; then
+	if [[ $port_forward_done != "yes" ]]; then
 		log_info "Please set up port forwarding and run this command again."
 		log_info "Without port forwarding, Let's Encrypt cannot verify your domain."
 		exit 0
@@ -829,7 +829,7 @@ phase_setup_ssl() {
 	# When ip= is empty, DuckDNS auto-detects the public IP
 	duckdns_response=$(curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=")
 
-	if [[ "$duckdns_response" != "OK" ]]; then
+	if [[ $duckdns_response != "OK" ]]; then
 		die "Failed to update DuckDNS: $duckdns_response"
 	fi
 	log_success "DuckDNS updated to public IP"
@@ -855,14 +855,14 @@ DUCKEOF
 	log_info "Waiting for DNS propagation (this may take a minute)..."
 	local dns_ip=""
 	local attempts=0
-	while [[ "$dns_ip" != "$public_ip" ]] && [[ $attempts -lt 12 ]]; do
+	while [[ $dns_ip != "$public_ip" ]] && [[ $attempts -lt 12 ]]; do
 		sleep 5
 		dns_ip=$(dig +short "$full_domain" 2>/dev/null | tail -1) || true
 		attempts=$((attempts + 1))
 		log_info "  DNS lookup: $dns_ip (expecting $public_ip, attempt $attempts/12)"
 	done
 
-	if [[ "$dns_ip" != "$public_ip" ]]; then
+	if [[ $dns_ip != "$public_ip" ]]; then
 		log_warning "DNS may not have propagated yet. Continuing anyway..."
 	else
 		log_success "DNS verified: $full_domain -> $public_ip"
@@ -961,19 +961,19 @@ EOF
 phase_setup_ssl_remote() {
 	log_info "=== Setting up Let's Encrypt SSL via SSH ==="
 
-	if [[ -z "$PI_PASSWORD" ]]; then
+	if [[ -z $PI_PASSWORD ]]; then
 		die "PI_PASSWORD not set. Run install-remote first."
 	fi
 
 	local pi_ip
 	pi_ip=$(discover_raspberry_pi)
 
-	if [[ -z "$pi_ip" ]]; then
+	if [[ -z $pi_ip ]]; then
 		die "Failed to discover Raspberry Pi"
 	fi
 
 	# Get DuckDNS credentials if not set
-	if [[ -z "$DUCKDNS_DOMAIN" ]] || [[ -z "$DUCKDNS_TOKEN" ]]; then
+	if [[ -z $DUCKDNS_DOMAIN ]] || [[ -z $DUCKDNS_TOKEN ]]; then
 		echo
 		log_info "To get auto-trusted HTTPS, you need a free DuckDNS domain."
 		log_info "1. Go to https://www.duckdns.org/ and sign in"
@@ -1012,14 +1012,14 @@ phase_setup_ssl_remote() {
 phase_install_remote() {
 	log_info "=== Installing Nextcloud via SSH ==="
 
-	if [[ -z "$PI_PASSWORD" ]]; then
+	if [[ -z $PI_PASSWORD ]]; then
 		die "PI_PASSWORD not set. Did you run flash script first?"
 	fi
 
 	local pi_ip
 	pi_ip=$(discover_raspberry_pi)
 
-	if [[ -z "$pi_ip" ]]; then
+	if [[ -z $pi_ip ]]; then
 		die "Failed to discover Raspberry Pi"
 	fi
 
@@ -1070,14 +1070,14 @@ phase_install_remote() {
 phase_install_ca() {
 	log_info "=== Installing Nextcloud CA Certificate ==="
 
-	if [[ -z "$PI_PASSWORD" ]]; then
+	if [[ -z $PI_PASSWORD ]]; then
 		die "PI_PASSWORD not set. Run this after running install-remote or flash."
 	fi
 
 	local pi_ip
 	pi_ip=$(discover_raspberry_pi)
 
-	if [[ -z "$pi_ip" ]]; then
+	if [[ -z $pi_ip ]]; then
 		die "Failed to discover Raspberry Pi"
 	fi
 
@@ -1089,7 +1089,7 @@ phase_install_ca() {
 	sshpass -p "$PI_PASSWORD" ssh -o StrictHostKeyChecking=no \
 		"${PI_USER}@${pi_ip}" "echo '$PI_PASSWORD' | sudo -S cat /etc/ssl/nextcloud/ca.crt" >"$ca_file" 2>/dev/null
 
-	if [[ ! -f "$ca_file" ]] || [[ ! -s "$ca_file" ]]; then
+	if [[ ! -f $ca_file ]] || [[ ! -s $ca_file ]]; then
 		die "Failed to download CA certificate"
 	fi
 
@@ -1146,7 +1146,7 @@ phase_install_ca() {
 	if [[ -d ~/.mozilla/firefox ]]; then
 		local installed=0
 		for profile_dir in ~/.mozilla/firefox/*.default* ~/.mozilla/firefox/*.esr*; do
-			if [[ -d "$profile_dir" ]]; then
+			if [[ -d $profile_dir ]]; then
 				if ! certutil -d sql:"$profile_dir" -L 2>/dev/null | grep -q "Nextcloud"; then
 					certutil -d sql:"$profile_dir" -A -n "Nextcloud Home CA" -t "CT,C,C" -i "$ca_file" 2>/dev/null &&
 						installed=1

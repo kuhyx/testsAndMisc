@@ -66,10 +66,10 @@ was_opened_this_hour() {
 	local current_hour
 	current_hour=$(get_hour_key)
 
-	if [[ -f "$state_file" ]]; then
+	if [[ -f $state_file ]]; then
 		local last_hour
 		last_hour=$(cat "$state_file" 2>/dev/null || echo "")
-		if [[ "$last_hour" == "$current_hour" ]]; then
+		if [[ $last_hour == "$current_hour" ]]; then
 			return 0 # Was opened this hour
 		fi
 	fi
@@ -152,13 +152,13 @@ install_wrapper() {
 	fi
 
 	# Check if wrapper location exists (file or symlink)
-	if [[ ! -e "$wrapper_path" && ! -L "$wrapper_path" ]]; then
+	if [[ ! -e $wrapper_path && ! -L $wrapper_path ]]; then
 		echo "  ⚠ $app not installed ($wrapper_path not found)"
 		return 1
 	fi
 
 	# Check if real binary exists
-	if [[ ! -x "$real_binary" ]]; then
+	if [[ ! -x $real_binary ]]; then
 		echo "  ⚠ $app real binary not found ($real_binary)"
 		return 1
 	fi
@@ -166,7 +166,7 @@ install_wrapper() {
 	echo "  Installing wrapper for $app..."
 
 	# Handle symlinks: save the symlink itself, not the target
-	if [[ -L "$wrapper_path" ]]; then
+	if [[ -L $wrapper_path ]]; then
 		local link_target
 		link_target=$(readlink "$wrapper_path")
 		echo "    Saving symlink $wrapper_path -> $link_target as ${wrapper_path}.orig"
@@ -207,7 +207,7 @@ uninstall_wrapper() {
 	# Check if it was a symlink (stored as SYMLINK:target in .orig)
 	local orig_content
 	orig_content=$(cat "${wrapper_path}.orig" 2>/dev/null || echo "")
-	if [[ "$orig_content" == SYMLINK:* ]]; then
+	if [[ $orig_content == SYMLINK:* ]]; then
 		local link_target="${orig_content#SYMLINK:}"
 		echo "    Restoring symlink $wrapper_path -> $link_target"
 		ln -s "$link_target" "$wrapper_path"
@@ -229,7 +229,7 @@ install_all() {
 	script_path="$(readlink -f "$0")"
 	local install_path="/usr/local/bin/block-compulsive-opening.sh"
 
-	if [[ "$script_path" != "$install_path" ]]; then
+	if [[ $script_path != "$install_path" ]]; then
 		echo "Installing main script to $install_path..."
 		cp "$script_path" "$install_path"
 		chmod +x "$install_path"
@@ -287,10 +287,10 @@ show_status() {
 		local status="not opened this hour"
 		local icon="○"
 
-		if [[ -f "$state_file" ]]; then
+		if [[ -f $state_file ]]; then
 			local last_hour
 			last_hour=$(cat "$state_file" 2>/dev/null || echo "")
-			if [[ "$last_hour" == "$current_hour" ]]; then
+			if [[ $last_hour == "$current_hour" ]]; then
 				status="already opened (blocked until next hour)"
 				icon="●"
 			else
@@ -303,7 +303,7 @@ show_status() {
 		local wrapper_path="${APPS[$app]}"
 		if [[ -f "${wrapper_path}.orig" ]]; then
 			wrapped="wrapped"
-		elif [[ -f "$wrapper_path" ]]; then
+		elif [[ -f $wrapper_path ]]; then
 			wrapped="installed (not wrapped)"
 		fi
 
@@ -320,7 +320,7 @@ reset_app() {
 	local state_file
 	state_file=$(get_state_file "$app")
 
-	if [[ -f "$state_file" ]]; then
+	if [[ -f $state_file ]]; then
 		rm -f "$state_file"
 		echo "Reset $app - can be opened again this hour"
 		log_message "RESET: $app state cleared by user"
@@ -392,7 +392,7 @@ main() {
 		show_status
 		;;
 	reset)
-		if [[ -z "${2:-}" ]]; then
+		if [[ -z ${2:-} ]]; then
 			echo "Error: specify app to reset"
 			echo "Apps: ${!APPS[*]}"
 			exit 1
@@ -403,7 +403,7 @@ main() {
 		reset_all
 		;;
 	wrapper)
-		if [[ -z "${2:-}" ]]; then
+		if [[ -z ${2:-} ]]; then
 			echo "Error: wrapper requires app name"
 			exit 1
 		fi

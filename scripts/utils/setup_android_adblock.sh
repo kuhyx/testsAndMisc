@@ -6,43 +6,13 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
+# shellcheck source=../lib/android.sh
+source "$SCRIPT_DIR/../lib/android.sh"
 
 # Re-run with sudo if needed for reading /etc/hosts
-if [[ $EUID -ne 0 ]] && [[ ! -r /etc/hosts ]]; then
-	exec sudo -E bash "$0" "$@"
-fi
+require_hosts_readable "$@"
 
-WORK_DIR="${HOME}/.cache/android-adblock"
-ensure_dir "$WORK_DIR"
-
-die() {
-	echo "[ERROR] $*" >&2
-	exit 1
-}
-
-print_header() {
-	echo
-	echo "========================================"
-	echo "  $1"
-	echo "========================================"
-	echo
-}
-
-check_device() {
-	log "Checking device connection..."
-	if ! adb devices | grep -q "device$"; then
-		die "No device connected. Enable USB debugging and connect your phone."
-	fi
-	log "Device connected"
-}
-
-check_root() {
-	log "Checking root access..."
-	if ! adb shell "su -c 'echo test'" 2>/dev/null | grep -q "test"; then
-		die "Root access not available. Make sure Magisk is installed and grant root to Shell."
-	fi
-	log "Root access confirmed"
-}
+WORK_DIR="$ANDROID_WORK_DIR"
 
 install_adaway() {
 	print_header "Installing AdAway"

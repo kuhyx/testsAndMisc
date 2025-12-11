@@ -10,14 +10,13 @@ set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
 
+# Source common library for shared functions
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # ---------- User/paths ----------
-if [[ -n ${SUDO_USER:-} ]]; then
-	ACTUAL_USER="$SUDO_USER"
-	USER_HOME="/home/$SUDO_USER"
-else
-	ACTUAL_USER="$USER"
-	USER_HOME="$HOME"
-fi
+set_actual_user_vars
 
 INSTALL_ROOT_DEFAULT="$USER_HOME/.local/share/unreal-mcp"
 INSTALL_ROOT="$INSTALL_ROOT_DEFAULT"

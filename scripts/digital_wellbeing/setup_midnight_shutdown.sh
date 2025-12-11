@@ -6,6 +6,11 @@
 
 set -e # Exit on any error
 
+# Source common library for shared functions
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # Function to show usage
 show_usage() {
 	echo "Day-Specific Auto-Shutdown Setup for Arch Linux"
@@ -35,13 +40,7 @@ check_sudo() {
 }
 
 # Get the actual user (even when running with sudo)
-if [[ -n $SUDO_USER ]]; then
-	ACTUAL_USER="$SUDO_USER"
-	USER_HOME="/home/$SUDO_USER"
-else
-	ACTUAL_USER="$USER"
-	USER_HOME="$HOME"
-fi
+set_actual_user_vars
 
 # Function to show current status
 show_current_status() {
@@ -603,6 +602,13 @@ test_setup() {
 	systemctl list-timers day-specific-shutdown.timer --no-pager 2>/dev/null | head -5 | grep day-specific-shutdown || echo "Timer information not available"
 }
 
+# Display the shutdown schedule (used in multiple places)
+print_shutdown_schedule() {
+	echo "Shutdown Schedule:"
+	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
+	echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
+}
+
 # Function to show final instructions
 show_instructions() {
 	echo ""
@@ -618,9 +624,7 @@ show_instructions() {
 	echo "✓ Monitor service installed (protects timer from being disabled)"
 	echo "✓ Watchdog timer installed (restarts monitor if stopped)"
 	echo ""
-	echo "Shutdown Schedule:"
-	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
-	echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
+	print_shutdown_schedule
 	echo ""
 	echo "Management commands:"
 	echo "  sudo day-specific-shutdown-manager.sh status   - Check status"
@@ -646,9 +650,7 @@ confirm_setup() {
 	echo "==============================================="
 	echo "This will set up your PC to automatically shutdown during specific time windows."
 	echo ""
-	echo "Shutdown Schedule:"
-	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
-	echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
+	print_shutdown_schedule
 	echo ""
 	echo "Important considerations:"
 	echo "- Any unsaved work will be lost during shutdown windows"

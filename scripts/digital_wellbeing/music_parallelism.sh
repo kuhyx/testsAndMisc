@@ -107,12 +107,12 @@ kill_music_services() {
 		local yt_music_windows
 		yt_music_windows=$(xdotool search --name "YouTube Music" 2>/dev/null || true)
 		for wid in $yt_music_windows; do
-			if [[ -n "$wid" ]]; then
+			if [[ -n $wid ]]; then
 				# Get window name for logging
 				local wname
 				wname=$(xdotool getwindowname "$wid" 2>/dev/null || echo "unknown")
 				# Only close if it's YouTube Music, not regular YouTube
-				if [[ "$wname" == *"YouTube Music"* ]] || [[ "$wname" == *"music.youtube.com"* ]]; then
+				if [[ $wname == *"YouTube Music"* ]] || [[ $wname == *"music.youtube.com"* ]]; then
 					log_message "Closing YouTube Music window: $wname (ID: $wid)"
 					xdotool windowclose "$wid" 2>/dev/null || true
 					killed=true
@@ -152,7 +152,7 @@ kill_music_services() {
 			local windows
 			windows=$(xdotool search --name "$pattern" 2>/dev/null || true)
 			for wid in $windows; do
-				if [[ -n "$wid" ]]; then
+				if [[ -n $wid ]]; then
 					local wname
 					wname=$(xdotool getwindowname "$wid" 2>/dev/null || echo "unknown")
 					log_message "Closing music service window: $wname (ID: $wid)"
