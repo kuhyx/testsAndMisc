@@ -2,34 +2,21 @@
 
 set -euo pipefail
 
+# Source common library
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # Re-run with sudo if needed for reading /etc/hosts
 if [[ $EUID -ne 0 ]] && [[ ! -r /etc/hosts ]]; then
 	exec sudo -E bash "$0" "$@"
 fi
 
 WORK_DIR="${HOME}/.cache/android-adblock"
-
-mkdir -p "$WORK_DIR"
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-
-log() {
-	echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S%z')]${NC} $*"
-}
-
-error() {
-	echo -e "${RED}[ERROR]${NC} $*" >&2
-}
-
-warn() {
-	echo -e "${YELLOW}[WARN]${NC} $*"
-}
+ensure_dir "$WORK_DIR"
 
 die() {
-	error "$@"
+	echo "[ERROR] $*" >&2
 	exit 1
 }
 

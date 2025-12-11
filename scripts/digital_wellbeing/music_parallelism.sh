@@ -9,15 +9,18 @@
 
 set -euo pipefail
 
+# Source common library for shared functions
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # Configuration
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/music-parallelism"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
-LOG_FILE="$LOG_DIR/music-parallelism.log"
+export LOG_FILE="$LOG_DIR/music-parallelism.log"
 CHECK_INTERVAL=3
 
-# Focus applications - window class names for xdotool detection
-# Only apps with VISIBLE WINDOWS should block music
-# We use window detection, not process detection, to avoid matching background services
+# Override focus apps with extended list for this script
 FOCUS_APPS_WINDOWS=(
 	# IDEs and code editors - match window titles
 	"Visual Studio Code"
@@ -38,13 +41,6 @@ FOCUS_APPS_WINDOWS=(
 	"Godot"
 	"Unity"
 	"Unreal Editor"
-)
-
-# Process patterns that definitively indicate focus apps
-# These are checked with pgrep -x (exact match) to avoid false positives
-FOCUS_APPS_PROCESSES=(
-	"steam_app_" # Steam games
-	"gamescope"  # Gamescope compositor
 )
 
 # Music streaming services - browser tabs or electron apps
@@ -72,38 +68,6 @@ MUSIC_SERVICES=(
 	# Pandora
 	"pandora.com"
 )
-
-# Function to log with timestamp
-log_message() {
-	local msg
-	msg="$(date '+%Y-%m-%d %H:%M:%S') - $1"
-	echo "$msg" >&2
-	echo "$msg" >>"$LOG_FILE" 2>/dev/null || true
-}
-
-# Check if any focus application is running
-# Uses window detection primarily to avoid matching background services
-is_focus_app_running() {
-	# First check for visible windows using xdotool
-	if command -v xdotool &>/dev/null; then
-		for app in "${FOCUS_APPS_WINDOWS[@]}"; do
-			if xdotool search --name "$app" &>/dev/null 2>&1; then
-				echo "$app"
-				return 0
-			fi
-		done
-	fi
-
-	# Then check for specific process patterns (like steam games)
-	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
-		if pgrep -f "$app" &>/dev/null; then
-			echo "$app"
-			return 0
-		fi
-	done
-
-	return 1
-}
 
 # Check if any music service is running and return its details
 find_music_services() {

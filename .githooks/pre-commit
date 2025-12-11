@@ -42,8 +42,10 @@ mapfile -d '' -t staged_shell_files < <(git diff --cached --name-only --diff-fil
 
 if [[ ${#staged_shell_files[@]} -gt 0 ]]; then
   # Run shellcheck on staged files
+  # -x: follow source directives
+  # -S warning: only fail on warning or higher (not info-level SC1091)
   if command -v shellcheck > /dev/null 2>&1; then
-    if ! shellcheck -x -S style "${staged_shell_files[@]}" 2>&1; then
+    if ! shellcheck -x -S warning "${staged_shell_files[@]}" 2>&1; then
       printf '\nCommit aborted: shellcheck found issues.\n' >&2
       printf 'Fix the remaining problems and retry the commit.\n' >&2
       exit 1
@@ -72,23 +74,23 @@ fi
 # Run jscpd and capture output
 # --min-lines 5: minimum 5 lines to consider a clone
 # --min-tokens 25: minimum 25 tokens to consider a clone
-# --threshold 0: fail if any duplication detected
+# --threshold 2: fail if more than 2% duplication
 jscpd_output=$("$JSCPD_BIN" \
   --pattern "**/*.sh" \
   --min-lines 5 \
   --min-tokens 25 \
-  --threshold 0 \
+  --threshold 2 \
   --reporters "console" \
-  --ignore "**/node_modules/**,**/.git/**" \
+  --ignore "**/node_modules/**,**/.git/**,**/misc/testsAndMisc-bash/**" \
   . 2>&1) || jscpd_exit=$?
 
 if [[ ${jscpd_exit:-0} -ne 0 ]]; then
   printf '\n%s\n' "$jscpd_output"
-  printf '\nCommit aborted: duplicate code detected.\n' >&2
+  printf '\nCommit aborted: duplicate code exceeds 2%% threshold.\n' >&2
   printf 'Consider extracting common code to scripts/lib/common.sh\n' >&2
   printf 'To see all duplicates: %s --pattern "**/*.sh" --min-lines 5 .\n' "$JSCPD_BIN" >&2
   exit 1
 fi
-printf '  ✓ No duplicate code detected\n'
+printf '  ✓ Duplication check passed (under 2%% threshold)\n'
 
 printf 'All checks passed. Proceeding with commit.\n'

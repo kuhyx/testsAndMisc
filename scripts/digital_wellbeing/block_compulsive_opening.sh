@@ -9,6 +9,11 @@
 
 set -euo pipefail
 
+# Source common library for shared functions
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
+
 # Configuration
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/compulsive-block"
 LOG_FILE="$STATE_DIR/compulsive-block.log"
@@ -91,13 +96,8 @@ block_app() {
 
 	log_message "BLOCKED: $app launch prevented (already opened this hour: $current_hour)"
 
-	# Send notification
-	if command -v notify-send &>/dev/null; then
-		notify-send -u critical -t 5000 \
-			"🚫 $app Blocked" \
-			"Already opened this hour. Wait until the next hour." \
-			2>/dev/null || true
-	fi
+	# Send notification using common library
+	notify "🚫 $app Blocked" "Already opened this hour. Wait until the next hour." critical 5000
 }
 
 # Get real binary path for an app
