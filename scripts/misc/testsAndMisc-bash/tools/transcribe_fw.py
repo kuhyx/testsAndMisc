@@ -7,6 +7,121 @@ import sys
 import time
 from datetime import timedelta
 from typing import List, Optional
+
+
+def format_bytes(size: int) -> str:
+    """Format bytes as human-readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size < 1024:
+            return f"{size:.1f}{unit}"
+        size /= 1024
+    return f"{size:.1f}TB"
+
+
+def download_model_with_progress(model_name: str) -> str:
+    """Download model files from HuggingFace with a visible progress bar.
+    
+    Returns the local path to the downloaded model.
+    """
+    try:
+        from huggingface_hub import snapshot_download, hf_hub_download
+        from huggingface_hub.utils import EntryNotFoundError
+    except ImportError:
+        print("[WARN] huggingface_hub not available, falling back to default download", file=sys.stderr)
+        return model_name
+    
+    # Map common model names to HF repo IDs
+    model_map = {
+        "tiny": "Systran/faster-whisper-tiny",
+        "tiny.en": "Systran/faster-whisper-tiny.en",
+        "base": "Systran/faster-whisper-base",
+        "base.en": "Systran/faster-whisper-base.en",
+        "small": "Systran/faster-whisper-small",
+        "small.en": "Systran/faster-whisper-small.en",
+        "medium": "Systran/faster-whisper-medium",
+        "medium.en": "Systran/faster-whisper-medium.en",
+        "large-v1": "Systran/faster-whisper-large-v1",
+        "large-v2": "Systran/faster-whisper-large-v2",
+        "large-v3": "Systran/faster-whisper-large-v3",
+        "large": "Systran/faster-whisper-large-v3",
+        "distil-large-v2": "Systran/faster-distil-whisper-large-v2",
+        "distil-large-v3": "Systran/faster-distil-whisper-large-v3",
+        "distil-medium.en": "Systran/faster-distil-whisper-medium.en",
+        "distil-small.en": "Systran/faster-distil-whisper-small.en",
+    }
+    
+    repo_id = model_map.get(model_name, model_name)
+    
+    # Check if it looks like a repo ID
+    if "/" not in repo_id and model_name not in model_map:
+        # Assume it's a Systran model
+        repo_id = f"Systran/faster-whisper-{model_name}"
+    
+    print(f"[INFO] Checking model: {repo_id}", flush=True)
+    
+    # Files we need to download (model.bin is the large one)
+    required_files = ["config.json", "model.bin", "tokenizer.json", "vocabulary.txt"]
+    
+    try:
+        # Use snapshot_download which handles caching and shows what's happening
+        # First, let's check if model.bin needs downloading by checking cache
+        from huggingface_hub import try_to_load_from_cache, HfFileSystem
+        
+        cache_path = try_to_load_from_cache(repo_id, "model.bin")
+        if cache_path is not None:
+            print(f"[INFO] Model already cached, loading from: {os.path.dirname(cache_path)}", flush=True)
+            # Return the directory containing the cached files
+            return os.path.dirname(cache_path)
+        
+        # Model not cached, need to download
+        print(f"[INFO] Downloading model files from {repo_id}...", flush=True)
+        print("[INFO] This may take several minutes for large models (~3GB for large-v3)", flush=True)
+        
+        # Get file sizes to show progress
+        try:
+            fs = HfFileSystem()
+            files_info = fs.ls(repo_id, detail=True)
+            total_size = sum(f.get('size', 0) for f in files_info if f.get('name', '').split('/')[-1] in required_files)
+            print(f"[INFO] Total download size: ~{format_bytes(total_size)}", flush=True)
+        except Exception:
+            pass  # Size info is optional
+        
+        # Download with progress
+        downloaded = 0
+        start_time = time.time()
+        
+        for filename in required_files:
+            file_start = time.time()
+            print(f"[DOWNLOAD] {filename}...", end=" ", flush=True)
+            try:
+                local_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    resume_download=True,
+                )
+                elapsed = time.time() - file_start
+                file_size = os.path.getsize(local_path) if os.path.exists(local_path) else 0
+                print(f"done ({format_bytes(file_size)}, {elapsed:.1f}s)", flush=True)
+                downloaded += 1
+                
+                # Return directory on first successful download
+                if downloaded == 1:
+                    model_dir = os.path.dirname(local_path)
+            except EntryNotFoundError:
+                print("not found (optional)", flush=True)
+            except Exception as e:
+                print(f"error: {e}", flush=True)
+        
+        total_time = time.time() - start_time
+        print(f"[INFO] Download complete in {total_time:.1f}s", flush=True)
+        
+        return model_dir
+        
+    except Exception as e:
+        print(f"[WARN] Custom download failed ({e}), falling back to default", file=sys.stderr)
+        return model_name
+
+
 def format_timestamp(seconds: float) -> str:
     td = timedelta(seconds=seconds)
     # Ensure SRT format HH:MM:SS,mmm
@@ -324,7 +439,21 @@ def main():
         compute_type = "float16" if device == "cuda" else "float32"
 
     print(f"[INFO] Loading model='{args.model}', device='{device}', compute_type='{compute_type}'")
-    model = WhisperModel(args.model, device=device, compute_type=compute_type)
+
+    # Pre-download model files with explicit progress if not already cached
+    model_path = args.model
+    if not os.path.isdir(args.model):  # Not a local path, need to download from HF
+        model_path = download_model_with_progress(args.model)
+
+    # Show CTranslate2 conversion progress
+    import logging
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+    ct2_logger = logging.getLogger("faster_whisper")
+    ct2_logger.setLevel(logging.INFO)
+
+    print("[INFO] Initializing model...", flush=True)
+    model = WhisperModel(model_path, device=device, compute_type=compute_type)
+    print("[INFO] Model loaded successfully.", flush=True)
 
     # Transcription with live progress
     total_duration = get_media_duration(inp)

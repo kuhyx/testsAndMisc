@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
 TOOLS_DIR="$PROJECT_DIR/tools"
 PY_RUNNER="$TOOLS_DIR/transcribe_fw.py"
+PY_HELPERS="$TOOLS_DIR/transcribe_helpers.py"
 VENV_DIR="$PROJECT_DIR/.venv"
 
 usage() {
@@ -73,7 +74,7 @@ has_libcublas12() {
 	# venv-provided NVIDIA CUDA libs
 	if [[ -x "$VENV_DIR/bin/python" ]]; then
 		local pyver
-		pyver="$("$VENV_DIR"/bin/python -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
+		pyver="$("$VENV_DIR"/bin/python "$PY_HELPERS" python-version 2>/dev/null || true)"
 		if [[ -n $pyver ]]; then
 			for d in "$VENV_DIR/lib/python$pyver/site-packages/nvidia/cublas/lib" \
 				"$VENV_DIR/lib/python$pyver/site-packages/nvidia/cudnn/lib" \
@@ -234,46 +235,37 @@ install_python_deps() {
 	export PIP_DEFAULT_TIMEOUT=${PIP_DEFAULT_TIMEOUT:-20}
 	if [[ $OFFLINE -eq 1 ]]; then
 		# Offline: do not install, just verify modules
-		if ! python -c 'import faster_whisper' >/dev/null 2>&1; then
-			echo "Python dependency 'faster_whisper' not found in offline mode. Run with --online to install." >&2
+		if ! python "$PY_HELPERS" check-faster-whisper; then
 			exit 7
 		fi
 		# If diarization requested offline, check for its deps too (warn-only)
 		if [[ ${FW_DIARIZE:-} == "1" ]]; then
-			python - <<'PY' || true
-try:
-    import soundfile, speechbrain, torch  # noqa: F401
-except Exception as e:
-    print(f"[WARN] Diarization deps missing offline ({e}); speaker labels will be skipped.")
-PY
+			python "$PY_HELPERS" check-diarization || true
 		fi
 		return 0
 	fi
 	if [[ $has_nvidia_flag -eq 1 ]]; then
-		# If ctranslate2 is not installed, attempt CUDA-enabled wheel (quiet, with fallback)
-		if ! "$VENV_DIR/bin/python" -c 'import ctranslate2' >/dev/null 2>&1; then
+		# If ctranslate2 is not installed, attempt CUDA-enabled wheel (with fallback)
+		if ! "$VENV_DIR/bin/python" "$PY_HELPERS" check-ctranslate2 2>/dev/null; then
 			log "Installing CUDA-enabled CTranslate2 (cu12 wheel)"
-			python -m pip install -q --retries 1 --upgrade "ctranslate2<5,>=4.0" --extra-index-url https://download.opennmt.net/ctranslate2/cu12 ||
+			python -m pip install --progress-bar on --retries 1 --upgrade "ctranslate2<5,>=4.0" --extra-index-url https://download.opennmt.net/ctranslate2/cu12 ||
 				log "Warning: could not reach cu12 wheel index; will proceed with available ctranslate2"
 		fi
 		# Ensure NVIDIA CUDA 12 runtime libs are available inside the venv
-		python -m pip install -q --retries 1 --upgrade nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 ||
+		python -m pip install --progress-bar on --retries 1 --upgrade nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 ||
 			log "Warning: failed to install NVIDIA cu12 runtime libs via pip"
 	fi
-	python -m pip install -q --retries 1 --upgrade faster-whisper ffmpeg-python
+	python -m pip install --progress-bar on --retries 1 --upgrade faster-whisper ffmpeg-python
 
 	# If diarization requested and online, install its Python deps best-effort
 	if [[ ${FW_DIARIZE:-} == "1" ]]; then
-		python -m pip install -q --retries 1 --upgrade soundfile speechbrain ||
+		python -m pip install --progress-bar on --retries 1 --upgrade soundfile speechbrain ||
 			log "Warning: failed to install soundfile/speechbrain"
 		# Torch and torchaudio CPU wheels (force to avoid mismatched CUDA builds)
-		python -m pip install -q --retries 1 --upgrade --force-reinstall --index-url https://download.pytorch.org/whl/cpu torch torchaudio ||
+		python -m pip install --progress-bar on --retries 1 --upgrade --force-reinstall --index-url https://download.pytorch.org/whl/cpu torch torchaudio ||
 			log "Warning: failed to install torch/torchaudio CPU wheels"
 	fi
-	python - <<'PY'
-import sys
-print(f"[PY] Python {sys.version.split()[0]} dependencies installed.")
-PY
+	python "$PY_HELPERS" deps-installed
 }
 
 ensure_runner() {
@@ -298,7 +290,7 @@ generate_test_audio() {
 	# Fallback: generate tone via Python stdlib (no external deps)
 	if [[ ! -s $tmpwav ]]; then
 		log "Generating 3s 1kHz WAV via Python stdlib -> $tmpwav" >&2
-		python3 -c 'import sys,wave,math,array;outfile=sys.argv[1];fr=16000;dur=3;freq=1000.0;ampl=0.3;n=fr*dur;data=array.array("h",[int(max(-1.0,min(1.0,ampl*math.sin(2*math.pi*freq*(i/fr))))*32767) for i in range(n)]);wf=wave.open(outfile,"w");wf.setnchannels(1);wf.setsampwidth(2);wf.setframerate(fr);wf.writeframes(data.tobytes());wf.close()' "$tmpwav" || true
+		python3 "$PY_HELPERS" generate-wav --file "$tmpwav" || true
 	fi
 	# Final fallback: tone via ffmpeg
 	if [[ ! -s $tmpwav ]]; then
@@ -315,15 +307,7 @@ prepare_model() {
 	# shellcheck disable=SC1091
 	source "$VENV_DIR/bin/activate"
 	log "Preparing model '$name' into $MODEL_DIR"
-	python - <<PY
-import sys, os
-from faster_whisper import WhisperModel
-name = os.environ.get('FW_PREPARE_NAME')
-root = os.environ.get('FW_MODEL_DIR')
-print(f"[PY] Preparing model '{name}' into {root}")
-WhisperModel(name, device="cpu", compute_type="int8", download_root=root)
-print("[PY] Model prepared.")
-PY
+	python "$PY_HELPERS" prepare-model --model "$name" --model-dir "$MODEL_DIR"
 }
 
 main() {
@@ -397,8 +381,6 @@ main() {
 			exit 2
 		fi
 		install_python_deps 0
-		export FW_PREPARE_NAME="$PREPARE_MODEL"
-		export FW_MODEL_DIR="$MODEL_DIR"
 		prepare_model "$PREPARE_MODEL"
 		log "Model '$PREPARE_MODEL' downloaded to $MODEL_DIR"
 		exit 0
@@ -445,7 +427,7 @@ main() {
 		# Include system and possible venv-provided CUDA libs
 		local pyver venv_cuda_paths=""
 		if [[ -x "$VENV_DIR/bin/python" ]]; then
-			pyver="$("$VENV_DIR"/bin/python -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
+			pyver="$("$VENV_DIR"/bin/python "$PY_HELPERS" python-version 2>/dev/null || true)"
 			if [[ -n $pyver ]]; then
 				venv_cuda_paths="$VENV_DIR/lib/python$pyver/site-packages/nvidia/cublas/lib:$VENV_DIR/lib/python$pyver/site-packages/nvidia/cudnn/lib:$VENV_DIR/lib/python$pyver/site-packages/nvidia/cuda_runtime/lib"
 			fi
@@ -454,7 +436,7 @@ main() {
 		export PATH="${PATH}:${CUDA_HOME}/bin"
 		# shellcheck disable=SC1091
 		source "$VENV_DIR/bin/activate"
-		python -c 'from faster_whisper import WhisperModel; WhisperModel("tiny", device="cuda", compute_type="float16"); print("[PY] CUDA test init succeeded.")' || {
+		python "$PY_HELPERS" test-cuda || {
 			echo "CUDA environment check failed. Aborting as requested." >&2
 			exit 6
 		}
