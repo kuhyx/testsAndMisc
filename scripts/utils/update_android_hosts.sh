@@ -478,6 +478,24 @@ cmd_status() {
 	status=$(adb shell "su -c 'cat $GUARDIAN_DATA_DIR/control 2>/dev/null || echo UNKNOWN'" | tr -d '\r')
 	echo "Status: $status"
 
+	# Check if module is "disabled" in Magisk UI (should be auto-fixed by watchdog)
+	local magisk_disabled
+	if adb shell "su -c 'test -f $MODULE_DEST/disable'" 2>/dev/null; then
+		magisk_disabled="YES (watchdog should fix this)"
+	else
+		magisk_disabled="No"
+	fi
+	echo "Magisk UI disabled: $magisk_disabled"
+
+	# Check if watchdog is running
+	local watchdog_running
+	watchdog_running=$(adb shell "su -c 'pgrep -f watchdog.sh 2>/dev/null | wc -l'" | tr -d '\r')
+	if [ "$watchdog_running" -gt 0 ] 2>/dev/null; then
+		echo "Watchdog: RUNNING ($watchdog_running processes)"
+	else
+		echo "Watchdog: NOT RUNNING (reboot phone to start)"
+	fi
+
 	# Check hosts file
 	local hosts_entries
 	hosts_entries=$(adb shell "su -c 'grep -c \"^0.0.0.0\" /system/etc/hosts 2>/dev/null || echo 0'" | tr -d '\r')
@@ -488,6 +506,9 @@ cmd_status() {
 	blocked_count=$(adb shell "su -c 'grep -v \"^#\" $GUARDIAN_DATA_DIR/blocked_apps.txt 2>/dev/null | grep -v \"^$\" | wc -l || echo 0'" | tr -d '\r')
 	echo "Blocked app rules: $blocked_count packages"
 
+	echo ""
+	echo "Protection: Module cannot be disabled from Magisk UI"
+	echo "            Only controllable via: $0 disable/enable"
 	echo ""
 }
 
