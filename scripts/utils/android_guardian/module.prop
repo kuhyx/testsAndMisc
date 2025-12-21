@@ -1,0 +1,6 @@
+id=android_guardian
+name=Android Guardian (Hosts + App Blocker)
+version=1.0
+versionCode=1
+author=linux-configuration
+description=Persistent hosts blocking and app installation guard. Can only be controlled via ADB.
