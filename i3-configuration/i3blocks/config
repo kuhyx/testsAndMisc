@@ -81,6 +81,12 @@ interval=30
 color=#FFFFFF
 
 
+[shutdown_countdown]
+command=~/.config/i3blocks/shutdown_countdown.sh
+interval=60
+markup=pango
+
+
 [time]
 command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
 interval=1
