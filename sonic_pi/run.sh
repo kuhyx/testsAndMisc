@@ -18,27 +18,42 @@ require_cmd() {
 }
 
 install_arch_from_aur_git() {
-  # Build and install from AUR git repo directly (sonic-pi.git)
-  local AUR_URL="https://aur.archlinux.org/sonic-pi.git"
+  # Build and install from AUR using an AUR helper (handles recursive AUR deps)
   if [ "$EUID" -eq 0 ]; then
     echo "Do not run the AUR build as root. Re-run this script as a regular user." >&2
     return 1
   fi
-  echo "Preparing to build Sonic Pi from AUR..."
-  # Common build deps that often are needed
-  sudo pacman -S --needed --noconfirm base-devel git cmake boost boost-libs qt6-base qt6-svg qt6-declarative qt6-tools ruby || true
+
+  # Try AUR helpers first (they handle recursive AUR deps)
+  if require_cmd yay; then
+    echo "Installing Sonic Pi via yay..."
+    yay -S --needed --noconfirm sonic-pi
+    return $?
+  elif require_cmd paru; then
+    echo "Installing Sonic Pi via paru..."
+    paru -S --needed --noconfirm sonic-pi
+    return $?
+  fi
+
+  echo "No AUR helper found. Installing yay first..."
+  sudo pacman -S --needed --noconfirm base-devel git || true
   local TMPDIR
-  TMPDIR=$(mktemp -d -t sonicpi-aur-XXXXXX)
-  echo "Using temp dir: $TMPDIR"
+  TMPDIR=$(mktemp -d -t yay-install-XXXXXX)
   (
     set -e
     cd "$TMPDIR"
-    repo_name=$(basename "$AUR_URL" .git)
-    echo "Cloning $AUR_URL"
-    git clone "$AUR_URL"
-    cd "$repo_name"
+    git clone https://aur.archlinux.org/yay.git
+    cd yay
     makepkg -si --noconfirm
   )
+  # Now use yay to install sonic-pi
+  if require_cmd yay; then
+    echo "Installing Sonic Pi via yay..."
+    yay -S --needed --noconfirm sonic-pi
+    return $?
+  fi
+  echo "Failed to install yay." >&2
+  return 1
 }
 
 install_sonic_pi() {
