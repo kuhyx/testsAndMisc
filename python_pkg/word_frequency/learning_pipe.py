@@ -38,9 +38,19 @@ from typing import TYPE_CHECKING
 try:
     from python_pkg.word_frequency.analyzer import analyze_text, read_file
     from python_pkg.word_frequency.excerpt_finder import find_best_excerpt
+    from python_pkg.word_frequency.translator import (
+        TranslationResult,
+        detect_language,
+        translate_words_batch,
+    )
 except ModuleNotFoundError:
     from analyzer import analyze_text, read_file  # type: ignore[import-not-found]
     from excerpt_finder import find_best_excerpt  # type: ignore[import-not-found]
+    from translator import (  # type: ignore[import-not-found]
+        TranslationResult,
+        detect_language,
+        translate_words_batch,
+    )
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -94,6 +104,8 @@ def generate_learning_lesson(
     skip_numbers: bool = True,
     case_sensitive: bool = False,
     context_words: int = 5,
+    translate_from: str | None = None,
+    translate_to: str | None = None,
 ) -> str:
     """Generate a learning lesson from text.
 
@@ -108,6 +120,8 @@ def generate_learning_lesson(
         skip_numbers: If True, filter out numeric words (default: True).
         case_sensitive: If True, treat words case-sensitively.
         context_words: Words of context to include around excerpts.
+        translate_from: Source language code for translation (e.g., 'la', 'pl').
+        translate_to: Target language code for translation (e.g., 'en').
 
     Returns:
         Formatted learning lesson as a string.
@@ -142,6 +156,30 @@ def generate_learning_lesson(
         lines.append(f"After filtering {len(all_stopwords)} stopwords: {len(filtered_words):,} vocabulary words")
     else:
         lines.append(f"Vocabulary words: {len(filtered_words):,}")
+
+    # Handle translation setup
+    actual_translate_from = translate_from
+    actual_translate_to = translate_to or "en"  # Default to English
+
+    # Auto-detect language if translation is enabled but source not specified
+    if translate_from == "auto" or (translate_to and not translate_from):
+        detected = detect_language(text)
+        if detected:
+            actual_translate_from = detected
+            lines.append(f"Detected language: {detected}")
+            # Note: langdetect doesn't support Latin (often detected as Italian)
+            # If detection seems wrong, use --translate-from to override
+        else:
+            lines.append(
+                "Warning: Could not detect language "
+                "(install langdetect: pip install langdetect)"
+            )
+            actual_translate_from = None
+
+    do_translate = actual_translate_from is not None and actual_translate_to is not None
+    if do_translate:
+        lines.append(f"Translation: {actual_translate_from} -> {actual_translate_to}")
+
     lines.append("")
 
     # Generate batches
@@ -162,13 +200,37 @@ def generate_learning_lesson(
         lines.append("-" * 70)
         lines.append("")
 
+        # Get translations if requested
+        translations: dict[str, str] = {}
+        if do_translate:
+            words_to_translate = [word for word, _ in batch_words]
+            translation_results = translate_words_batch(
+                words_to_translate,
+                actual_translate_from,  # type: ignore[arg-type]
+                actual_translate_to,  # type: ignore[arg-type]
+            )
+            translations = {
+                r.source_word: r.translated_word
+                for r in translation_results
+                if r.success
+            }
+
         # Word list with frequencies
         lines.append("VOCABULARY TO LEARN:")
         lines.append("")
 
-        for i, (word, count) in enumerate(batch_words, start=start_idx + 1):
-            percentage = (count / total_words) * 100
-            lines.append(f"  {i:3}. {word:<20} ({count:,} occurrences, {percentage:.2f}%)")
+        if do_translate and translations:
+            # Include translations in output
+            for i, (word, count) in enumerate(batch_words, start=start_idx + 1):
+                percentage = (count / total_words) * 100
+                trans = translations.get(word, "?")
+                lines.append(
+                    f"  {i:3}. {word:<20} -> {trans:<20} ({count:,} occurrences, {percentage:.2f}%)"
+                )
+        else:
+            for i, (word, count) in enumerate(batch_words, start=start_idx + 1):
+                percentage = (count / total_words) * 100
+                lines.append(f"  {i:3}. {word:<20} ({count:,} occurrences, {percentage:.2f}%)")
 
         lines.append("")
 
@@ -301,6 +363,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Include numeric words in vocabulary (filtered by default)",
     )
 
+    # Translation options (enabled by default)
+    parser.add_argument(
+        "--no-translate",
+        "-T",
+        action="store_true",
+        help="Disable translation",
+    )
+    parser.add_argument(
+        "--translate-from",
+        type=str,
+        metavar="LANG",
+        help="Source language code (e.g., 'la', 'pl', 'de'). If omitted, auto-detected.",
+    )
+    parser.add_argument(
+        "--translate-to",
+        type=str,
+        metavar="LANG",
+        default="en",
+        help="Target language code (default: 'en')",
+    )
+
     # Output options
     parser.add_argument(
         "--output",
@@ -321,6 +404,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         # Load custom stopwords if provided
         custom_stopwords = load_stopwords(args.stopwords)
 
+        # Determine translation settings
+        # Translation enabled by default, --no-translate disables it
+        translate_from: str | None = None
+        translate_to: str | None = None
+
+        if not args.no_translate:
+            translate_from = args.translate_from or "auto"  # "auto" triggers detection
+            translate_to = args.translate_to
+
         # Generate lesson
         lesson = generate_learning_lesson(
             text,
@@ -332,6 +424,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             skip_default_stopwords=args.no_default_stopwords,
             skip_numbers=not args.include_numbers,
             case_sensitive=args.case_sensitive,
+            translate_from=translate_from,
+            translate_to=translate_to,
         )
 
         # Output
