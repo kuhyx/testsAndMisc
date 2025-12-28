@@ -309,3 +309,90 @@ class TestDefaultStopwords:
         """Test that all stopwords are lowercase."""
         for word in DEFAULT_STOPWORDS_EN:
             assert word == word.lower()
+
+
+class TestTranslationIntegration:
+    """Tests for translation integration in learning_pipe."""
+
+    def test_lesson_without_translation(self) -> None:
+        """Test that lesson works without translation."""
+        text = "hello world hello world hello"
+        result = generate_learning_lesson(
+            text,
+            batch_size=5,
+            num_batches=1,
+            skip_default_stopwords=True,
+        )
+
+        assert "hello" in result
+        assert "world" in result
+        # Should not have translation arrows
+        assert " -> " not in result or "Translation" not in result
+
+    def test_lesson_with_translation_params(self) -> None:
+        """Test that translation params are accepted."""
+        text = "hello world hello world hello"
+        # This should not crash even without argostranslate installed
+        result = generate_learning_lesson(
+            text,
+            batch_size=5,
+            num_batches=1,
+            skip_default_stopwords=True,
+            translate_from="en",
+            translate_to="es",
+        )
+
+        # The lesson should still be generated
+        assert "VOCABULARY TO LEARN:" in result
+        assert "hello" in result
+
+    def test_main_with_translate_flags(self, tmp_path: Path) -> None:
+        """Test that main accepts translation flags."""
+        text_file = tmp_path / "test.txt"
+        text_file.write_text("hello world hello world hello", encoding="utf-8")
+
+        # Should not crash even if translation fails
+        result = main([
+            "--file", str(text_file),
+            "--translate-from", "en",
+            "--translate-to", "es",
+            "--no-default-stopwords",
+        ])
+
+        assert result == 0
+
+    def test_translate_to_defaults_to_english(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test that translate_to defaults to 'en' when using auto-detection."""
+        text = "hello world"
+        # When using --translate flag (translate_from="auto"), translate_to defaults to "en"
+        result = generate_learning_lesson(
+            text,
+            batch_size=5,
+            num_batches=1,
+            skip_default_stopwords=True,
+            translate_from="auto",  # Auto-detect source language
+            translate_to=None,  # Should default to English
+        )
+
+        # Should have translation output with auto-detected source -> en
+        assert "Detected language:" in result
+        assert " -> en" in result
+
+    def test_no_translation_when_both_none(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Test no translation happens when both translate_from and translate_to are None."""
+        text = "hello world"
+        result = generate_learning_lesson(
+            text,
+            batch_size=5,
+            num_batches=1,
+            skip_default_stopwords=True,
+            translate_from=None,
+            translate_to=None,
+        )
+
+        # Should not have translation output
+        assert "Translation:" not in result
+        assert "Detected language:" not in result
+

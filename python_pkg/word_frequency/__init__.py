@@ -3,10 +3,13 @@
 This package provides tools for:
 1. Analyzing word frequency in text (analyzer module)
 2. Finding text excerpts where target words are most prevalent (excerpt_finder module)
+3. Combining analysis with excerpts for language learning (learning_pipe module)
+4. Offline translation between languages (translator module)
 
 Example usage:
     from python_pkg.word_frequency.analyzer import analyze_text, analyze_and_format
     from python_pkg.word_frequency.excerpt_finder import find_best_excerpt
+    from python_pkg.word_frequency.translator import translate_words
 
     # Analyze word frequency
     counts = analyze_text("hello world hello")
@@ -18,6 +21,10 @@ Example usage:
         target_words=["and", "the"],
         excerpt_length=3,
     )
+
+    # Translate words (requires argostranslate installed)
+    translations = translate_words(["hello", "world"], "en", "es")
+```
     print(results[0].excerpt)  # "and she and" or similar
 """
 
