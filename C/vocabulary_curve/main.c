@@ -328,11 +328,90 @@ static void dump_vocabulary(int max_rank) {
     printf("VOCAB_DUMP_END\n");
 }
 
+/* Find longest excerpt using only top N words (inverse mode) */
+static void find_longest_excerpt(int max_vocab) {
+    /* Sliding window: find longest contiguous sequence where all words have rank <= max_vocab */
+    int best_start = 0;
+    int best_length = 0;
+    
+    int left = 0;
+    for (int right = 0; right < num_words; right++) {
+        /* If current word is outside our vocabulary, move left past it */
+        if (word_sequence[right]->rank > max_vocab) {
+            left = right + 1;
+        } else {
+            /* Current window [left, right] is valid */
+            int length = right - left + 1;
+            if (length > best_length) {
+                best_length = length;
+                best_start = left;
+            }
+        }
+    }
+    
+    /* Print results */
+    printf("======================================================================\n");
+    printf("INVERSE MODE: LONGEST EXCERPT WITH TOP %d WORDS\n", max_vocab);
+    printf("======================================================================\n");
+    printf("\n");
+    printf("Total words in text: %d\n", num_words);
+    printf("Unique words: %d\n", num_unique_words);
+    printf("Vocabulary limit: top %d words\n", max_vocab);
+    printf("\n");
+    printf("----------------------------------------------------------------------\n");
+    printf("\n");
+    
+    if (best_length == 0) {
+        printf("No valid excerpt found with top %d words.\n", max_vocab);
+        printf("The text may require rarer words from the very beginning.\n");
+    } else {
+        printf("LONGEST EXCERPT: %d words\n", best_length);
+        printf("Position: words %d to %d\n", best_start + 1, best_start + best_length);
+        printf("\n");
+        printf("Excerpt:\n  \"");
+        print_excerpt(best_start, best_length);
+        printf("\"\n");
+        printf("\n");
+        
+        /* Find the rarest word in the excerpt */
+        int max_rank_used = 0;
+        const char *rarest_word = NULL;
+        for (int i = best_start; i < best_start + best_length; i++) {
+            if (word_sequence[i]->rank > max_rank_used) {
+                max_rank_used = word_sequence[i]->rank;
+                rarest_word = word_sequence[i]->word;
+            }
+        }
+        printf("Rarest word used: %s (#%d)\n", rarest_word, max_rank_used);
+        
+        /* Count unique words in excerpt */
+        static bool seen_rank[MAX_UNIQUE_WORDS + 1];
+        memset(seen_rank, 0, (num_unique_words + 1) * sizeof(bool));
+        int unique_count = 0;
+        for (int i = best_start; i < best_start + best_length; i++) {
+            if (!seen_rank[word_sequence[i]->rank]) {
+                seen_rank[word_sequence[i]->rank] = true;
+                unique_count++;
+            }
+        }
+        printf("Unique words in excerpt: %d\n", unique_count);
+    }
+    
+    printf("\n----------------------------------------------------------------------\n");
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <file.txt> [max_length] [--dump-vocab [max_rank]]\n", argv[0]);
-        fprintf(stderr, "  max_length: maximum excerpt length to analyze (default: 30)\n");
-        fprintf(stderr, "  --dump-vocab: output all words with ranks up to max_rank\n");
+        fprintf(stderr, "Usage: %s <file.txt> [options]\n", argv[0]);
+        fprintf(stderr, "\nModes:\n");
+        fprintf(stderr, "  (default)         Find minimum vocab needed for each excerpt length\n");
+        fprintf(stderr, "  --max-vocab N     INVERSE: Find longest excerpt using only top N words\n");
+        fprintf(stderr, "\nOptions:\n");
+        fprintf(stderr, "  max_length        Maximum excerpt length to analyze (default: 30)\n");
+        fprintf(stderr, "  --dump-vocab [N]  Output all words with ranks up to N\n");
+        fprintf(stderr, "\nExamples:\n");
+        fprintf(stderr, "  %s book.txt 50              # Analyze excerpts up to 50 words\n", argv[0]);
+        fprintf(stderr, "  %s book.txt --max-vocab 500 # Find longest excerpt with top 500 words\n", argv[0]);
         return 1;
     }
     
@@ -340,6 +419,7 @@ int main(int argc, char *argv[]) {
     int max_length = 30;
     bool dump_vocab = false;
     int dump_max_rank = 0;
+    int max_vocab_mode = 0;  /* 0 = normal mode, >0 = inverse mode with this vocab limit */
     
     /* Parse arguments */
     for (int i = 2; i < argc; i++) {
@@ -347,6 +427,17 @@ int main(int argc, char *argv[]) {
             dump_vocab = true;
             if (i + 1 < argc && argv[i + 1][0] != '-') {
                 dump_max_rank = atoi(argv[++i]);
+            }
+        } else if (strcmp(argv[i], "--max-vocab") == 0) {
+            if (i + 1 < argc) {
+                max_vocab_mode = atoi(argv[++i]);
+                if (max_vocab_mode < 1) {
+                    fprintf(stderr, "Error: --max-vocab requires a positive number\n");
+                    return 1;
+                }
+            } else {
+                fprintf(stderr, "Error: --max-vocab requires a number\n");
+                return 1;
             }
         } else if (argv[i][0] != '-') {
             max_length = atoi(argv[i]);
@@ -371,7 +462,21 @@ int main(int argc, char *argv[]) {
     /* Assign ranks by frequency */
     assign_ranks();
     
-    /* Find optimal excerpts */
+    /* Inverse mode: find longest excerpt with limited vocabulary */
+    if (max_vocab_mode > 0) {
+        find_longest_excerpt(max_vocab_mode);
+        
+        /* Dump vocabulary if requested */
+        if (dump_vocab) {
+            if (dump_max_rank == 0) dump_max_rank = max_vocab_mode;
+            dump_vocabulary(dump_max_rank);
+        }
+        
+        cleanup();
+        return 0;
+    }
+    
+    /* Normal mode: find optimal excerpts */
     ExcerptResult *results = malloc(max_length * sizeof(ExcerptResult));
     if (!results) {
         fprintf(stderr, "Memory allocation failed\n");
