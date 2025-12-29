@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,6 +15,40 @@ from python_pkg.word_frequency.learning_pipe import (
     load_stopwords,
     main,
 )
+import python_pkg.word_frequency.learning_pipe as learning_pipe_module
+from python_pkg.word_frequency.translator import TranslationResult
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
+@pytest.fixture
+def mock_translation() -> Generator[MagicMock, None, None]:
+    """Mock translation to avoid requiring argostranslate."""
+    def fake_batch_translate(
+        words: list[str],
+        from_lang: str,
+        to_lang: str,
+        *,
+        use_cache: bool = True,  # noqa: ARG001
+    ) -> list[TranslationResult]:
+        """Fake batch translation that returns word with prefix."""
+        return [
+            TranslationResult(
+                source_word=word,
+                translated_word=f"translated_{word}",
+                source_lang=from_lang,
+                target_lang=to_lang,
+                success=True,
+            )
+            for word in words
+        ]
+
+    # Need to patch in learning_pipe module since it imports the function directly
+    with patch.object(
+        learning_pipe_module, "translate_words_batch", side_effect=fake_batch_translate
+    ):
+        yield
 
 
 class TestLoadStopwords:
@@ -162,7 +198,9 @@ class TestGenerateLearningLesson:
 class TestMain:
     """Tests for main CLI function."""
 
-    def test_basic_text_input(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_basic_text_input(
+        self, capsys: pytest.CaptureFixture[str], mock_translation: None
+    ) -> None:
         """Test with text input."""
         exit_code = main(
             [
@@ -179,7 +217,7 @@ class TestMain:
         assert "LANGUAGE LEARNING LESSON" in captured.out
 
     def test_file_input(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], mock_translation: None
     ) -> None:
         """Test with file input."""
         test_file = tmp_path / "test.txt"
@@ -199,7 +237,7 @@ class TestMain:
         assert exit_code == 0
         assert "hello" in captured.out.lower()
 
-    def test_output_to_file(self, tmp_path: Path) -> None:
+    def test_output_to_file(self, tmp_path: Path, mock_translation: None) -> None:
         """Test outputting to file."""
         output_file = tmp_path / "lesson.txt"
 
@@ -219,7 +257,7 @@ class TestMain:
         assert "LANGUAGE LEARNING LESSON" in content
 
     def test_custom_stopwords(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], mock_translation: None
     ) -> None:
         """Test with custom stopwords file."""
         stopwords_file = tmp_path / "stop.txt"
@@ -242,7 +280,7 @@ class TestMain:
         # "hello" should be filtered by custom stopwords
 
     def test_multiple_batches_option(
-        self, capsys: pytest.CaptureFixture[str]
+        self, capsys: pytest.CaptureFixture[str], mock_translation: None
     ) -> None:
         """Test --batches option."""
         text = " ".join(f"word{i}" * (50 - i) for i in range(30))
@@ -329,10 +367,10 @@ class TestTranslationIntegration:
         # Should not have translation arrows
         assert " -> " not in result or "Translation" not in result
 
-    def test_lesson_with_translation_params(self) -> None:
+    def test_lesson_with_translation_params(self, mock_translation: None) -> None:
         """Test that translation params are accepted."""
         text = "hello world hello world hello"
-        # This should not crash even without argostranslate installed
+        # This should work with mocked translation
         result = generate_learning_lesson(
             text,
             batch_size=5,
@@ -346,12 +384,14 @@ class TestTranslationIntegration:
         assert "VOCABULARY TO LEARN:" in result
         assert "hello" in result
 
-    def test_main_with_translate_flags(self, tmp_path: Path) -> None:
+    def test_main_with_translate_flags(
+        self, tmp_path: Path, mock_translation: None
+    ) -> None:
         """Test that main accepts translation flags."""
         text_file = tmp_path / "test.txt"
         text_file.write_text("hello world hello world hello", encoding="utf-8")
 
-        # Should not crash even if translation fails
+        # Should work with mocked translation
         result = main([
             "--file", str(text_file),
             "--translate-from", "en",
@@ -361,7 +401,9 @@ class TestTranslationIntegration:
 
         assert result == 0
 
-    def test_translate_to_defaults_to_english(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_translate_to_defaults_to_english(
+        self, capsys: pytest.CaptureFixture[str], mock_translation: None
+    ) -> None:
         """Test that translate_to defaults to 'en' when using auto-detection."""
         text = "hello world"
         # When using --translate flag (translate_from="auto"), translate_to defaults to "en"
