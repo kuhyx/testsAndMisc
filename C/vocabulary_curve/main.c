@@ -158,9 +158,20 @@ static void assign_ranks(void) {
     /* Sort all_entries by frequency (this doesn't affect word_sequence) */
     qsort(all_entries, num_unique_words, sizeof(WordEntry *), compare_by_count);
     
-    /* Assign 1-indexed ranks */
+    /* Assign 1-indexed ranks using competition ranking:
+     * Words with same frequency get same rank.
+     * Next rank is current_position + 1 (skipping numbers).
+     * Example: counts 5,3,3,2 -> ranks 1,2,2,4 (not 1,2,3,4) */
     for (int i = 0; i < num_unique_words; i++) {
-        all_entries[i]->rank = i + 1;
+        if (i == 0) {
+            all_entries[i]->rank = 1;
+        } else if (all_entries[i]->count == all_entries[i-1]->count) {
+            /* Same frequency as previous word - same rank */
+            all_entries[i]->rank = all_entries[i-1]->rank;
+        } else {
+            /* Different frequency - rank is position + 1 */
+            all_entries[i]->rank = i + 1;
+        }
     }
 }
 
@@ -306,20 +317,42 @@ static void cleanup(void) {
     }
 }
 
+/* Dump all vocabulary with ranks (for Python integration) */
+static void dump_vocabulary(int max_rank) {
+    printf("VOCAB_DUMP_START\n");
+    for (int i = 0; i < num_unique_words; i++) {
+        if (all_entries[i]->rank <= max_rank) {
+            printf("%s;%d\n", all_entries[i]->word, all_entries[i]->rank);
+        }
+    }
+    printf("VOCAB_DUMP_END\n");
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <file.txt> [max_length]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file.txt> [max_length] [--dump-vocab [max_rank]]\n", argv[0]);
         fprintf(stderr, "  max_length: maximum excerpt length to analyze (default: 30)\n");
+        fprintf(stderr, "  --dump-vocab: output all words with ranks up to max_rank\n");
         return 1;
     }
     
     const char *filename = argv[1];
     int max_length = 30;
+    bool dump_vocab = false;
+    int dump_max_rank = 0;
     
-    if (argc >= 3) {
-        max_length = atoi(argv[2]);
-        if (max_length < 1) max_length = 1;
-        if (max_length > 1000) max_length = 1000;
+    /* Parse arguments */
+    for (int i = 2; i < argc; i++) {
+        if (strcmp(argv[i], "--dump-vocab") == 0) {
+            dump_vocab = true;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                dump_max_rank = atoi(argv[++i]);
+            }
+        } else if (argv[i][0] != '-') {
+            max_length = atoi(argv[i]);
+            if (max_length < 1) max_length = 1;
+            if (max_length > 1000) max_length = 1000;
+        }
     }
     
     /* Initialize hash table */
@@ -350,6 +383,17 @@ int main(int argc, char *argv[]) {
     
     /* Print results */
     print_results(results, max_length);
+    
+    /* Dump vocabulary if requested */
+    if (dump_vocab) {
+        /* If no max_rank specified, use the max from the excerpt */
+        if (dump_max_rank == 0 && max_length > 0) {
+            dump_max_rank = results[max_length - 1].min_vocab_needed;
+        }
+        if (dump_max_rank > 0) {
+            dump_vocabulary(dump_max_rank);
+        }
+    }
     
     /* Cleanup */
     free(results);

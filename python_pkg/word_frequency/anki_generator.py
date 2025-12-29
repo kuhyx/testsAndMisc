@@ -40,10 +40,10 @@ try:
         detect_language,
         translate_words_batch,
     )
-    from python_pkg.word_frequency.analyzer import read_file, analyze_text
+    from python_pkg.word_frequency.analyzer import read_file
 except ImportError:
     from translator import detect_language, translate_words_batch
-    from analyzer import read_file, analyze_text
+    from analyzer import read_file
 
 
 # Path to C vocabulary_curve executable
@@ -59,12 +59,13 @@ class VocabWord(NamedTuple):
     context: str
 
 
-def run_vocabulary_curve(filepath: Path, max_length: int) -> str:
+def run_vocabulary_curve(filepath: Path, max_length: int, *, dump_vocab: bool = False) -> str:
     """Run the C vocabulary_curve executable.
 
     Args:
         filepath: Path to the text file.
         max_length: Maximum excerpt length.
+        dump_vocab: If True, also dump all vocabulary up to max rank needed.
 
     Returns:
         Output from the executable.
@@ -79,8 +80,12 @@ def run_vocabulary_curve(filepath: Path, max_length: int) -> str:
             "Please compile it first: cd C/vocabulary_curve && make"
         )
 
+    cmd = [str(C_EXECUTABLE), str(filepath), str(max_length)]
+    if dump_vocab:
+        cmd.append("--dump-vocab")
+
     result = subprocess.run(
-        [str(C_EXECUTABLE), str(filepath), str(max_length)],
+        cmd,
         capture_output=True,
         text=True,
         timeout=120,
@@ -89,7 +94,7 @@ def run_vocabulary_curve(filepath: Path, max_length: int) -> str:
     return result.stdout
 
 
-def parse_vocabulary_curve_output(output: str, target_length: int) -> tuple[str, list[tuple[str, int]]]:
+def parse_vocabulary_curve_output(output: str, target_length: int) -> tuple[str, list[tuple[str, int]], list[tuple[str, int]]]:
     """Parse output from vocabulary_curve to get words needed.
 
     Args:
@@ -97,11 +102,14 @@ def parse_vocabulary_curve_output(output: str, target_length: int) -> tuple[str,
         target_length: The target excerpt length.
 
     Returns:
-        Tuple of (excerpt_text, list of (word, rank) tuples).
+        Tuple of (excerpt_text, excerpt_words, all_vocab_words).
+        excerpt_words: words in the excerpt with their ranks.
+        all_vocab_words: all words up to max rank (from VOCAB_DUMP if present).
     """
     lines = output.split("\n")
     excerpt = ""
-    words: list[tuple[str, int]] = []
+    excerpt_words: list[tuple[str, int]] = []
+    all_vocab: list[tuple[str, int]] = []
 
     # Find the line for the target length
     i = 0
@@ -131,26 +139,28 @@ def parse_vocabulary_curve_output(output: str, target_length: int) -> tuple[str,
                     # Parse "word(#rank), word2(#rank2), ..."
                     pattern = r"(\S+)\(#(\d+)\)"
                     matches = re.findall(pattern, words_part)
-                    words = [(w, int(r)) for w, r in matches]
+                    excerpt_words = [(w, int(r)) for w, r in matches]
             break
         i += 1
 
-    return excerpt, words
+    # Parse VOCAB_DUMP section if present
+    in_vocab_dump = False
+    for line in lines:
+        if line.strip() == "VOCAB_DUMP_START":
+            in_vocab_dump = True
+            continue
+        if line.strip() == "VOCAB_DUMP_END":
+            break
+        if in_vocab_dump and ";" in line:
+            parts = line.strip().split(";")
+            if len(parts) == 2:
+                word, rank_str = parts
+                try:
+                    all_vocab.append((word, int(rank_str)))
+                except ValueError:
+                    pass
 
-
-def get_top_n_words(text: str, n: int) -> list[tuple[str, int]]:
-    """Get the top N most frequent words from text.
-
-    Args:
-        text: The source text.
-        n: Number of top words to return.
-
-    Returns:
-        List of (word, rank) tuples, ranked 1 to n.
-    """
-    word_counts = analyze_text(text)
-    sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
-    return [(word, rank + 1) for rank, (word, _) in enumerate(sorted_words[:n])]
+    return excerpt, excerpt_words, all_vocab
 
 
 def find_word_contexts(
@@ -196,6 +206,8 @@ def generate_anki_deck(
     deck_name: str = "Vocabulary",
     include_context: bool = False,
     no_translate: bool = False,
+    excerpt: str = "",
+    excerpt_words: list[tuple[str, int]] | None = None,
 ) -> str:
     """Generate Anki-compatible deck content.
 
@@ -207,6 +219,8 @@ def generate_anki_deck(
         deck_name: Name for the deck.
         include_context: Whether to include context in cards.
         no_translate: If True, skip translation (use placeholder).
+        excerpt: The target excerpt text to include in cards.
+        excerpt_words: List of (word, rank) tuples for words in the excerpt.
 
     Returns:
         Semicolon-separated content ready for Anki import.
@@ -223,6 +237,27 @@ def generate_anki_deck(
     else:
         lines.append("#columns:Front;Back;Rank")
     lines.append("")  # Empty line before data
+
+    # Add excerpt as first card (goal/context card)
+    if excerpt:
+        excerpt_escaped = excerpt.replace(";", ",")
+        # Use excerpt_words from C output (has correct ranks)
+        if excerpt_words:
+            # Most frequent = lowest rank (italics), rarest = highest rank (bold)
+            most_frequent = min(excerpt_words, key=lambda x: x[1])[0]
+            rarest = max(excerpt_words, key=lambda x: x[1])[0]
+            # Apply formatting - rarest first (bold), then most frequent (italics)
+            # to avoid nested tag issues if they're the same word
+            if most_frequent != rarest:
+                pattern_rare = re.compile(rf"\b({re.escape(rarest)})\b", re.IGNORECASE)
+                excerpt_escaped = pattern_rare.sub(r"<b>\1</b>", excerpt_escaped)
+                pattern_freq = re.compile(rf"\b({re.escape(most_frequent)})\b", re.IGNORECASE)
+                excerpt_escaped = pattern_freq.sub(r"<i>\1</i>", excerpt_escaped)
+            else:
+                # Same word is both most and least frequent - use bold+italic
+                pattern = re.compile(rf"\b({re.escape(most_frequent)})\b", re.IGNORECASE)
+                excerpt_escaped = pattern.sub(r"<b><i>\1</i></b>", excerpt_escaped)
+        lines.append(f"📖 TARGET EXCERPT;{excerpt_escaped};#0")
 
     # Get translations (or skip if no_translate)
     words = [w for w, _ in words_with_ranks]
@@ -263,6 +298,120 @@ def generate_anki_deck(
     return "\n".join(lines)
 
 
+def get_cached_excerpt(
+    filepath: Path, length: int, *, force: bool = False
+) -> tuple[str, list[tuple[str, int]]] | None:
+    """Get cached excerpt if available.
+
+    Args:
+        filepath: Path to source file.
+        length: Excerpt length.
+        force: If True, ignore cache.
+
+    Returns:
+        Tuple of (excerpt, words) or None if not cached.
+    """
+    if force:
+        return None
+    try:
+        from python_pkg.word_frequency.cache import get_vocab_curve_cache
+        return get_vocab_curve_cache().get(filepath, length)
+    except ImportError:
+        return None
+
+
+def cache_excerpt(
+    filepath: Path, length: int, excerpt: str, words: list[tuple[str, int]]
+) -> None:
+    """Store excerpt in cache.
+
+    Args:
+        filepath: Path to source file.
+        length: Excerpt length.
+        excerpt: The excerpt text.
+        words: List of (word, rank) tuples.
+    """
+    try:
+        from python_pkg.word_frequency.cache import get_vocab_curve_cache
+        get_vocab_curve_cache().set(filepath, length, excerpt, words)
+    except ImportError:
+        pass
+
+
+def get_cached_deck(
+    filepath: Path,
+    length: int,
+    target_lang: str,
+    include_context: bool,
+    all_vocab: bool,
+    *,
+    force: bool = False,
+) -> tuple[str, str, int, int] | None:
+    """Get cached Anki deck if available.
+
+    Args:
+        filepath: Path to source file.
+        length: Excerpt length.
+        target_lang: Target language.
+        include_context: Whether context is included.
+        all_vocab: Whether all vocab is included.
+        force: If True, ignore cache.
+
+    Returns:
+        Tuple of (content, excerpt, num_words, max_rank) or None.
+    """
+    if force:
+        return None
+    try:
+        from python_pkg.word_frequency.cache import get_anki_deck_cache
+        return get_anki_deck_cache().get(
+            filepath, length, target_lang, include_context, all_vocab
+        )
+    except ImportError:
+        return None
+
+
+def cache_deck(
+    filepath: Path,
+    length: int,
+    target_lang: str,
+    include_context: bool,
+    all_vocab: bool,
+    anki_content: str,
+    excerpt: str,
+    num_words: int,
+    max_rank: int,
+) -> None:
+    """Store Anki deck in cache.
+
+    Args:
+        filepath: Path to source file.
+        length: Excerpt length.
+        target_lang: Target language.
+        include_context: Whether context is included.
+        all_vocab: Whether all vocab is included.
+        anki_content: The deck content.
+        excerpt: The excerpt text.
+        num_words: Number of words.
+        max_rank: Maximum rank.
+    """
+    try:
+        from python_pkg.word_frequency.cache import get_anki_deck_cache
+        get_anki_deck_cache().set(
+            filepath,
+            length,
+            target_lang,
+            include_context,
+            all_vocab,
+            anki_content,
+            excerpt,
+            num_words,
+            max_rank,
+        )
+    except ImportError:
+        pass
+
+
 def generate_flashcards(
     filepath: str | Path,
     excerpt_length: int,
@@ -272,6 +421,8 @@ def generate_flashcards(
     deck_name: str | None = None,
     all_vocab: bool = True,
     no_translate: bool = False,
+    *,
+    force: bool = False,
 ) -> tuple[str, str, int, int]:
     """Generate Anki flashcards for vocabulary needed for an excerpt length.
 
@@ -285,26 +436,39 @@ def generate_flashcards(
         all_vocab: If True, include ALL words from rank 1 to max rank needed.
                    If False, only include words that appear in the excerpt.
         no_translate: If True, skip translation.
+        force: If True, ignore all caches and regenerate.
 
     Returns:
         Tuple of (anki_content, excerpt, num_words, max_rank).
     """
     filepath = Path(filepath)
 
-    # Read the text
-    text = read_file(filepath)
+    # Check for cached full deck (if not using no_translate)
+    if not no_translate and not force:
+        cached = get_cached_deck(
+            filepath, excerpt_length, target_lang, include_context, all_vocab
+        )
+        if cached is not None:
+            return cached
+
+    # Read the text (only needed for context finding)
+    text = read_file(filepath) if include_context else ""
 
     # Auto-detect language if not provided
     if source_lang is None:
-        source_lang = detect_language(text)
+        sample_text = read_file(filepath)[:1000] if not text else text[:1000]
+        source_lang = detect_language(sample_text)
         if source_lang is None:
-            source_lang = "auto"
+            raise ValueError(
+                "Could not auto-detect source language. "
+                "Please specify with --from (e.g., --from pl for Polish). "
+                "Install langdetect for auto-detection: pip install langdetect"
+            )
 
-    # Run vocabulary curve analysis
-    output = run_vocabulary_curve(filepath, excerpt_length)
-
-    # Parse the output
-    excerpt, excerpt_words = parse_vocabulary_curve_output(output, excerpt_length)
+    # Run vocabulary curve analysis with vocab dump for all words
+    output = run_vocabulary_curve(filepath, excerpt_length, dump_vocab=all_vocab)
+    # Parse the output (now includes all vocabulary from C)
+    excerpt, excerpt_words, all_vocab_words = parse_vocabulary_curve_output(output, excerpt_length)
 
     if not excerpt_words:
         raise ValueError(f"No words found for excerpt length {excerpt_length}")
@@ -312,15 +476,17 @@ def generate_flashcards(
     # Find max rank needed
     max_rank = max(rank for _, rank in excerpt_words)
 
-    # Get ALL words up to max_rank if requested
-    if all_vocab:
-        words_with_ranks = get_top_n_words(text, max_rank)
+    # Use vocabulary from C output
+    if all_vocab and all_vocab_words:
+        words_with_ranks = all_vocab_words
     else:
         words_with_ranks = excerpt_words
 
     # Get contexts if requested
     contexts = None
     if include_context:
+        if not text:
+            text = read_file(filepath)
         words = [w for w, _ in words_with_ranks]
         contexts = find_word_contexts(text, words)
 
@@ -337,7 +503,23 @@ def generate_flashcards(
         deck_name,
         include_context,
         no_translate,
+        excerpt,
+        excerpt_words,
     )
+
+    # Cache the full deck (if translated)
+    if not no_translate:
+        cache_deck(
+            filepath,
+            excerpt_length,
+            target_lang,
+            include_context,
+            all_vocab,
+            anki_content,
+            excerpt,
+            len(words_with_ranks),
+            max_rank,
+        )
 
     return anki_content, excerpt, len(words_with_ranks), max_rank
 
@@ -361,19 +543,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--file",
         "-f",
         type=str,
-        required=True,
+        default=None,
         help="Path to the text file to analyze",
     )
     parser.add_argument(
         "--length",
         "-l",
         type=int,
-        required=True,
+        default=None,
         help="Target excerpt length (how many words you want to understand)",
     )
     parser.add_argument(
         "--from",
-        "-F",
         dest="source_lang",
         type=str,
         default=None,
@@ -425,8 +606,71 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Skip translation (output words without translations)",
     )
+    parser.add_argument(
+        "--force",
+        "-F",
+        action="store_true",
+        help="Force regeneration, ignoring all caches",
+    )
+    parser.add_argument(
+        "--cache-stats",
+        action="store_true",
+        help="Show cache statistics and exit",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear all caches and exit",
+    )
 
     args = parser.parse_args(argv)
+
+    # Handle cache management commands
+    if args.cache_stats:
+        try:
+            from python_pkg.word_frequency.cache import get_all_cache_stats
+        except ImportError:
+            try:
+                from cache import get_all_cache_stats
+            except ImportError:
+                print("Cache module not available", file=sys.stderr)  # noqa: T201
+                return 1
+        stats = get_all_cache_stats()
+        print("Cache Statistics")  # noqa: T201
+        print("=" * 50)  # noqa: T201
+        for cache_name, cache_stats in stats.items():
+            print(f"\n{cache_name.upper()}:")  # noqa: T201
+            for key, value in cache_stats.items():
+                if key == "cache_size_bytes":
+                    if value < 1024:
+                        size_str = f"{value} B"
+                    elif value < 1024 * 1024:
+                        size_str = f"{value / 1024:.1f} KB"
+                    else:
+                        size_str = f"{value / (1024 * 1024):.1f} MB"
+                    print(f"  {key}: {size_str}")  # noqa: T201
+                else:
+                    print(f"  {key}: {value}")  # noqa: T201
+        return 0
+
+    if args.clear_cache:
+        try:
+            from python_pkg.word_frequency.cache import clear_all_caches
+        except ImportError:
+            try:
+                from cache import clear_all_caches
+            except ImportError:
+                print("Cache module not available", file=sys.stderr)  # noqa: T201
+                return 1
+        clear_all_caches()
+        print("All caches cleared.")  # noqa: T201
+        return 0
+
+    # Validate required arguments for main functionality
+    if args.file is None:
+        parser.error("--file/-f is required")
+    if args.length is None:
+        parser.error("--length/-l is required")
 
     try:
         filepath = Path(args.file)
@@ -448,6 +692,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             deck_name=args.deck_name,
             all_vocab=not args.excerpt_words_only,
             no_translate=args.no_translate,
+            force=args.force,
         )
 
         # Determine output path

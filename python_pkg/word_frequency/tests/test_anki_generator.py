@@ -13,7 +13,6 @@ try:
         find_word_contexts,
         generate_anki_deck,
         generate_flashcards,
-        get_top_n_words,
         main,
         parse_vocabulary_curve_output,
     )
@@ -24,7 +23,6 @@ except ImportError:
         find_word_contexts,
         generate_anki_deck,
         generate_flashcards,
-        get_top_n_words,
         main,
         parse_vocabulary_curve_output,
     )
@@ -80,30 +78,44 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_length_1(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 1."""
-        excerpt, words = parse_vocabulary_curve_output(sample_vocabulary_output, 1)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 1)
         assert excerpt == "the"
-        assert words == [("the", 1)]
+        assert excerpt_words == [("the", 1)]
 
     def test_parse_length_2(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 2."""
-        excerpt, words = parse_vocabulary_curve_output(sample_vocabulary_output, 2)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 2)
         assert excerpt == "the dog"
-        assert words == [("the", 1), ("dog", 2)]
+        assert excerpt_words == [("the", 1), ("dog", 2)]
 
     def test_parse_length_3(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 3."""
-        excerpt, words = parse_vocabulary_curve_output(sample_vocabulary_output, 3)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 3)
         assert excerpt == "the quick fox"
-        assert len(words) == 3
-        assert ("the", 1) in words
-        assert ("quick", 3) in words
-        assert ("fox", 5) in words
+        assert len(excerpt_words) == 3
+        assert ("the", 1) in excerpt_words
+        assert ("quick", 3) in excerpt_words
+        assert ("fox", 5) in excerpt_words
 
     def test_parse_nonexistent_length(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for non-existent length."""
-        excerpt, words = parse_vocabulary_curve_output(sample_vocabulary_output, 100)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 100)
         assert excerpt == ""
-        assert words == []
+        assert excerpt_words == []
+
+    def test_parse_vocab_dump(self) -> None:
+        """Test parsing VOCAB_DUMP section."""
+        output = """[Length 2] Vocab needed: 2
+  Excerpt: "hello world"
+  Words: hello(#1), world(#2)
+
+VOCAB_DUMP_START
+hello;1
+world;2
+VOCAB_DUMP_END
+"""
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(output, 2)
+        assert all_vocab == [("hello", 1), ("world", 2)]
 
 
 # Tests for find_word_contexts
@@ -248,31 +260,6 @@ class TestGenerateAnkiDeck:
         assert "[TODO]" in result
         assert "hello" in result
         assert "world" in result
-
-
-# Tests for get_top_n_words
-
-
-class TestGetTopNWords:
-    """Tests for getting top N words."""
-
-    def test_get_top_5_words(self) -> None:
-        """Test getting top 5 words from text."""
-        text = "the cat sat on the mat the cat meowed"
-        words = get_top_n_words(text, 5)
-        assert len(words) == 5
-        # 'the' appears 3x, 'cat' appears 2x
-        assert words[0][0] == "the"
-        assert words[0][1] == 1
-        assert words[1][0] == "cat"
-        assert words[1][1] == 2
-
-    def test_ranks_are_sequential(self) -> None:
-        """Test that ranks are 1-based and sequential."""
-        text = "one two three four five six seven eight"
-        words = get_top_n_words(text, 8)
-        ranks = [r for _, r in words]
-        assert ranks == [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 # Tests for main function

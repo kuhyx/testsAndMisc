@@ -47,15 +47,22 @@ except ImportError:
 
 # Helper context manager for mocking argostranslate
 class ArgosAvailableMock:
-    """Context manager to mock argostranslate being available."""
+    """Context manager to mock argostranslate being available and control its output.
+
+    Works whether argos is installed or not by patching sys.modules.
+    """
 
     def __init__(self, translate_returns: str | list[str] | Exception | None = None) -> None:
         """Initialize with return values for translate()."""
         self.translate_returns = translate_returns
+        self.mock_translate_fn = MagicMock()
         self.mock_translate_module = MagicMock()
         self.mock_package_module = MagicMock()
         self.mock_parent = MagicMock()
         self.original_available = translator._argos_available
+        self._sys_modules_patcher: MagicMock | None = None
+        self._ensure_patcher: MagicMock | None = None
+        self._lang_patcher: MagicMock | None = None
 
     def __enter__(self) -> MagicMock:
         """Set up the mocks."""
@@ -63,36 +70,52 @@ class ArgosAvailableMock:
 
         # Set up translate return value
         if isinstance(self.translate_returns, Exception):
-            self.mock_translate_module.translate.side_effect = self.translate_returns
+            self.mock_translate_fn.side_effect = self.translate_returns
         elif isinstance(self.translate_returns, list):
-            self.mock_translate_module.translate.side_effect = self.translate_returns
+            self.mock_translate_fn.side_effect = self.translate_returns
         elif self.translate_returns is not None:
-            self.mock_translate_module.translate.return_value = self.translate_returns
+            self.mock_translate_fn.return_value = self.translate_returns
 
-        # Link parent module to submodules (critical for Python imports)
+        # Wire up the mock modules
+        self.mock_translate_module.translate = self.mock_translate_fn
+        self.mock_translate_module.get_installed_languages = MagicMock(return_value=[])
+        self.mock_package_module.update_package_index = MagicMock()
+        self.mock_package_module.get_available_packages = MagicMock(return_value=[])
         self.mock_parent.translate = self.mock_translate_module
         self.mock_parent.package = self.mock_package_module
 
-        # Patch sys.modules
-        self.patchers = [
-            patch.dict(
-                "sys.modules",
-                {
-                    "argostranslate": self.mock_parent,
-                    "argostranslate.translate": self.mock_translate_module,
-                    "argostranslate.package": self.mock_package_module,
-                },
-            ),
-        ]
-        for p in self.patchers:
-            p.start()
+        # Patch sys.modules to inject our mock (works even if argos not installed)
+        self._sys_modules_patcher = patch.dict(
+            "sys.modules",
+            {
+                "argostranslate": self.mock_parent,
+                "argostranslate.translate": self.mock_translate_module,
+                "argostranslate.package": self.mock_package_module,
+            },
+        )
 
-        return self.mock_translate_module
+        # Patch _ensure_argos_installed and _ensure_language_pair to no-op
+        self._ensure_patcher = patch.object(
+            translator, "_ensure_argos_installed", lambda: None
+        )
+        self._lang_patcher = patch.object(
+            translator, "_ensure_language_pair", lambda f, t: None
+        )
+
+        self._sys_modules_patcher.start()
+        self._ensure_patcher.start()
+        self._lang_patcher.start()
+
+        return self.mock_translate_fn
 
     def __exit__(self, *args: object) -> None:
         """Restore original state."""
-        for p in self.patchers:
-            p.stop()
+        if self._lang_patcher:
+            self._lang_patcher.stop()
+        if self._ensure_patcher:
+            self._ensure_patcher.stop()
+        if self._sys_modules_patcher:
+            self._sys_modules_patcher.stop()
         translator._argos_available = self.original_available
 
 
@@ -101,23 +124,11 @@ class ArgosAvailableMock:
 
 @pytest.fixture
 def mock_argos_unavailable() -> Generator[None, None, None]:
-    """Mock argostranslate being unavailable."""
+    """Mock argostranslate being unavailable (for legacy tests)."""
     original_value = translator._argos_available
     translator._argos_available = False
     yield
     translator._argos_available = original_value
-
-
-@pytest.fixture
-def mock_all_translators_unavailable() -> Generator[None, None, None]:
-    """Mock both argostranslate and deep-translator being unavailable."""
-    original_argos = translator._argos_available
-    original_deep = translator._deep_translator_available
-    translator._argos_available = False
-    translator._deep_translator_available = False
-    yield
-    translator._argos_available = original_argos
-    translator._deep_translator_available = original_deep
 
 
 @pytest.fixture
@@ -174,43 +185,36 @@ class TestTranslationResult:
 
 
 class TestTranslateWord:
-    """Tests for translate_word function."""
+    """Tests for translate_word function - offline-first behavior."""
 
-    def test_translate_word_all_backends_unavailable(
-        self, mock_all_translators_unavailable: None
-    ) -> None:
-        """Test translation when no backends are available."""
-        result = translate_word("hello", "en", "es")
-        assert result.success is False
-        assert "No translation backend" in str(result.error)
-
-    def test_translate_word_argos_unavailable_uses_deep_translator(
-        self, mock_argos_unavailable: None
-    ) -> None:
-        """Test that deep-translator is used when argos is unavailable."""
-        # deep-translator should work as fallback (it's installed)
-        result = translate_word("hello", "en", "es")
-        # This may succeed if deep-translator is installed
-        # Just verify we get a result without crashing
-        assert isinstance(result, TranslationResult)
+    def test_translate_word_argos_unavailable_raises(self) -> None:
+        """Test that translation raises ImportError when argos is unavailable."""
+        # Mock _ensure_argos_installed to raise ImportError
+        with patch.object(
+            translator,
+            "_ensure_argos_installed",
+            side_effect=ImportError("argostranslate not available"),
+        ):
+            with pytest.raises(ImportError, match="argostranslate not available"):
+                translate_word("hello", "en", "es", use_cache=False)
 
     def test_translate_word_success(self) -> None:
         """Test successful word translation."""
         with ArgosAvailableMock("hola"):
-            result = translate_word("hello", "en", "es")
+            result = translate_word("hello", "en", "es", use_cache=False)
 
         assert result.source_word == "hello"
         assert result.translated_word == "hola"
         assert result.success is True
 
-    def test_translate_word_argos_exception_falls_back(
-        self, mock_argos_unavailable: None
-    ) -> None:
-        """Test that argos exception falls back to deep-translator."""
-        # With argos unavailable, deep-translator should be used
-        result = translate_word("hello", "en", "es")
-        # Just verify it doesn't crash - may succeed or fail depending on network
-        assert isinstance(result, TranslationResult)
+    def test_translate_word_argos_exception_returns_error(self) -> None:
+        """Test that argos exception returns failed result with error."""
+        # Mock argos being available but translate raising an exception
+        with ArgosAvailableMock(RuntimeError("Translation failed")):
+            result = translate_word("hello", "en", "es", use_cache=False)
+
+        assert result.success is False
+        assert "Translation failed" in str(result.error)
 
 
 # translate_words tests
@@ -221,99 +225,123 @@ class TestTranslateWords:
 
     def test_translate_empty_list(self) -> None:
         """Test translating empty list."""
+        # Empty list returns empty result without calling translation
         results = translate_words([], "en", "es")
         assert results == []
 
     def test_translate_multiple_words(self) -> None:
         """Test translating multiple words."""
-        with ArgosAvailableMock(["hola", "mundo"]):
-            results = translate_words(["hello", "world"], "en", "es")
+        with ArgosAvailableMock(["hola", "mundo"]) as mock:
+            mock.side_effect = ["hola", "mundo"]
+            results = translate_words(["hello", "world"], "en", "es", use_cache=False)
 
         assert len(results) == 2
         assert results[0].translated_word == "hola"
         assert results[1].translated_word == "mundo"
+
+    def test_translate_words_argos_unavailable_raises(self) -> None:
+        """Test that translating words raises ImportError when argos unavailable."""
+        with patch.object(
+            translator,
+            "_ensure_argos_installed",
+            side_effect=ImportError("argostranslate not available"),
+        ):
+            with pytest.raises(ImportError, match="argostranslate not available"):
+                translate_words(["hello", "world"], "en", "es", use_cache=False)
 
 
 # translate_words_batch tests
 
 
 class TestTranslateWordsBatch:
-    """Tests for translate_words_batch function."""
+    """Tests for translate_words_batch function - offline-first."""
 
     def test_batch_empty_list(self) -> None:
         """Test batch translation of empty list."""
-        results = translate_words_batch([], "en", "es")
+        # Empty list doesn't require argos
+        with patch.object(translator, "_ensure_argos_installed", lambda: None):
+            results = translate_words_batch([], "en", "es")
         assert results == []
 
     def test_batch_small_list(self) -> None:
-        """Test batch translation of small list (3 or fewer)."""
-        with ArgosAvailableMock(["uno", "dos", "tres"]) as mock:
-            results = translate_words_batch(["one", "two", "three"], "en", "es")
+        """Test batch translation of small list (uses batch mode anyway)."""
+        with ArgosAvailableMock("uno\ndos\ntres") as mock:
+            results = translate_words_batch(
+                ["one", "two", "three"], "en", "es", use_cache=False
+            )
 
         assert len(results) == 3
-        # Small lists use individual translation
-        assert mock.translate.call_count == 3
+        # Batch translation
+        assert mock.call_count == 1
 
     def test_batch_large_list_success(self) -> None:
         """Test batch translation of large list."""
         words = ["one", "two", "three", "four", "five"]
 
         with ArgosAvailableMock("uno\ndos\ntres\ncuatro\ncinco") as mock:
-            results = translate_words_batch(words, "en", "es")
+            results = translate_words_batch(words, "en", "es", use_cache=False)
 
         assert len(results) == 5
         # Batch translation called once
-        mock.translate.assert_called_once()
+        mock.assert_called_once()
         assert results[0].translated_word == "uno"
         assert results[4].translated_word == "cinco"
 
     def test_batch_fallback_on_mismatch(self) -> None:
-        """Test batch translation falls back when result count mismatches."""
+        """Test batch translation falls back to individual when result count mismatches."""
         words = ["one", "two", "three", "four"]
         # First call (batch) returns wrong count, subsequent calls are individual
         with ArgosAvailableMock(
-            ["wrong\ncount", "uno", "dos", "tres", "cuatro"]
+            ["wrong", "uno", "dos", "tres", "cuatro"]
         ) as mock:
-            results = translate_words_batch(words, "en", "es")
+            results = translate_words_batch(words, "en", "es", use_cache=False)
 
         assert len(results) == 4
-        # Fallback to individual
-        assert mock.translate.call_count == 5
+        # Fallback to individual argos translation
+        assert mock.call_count == 5
 
     def test_batch_fallback_on_exception(self) -> None:
-        """Test batch translation falls back on exception."""
+        """Test batch translation raises on exception (no fallback to online)."""
         words = ["one", "two", "three", "four"]
 
-        # Create mock that raises first then succeeds
-        original = translator._argos_available
-        translator._argos_available = True
-
+        # Create mock that raises
+        mock_translate = MagicMock(side_effect=RuntimeError("Batch failed"))
         mock_translate_module = MagicMock()
-        mock_translate_module.translate.side_effect = [
-            RuntimeError("Batch failed"),
-            "uno",
-            "dos",
-            "tres",
-            "cuatro",
-        ]
+        mock_translate_module.translate = mock_translate
         mock_package_module = MagicMock()
         mock_parent = MagicMock()
         mock_parent.translate = mock_translate_module
         mock_parent.package = mock_package_module
 
-        with patch.dict(
-            "sys.modules",
-            {
-                "argostranslate": mock_parent,
-                "argostranslate.translate": mock_translate_module,
-                "argostranslate.package": mock_package_module,
-            },
+        original = translator._argos_available
+        translator._argos_available = True
+
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "argostranslate": mock_parent,
+                    "argostranslate.translate": mock_translate_module,
+                    "argostranslate.package": mock_package_module,
+                },
+            ),
+            patch.object(translator, "_ensure_argos_installed", lambda: None),
+            patch.object(translator, "_ensure_language_pair", lambda f, t: None),
+            pytest.raises(RuntimeError, match="Translation failed"),
         ):
-            results = translate_words_batch(words, "en", "es")
+            translate_words_batch(words, "en", "es", use_cache=False)
 
         translator._argos_available = original
 
-        assert len(results) == 4
+    def test_batch_argos_unavailable_raises(self) -> None:
+        """Test that batch translation raises ImportError when argos unavailable."""
+        with patch.object(
+            translator,
+            "_ensure_argos_installed",
+            side_effect=ImportError("argostranslate not available"),
+        ):
+            with pytest.raises(ImportError, match="argostranslate not available"):
+                translate_words_batch(["hello", "world"], "en", "es", use_cache=False)
 
 
 # format_translations tests
@@ -394,9 +422,30 @@ class TestGetInstalledLanguages:
         mock_lang2.code = "es"
         mock_lang2.name = "Spanish"
 
-        with ArgosAvailableMock() as mock:
-            mock.get_installed_languages.return_value = [mock_lang1, mock_lang2]
+        # We need to mock the translate module's get_installed_languages
+        mock_translate_module = MagicMock()
+        mock_translate_module.get_installed_languages.return_value = [
+            mock_lang1, mock_lang2
+        ]
+        mock_package_module = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.translate = mock_translate_module
+        mock_parent.package = mock_package_module
+
+        original = translator._argos_available
+        translator._argos_available = True
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "argostranslate": mock_parent,
+                "argostranslate.translate": mock_translate_module,
+                "argostranslate.package": mock_package_module,
+            },
+        ):
             result = get_installed_languages()
+
+        translator._argos_available = original
 
         assert ("en", "English") in result
         assert ("es", "Spanish") in result
@@ -462,9 +511,27 @@ class TestMain:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test listing languages when none installed."""
-        with ArgosAvailableMock() as mock:
-            mock.get_installed_languages.return_value = []
+        mock_translate_module = MagicMock()
+        mock_translate_module.get_installed_languages.return_value = []
+        mock_package_module = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.translate = mock_translate_module
+        mock_parent.package = mock_package_module
+
+        original = translator._argos_available
+        translator._argos_available = True
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "argostranslate": mock_parent,
+                "argostranslate.translate": mock_translate_module,
+                "argostranslate.package": mock_package_module,
+            },
+        ):
             result = main(["--list-languages"])
+
+        translator._argos_available = original
 
         assert result == 0
         captured = capsys.readouterr()
@@ -478,9 +545,27 @@ class TestMain:
         mock_lang.code = "en"
         mock_lang.name = "English"
 
-        with ArgosAvailableMock() as mock:
-            mock.get_installed_languages.return_value = [mock_lang]
+        mock_translate_module = MagicMock()
+        mock_translate_module.get_installed_languages.return_value = [mock_lang]
+        mock_package_module = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.translate = mock_translate_module
+        mock_parent.package = mock_package_module
+
+        original = translator._argos_available
+        translator._argos_available = True
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "argostranslate": mock_parent,
+                "argostranslate.translate": mock_translate_module,
+                "argostranslate.package": mock_package_module,
+            },
+        ):
             result = main(["--list-languages"])
+
+        translator._argos_available = original
 
         assert result == 0
         captured = capsys.readouterr()
@@ -578,11 +663,14 @@ class TestMain:
 
         assert result == 1
 
-    def test_translation_failure_returns_error(
-        self, mock_all_translators_unavailable: None
-    ) -> None:
-        """Test that translation failure returns error code when no backends."""
-        result = main(["--text", "hello", "--from", "en", "--to", "es"])
+    def test_translation_failure_returns_error(self) -> None:
+        """Test that translation failure returns error code when argos unavailable."""
+        with patch.object(
+            translator,
+            "_ensure_argos_installed",
+            side_effect=ImportError("argostranslate not available"),
+        ):
+            result = main(["--text", "hello", "--from", "en", "--to", "es"])
         assert result == 1
 
 
@@ -594,9 +682,10 @@ class TestIntegration:
 
     def test_full_translation_flow(self) -> None:
         """Test complete translation flow."""
-        with ArgosAvailableMock(["uno", "dos", "tres"]):
+        with ArgosAvailableMock(["uno", "dos", "tres"]) as mock:
+            mock.side_effect = ["uno", "dos", "tres"]
             words = ["one", "two", "three"]
-            results = translate_words(words, "en", "es")
+            results = translate_words(words, "en", "es", use_cache=False)
 
         assert all(r.success for r in results)
         assert [r.translated_word for r in results] == ["uno", "dos", "tres"]
@@ -606,14 +695,19 @@ class TestIntegration:
         assert "one" in output
         assert "uno" in output
 
-    def test_mixed_success_failure(
-        self, mock_all_translators_unavailable: None
-    ) -> None:
-        """Test handling when no translation backends are available."""
-        results = translate_words(["hello", "xyz", "world"], "en", "es")
+    def test_mixed_success_failure(self) -> None:
+        """Test handling when argos raises exception for some translations."""
+        # Simulate argos translating first word, then failing, then succeeding
+        with ArgosAvailableMock() as mock:
+            mock.side_effect = ["hola", RuntimeError("Unknown"), "mundo"]
+            results = translate_words(
+                ["hello", "xyz", "world"], "en", "es", use_cache=False
+            )
 
-        # All should fail when no backends available
-        assert all(not r.success for r in results)
+        # First and third succeed, second fails
+        assert results[0].success is True
+        assert results[1].success is False
+        assert results[2].success is True
 
         output = format_translations(results)
         assert "Error" in output
