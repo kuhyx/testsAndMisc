@@ -94,6 +94,106 @@ def run_vocabulary_curve(filepath: Path, max_length: int, *, dump_vocab: bool = 
     return result.stdout
 
 
+def run_vocabulary_curve_inverse(filepath: Path, max_vocab: int, *, dump_vocab: bool = False) -> str:
+    """Run the C vocabulary_curve executable in inverse mode.
+
+    Args:
+        filepath: Path to the text file.
+        max_vocab: Maximum vocabulary size (top N words).
+        dump_vocab: If True, also dump all vocabulary up to max_vocab.
+
+    Returns:
+        Output from the executable.
+
+    Raises:
+        FileNotFoundError: If executable not found.
+        subprocess.CalledProcessError: If execution fails.
+    """
+    if not C_EXECUTABLE.exists():
+        raise FileNotFoundError(
+            f"C executable not found at {C_EXECUTABLE}. "
+            "Please compile it first: cd C/vocabulary_curve && make"
+        )
+
+    cmd = [str(C_EXECUTABLE), str(filepath), "--max-vocab", str(max_vocab)]
+    if dump_vocab:
+        cmd.append("--dump-vocab")
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=True,
+    )
+    return result.stdout
+
+
+def parse_inverse_mode_output(output: str) -> tuple[str, int, int, list[tuple[str, int]]]:
+    """Parse output from vocabulary_curve inverse mode.
+
+    Args:
+        output: Raw output from vocabulary_curve --max-vocab.
+
+    Returns:
+        Tuple of (excerpt_text, excerpt_length, max_rank_used, all_vocab_words).
+    """
+    lines = output.split("\n")
+    excerpt = ""
+    excerpt_length = 0
+    max_rank_used = 0
+    all_vocab: list[tuple[str, int]] = []
+
+    for i, line in enumerate(lines):
+        line = line.strip()
+        
+        if line.startswith("LONGEST EXCERPT:"):
+            parts = line.split()
+            if len(parts) >= 3:
+                excerpt_length = int(parts[2])
+        
+        elif line.startswith("Excerpt:"):
+            # Next line(s) contain the excerpt
+            i += 1
+            excerpt_parts = []
+            while i < len(lines):
+                next_line = lines[i].strip()
+                if next_line.startswith('"'):
+                    next_line = next_line[1:]
+                if next_line.endswith('"'):
+                    next_line = next_line[:-1]
+                    excerpt_parts.append(next_line)
+                    break
+                excerpt_parts.append(next_line)
+                i += 1
+            excerpt = " ".join(excerpt_parts)
+        
+        elif line.startswith("Rarest word used:"):
+            # Parse "word (#rank)"
+            match = re.search(r"\(#(\d+)\)", line)
+            if match:
+                max_rank_used = int(match.group(1))
+
+    # Parse VOCAB_DUMP section if present
+    in_vocab_dump = False
+    for line in lines:
+        if line.strip() == "VOCAB_DUMP_START":
+            in_vocab_dump = True
+            continue
+        if line.strip() == "VOCAB_DUMP_END":
+            break
+        if in_vocab_dump and ";" in line:
+            parts = line.strip().split(";")
+            if len(parts) == 2:
+                word, rank_str = parts
+                try:
+                    all_vocab.append((word, int(rank_str)))
+                except ValueError:
+                    pass
+
+    return excerpt, excerpt_length, max_rank_used, all_vocab
+
+
 def parse_vocabulary_curve_output(output: str, target_length: int) -> tuple[str, list[tuple[str, int]], list[tuple[str, int]]]:
     """Parse output from vocabulary_curve to get words needed.
 
@@ -524,6 +624,101 @@ def generate_flashcards(
     return anki_content, excerpt, len(words_with_ranks), max_rank
 
 
+def generate_flashcards_inverse(
+    filepath: str | Path,
+    max_vocab: int,
+    source_lang: str | None = None,
+    target_lang: str = "en",
+    include_context: bool = False,
+    deck_name: str | None = None,
+    no_translate: bool = False,
+    *,
+    force: bool = False,
+) -> tuple[str, str, int, int, int]:
+    """Generate Anki flashcards for the longest excerpt using top N words.
+
+    This is the inverse mode: given a vocabulary size, find the longest
+    excerpt that can be understood with only those words.
+
+    Args:
+        filepath: Path to the source text file.
+        max_vocab: Maximum vocabulary size (top N words to learn).
+        source_lang: Source language (auto-detected if None).
+        target_lang: Target language for translations.
+        include_context: Whether to include example contexts.
+        deck_name: Optional deck name.
+        no_translate: If True, skip translation.
+        force: If True, ignore all caches and regenerate.
+
+    Returns:
+        Tuple of (anki_content, excerpt, excerpt_length, num_words, max_rank_used).
+    """
+    filepath = Path(filepath)
+
+    # Read the text (only needed for context finding)
+    text = read_file(filepath) if include_context else ""
+
+    # Auto-detect language if not provided
+    if source_lang is None:
+        sample_text = read_file(filepath)[:1000] if not text else text[:1000]
+        source_lang = detect_language(sample_text)
+        if source_lang is None:
+            raise ValueError(
+                "Could not auto-detect source language. "
+                "Please specify with --from (e.g., --from pl for Polish). "
+                "Install langdetect for auto-detection: pip install langdetect"
+            )
+
+    # Run vocabulary curve in inverse mode
+    output = run_vocabulary_curve_inverse(filepath, max_vocab, dump_vocab=True)
+    
+    # Parse the output
+    excerpt, excerpt_length, max_rank_used, all_vocab_words = parse_inverse_mode_output(output)
+
+    if excerpt_length == 0:
+        raise ValueError(
+            f"No valid excerpt found using only top {max_vocab} words. "
+            "Try increasing the vocabulary limit."
+        )
+
+    if not all_vocab_words:
+        raise ValueError(f"No vocabulary returned for max_vocab={max_vocab}")
+
+    # Use all vocabulary up to max_vocab
+    words_with_ranks = all_vocab_words
+    
+    # Find words that appear in the excerpt (for highlighting)
+    excerpt_word_set = set(excerpt.lower().split())
+    excerpt_words = [(w, r) for w, r in all_vocab_words if w.lower() in excerpt_word_set]
+
+    # Get contexts if requested
+    contexts = None
+    if include_context:
+        if not text:
+            text = read_file(filepath)
+        words = [w for w, _ in words_with_ranks]
+        contexts = find_word_contexts(text, words)
+
+    # Generate deck name
+    if deck_name is None:
+        deck_name = f"{filepath.stem}_top{max_vocab}"
+
+    # Generate Anki content
+    anki_content = generate_anki_deck(
+        words_with_ranks,
+        source_lang,
+        target_lang,
+        contexts,
+        deck_name,
+        include_context,
+        no_translate,
+        excerpt,
+        excerpt_words if excerpt_words else None,
+    )
+
+    return anki_content, excerpt, excerpt_length, len(words_with_ranks), max_rank_used
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Main entry point.
 
@@ -552,6 +747,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=int,
         default=None,
         help="Target excerpt length (how many words you want to understand)",
+    )
+    parser.add_argument(
+        "--max-vocab",
+        "-v",
+        type=int,
+        default=None,
+        help="INVERSE MODE: Learn top N words, find longest excerpt you can understand",
     )
     parser.add_argument(
         "--from",
@@ -669,8 +871,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Validate required arguments for main functionality
     if args.file is None:
         parser.error("--file/-f is required")
-    if args.length is None:
-        parser.error("--length/-l is required")
+    if args.length is None and args.max_vocab is None:
+        parser.error("Either --length/-l or --max-vocab/-v is required")
+    if args.length is not None and args.max_vocab is not None:
+        parser.error("Cannot use both --length and --max-vocab. Choose one mode.")
 
     try:
         filepath = Path(args.file)
@@ -678,6 +882,57 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"Error: File not found: {args.file}", file=sys.stderr)  # noqa: T201
             return 1
 
+        # INVERSE MODE: --max-vocab
+        if args.max_vocab is not None:
+            if not args.quiet:
+                print(f"Analyzing {filepath.name}...")  # noqa: T201
+                print(f"Finding longest excerpt using top {args.max_vocab} words...")  # noqa: T201
+
+            # Generate flashcards in inverse mode
+            anki_content, excerpt, excerpt_length, num_words, max_rank_used = generate_flashcards_inverse(
+                filepath,
+                args.max_vocab,
+                source_lang=args.source_lang,
+                target_lang=args.target_lang,
+                include_context=args.include_context,
+                deck_name=args.deck_name,
+                no_translate=args.no_translate,
+                force=args.force,
+            )
+
+            # Determine output path
+            if args.output:
+                output_path = Path(args.output)
+            else:
+                output_path = filepath.parent / f"{filepath.stem}_anki_top{args.max_vocab}.txt"
+
+            # Write output
+            output_path.write_text(anki_content, encoding="utf-8")
+
+            if not args.quiet:
+                print("")  # noqa: T201
+                print("=" * 60)  # noqa: T201
+                print("FLASHCARD GENERATION COMPLETE (INVERSE MODE)")  # noqa: T201
+                print("=" * 60)  # noqa: T201
+                print(f"Learning: top {args.max_vocab} words")  # noqa: T201
+                print(f"Longest excerpt you can understand: {excerpt_length} words")  # noqa: T201
+                print(f'  "{excerpt}"')  # noqa: T201
+                print("")  # noqa: T201
+                print(f"Rarest word in excerpt: #{max_rank_used}")  # noqa: T201
+                print(f"Flashcards: {num_words}")  # noqa: T201
+                print(f"Output file: {output_path}")  # noqa: T201
+                print("")  # noqa: T201
+                print("To import into Anki:")  # noqa: T201
+                print("  1. Open Anki")  # noqa: T201
+                print("  2. File -> Import")  # noqa: T201
+                print(f"  3. Select: {output_path}")  # noqa: T201
+                print("  4. Click Import")  # noqa: T201
+            else:
+                print(output_path)  # noqa: T201
+
+            return 0
+
+        # NORMAL MODE: --length
         if not args.quiet:
             print(f"Analyzing {filepath.name}...")  # noqa: T201
             print(f"Finding vocabulary for {args.length}-word excerpt...")  # noqa: T201
