@@ -11,6 +11,113 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
+# Schedule constants (single source of truth for this script)
+# These values are written to /etc/shutdown-schedule.conf during setup
+SCHEDULE_MON_WED_HOUR=21
+SCHEDULE_THU_SUN_HOUR=22
+SCHEDULE_MORNING_END_HOUR=5
+
+# ============================================================================
+# SCHEDULE PROTECTION MECHANISM
+# ============================================================================
+# This prevents easy "cheating" by modifying the script values and re-running.
+# If a canonical config already exists, the script compares against it and
+# BLOCKS installation if the new values would make the schedule MORE LENIENT
+# (i.e., later shutdown hours or earlier morning end).
+# To legitimately change the schedule, use: sudo /usr/local/sbin/unlock-shutdown-schedule
+# ============================================================================
+
+CANONICAL_CONFIG="/usr/local/share/locked-shutdown-schedule.conf"
+
+# Check if trying to make schedule more lenient (later shutdown / earlier morning end)
+check_schedule_protection() {
+	# Skip check if no canonical config exists (first install)
+	if [[ ! -f "$CANONICAL_CONFIG" ]]; then
+		return 0
+	fi
+
+	# Load canonical values
+	local canonical_mon_wed canonical_thu_sun canonical_morning_end
+	# shellcheck source=/dev/null
+	source "$CANONICAL_CONFIG" 2>/dev/null || return 0
+	canonical_mon_wed="${MON_WED_HOUR:-}"
+	canonical_thu_sun="${THU_SUN_HOUR:-}"
+	canonical_morning_end="${MORNING_END_HOUR:-}"
+
+	# If canonical values are empty, skip check
+	if [[ -z "$canonical_mon_wed" ]] || [[ -z "$canonical_thu_sun" ]] || [[ -z "$canonical_morning_end" ]]; then
+		return 0
+	fi
+
+	local violations=()
+
+	# Check if Mon-Wed hour is being made LATER (more lenient)
+	if [[ $SCHEDULE_MON_WED_HOUR -gt $canonical_mon_wed ]]; then
+		violations+=("Mon-Wed shutdown: ${canonical_mon_wed}:00 → ${SCHEDULE_MON_WED_HOUR}:00 (later)")
+	fi
+
+	# Check if Thu-Sun hour is being made LATER (more lenient)
+	if [[ $SCHEDULE_THU_SUN_HOUR -gt $canonical_thu_sun ]]; then
+		violations+=("Thu-Sun shutdown: ${canonical_thu_sun}:00 → ${SCHEDULE_THU_SUN_HOUR}:00 (later)")
+	fi
+
+	# Check if morning end is being made EARLIER (more lenient - shorter shutdown window)
+	if [[ $SCHEDULE_MORNING_END_HOUR -lt $canonical_morning_end ]]; then
+		violations+=("Morning end: 0${canonical_morning_end}:00 → 0${SCHEDULE_MORNING_END_HOUR}:00 (earlier)")
+	fi
+
+	if [[ ${#violations[@]} -gt 0 ]]; then
+		echo ""
+		echo "╔══════════════════════════════════════════════════════════════════╗"
+		echo "║     ❌ SCHEDULE MODIFICATION BLOCKED - CHEATING DETECTED! ❌     ║"
+		echo "╚══════════════════════════════════════════════════════════════════╝"
+		echo ""
+		echo "You modified the script to make the shutdown schedule MORE LENIENT:"
+		echo ""
+		for v in "${violations[@]}"; do
+			echo "  • $v"
+		done
+		echo ""
+		echo "Current protected schedule:"
+		echo "  Monday-Wednesday: ${canonical_mon_wed}:00 - 0${canonical_morning_end}:00"
+		echo "  Thursday-Sunday:  ${canonical_thu_sun}:00 - 0${canonical_morning_end}:00"
+		echo ""
+		echo "Nice try! But this is exactly the kind of late-night bargaining"
+		echo "that this protection is designed to prevent. 😉"
+		echo ""
+		echo "If you REALLY need to change the schedule, use the proper unlock:"
+		echo "  sudo /usr/local/sbin/unlock-shutdown-schedule"
+		echo ""
+		echo "This requires waiting through a psychological delay to give you"
+		echo "time to reconsider whether you actually need more screen time."
+		echo ""
+		exit 1
+	fi
+
+	# Making schedule STRICTER is always allowed
+	local stricter=()
+	if [[ $SCHEDULE_MON_WED_HOUR -lt $canonical_mon_wed ]]; then
+		stricter+=("Mon-Wed: ${canonical_mon_wed}:00 → ${SCHEDULE_MON_WED_HOUR}:00 (earlier)")
+	fi
+	if [[ $SCHEDULE_THU_SUN_HOUR -lt $canonical_thu_sun ]]; then
+		stricter+=("Thu-Sun: ${canonical_thu_sun}:00 → ${SCHEDULE_THU_SUN_HOUR}:00 (earlier)")
+	fi
+	if [[ $SCHEDULE_MORNING_END_HOUR -gt $canonical_morning_end ]]; then
+		stricter+=("Morning end: 0${canonical_morning_end}:00 → 0${SCHEDULE_MORNING_END_HOUR}:00 (later)")
+	fi
+
+	if [[ ${#stricter[@]} -gt 0 ]]; then
+		echo ""
+		echo "ℹ️  Schedule is being made STRICTER (allowed without unlock):"
+		for s in "${stricter[@]}"; do
+			echo "  • $s"
+		done
+		echo ""
+	fi
+
+	return 0
+}
+
 # Function to show usage
 show_usage() {
 	echo "Day-Specific Auto-Shutdown Setup for Arch Linux"
@@ -22,8 +129,8 @@ show_usage() {
 	echo "  status   - Show current status"
 	echo ""
 	echo "Shutdown Schedule:"
-	echo "  Monday-Wednesday: 21:00-05:00"
-	echo "  Thursday-Sunday:  22:00-05:00"
+	echo "  Monday-Wednesday: ${SCHEDULE_MON_WED_HOUR}:00-0${SCHEDULE_MORNING_END_HOUR}:00"
+	echo "  Thursday-Sunday:  ${SCHEDULE_THU_SUN_HOUR}:00-0${SCHEDULE_MORNING_END_HOUR}:00"
 	echo ""
 	echo "NOTE: There is no 'disable' option. This is intentional."
 	echo "      The shutdown timer is protected by a monitor service."
@@ -115,19 +222,327 @@ show_current_status() {
 	fi
 
 	echo ""
+
+	# Check config file protection status
+	echo "Config File Protection Status:"
+	local config_file="/etc/shutdown-schedule.conf"
+	local canonical_file="/usr/local/share/locked-shutdown-schedule.conf"
+
+	if [[ -f "$config_file" ]]; then
+		echo "✓ Config file exists"
+		# Check immutable attribute
+		if lsattr "$config_file" 2>/dev/null | grep -q '^....i'; then
+			echo "✓ Config file is immutable (chattr +i)"
+		else
+			echo "✗ Config file is NOT immutable"
+		fi
+	else
+		echo "✗ Config file missing"
+	fi
+
+	if [[ -f "$canonical_file" ]]; then
+		echo "✓ Canonical copy exists"
+	else
+		echo "✗ Canonical copy missing"
+	fi
+
+	if systemctl is-enabled shutdown-schedule-guard.path &>/dev/null; then
+		echo "✓ Config path watcher is enabled"
+		if systemctl is-active shutdown-schedule-guard.path &>/dev/null; then
+			echo "✓ Config path watcher is active"
+		else
+			echo "✗ Config path watcher is not active"
+		fi
+	else
+		echo "✗ Config path watcher is not enabled"
+	fi
+
+	if [[ -f "/usr/local/sbin/unlock-shutdown-schedule" ]]; then
+		echo "✓ Unlock script exists"
+	else
+		echo "✗ Unlock script missing"
+	fi
+
+	echo ""
 	echo "Shutdown Schedule:"
-	echo "  Monday-Wednesday: 21:00-05:00"
-	echo "  Thursday-Sunday:  22:00-05:00"
+	echo "  Monday-Wednesday: ${SCHEDULE_MON_WED_HOUR}:00-0${SCHEDULE_MORNING_END_HOUR}:00"
+	echo "  Thursday-Sunday:  ${SCHEDULE_THU_SUN_HOUR}:00-0${SCHEDULE_MORNING_END_HOUR}:00"
 	echo ""
 	echo "NOTE: The shutdown timer is protected by a monitor service."
 	echo "      If you try to disable the timer, it will be automatically re-enabled."
 	echo ""
+	echo "NOTE: The config file is protected by:"
+	echo "      - Immutable attribute (chattr +i)"
+	echo "      - Canonical copy that auto-restores on modification"
+	echo "      - Path watcher service"
+	echo "      To modify: sudo /usr/local/sbin/unlock-shutdown-schedule"
+	echo ""
+}
+
+# Function to create shutdown schedule config file (shared with i3blocks countdown)
+# Also creates a canonical (protected) copy and sets immutable attribute
+create_shutdown_config() {
+	echo ""
+	echo "1. Creating Shutdown Schedule Config..."
+	echo "======================================="
+
+	local config_file="/etc/shutdown-schedule.conf"
+	local canonical_file="/usr/local/share/locked-shutdown-schedule.conf"
+
+	# Remove immutable attribute if it exists (to allow update)
+	chattr -i "$config_file" 2>/dev/null || true
+	chattr -i "$canonical_file" 2>/dev/null || true
+
+	cat >"$config_file" <<EOF
+# Shutdown schedule configuration
+# This file is managed by setup_midnight_shutdown.sh
+# Used by: day-specific-shutdown-check.sh, shutdown_countdown.sh (i3blocks)
+#
+# WARNING: This file is protected by:
+#   1. Immutable attribute (chattr +i)
+#   2. Canonical copy at /usr/local/share/locked-shutdown-schedule.conf
+#   3. Path watcher service that auto-restores if modified
+#
+# To modify this file, you need to:
+#   1. Run: sudo /usr/local/sbin/unlock-shutdown-schedule
+#   2. Wait through the psychological delay
+#   3. Edit the file during the brief unlock window
+#   4. The file will be re-locked automatically
+
+# Shutdown hour for Monday-Wednesday (24-hour format)
+MON_WED_HOUR=${SCHEDULE_MON_WED_HOUR}
+
+# Shutdown hour for Thursday-Sunday (24-hour format)
+THU_SUN_HOUR=${SCHEDULE_THU_SUN_HOUR}
+
+# Morning end hour (shutdown window ends at this hour)
+MORNING_END_HOUR=${SCHEDULE_MORNING_END_HOUR}
+EOF
+
+	chmod 644 "$config_file"
+	echo "✓ Created shutdown schedule config: $config_file"
+
+	# Create canonical (protected) copy
+	install -m 644 -D "$config_file" "$canonical_file"
+	echo "✓ Created canonical copy: $canonical_file"
+
+	# Set immutable attribute on both files
+	chattr +i "$config_file" || echo "⚠ Warning: Could not set immutable attribute on $config_file"
+	chattr +i "$canonical_file" || echo "⚠ Warning: Could not set immutable attribute on $canonical_file"
+	echo "✓ Set immutable attribute (chattr +i) on config files"
+}
+
+# Function to create config guard (path watcher + enforcement + unlock script)
+create_config_guard() {
+	echo ""
+	echo "2. Creating Config Guard (Path Watcher + Enforcement)..."
+	echo "========================================================"
+
+	local enforce_script="/usr/local/sbin/enforce-shutdown-schedule.sh"
+	local unlock_script="/usr/local/sbin/unlock-shutdown-schedule"
+	local guard_service="/etc/systemd/system/shutdown-schedule-guard.service"
+	local guard_path="/etc/systemd/system/shutdown-schedule-guard.path"
+
+	# Create enforcement script
+	cat >"$enforce_script" <<'EOF'
+#!/bin/bash
+# Enforce canonical /etc/shutdown-schedule.conf contents
+# This script restores the config from canonical copy if tampered
+
+set -euo pipefail
+
+CANONICAL_SOURCE="/usr/local/share/locked-shutdown-schedule.conf"
+TARGET="/etc/shutdown-schedule.conf"
+LOG_FILE="/var/log/shutdown-schedule-guard.log"
+
+log() {
+    printf '%s - %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG_FILE" >&2
+}
+
+if [[ ! -f $CANONICAL_SOURCE ]]; then
+    log "Canonical config not found at $CANONICAL_SOURCE; aborting enforcement"
+    exit 0
+fi
+
+# Remove immutable attr to check/restore
+chattr -i -a "$TARGET" 2>/dev/null || true
+
+if ! cmp -s "$CANONICAL_SOURCE" "$TARGET"; then
+    log "CONFIG TAMPERING DETECTED – restoring $TARGET from canonical copy"
+    cp "$CANONICAL_SOURCE" "$TARGET"
+    chmod 644 "$TARGET"
+    log "Config restored successfully"
+else
+    log "No drift detected (contents identical)"
+fi
+
+# Re-apply immutable attribute
+chattr +i "$TARGET" || log "Failed to set immutable attribute"
+
+log "Enforcement complete"
+EOF
+
+	chmod +x "$enforce_script"
+	echo "✓ Created enforcement script: $enforce_script"
+
+	# Create unlock script with psychological delay
+	cat >"$unlock_script" <<'EOF'
+#!/bin/bash
+# Unlock shutdown schedule config for editing with psychological friction
+# This script:
+#   1. Makes you wait (psychological friction to discourage casual changes)
+#   2. Temporarily removes protection
+#   3. Opens the config in an editor
+#   4. Re-applies protection after editing
+
+set -euo pipefail
+
+DELAY_SECONDS=45
+CONFIG_FILE="/etc/shutdown-schedule.conf"
+CANONICAL_FILE="/usr/local/share/locked-shutdown-schedule.conf"
+LOG_FILE="/var/log/shutdown-schedule-guard.log"
+EDITOR="${EDITOR:-nano}"
+
+log() {
+    printf '%s - %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG_FILE" >&2
+}
+
+# Must be root
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root (sudo)"
+    exit 1
+fi
+
+# Log the unlock attempt
+log "=== UNLOCK ATTEMPT by $(logname 2>/dev/null || echo 'unknown') from TTY $(tty 2>/dev/null || echo 'unknown') ==="
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║     SHUTDOWN SCHEDULE CONFIG UNLOCK - PSYCHOLOGICAL FRICTION    ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
+echo ""
+echo "You are about to modify the shutdown schedule configuration."
+echo "This file controls when your PC automatically shuts down for"
+echo "digital wellbeing purposes."
+echo ""
+echo "Current schedule:"
+if [[ -f "$CONFIG_FILE" ]]; then
+    chattr -i "$CONFIG_FILE" 2>/dev/null || true
+    source "$CONFIG_FILE" 2>/dev/null || true
+    chattr +i "$CONFIG_FILE" 2>/dev/null || true
+    echo "  Monday-Wednesday: ${MON_WED_HOUR:-??}:00 - 0${MORNING_END_HOUR:-?}:00"
+    echo "  Thursday-Sunday:  ${THU_SUN_HOUR:-??}:00 - 0${MORNING_END_HOUR:-?}:00"
+fi
+echo ""
+echo "Are you making this change for a good reason, or are you just"
+echo "trying to stay up later? Remember why you set these limits."
+echo ""
+echo "To proceed, you must wait $DELAY_SECONDS seconds..."
+echo ""
+
+# Countdown with opportunity to cancel
+for ((i=DELAY_SECONDS; i>0; i--)); do
+    printf "\r  ⏳ Waiting: %2d seconds remaining... (Ctrl+C to cancel)" "$i"
+    sleep 1
+done
+echo ""
+echo ""
+
+log "User waited through delay, proceeding with unlock"
+
+# Stop the path watcher temporarily
+systemctl stop shutdown-schedule-guard.path 2>/dev/null || true
+
+# Remove immutable attributes
+chattr -i -a "$CONFIG_FILE" 2>/dev/null || true
+chattr -i -a "$CANONICAL_FILE" 2>/dev/null || true
+
+echo "Config file unlocked. Opening editor..."
+echo "After saving, protection will be re-applied automatically."
+echo ""
+
+# Open editor
+$EDITOR "$CONFIG_FILE"
+
+echo ""
+echo "Re-applying protection..."
+
+# Copy to canonical
+cp "$CONFIG_FILE" "$CANONICAL_FILE"
+chmod 644 "$CONFIG_FILE"
+chmod 644 "$CANONICAL_FILE"
+
+# Re-apply immutable
+chattr +i "$CONFIG_FILE" || echo "Warning: Could not set immutable attribute"
+chattr +i "$CANONICAL_FILE" || echo "Warning: Could not set immutable attribute"
+
+# Restart path watcher
+systemctl start shutdown-schedule-guard.path 2>/dev/null || true
+
+log "Config updated and re-locked by user"
+
+echo ""
+echo "✓ Config file updated and re-protected"
+echo "✓ Canonical copy updated"
+echo "✓ Path watcher re-enabled"
+echo ""
+echo "New schedule (will take effect on next timer check):"
+source "$CONFIG_FILE" 2>/dev/null || true
+echo "  Monday-Wednesday: ${MON_WED_HOUR:-??}:00 - 0${MORNING_END_HOUR:-?}:00"
+echo "  Thursday-Sunday:  ${THU_SUN_HOUR:-??}:00 - 0${MORNING_END_HOUR:-?}:00"
+echo ""
+EOF
+
+	chmod +x "$unlock_script"
+	echo "✓ Created unlock script: $unlock_script"
+
+	# Create path watcher unit
+	cat >"$guard_path" <<'EOF'
+[Unit]
+Description=Watch /etc/shutdown-schedule.conf and trigger enforcement
+
+[Path]
+PathChanged=/etc/shutdown-schedule.conf
+Unit=shutdown-schedule-guard.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+	echo "✓ Created path watcher: $guard_path"
+
+	# Create enforcement service
+	cat >"$guard_service" <<'EOF'
+[Unit]
+Description=Enforce canonical /etc/shutdown-schedule.conf contents
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/enforce-shutdown-schedule.sh
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+	echo "✓ Created guard service: $guard_service"
+
+	# Reload and enable
+	systemctl daemon-reload
+	systemctl enable --now shutdown-schedule-guard.path
+	echo "✓ Enabled and started shutdown-schedule-guard.path"
+
+	# Run initial enforcement
+	"$enforce_script" || echo "⚠ Warning: Initial enforcement returned non-zero"
+	echo "✓ Ran initial enforcement"
 }
 
 # Function to create the shutdown service
 create_shutdown_service() {
 	echo ""
-	echo "1. Creating Systemd Shutdown Service..."
+	echo "3. Creating Systemd Shutdown Service..."
 	echo "======================================"
 
 	local service_file="/etc/systemd/system/day-specific-shutdown.service"
@@ -152,7 +567,7 @@ EOF
 # Function to create the shutdown timer
 create_shutdown_timer() {
 	echo ""
-	echo "2. Creating Systemd Shutdown Timer..."
+	echo "4. Creating Systemd Shutdown Timer..."
 	echo "==================================="
 
 	local timer_file="/etc/systemd/system/day-specific-shutdown.timer"
@@ -163,10 +578,6 @@ Description=Timer for automatic PC shutdown with day-specific windows
 Requires=day-specific-shutdown.service
 
 [Timer]
-OnCalendar=*-*-* 21:00:00
-OnCalendar=*-*-* 21:30:00
-OnCalendar=*-*-* 22:00:00
-OnCalendar=*-*-* 22:30:00
 OnCalendar=*-*-* 23:00:00
 OnCalendar=*-*-* 23:30:00
 OnCalendar=*-*-* 00:00:00
@@ -195,7 +606,7 @@ EOF
 # Function to create management script
 create_management_script() {
 	echo ""
-	echo "3. Creating Management Script..."
+	echo "5. Creating Management Script..."
 	echo "=============================="
 
 	local script_file="/usr/local/bin/day-specific-shutdown-manager.sh"
@@ -207,6 +618,27 @@ create_management_script() {
 
 TIMER_NAME="day-specific-shutdown.timer"
 SERVICE_NAME="day-specific-shutdown.service"
+CONFIG_FILE="/etc/shutdown-schedule.conf"
+
+# Load config for schedule display
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # shellcheck source=/dev/null
+        source "$CONFIG_FILE"
+    else
+        echo "Warning: Config file $CONFIG_FILE not found"
+        MON_WED_HOUR="??"
+        THU_SUN_HOUR="??"
+        MORNING_END_HOUR="??"
+    fi
+}
+
+print_schedule() {
+    load_config
+    echo "Shutdown Schedule:"
+    echo "  Monday-Wednesday: ${MON_WED_HOUR}:00-0${MORNING_END_HOUR}:00"
+    echo "  Thursday-Sunday:  ${THU_SUN_HOUR}:00-0${MORNING_END_HOUR}:00"
+}
 
 show_status() {
     echo "Day-Specific Auto-Shutdown Status"
@@ -224,9 +656,7 @@ show_status() {
     fi
     
     echo ""
-    echo "Shutdown Schedule:"
-    echo "  Monday-Wednesday: 21:00-05:00"
-    echo "  Thursday-Sunday:  22:00-05:00"
+    print_schedule
     
     echo ""
     echo "Next scheduled checks:"
@@ -254,9 +684,7 @@ case "$1" in
         echo "  status   - Show current status and next shutdown checks"
         echo "  logs     - Show recent shutdown logs"
         echo ""
-        echo "Shutdown Schedule:"
-        echo "  Monday-Wednesday: 21:00-05:00"
-        echo "  Thursday-Sunday:  22:00-05:00"
+        print_schedule
         echo ""
         show_status
         ;;
@@ -270,7 +698,7 @@ EOF
 # Function to create smart shutdown check script
 create_shutdown_check_script() {
 	echo ""
-	echo "4. Creating Smart Shutdown Check Script..."
+	echo "6. Creating Smart Shutdown Check Script..."
 	echo "========================================"
 
 	local check_script="/usr/local/bin/day-specific-shutdown-check.sh"
@@ -278,9 +706,23 @@ create_shutdown_check_script() {
 	cat >"$check_script" <<'EOF'
 #!/bin/bash
 # Smart day-specific shutdown check script
-# Different shutdown windows based on day of week:
-# Monday-Wednesday: 21:00-05:00
-# Thursday-Sunday: 22:00-05:00
+# Reads shutdown windows from /etc/shutdown-schedule.conf
+
+CONFIG_FILE="/etc/shutdown-schedule.conf"
+
+# Load config
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    logger -t day-specific-shutdown "ERROR: Config file $CONFIG_FILE not found"
+    exit 1
+fi
+# shellcheck source=/dev/null
+source "$CONFIG_FILE"
+
+# Validate config
+if [[ -z "${MON_WED_HOUR:-}" ]] || [[ -z "${THU_SUN_HOUR:-}" ]] || [[ -z "${MORNING_END_HOUR:-}" ]]; then
+    logger -t day-specific-shutdown "ERROR: Config file missing required variables"
+    exit 1
+fi
 
 # Get current time and day
 current_hour=$(date +%H)
@@ -289,9 +731,10 @@ current_time_minutes=$((10#$current_hour * 60 + 10#$current_minute))
 day_of_week=$(date +%u)  # 1=Monday, 7=Sunday
 day_name=$(date +%A)
 
-# Convert time to minutes for easier comparison
-# 21:00 = 1260 minutes, 22:00 = 1320 minutes, 05:00 = 300 minutes
-# 00:00 = 0 minutes, 05:00 = 300 minutes
+# Calculate minute thresholds from config
+mon_wed_minutes=$((MON_WED_HOUR * 60))
+thu_sun_minutes=$((THU_SUN_HOUR * 60))
+morning_end_minutes=$((MORNING_END_HOUR * 60))
 
 logger -t day-specific-shutdown "Checking shutdown conditions at $(date) - Day: $day_name ($day_of_week), Time: $current_hour:$current_minute"
 
@@ -299,36 +742,34 @@ logger -t day-specific-shutdown "Checking shutdown conditions at $(date) - Day: 
 should_shutdown=false
 
 if [[ $day_of_week -ge 1 ]] && [[ $day_of_week -le 3 ]]; then
-    # Monday (1), Tuesday (2), Wednesday (3): shutdown window 21:00-05:00
-    logger -t day-specific-shutdown "Today is $day_name - checking 21:00-05:00 window"
+    # Monday (1), Tuesday (2), Wednesday (3)
+    shutdown_start=$mon_wed_minutes
+    logger -t day-specific-shutdown "Today is $day_name - checking ${MON_WED_HOUR}:00-0${MORNING_END_HOUR}:00 window"
     
-    # Check if time is between 21:00 (1260 minutes) and 23:59 (1439 minutes)
-    # OR between 00:00 (0 minutes) and 05:00 (300 minutes)
-    if [[ $current_time_minutes -ge 1260 ]] || [[ $current_time_minutes -le 300 ]]; then
+    if [[ $current_time_minutes -ge $shutdown_start ]] || [[ $current_time_minutes -le $morning_end_minutes ]]; then
         should_shutdown=true
-        if [[ $current_time_minutes -ge 1260 ]]; then
-            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (21:00-23:59)"
+        if [[ $current_time_minutes -ge $shutdown_start ]]; then
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (${MON_WED_HOUR}:00-23:59)"
         else
-            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within morning shutdown window (00:00-05:00)"
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within morning shutdown window (00:00-0${MORNING_END_HOUR}:00)"
         fi
     else
-        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (21:00-05:00)"
+        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (${MON_WED_HOUR}:00-0${MORNING_END_HOUR}:00)"
     fi
 else
-    # Thursday (4), Friday (5), Saturday (6), Sunday (7): shutdown window 22:00-05:00
-    logger -t day-specific-shutdown "Today is $day_name - checking 22:00-05:00 window"
+    # Thursday (4), Friday (5), Saturday (6), Sunday (7)
+    shutdown_start=$thu_sun_minutes
+    logger -t day-specific-shutdown "Today is $day_name - checking ${THU_SUN_HOUR}:00-0${MORNING_END_HOUR}:00 window"
     
-    # Check if time is between 22:00 (1320 minutes) and 23:59 (1439 minutes)
-    # OR between 00:00 (0 minutes) and 05:00 (300 minutes)
-    if [[ $current_time_minutes -ge 1320 ]] || [[ $current_time_minutes -le 300 ]]; then
+    if [[ $current_time_minutes -ge $shutdown_start ]] || [[ $current_time_minutes -le $morning_end_minutes ]]; then
         should_shutdown=true
-        if [[ $current_time_minutes -ge 1320 ]]; then
-            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (22:00-23:59)"
+        if [[ $current_time_minutes -ge $shutdown_start ]]; then
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within evening shutdown window (${THU_SUN_HOUR}:00-23:59)"
         else
-            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within morning shutdown window (00:00-05:00)"
+            logger -t day-specific-shutdown "Time $current_hour:$current_minute is within morning shutdown window (00:00-0${MORNING_END_HOUR}:00)"
         fi
     else
-        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (22:00-05:00)"
+        logger -t day-specific-shutdown "Time $current_hour:$current_minute is outside shutdown window (${THU_SUN_HOUR}:00-0${MORNING_END_HOUR}:00)"
     fi
 fi
 
@@ -368,7 +809,7 @@ enable_timer() {
 # Function to install the monitor service
 install_monitor_service() {
 	echo ""
-	echo "6. Installing Shutdown Timer Monitor Service..."
+	echo "7. Installing Shutdown Timer Monitor Service..."
 	echo "=============================================="
 
 	local monitor_script="/usr/local/bin/shutdown-timer-monitor.sh"
@@ -533,7 +974,7 @@ EOF
 # Function to test the setup
 test_setup() {
 	echo ""
-	echo "7. Testing Setup..."
+	echo "8. Testing Setup..."
 	echo "=================="
 
 	echo "Service files:"
@@ -598,15 +1039,69 @@ test_setup() {
 	fi
 
 	echo ""
+	echo "Config file protection status:"
+	local config_file="/etc/shutdown-schedule.conf"
+	local canonical_file="/usr/local/share/locked-shutdown-schedule.conf"
+
+	if [[ -f "$config_file" ]]; then
+		echo "✓ Config file exists"
+		if lsattr "$config_file" 2>/dev/null | grep -q '^....i'; then
+			echo "✓ Config file is immutable"
+		else
+			echo "✗ Config file is NOT immutable"
+		fi
+	else
+		echo "✗ Config file missing"
+	fi
+
+	if [[ -f "$canonical_file" ]]; then
+		echo "✓ Canonical copy exists"
+	else
+		echo "✗ Canonical copy missing"
+	fi
+
+	if systemctl is-enabled shutdown-schedule-guard.path &>/dev/null; then
+		echo "✓ Config guard path watcher is enabled"
+	else
+		echo "✗ Config guard path watcher is not enabled"
+	fi
+
+	if systemctl is-active shutdown-schedule-guard.path &>/dev/null; then
+		echo "✓ Config guard path watcher is active"
+	else
+		echo "✗ Config guard path watcher is not active"
+	fi
+
+	if [[ -f "/usr/local/sbin/unlock-shutdown-schedule" ]]; then
+		echo "✓ Unlock script exists"
+	else
+		echo "✗ Unlock script missing"
+	fi
+
+	echo ""
 	echo "Next scheduled checks:"
 	systemctl list-timers day-specific-shutdown.timer --no-pager 2>/dev/null | head -5 | grep day-specific-shutdown || echo "Timer information not available"
 }
 
 # Display the shutdown schedule (used in multiple places)
 print_shutdown_schedule() {
+	# Convert 24h to 12h format for display
+	local mon_wed_12h thu_sun_12h morning_12h
+	if [[ $SCHEDULE_MON_WED_HOUR -gt 12 ]]; then
+		mon_wed_12h="$((SCHEDULE_MON_WED_HOUR - 12)):00 PM"
+	else
+		mon_wed_12h="${SCHEDULE_MON_WED_HOUR}:00 AM"
+	fi
+	if [[ $SCHEDULE_THU_SUN_HOUR -gt 12 ]]; then
+		thu_sun_12h="$((SCHEDULE_THU_SUN_HOUR - 12)):00 PM"
+	else
+		thu_sun_12h="${SCHEDULE_THU_SUN_HOUR}:00 AM"
+	fi
+	morning_12h="${SCHEDULE_MORNING_END_HOUR}:00 AM"
+
 	echo "Shutdown Schedule:"
-	echo "  Monday-Wednesday: 21:00-05:00 (9:00 PM to 5:00 AM)"
-	echo "  Thursday-Sunday:  22:00-05:00 (10:00 PM to 5:00 AM)"
+	echo "  Monday-Wednesday: ${SCHEDULE_MON_WED_HOUR}:00-0${SCHEDULE_MORNING_END_HOUR}:00 (${mon_wed_12h} to ${morning_12h})"
+	echo "  Thursday-Sunday:  ${SCHEDULE_THU_SUN_HOUR}:00-0${SCHEDULE_MORNING_END_HOUR}:00 (${thu_sun_12h} to ${morning_12h})"
 }
 
 # Function to show final instructions
@@ -623,6 +1118,7 @@ show_instructions() {
 	echo "✓ Timer enabled and started"
 	echo "✓ Monitor service installed (protects timer from being disabled)"
 	echo "✓ Watchdog timer installed (restarts monitor if stopped)"
+	echo "✓ Config file protected (immutable + path watcher + canonical copy)"
 	echo ""
 	print_shutdown_schedule
 	echo ""
@@ -630,12 +1126,19 @@ show_instructions() {
 	echo "  sudo day-specific-shutdown-manager.sh status   - Check status"
 	echo "  sudo day-specific-shutdown-manager.sh logs     - View shutdown logs"
 	echo ""
+	echo "To modify shutdown hours (with psychological friction):"
+	echo "  sudo /usr/local/sbin/unlock-shutdown-schedule"
+	echo ""
 	echo "How it works:"
 	echo "• Timer checks every 30 minutes during potential shutdown windows"
 	echo "• Smart logic determines shutdown eligibility based on day and time"
 	echo "• Monitor service watches the timer and re-enables it if disabled"
 	echo "• Watchdog timer restarts the monitor every 60 seconds if stopped"
 	echo "• Monitor has RefuseManualStop=true to prevent easy stopping"
+	echo "• Config file is protected by:"
+	echo "  - Immutable attribute (chattr +i)"
+	echo "  - Canonical copy at /usr/local/share/locked-shutdown-schedule.conf"
+	echo "  - Path watcher that auto-restores if you modify the file"
 	echo "• There is NO disable option - this is intentional for digital wellbeing"
 	echo ""
 	echo "WARNING: This will automatically shutdown your PC during designated hours."
@@ -683,8 +1186,17 @@ enable_midnight_shutdown() {
 	echo "Target user: $ACTUAL_USER"
 	echo "User home: $USER_HOME"
 
+	# Check if trying to cheat by making schedule more lenient
+	check_schedule_protection
+
 	# Confirm setup
 	confirm_setup
+
+	# Create config file (shared with i3blocks countdown script)
+	create_shutdown_config
+
+	# Create config guard (path watcher, enforcement, unlock script)
+	create_config_guard
 
 	# Create systemd files
 	create_shutdown_service

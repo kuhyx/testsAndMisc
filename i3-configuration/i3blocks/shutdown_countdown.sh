@@ -1,40 +1,39 @@
 #!/bin/bash
 # Shutdown countdown status script for i3blocks
 # Shows time remaining until the next shutdown window
-# Dynamically reads shutdown times from the systemd check script
+# Reads shutdown times from shared config file written by setup_midnight_shutdown.sh
 
-SHUTDOWN_CHECK_SCRIPT="/usr/local/bin/day-specific-shutdown-check.sh"
+SHUTDOWN_CONFIG="/etc/shutdown-schedule.conf"
 
-# Function to extract shutdown hour from the check script
-# Parses lines like "if [[ $current_time_minutes -ge 1260 ]]" where 1260 = 21*60
-get_shutdown_hours() {
-	if [[ ! -f "$SHUTDOWN_CHECK_SCRIPT" ]]; then
-		# Fallback defaults if script not found
-		echo "21 22"
-		return
-	fi
-
-	# Extract the minute thresholds from the script (e.g., 1260 for 21:00, 1320 for 22:00)
-	# The script checks: if [[ $current_time_minutes -ge XXXX ]]
-	# Get unique values - first is Mon-Wed (1260=21:00), second is Thu-Sun (1320=22:00)
-	local thresholds
-	thresholds=$(grep -oP 'current_time_minutes -ge \K\d{4}' "$SHUTDOWN_CHECK_SCRIPT" 2>/dev/null | sort -u)
-
-	if [[ -z "$thresholds" ]]; then
-		echo "21 22"
-		return
-	fi
-
-	local mon_wed_minutes thu_sun_minutes
-	mon_wed_minutes=$(echo "$thresholds" | head -1) # 1260 (smaller = earlier = Mon-Wed)
-	thu_sun_minutes=$(echo "$thresholds" | tail -1) # 1320 (larger = later = Thu-Sun)
-
-	# Convert minutes to hours
-	local mon_wed_hour=$((mon_wed_minutes / 60))
-	local thu_sun_hour=$((thu_sun_minutes / 60))
-
-	echo "$mon_wed_hour $thu_sun_hour"
+# Function to show error state in i3blocks and exit
+show_error() {
+	local message="$1"
+	echo "⏻ $message"
+	echo "⏻"
+	echo "#FF79C6" # Pink/magenta for config errors
+	exit 0
 }
+
+# Validate and load config file
+if [[ ! -f "$SHUTDOWN_CONFIG" ]]; then
+	show_error "NO CONFIG"
+fi
+
+# Source the config file to get MON_WED_HOUR and THU_SUN_HOUR
+# shellcheck source=/dev/null
+if ! source "$SHUTDOWN_CONFIG" 2>/dev/null; then
+	show_error "BAD CONFIG"
+fi
+
+# Validate that required variables are set
+if [[ -z "${MON_WED_HOUR:-}" ]] || [[ -z "${THU_SUN_HOUR:-}" ]]; then
+	show_error "MISSING VARS"
+fi
+
+# Validate that values are numbers
+if ! [[ "$MON_WED_HOUR" =~ ^[0-9]+$ ]] || ! [[ "$THU_SUN_HOUR" =~ ^[0-9]+$ ]]; then
+	show_error "INVALID HOURS"
+fi
 
 # Get current time info
 current_hour=$(date +%H)
@@ -42,16 +41,13 @@ current_minute=$(date +%M)
 current_time_minutes=$((10#$current_hour * 60 + 10#$current_minute))
 day_of_week=$(date +%u) # 1=Monday, 7=Sunday
 
-# Get shutdown hours dynamically
-read -r mon_wed_hour thu_sun_hour <<<"$(get_shutdown_hours)"
-
 # Determine shutdown hour based on day of week
 if [[ $day_of_week -ge 1 ]] && [[ $day_of_week -le 3 ]]; then
 	# Monday-Wednesday
-	shutdown_hour=$mon_wed_hour
+	shutdown_hour=$MON_WED_HOUR
 else
 	# Thursday-Sunday
-	shutdown_hour=$thu_sun_hour
+	shutdown_hour=$THU_SUN_HOUR
 fi
 
 shutdown_time_minutes=$((shutdown_hour * 60))
