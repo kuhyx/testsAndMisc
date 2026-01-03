@@ -388,12 +388,11 @@ EOF
 	# Create unlock script with psychological delay
 	cat >"$unlock_script" <<'EOF'
 #!/bin/bash
-# Unlock shutdown schedule config for editing with psychological friction
+# Unlock shutdown schedule config for editing with smart friction
 # This script:
-#   1. Makes you wait (psychological friction to discourage casual changes)
-#   2. Temporarily removes protection
-#   3. Opens the config in an editor
-#   4. Re-applies protection after editing
+#   - NO delay if making schedule STRICTER (earlier shutdown hours)
+#   - DELAY if making schedule more LENIENT (later shutdown hours)
+#   - BLOCKS lowering MORNING_END_HOUR (that would shorten the shutdown window)
 
 set -euo pipefail
 
@@ -402,6 +401,7 @@ CONFIG_FILE="/etc/shutdown-schedule.conf"
 CANONICAL_FILE="/usr/local/share/locked-shutdown-schedule.conf"
 LOG_FILE="/var/log/shutdown-schedule-guard.log"
 EDITOR="${EDITOR:-nano}"
+TEMP_FILE="/tmp/shutdown-schedule-edit.$$"
 
 log() {
     printf '%s - %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG_FILE" >&2
@@ -416,39 +416,31 @@ fi
 # Log the unlock attempt
 log "=== UNLOCK ATTEMPT by $(logname 2>/dev/null || echo 'unknown') from TTY $(tty 2>/dev/null || echo 'unknown') ==="
 
+# Load current values
+OLD_MON_WED=""
+OLD_THU_SUN=""
+OLD_MORNING_END=""
+if [[ -f "$CANONICAL_FILE" ]]; then
+    source "$CANONICAL_FILE" 2>/dev/null || true
+    OLD_MON_WED="${MON_WED_HOUR:-}"
+    OLD_THU_SUN="${THU_SUN_HOUR:-}"
+    OLD_MORNING_END="${MORNING_END_HOUR:-}"
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║     SHUTDOWN SCHEDULE CONFIG UNLOCK - PSYCHOLOGICAL FRICTION    ║"
+echo "║          SHUTDOWN SCHEDULE CONFIG UNLOCK                        ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "You are about to modify the shutdown schedule configuration."
-echo "This file controls when your PC automatically shuts down for"
-echo "digital wellbeing purposes."
-echo ""
 echo "Current schedule:"
-if [[ -f "$CONFIG_FILE" ]]; then
-    chattr -i "$CONFIG_FILE" 2>/dev/null || true
-    source "$CONFIG_FILE" 2>/dev/null || true
-    chattr +i "$CONFIG_FILE" 2>/dev/null || true
-    echo "  Monday-Wednesday: ${MON_WED_HOUR:-??}:00 - 0${MORNING_END_HOUR:-?}:00"
-    echo "  Thursday-Sunday:  ${THU_SUN_HOUR:-??}:00 - 0${MORNING_END_HOUR:-?}:00"
-fi
+echo "  Monday-Wednesday: ${OLD_MON_WED:-??}:00 - 0${OLD_MORNING_END:-?}:00"
+echo "  Thursday-Sunday:  ${OLD_THU_SUN:-??}:00 - 0${OLD_MORNING_END:-?}:00"
 echo ""
-echo "Are you making this change for a good reason, or are you just"
-echo "trying to stay up later? Remember why you set these limits."
+echo "Rules:"
+echo "  ✓ Making shutdown EARLIER (stricter) = No delay"
+echo "  ⏳ Making shutdown LATER (lenient) = ${DELAY_SECONDS}s delay required"
+echo "  ❌ Lowering MORNING_END_HOUR = BLOCKED (would shorten shutdown window)"
 echo ""
-echo "To proceed, you must wait $DELAY_SECONDS seconds..."
-echo ""
-
-# Countdown with opportunity to cancel
-for ((i=DELAY_SECONDS; i>0; i--)); do
-    printf "\r  ⏳ Waiting: %2d seconds remaining... (Ctrl+C to cancel)" "$i"
-    sleep 1
-done
-echo ""
-echo ""
-
-log "User waited through delay, proceeding with unlock"
 
 # Stop the path watcher temporarily
 systemctl stop shutdown-schedule-guard.path 2>/dev/null || true
@@ -457,18 +449,131 @@ systemctl stop shutdown-schedule-guard.path 2>/dev/null || true
 chattr -i -a "$CONFIG_FILE" 2>/dev/null || true
 chattr -i -a "$CANONICAL_FILE" 2>/dev/null || true
 
-echo "Config file unlocked. Opening editor..."
-echo "After saving, protection will be re-applied automatically."
+# Copy config to temp file for editing
+cp "$CONFIG_FILE" "$TEMP_FILE"
+
+echo "Opening editor..."
 echo ""
 
-# Open editor
-$EDITOR "$CONFIG_FILE"
+# Open editor on temp file
+$EDITOR "$TEMP_FILE"
+
+# Load new values from edited file
+NEW_MON_WED=""
+NEW_THU_SUN=""
+NEW_MORNING_END=""
+source "$TEMP_FILE" 2>/dev/null || true
+NEW_MON_WED="${MON_WED_HOUR:-}"
+NEW_THU_SUN="${THU_SUN_HOUR:-}"
+NEW_MORNING_END="${MORNING_END_HOUR:-}"
 
 echo ""
-echo "Re-applying protection..."
+echo "Checking changes..."
 
-# Copy to canonical
-cp "$CONFIG_FILE" "$CANONICAL_FILE"
+# Check for blocked changes (lowering MORNING_END_HOUR)
+if [[ -n "$OLD_MORNING_END" ]] && [[ -n "$NEW_MORNING_END" ]]; then
+    if [[ "$NEW_MORNING_END" -lt "$OLD_MORNING_END" ]]; then
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════════╗"
+        echo "║     ❌ CHANGE BLOCKED - CANNOT LOWER MORNING_END_HOUR ❌        ║"
+        echo "╚══════════════════════════════════════════════════════════════════╝"
+        echo ""
+        echo "You tried to lower MORNING_END_HOUR from $OLD_MORNING_END to $NEW_MORNING_END"
+        echo "This would SHORTEN the shutdown window, making it more lenient."
+        echo ""
+        echo "This change is NOT allowed. The shutdown window must end at"
+        echo "0${OLD_MORNING_END}:00 or later."
+        echo ""
+        rm -f "$TEMP_FILE"
+        # Re-apply protection
+        chattr +i "$CONFIG_FILE" 2>/dev/null || true
+        chattr +i "$CANONICAL_FILE" 2>/dev/null || true
+        systemctl start shutdown-schedule-guard.path 2>/dev/null || true
+        log "BLOCKED: User tried to lower MORNING_END_HOUR from $OLD_MORNING_END to $NEW_MORNING_END"
+        exit 1
+    fi
+fi
+
+# Check if changes require delay (making schedule more lenient)
+NEEDS_DELAY=false
+LENIENT_CHANGES=()
+
+if [[ -n "$OLD_MON_WED" ]] && [[ -n "$NEW_MON_WED" ]]; then
+    if [[ "$NEW_MON_WED" -gt "$OLD_MON_WED" ]]; then
+        NEEDS_DELAY=true
+        LENIENT_CHANGES+=("Mon-Wed: ${OLD_MON_WED}:00 → ${NEW_MON_WED}:00 (later)")
+    fi
+fi
+
+if [[ -n "$OLD_THU_SUN" ]] && [[ -n "$NEW_THU_SUN" ]]; then
+    if [[ "$NEW_THU_SUN" -gt "$OLD_THU_SUN" ]]; then
+        NEEDS_DELAY=true
+        LENIENT_CHANGES+=("Thu-Sun: ${OLD_THU_SUN}:00 → ${NEW_THU_SUN}:00 (later)")
+    fi
+fi
+
+# Check for stricter changes (allowed without delay)
+STRICTER_CHANGES=()
+
+if [[ -n "$OLD_MON_WED" ]] && [[ -n "$NEW_MON_WED" ]]; then
+    if [[ "$NEW_MON_WED" -lt "$OLD_MON_WED" ]]; then
+        STRICTER_CHANGES+=("Mon-Wed: ${OLD_MON_WED}:00 → ${NEW_MON_WED}:00 (earlier)")
+    fi
+fi
+
+if [[ -n "$OLD_THU_SUN" ]] && [[ -n "$NEW_THU_SUN" ]]; then
+    if [[ "$NEW_THU_SUN" -lt "$OLD_THU_SUN" ]]; then
+        STRICTER_CHANGES+=("Thu-Sun: ${OLD_THU_SUN}:00 → ${NEW_THU_SUN}:00 (earlier)")
+    fi
+fi
+
+if [[ -n "$OLD_MORNING_END" ]] && [[ -n "$NEW_MORNING_END" ]]; then
+    if [[ "$NEW_MORNING_END" -gt "$OLD_MORNING_END" ]]; then
+        STRICTER_CHANGES+=("Morning end: 0${OLD_MORNING_END}:00 → 0${NEW_MORNING_END}:00 (later = longer window)")
+    fi
+fi
+
+# Report stricter changes
+if [[ ${#STRICTER_CHANGES[@]} -gt 0 ]]; then
+    echo ""
+    echo "✓ Stricter changes detected (no delay needed):"
+    for s in "${STRICTER_CHANGES[@]}"; do
+        echo "  • $s"
+    done
+fi
+
+# Handle lenient changes
+if [[ "$NEEDS_DELAY" == true ]]; then
+    echo ""
+    echo "⚠️  More lenient changes detected:"
+    for l in "${LENIENT_CHANGES[@]}"; do
+        echo "  • $l"
+    done
+    echo ""
+    echo "Are you making this change for a good reason, or are you just"
+    echo "trying to stay up later? Remember why you set these limits."
+    echo ""
+    echo "To proceed, you must wait $DELAY_SECONDS seconds..."
+    echo ""
+
+    # Countdown with opportunity to cancel
+    for ((i=DELAY_SECONDS; i>0; i--)); do
+        printf "\r  ⏳ Waiting: %2d seconds remaining... (Ctrl+C to cancel)" "$i"
+        sleep 1
+    done
+    echo ""
+    echo ""
+    log "User waited through delay for lenient changes: ${LENIENT_CHANGES[*]}"
+else
+    echo ""
+    echo "✓ No delay required (schedule is same or stricter)"
+fi
+
+# Apply the changes
+cp "$TEMP_FILE" "$CONFIG_FILE"
+cp "$TEMP_FILE" "$CANONICAL_FILE"
+rm -f "$TEMP_FILE"
+
 chmod 644 "$CONFIG_FILE"
 chmod 644 "$CANONICAL_FILE"
 
@@ -572,25 +677,37 @@ create_shutdown_timer() {
 
 	local timer_file="/etc/systemd/system/day-specific-shutdown.timer"
 
-	cat >"$timer_file" <<'EOF'
+	# Calculate earliest shutdown hour (minimum of MON_WED and THU_SUN)
+	local earliest_hour=$SCHEDULE_MON_WED_HOUR
+	if [[ $SCHEDULE_THU_SUN_HOUR -lt $earliest_hour ]]; then
+		earliest_hour=$SCHEDULE_THU_SUN_HOUR
+	fi
+
+	# Generate timer entries dynamically from earliest_hour to MORNING_END_HOUR
+	# This ensures timer fires at all possible shutdown times
+	{
+		cat <<EOF
 [Unit]
 Description=Timer for automatic PC shutdown with day-specific windows
 Requires=day-specific-shutdown.service
 
 [Timer]
-OnCalendar=*-*-* 23:00:00
-OnCalendar=*-*-* 23:30:00
-OnCalendar=*-*-* 00:00:00
-OnCalendar=*-*-* 00:30:00
-OnCalendar=*-*-* 01:00:00
-OnCalendar=*-*-* 01:30:00
-OnCalendar=*-*-* 02:00:00
-OnCalendar=*-*-* 02:30:00
-OnCalendar=*-*-* 03:00:00
-OnCalendar=*-*-* 03:30:00
-OnCalendar=*-*-* 04:00:00
-OnCalendar=*-*-* 04:30:00
-OnCalendar=*-*-* 05:00:00
+EOF
+		# Evening hours: from earliest shutdown hour to 23:30
+		for hour in $(seq "$earliest_hour" 23); do
+			printf 'OnCalendar=*-*-* %02d:00:00\n' "$hour"
+			printf 'OnCalendar=*-*-* %02d:30:00\n' "$hour"
+		done
+
+		# Morning hours: from 00:00 to MORNING_END_HOUR
+		for hour in $(seq 0 "$SCHEDULE_MORNING_END_HOUR"); do
+			printf 'OnCalendar=*-*-* %02d:00:00\n' "$hour"
+			if [[ $hour -lt $SCHEDULE_MORNING_END_HOUR ]]; then
+				printf 'OnCalendar=*-*-* %02d:30:00\n' "$hour"
+			fi
+		done
+
+		cat <<EOF
 Persistent=false
 AccuracySec=1s
 WakeSystem=false
@@ -599,8 +716,10 @@ RandomizedDelaySec=0
 [Install]
 WantedBy=timers.target
 EOF
+	} >"$timer_file"
 
 	echo "✓ Created systemd timer: $timer_file"
+	echo "  Timer covers: ${earliest_hour}:00 to 0${SCHEDULE_MORNING_END_HOUR}:00"
 }
 
 # Function to create management script

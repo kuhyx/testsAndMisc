@@ -9,10 +9,18 @@
 
 set -euo pipefail
 
-# Source common library for shared functions
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-# shellcheck source=../lib/common.sh
-source "$SCRIPT_DIR/../lib/common.sh"
+# Send desktop notification (inlined from common.sh to avoid dependency issues
+# when script is installed to /usr/local/bin)
+notify() {
+	local title="$1"
+	local message="$2"
+	local urgency="${3:-normal}"
+	local timeout="${4:-5000}"
+
+	if command -v notify-send &>/dev/null; then
+		notify-send -u "$urgency" -t "$timeout" "$title" "$message" 2>/dev/null || true
+	fi
+}
 
 # Configuration
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/compulsive-block"
@@ -253,6 +261,71 @@ install_all() {
 	echo "Each app can now only be opened once per hour."
 	echo "State files stored in: $STATE_DIR"
 	echo "Logs stored in: $LOG_FILE"
+
+	# Install pacman hook to re-wrap after package updates
+	install_pacman_hook
+}
+
+# Install pacman hook to re-install wrappers after package updates
+install_pacman_hook() {
+	local hook_dir="/etc/pacman.d/hooks"
+	local hook_file="$hook_dir/95-compulsive-block-rewrap.hook"
+
+	echo ""
+	echo "Installing pacman hook..."
+
+	mkdir -p "$hook_dir"
+
+	cat >"$hook_file" <<'HOOK_EOF'
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Type = Package
+Target = beeper
+Target = signal-desktop
+Target = discord
+
+[Action]
+Description = Re-installing compulsive opening blockers after package update
+When = PostTransaction
+Exec = /usr/local/bin/block-compulsive-opening.sh rewrap-quiet
+HOOK_EOF
+
+	chmod 644 "$hook_file"
+	echo "✓ Pacman hook installed: $hook_file"
+	echo "  Wrappers will be automatically re-installed after beeper/signal/discord updates"
+}
+
+# Uninstall pacman hook
+uninstall_pacman_hook() {
+	local hook_file="/etc/pacman.d/hooks/95-compulsive-block-rewrap.hook"
+	if [[ -f "$hook_file" ]]; then
+		rm -f "$hook_file"
+		echo "✓ Pacman hook removed"
+	fi
+}
+
+# Quietly re-wrap apps (for pacman hook - no interactive output)
+rewrap_quiet() {
+	log_message "REWRAP: Pacman hook triggered, re-installing wrappers"
+
+	for app in "${!APPS[@]}"; do
+		local wrapper_path="${APPS[$app]}"
+
+		# Check if wrapper was overwritten (no longer our wrapper script)
+		if [[ -f "$wrapper_path" ]] && ! grep -q "block-compulsive-opening" "$wrapper_path" 2>/dev/null; then
+			# Wrapper was overwritten by package update
+			log_message "REWRAP: $app wrapper was overwritten, re-installing"
+
+			# Remove old .orig if exists (it's now stale)
+			rm -f "${wrapper_path}.orig"
+
+			# Re-install wrapper
+			install_wrapper "$app" >>"$LOG_FILE" 2>&1 || true
+		fi
+	done
+
+	log_message "REWRAP: Complete"
 }
 
 # Uninstall all wrappers
@@ -265,6 +338,9 @@ uninstall_all() {
 	done
 
 	rm -f "/usr/local/bin/block-compulsive-opening.sh"
+
+	# Remove pacman hook
+	uninstall_pacman_hook
 
 	echo ""
 	echo "Uninstallation complete."
@@ -401,6 +477,13 @@ main() {
 		;;
 	reset-all)
 		reset_all
+		;;
+	rewrap-quiet)
+		# Called by pacman hook - quietly re-wrap apps after package updates
+		if [[ $EUID -ne 0 ]]; then
+			exit 1
+		fi
+		rewrap_quiet
 		;;
 	wrapper)
 		if [[ -z ${2:-} ]]; then
