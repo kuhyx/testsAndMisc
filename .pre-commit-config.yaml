@@ -127,7 +127,7 @@ repos:
           - pyproject.toml
           - --severity-level=high
           - --confidence-level=medium
-          - --skip=B113,B608
+          - --skip=B113
         additional_dependencies: ["bandit[toml]"]
         exclude: ^(Bash/|\.venv/|tests/|.*test.*\.py$)
 
@@ -144,14 +144,14 @@ repos:
   #       exclude: ^(Bash/|\.venv/)
 
   # ===========================================================================
-  # PYUPGRADE - Upgrade Python syntax
+  # PYUPGRADE - Upgrade Python syntax (disabled - incompatible with Python 3.14)
   # ===========================================================================
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.0
-    hooks:
-      - id: pyupgrade
-        args:
-          - --py310-plus
+  # - repo: https://github.com/asottile/pyupgrade
+  #   rev: v3.19.0
+  #   hooks:
+  #     - id: pyupgrade
+  #       args:
+  #         - --py310-plus
 
   # ===========================================================================
   # CODESPELL - Spell checking in code (expanded ignore list for non-English)
