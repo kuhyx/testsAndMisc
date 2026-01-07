@@ -5,10 +5,15 @@ Generate Anki flashcards for learning the 18 districts (dzielnice) of Warsaw, Po
 ## Features
 
 - Generates flashcards for all 18 Warsaw districts
-- Front of card: Map showing only the district in question with its borders highlighted
+- **Uses real district boundaries from OpenStreetMap data**
+- Front of card: Map showing the full city with only the target district's border highlighted in bold
 - Back of card: District name in Polish
 - Self-contained .apkg file with embedded images
 - Compatible with AnkiWeb and AnkiDroid
+
+## Data Source
+
+District boundaries are sourced from [andilabs/warszawa-dzielnice-geojson](https://github.com/andilabs/warszawa-dzielnice-geojson), which provides accurate OpenStreetMap-based GeoJSON data for all Warsaw districts.
 
 ## Installation
 
@@ -18,23 +23,23 @@ Install dependencies using your preferred method:
 ```bash
 pyenv install 3.10  # or later
 pyenv shell 3.10
-pip install matplotlib genanki
+pip install matplotlib genanki geopandas
 ```
 
 ### Using pipx
 ```bash
-pipx install --python python3.10 matplotlib genanki
+pipx install --python python3.10 matplotlib genanki geopandas
 ```
 
 ### Using system package manager (Arch Linux)
 ```bash
-sudo pacman -S python-matplotlib
+sudo pacman -S python-matplotlib python-geopandas
 pip install genanki
 ```
 
 ### Using pip directly
 ```bash
-pip install matplotlib genanki
+pip install matplotlib genanki geopandas
 ```
 
 ## Usage

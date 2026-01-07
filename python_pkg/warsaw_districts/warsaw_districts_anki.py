@@ -2,7 +2,8 @@
 """Anki flashcard generator for Warsaw districts.
 
 Generates Anki-compatible flashcard decks with maps showing individual
-Warsaw districts (dzielnice) with their borders.
+Warsaw districts (dzielnice) with their borders using real boundary data
+from OpenStreetMap.
 
 Usage:
     # Generate Anki cards for all Warsaw districts
@@ -24,10 +25,10 @@ from io import BytesIO
 from pathlib import Path
 import random
 import sys
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 import genanki
-import matplotlib.patches as mpatches
+import geopandas as gpd
 import matplotlib.pyplot as plt
 
 if TYPE_CHECKING:
@@ -36,115 +37,85 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
 
-class District(NamedTuple):
-    """A Warsaw district with its approximate position."""
-
-    name: str  # Polish name
-    x: float  # Approximate x coordinate (0-1)
-    y: float  # Approximate y coordinate (0-1)
+# Path to GeoJSON file with Warsaw district boundaries
+GEOJSON_PATH = Path(__file__).parent / "warszawa-dzielnice.geojson"
 
 
-# Warsaw districts (dzielnice) - 18 total
-# Coordinates are approximate relative positions for visualization
-WARSAW_DISTRICTS: list[District] = [
-    District("Bemowo", 0.15, 0.55),
-    District("Białołęka", 0.75, 0.7),
-    District("Bielany", 0.35, 0.75),
-    District("Mokotów", 0.45, 0.3),
-    District("Ochota", 0.3, 0.45),
-    District("Praga-Południe", 0.7, 0.35),
-    District("Praga-Północ", 0.7, 0.6),
-    District("Rembertów", 0.85, 0.5),
-    District("Śródmieście", 0.5, 0.5),
-    District("Targówek", 0.65, 0.8),
-    District("Ursus", 0.05, 0.4),
-    District("Ursynów", 0.5, 0.15),
-    District("Wawer", 0.8, 0.25),
-    District("Wesoła", 0.9, 0.45),
-    District("Wilanów", 0.6, 0.1),
-    District("Włochy", 0.15, 0.3),
-    District("Wola", 0.35, 0.6),
-    District("Żoliborz", 0.45, 0.7),
-]
+def load_district_data() -> gpd.GeoDataFrame:
+    """Load Warsaw district boundaries from GeoJSON.
+
+    Returns:
+        GeoDataFrame with district boundaries.
+    """
+    if not GEOJSON_PATH.exists():
+        msg = f"GeoJSON file not found at {GEOJSON_PATH}"
+        raise FileNotFoundError(msg)
+
+    gdf = gpd.read_file(GEOJSON_PATH)
+    # Filter out the "Warszawa" entry (whole city) and keep only districts
+    return gdf[gdf["name"] != "Warszawa"].copy()
 
 
-def create_district_map(district: District, *, highlight_only: bool = True) -> Figure:
+def get_district_names() -> list[str]:
+    """Get list of all district names from GeoJSON data.
+
+    Returns:
+        Sorted list of district names.
+    """
+    gdf = load_district_data()
+    return sorted(gdf["name"].tolist())
+
+
+# Load district names from actual data
+WARSAW_DISTRICTS = get_district_names()
+
+
+def create_district_map(district_name: str) -> Figure:
     """Create a map showing Warsaw districts with one district highlighted.
 
     Args:
-        district: The district to highlight.
-        highlight_only: If True, show only the highlighted district's border.
+        district_name: Name of the district to highlight.
 
     Returns:
         A matplotlib Figure object.
     """
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    # Load all district data
+    gdf = load_district_data()
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 10))
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Draw all districts as points if not highlight_only
-    if not highlight_only:
-        for dist in WARSAW_DISTRICTS:
-            if dist.name != district.name:
-                circle = mpatches.Circle(
-                    (dist.x, dist.y),
-                    0.03,
-                    color="lightgray",
-                    alpha=0.3,
-                )
-                ax.add_patch(circle)
+    # Plot all districts with light gray borders
+    gdf.boundary.plot(ax=ax, color="lightgray", linewidth=0.5, alpha=0.5)
 
-    # Draw the highlighted district with a border
-    # Create a polygon approximating the district area
-    # For simplicity, we'll use a circle with border
-    highlighted = mpatches.Circle(
-        (district.x, district.y),
-        0.08,
-        facecolor="white",
-        edgecolor="black",
-        linewidth=3,
-    )
-    ax.add_patch(highlighted)
+    # Find and highlight the target district
+    target = gdf[gdf["name"] == district_name]
+    if len(target) == 0:
+        msg = f"District {district_name} not found in data"
+        raise ValueError(msg)
 
-    # Add some neighboring circles to show context (lighter borders)
-    # Find nearest districts
-    distances = [
-        (
-            d,
-            ((d.x - district.x) ** 2 + (d.y - district.y) ** 2) ** 0.5,
-        )
-        for d in WARSAW_DISTRICTS
-        if d.name != district.name
-    ]
-    distances.sort(key=lambda x: x[1])
+    # Plot the highlighted district with bold black border
+    target.boundary.plot(ax=ax, color="black", linewidth=3)
 
-    # Draw 3-4 nearest neighbors with light borders
-    for neighbor, _ in distances[:4]:
-        neighbor_circle = mpatches.Circle(
-            (neighbor.x, neighbor.y),
-            0.08,
-            facecolor="white",
-            edgecolor="lightgray",
-            linewidth=1,
-            alpha=0.5,
-        )
-        ax.add_patch(neighbor_circle)
+    # Set tight layout
+    ax.set_xlim(gdf.total_bounds[0], gdf.total_bounds[2])
+    ax.set_ylim(gdf.total_bounds[1], gdf.total_bounds[3])
 
     return fig
 
 
-def generate_district_image_bytes(district: District) -> bytes:
+def generate_district_image_bytes(district_name: str) -> bytes:
     """Generate a district map image as bytes.
 
     Args:
-        district: The district to visualize.
+        district_name: Name of the district to visualize.
 
     Returns:
         PNG image data as bytes.
     """
-    fig = create_district_map(district)
+    fig = create_district_map(district_name)
 
     # Save to bytes buffer
     buf = BytesIO()
@@ -199,19 +170,19 @@ def generate_anki_package(
     media_files = []
 
     # Generate notes for each district
-    for district in WARSAW_DISTRICTS:
+    for district_name in WARSAW_DISTRICTS:
         # Generate image
-        image_data = generate_district_image_bytes(district)
+        image_data = generate_district_image_bytes(district_name)
 
         # Create unique filename
-        filename = f"{district.name.replace('-', '_').replace(' ', '_')}.png"
+        filename = f"{district_name.replace(' ', '_').replace('-', '_')}.png"
 
         # Create note
         note = genanki.Note(
             model=my_model,
             fields=[
                 f'<img src="{filename}">',
-                district.name,
+                district_name,
             ],
             tags=["geography", "warsaw", "poland"],
         )
@@ -272,6 +243,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(
             f"Generating flashcards for {num_districts} Warsaw districts...\n"
         )
+        sys.stdout.write("Using real district boundaries from OpenStreetMap data.\n")
 
         # Generate the package
         package = generate_anki_package(args.deck_name)
