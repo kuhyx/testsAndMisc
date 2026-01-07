@@ -5,6 +5,7 @@ lxml>=5.0
 mitmproxy>=10.0
 
 # Optional dependencies for specific scripts (needed for full pylint analysis)
+matplotlib>=3.0
 opencv-python>=4.0
 pillow>=10.0
 pygame>=2.0
