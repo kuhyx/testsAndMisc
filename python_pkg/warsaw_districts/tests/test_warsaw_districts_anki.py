@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pytest
 
 try:
@@ -71,14 +72,10 @@ class TestCreateDistrictMap:
         fig = create_district_map(district)
         assert fig is not None
         # Clean up
-        import matplotlib.pyplot as plt
-
         plt.close(fig)
 
     def test_creates_figure_for_all_districts(self) -> None:
         """Test that we can create maps for all districts."""
-        import matplotlib.pyplot as plt
-
         for district in WARSAW_DISTRICTS:
             fig = create_district_map(district)
             assert fig is not None

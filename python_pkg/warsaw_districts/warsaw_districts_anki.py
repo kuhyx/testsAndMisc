@@ -22,8 +22,6 @@ Output:
 from __future__ import annotations
 
 import argparse
-import base64
-from io import BytesIO
 from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, NamedTuple
@@ -134,27 +132,6 @@ def create_district_map(district: District, *, highlight_only: bool = True) -> F
         ax.add_patch(neighbor_circle)
 
     return fig
-
-
-def generate_district_image_base64(district: District) -> str:
-    """Generate a base64-encoded PNG image of the district map.
-
-    Args:
-        district: The district to visualize.
-
-    Returns:
-        Base64-encoded PNG image string.
-    """
-    fig = create_district_map(district)
-
-    # Save to bytes buffer
-    buf = BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
-    plt.close(fig)
-    buf.seek(0)
-
-    # Encode to base64
-    return base64.b64encode(buf.read()).decode("utf-8")
 
 
 def save_district_image(district: District, output_dir: Path) -> Path:
