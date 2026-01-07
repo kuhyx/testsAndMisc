@@ -21,8 +21,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING, NamedTuple
 
 try:
@@ -81,7 +81,9 @@ def find_best_excerpt(
         target_set = {w.lower() for w in target_words}
 
     # Use sliding window to find the best excerpt
-    results: list[tuple[int, int, float, int]] = []  # (match_count, -start, percentage, start)
+    results: list[
+        tuple[int, int, float, int]
+    ] = []  # (match_count, -start, percentage, start)
 
     # Count matches in first window
     current_matches = sum(1 for w in words[:excerpt_length] if w in target_set)
@@ -219,9 +221,11 @@ def format_excerpt_results(
     for i, result in enumerate(results, 1):
         if len(results) > 1:
             lines.append(f"=== Result #{i} ===")
-        lines.append(f"Excerpt: \"{result.excerpt}\"")
+        lines.append(f'Excerpt: "{result.excerpt}"')
         lines.append(f"Word position: {result.start_index} - {result.end_index - 1}")
-        lines.append(f"Matches: {result.match_count}/{len(result.words)} ({result.match_percentage:.2f}%)")
+        lines.append(
+            f"Matches: {result.match_count}/{len(result.words)} ({result.match_percentage:.2f}%)"
+        )
         lines.append("")
 
     return "\n".join(lines)
@@ -325,7 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             target_words = [w.strip() for w in words_content.splitlines() if w.strip()]
 
         if not target_words:
-            print("Error: No target words provided", file=sys.stderr)  # noqa: T201
+            print("Error: No target words provided", file=sys.stderr)
             return 1
 
         # Find excerpts
@@ -343,15 +347,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output:
             Path(args.output).write_text(output, encoding="utf-8")
-            print(f"Output written to {args.output}")  # noqa: T201
+            print(f"Output written to {args.output}")
         else:
-            print(output)  # noqa: T201
+            print(output)
 
     except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: File not found - {e}", file=sys.stderr)
         return 1
     except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)
         return 1
 
     return 0

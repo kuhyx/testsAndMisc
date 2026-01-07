@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -52,7 +52,9 @@ class ArgosAvailableMock:
     Works whether argos is installed or not by patching sys.modules.
     """
 
-    def __init__(self, translate_returns: str | list[str] | Exception | None = None) -> None:
+    def __init__(
+        self, translate_returns: str | list[str] | Exception | None = None
+    ) -> None:
         """Initialize with return values for translate()."""
         self.translate_returns = translate_returns
         self.mock_translate_fn = MagicMock()
@@ -69,9 +71,9 @@ class ArgosAvailableMock:
         translator._argos_available = True
 
         # Set up translate return value
-        if isinstance(self.translate_returns, Exception):
-            self.mock_translate_fn.side_effect = self.translate_returns
-        elif isinstance(self.translate_returns, list):
+        if isinstance(self.translate_returns, Exception) or isinstance(
+            self.translate_returns, list
+        ):
             self.mock_translate_fn.side_effect = self.translate_returns
         elif self.translate_returns is not None:
             self.mock_translate_fn.return_value = self.translate_returns
@@ -102,9 +104,9 @@ class ArgosAvailableMock:
             translator, "_ensure_language_pair", lambda f, t: None
         )
 
-        self._sys_modules_patcher.start()
-        self._ensure_patcher.start()
-        self._lang_patcher.start()
+        self._sys_modules_patcher.start()  # type: ignore[union-attr]
+        self._ensure_patcher.start()  # type: ignore[union-attr]
+        self._lang_patcher.start()  # type: ignore[union-attr]
 
         return self.mock_translate_fn
 
@@ -291,9 +293,7 @@ class TestTranslateWordsBatch:
         """Test batch translation falls back to individual when result count mismatches."""
         words = ["one", "two", "three", "four"]
         # First call (batch) returns wrong count, subsequent calls are individual
-        with ArgosAvailableMock(
-            ["wrong", "uno", "dos", "tres", "cuatro"]
-        ) as mock:
+        with ArgosAvailableMock(["wrong", "uno", "dos", "tres", "cuatro"]) as mock:
             results = translate_words_batch(words, "en", "es", use_cache=False)
 
         assert len(results) == 4
@@ -425,7 +425,8 @@ class TestGetInstalledLanguages:
         # We need to mock the translate module's get_installed_languages
         mock_translate_module = MagicMock()
         mock_translate_module.get_installed_languages.return_value = [
-            mock_lang1, mock_lang2
+            mock_lang1,
+            mock_lang2,
         ]
         mock_package_module = MagicMock()
         mock_parent = MagicMock()
@@ -507,9 +508,7 @@ class TestMain:
         result = main(["--text", "hello", "--from", "en", "--to", "es"])
         assert result == 1
 
-    def test_list_languages_empty(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_list_languages_empty(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test listing languages when none installed."""
         mock_translate_module = MagicMock()
         mock_translate_module.get_installed_languages.return_value = []
@@ -572,9 +571,7 @@ class TestMain:
         assert "en" in captured.out
         assert "English" in captured.out
 
-    def test_translate_single_text(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_translate_single_text(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test translating single text."""
         with ArgosAvailableMock("hola"):
             result = main(["--text", "hello", "--from", "en", "--to", "es"])
@@ -584,9 +581,7 @@ class TestMain:
         assert "hello" in captured.out
         assert "hola" in captured.out
 
-    def test_translate_multiple_words(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_translate_multiple_words(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test translating multiple words."""
         with ArgosAvailableMock(["hola", "mundo"]):
             result = main(["--words", "hello", "world", "--from", "en", "--to", "es"])
@@ -613,9 +608,7 @@ class TestMain:
         assert "world" in captured.out
         assert "goodbye" in captured.out
 
-    def test_translate_file_not_found(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_translate_file_not_found(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test error when words file not found."""
         with ArgosAvailableMock():
             result = main(
@@ -654,9 +647,7 @@ class TestMain:
         assert "hello" in content
         assert "hola" in content
 
-    def test_no_input_shows_help(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_no_input_shows_help(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test that no input shows help."""
         with ArgosAvailableMock():
             result = main([])
