@@ -108,6 +108,10 @@ def _check_argos() -> bool:
     global _argos_available
     if _argos_available is None:
         try:
+            import argostranslate.package
+            import argostranslate.translate
+
+            _ = (argostranslate.package, argostranslate.translate)
             _argos_available = True
         except ImportError:
             _argos_available = False
@@ -119,6 +123,9 @@ def _check_deep_translator() -> bool:
     global _deep_translator_available
     if _deep_translator_available is None:
         try:
+            from deep_translator import GoogleTranslator
+
+            _ = GoogleTranslator
             _deep_translator_available = True
         except ImportError:
             _deep_translator_available = False
@@ -130,6 +137,9 @@ def _check_langdetect() -> bool:
     global _langdetect_available
     if _langdetect_available is None:
         try:
+            import langdetect
+
+            _ = langdetect
             _langdetect_available = True
         except ImportError:
             _langdetect_available = False
