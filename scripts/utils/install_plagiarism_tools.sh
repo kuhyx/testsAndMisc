@@ -39,18 +39,18 @@ echo ""
 echo "=== 1. Installing Python NLP-based Plagiarism Tools ==="
 
 # Check for Python 3
-if ! command -v python3 &>/dev/null; then
-	error "Python 3 is required but not installed."
-	exit 1
+if ! command -v python3 &> /dev/null; then
+  error "Python 3 is required but not installed."
+  exit 1
 fi
 
 # Create virtual environment
 if [ ! -d "$VENV_DIR" ]; then
-	echo "Creating Python virtual environment..."
-	python3 -m venv "$VENV_DIR"
-	success "Virtual environment created at $VENV_DIR"
+  echo "Creating Python virtual environment..."
+  python3 -m venv "$VENV_DIR"
+  success "Virtual environment created at $VENV_DIR"
 else
-	warn "Virtual environment already exists at $VENV_DIR"
+  warn "Virtual environment already exists at $VENV_DIR"
 fi
 
 # Activate and install packages
@@ -60,19 +60,19 @@ echo "Installing Python packages for text similarity detection..."
 pip install --upgrade pip
 
 pip install --progress-bar on \
-	scikit-learn \
-	nltk \
-	spacy \
-	gensim \
-	numpy \
-	pandas \
-	python-docx \
-	PyPDF2 \
-	beautifulsoup4 \
-	lxml \
-	textdistance \
-	fuzzywuzzy \
-	python-Levenshtein
+  scikit-learn \
+  nltk \
+  spacy \
+  gensim \
+  numpy \
+  pandas \
+  python-docx \
+  PyPDF2 \
+  beautifulsoup4 \
+  lxml \
+  textdistance \
+  fuzzywuzzy \
+  python-Levenshtein
 
 success "Python NLP packages installed"
 
@@ -90,11 +90,11 @@ success "NLTK data downloaded"
 
 # Download spaCy English model (small)
 echo "Downloading spaCy English model..."
-python3 -m spacy download en_core_web_sm 2>/dev/null || warn "spaCy model download may need manual install: python -m spacy download en_core_web_sm"
+python3 -m spacy download en_core_web_sm 2> /dev/null || warn "spaCy model download may need manual install: python -m spacy download en_core_web_sm"
 success "spaCy model installed"
 
 # Create a simple plagiarism checker script
-cat >"$INSTALL_DIR/check_plagiarism.py" <<'PYEOF'
+cat > "$INSTALL_DIR/check_plagiarism.py" << 'PYEOF'
 #!/usr/bin/env python3
 """
 Simple Text Plagiarism Checker
@@ -325,7 +325,7 @@ success "Created plagiarism checker script at $INSTALL_DIR/check_plagiarism.py"
 
 # Create convenience wrapper
 mkdir -p "$HOME/.local/bin"
-cat >"$HOME/.local/bin/plagcheck" <<WRAPEOF
+cat > "$HOME/.local/bin/plagcheck" << WRAPEOF
 #!/usr/bin/env bash
 # Wrapper for plagiarism checker
 source "$VENV_DIR/bin/activate"
@@ -344,14 +344,14 @@ echo "=== 2. Installing Sherlock Text Plagiarism Detector ==="
 
 SHERLOCK_DIR="$INSTALL_DIR/sherlock"
 if [ ! -d "$SHERLOCK_DIR" ]; then
-	# There are several Sherlock implementations; using a popular Python one
-	if command -v git &>/dev/null; then
-		# Clone a text-based similarity tool
-		git clone --depth 1 https://github.com/Zedeldi/sherlock-py.git "$SHERLOCK_DIR" 2>/dev/null || {
-			warn "Could not clone sherlock-py, trying alternative..."
-			# Alternative: Create a simple n-gram based sherlock
-			mkdir -p "$SHERLOCK_DIR"
-			cat >"$SHERLOCK_DIR/sherlock.py" <<'SHERLOCKEOF'
+  # There are several Sherlock implementations; using a popular Python one
+  if command -v git &> /dev/null; then
+    # Clone a text-based similarity tool
+    git clone --depth 1 https://github.com/Zedeldi/sherlock-py.git "$SHERLOCK_DIR" 2> /dev/null || {
+      warn "Could not clone sherlock-py, trying alternative..."
+      # Alternative: Create a simple n-gram based sherlock
+      mkdir -p "$SHERLOCK_DIR"
+      cat > "$SHERLOCK_DIR/sherlock.py" << 'SHERLOCKEOF'
 #!/usr/bin/env python3
 """
 Sherlock - Simple text plagiarism detector using n-gram fingerprinting.
@@ -443,14 +443,14 @@ def main():
 if __name__ == '__main__':
     main()
 SHERLOCKEOF
-			chmod +x "$SHERLOCK_DIR/sherlock.py"
-		}
-		success "Sherlock installed at $SHERLOCK_DIR"
-	else
-		warn "Git not available, skipping Sherlock installation"
-	fi
+      chmod +x "$SHERLOCK_DIR/sherlock.py"
+    }
+    success "Sherlock installed at $SHERLOCK_DIR"
+  else
+    warn "Git not available, skipping Sherlock installation"
+  fi
 else
-	warn "Sherlock already installed at $SHERLOCK_DIR"
+  warn "Sherlock already installed at $SHERLOCK_DIR"
 fi
 
 # ------------------------------------------------------------------------------
@@ -459,17 +459,17 @@ fi
 echo ""
 echo "=== 3. Checking for Ferret (Java-based plagiarism tool) ==="
 
-if command -v java &>/dev/null; then
-	FERRET_DIR="$INSTALL_DIR/ferret"
-	if [ ! -d "$FERRET_DIR" ]; then
-		mkdir -p "$FERRET_DIR"
-		echo "Ferret is a Java-based tool from University of Hertfordshire."
-		echo "Download manually from: https://homepages.herts.ac.uk/~comqcln/Ferret/"
-		echo "Place JAR file in: $FERRET_DIR"
-		warn "Ferret requires manual download (academic license)"
-	fi
+if command -v java &> /dev/null; then
+  FERRET_DIR="$INSTALL_DIR/ferret"
+  if [ ! -d "$FERRET_DIR" ]; then
+    mkdir -p "$FERRET_DIR"
+    echo "Ferret is a Java-based tool from University of Hertfordshire."
+    echo "Download manually from: https://homepages.herts.ac.uk/~comqcln/Ferret/"
+    echo "Place JAR file in: $FERRET_DIR"
+    warn "Ferret requires manual download (academic license)"
+  fi
 else
-	warn "Java not installed, skipping Ferret"
+  warn "Java not installed, skipping Ferret"
 fi
 
 # ------------------------------------------------------------------------------
@@ -478,16 +478,16 @@ fi
 echo ""
 echo "=== 4. WCopyfind Information (Windows tool, needs Wine) ==="
 
-if command -v wine &>/dev/null; then
-	echo "Wine is available. WCopyfind can be run via Wine."
-	echo "Download from: https://plagiarism.bloomfieldmedia.com/software/wcopyfind/"
-	echo "Run with: wine /path/to/WCopyfind.exe"
-	warn "WCopyfind requires manual download"
+if command -v wine &> /dev/null; then
+  echo "Wine is available. WCopyfind can be run via Wine."
+  echo "Download from: https://plagiarism.bloomfieldmedia.com/software/wcopyfind/"
+  echo "Run with: wine /path/to/WCopyfind.exe"
+  warn "WCopyfind requires manual download"
 else
-	echo "Wine not installed. To use WCopyfind:"
-	echo "  1. Install wine: sudo apt install wine  (or equivalent)"
-	echo "  2. Download WCopyfind from: https://plagiarism.bloomfieldmedia.com/software/wcopyfind/"
-	warn "WCopyfind skipped (Wine not available)"
+  echo "Wine not installed. To use WCopyfind:"
+  echo "  1. Install wine: sudo apt install wine  (or equivalent)"
+  echo "  2. Download WCopyfind from: https://plagiarism.bloomfieldmedia.com/software/wcopyfind/"
+  warn "WCopyfind skipped (Wine not available)"
 fi
 
 # ------------------------------------------------------------------------------
@@ -527,6 +527,6 @@ echo "=============================================="
 
 # Add to PATH reminder
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-	warn "Add ~/.local/bin to your PATH by adding this to ~/.bashrc or ~/.zshrc:"
-	echo '  export PATH="$HOME/.local/bin:$PATH"'
+  warn "Add ~/.local/bin to your PATH by adding this to ~/.bashrc or ~/.zshrc:"
+  echo '  export PATH="$HOME/.local/bin:$PATH"'
 fi

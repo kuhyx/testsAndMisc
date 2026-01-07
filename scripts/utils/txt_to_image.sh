@@ -16,7 +16,7 @@ DEFAULT_RESOLUTION="320x240"
 
 # Function to display usage
 usage() {
-	cat <<EOF
+  cat << EOF
 Usage: $0 <input_text_file> [resolution] [output_prefix]
 
 Arguments:
@@ -31,7 +31,7 @@ Examples:
 
 Note: Requires ImageMagick (magick or convert command)
 EOF
-	exit 1
+  exit 1
 }
 
 # Check if ImageMagick is installed and determine which command to use
@@ -39,8 +39,8 @@ require_imagemagick || exit 1
 
 # Parse arguments
 if [[ $# -lt 1 ]]; then
-	echo "Error: Missing required argument <input_text_file>"
-	usage
+  echo "Error: Missing required argument <input_text_file>"
+  usage
 fi
 
 INPUT_FILE="$1"
@@ -49,15 +49,15 @@ OUTPUT_PREFIX="${3:-}"
 
 # Validate input file exists
 if [[ ! -f ${INPUT_FILE} ]]; then
-	echo "Error: Input file '${INPUT_FILE}' does not exist."
-	exit 1
+  echo "Error: Input file '${INPUT_FILE}' does not exist."
+  exit 1
 fi
 
 # Validate resolution format (WIDTHxHEIGHT)
 if ! validate_resolution "$RESOLUTION"; then
-	echo "Error: Invalid resolution format '${RESOLUTION}'"
-	echo "Expected format: WIDTHxHEIGHT (e.g., 320x240, 1920x1080)"
-	exit 1
+  echo "Error: Invalid resolution format '${RESOLUTION}'"
+  echo "Expected format: WIDTHxHEIGHT (e.g., 320x240, 1920x1080)"
+  exit 1
 fi
 
 # Extract width and height
@@ -67,22 +67,22 @@ HEIGHT=$(echo "${RESOLUTION}" | cut -d'x' -f2)
 # Calculate font size based on resolution
 FONT_SIZE=$((WIDTH / 30))
 if [[ ${FONT_SIZE} -lt 8 ]]; then
-	FONT_SIZE=8
+  FONT_SIZE=8
 fi
 
 # Generate output prefix if not provided
 if [[ -z ${OUTPUT_PREFIX} ]]; then
-	BASENAME=$(basename "${INPUT_FILE}")
-	FILENAME="${BASENAME%.*}"
-	DIRNAME=$(dirname "${INPUT_FILE}")
-	OUTPUT_PREFIX="${DIRNAME}/${FILENAME}"
+  BASENAME=$(basename "${INPUT_FILE}")
+  FILENAME="${BASENAME%.*}"
+  DIRNAME=$(dirname "${INPUT_FILE}")
+  OUTPUT_PREFIX="${DIRNAME}/${FILENAME}"
 fi
 
 # Calculate lines per image based on resolution and font size
 # Rough estimate: height / (font_size * 1.5) for line spacing
 LINES_PER_IMAGE=$((HEIGHT / (FONT_SIZE * 3 / 2)))
 if [[ ${LINES_PER_IMAGE} -lt 5 ]]; then
-	LINES_PER_IMAGE=5
+  LINES_PER_IMAGE=5
 fi
 
 echo "Converting text file to image(s)..."
@@ -91,7 +91,7 @@ echo "Font size: ${FONT_SIZE}"
 echo "Estimated lines per image: ${LINES_PER_IMAGE}"
 
 # Read the file and count total lines
-mapfile -t LINES <"${INPUT_FILE}"
+mapfile -t LINES < "${INPUT_FILE}"
 TOTAL_LINES=${#LINES[@]}
 
 echo "Total lines in file: ${TOTAL_LINES}"
@@ -108,53 +108,53 @@ trap 'rm -rf ${TEMP_DIR}' EXIT
 # Split text into chunks and create images
 IMAGE_COUNT=0
 for ((i = 0; i < TOTAL_LINES; i += LINES_PER_IMAGE)); do
-	IMAGE_COUNT=$((IMAGE_COUNT + 1))
+  IMAGE_COUNT=$((IMAGE_COUNT + 1))
 
-	# Calculate end line for this chunk
-	END_LINE=$((i + LINES_PER_IMAGE))
-	if [[ ${END_LINE} -gt ${TOTAL_LINES} ]]; then
-		END_LINE=${TOTAL_LINES}
-	fi
+  # Calculate end line for this chunk
+  END_LINE=$((i + LINES_PER_IMAGE))
+  if [[ ${END_LINE} -gt ${TOTAL_LINES} ]]; then
+    END_LINE=${TOTAL_LINES}
+  fi
 
-	# Create chunk file
-	CHUNK_FILE="${TEMP_DIR}/chunk_${IMAGE_COUNT}.txt"
-	for ((j = i; j < END_LINE; j++)); do
-		echo "${LINES[$j]}" >>"${CHUNK_FILE}"
-	done
+  # Create chunk file
+  CHUNK_FILE="${TEMP_DIR}/chunk_${IMAGE_COUNT}.txt"
+  for ((j = i; j < END_LINE; j++)); do
+    echo "${LINES[$j]}" >> "${CHUNK_FILE}"
+  done
 
-	# Determine output filename
-	if [[ ${NUM_IMAGES} -eq 1 ]]; then
-		OUTPUT_FILE="${OUTPUT_PREFIX}.png"
-	else
-		OUTPUT_FILE="${OUTPUT_PREFIX}_$(printf "%03d" ${IMAGE_COUNT}).png"
-	fi
+  # Determine output filename
+  if [[ ${NUM_IMAGES} -eq 1 ]]; then
+    OUTPUT_FILE="${OUTPUT_PREFIX}.png"
+  else
+    OUTPUT_FILE="${OUTPUT_PREFIX}_$(printf "%03d" ${IMAGE_COUNT}).png"
+  fi
 
-	echo "  Creating image ${IMAGE_COUNT}/${NUM_IMAGES}: ${OUTPUT_FILE}"
+  echo "  Creating image ${IMAGE_COUNT}/${NUM_IMAGES}: ${OUTPUT_FILE}"
 
-	# Create image from text
-	# Using label: instead of caption: for better control
-	if ${MAGICK_CMD} -size "${WIDTH}x${HEIGHT}" \
-		-background white \
-		-fill black \
-		-font "DejaVu-Sans-Mono" \
-		-pointsize "${FONT_SIZE}" \
-		-gravity northwest \
-		label:@"${CHUNK_FILE}" \
-		-extent "${WIDTH}x${HEIGHT}" \
-		"${OUTPUT_FILE}"; then
-		OUTPUT_SIZE=$(du -h "${OUTPUT_FILE}" | cut -f1)
-		echo "    ✓ Created: ${OUTPUT_FILE} (${OUTPUT_SIZE})"
-	else
-		echo "    ✗ Failed to create: ${OUTPUT_FILE}"
-		exit 1
-	fi
+  # Create image from text
+  # Using label: instead of caption: for better control
+  if ${MAGICK_CMD} -size "${WIDTH}x${HEIGHT}" \
+    -background white \
+    -fill black \
+    -font "DejaVu-Sans-Mono" \
+    -pointsize "${FONT_SIZE}" \
+    -gravity northwest \
+    label:@"${CHUNK_FILE}" \
+    -extent "${WIDTH}x${HEIGHT}" \
+    "${OUTPUT_FILE}"; then
+    OUTPUT_SIZE=$(du -h "${OUTPUT_FILE}" | cut -f1)
+    echo "    ✓ Created: ${OUTPUT_FILE} (${OUTPUT_SIZE})"
+  else
+    echo "    ✗ Failed to create: ${OUTPUT_FILE}"
+    exit 1
+  fi
 done
 
 echo ""
 echo "✓ Successfully created ${IMAGE_COUNT} image(s)"
 echo "Output files:"
 if [[ ${NUM_IMAGES} -eq 1 ]]; then
-	echo "  ${OUTPUT_PREFIX}.png"
+  echo "  ${OUTPUT_PREFIX}.png"
 else
-	echo "  ${OUTPUT_PREFIX}_001.png to ${OUTPUT_PREFIX}_$(printf "%03d" ${IMAGE_COUNT}).png"
+  echo "  ${OUTPUT_PREFIX}_001.png to ${OUTPUT_PREFIX}_$(printf "%03d" ${IMAGE_COUNT}).png"
 fi

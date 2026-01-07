@@ -13,8 +13,8 @@
 set -e
 
 [ "$GPU_VENDOR" = "intel" ] || {
-	echo "Intel installer invoked but GPU_VENDOR=$GPU_VENDOR"
-	exit 0
+  echo "Intel installer invoked but GPU_VENDOR=$GPU_VENDOR"
+  exit 0
 }
 
 INTEL_USE_AMBER=${INTEL_USE_AMBER:-0}
@@ -35,24 +35,24 @@ if grep -q '^\[multilib\]' /etc/pacman.conf; then MULTILIB=1; else MULTILIB=0; f
 
 # Base mesa package
 if [ "$INTEL_USE_AMBER" = 1 ]; then
-	BASE_MESA=mesa-amber
-	LIB32_BASE=lib32-mesa-amber
+  BASE_MESA=mesa-amber
+  LIB32_BASE=lib32-mesa-amber
 else
-	BASE_MESA=mesa
-	LIB32_BASE=lib32-mesa
+  BASE_MESA=mesa
+  LIB32_BASE=lib32-mesa
 fi
 
 install_pkg() {
-	local pkg="$1"
-	if pacman -Qi "$pkg" >/dev/null 2>&1; then
-		vlog "$pkg already installed"
-	else
-		if pacman -Si "$pkg" >/dev/null 2>&1; then
-			yes | sudo pacman -Sy --noconfirm "$pkg"
-		else
-			warn "Package $pkg not found in repos (not handling AUR here)"
-		fi
-	fi
+  local pkg="$1"
+  if pacman -Qi "$pkg" > /dev/null 2>&1; then
+    vlog "$pkg already installed"
+  else
+    if pacman -Si "$pkg" > /dev/null 2>&1; then
+      yes | sudo pacman -Sy --noconfirm "$pkg"
+    else
+      warn "Package $pkg not found in repos (not handling AUR here)"
+    fi
+  fi
 }
 
 info "Installing Intel GPU stack"
@@ -60,47 +60,47 @@ install_pkg "$BASE_MESA"
 
 # 32-bit mesa
 if { [ "$INTEL_INSTALL_LIB32" = auto ] && [ $MULTILIB = 1 ]; } || [ "$INTEL_INSTALL_LIB32" = 1 ]; then
-	install_pkg "$LIB32_BASE"
+  install_pkg "$LIB32_BASE"
 else
-	vlog "Skipping 32-bit mesa (INTEL_INSTALL_LIB32=$INTEL_INSTALL_LIB32 MULTILIB=$MULTILIB)"
+  vlog "Skipping 32-bit mesa (INTEL_INSTALL_LIB32=$INTEL_INSTALL_LIB32 MULTILIB=$MULTILIB)"
 fi
 
 # Vulkan
 if [ "$INTEL_INSTALL_VULKAN" = 1 ]; then
-	install_pkg vulkan-intel
-	if { [ "$INTEL_INSTALL_LIB32_VK" = auto ] && [ $MULTILIB = 1 ]; } || [ "$INTEL_INSTALL_LIB32_VK" = 1 ]; then
-		install_pkg lib32-vulkan-intel
-	else
-		vlog "Skipping 32-bit vulkan (INTEL_INSTALL_LIB32_VK=$INTEL_INSTALL_LIB32_VK MULTILIB=$MULTILIB)"
-	fi
+  install_pkg vulkan-intel
+  if { [ "$INTEL_INSTALL_LIB32_VK" = auto ] && [ $MULTILIB = 1 ]; } || [ "$INTEL_INSTALL_LIB32_VK" = 1 ]; then
+    install_pkg lib32-vulkan-intel
+  else
+    vlog "Skipping 32-bit vulkan (INTEL_INSTALL_LIB32_VK=$INTEL_INSTALL_LIB32_VK MULTILIB=$MULTILIB)"
+  fi
 fi
 
 # Legacy xf86-video-intel (not recommended)
 if [ "$INTEL_INSTALL_XF86" = 1 ]; then
-	install_pkg xf86-video-intel
+  install_pkg xf86-video-intel
 else
-	vlog "Not installing xf86-video-intel (INTEL_INSTALL_XF86=$INTEL_INSTALL_XF86)"
+  vlog "Not installing xf86-video-intel (INTEL_INSTALL_XF86=$INTEL_INSTALL_XF86)"
 fi
 
 # GuC / HuC enablement
 if [ -n "$INTEL_ENABLE_GUC" ]; then
-	if ! echo "$INTEL_ENABLE_GUC" | grep -Eq '^[0-3]$'; then
-		warn "INTEL_ENABLE_GUC must be 0..3; ignoring"
-	else
-		info "Configuring enable_guc=$INTEL_ENABLE_GUC"
-		sudo mkdir -p /etc/modprobe.d
-		echo "options i915 enable_guc=$INTEL_ENABLE_GUC" | sudo tee /etc/modprobe.d/i915-guc.conf >/dev/null
-		if [ "$INTEL_SKIP_INITRAMFS" != 1 ] && [ -f /etc/mkinitcpio.conf ]; then
-			info "Regenerating initramfs (mkinitcpio -P) for GuC/HuC change"
-			sudo mkinitcpio -P || warn "mkinitcpio failed; continue manually"
-		else
-			info "Skipping initramfs regeneration (INTEL_SKIP_INITRAMFS=$INTEL_SKIP_INITRAMFS)"
-		fi
-	fi
+  if ! echo "$INTEL_ENABLE_GUC" | grep -Eq '^[0-3]$'; then
+    warn "INTEL_ENABLE_GUC must be 0..3; ignoring"
+  else
+    info "Configuring enable_guc=$INTEL_ENABLE_GUC"
+    sudo mkdir -p /etc/modprobe.d
+    echo "options i915 enable_guc=$INTEL_ENABLE_GUC" | sudo tee /etc/modprobe.d/i915-guc.conf > /dev/null
+    if [ "$INTEL_SKIP_INITRAMFS" != 1 ] && [ -f /etc/mkinitcpio.conf ]; then
+      info "Regenerating initramfs (mkinitcpio -P) for GuC/HuC change"
+      sudo mkinitcpio -P || warn "mkinitcpio failed; continue manually"
+    else
+      info "Skipping initramfs regeneration (INTEL_SKIP_INITRAMFS=$INTEL_SKIP_INITRAMFS)"
+    fi
+  fi
 fi
 
 # Report kernel driver
-KDRV=$(lspci -k -d ::0300 2>/dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
+KDRV=$(lspci -k -d ::0300 2> /dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
 [ -z "$KDRV" ] && KDRV=$(lsmod | grep -E 'i915|xe' | head -n1 | awk '{print $1}')
 info "Kernel driver in use: ${KDRV:-unknown}"
 

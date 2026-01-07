@@ -32,14 +32,14 @@ cd "$TRACKS_DIR"
 
 # Tracks to download (add/remove as needed)
 declare -A TRACKS=(
-	["python"]="https://github.com/exercism/python.git"
-	["c"]="https://github.com/exercism/c.git"
-	["cpp"]="https://github.com/exercism/cpp.git"
-	["javascript"]="https://github.com/exercism/javascript.git"
-	["typescript"]="https://github.com/exercism/typescript.git"
-	["rust"]="https://github.com/exercism/rust.git"
-	["go"]="https://github.com/exercism/go.git"
-	["bash"]="https://github.com/exercism/bash.git"
+  ["python"]="https://github.com/exercism/python.git"
+  ["c"]="https://github.com/exercism/c.git"
+  ["cpp"]="https://github.com/exercism/cpp.git"
+  ["javascript"]="https://github.com/exercism/javascript.git"
+  ["typescript"]="https://github.com/exercism/typescript.git"
+  ["rust"]="https://github.com/exercism/rust.git"
+  ["go"]="https://github.com/exercism/go.git"
+  ["bash"]="https://github.com/exercism/bash.git"
 )
 
 # Optional tracks (uncomment to include)
@@ -52,22 +52,22 @@ echo "Downloading ${#TRACKS[@]} tracks to: $TRACKS_DIR"
 echo ""
 
 for track in "${!TRACKS[@]}"; do
-	url="${TRACKS[$track]}"
+  url="${TRACKS[$track]}"
 
-	if [[ -d "$track" ]]; then
-		info "Updating $track..."
-		(cd "$track" && git pull --quiet) && success "$track updated"
-	else
-		info "Cloning $track..."
-		git clone --depth 1 "$url" && success "$track cloned"
-	fi
+  if [[ -d $track ]]; then
+    info "Updating $track..."
+    (cd "$track" && git pull --quiet) && success "$track updated"
+  else
+    info "Cloning $track..."
+    git clone --depth 1 "$url" && success "$track cloned"
+  fi
 
-	# Show exercise count
-	if [[ -d "$track/exercises/practice" ]]; then
-		count=$(ls "$track/exercises/practice" | wc -l)
-		echo "    → $count practice exercises available"
-	fi
-	echo ""
+  # Show exercise count
+  if [[ -d "$track/exercises/practice" ]]; then
+    count=$(ls "$track/exercises/practice" | wc -l)
+    echo "    → $count practice exercises available"
+  fi
+  echo ""
 done
 
 echo "=============================================="
@@ -99,8 +99,8 @@ echo "=============================================="
 echo ""
 echo "Track summary:"
 for track in "${!TRACKS[@]}"; do
-	if [[ -d "$track/exercises/practice" ]]; then
-		count=$(ls "$track/exercises/practice" 2>/dev/null | wc -l)
-		printf "  %-15s %3d exercises\n" "$track" "$count"
-	fi
+  if [[ -d "$track/exercises/practice" ]]; then
+    count=$(ls "$track/exercises/practice" 2> /dev/null | wc -l)
+    printf "  %-15s %3d exercises\n" "$track" "$count"
+  fi
 done | sort

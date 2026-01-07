@@ -9,10 +9,10 @@ WATCHDOG_SCRIPT="$GUARDIAN_DIR/watchdog.sh"
 mkdir -p "$GUARDIAN_DIR"
 
 # Log that we're starting
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: Guardian module loading" >>"$GUARDIAN_DIR/guardian.log"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: Guardian module loading" >> "$GUARDIAN_DIR/guardian.log"
 
 # Create persistent watchdog script that runs independently of module state
-cat >"$WATCHDOG_SCRIPT" <<'WATCHDOG'
+cat > "$WATCHDOG_SCRIPT" << 'WATCHDOG'
 #!/system/bin/sh
 # Secondary watchdog - runs independently of module state
 # Even if module is "disabled" in Magisk UI, this keeps running and undoes it
@@ -59,5 +59,5 @@ WATCHDOG
 chmod 755 "$WATCHDOG_SCRIPT"
 
 # Start watchdog as a separate background process
-nohup sh "$WATCHDOG_SCRIPT" >/dev/null 2>&1 &
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: Watchdog started" >>"$GUARDIAN_DIR/guardian.log"
+nohup sh "$WATCHDOG_SCRIPT" > /dev/null 2>&1 &
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: Watchdog started" >> "$GUARDIAN_DIR/guardian.log"

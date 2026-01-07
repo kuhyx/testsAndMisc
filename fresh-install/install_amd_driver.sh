@@ -13,8 +13,8 @@
 set -e
 
 [ "${GPU_VENDOR}" = "amd" ] || {
-	echo "AMD installer invoked but GPU_VENDOR=${GPU_VENDOR}"
-	exit 0
+  echo "AMD installer invoked but GPU_VENDOR=${GPU_VENDOR}"
+  exit 0
 }
 
 AMD_INSTALL_XF86=${AMD_INSTALL_XF86:-0}
@@ -32,9 +32,9 @@ warn() { echo "[amd][warn] $*" >&2; }
 
 # Detect multilib enabled
 if grep -q '^\[multilib\]' /etc/pacman.conf; then
-	MULTILIB_ENABLED=1
+  MULTILIB_ENABLED=1
 else
-	MULTILIB_ENABLED=0
+  MULTILIB_ENABLED=0
 fi
 
 # Basic packages
@@ -58,49 +58,49 @@ LIB32_AMDVLK_PKG="lib32-amdvlk"
 
 # Simple AUR builder (reused from NVIDIA script style)
 _build_aur_pkg() {
-	local pkg="$1"
-	local url="https://aur.archlinux.org/${pkg}.git"
-	mkdir -p "$HOME/aur"
-	cd "$HOME/aur"
-	if [ ! -d "$pkg" ]; then git clone "$url"; else (cd "$pkg" && git fetch -q --all && git reset -q --hard origin/HEAD || git pull --ff-only || true); fi
-	cd "$pkg"
-	rm -f -- *.pkg.tar.* 2>/dev/null || true
-	yes | makepkg -s -c -C --noconfirm --needed
-	local built=(*.pkg.tar.zst)
-	yes | sudo pacman -U --noconfirm "${built[@]}"
+  local pkg="$1"
+  local url="https://aur.archlinux.org/${pkg}.git"
+  mkdir -p "$HOME/aur"
+  cd "$HOME/aur"
+  if [ ! -d "$pkg" ]; then git clone "$url"; else (cd "$pkg" && git fetch -q --all && git reset -q --hard origin/HEAD || git pull --ff-only || true); fi
+  cd "$pkg"
+  rm -f -- *.pkg.tar.* 2> /dev/null || true
+  yes | makepkg -s -c -C --noconfirm --needed
+  local built=(*.pkg.tar.zst)
+  yes | sudo pacman -U --noconfirm "${built[@]}"
 }
 
 _install_repo_or_aur() {
-	local pkg="$1"
-	if pacman -Si "$pkg" >/dev/null 2>&1; then
-		if pacman -Qi "$pkg" >/dev/null 2>&1; then
-			vlog "$pkg already installed"
-		else
-			yes | sudo pacman -Sy --noconfirm "$pkg"
-		fi
-	else
-		info "Building AUR package: $pkg"
-		_build_aur_pkg "$pkg"
-	fi
+  local pkg="$1"
+  if pacman -Si "$pkg" > /dev/null 2>&1; then
+    if pacman -Qi "$pkg" > /dev/null 2>&1; then
+      vlog "$pkg already installed"
+    else
+      yes | sudo pacman -Sy --noconfirm "$pkg"
+    fi
+  else
+    info "Building AUR package: $pkg"
+    _build_aur_pkg "$pkg"
+  fi
 }
 
 info "Installing AMD GPU stack"
 for p in "${BASE_PKGS[@]}" "$VULKAN_PKG"; do _install_repo_or_aur "$p"; done
 
 if [ "$AMD_INSTALL_XF86" = 1 ]; then
-	_install_repo_or_aur "$XF86_PKG"
+  _install_repo_or_aur "$XF86_PKG"
 fi
 
 # AMDVLK optional (install after vulkan-radeon if requested)
 if [ "$AMD_INSTALL_AMDVLK" = 1 ]; then
-	_install_repo_or_aur "$AMDVLK_PKG"
+  _install_repo_or_aur "$AMDVLK_PKG"
 fi
 
 if [ $MULTILIB_ENABLED = 1 ] || [ "$AMD_INSTALL_LIB32" = 1 ]; then
-	for p in "${LIB32_BASE[@]}" "$LIB32_VULKAN_PKG"; do _install_repo_or_aur "$p"; done
-	if [ "$AMD_INSTALL_AMDVLK" = 1 ]; then _install_repo_or_aur "$LIB32_AMDVLK_PKG"; fi
+  for p in "${LIB32_BASE[@]}" "$LIB32_VULKAN_PKG"; do _install_repo_or_aur "$p"; done
+  if [ "$AMD_INSTALL_AMDVLK" = 1 ]; then _install_repo_or_aur "$LIB32_AMDVLK_PKG"; fi
 else
-	vlog "Skipping 32-bit packages (multilib disabled)"
+  vlog "Skipping 32-bit packages (multilib disabled)"
 fi
 
 # Detect SI / CIK codename presence for optional amdgpu enablement
@@ -113,41 +113,41 @@ for n in "${SI_NAMES[@]}"; do echo "$GPU_LINES" | grep -q "$n" && IS_SI=1 && bre
 for n in "${CIK_NAMES[@]}"; do echo "$GPU_LINES" | grep -q "$n" && IS_CIK=1 && break; done
 
 if [ "$AMD_ENABLE_SI_CIK" = "1" ] || { [ "$AMD_ENABLE_SI_CIK" = "auto" ] && { [ $IS_SI = 1 ] || [ $IS_CIK = 1 ]; }; }; then
-	info "Configuring amdgpu for SI/CIK (IS_SI=$IS_SI IS_CIK=$IS_CIK)"
-	TMP_CONF=$(mktemp)
-	printf 'options amdgpu si_support=1\noptions amdgpu cik_support=1\n' >"$TMP_CONF"
-	printf 'options radeon si_support=0\noptions radeon cik_support=0\n' >>"$TMP_CONF"
-	sudo mkdir -p /etc/modprobe.d
-	sudo cp "$TMP_CONF" /etc/modprobe.d/10-amdgpu-si-cik.conf
-	rm -f "$TMP_CONF"
-	# Ensure amdgpu early in MODULES
-	if [ -f /etc/mkinitcpio.conf ]; then
-		if ! grep -q '^MODULES=.*amdgpu' /etc/mkinitcpio.conf; then
-			sudo sed -i 's/^MODULES=\(.*\)/MODULES=(amdgpu radeon)/' /etc/mkinitcpio.conf || true
-		fi
-		if ! grep -q 'modconf' /etc/mkinitcpio.conf; then
-			warn "modconf hook not found in mkinitcpio.conf (needed for module options)"
-		fi
-		if [ "$AMD_SKIP_INITRAMFS" != 1 ]; then
-			info "Regenerating initramfs (mkinitcpio -P)"
-			sudo mkinitcpio -P || warn "mkinitcpio failed; review manually"
-		else
-			info "Skipping initramfs regeneration per AMD_SKIP_INITRAMFS=1"
-		fi
-	else
-		warn "/etc/mkinitcpio.conf not found; skipping MODULES update"
-	fi
+  info "Configuring amdgpu for SI/CIK (IS_SI=$IS_SI IS_CIK=$IS_CIK)"
+  TMP_CONF=$(mktemp)
+  printf 'options amdgpu si_support=1\noptions amdgpu cik_support=1\n' > "$TMP_CONF"
+  printf 'options radeon si_support=0\noptions radeon cik_support=0\n' >> "$TMP_CONF"
+  sudo mkdir -p /etc/modprobe.d
+  sudo cp "$TMP_CONF" /etc/modprobe.d/10-amdgpu-si-cik.conf
+  rm -f "$TMP_CONF"
+  # Ensure amdgpu early in MODULES
+  if [ -f /etc/mkinitcpio.conf ]; then
+    if ! grep -q '^MODULES=.*amdgpu' /etc/mkinitcpio.conf; then
+      sudo sed -i 's/^MODULES=\(.*\)/MODULES=(amdgpu radeon)/' /etc/mkinitcpio.conf || true
+    fi
+    if ! grep -q 'modconf' /etc/mkinitcpio.conf; then
+      warn "modconf hook not found in mkinitcpio.conf (needed for module options)"
+    fi
+    if [ "$AMD_SKIP_INITRAMFS" != 1 ]; then
+      info "Regenerating initramfs (mkinitcpio -P)"
+      sudo mkinitcpio -P || warn "mkinitcpio failed; review manually"
+    else
+      info "Skipping initramfs regeneration per AMD_SKIP_INITRAMFS=1"
+    fi
+  else
+    warn "/etc/mkinitcpio.conf not found; skipping MODULES update"
+  fi
 else
-	vlog "SI/CIK enablement not required (AMD_ENABLE_SI_CIK=$AMD_ENABLE_SI_CIK IS_SI=$IS_SI IS_CIK=$IS_CIK)"
+  vlog "SI/CIK enablement not required (AMD_ENABLE_SI_CIK=$AMD_ENABLE_SI_CIK IS_SI=$IS_SI IS_CIK=$IS_CIK)"
 fi
 
 # Check active kernel driver
-KDRV=$(lspci -k -d ::0300 2>/dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
+KDRV=$(lspci -k -d ::0300 2> /dev/null | awk '/Kernel driver in use:/ {print $5; exit}')
 [ -z "$KDRV" ] && KDRV=$(lsmod | grep -E 'amdgpu|radeon' | head -n1 | awk '{print $1}')
 info "Kernel driver in use: ${KDRV:-unknown}"
 
 if [ "$KDRV" = "radeon" ] && { [ $IS_SI = 1 ] || [ $IS_CIK = 1 ]; }; then
-	warn "radeon driver still active for SI/CIK; reboot may be required to switch to amdgpu"
+  warn "radeon driver still active for SI/CIK; reboot may be required to switch to amdgpu"
 fi
 
 export AMD_STACK_DONE=1

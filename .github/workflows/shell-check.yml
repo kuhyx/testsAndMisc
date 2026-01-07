@@ -48,3 +48,10 @@ jobs:
       - name: Report status
         if: success()
         run: echo "✅ All shell scripts passed linting checks!"
+      
+      - name: Provide help on failure
+        if: failure()
+        run: |
+          echo "❌ Shell script linting failed!"
+          echo "This check is required to merge PRs into main/master."
+          echo "Please run 'bash scripts/meta/shell_check.sh' locally and fix any issues."
