@@ -25,29 +25,30 @@ Output:
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import re
 import subprocess
 import sys
-from collections import Counter
-from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 try:
+    from python_pkg.word_frequency.analyzer import read_file
     from python_pkg.word_frequency.translator import (
         detect_language,
         translate_words_batch,
     )
-    from python_pkg.word_frequency.analyzer import read_file
 except ImportError:
-    from translator import detect_language, translate_words_batch
     from analyzer import read_file
+    from translator import detect_language, translate_words_batch
 
 
 # Path to C vocabulary_curve executable
-C_EXECUTABLE = Path(__file__).parent.parent.parent / "C" / "vocabulary_curve" / "vocabulary_curve"
+C_EXECUTABLE = (
+    Path(__file__).parent.parent.parent / "C" / "vocabulary_curve" / "vocabulary_curve"
+)
 
 
 class VocabWord(NamedTuple):
@@ -59,7 +60,9 @@ class VocabWord(NamedTuple):
     context: str
 
 
-def run_vocabulary_curve(filepath: Path, max_length: int, *, dump_vocab: bool = False) -> str:
+def run_vocabulary_curve(
+    filepath: Path, max_length: int, *, dump_vocab: bool = False
+) -> str:
     """Run the C vocabulary_curve executable.
 
     Args:
@@ -94,7 +97,9 @@ def run_vocabulary_curve(filepath: Path, max_length: int, *, dump_vocab: bool = 
     return result.stdout
 
 
-def run_vocabulary_curve_inverse(filepath: Path, max_vocab: int, *, dump_vocab: bool = False) -> str:
+def run_vocabulary_curve_inverse(
+    filepath: Path, max_vocab: int, *, dump_vocab: bool = False
+) -> str:
     """Run the C vocabulary_curve executable in inverse mode.
 
     Args:
@@ -129,7 +134,9 @@ def run_vocabulary_curve_inverse(filepath: Path, max_vocab: int, *, dump_vocab: 
     return result.stdout
 
 
-def parse_inverse_mode_output(output: str) -> tuple[str, int, int, list[tuple[str, int]]]:
+def parse_inverse_mode_output(
+    output: str,
+) -> tuple[str, int, int, list[tuple[str, int]]]:
     """Parse output from vocabulary_curve inverse mode.
 
     Args:
@@ -146,12 +153,12 @@ def parse_inverse_mode_output(output: str) -> tuple[str, int, int, list[tuple[st
 
     for i, line in enumerate(lines):
         line = line.strip()
-        
+
         if line.startswith("LONGEST EXCERPT:"):
             parts = line.split()
             if len(parts) >= 3:
                 excerpt_length = int(parts[2])
-        
+
         elif line.startswith("Excerpt:"):
             # Next line(s) contain the excerpt
             i += 1
@@ -167,7 +174,7 @@ def parse_inverse_mode_output(output: str) -> tuple[str, int, int, list[tuple[st
                 excerpt_parts.append(next_line)
                 i += 1
             excerpt = " ".join(excerpt_parts)
-        
+
         elif line.startswith("Rarest word used:"):
             # Parse "word (#rank)"
             match = re.search(r"\(#(\d+)\)", line)
@@ -194,7 +201,9 @@ def parse_inverse_mode_output(output: str) -> tuple[str, int, int, list[tuple[st
     return excerpt, excerpt_length, max_rank_used, all_vocab
 
 
-def parse_vocabulary_curve_output(output: str, target_length: int) -> tuple[str, list[tuple[str, int]], list[tuple[str, int]]]:
+def parse_vocabulary_curve_output(
+    output: str, target_length: int
+) -> tuple[str, list[tuple[str, int]], list[tuple[str, int]]]:
     """Parse output from vocabulary_curve to get words needed.
 
     Args:
@@ -328,8 +337,8 @@ def generate_anki_deck(
     lines: list[str] = []
 
     # Add Anki headers
-    lines.append(f"#separator:semicolon")
-    lines.append(f"#html:true")
+    lines.append("#separator:semicolon")
+    lines.append("#html:true")
     lines.append(f"#deck:{deck_name}")
     lines.append(f"#tags:vocabulary {source_lang}")
     if include_context:
@@ -351,11 +360,15 @@ def generate_anki_deck(
             if most_frequent != rarest:
                 pattern_rare = re.compile(rf"\b({re.escape(rarest)})\b", re.IGNORECASE)
                 excerpt_escaped = pattern_rare.sub(r"<b>\1</b>", excerpt_escaped)
-                pattern_freq = re.compile(rf"\b({re.escape(most_frequent)})\b", re.IGNORECASE)
+                pattern_freq = re.compile(
+                    rf"\b({re.escape(most_frequent)})\b", re.IGNORECASE
+                )
                 excerpt_escaped = pattern_freq.sub(r"<i>\1</i>", excerpt_escaped)
             else:
                 # Same word is both most and least frequent - use bold+italic
-                pattern = re.compile(rf"\b({re.escape(most_frequent)})\b", re.IGNORECASE)
+                pattern = re.compile(
+                    rf"\b({re.escape(most_frequent)})\b", re.IGNORECASE
+                )
                 excerpt_escaped = pattern.sub(r"<b><i>\1</i></b>", excerpt_escaped)
         lines.append(f"📖 TARGET EXCERPT;{excerpt_escaped};#0")
 
@@ -391,7 +404,9 @@ def generate_anki_deck(
                 context_escaped = pattern.sub(f"<b>{word}</b>", context_escaped)
             else:
                 context_escaped = ""
-            lines.append(f"{word_escaped};{translation_escaped};#{rank};{context_escaped}")
+            lines.append(
+                f"{word_escaped};{translation_escaped};#{rank};{context_escaped}"
+            )
         else:
             lines.append(f"{word_escaped};{translation_escaped};#{rank}")
 
@@ -415,6 +430,7 @@ def get_cached_excerpt(
         return None
     try:
         from python_pkg.word_frequency.cache import get_vocab_curve_cache
+
         return get_vocab_curve_cache().get(filepath, length)
     except ImportError:
         return None
@@ -433,6 +449,7 @@ def cache_excerpt(
     """
     try:
         from python_pkg.word_frequency.cache import get_vocab_curve_cache
+
         get_vocab_curve_cache().set(filepath, length, excerpt, words)
     except ImportError:
         pass
@@ -464,6 +481,7 @@ def get_cached_deck(
         return None
     try:
         from python_pkg.word_frequency.cache import get_anki_deck_cache
+
         return get_anki_deck_cache().get(
             filepath, length, target_lang, include_context, all_vocab
         )
@@ -497,6 +515,7 @@ def cache_deck(
     """
     try:
         from python_pkg.word_frequency.cache import get_anki_deck_cache
+
         get_anki_deck_cache().set(
             filepath,
             length,
@@ -568,7 +587,9 @@ def generate_flashcards(
     # Run vocabulary curve analysis with vocab dump for all words
     output = run_vocabulary_curve(filepath, excerpt_length, dump_vocab=all_vocab)
     # Parse the output (now includes all vocabulary from C)
-    excerpt, excerpt_words, all_vocab_words = parse_vocabulary_curve_output(output, excerpt_length)
+    excerpt, excerpt_words, all_vocab_words = parse_vocabulary_curve_output(
+        output, excerpt_length
+    )
 
     if not excerpt_words:
         raise ValueError(f"No words found for excerpt length {excerpt_length}")
@@ -671,9 +692,11 @@ def generate_flashcards_inverse(
 
     # Run vocabulary curve in inverse mode
     output = run_vocabulary_curve_inverse(filepath, max_vocab, dump_vocab=True)
-    
+
     # Parse the output
-    excerpt, excerpt_length, max_rank_used, all_vocab_words = parse_inverse_mode_output(output)
+    excerpt, excerpt_length, max_rank_used, all_vocab_words = parse_inverse_mode_output(
+        output
+    )
 
     if excerpt_length == 0:
         raise ValueError(
@@ -686,10 +709,12 @@ def generate_flashcards_inverse(
 
     # Use all vocabulary up to max_vocab
     words_with_ranks = all_vocab_words
-    
+
     # Find words that appear in the excerpt (for highlighting)
     excerpt_word_set = set(excerpt.lower().split())
-    excerpt_words = [(w, r) for w, r in all_vocab_words if w.lower() in excerpt_word_set]
+    excerpt_words = [
+        (w, r) for w, r in all_vocab_words if w.lower() in excerpt_word_set
+    ]
 
     # Get contexts if requested
     contexts = None
@@ -835,13 +860,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 from cache import get_all_cache_stats
             except ImportError:
-                print("Cache module not available", file=sys.stderr)  # noqa: T201
+                print("Cache module not available", file=sys.stderr)
                 return 1
         stats = get_all_cache_stats()
-        print("Cache Statistics")  # noqa: T201
-        print("=" * 50)  # noqa: T201
+        print("Cache Statistics")
+        print("=" * 50)
         for cache_name, cache_stats in stats.items():
-            print(f"\n{cache_name.upper()}:")  # noqa: T201
+            print(f"\n{cache_name.upper()}:")
             for key, value in cache_stats.items():
                 if key == "cache_size_bytes":
                     if value < 1024:
@@ -850,9 +875,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         size_str = f"{value / 1024:.1f} KB"
                     else:
                         size_str = f"{value / (1024 * 1024):.1f} MB"
-                    print(f"  {key}: {size_str}")  # noqa: T201
+                    print(f"  {key}: {size_str}")
                 else:
-                    print(f"  {key}: {value}")  # noqa: T201
+                    print(f"  {key}: {value}")
         return 0
 
     if args.clear_cache:
@@ -862,10 +887,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 from cache import clear_all_caches
             except ImportError:
-                print("Cache module not available", file=sys.stderr)  # noqa: T201
+                print("Cache module not available", file=sys.stderr)
                 return 1
         clear_all_caches()
-        print("All caches cleared.")  # noqa: T201
+        print("All caches cleared.")
         return 0
 
     # Validate required arguments for main functionality
@@ -879,63 +904,67 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         filepath = Path(args.file)
         if not filepath.exists():
-            print(f"Error: File not found: {args.file}", file=sys.stderr)  # noqa: T201
+            print(f"Error: File not found: {args.file}", file=sys.stderr)
             return 1
 
         # INVERSE MODE: --max-vocab
         if args.max_vocab is not None:
             if not args.quiet:
-                print(f"Analyzing {filepath.name}...")  # noqa: T201
-                print(f"Finding longest excerpt using top {args.max_vocab} words...")  # noqa: T201
+                print(f"Analyzing {filepath.name}...")
+                print(f"Finding longest excerpt using top {args.max_vocab} words...")
 
             # Generate flashcards in inverse mode
-            anki_content, excerpt, excerpt_length, num_words, max_rank_used = generate_flashcards_inverse(
-                filepath,
-                args.max_vocab,
-                source_lang=args.source_lang,
-                target_lang=args.target_lang,
-                include_context=args.include_context,
-                deck_name=args.deck_name,
-                no_translate=args.no_translate,
-                force=args.force,
+            anki_content, excerpt, excerpt_length, num_words, max_rank_used = (
+                generate_flashcards_inverse(
+                    filepath,
+                    args.max_vocab,
+                    source_lang=args.source_lang,
+                    target_lang=args.target_lang,
+                    include_context=args.include_context,
+                    deck_name=args.deck_name,
+                    no_translate=args.no_translate,
+                    force=args.force,
+                )
             )
 
             # Determine output path
             if args.output:
                 output_path = Path(args.output)
             else:
-                output_path = filepath.parent / f"{filepath.stem}_anki_top{args.max_vocab}.txt"
+                output_path = (
+                    filepath.parent / f"{filepath.stem}_anki_top{args.max_vocab}.txt"
+                )
 
             # Write output
             output_path.write_text(anki_content, encoding="utf-8")
 
             if not args.quiet:
-                print("")  # noqa: T201
-                print("=" * 60)  # noqa: T201
-                print("FLASHCARD GENERATION COMPLETE (INVERSE MODE)")  # noqa: T201
-                print("=" * 60)  # noqa: T201
-                print(f"Learning: top {args.max_vocab} words")  # noqa: T201
-                print(f"Longest excerpt you can understand: {excerpt_length} words")  # noqa: T201
-                print(f'  "{excerpt}"')  # noqa: T201
-                print("")  # noqa: T201
-                print(f"Rarest word in excerpt: #{max_rank_used}")  # noqa: T201
-                print(f"Flashcards: {num_words}")  # noqa: T201
-                print(f"Output file: {output_path}")  # noqa: T201
-                print("")  # noqa: T201
-                print("To import into Anki:")  # noqa: T201
-                print("  1. Open Anki")  # noqa: T201
-                print("  2. File -> Import")  # noqa: T201
-                print(f"  3. Select: {output_path}")  # noqa: T201
-                print("  4. Click Import")  # noqa: T201
+                print()
+                print("=" * 60)
+                print("FLASHCARD GENERATION COMPLETE (INVERSE MODE)")
+                print("=" * 60)
+                print(f"Learning: top {args.max_vocab} words")
+                print(f"Longest excerpt you can understand: {excerpt_length} words")
+                print(f'  "{excerpt}"')
+                print()
+                print(f"Rarest word in excerpt: #{max_rank_used}")
+                print(f"Flashcards: {num_words}")
+                print(f"Output file: {output_path}")
+                print()
+                print("To import into Anki:")
+                print("  1. Open Anki")
+                print("  2. File -> Import")
+                print(f"  3. Select: {output_path}")
+                print("  4. Click Import")
             else:
-                print(output_path)  # noqa: T201
+                print(output_path)
 
             return 0
 
         # NORMAL MODE: --length
         if not args.quiet:
-            print(f"Analyzing {filepath.name}...")  # noqa: T201
-            print(f"Finding vocabulary for {args.length}-word excerpt...")  # noqa: T201
+            print(f"Analyzing {filepath.name}...")
+            print(f"Finding vocabulary for {args.length}-word excerpt...")
 
         # Generate flashcards
         anki_content, excerpt, num_words, max_rank = generate_flashcards(
@@ -960,38 +989,38 @@ def main(argv: Sequence[str] | None = None) -> int:
         output_path.write_text(anki_content, encoding="utf-8")
 
         if not args.quiet:
-            print("")  # noqa: T201
-            print("=" * 60)  # noqa: T201
-            print("FLASHCARD GENERATION COMPLETE")  # noqa: T201
-            print("=" * 60)  # noqa: T201
-            print(f"Excerpt to understand ({args.length} words):")  # noqa: T201
-            print(f'  "{excerpt}"')  # noqa: T201
-            print("")  # noqa: T201
-            print(f"Max word rank needed: #{max_rank}")  # noqa: T201
+            print()
+            print("=" * 60)
+            print("FLASHCARD GENERATION COMPLETE")
+            print("=" * 60)
+            print(f"Excerpt to understand ({args.length} words):")
+            print(f'  "{excerpt}"')
+            print()
+            print(f"Max word rank needed: #{max_rank}")
             if args.excerpt_words_only:
-                print(f"Flashcards: {num_words} (excerpt words only)")  # noqa: T201
+                print(f"Flashcards: {num_words} (excerpt words only)")
             else:
-                print(f"Flashcards: {num_words} (ALL words rank #1 to #{max_rank})")  # noqa: T201
-            print(f"Output file: {output_path}")  # noqa: T201
-            print("")  # noqa: T201
-            print("To import into Anki:")  # noqa: T201
-            print("  1. Open Anki")  # noqa: T201
-            print("  2. File -> Import")  # noqa: T201
-            print(f"  3. Select: {output_path}")  # noqa: T201
-            print("  4. Click Import")  # noqa: T201
+                print(f"Flashcards: {num_words} (ALL words rank #1 to #{max_rank})")
+            print(f"Output file: {output_path}")
+            print()
+            print("To import into Anki:")
+            print("  1. Open Anki")
+            print("  2. File -> Import")
+            print(f"  3. Select: {output_path}")
+            print("  4. Click Import")
         else:
-            print(output_path)  # noqa: T201
+            print(output_path)
 
         return 0
 
     except FileNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: {e}", file=sys.stderr)
         return 1
     except subprocess.CalledProcessError as e:
-        print(f"Error running vocabulary_curve: {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error running vocabulary_curve: {e}", file=sys.stderr)
         return 1
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: {e}", file=sys.stderr)
         return 1
 
 

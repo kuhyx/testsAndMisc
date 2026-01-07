@@ -12,17 +12,16 @@ try:
     from python_pkg.word_frequency.anki_generator import (
         find_word_contexts,
         generate_anki_deck,
-        generate_flashcards,
         main,
         parse_vocabulary_curve_output,
     )
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
     from python_pkg.word_frequency.anki_generator import (
         find_word_contexts,
         generate_anki_deck,
-        generate_flashcards,
         main,
         parse_vocabulary_curve_output,
     )
@@ -78,19 +77,25 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_length_1(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 1."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 1)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+            sample_vocabulary_output, 1
+        )
         assert excerpt == "the"
         assert excerpt_words == [("the", 1)]
 
     def test_parse_length_2(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 2."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 2)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+            sample_vocabulary_output, 2
+        )
         assert excerpt == "the dog"
         assert excerpt_words == [("the", 1), ("dog", 2)]
 
     def test_parse_length_3(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 3."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 3)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+            sample_vocabulary_output, 3
+        )
         assert excerpt == "the quick fox"
         assert len(excerpt_words) == 3
         assert ("the", 1) in excerpt_words
@@ -99,7 +104,9 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_nonexistent_length(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for non-existent length."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(sample_vocabulary_output, 100)
+        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+            sample_vocabulary_output, 100
+        )
         assert excerpt == ""
         assert excerpt_words == []
 

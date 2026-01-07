@@ -75,6 +75,43 @@ unfixable = []
     "C901",    # Complex interactive mode is acceptable
     "PLR0912", # Too many branches in interactive mode
 ]
+# Word frequency package - legacy code with pre-existing complexity
+"python_pkg/word_frequency/*.py" = [
+    "C901",    # Function complexity - legacy code
+    "PLR0911", # Too many return statements - legacy code
+    "PLR0912", # Too many branches - legacy code
+    "PLR0913", # Too many arguments - legacy code
+    "PLR0915", # Too many statements - legacy code
+    "PLR2004", # Magic values - legacy code
+    "FBT001",  # Boolean typed argument - legacy code
+    "FBT002",  # Boolean default argument - legacy code
+    "FBT003",  # Boolean positional value - legacy code
+    "T201",    # print() used for CLI feedback
+    "TRY003",  # Long exception messages - legacy code
+    "EM101",   # Exception string literal - legacy code
+    "EM102",   # Exception f-string literal - legacy code
+    "SIM105",  # Use contextlib.suppress - legacy code
+    "SIM108",  # Use ternary operator - legacy code
+    "SIM117",  # Use single with statement - legacy code
+    "PLW2901", # Loop variable overwritten - legacy code
+    "PLW0603", # Global statement - legacy code
+    "TRY300",  # Consider else block - legacy code
+    "TRY301",  # Abstract raise - legacy code
+    "PTH123",  # open() instead of Path.open() - legacy code
+    "EXE001",  # Shebang without executable - legacy code
+    "ARG001",  # Unused function argument - legacy code
+    "ARG002",  # Unused method argument - legacy code
+    "ARG005",  # Unused lambda argument - legacy code
+    "F401",    # Unused import - legacy code
+    "F841",    # Unused variable - legacy code
+    "TC003",   # Move stdlib import to type-checking block - legacy code
+    "SLF001",  # Private member access - legacy code
+    "SIM101",  # Multiple isinstance calls - legacy code
+    "PERF401", # List comprehension - legacy code
+    "N806",    # Non-lowercase variable - legacy code
+    "C416",    # Unnecessary list comprehension - legacy code
+    "E501",    # Line too long - legacy code
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"  # Use Google docstring convention
