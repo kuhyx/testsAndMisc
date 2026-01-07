@@ -1,12 +1,12 @@
-	
-		
+
+
 			Caesar: Bellum Gallicum I
-		
-				
-		
-		
-	
-	
+
+
+
+
+
+
 C. IVLI CAESARIS COMMENTARIORVM DE BELLO GALLICO LIBER PRIMVS
 1 	2 	3 	4 	5 	6 	7 	8 	9 	10 	11 	12 	13 	14 	15 	16 	17 	18 	19 	20 	21 	22 	23 	24 	25 	26 	27 	28 	29 	30 	31 	32 	33 	34 	35 	36 	37 	38 	39 	40 	41 	42 	43 	44 	45 	46 	47 	48 	49 	50 	51 	52 	53 	54
 [1] 1 Gallia est omnis divisa in partes tres, quarum unam incolunt Belgae, aliam Aquitani, tertiam qui ipsorum lingua Celtae, nostra Galli appellantur. 2 Hi omnes lingua, institutis, legibus inter se differunt. Gallos ab Aquitanis Garumna flumen, a Belgis Matrona et Sequana dividit. 3 Horum omnium fortissimi sunt Belgae, propterea quod a cultu atque humanitate provinciae longissime absunt, minimeque ad eos mercatores saepe commeant atque ea quae ad effeminandos animos pertinent important, 4 proximique sunt Germanis, qui trans Rhenum incolunt, quibuscum continenter bellum gerunt. Qua de causa Helvetii quoque reliquos Gallos virtute praecedunt, quod fere cotidianis proeliis cum Germanis contendunt, cum aut suis finibus eos prohibent aut ipsi in eorum finibus bellum gerunt. 5 Eorum una pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones. 6 Belgae ab extremis Galliae finibus oriuntur, pertinent ad inferiorem partem fluminis Rheni, spectant in septentrionem et orientem solem. 7 Aquitania a Garumna flumine ad Pyrenaeos montes et eam partem Oceani quae est ad Hispaniam pertinet; spectat inter occasum solis et septentriones.
@@ -63,8 +63,7 @@ C. IVLI CAESARIS COMMENTARIORVM DE BELLO GALLICO LIBER PRIMVS
 [52] 1 Caesar singulis legionibus singulos legatos et quaestorem praefecit, uti eos testes suae quisque virtutis haberet; 2 ipse a dextro cornu, quod eam partem minime firmam hostium esse animadverterat, proelium commisit. 3 Ita nostri acriter in hostes signo dato impetum fecerunt itaque hostes repente celeriterque procurrerunt, ut spatium pila in hostes coiciendi non daretur. 4 Relictis pilis comminus gladiis pugnatum est. At Germani celeriter ex consuetudine sua phalange facta impetus gladiorum exceperunt. 5 Reperti sunt complures nostri qui in phalanga insilirent et scuta manibus revellerent et desuper vulnerarent. 6 Cum hostium acies a sinistro cornu pulsa atque in fugam coniecta esset, a dextro cornu vehementer multitudine suorum nostram aciem premebant. 7 Id cum animadvertisset P. Crassus adulescens, qui equitatui praeerat, quod expeditior erat quam ii qui inter aciem versabantur, tertiam aciem laborantibus nostris subsidio misit.
 [53] 1 Ita proelium restitutum est, atque omnes hostes terga verterunt nec prius fugere destiterunt quam ad flumen Rhenum milia passuum ex eo loco circiter L pervenerunt. 2 Ibi perpauci aut viribus confisi tranare contenderunt aut lintribus inventis sibi salutem reppererunt. 3 In his fuit Ariovistus, qui naviculam deligatam ad ripam nactus ea profugit; reliquos omnes consecuti equites nostri interfecerunt. 4 Duae fuerunt Ariovisti uxores, una Sueba natione, quam domo secum eduxerat, altera Norica, regis Voccionis soror, quam in Gallia duxerat a fratre missam: utraque in ea fuga periit; duae filiae: harum altera occisa, altera capta est. 5 C. Valerius Procillus, cum a custodibus in fuga trinis catenis vinctus traheretur, in ipsum Caesarem hostes equitatu insequentem incidit. 6 Quae quidem res Caesari non minorem quam ipsa victoria voluptatem attulit, quod hominem honestissimum provinciae Galliae, suum familiarem et hospitem, ereptum ex manibus hostium sibi restitutum videbat neque eius calamitate de tanta voluptate et gratulatione quicquam fortuna deminuerat. 7 Is se praesente de se ter sortibus consultum dicebat, utrum igni statim necaretur an in aliud tempus reservaretur: sortium beneficio se esse incolumem. 8 Item M. Metius repertus et ad eum reductus est.
 [54] 1 Hoc proelio trans Rhenum nuntiato, Suebi, qui ad ripas Rheni venerant, domum reverti coeperunt; quos ubi qui proximi Rhenum incolunt perterritos senserunt, insecuti magnum ex iis numerum occiderunt. 2 Caesar una aestate duobus maximis bellis confectis maturius paulo quam tempus anni postulabat in hiberna in Sequanos exercitum deduxit; hibernis Labienum praeposuit; 3 ipse in citeriorem Galliam ad conventus agendos profectus est.
-	
+
 		Caesar
 		The Latin Library
 		The Classics Page
-	

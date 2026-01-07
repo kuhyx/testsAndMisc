@@ -14,8 +14,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
@@ -112,6 +112,7 @@ def find_optimal_excerpts(
 
     # Extract all words from text (preserving order)
     import re
+
     all_words = re.findall(r"\b[\w]+\b", text, re.UNICODE)
     if not case_sensitive:
         all_words = [w.lower() for w in all_words]
@@ -213,7 +214,9 @@ def format_results(
     if results:
         final = results[-1]
         lines.append(f"To understand a {final.excerpt_length}-word excerpt,")
-        lines.append(f"you need to learn at minimum {final.min_vocab_needed} top words.")
+        lines.append(
+            f"you need to learn at minimum {final.min_vocab_needed} top words."
+        )
 
     return "\n".join(lines)
 
@@ -301,15 +304,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output:
             Path(args.output).write_text(output, encoding="utf-8")
-            print(f"Output written to {args.output}")  # noqa: T201
+            print(f"Output written to {args.output}")
         else:
-            print(output)  # noqa: T201
+            print(output)
 
     except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: File not found - {e}", file=sys.stderr)
         return 1
     except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: Could not decode file - {e}", file=sys.stderr)
         return 1
 
     return 0

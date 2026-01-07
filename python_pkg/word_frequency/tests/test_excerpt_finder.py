@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
+import time
 
 import pytest
 
@@ -324,7 +324,7 @@ class TestMain:
                 "2",
             ]
         )
-        captured = capsys.readouterr()
+        capsys.readouterr()
 
         assert exit_code == 0
         # Excerpt should include context words
@@ -342,7 +342,7 @@ class TestMain:
                 "--case-sensitive",
             ]
         )
-        captured = capsys.readouterr()
+        capsys.readouterr()
 
         assert exit_code == 0
         # Only lowercase "hello" should match

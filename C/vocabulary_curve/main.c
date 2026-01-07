@@ -1,9 +1,9 @@
 /*
  * Vocabulary Learning Curve Analyzer
- * 
+ *
  * For each excerpt length (1, 2, 3, ... N words), finds the excerpt that
  * requires the minimum number of top-frequency words to understand 100%.
- * 
+ *
  * Usage:
  *   ./vocabulary_curve <file.txt> [max_length]
  *   ./vocabulary_curve test.txt 50
@@ -58,35 +58,35 @@ static unsigned int hash_word(const char *word) {
 static WordEntry *get_or_create_word(const char *word) {
     unsigned int h = hash_word(word);
     WordEntry *entry = hash_table[h];
-    
+
     while (entry) {
         if (strcmp(entry->word, word) == 0) {
             return entry;
         }
         entry = entry->next;
     }
-    
+
     /* Create new entry */
     if (num_unique_words >= MAX_UNIQUE_WORDS) {
         fprintf(stderr, "Too many unique words\n");
         exit(1);
     }
-    
+
     entry = malloc(sizeof(WordEntry));
     if (!entry) {
         fprintf(stderr, "Memory allocation failed\n");
         exit(1);
     }
-    
+
     strncpy(entry->word, word, MAX_WORD_LEN - 1);
     entry->word[MAX_WORD_LEN - 1] = '\0';
     entry->count = 0;
     entry->rank = 0;
     entry->next = hash_table[h];
     hash_table[h] = entry;
-    
+
     all_entries[num_unique_words++] = entry;
-    
+
     return entry;
 }
 
@@ -109,11 +109,11 @@ static bool process_file(const char *filename) {
         fprintf(stderr, "Cannot open file: %s\n", filename);
         return false;
     }
-    
+
     char word[MAX_WORD_LEN];
     int word_len = 0;
     int c;
-    
+
     while ((c = fgetc(fp)) != EOF) {
         if (is_word_char(c)) {
             if (word_len < MAX_WORD_LEN - 1) {
@@ -121,34 +121,34 @@ static bool process_file(const char *filename) {
             }
         } else if (word_len > 0) {
             word[word_len] = '\0';
-            
+
             WordEntry *entry = get_or_create_word(word);
             entry->count++;
-            
+
             if (num_words >= MAX_WORDS) {
                 fprintf(stderr, "Too many words in file\n");
                 fclose(fp);
                 return false;
             }
-            
+
             /* Store pointer directly - survives sorting */
             word_sequence[num_words++] = entry;
-            
+
             word_len = 0;
         }
     }
-    
+
     /* Handle last word if file doesn't end with whitespace */
     if (word_len > 0) {
         word[word_len] = '\0';
         WordEntry *entry = get_or_create_word(word);
         entry->count++;
-        
+
         if (num_words < MAX_WORDS) {
             word_sequence[num_words++] = entry;
         }
     }
-    
+
     fclose(fp);
     return true;
 }
@@ -157,7 +157,7 @@ static bool process_file(const char *filename) {
 static void assign_ranks(void) {
     /* Sort all_entries by frequency (this doesn't affect word_sequence) */
     qsort(all_entries, num_unique_words, sizeof(WordEntry *), compare_by_count);
-    
+
     /* Assign 1-indexed ranks using competition ranking:
      * Words with same frequency get same rank.
      * Next rank is current_position + 1 (skipping numbers).
@@ -181,13 +181,13 @@ static int analyze_excerpt(int start, int length) {
     /* We use the rank field is already assigned, so we can check uniqueness */
     static bool seen_rank[MAX_UNIQUE_WORDS + 1];
     memset(seen_rank, 0, (num_unique_words + 1) * sizeof(bool));
-    
+
     int max_rank = 0;
-    
+
     for (int i = start; i < start + length; i++) {
         WordEntry *entry = word_sequence[i];
         int rank = entry->rank;
-        
+
         if (!seen_rank[rank]) {
             seen_rank[rank] = true;
             if (rank > max_rank) {
@@ -195,7 +195,7 @@ static int analyze_excerpt(int start, int length) {
             }
         }
     }
-    
+
     return max_rank;
 }
 
@@ -204,17 +204,17 @@ static void find_optimal_excerpts(int max_length, ExcerptResult *results) {
     for (int length = 1; length <= max_length && length <= num_words; length++) {
         int best_vocab = num_unique_words + 1;
         int best_start = 0;
-        
+
         /* Slide window through text */
         for (int start = 0; start <= num_words - length; start++) {
             int vocab_needed = analyze_excerpt(start, length);
-            
+
             if (vocab_needed < best_vocab) {
                 best_vocab = vocab_needed;
                 best_start = start;
             }
         }
-        
+
         results[length - 1].excerpt_length = length;
         results[length - 1].min_vocab_needed = best_vocab;
         results[length - 1].start_pos = best_start;
@@ -235,7 +235,7 @@ static void print_words_needed(int start, int length) {
     static WordEntry *unique_entries[MAX_UNIQUE_WORDS];
     static bool seen_rank[MAX_UNIQUE_WORDS + 1];
     memset(seen_rank, 0, (num_unique_words + 1) * sizeof(bool));
-    
+
     int count = 0;
     for (int i = start; i < start + length; i++) {
         WordEntry *entry = word_sequence[i];
@@ -244,7 +244,7 @@ static void print_words_needed(int start, int length) {
             unique_entries[count++] = entry;
         }
     }
-    
+
     /* Sort by rank (simple bubble sort - small arrays) */
     for (int i = 0; i < count - 1; i++) {
         for (int j = i + 1; j < count; j++) {
@@ -255,7 +255,7 @@ static void print_words_needed(int start, int length) {
             }
         }
     }
-    
+
     /* Print */
     for (int i = 0; i < count; i++) {
         if (i > 0) printf(", ");
@@ -276,33 +276,33 @@ static void print_results(ExcerptResult *results, int max_length) {
     printf("Unique words: %d\n", num_unique_words);
     printf("\n");
     printf("----------------------------------------------------------------------\n");
-    
+
     int prev_vocab = 0;
     int actual_max = max_length;
     if (actual_max > num_words) actual_max = num_words;
-    
+
     for (int i = 0; i < actual_max; i++) {
         ExcerptResult *r = &results[i];
-        
+
         printf("\n[Length %d] Vocab needed: %d", r->excerpt_length, r->min_vocab_needed);
         if (r->min_vocab_needed > prev_vocab) {
             printf(" (+%d)", r->min_vocab_needed - prev_vocab);
         }
         printf("\n");
-        
+
         printf("  Excerpt: \"");
         print_excerpt(r->start_pos, r->excerpt_length);
         printf("\"\n");
-        
+
         printf("  Words: ");
         print_words_needed(r->start_pos, r->excerpt_length);
         printf("\n");
-        
+
         prev_vocab = r->min_vocab_needed;
     }
-    
+
     printf("\n----------------------------------------------------------------------\n");
-    
+
     if (actual_max > 0) {
         ExcerptResult *final = &results[actual_max - 1];
         printf("\nTo understand a %d-word excerpt,\n", final->excerpt_length);
@@ -333,7 +333,7 @@ static void find_longest_excerpt(int max_vocab) {
     /* Sliding window: find longest contiguous sequence where all words have rank <= max_vocab */
     int best_start = 0;
     int best_length = 0;
-    
+
     int left = 0;
     for (int right = 0; right < num_words; right++) {
         /* If current word is outside our vocabulary, move left past it */
@@ -348,7 +348,7 @@ static void find_longest_excerpt(int max_vocab) {
             }
         }
     }
-    
+
     /* Print results */
     printf("======================================================================\n");
     printf("INVERSE MODE: LONGEST EXCERPT WITH TOP %d WORDS\n", max_vocab);
@@ -360,7 +360,7 @@ static void find_longest_excerpt(int max_vocab) {
     printf("\n");
     printf("----------------------------------------------------------------------\n");
     printf("\n");
-    
+
     if (best_length == 0) {
         printf("No valid excerpt found with top %d words.\n", max_vocab);
         printf("The text may require rarer words from the very beginning.\n");
@@ -372,7 +372,7 @@ static void find_longest_excerpt(int max_vocab) {
         print_excerpt(best_start, best_length);
         printf("\"\n");
         printf("\n");
-        
+
         /* Find the rarest word in the excerpt */
         int max_rank_used = 0;
         const char *rarest_word = NULL;
@@ -383,7 +383,7 @@ static void find_longest_excerpt(int max_vocab) {
             }
         }
         printf("Rarest word used: %s (#%d)\n", rarest_word, max_rank_used);
-        
+
         /* Count unique words in excerpt */
         static bool seen_rank[MAX_UNIQUE_WORDS + 1];
         memset(seen_rank, 0, (num_unique_words + 1) * sizeof(bool));
@@ -396,7 +396,7 @@ static void find_longest_excerpt(int max_vocab) {
         }
         printf("Unique words in excerpt: %d\n", unique_count);
     }
-    
+
     printf("\n----------------------------------------------------------------------\n");
 }
 
@@ -414,13 +414,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "  %s book.txt --max-vocab 500 # Find longest excerpt with top 500 words\n", argv[0]);
         return 1;
     }
-    
+
     const char *filename = argv[1];
     int max_length = 30;
     bool dump_vocab = false;
     int dump_max_rank = 0;
     int max_vocab_mode = 0;  /* 0 = normal mode, >0 = inverse mode with this vocab limit */
-    
+
     /* Parse arguments */
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--dump-vocab") == 0) {
@@ -445,37 +445,37 @@ int main(int argc, char *argv[]) {
             if (max_length > 1000) max_length = 1000;
         }
     }
-    
+
     /* Initialize hash table */
     memset(hash_table, 0, sizeof(hash_table));
-    
+
     /* Process file */
     if (!process_file(filename)) {
         return 1;
     }
-    
+
     if (num_words == 0) {
         fprintf(stderr, "No words found in file\n");
         return 1;
     }
-    
+
     /* Assign ranks by frequency */
     assign_ranks();
-    
+
     /* Inverse mode: find longest excerpt with limited vocabulary */
     if (max_vocab_mode > 0) {
         find_longest_excerpt(max_vocab_mode);
-        
+
         /* Dump vocabulary if requested */
         if (dump_vocab) {
             if (dump_max_rank == 0) dump_max_rank = max_vocab_mode;
             dump_vocabulary(dump_max_rank);
         }
-        
+
         cleanup();
         return 0;
     }
-    
+
     /* Normal mode: find optimal excerpts */
     ExcerptResult *results = malloc(max_length * sizeof(ExcerptResult));
     if (!results) {
@@ -483,12 +483,12 @@ int main(int argc, char *argv[]) {
         cleanup();
         return 1;
     }
-    
+
     find_optimal_excerpts(max_length, results);
-    
+
     /* Print results */
     print_results(results, max_length);
-    
+
     /* Dump vocabulary if requested */
     if (dump_vocab) {
         /* If no max_rank specified, use the max from the excerpt */
@@ -499,10 +499,10 @@ int main(int argc, char *argv[]) {
             dump_vocabulary(dump_max_rank);
         }
     }
-    
+
     /* Cleanup */
     free(results);
     cleanup();
-    
+
     return 0;
 }

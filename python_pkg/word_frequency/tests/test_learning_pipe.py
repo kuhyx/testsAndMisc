@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
+import time
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+import python_pkg.word_frequency.learning_pipe as learning_pipe_module
 from python_pkg.word_frequency.learning_pipe import (
     DEFAULT_STOPWORDS_EN,
     generate_learning_lesson,
     load_stopwords,
     main,
 )
-import python_pkg.word_frequency.learning_pipe as learning_pipe_module
 from python_pkg.word_frequency.translator import TranslationResult
 
 if TYPE_CHECKING:
@@ -25,12 +25,13 @@ if TYPE_CHECKING:
 @pytest.fixture
 def mock_translation() -> Generator[MagicMock, None, None]:
     """Mock translation to avoid requiring argostranslate."""
+
     def fake_batch_translate(
         words: list[str],
         from_lang: str,
         to_lang: str,
         *,
-        use_cache: bool = True,  # noqa: ARG001
+        use_cache: bool = True,
     ) -> list[TranslationResult]:
         """Fake batch translation that returns word with prefix."""
         return [
@@ -274,7 +275,7 @@ class TestMain:
                 "5",
             ]
         )
-        captured = capsys.readouterr()
+        capsys.readouterr()
 
         assert exit_code == 0
         # "hello" should be filtered by custom stopwords
@@ -392,12 +393,17 @@ class TestTranslationIntegration:
         text_file.write_text("hello world hello world hello", encoding="utf-8")
 
         # Should work with mocked translation
-        result = main([
-            "--file", str(text_file),
-            "--translate-from", "en",
-            "--translate-to", "es",
-            "--no-default-stopwords",
-        ])
+        result = main(
+            [
+                "--file",
+                str(text_file),
+                "--translate-from",
+                "en",
+                "--translate-to",
+                "es",
+                "--no-default-stopwords",
+            ]
+        )
 
         assert result == 0
 
@@ -437,4 +443,3 @@ class TestTranslationIntegration:
         # Should not have translation output
         assert "Translation:" not in result
         assert "Detected language:" not in result
-

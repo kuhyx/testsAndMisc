@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import tempfile
-import time
 from collections import Counter
 from pathlib import Path
-from typing import TYPE_CHECKING
+import time
 
 import pytest
 
@@ -19,9 +17,6 @@ from python_pkg.word_frequency.analyzer import (
     read_file,
     read_files,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 class TestExtractWords:
