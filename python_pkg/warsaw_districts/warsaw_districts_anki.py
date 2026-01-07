@@ -9,23 +9,24 @@ Usage:
     python -m python_pkg.warsaw_districts.warsaw_districts_anki
 
     # Specify custom output file
-    python -m python_pkg.warsaw_districts.warsaw_districts_anki --output warsaw.txt
-
-    # Specify custom output directory for images
-    python -m python_pkg.warsaw_districts.warsaw_districts_anki --image-dir ./maps
+    python -m python_pkg.warsaw_districts.warsaw_districts_anki --output warsaw.apkg
 
 Output:
-    Creates a semicolon-separated text file that can be imported into Anki.
-    Format: <img src="district_name.png">;district_name_in_polish
+    Creates a self-contained .apkg file that can be directly imported into Anki.
+    The file includes all images embedded, so no manual file copying is needed.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+from io import BytesIO
 from pathlib import Path
+import random
 import sys
 from typing import TYPE_CHECKING, NamedTuple
 
+import genanki
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
@@ -134,67 +135,99 @@ def create_district_map(district: District, *, highlight_only: bool = True) -> F
     return fig
 
 
-def save_district_image(district: District, output_dir: Path) -> Path:
-    """Save a district map image to a file.
+def generate_district_image_bytes(district: District) -> bytes:
+    """Generate a district map image as bytes.
 
     Args:
         district: The district to visualize.
-        output_dir: Directory to save the image.
 
     Returns:
-        Path to the saved image file.
+        PNG image data as bytes.
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
     fig = create_district_map(district)
 
-    # Create filename from district name (sanitized)
-    filename = f"{district.name.replace('-', '_').replace(' ', '_')}.png"
-    output_path = output_dir / filename
-
-    fig.savefig(output_path, format="png", bbox_inches="tight", dpi=150)
+    # Save to bytes buffer
+    buf = BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
     plt.close(fig)
+    buf.seek(0)
 
-    return output_path
+    return buf.read()
 
 
-def generate_anki_deck(
-    output_dir: Path,
+def generate_anki_package(
     deck_name: str = "Warsaw Districts",
-) -> str:
-    """Generate Anki-compatible deck content for Warsaw districts.
+) -> genanki.Package:
+    """Generate Anki package (.apkg) for Warsaw districts.
 
     Args:
-        output_dir: Directory where images will be saved.
         deck_name: Name for the Anki deck.
 
     Returns:
-        Semicolon-separated content ready for Anki import.
+        genanki.Package object ready to be written to file.
     """
-    lines: list[str] = []
+    # Create a unique model ID based on deck name
+    model_id_hash = hashlib.md5(  # noqa: S324
+        f"warsaw_districts_{deck_name}".encode()
+    )
+    model_id = int(model_id_hash.hexdigest()[:8], 16)
 
-    # Add Anki headers
-    lines.append("#separator:semicolon")
-    lines.append("#html:true")
-    lines.append(f"#deck:{deck_name}")
-    lines.append("#tags:geography warsaw poland")
-    lines.append("#columns:Front;Back")
-    lines.append("")  # Empty line before data
+    # Define the note model (card template)
+    my_model = genanki.Model(
+        model_id,
+        "Warsaw District Model",
+        fields=[
+            {"name": "DistrictMap"},
+            {"name": "DistrictName"},
+        ],
+        templates=[
+            {
+                "name": "Card 1",
+                "qfmt": "{{DistrictMap}}",
+                "afmt": '{{FrontSide}}<hr id="answer">{{DistrictName}}',
+            },
+        ],
+    )
 
-    # Generate cards for each district
+    # Create a unique deck ID based on deck name
+    deck_id = random.randrange(1 << 30, 1 << 31)  # noqa: S311
+
+    # Create the deck
+    my_deck = genanki.Deck(deck_id, deck_name)
+
+    # Store media files
+    media_files = []
+
+    # Generate notes for each district
     for district in WARSAW_DISTRICTS:
-        # Save the image
-        image_path = save_district_image(district, output_dir)
+        # Generate image
+        image_data = generate_district_image_bytes(district)
 
-        # Create the front side: reference to image
-        # Anki expects the image filename to be in the media collection
-        front = f'<img src="{image_path.name}">'
+        # Create unique filename
+        filename = f"{district.name.replace('-', '_').replace(' ', '_')}.png"
 
-        # Back side: district name in Polish
-        back = district.name
+        # Create note
+        note = genanki.Note(
+            model=my_model,
+            fields=[
+                f'<img src="{filename}">',
+                district.name,
+            ],
+            tags=["geography", "warsaw", "poland"],
+        )
 
-        lines.append(f"{front};{back}")
+        my_deck.add_note(note)
 
-    return "\n".join(lines)
+        # Save image data to temporary file for packaging
+        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path.write_bytes(image_data)
+        media_files.append(str(temp_path))
+
+    # Create package
+    package = genanki.Package(my_deck)
+    package.media_files = media_files
+
+    return package
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -217,14 +250,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "-o",
         type=str,
         default=None,
-        help="Output file path (default: warsaw_districts_anki.txt)",
-    )
-    parser.add_argument(
-        "--image-dir",
-        "-i",
-        type=str,
-        default=None,
-        help="Directory for district images (default: warsaw_districts_images)",
+        help="Output file path (default: warsaw_districts.apkg)",
     )
     parser.add_argument(
         "--deck-name",
@@ -236,44 +262,39 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    # Determine output paths
-    if args.output:
-        output_path = Path(args.output)
-    else:
-        output_path = Path("warsaw_districts_anki.txt")
-
-    if args.image_dir:
-        image_dir = Path(args.image_dir)
-    else:
-        image_dir = Path("warsaw_districts_images")
+    # Determine output path
+    output_path = (
+        Path(args.output) if args.output else Path("warsaw_districts.apkg")
+    )
 
     try:
-        print(f"Generating flashcards for {len(WARSAW_DISTRICTS)} Warsaw districts...")  # noqa: T201
+        num_districts = len(WARSAW_DISTRICTS)
+        sys.stdout.write(
+            f"Generating flashcards for {num_districts} Warsaw districts...\n"
+        )
 
-        # Generate the deck content
-        anki_content = generate_anki_deck(image_dir, args.deck_name)
+        # Generate the package
+        package = generate_anki_package(args.deck_name)
 
-        # Write output file
-        output_path.write_text(anki_content, encoding="utf-8")
+        # Write to file
+        package.write_to_file(str(output_path))
 
-        print()  # noqa: T201
-        print("=" * 60)  # noqa: T201
-        print("FLASHCARD GENERATION COMPLETE")  # noqa: T201
-        print("=" * 60)  # noqa: T201
-        print(f"Districts: {len(WARSAW_DISTRICTS)}")  # noqa: T201
-        print(f"Images directory: {image_dir.absolute()}")  # noqa: T201
-        print(f"Output file: {output_path.absolute()}")  # noqa: T201
-        print()  # noqa: T201
-        print("To import into Anki:")  # noqa: T201
-        print("  1. Open Anki")  # noqa: T201
-        print("  2. File -> Import")  # noqa: T201
-        print(f"  3. Select: {output_path.absolute()}")  # noqa: T201
-        img_dir = image_dir.absolute()
-        print(f"  4. Ensure images from {img_dir} are in Anki's media folder")  # noqa: T201
-        print("     or copy them to your Anki profile's collection.media folder")  # noqa: T201
-        print("  5. Click Import")  # noqa: T201
-    except Exception as e:  # noqa: BLE001
-        print(f"Error: {e}", file=sys.stderr)  # noqa: T201
+        sys.stdout.write("\n")
+        sys.stdout.write("=" * 60 + "\n")
+        sys.stdout.write("FLASHCARD GENERATION COMPLETE\n")
+        sys.stdout.write("=" * 60 + "\n")
+        sys.stdout.write(f"Districts: {num_districts}\n")
+        sys.stdout.write(f"Output file: {output_path.absolute()}\n")
+        sys.stdout.write("\n")
+        sys.stdout.write("To import into Anki:\n")
+        sys.stdout.write("  1. Open Anki\n")
+        sys.stdout.write("  2. File -> Import\n")
+        sys.stdout.write(f"  3. Select: {output_path.absolute()}\n")
+        sys.stdout.write("  4. Click Import\n")
+        sys.stdout.write("\n")
+        sys.stdout.write("All images are embedded in the .apkg file!\n")
+    except (OSError, ValueError) as e:
+        sys.stderr.write(f"Error: {e}\n")
         return 1
     else:
         return 0
