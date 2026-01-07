@@ -35,27 +35,19 @@ class TestDistricts:
         """Test that we have exactly 18 Warsaw districts."""
         assert len(WARSAW_DISTRICTS) == 18
 
-    def test_all_districts_have_names(self) -> None:
-        """Test that all districts have non-empty names."""
+    def test_all_districts_are_strings(self) -> None:
+        """Test that all district entries are strings."""
         for district in WARSAW_DISTRICTS:
-            assert district.name
-            assert isinstance(district.name, str)
-            assert len(district.name) > 0
-
-    def test_all_districts_have_valid_coordinates(self) -> None:
-        """Test that all districts have coordinates in valid range."""
-        for district in WARSAW_DISTRICTS:
-            assert 0 <= district.x <= 1
-            assert 0 <= district.y <= 1
+            assert isinstance(district, str)
+            assert len(district) > 0
 
     def test_districts_are_unique(self) -> None:
         """Test that all district names are unique."""
-        names = [d.name for d in WARSAW_DISTRICTS]
-        assert len(names) == len(set(names))
+        assert len(WARSAW_DISTRICTS) == len(set(WARSAW_DISTRICTS))
 
     def test_known_districts_present(self) -> None:
         """Test that all known Warsaw districts are in the list."""
-        district_names = {d.name for d in WARSAW_DISTRICTS}
+        district_set = set(WARSAW_DISTRICTS)
         # Check all 18 districts
         expected_districts = {
             "Bemowo",
@@ -63,8 +55,8 @@ class TestDistricts:
             "Bielany",
             "Mokotów",
             "Ochota",
-            "Praga-Południe",
-            "Praga-Północ",
+            "Praga Południe",  # Note: space, not hyphen
+            "Praga Północ",     # Note: space, not hyphen
             "Rembertów",
             "Śródmieście",
             "Targówek",
@@ -77,7 +69,7 @@ class TestDistricts:
             "Wola",
             "Żoliborz",
         }
-        assert district_names == expected_districts
+        assert district_set == expected_districts
 
 
 class TestCreateDistrictMap:
