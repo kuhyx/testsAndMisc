@@ -3,3 +3,15 @@ scripts/features/.nextcloud_raspberry.conf
 scripts/features/.raspberry_pi.conf
 .nextcloud_raspberry.conf
 .raspberry_pi.conf
+
+# Generated study materials (repo_to_study.sh output)
+study_materials/
+**/study_materials/
+documentation_links.md
+anki_cards.txt
+llm_anki_prompt.md
+
+# Repo analysis temp files
+/tmp/repo_analysis/
+*.cscope.out*
+tags
