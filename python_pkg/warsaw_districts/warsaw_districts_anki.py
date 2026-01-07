@@ -69,9 +69,7 @@ WARSAW_DISTRICTS: list[District] = [
 ]
 
 
-def create_district_map(
-    district: District, *, highlight_only: bool = True
-) -> Figure:
+def create_district_map(district: District, *, highlight_only: bool = True) -> Figure:
     """Create a map showing Warsaw districts with one district highlighted.
 
     Args:

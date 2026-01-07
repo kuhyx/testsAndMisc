@@ -137,9 +137,7 @@ class TestGenerateAnkiDeck:
 
         lines = result.split("\n")
         # Skip header lines and empty lines
-        data_lines = [
-            line for line in lines if line and not line.startswith("#")
-        ]
+        data_lines = [line for line in lines if line and not line.startswith("#")]
 
         # Each data line should have exactly 2 fields (front;back)
         for line in data_lines:
@@ -159,10 +157,14 @@ class TestMain:
         output_file = tmp_path / "test_output.txt"
         image_dir = tmp_path / "images"
 
-        result = main([
-            "--output", str(output_file),
-            "--image-dir", str(image_dir),
-        ])
+        result = main(
+            [
+                "--output",
+                str(output_file),
+                "--image-dir",
+                str(image_dir),
+            ]
+        )
 
         assert result == 0
         assert output_file.exists()
@@ -173,10 +175,14 @@ class TestMain:
         output_file = tmp_path / "test_output.txt"
         image_dir = tmp_path / "images"
 
-        main([
-            "--output", str(output_file),
-            "--image-dir", str(image_dir),
-        ])
+        main(
+            [
+                "--output",
+                str(output_file),
+                "--image-dir",
+                str(image_dir),
+            ]
+        )
 
         image_files = list(image_dir.glob("*.png"))
         assert len(image_files) == 18
@@ -186,11 +192,16 @@ class TestMain:
         output_file = tmp_path / "test_output.txt"
         image_dir = tmp_path / "images"
 
-        main([
-            "--output", str(output_file),
-            "--image-dir", str(image_dir),
-            "--deck-name", "Custom Deck",
-        ])
+        main(
+            [
+                "--output",
+                str(output_file),
+                "--image-dir",
+                str(image_dir),
+                "--deck-name",
+                "Custom Deck",
+            ]
+        )
 
         content = output_file.read_text()
         assert "#deck:Custom Deck" in content
