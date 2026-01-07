@@ -15,10 +15,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 # Default cache directory
 DEFAULT_CACHE_DIR = Path.home() / ".cache" / "word_frequency"
@@ -88,7 +85,9 @@ class TranslationCache:
         if self._cache is None:
             if self.cache_file.exists():
                 try:
-                    self._cache = json.loads(self.cache_file.read_text(encoding="utf-8"))
+                    self._cache = json.loads(
+                        self.cache_file.read_text(encoding="utf-8")
+                    )
                 except (json.JSONDecodeError, OSError):
                     self._cache = {}
             else:
@@ -122,9 +121,7 @@ class TranslationCache:
         """
         return f"{source_lang}:{target_lang}:{word.lower()}"
 
-    def get(
-        self, word: str, source_lang: str, target_lang: str
-    ) -> str | None:
+    def get(self, word: str, source_lang: str, target_lang: str) -> str | None:
         """Get cached translation.
 
         Args:
@@ -140,8 +137,13 @@ class TranslationCache:
         return cache.get(key)
 
     def set(
-        self, word: str, source_lang: str, target_lang: str, translation: str,
-        *, auto_save: bool = False,
+        self,
+        word: str,
+        source_lang: str,
+        target_lang: str,
+        translation: str,
+        *,
+        auto_save: bool = False,
     ) -> None:
         """Store translation in cache.
 
@@ -525,7 +527,7 @@ _anki_deck_cache: AnkiDeckCache | None = None
 
 def get_translation_cache() -> TranslationCache:
     """Get the global translation cache instance."""
-    global _translation_cache  # noqa: PLW0603
+    global _translation_cache
     if _translation_cache is None:
         _translation_cache = TranslationCache()
     return _translation_cache
@@ -533,7 +535,7 @@ def get_translation_cache() -> TranslationCache:
 
 def get_vocab_curve_cache() -> VocabCurveCache:
     """Get the global vocabulary curve cache instance."""
-    global _vocab_curve_cache  # noqa: PLW0603
+    global _vocab_curve_cache
     if _vocab_curve_cache is None:
         _vocab_curve_cache = VocabCurveCache()
     return _vocab_curve_cache
@@ -541,7 +543,7 @@ def get_vocab_curve_cache() -> VocabCurveCache:
 
 def get_anki_deck_cache() -> AnkiDeckCache:
     """Get the global Anki deck cache instance."""
-    global _anki_deck_cache  # noqa: PLW0603
+    global _anki_deck_cache
     if _anki_deck_cache is None:
         _anki_deck_cache = AnkiDeckCache()
     return _anki_deck_cache
@@ -576,12 +578,8 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Manage word frequency caches")
-    parser.add_argument(
-        "--stats", action="store_true", help="Show cache statistics"
-    )
-    parser.add_argument(
-        "--clear", action="store_true", help="Clear all caches"
-    )
+    parser.add_argument("--stats", action="store_true", help="Show cache statistics")
+    parser.add_argument("--clear", action="store_true", help="Clear all caches")
     parser.add_argument(
         "--clear-translations", action="store_true", help="Clear translation cache"
     )
@@ -596,30 +594,30 @@ def main() -> int:
 
     if args.clear:
         clear_all_caches()
-        print("All caches cleared.")  # noqa: T201
+        print("All caches cleared.")
         return 0
 
     if args.clear_translations:
         get_translation_cache().clear()
-        print("Translation cache cleared.")  # noqa: T201
+        print("Translation cache cleared.")
         return 0
 
     if args.clear_excerpts:
         get_vocab_curve_cache().clear()
-        print("Excerpt cache cleared.")  # noqa: T201
+        print("Excerpt cache cleared.")
         return 0
 
     if args.clear_anki:
         get_anki_deck_cache().clear()
-        print("Anki deck cache cleared.")  # noqa: T201
+        print("Anki deck cache cleared.")
         return 0
 
     # Default: show stats
     stats = get_all_cache_stats()
-    print("Cache Statistics")  # noqa: T201
-    print("=" * 50)  # noqa: T201
+    print("Cache Statistics")
+    print("=" * 50)
     for cache_name, cache_stats in stats.items():
-        print(f"\n{cache_name.upper()}:")  # noqa: T201
+        print(f"\n{cache_name.upper()}:")
         for key, value in cache_stats.items():
             if key == "cache_size_bytes":
                 # Format as human-readable
@@ -629,13 +627,14 @@ def main() -> int:
                     size_str = f"{value / 1024:.1f} KB"
                 else:
                     size_str = f"{value / (1024 * 1024):.1f} MB"
-                print(f"  {key}: {size_str}")  # noqa: T201
+                print(f"  {key}: {size_str}")
             else:
-                print(f"  {key}: {value}")  # noqa: T201
+                print(f"  {key}: {value}")
 
     return 0
 
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

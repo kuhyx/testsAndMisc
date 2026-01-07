@@ -21,10 +21,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import re
-import sys
 from collections import Counter
 from pathlib import Path
+import re
+import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -143,7 +143,9 @@ def format_results(
     # Data rows
     for word, count in items:
         percentage = (count / total_words) * 100
-        lines.append(f"{word:<{max_word_len}}  {count:>{count_width}}  {percentage:>9.2f}%")
+        lines.append(
+            f"{word:<{max_word_len}}  {count:>{count_width}}  {percentage:>9.2f}%"
+        )
 
     return "\n".join(lines)
 
@@ -242,15 +244,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output:
             Path(args.output).write_text(result, encoding="utf-8")
-            print(f"Output written to {args.output}")  # noqa: T201
+            print(f"Output written to {args.output}")
         else:
-            print(result)  # noqa: T201
+            print(result)
 
     except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: File not found - {e}", file=sys.stderr)
         return 1
     except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)
         return 1
 
     return 0

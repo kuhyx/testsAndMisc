@@ -31,15 +31,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING
 
 try:
     from python_pkg.word_frequency.analyzer import analyze_text, read_file
     from python_pkg.word_frequency.excerpt_finder import find_best_excerpt
     from python_pkg.word_frequency.translator import (
-        TranslationResult,
         detect_language,
         translate_words_batch,
     )
@@ -47,7 +46,6 @@ except ModuleNotFoundError:
     from analyzer import analyze_text, read_file  # type: ignore[import-not-found]
     from excerpt_finder import find_best_excerpt  # type: ignore[import-not-found]
     from translator import (  # type: ignore[import-not-found]
-        TranslationResult,
         detect_language,
         translate_words_batch,
     )
@@ -57,19 +55,108 @@ if TYPE_CHECKING:
 
 
 # Common stopwords for various languages (can be overridden with --stopwords)
-DEFAULT_STOPWORDS_EN = frozenset({
-    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "must", "shall", "can", "this",
-    "that", "these", "those", "i", "you", "he", "she", "it", "we", "they",
-    "me", "him", "her", "us", "them", "my", "your", "his", "its", "our",
-    "their", "what", "which", "who", "whom", "whose", "where", "when",
-    "why", "how", "all", "each", "every", "both", "few", "more", "most",
-    "other", "some", "such", "no", "nor", "not", "only", "own", "same",
-    "so", "than", "too", "very", "just", "as", "if", "then", "because",
-    "while", "although", "though", "after", "before", "when", "where",
-})
+DEFAULT_STOPWORDS_EN = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "this",
+        "that",
+        "these",
+        "those",
+        "i",
+        "you",
+        "he",
+        "she",
+        "it",
+        "we",
+        "they",
+        "me",
+        "him",
+        "her",
+        "us",
+        "them",
+        "my",
+        "your",
+        "his",
+        "its",
+        "our",
+        "their",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "where",
+        "when",
+        "why",
+        "how",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "as",
+        "if",
+        "then",
+        "because",
+        "while",
+        "although",
+        "though",
+        "after",
+        "before",
+    }
+)
 
 
 def load_stopwords(filepath: str | Path | None) -> frozenset[str]:
@@ -89,7 +176,9 @@ def load_stopwords(filepath: str | Path | None) -> frozenset[str]:
         return frozenset()
 
     content = path.read_text(encoding="utf-8")
-    return frozenset(word.strip().lower() for word in content.splitlines() if word.strip())
+    return frozenset(
+        word.strip().lower() for word in content.splitlines() if word.strip()
+    )
 
 
 def generate_learning_lesson(
@@ -151,9 +240,13 @@ def generate_learning_lesson(
     lines.append("=" * 70)
     lines.append("LANGUAGE LEARNING LESSON")
     lines.append("=" * 70)
-    lines.append(f"Source text: {total_words:,} total words, {len(word_counts):,} unique words")
+    lines.append(
+        f"Source text: {total_words:,} total words, {len(word_counts):,} unique words"
+    )
     if all_stopwords:
-        lines.append(f"After filtering {len(all_stopwords)} stopwords: {len(filtered_words):,} vocabulary words")
+        lines.append(
+            f"After filtering {len(all_stopwords)} stopwords: {len(filtered_words):,} vocabulary words"
+        )
     else:
         lines.append(f"Vocabulary words: {len(filtered_words):,}")
 
@@ -196,7 +289,9 @@ def generate_learning_lesson(
         cumulative_words.extend(word for word, _ in batch_words)
 
         lines.append("-" * 70)
-        lines.append(f"BATCH {batch_num + 1}: Words {start_idx + 1} - {min(end_idx, len(filtered_words))}")
+        lines.append(
+            f"BATCH {batch_num + 1}: Words {start_idx + 1} - {min(end_idx, len(filtered_words))}"
+        )
         lines.append("-" * 70)
         lines.append("")
 
@@ -230,7 +325,9 @@ def generate_learning_lesson(
         else:
             for i, (word, count) in enumerate(batch_words, start=start_idx + 1):
                 percentage = (count / total_words) * 100
-                lines.append(f"  {i:3}. {word:<20} ({count:,} occurrences, {percentage:.2f}%)")
+                lines.append(
+                    f"  {i:3}. {word:<20} ({count:,} occurrences, {percentage:.2f}%)"
+                )
 
         lines.append("")
 
@@ -239,7 +336,9 @@ def generate_learning_lesson(
             word_counts[word] for word in cumulative_words if word in word_counts
         )
         coverage = (cumulative_count / total_words) * 100
-        lines.append(f"After learning these words, you'll recognize ~{coverage:.1f}% of the text")
+        lines.append(
+            f"After learning these words, you'll recognize ~{coverage:.1f}% of the text"
+        )
         lines.append("")
 
         # Find excerpts using cumulative words
@@ -256,8 +355,10 @@ def generate_learning_lesson(
         )
 
         for j, excerpt in enumerate(excerpts, 1):
-            lines.append(f"  Excerpt {j} ({excerpt.match_percentage:.1f}% known words):")
-            lines.append(f"  \"{excerpt.excerpt}\"")
+            lines.append(
+                f"  Excerpt {j} ({excerpt.match_percentage:.1f}% known words):"
+            )
+            lines.append(f'  "{excerpt.excerpt}"')
             lines.append("")
 
     # Summary
@@ -431,15 +532,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         # Output
         if args.output:
             Path(args.output).write_text(lesson, encoding="utf-8")
-            print(f"Lesson written to {args.output}")  # noqa: T201
+            print(f"Lesson written to {args.output}")
         else:
-            print(lesson)  # noqa: T201
+            print(lesson)
 
     except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: File not found - {e}", file=sys.stderr)
         return 1
     except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)  # noqa: T201
+        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)
         return 1
 
     return 0

@@ -76,17 +76,18 @@ try_pipx_install() {
 # Create/use a virtualenv for argostranslate
 setup_venv() {
     # Use /tmp for pip cache to avoid home directory quota issues
-    export PIP_CACHE_DIR="/tmp/.pip_cache_$(id -u)"
+    PIP_CACHE_DIR="/tmp/.pip_cache_$(id -u)"
+    export PIP_CACHE_DIR
     mkdir -p "$PIP_CACHE_DIR"
-    
+
     if [[ ! -d "$VENV_DIR" ]]; then
         log_info "Creating virtual environment at $VENV_DIR..."
         python -m venv "$VENV_DIR"
     fi
-    
+
     # Activate venv
     source "$VENV_DIR/bin/activate"
-    
+
     # Install argostranslate if not present
     if ! python -c "import argostranslate" 2>/dev/null; then
         log_info "Installing argostranslate in virtualenv (this may take a few minutes)..."
@@ -95,18 +96,18 @@ setup_venv() {
         pip install --progress-bar on --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
         pip install --progress-bar on --no-cache-dir argostranslate
     fi
-    
+
     # Install langdetect for auto language detection
     if ! python -c "import langdetect" 2>/dev/null; then
         log_info "Installing langdetect for auto language detection..."
         pip install --progress-bar on --no-cache-dir langdetect
     fi
-    
+
     # Also ensure other dependencies are available
     if [[ -f "${SCRIPT_DIR}/../../requirements.txt" ]]; then
         pip install --progress-bar on --no-cache-dir -r "${SCRIPT_DIR}/../../requirements.txt" 2>/dev/null || true
     fi
-    
+
     log_info "Using virtualenv: $VENV_DIR"
 }
 
@@ -115,7 +116,7 @@ main() {
     # Resolve file paths to absolute before changing directories
     local resolved_args
     resolved_args=$(resolve_file_paths)
-    
+
     # If --no-translate is passed, we don't need argostranslate
     if [[ " $* " =~ " --no-translate " ]] || [[ " $* " =~ " -n " ]]; then
         log_info "Running without translation (--no-translate)"
@@ -123,7 +124,7 @@ main() {
         python -m python_pkg.word_frequency.anki_generator $resolved_args
         exit $?
     fi
-    
+
     # Check if argostranslate is already available
     if check_argos; then
         log_info "argostranslate is available"
@@ -131,20 +132,20 @@ main() {
         python -m python_pkg.word_frequency.anki_generator $resolved_args
         exit $?
     fi
-    
+
     log_warn "argostranslate not found in system Python"
-    
+
     # Try pipx first (cleaner system-wide installation)
     if try_pipx_install && check_argos; then
         cd "$(dirname "$SCRIPT_DIR")" && cd ..
         python -m python_pkg.word_frequency.anki_generator $resolved_args
         exit $?
     fi
-    
+
     # Fall back to virtualenv
     log_info "Setting up virtualenv with argostranslate..."
     setup_venv
-    
+
     # Run in venv context
     cd "$(dirname "$SCRIPT_DIR")" && cd ..
     python -m python_pkg.word_frequency.anki_generator $resolved_args
