@@ -70,8 +70,36 @@ def get_district_names() -> list[str]:
 WARSAW_DISTRICTS = get_district_names()
 
 
+# 18 unique distinct colors for all Warsaw districts
+# Chosen to be visually distinct from each other in both light and dark modes
+DISTRICT_COLORS = [
+    "#E74C3C",  # Red
+    "#3498DB",  # Blue
+    "#2ECC71",  # Emerald green
+    "#9B59B6",  # Purple
+    "#F39C12",  # Orange
+    "#1ABC9C",  # Turquoise
+    "#E91E63",  # Pink
+    "#00BCD4",  # Cyan
+    "#8BC34A",  # Light green
+    "#FF5722",  # Deep orange
+    "#673AB7",  # Deep purple
+    "#FFEB3B",  # Yellow
+    "#795548",  # Brown
+    "#607D8B",  # Blue grey
+    "#CDDC39",  # Lime
+    "#FF9800",  # Amber
+    "#4CAF50",  # Green
+    "#03A9F4",  # Light blue
+]
+
+
 def create_district_map(district_name: str) -> Figure:
-    """Create a map showing Warsaw districts with one district highlighted.
+    """Create a map showing Warsaw with one district highlighted.
+
+    The map shows Warsaw as a plain shape (no internal district borders)
+    with only the target district highlighted in color with a bold border.
+    This makes it harder to guess the district using contextual cues.
 
     Args:
         district_name: Name of the district to highlight.
@@ -82,22 +110,38 @@ def create_district_map(district_name: str) -> Figure:
     # Load all district data
     gdf = load_district_data()
 
-    # Create figure
+    # Create figure with transparent background
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.set_aspect("equal")
     ax.axis("off")
+    fig.patch.set_alpha(0)
+    ax.patch.set_alpha(0)
 
-    # Plot all districts with light gray borders
-    gdf.boundary.plot(ax=ax, color="lightgray", linewidth=0.5, alpha=0.5)
-
-    # Find and highlight the target district
+    # Find the target district
     target = gdf[gdf["name"] == district_name]
     if len(target) == 0:
         msg = f"District {district_name} not found in data"
         raise ValueError(msg)
 
-    # Plot the highlighted district with bold black border
-    target.boundary.plot(ax=ax, color="black", linewidth=3)
+    # Create unified Warsaw shape by dissolving all districts
+    warsaw_unified = gdf.union_all()
+
+    # Plot Warsaw as a plain gray shape (no internal borders)
+    warsaw_gdf = gpd.GeoDataFrame(geometry=[warsaw_unified], crs=gdf.crs)
+    warsaw_gdf.plot(ax=ax, color="#D5D8DC", alpha=0.6)
+    warsaw_gdf.boundary.plot(ax=ax, color="#2C3E50", linewidth=2)
+
+    # Assign colors to districts based on sorted names for consistency
+    sorted_names = sorted(gdf["name"].tolist())
+    color_map = {
+        name: DISTRICT_COLORS[i % len(DISTRICT_COLORS)]
+        for i, name in enumerate(sorted_names)
+    }
+
+    # Highlight only the target district with bright color and bold border
+    fill_color = color_map[district_name]
+    target.plot(ax=ax, color=fill_color, alpha=0.9)
+    target.boundary.plot(ax=ax, color="#1A1A1A", linewidth=4)
 
     # Set tight layout
     ax.set_xlim(gdf.total_bounds[0], gdf.total_bounds[2])
@@ -143,7 +187,41 @@ def generate_anki_package(
     )
     model_id = int(model_id_hash.hexdigest()[:8], 16)
 
-    # Define the note model (card template)
+    # Define the note model (card template) with centered styling
+    card_css = """
+.card {
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    text-align: center;
+    color: #333;
+    background-color: #fff;
+}
+.card.night_mode {
+    color: #eee;
+    background-color: #2f2f2f;
+}
+.map-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+}
+.map-container img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+.answer-text {
+    font-size: 32px;
+    font-weight: bold;
+    margin-top: 20px;
+    color: #2C3E50;
+}
+.card.night_mode .answer-text {
+    color: #ECF0F1;
+}
+"""
+
     my_model = genanki.Model(
         model_id,
         "Warsaw District Model",
@@ -154,10 +232,13 @@ def generate_anki_package(
         templates=[
             {
                 "name": "Card 1",
-                "qfmt": "{{DistrictMap}}",
-                "afmt": '{{FrontSide}}<hr id="answer">{{DistrictName}}',
+                "qfmt": '<div class="map-container">{{DistrictMap}}</div>',
+                "afmt": '<div class="map-container">{{DistrictMap}}</div>'
+                '<hr id="answer">'
+                '<div class="answer-text">{{DistrictName}}</div>',
             },
         ],
+        css=card_css,
     )
 
     # Create a unique deck ID based on deck name
@@ -234,9 +315,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Determine output path
-    output_path = (
-        Path(args.output) if args.output else Path("warsaw_districts.apkg")
-    )
+    output_path = Path(args.output) if args.output else Path("warsaw_districts.apkg")
 
     try:
         num_districts = len(WARSAW_DISTRICTS)
