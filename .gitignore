@@ -258,3 +258,15 @@ python_pkg/music_gen/output/
 python_pkg/screen_locker/sick_day_state.json
 python_pkg/screen_locker/workout_log.json.bak
 preview_images
+# Anki generated packages (large binary files)
+*.apkg
+
+# Geographic data cache (can be regenerated)
+python_pkg/geo_cache/
+
+# Local venvs in subpackages
+python_pkg/*/.venv/
+python_pkg/*/cache/
+
+# Large geojson files that can be downloaded
+python_pkg/warsaw_districts/warszawa-dzielnice.geojson
