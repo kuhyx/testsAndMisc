@@ -111,7 +111,7 @@ def create_gmina_map(
 
     # Plot the highlighted gmina
     gmina_gdf.plot(ax=ax, color=fill_color, alpha=0.9)
-    gmina_gdf.boundary.plot(ax=ax, color="#1A1A1A", linewidth=3)
+    gmina_gdf.boundary.plot(ax=ax, color="#1A1A1A", linewidth=1.5)
 
     # Set bounds to Poland
     bounds = poland_boundary.total_bounds
