@@ -21,7 +21,13 @@ from urllib.request import urlopen
 
 import geopandas as gpd
 import requests
-from shapely.geometry import LineString, MultiLineString
+from shapely.geometry import (
+    GeometryCollection,
+    LineString,
+    MultiLineString,
+    MultiPolygon,
+    Polygon,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -48,10 +54,52 @@ REQUEST_TIMEOUT = 180
 MAX_RETRIES = 3
 RETRY_DELAY = 5
 
+# Data thresholds for filtering
+MIN_PEAK_ELEVATION = 300  # meters
+MIN_LAKE_AREA_KM2 = 0.5  # km²
+MIN_RIVER_LENGTH_KM = 10  # km
+MIN_LINE_COORDS = 2  # minimum coordinates for a line
+MIN_RING_COORDS = 4  # minimum coordinates for a polygon ring
+
 
 def _ensure_cache_dir() -> None:
     """Create cache directory if it doesn't exist."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _extract_polygonal_geometry(
+    geom: Polygon | MultiPolygon | GeometryCollection,
+) -> Polygon | MultiPolygon | None:
+    """Extract only polygonal geometry from a geometry that may be mixed.
+
+    Some OSM data comes as GeometryCollections containing polygons mixed with
+    lines. This function extracts only the polygon/multipolygon parts.
+
+    Args:
+        geom: Input geometry (Polygon, MultiPolygon, or GeometryCollection).
+
+    Returns:
+        Polygon or MultiPolygon with only the polygonal parts, or None if empty.
+    """
+    if isinstance(geom, Polygon | MultiPolygon):
+        return geom
+
+    if isinstance(geom, GeometryCollection):
+        polygons = [g for g in geom.geoms if isinstance(g, Polygon | MultiPolygon)]
+        if not polygons:
+            return None
+        if len(polygons) == 1:
+            return polygons[0]
+        # Flatten MultiPolygons and combine all polygons
+        all_polys = []
+        for p in polygons:
+            if isinstance(p, Polygon):
+                all_polys.append(p)
+            elif isinstance(p, MultiPolygon):
+                all_polys.extend(p.geoms)
+        return MultiPolygon(all_polys)
+
+    return None
 
 
 def _query_wikidata(query: str) -> list[dict[str, Any]]:
@@ -761,6 +809,125 @@ def _build_osiedla_geometry(
     }
 
 
+def _extract_polygon_from_element(
+    element: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Extract polygon geometry from an OSM relation or way element.
+
+    Args:
+        element: OSM element (relation or way).
+
+    Returns:
+        GeoJSON geometry dict, or None if extraction fails.
+    """
+    if element.get("type") == "relation":
+        outer_rings, inner_rings = _extract_osiedla_rings(element, MIN_RING_COORDS)
+        if not outer_rings:
+            return None
+        return _build_osiedla_geometry(outer_rings, inner_rings)
+
+    if element.get("type") == "way" and "geometry" in element:
+        coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+        if len(coords) < MIN_RING_COORDS:
+            return None
+        if coords[0] != coords[-1]:
+            coords.append(coords[0])
+        return {"type": "Polygon", "coordinates": [coords]}
+
+    return None
+
+
+def _extract_line_from_way(element: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract line geometry from an OSM way element.
+
+    Args:
+        element: OSM way element.
+
+    Returns:
+        GeoJSON LineString geometry dict, or None if extraction fails.
+    """
+    if element.get("type") != "way" or "geometry" not in element:
+        return None
+
+    coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+    if len(coords) < MIN_LINE_COORDS:
+        return None
+
+    return {"type": "LineString", "coordinates": coords}
+
+
+def _add_area_column(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Add area_km2 column to a GeoDataFrame.
+
+    Args:
+        gdf: GeoDataFrame with polygon geometries.
+
+    Returns:
+        GeoDataFrame with area_km2 column added.
+    """
+    if len(gdf) == 0:
+        return gdf
+    gdf_proj = gdf.to_crs("EPSG:2180")  # Polish coordinate system
+    gdf["area_km2"] = gdf_proj.geometry.area / 1_000_000
+    return gdf
+
+
+def _add_length_column(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Add length_km column to a GeoDataFrame.
+
+    Args:
+        gdf: GeoDataFrame with line geometries.
+
+    Returns:
+        GeoDataFrame with length_km column added.
+    """
+    if len(gdf) == 0:
+        return gdf
+    gdf_proj = gdf.to_crs("EPSG:2180")  # Polish coordinate system
+    gdf["length_km"] = gdf_proj.geometry.length / 1000
+    return gdf
+
+
+def _extract_coastal_geometry(
+    element: dict[str, Any],
+    natural_type: str,
+    line_types: tuple[str, ...],
+) -> dict[str, Any] | None:
+    """Extract geometry from a coastal feature element.
+
+    For cliffs and beaches, returns LineString. For others, returns Polygon.
+
+    Args:
+        element: OSM element.
+        natural_type: The natural= tag value.
+        line_types: Tuple of natural types that should be lines.
+
+    Returns:
+        GeoJSON geometry dict, or None if extraction fails.
+    """
+    if element.get("type") == "relation":
+        return _extract_polygon_from_element(element)
+
+    if element.get("type") != "way" or "geometry" not in element:
+        return None
+
+    coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+    if len(coords) < MIN_LINE_COORDS:
+        return None
+
+    # For cliffs and beaches, keep as linestring
+    if natural_type in line_types:
+        return {"type": "LineString", "coordinates": coords}
+
+    # Otherwise try to make a polygon
+    if len(coords) >= MIN_RING_COORDS:
+        if coords[0] != coords[-1]:
+            coords.append(coords[0])
+        return {"type": "Polygon", "coordinates": [coords]}
+
+    return None
+
+
 def get_warsaw_osiedla() -> gpd.GeoDataFrame:
     """Get Warsaw osiedla (neighborhoods).
 
@@ -868,7 +1035,7 @@ def get_polish_powiaty() -> gpd.GeoDataFrame:
 
 
 def get_polish_gminy() -> gpd.GeoDataFrame:
-    """Get Polish gminy (municipalities) from OSM.
+    """Get Polish gminy (municipalities) from OSM, sorted by area descending.
 
     Returns:
         GeoDataFrame with gminy boundaries.
@@ -876,7 +1043,10 @@ def get_polish_gminy() -> gpd.GeoDataFrame:
     cache_path = CACHE_DIR / "polish_gminy.geojson"
 
     if cache_path.exists():
-        return gpd.read_file(cache_path)
+        gdf = gpd.read_file(cache_path)
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
 
     sys.stdout.write("Fetching gminy data from OSM (this may take a while)...\n")
     # Polish gminy are admin_level=7 in OSM
@@ -919,7 +1089,12 @@ def get_polish_gminy() -> gpd.GeoDataFrame:
     cache_path.write_text(json.dumps(geojson))
 
     sys.stdout.write(f"Cached {len(features)} gminy.\n")
-    return gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+
+    # Add area column
+    gdf = _add_area_column(gdf)
+
+    return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
 
 
 def get_poland_boundary() -> gpd.GeoDataFrame:
@@ -943,6 +1118,794 @@ def get_poland_boundary() -> gpd.GeoDataFrame:
     poland.to_file(cache_path, driver="GeoJSON")
 
     return poland
+
+
+# =============================================================================
+# Polish Natural Features
+# =============================================================================
+
+
+def get_polish_mountain_peaks() -> gpd.GeoDataFrame:
+    """Get Polish mountain peaks, sorted by elevation descending.
+
+    Returns:
+        GeoDataFrame with mountain peak points and elevation.
+    """
+    cache_path = CACHE_DIR / "polish_mountain_peaks.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        return gdf.sort_values("elevation", ascending=False).reset_index(drop=True)
+
+    sys.stdout.write("Fetching mountain peaks data from OSM...\n")
+    query = """
+    [out:json][timeout:120];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      node["natural"="peak"]["name"]["ele"](area.pl);
+    );
+    out;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+
+    for element in data.get("elements", []):
+        if element.get("type") != "node":
+            continue
+
+        name = element.get("tags", {}).get("name", "")
+        ele_str = element.get("tags", {}).get("ele", "")
+
+        if not name or not ele_str or name in seen_names:
+            continue
+
+        with contextlib.suppress(ValueError):
+            elevation = float(ele_str.replace(",", ".").split()[0])
+            if elevation < MIN_PEAK_ELEVATION:
+                continue
+
+            seen_names.add(name)
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"name": name, "elevation": elevation},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [element["lon"], element["lat"]],
+                    },
+                }
+            )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} mountain peaks.\n")
+
+    if not features:
+        msg = "No mountain peaks found in OSM data"
+        raise ValueError(msg)
+
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    return gdf.sort_values("elevation", ascending=False).reset_index(drop=True)
+
+
+def get_polish_mountain_ranges() -> gpd.GeoDataFrame:
+    """Get Polish mountain ranges, sorted by area descending.
+
+    Returns:
+        GeoDataFrame with mountain range polygons.
+    """
+    cache_path = CACHE_DIR / "polish_mountain_ranges.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        # Fix invalid geometries from OSM data and extract only polygons
+        gdf["geometry"] = gdf.geometry.make_valid()
+        gdf["geometry"] = gdf.geometry.apply(_extract_polygonal_geometry)
+        gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty]
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching mountain ranges data from OSM...\n")
+    query = """
+    [out:json][timeout:180];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["natural"="mountain_range"]["name"](area.pl);
+      way["natural"="mountain_range"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+    min_ring_coords = 4
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        if element.get("type") == "relation":
+            outer_rings, inner_rings = _extract_osiedla_rings(element, min_ring_coords)
+            if not outer_rings:
+                continue
+            geometry = _build_osiedla_geometry(outer_rings, inner_rings)
+        elif element.get("type") == "way" and "geometry" in element:
+            coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+            if len(coords) < min_ring_coords:
+                continue
+            if coords[0] != coords[-1]:
+                coords.append(coords[0])
+            geometry = {"type": "Polygon", "coordinates": [coords]}
+        else:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} mountain ranges.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+
+    # Fix invalid geometries from OSM data and extract only polygons
+    gdf["geometry"] = gdf.geometry.make_valid()
+    gdf["geometry"] = gdf.geometry.apply(_extract_polygonal_geometry)
+    gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty]
+
+    # Calculate area in km²
+    gdf_proj = gdf.to_crs("EPSG:2180")  # Polish coordinate system
+    gdf["area_km2"] = gdf_proj.geometry.area / 1_000_000
+
+    return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+
+
+def get_polish_national_parks() -> gpd.GeoDataFrame:
+    """Get all 23 Polish national parks, sorted by area descending.
+
+    Returns:
+        GeoDataFrame with national park polygons.
+    """
+    cache_path = CACHE_DIR / "polish_national_parks.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching national parks data from OSM...\n")
+    query = """
+    [out:json][timeout:180];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["boundary"="national_park"]["name"](area.pl);
+      relation["leisure"="nature_reserve"]["name"]["protect_class"="2"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+    min_ring_coords = 4
+
+    for element in data.get("elements", []):
+        if element.get("type") != "relation":
+            continue
+
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        # Filter to only include "Park Narodowy" in name
+        if "Narodowy" not in name and "narodowy" not in name.lower():
+            continue
+
+        outer_rings, inner_rings = _extract_osiedla_rings(element, min_ring_coords)
+        if not outer_rings:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {"name": name},
+                "geometry": _build_osiedla_geometry(outer_rings, inner_rings),
+            }
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} national parks.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+
+    # Calculate area in km²
+    gdf_proj = gdf.to_crs("EPSG:2180")
+    gdf["area_km2"] = gdf_proj.geometry.area / 1_000_000
+
+    return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+
+
+def get_polish_forests() -> gpd.GeoDataFrame:
+    """Get major Polish forests (puszcze), sorted by area descending.
+
+    Returns:
+        GeoDataFrame with forest polygons.
+    """
+    cache_path = CACHE_DIR / "polish_forests.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching forests data from OSM...\n")
+    # Query for named forests, especially "Puszcza" type
+    query = """
+    [out:json][timeout:300];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["natural"="wood"]["name"](area.pl);
+      relation["landuse"="forest"]["name"~"Puszcza|Bory|Las"](area.pl);
+      way["natural"="wood"]["name"~"Puszcza|Bory"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+    forest_keywords = ("Puszcza", "Bory", "Las ", "Lasy ")
+
+    features = []
+    seen_names: set[str] = set()
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+        if not any(keyword in name for keyword in forest_keywords):
+            continue
+
+        geometry = _extract_polygon_from_element(element)
+        if geometry is None:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} forests.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = _add_area_column(gdf)
+
+    if len(gdf) > 0:
+        return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+    return gdf
+
+
+def get_polish_lakes() -> gpd.GeoDataFrame:
+    """Get Polish lakes, sorted by area descending.
+
+    Returns:
+        GeoDataFrame with lake polygons.
+    """
+    cache_path = CACHE_DIR / "polish_lakes.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching lakes data from OSM...\n")
+    query = """
+    [out:json][timeout:300];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["natural"="water"]["water"="lake"]["name"](area.pl);
+      way["natural"="water"]["water"="lake"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        geometry = _extract_polygon_from_element(element)
+        if geometry is None:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} lakes.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = _add_area_column(gdf)
+
+    if len(gdf) > 0:
+        # Filter to lakes > MIN_LAKE_AREA_KM2 to exclude tiny ponds
+        gdf = gdf[gdf["area_km2"] > MIN_LAKE_AREA_KM2]
+        return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+
+    return gdf
+
+
+def _extract_river_coords_from_element(
+    element: dict[str, Any],
+) -> list[list[tuple[float, float]]]:
+    """Extract coordinate lists from a river element.
+
+    Args:
+        element: OSM element (way or relation).
+
+    Returns:
+        List of coordinate lists (line segments).
+    """
+    coord_lists: list[list[tuple[float, float]]] = []
+
+    if element.get("type") == "way" and "geometry" in element:
+        coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+        if len(coords) >= MIN_LINE_COORDS:
+            coord_lists.append(coords)
+    elif element.get("type") == "relation":
+        for member in element.get("members", []):
+            if member.get("type") == "way" and "geometry" in member:
+                coords = [(p["lon"], p["lat"]) for p in member["geometry"]]
+                if len(coords) >= MIN_LINE_COORDS:
+                    coord_lists.append(coords)
+
+    return coord_lists
+
+
+def get_polish_rivers() -> gpd.GeoDataFrame:
+    """Get Polish rivers, sorted by length descending.
+
+    Rivers with the same name but in different locations are kept separate
+    by using unique IDs from OSM when available.
+
+    Returns:
+        GeoDataFrame with river linestrings.
+    """
+    cache_path = CACHE_DIR / "polish_rivers.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "length_km" in gdf.columns:
+            return gdf.sort_values("length_km", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching rivers data from OSM...\n")
+    query = """
+    [out:json][timeout:300];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["waterway"="river"]["name"](area.pl);
+      way["waterway"="river"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    # Group ways by river name AND wikidata ID (or OSM ID for uniqueness)
+    # This prevents merging different rivers with the same name
+    rivers_by_key: dict[str, list[list[tuple[float, float]]]] = {}
+    river_names: dict[str, str] = {}  # key -> display name
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name:
+            continue
+
+        # Use wikidata ID if available, otherwise use element type+id
+        wikidata = element.get("tags", {}).get("wikidata", "")
+        if wikidata:
+            key = f"{name}_{wikidata}"
+        else:
+            # Fall back to element ID for grouping related ways
+            key = f"{name}_{element.get('type')}_{element.get('id')}"
+
+        coord_lists = _extract_river_coords_from_element(element)
+        if coord_lists:
+            rivers_by_key.setdefault(key, []).extend(coord_lists)
+            river_names[key] = name
+
+    features = []
+    for key, coord_lists in rivers_by_key.items():
+        name = river_names[key]
+        geometry: dict[str, Any]
+        if len(coord_lists) == 1:
+            geometry = {"type": "LineString", "coordinates": coord_lists[0]}
+        else:
+            geometry = {"type": "MultiLineString", "coordinates": coord_lists}
+
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} rivers.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = _add_length_column(gdf)
+
+    if len(gdf) > 0:
+        gdf = gdf[gdf["length_km"] > MIN_RIVER_LENGTH_KM]
+        return gdf.sort_values("length_km", ascending=False).reset_index(drop=True)
+
+    return gdf
+
+
+def get_polish_islands() -> gpd.GeoDataFrame:
+    """Get Polish islands, sorted by area descending.
+
+    Returns:
+        GeoDataFrame with island polygons.
+    """
+    cache_path = CACHE_DIR / "polish_islands.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching islands data from OSM...\n")
+    query = """
+    [out:json][timeout:180];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["place"="island"]["name"](area.pl);
+      way["place"="island"]["name"](area.pl);
+      relation["place"="islet"]["name"](area.pl);
+      way["place"="islet"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        geometry = _extract_polygon_from_element(element)
+        if geometry is None:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} islands.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = _add_area_column(gdf)
+
+    if len(gdf) > 0:
+        return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+    return gdf
+
+
+def get_polish_coastal_features() -> gpd.GeoDataFrame:
+    """Get Polish coastal features (peninsulas, spits, cliffs), sorted by length.
+
+    Returns:
+        GeoDataFrame with coastal feature geometries.
+    """
+    cache_path = CACHE_DIR / "polish_coastal_features.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "length_km" in gdf.columns:
+            return gdf.sort_values("length_km", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching coastal features data from OSM...\n")
+    query = """
+    [out:json][timeout:180];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["natural"="peninsula"]["name"](area.pl);
+      way["natural"="peninsula"]["name"](area.pl);
+      relation["natural"="spit"]["name"](area.pl);
+      way["natural"="spit"]["name"](area.pl);
+      relation["natural"="cliff"]["name"](area.pl);
+      way["natural"="cliff"]["name"](area.pl);
+      relation["natural"="coastline"]["name"](area.pl);
+      way["natural"="beach"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+    line_types = ("cliff", "beach", "coastline")
+
+    features = []
+    seen_names: set[str] = set()
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        natural_type = element.get("tags", {}).get("natural", "")
+        if not name or name in seen_names:
+            continue
+
+        geometry = _extract_coastal_geometry(element, natural_type, line_types)
+        if geometry is None:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {"name": name, "type": natural_type},
+                "geometry": geometry,
+            }
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} coastal features.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = _add_length_column(gdf)
+
+    if len(gdf) > 0:
+        return gdf.sort_values("length_km", ascending=False).reset_index(drop=True)
+    return gdf
+
+
+def get_polish_unesco_sites() -> gpd.GeoDataFrame:
+    """Get Polish UNESCO World Heritage Sites, sorted by inscription year.
+
+    Returns:
+        GeoDataFrame with UNESCO site geometries.
+    """
+    cache_path = CACHE_DIR / "polish_unesco_sites.geojson"
+
+    if cache_path.exists():
+        return gpd.read_file(cache_path)
+
+    sys.stdout.write("Fetching UNESCO sites data from OSM...\n")
+    query = """
+    [out:json][timeout:180];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["heritage"="world_heritage_site"]["name"](area.pl);
+      way["heritage"="world_heritage_site"]["name"](area.pl);
+      node["heritage"="world_heritage_site"]["name"](area.pl);
+      relation["heritage:operator"="whc"]["name"](area.pl);
+      way["heritage:operator"="whc"]["name"](area.pl);
+      node["heritage:operator"="whc"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+    min_ring_coords = 4
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        if element.get("type") == "node":
+            geometry = {
+                "type": "Point",
+                "coordinates": [element["lon"], element["lat"]],
+            }
+        elif element.get("type") == "relation":
+            outer_rings, inner_rings = _extract_osiedla_rings(element, min_ring_coords)
+            if not outer_rings:
+                continue
+            geometry = _build_osiedla_geometry(outer_rings, inner_rings)
+        elif element.get("type") == "way" and "geometry" in element:
+            coords = [(p["lon"], p["lat"]) for p in element["geometry"]]
+            if len(coords) < min_ring_coords:
+                continue
+            if coords[0] != coords[-1]:
+                coords.append(coords[0])
+            geometry = {"type": "Polygon", "coordinates": [coords]}
+        else:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} UNESCO sites.\n")
+    return gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+
+
+def get_polish_nature_reserves() -> gpd.GeoDataFrame:
+    """Get Polish nature reserves, sorted by area descending.
+
+    Returns:
+        GeoDataFrame with nature reserve polygons.
+    """
+    cache_path = CACHE_DIR / "polish_nature_reserves.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write(
+        "Fetching nature reserves data from OSM (this may take a while)...\n"
+    )
+    query = """
+    [out:json][timeout:600];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["leisure"="nature_reserve"]["name"](area.pl);
+      way["leisure"="nature_reserve"]["name"](area.pl);
+      relation["boundary"="protected_area"]["protect_class"="4"]["name"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+
+    for element in data.get("elements", []):
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        geometry = _extract_polygon_from_element(element)
+        if geometry is None:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {"type": "Feature", "properties": {"name": name}, "geometry": geometry}
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} nature reserves.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = _add_area_column(gdf)
+
+    if len(gdf) > 0:
+        return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+    return gdf
+
+
+def get_polish_landscape_parks() -> gpd.GeoDataFrame:
+    """Get Polish landscape parks, sorted by area descending.
+
+    Returns:
+        GeoDataFrame with landscape park polygons.
+    """
+    cache_path = CACHE_DIR / "polish_landscape_parks.geojson"
+
+    if cache_path.exists():
+        gdf = gpd.read_file(cache_path)
+        # Fix invalid geometries from OSM data and extract only polygons
+        gdf["geometry"] = gdf.geometry.make_valid()
+        gdf["geometry"] = gdf.geometry.apply(_extract_polygonal_geometry)
+        # Remove any rows where geometry extraction failed
+        gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty]
+        if "area_km2" in gdf.columns:
+            return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+        return gdf
+
+    sys.stdout.write("Fetching landscape parks data from OSM...\n")
+    query = """
+    [out:json][timeout:300];
+    area["ISO3166-1"="PL"]->.pl;
+    (
+      relation["boundary"="protected_area"]["protect_class"="5"]["name"](area.pl);
+      relation["leisure"="nature_reserve"]["name"~"Park Krajobrazowy"](area.pl);
+    );
+    out geom;
+    """
+
+    data = _overpass_query(query)
+
+    features = []
+    seen_names: set[str] = set()
+    min_ring_coords = 4
+
+    for element in data.get("elements", []):
+        if element.get("type") != "relation":
+            continue
+
+        name = element.get("tags", {}).get("name", "")
+        if not name or name in seen_names:
+            continue
+
+        outer_rings, inner_rings = _extract_osiedla_rings(element, min_ring_coords)
+        if not outer_rings:
+            continue
+
+        seen_names.add(name)
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {"name": name},
+                "geometry": _build_osiedla_geometry(outer_rings, inner_rings),
+            }
+        )
+
+    _ensure_cache_dir()
+    geojson = {"type": "FeatureCollection", "features": features}
+    cache_path.write_text(json.dumps(geojson, ensure_ascii=False))
+
+    sys.stdout.write(f"Cached {len(features)} landscape parks.\n")
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+
+    # Fix invalid geometries from OSM data and extract only polygons
+    gdf["geometry"] = gdf.geometry.make_valid()
+    gdf["geometry"] = gdf.geometry.apply(_extract_polygonal_geometry)
+    # Remove any rows where geometry extraction failed
+    gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty]
+
+    if len(gdf) > 0:
+        gdf_proj = gdf.to_crs("EPSG:2180")
+        gdf["area_km2"] = gdf_proj.geometry.area / 1_000_000
+        return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)
+
+    return gdf
 
 
 # =============================================================================

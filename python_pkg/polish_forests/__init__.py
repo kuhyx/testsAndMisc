@@ -1,0 +1,1 @@
+"""Polish forests Anki generator."""
