@@ -208,7 +208,8 @@ class TestGenerateAnkiPackage:
         """Test that download errors are handled gracefully."""
         test_codes = {200: "OK", 404: "Not Found"}
 
-        def mock_download(code: int, *, use_cache: bool) -> bytes:  # noqa: ARG001
+        def mock_download(code: int, *, use_cache: bool) -> bytes:
+            del use_cache  # Intentionally unused in test mock
             error_msg = "Failed"
             if code == 404:
                 raise requests.exceptions.RequestException(error_msg)
