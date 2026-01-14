@@ -268,5 +268,8 @@ python_pkg/geo_cache/
 python_pkg/*/.venv/
 python_pkg/*/cache/
 
+# HTTP cat image cache
+python_pkg/download_cats/http_cat_cache/
+
 # Large geojson files that can be downloaded
 python_pkg/warsaw_districts/warszawa-dzielnice.geojson
