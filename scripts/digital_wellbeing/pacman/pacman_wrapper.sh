@@ -17,6 +17,50 @@ declare -a BLOCKED_KEYWORDS_LIST=()
 declare -a WHITELISTED_NAMES_LIST=()
 declare -a GREYLISTED_KEYWORDS_LIST=()
 POLICY_LISTS_LOADED=0
+INTEGRITY_DIR="/var/lib/pacman-wrapper"
+INTEGRITY_FILE="${INTEGRITY_DIR}/policy.sha256"
+
+# Verify integrity of policy files
+verify_policy_integrity() {
+  if [[ ! -f $INTEGRITY_FILE ]]; then
+    echo -e "${RED}SECURITY WARNING: Policy integrity file missing!${NC}" >&2
+    echo -e "${RED}The pacman wrapper may have been tampered with.${NC}" >&2
+    echo -e "${RED}Please reinstall the wrapper using: sudo install_pacman_wrapper.sh${NC}" >&2
+    return 1
+  fi
+
+  local script_dir
+  script_dir="$(dirname "$(readlink -f "$0")")"
+  local blocked_file="$script_dir/pacman_blocked_keywords.txt"
+  local greylist_file="$script_dir/pacman_greylist.txt"
+  local whitelist_file="$script_dir/pacman_whitelist.txt"
+
+  # Verify checksums
+  local failed=0
+  while IFS= read -r line; do
+    local expected_hash expected_file
+    expected_hash=$(echo "$line" | awk '{print $1}')
+    expected_file=$(echo "$line" | awk '{print $2}')
+    
+    if [[ -f $expected_file ]]; then
+      local actual_hash
+      actual_hash=$(sha256sum "$expected_file" 2>/dev/null | awk '{print $1}')
+      if [[ $actual_hash != "$expected_hash" ]]; then
+        echo -e "${RED}SECURITY WARNING: Policy file integrity check failed for $expected_file${NC}" >&2
+        failed=1
+      fi
+    fi
+  done < "$INTEGRITY_FILE"
+
+  if [[ $failed -eq 1 ]]; then
+    echo -e "${RED}CRITICAL: Policy files have been tampered with!${NC}" >&2
+    echo -e "${RED}This could be an attempt to bypass security restrictions.${NC}" >&2
+    echo -e "${RED}Wrapper operation DENIED. Please reinstall using: sudo install_pacman_wrapper.sh${NC}" >&2
+    return 1
+  fi
+
+  return 0
+}
 
 load_policy_lists() {
   if [[ $POLICY_LISTS_LOADED -eq 1 ]]; then
@@ -409,9 +453,20 @@ function is_steam_package() {
   [[ $1 == "steam" ]]
 }
 
+# Helper to check if a package name is VirtualBox (hardcoded, cannot be bypassed by editing policy files)
+function is_virtualbox_package() {
+  local pkg_lower="${1,,}"
+  [[ $pkg_lower == *"virtualbox"* || $pkg_lower == *"vbox"* ]]
+}
+
 # Function to check if user is trying to install steam (challenge-eligible package)
 function check_for_steam() {
   check_install_for is_steam_package "$@"
+}
+
+# Function to check if user is trying to install VirtualBox (hardcoded enforcement)
+function check_for_virtualbox() {
+  check_install_for is_virtualbox_package "$@"
 }
 
 # Function to check if current day is a weekday (after 4PM Friday until midnight Sunday)
@@ -581,10 +636,36 @@ function prompt_for_greylist_challenge() {
   run_word_challenge "Greylist" 6 120 90 30 15 20
 }
 
+# Function to prompt for VirtualBox installation (enhanced security, hardcoded)
+function prompt_for_virtualbox_challenge() {
+  echo -e "${RED}═══════════════════════════════════════════════════════${NC}"
+  echo -e "${RED}         VIRTUALBOX INSTALLATION ATTEMPT DETECTED       ${NC}"
+  echo -e "${RED}═══════════════════════════════════════════════════════${NC}"
+  echo -e "${YELLOW}WARNING: You are trying to install VirtualBox.${NC}"
+  echo -e "${YELLOW}This package can be used to bypass /etc/hosts restrictions.${NC}"
+  echo -e ""
+  echo -e "${CYAN}Security measures will be automatically applied:${NC}"
+  echo -e "  1. VMs will use host's DNS resolution"
+  echo -e "  2. Host's /etc/hosts will be shared with VMs (read-only)"
+  echo -e "  3. Policy enforcement cannot be disabled via file editing"
+  echo -e ""
+  echo -e "${YELLOW}This is a HARDCODED restriction that cannot be bypassed by${NC}"
+  echo -e "${YELLOW}modifying policy files or reinstalling the wrapper.${NC}"
+  echo -e ""
+  
+  # More difficult challenge: word_length=7, words_count=150, timeout=120s, initial_delay=45, post_delay=30-50
+  run_word_challenge "VirtualBox Security" 7 150 120 45 30 20
+}
+
 # Check for wrapper-specific commands
 if [[ $1 == "--help-wrapper" ]]; then
   show_help
   exit 0
+fi
+
+# CRITICAL: Verify policy file integrity before any operations
+if ! verify_policy_integrity; then
+  exit 1
 fi
 
 # Before any pacman action, ensure maintenance services exist
@@ -602,6 +683,13 @@ fi
 # Check for steam (challenge-eligible package)
 if check_for_steam "$@"; then
   if ! prompt_for_steam_challenge; then
+    exit 1
+  fi
+fi
+
+# Check for VirtualBox (HARDCODED - cannot be bypassed by editing policy files)
+if check_for_virtualbox "$@"; then
+  if ! prompt_for_virtualbox_challenge; then
     exit 1
   fi
 fi
@@ -655,6 +743,72 @@ remove_installed_blocked_packages "$@"
 
 # Also remove installed greylisted packages
 remove_installed_greylisted_packages "$@"
+
+# If VirtualBox was involved in this operation, enforce hosts file sharing
+enforce_vbox_hosts_if_needed() {
+  # Only check after install operations
+  if [[ -z ${1:-} ]]; then
+    return 0
+  fi
+  
+  if [[ $1 != "-S"* && $1 != "-U"* ]]; then
+    return 0
+  fi
+  
+  # Check if ANY VirtualBox package is installed (use broader search)
+  local vbox_installed=0
+  if "$PACMAN_BIN" -Qq 2>/dev/null | grep -Eq '^(virtualbox|vbox)'; then
+    vbox_installed=1
+  fi
+  
+  if [[ $vbox_installed -eq 0 ]]; then
+    return 0
+  fi
+  
+  # Locate the enforcement script
+  local script_dir
+  script_dir="$(dirname "$(readlink -f "$0")")"
+  local vbox_enforce_script=""
+  
+  # Try to find the enforcement script
+  if [[ -f "$script_dir/../virtualbox/enforce_vbox_hosts.sh" ]]; then
+    vbox_enforce_script="$script_dir/../virtualbox/enforce_vbox_hosts.sh"
+  elif [[ -f "$HOME/linux-configuration/scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh" ]]; then
+    vbox_enforce_script="$HOME/linux-configuration/scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
+  elif [[ -f "/usr/local/share/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh" ]]; then
+    vbox_enforce_script="/usr/local/share/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
+  fi
+  
+  if [[ -z $vbox_enforce_script ]]; then
+    echo -e "${YELLOW}VirtualBox detected but enforcement script not found. Hosts file may not be enforced in VMs.${NC}" >&2
+    return 0
+  fi
+  
+  # Check if enforcement is already applied
+  if bash "$vbox_enforce_script" check > /dev/null 2>&1; then
+    return 0
+  fi
+  
+  # VirtualBox is installed but enforcement not applied - this is critical
+  echo -e "${YELLOW}VirtualBox detected. Applying /etc/hosts enforcement to VMs...${NC}" >&2
+  # Note: The wrapper may be running as non-root user (via sudo pacman), but enforcement
+  # script needs root. We check EUID to avoid double sudo if already running as root.
+  if [[ $EUID -ne 0 ]]; then
+    if ! sudo bash "$vbox_enforce_script" enforce; then
+      echo -e "${RED}CRITICAL: Failed to enforce hosts on VirtualBox VMs!${NC}" >&2
+      echo -e "${RED}VMs may bypass /etc/hosts restrictions. Please run manually:${NC}" >&2
+      echo -e "${RED}  sudo $vbox_enforce_script enforce${NC}" >&2
+    fi
+  else
+    if ! bash "$vbox_enforce_script" enforce; then
+      echo -e "${RED}CRITICAL: Failed to enforce hosts on VirtualBox VMs!${NC}" >&2
+      echo -e "${RED}VMs may bypass /etc/hosts restrictions. Please run manually:${NC}" >&2
+      echo -e "${RED}  $vbox_enforce_script enforce${NC}" >&2
+    fi
+  fi
+}
+
+enforce_vbox_hosts_if_needed "$@"
 
 # Display some helpful tips depending on the operation
 if [[ $1 == "-S" || $1 == "-S "* ]] && [ $exit_code -eq 0 ]; then

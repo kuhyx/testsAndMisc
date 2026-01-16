@@ -28,6 +28,11 @@ WORDS_DEST="${INSTALL_DIR}/words.txt"
 BLOCKED_DEST="${INSTALL_DIR}/pacman_blocked_keywords.txt"
 WHITELIST_DEST="${INSTALL_DIR}/pacman_whitelist.txt"
 GREYLIST_DEST="${INSTALL_DIR}/pacman_greylist.txt"
+INTEGRITY_DIR="/var/lib/pacman-wrapper"
+INTEGRITY_FILE="${INTEGRITY_DIR}/policy.sha256"
+VBOX_ENFORCE_SOURCE="$(dirname "$0")/../virtualbox/enforce_vbox_hosts.sh"
+VBOX_INSTALL_DIR="/usr/local/share/digital_wellbeing/virtualbox"
+VBOX_ENFORCE_DEST="${VBOX_INSTALL_DIR}/enforce_vbox_hosts.sh"
 # Check if script is run as root
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Please run as root${NC}"
@@ -78,8 +83,73 @@ fi
 # Update the PACMAN_BIN variable in the wrapper to point to the original
 sed -i 's|PACMAN_BIN="\/usr\/bin\/pacman"|PACMAN_BIN="\/usr\/bin\/pacman.orig"|g' "$WRAPPER_DEST"
 
+# Create integrity directory if it doesn't exist
+mkdir -p "$INTEGRITY_DIR"
+chmod 755 "$INTEGRITY_DIR"
+
+# Generate checksums of policy files for integrity verification
+echo -e "${BLUE}Generating integrity checksums for policy files...${NC}"
+
+# Ensure all critical policy files exist before checksumming
+missing_files=()
+[[ ! -f "$BLOCKED_DEST" ]] && missing_files+=("$BLOCKED_DEST")
+[[ ! -f "$GREYLIST_DEST" ]] && missing_files+=("$GREYLIST_DEST")
+
+if [[ ${#missing_files[@]} -gt 0 ]]; then
+  echo -e "${RED}Error: Critical policy files are missing:${NC}"
+  printf '%s\n' "${missing_files[@]}" >&2
+  echo -e "${RED}Installation incomplete. Cannot create integrity file.${NC}"
+  exit 1
+fi
+
+{
+  sha256sum "$BLOCKED_DEST" || { echo -e "${RED}Failed to checksum blocked list${NC}" >&2; exit 1; }
+  sha256sum "$GREYLIST_DEST" || { echo -e "${RED}Failed to checksum greylist${NC}" >&2; exit 1; }
+  # Whitelist is optional
+  if [[ -f "$WHITELIST_DEST" ]]; then
+    sha256sum "$WHITELIST_DEST" || { echo -e "${RED}Failed to checksum whitelist${NC}" >&2; exit 1; }
+  fi
+} > "$INTEGRITY_FILE"
+
+# Verify integrity file was created and has content
+if [[ ! -s "$INTEGRITY_FILE" ]]; then
+  echo -e "${RED}Error: Integrity file was not created or is empty${NC}"
+  exit 1
+fi
+
+# Make integrity file immutable
+chmod 400 "$INTEGRITY_FILE"
+if command -v chattr > /dev/null 2>&1; then
+  chattr +i "$INTEGRITY_FILE" 2>/dev/null || echo -e "${YELLOW}Warning: Could not make integrity file immutable${NC}"
+fi
+
+# Make policy files immutable to prevent easy tampering
+echo -e "${BLUE}Protecting policy files from modification...${NC}"
+if command -v chattr > /dev/null 2>&1; then
+  chattr +i "$BLOCKED_DEST" 2>/dev/null || echo -e "${YELLOW}Warning: Could not make blocked list immutable${NC}"
+  chattr +i "$GREYLIST_DEST" 2>/dev/null || echo -e "${YELLOW}Warning: Could not make greylist immutable${NC}"
+  # Note: whitelist is intentionally left modifiable for user convenience
+else
+  echo -e "${YELLOW}Warning: chattr not available, policy files will not be immutable${NC}"
+fi
+
+# Install VirtualBox enforcement script if available
+if [ -f "$VBOX_ENFORCE_SOURCE" ]; then
+  echo -e "${BLUE}Installing VirtualBox hosts enforcement script...${NC}"
+  mkdir -p "$VBOX_INSTALL_DIR"
+  cp "$VBOX_ENFORCE_SOURCE" "$VBOX_ENFORCE_DEST"
+  chmod +x "$VBOX_ENFORCE_DEST"
+  echo -e "${GREEN}VirtualBox enforcement script installed to ${VBOX_ENFORCE_DEST}${NC}"
+else
+  echo -e "${YELLOW}VirtualBox enforcement script not found, skipping...${NC}"
+fi
+
 # Create symbolic link
 echo -e "${BLUE}Creating symbolic link...${NC}"
 ln -sf "$WRAPPER_DEST" /usr/bin/pacman
 echo -e "${GREEN}Installation complete!${NC}"
 echo -e "Pacman is now wrapped. The original pacman is available at ${CYAN}/usr/bin/pacman.orig${NC}"
+echo -e "${CYAN}Policy files are now protected with immutable attributes.${NC}"
+if [ -f "$VBOX_ENFORCE_DEST" ]; then
+  echo -e "${CYAN}VirtualBox VMs will automatically be configured to use host's /etc/hosts.${NC}"
+fi
