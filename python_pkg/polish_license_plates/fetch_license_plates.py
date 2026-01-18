@@ -35,6 +35,15 @@ except ImportError:
     )
     sys.exit(1)
 
+# Constants
+MIN_TABLE_COLUMNS = 2  # Minimum columns needed to extract code and location
+MAX_CODE_LENGTH = 4  # Maximum length for a valid license plate code
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"  # Updated to recent version
+)
+
 
 def fetch_wikipedia_license_plates() -> dict[str, str]:
     """Fetch Polish license plate codes from Wikipedia.
@@ -46,11 +55,7 @@ def fetch_wikipedia_license_plates() -> dict[str, str]:
         RuntimeError: If the page cannot be fetched or parsed.
     """
     url = "https://en.wikipedia.org/wiki/Vehicle_registration_plates_of_Poland"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/91.0.4472.124 Safari/537.36"
-    }
+    headers = {"User-Agent": USER_AGENT}
 
     sys.stdout.write(f"Fetching data from {url}...\n")
 
@@ -83,7 +88,7 @@ def fetch_wikipedia_license_plates() -> dict[str, str]:
         for row in rows[1:]:  # Skip header row
             cells = row.find_all(["td", "th"])
 
-            if len(cells) >= 2:  # noqa: PLR2004
+            if len(cells) >= MIN_TABLE_COLUMNS:
                 # Extract code and location
                 code_text = cells[0].get_text(strip=True)
                 location_text = cells[1].get_text(strip=True)
@@ -92,7 +97,7 @@ def fetch_wikipedia_license_plates() -> dict[str, str]:
                 code = re.sub(r"[^A-Z]", "", code_text.upper())
 
                 # Skip if code is invalid
-                if not code or len(code) > 4:  # noqa: PLR2004
+                if not code or len(code) > MAX_CODE_LENGTH:
                     continue
 
                 # Clean up location text (remove citations, extra spaces)
