@@ -8,6 +8,7 @@ and creates an Anki deck with bidirectional flashcards for memorization.
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass, field
 import hashlib
 import logging
 from pathlib import Path
@@ -215,6 +216,8 @@ def generate_anki_package(
     text-align: center;
     color: #333;
     background-color: #fff;
+    margin: 0;
+    padding: 0;
 }
 .card.night_mode {
     color: #eee;
@@ -250,9 +253,26 @@ def generate_anki_package(
     object-fit: contain;
     border-radius: 10px;
 }
+.fullscreen-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+.fullscreen-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
 """
 
-    # Model 1: Status Code -> Image + Description
+    # Model 1: Status Code -> Image (full screen, description is in the image)
     model_code_to_desc = genanki.Model(
         model_id_code_to_desc,
         "HTTP Status Code to Description",
@@ -265,16 +285,13 @@ def generate_anki_package(
             {
                 "name": "Code to Description",
                 "qfmt": '<div class="status-code">{{StatusCode}}</div>',
-                "afmt": '<div class="status-code">{{StatusCode}}</div>'
-                '<hr id="answer">'
-                '<div class="description">{{Description}}</div>'
-                '<div class="image-container">{{Image}}</div>',
+                "afmt": '<div class="fullscreen-image">{{Image}}</div>',
             },
         ],
         css=card_css,
     )
 
-    # Model 2: Description -> Status Code
+    # Model 2: Description -> Status Code (show text, then reveal cat image)
     model_desc_to_code = genanki.Model(
         model_id_desc_to_code,
         "HTTP Status Description to Code",
@@ -286,12 +303,8 @@ def generate_anki_package(
         templates=[
             {
                 "name": "Description to Code",
-                "qfmt": '<div class="description">{{Description}}</div>'
-                '<div class="image-container">{{Image}}</div>',
-                "afmt": '<div class="description">{{Description}}</div>'
-                '<div class="image-container">{{Image}}</div>'
-                '<hr id="answer">'
-                '<div class="status-code">{{StatusCode}}</div>',
+                "qfmt": '<div class="description">{{Description}}</div>',
+                "afmt": '<div class="fullscreen-image">{{Image}}</div>',
             },
         ],
         css=card_css,
@@ -301,47 +314,72 @@ def generate_anki_package(
     deck_id_hash = hashlib.md5(deck_name.encode(), usedforsecurity=False)
     deck_id = int(deck_id_hash.hexdigest()[:8], 16)
 
-    my_deck = genanki.Deck(deck_id, deck_name)
-    media_files = []
+    builder = _DeckBuilder(
+        deck=genanki.Deck(deck_id, deck_name),
+        model_code_to_desc=model_code_to_desc,
+        model_desc_to_code=model_desc_to_code,
+        use_cache=use_cache,
+    )
 
     for status_code, description in status_codes.items():
+        builder.add_status_code_cards(status_code, description)
+
+    package = genanki.Package(builder.deck)
+    package.media_files = builder.media_files
+    return package
+
+
+@dataclass
+class _DeckBuilder:
+    """Helper class to build Anki deck with HTTP status code cards."""
+
+    deck: genanki.Deck
+    model_code_to_desc: genanki.Model
+    model_desc_to_code: genanki.Model
+    use_cache: bool
+    media_files: list[str] = field(default_factory=list)
+
+    def add_status_code_cards(self, status_code: int, description: str) -> None:
+        """Add flashcards for a single HTTP status code.
+
+        Args:
+            status_code: HTTP status code.
+            description: Description of the status code.
+        """
         try:
-            image_data = get_or_download_image(status_code, use_cache=use_cache)
-            filename = f"http_cat_{status_code}.jpg"
-
-            # Save to temp directory for genanki
-            temp_path = Path(f"/tmp/{filename}")  # noqa: S108
-            temp_path.write_bytes(image_data)
-            media_files.append(str(temp_path))
-
-            image_html = f'<img src="{filename}">'
-
-            # Add card: Code -> Description + Image
-            note_code_to_desc = genanki.Note(
-                model=model_code_to_desc,
-                fields=[str(status_code), description, image_html],
-                tags=["http", "status-codes", "programming"],
-            )
-            my_deck.add_note(note_code_to_desc)
-
-            # Add card: Description + Image -> Code
-            note_desc_to_code = genanki.Note(
-                model=model_desc_to_code,
-                fields=[str(status_code), description, image_html],
-                tags=["http", "status-codes", "programming"],
-            )
-            my_deck.add_note(note_desc_to_code)
-
-            _logger.info("Added cards for status code %d", status_code)
-
+            image_data = get_or_download_image(status_code, use_cache=self.use_cache)
         except requests.exceptions.RequestException:
             _logger.exception(
                 "Failed to download image for status code %d", status_code
             )
+            return
 
-    package = genanki.Package(my_deck)
-    package.media_files = media_files
-    return package
+        filename = f"http_cat_{status_code}.jpg"
+
+        # Save to temp directory for genanki
+        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path.write_bytes(image_data)
+        self.media_files.append(str(temp_path))
+
+        image_html = f'<img src="{filename}">'
+
+        # Add card: Code -> Description + Image
+        note_code_to_desc = genanki.Note(
+            model=self.model_code_to_desc,
+            fields=[str(status_code), description, image_html],
+            tags=["http", "status-codes", "programming"],
+        )
+        self.deck.add_note(note_code_to_desc)
+
+        # Add card: Description + Image -> Code
+        note_desc_to_code = genanki.Note(
+            model=self.model_desc_to_code,
+            fields=[str(status_code), description, image_html],
+            tags=["http", "status-codes", "programming"],
+        )
+        self.deck.add_note(note_desc_to_code)
+
+        _logger.info("Added cards for status code %d", status_code)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
