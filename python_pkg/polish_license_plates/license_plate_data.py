@@ -25,6 +25,14 @@ The database is organized by voivodeships in alphabetical order:
 - W: Mazowieckie
 - Z: Zachodniopomorskie
 
+Data source:
+    Wikipedia - Vehicle registration plates of Poland
+    https://en.wikipedia.org/wiki/Vehicle_registration_plates_of_Poland
+
+Note:
+    This data can be automatically updated by running:
+    python -m python_pkg.polish_license_plates.fetch_license_plates
+
 Examples:
     WA = Warszawa (Warsaw)
     KR = Kraków
