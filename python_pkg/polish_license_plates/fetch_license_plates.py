@@ -104,10 +104,15 @@ def fetch_wikipedia_html(*, force_refresh: bool = False) -> str:
 
     # Check if we can use cache
     if not force_refresh and is_cache_valid(cache_path):
-        sys.stdout.write(f"Using cached data from {cache_path}\n")
-        cache_age_hours = int((time.time() - cache_path.stat().st_mtime) / 3600)
-        sys.stdout.write(f"Cache age: {cache_age_hours} hours\n")
-        return cache_path.read_text(encoding="utf-8")
+        try:
+            sys.stdout.write(f"Using cached data from {cache_path}\n")
+            cache_age_hours = int((time.time() - cache_path.stat().st_mtime) / 3600)
+            sys.stdout.write(f"Cache age: {cache_age_hours} hours\n")
+            return cache_path.read_text(encoding="utf-8")
+        except OSError as e:
+            sys.stderr.write(f"Warning: Failed to read cache: {e}\n")
+            sys.stderr.write("Fetching fresh data from Wikipedia...\n")
+            # Fall through to fetch from Wikipedia
 
     # Fetch from Wikipedia
     url = "https://en.wikipedia.org/wiki/Vehicle_registration_plates_of_Poland"
@@ -126,8 +131,12 @@ def fetch_wikipedia_html(*, force_refresh: bool = False) -> str:
         raise RuntimeError(msg) from e
 
     # Cache the response
-    cache_path.write_text(response.text, encoding="utf-8")
-    sys.stdout.write(f"Cached response to {cache_path}\n")
+    try:
+        cache_path.write_text(response.text, encoding="utf-8")
+        sys.stdout.write(f"Cached response to {cache_path}\n")
+    except OSError as e:
+        sys.stderr.write(f"Warning: Failed to write cache: {e}\n")
+        # Continue anyway - the data was fetched successfully
 
     return response.text
 
