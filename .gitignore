@@ -273,3 +273,6 @@ python_pkg/download_cats/http_cat_cache/
 
 # Large geojson files that can be downloaded
 python_pkg/warsaw_districts/warszawa-dzielnice.geojson
+
+# Wikipedia cache (can be refreshed)
+python_pkg/polish_license_plates/.wikipedia_cache/
