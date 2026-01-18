@@ -53,8 +53,14 @@ python -m python_pkg.polish_license_plates.polish_license_plates_anki \
 To fetch the latest data from Wikipedia:
 
 ```bash
+# Use cached data if available (default)
 python -m python_pkg.polish_license_plates.fetch_license_plates
+
+# Force refresh from Wikipedia (ignore cache)
+python -m python_pkg.polish_license_plates.fetch_license_plates --force
 ```
+
+**Caching**: Downloaded Wikipedia data is cached for 7 days in `.wikipedia_cache/` to avoid unnecessary requests. Use `--force` to bypass the cache.
 
 This will update `license_plate_data.py` with the current codes from Wikipedia.
 
