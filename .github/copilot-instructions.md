@@ -41,3 +41,23 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
 - Add new periodic behaviors as templates under `scripts/system-maintenance/bin` and `.../systemd`, then extend `setup_periodic_system.sh` to install/enable them.
 - Extend package policy by updating `scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt` or by adding `check_for_<pkg>` + `prompt_for_<pkg>_challenge` blocks in the wrapper.
 - Run `scripts/meta/shell_check.sh` to detect things to fix before committing.
+## Detailed LLM Documentation
+
+For in-depth understanding of specific components, see these dedicated guides:
+
+- **Hosts Guard**: [hosts/guard/README_FOR_LLM.md](../hosts/guard/README_FOR_LLM.md) - Protection layers, canonical copies, path watchers
+- **Pacman Wrapper**: [scripts/digital_wellbeing/pacman/README_FOR_LLM.md](../scripts/digital_wellbeing/pacman/README_FOR_LLM.md) - Policy files, integrity checks, challenges
+- **Midnight Shutdown**: [scripts/digital_wellbeing/README_MIDNIGHT_SHUTDOWN_LLM.md](../scripts/digital_wellbeing/README_MIDNIGHT_SHUTDOWN_LLM.md) - Schedule protection, timer system
+- **Compulsive Block**: [scripts/digital_wellbeing/README_COMPULSIVE_BLOCK_LLM.md](../scripts/digital_wellbeing/README_COMPULSIVE_BLOCK_LLM.md) - App launch limiting
+- **Security Analysis**: [docs/SECURITY_HARDENING_ANALYSIS.md](../docs/SECURITY_HARDENING_ANALYSIS.md) - Vulnerabilities and implementation roadmap
+
+## Digital Wellbeing Components Summary
+
+| Component | Purpose | Key Files |
+|-----------|---------|-----------|
+| Hosts Guard | Block websites via /etc/hosts | `hosts/install.sh`, `hosts/guard/*` |
+| Pacman Wrapper | Block package installation | `scripts/digital_wellbeing/pacman/*` |
+| Midnight Shutdown | Auto-shutdown at night | `scripts/digital_wellbeing/setup_midnight_shutdown.sh` |
+| Compulsive Block | Limit app launches | `scripts/digital_wellbeing/block_compulsive_opening.sh` |
+| Music Wrapper | Block music during focus | `scripts/digital_wellbeing/youtube-music-wrapper.sh` |
+| Screen Locker | Require workout to unlock | External: `~/testsAndMisc/python_pkg/screen_locker/` |
