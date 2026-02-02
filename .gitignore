@@ -276,3 +276,4 @@ python_pkg/warsaw_districts/warszawa-dzielnice.geojson
 
 # Wikipedia cache (can be refreshed)
 python_pkg/polish_license_plates/.wikipedia_cache/
+python_pkg/cinema_planner/pasted_content.txt

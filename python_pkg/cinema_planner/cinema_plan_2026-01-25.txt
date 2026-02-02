@@ -1,0 +1,176 @@
+Generated: 2026-01-25
+Movies considered: 27
+Buffer time: 0 minutes
+Excluded genres: horror
+
+============================================================
+  OPTIMAL CINEMA SCHEDULES - 2026-01-25
+  8 movies, 1482 possible combination(s)
+============================================================
+
+────────────────────────────────────────────────────────────
+  OPTION 1:
+────────────────────────────────────────────────────────────
+
+  1. 10:00 - 11:50  Wielka Warszawska
+     Duration: 1h 50m (movie starts ~10:15)
+     [10 min break]
+
+  2. 12:00 - 13:27  Szybcy i sprytni
+     Duration: 1h 27m (movie starts ~12:15)
+
+  3. 13:20 - 14:57  Anzu. Kot duch
+     Duration: 1h 37m (movie starts ~13:35)
+     [3 min break]
+
+  4. 15:00 - 16:38  Psoty
+     Duration: 1h 38m (movie starts ~15:15)
+     [12 min break]
+
+  5. 16:50 - 18:33  Wysokie i niskie tony
+     Duration: 1h 43m (movie starts ~17:05)
+
+  6. 18:20 - 19:50  90 minut do wolności
+     Duration: 1h 30m (movie starts ~18:35)
+     [30 min break]
+
+  7. 20:20 - 22:25  Hamnet
+     Duration: 2h 5m (movie starts ~20:35)
+     [5 min break]
+
+  8. 22:30 - 24:10  Anakonda
+     Duration: 1h 40m (movie starts ~22:45)
+
+────────────────────────────────────────────────────────────
+  OPTION 2:
+────────────────────────────────────────────────────────────
+
+  1. 10:00 - 11:50  Wielka Warszawska
+     Duration: 1h 50m (movie starts ~10:15)
+     [10 min break]
+
+  2. 12:00 - 13:27  Szybcy i sprytni
+     Duration: 1h 27m (movie starts ~12:15)
+
+  3. 13:20 - 14:57  Anzu. Kot duch
+     Duration: 1h 37m (movie starts ~13:35)
+     [13 min break]
+
+  4. 15:10 - 16:38  SpongeBob: Klątwa pirata
+     Duration: 1h 28m (movie starts ~15:25)
+     [12 min break]
+
+  5. 16:50 - 18:33  Wysokie i niskie tony
+     Duration: 1h 43m (movie starts ~17:05)
+
+  6. 18:20 - 19:50  90 minut do wolności
+     Duration: 1h 30m (movie starts ~18:35)
+     [30 min break]
+
+  7. 20:20 - 22:25  Hamnet
+     Duration: 2h 5m (movie starts ~20:35)
+     [5 min break]
+
+  8. 22:30 - 24:10  Anakonda
+     Duration: 1h 40m (movie starts ~22:45)
+
+────────────────────────────────────────────────────────────
+  OPTION 3:
+────────────────────────────────────────────────────────────
+
+  1. 10:00 - 11:50  Wielka Warszawska
+     Duration: 1h 50m (movie starts ~10:15)
+     [10 min break]
+
+  2. 12:00 - 13:27  Szybcy i sprytni
+     Duration: 1h 27m (movie starts ~12:15)
+     [3 min break]
+
+  3. 13:30 - 15:18  Zwierzogród 2
+     Duration: 1h 48m (movie starts ~13:45)
+
+  4. 15:10 - 16:38  SpongeBob: Klątwa pirata
+     Duration: 1h 28m (movie starts ~15:25)
+     [12 min break]
+
+  5. 16:50 - 18:33  Wysokie i niskie tony
+     Duration: 1h 43m (movie starts ~17:05)
+
+  6. 18:20 - 19:50  90 minut do wolności
+     Duration: 1h 30m (movie starts ~18:35)
+     [30 min break]
+
+  7. 20:20 - 22:25  Hamnet
+     Duration: 2h 5m (movie starts ~20:35)
+     [5 min break]
+
+  8. 22:30 - 24:10  Anakonda
+     Duration: 1h 40m (movie starts ~22:45)
+
+────────────────────────────────────────────────────────────
+  OPTION 4:
+────────────────────────────────────────────────────────────
+
+  1. 10:00 - 11:50  Wielka Warszawska
+     Duration: 1h 50m (movie starts ~10:15)
+     [10 min break]
+
+  2. 12:00 - 13:27  Szybcy i sprytni
+     Duration: 1h 27m (movie starts ~12:15)
+
+  3. 13:20 - 14:57  Anzu. Kot duch
+     Duration: 1h 37m (movie starts ~13:35)
+     [3 min break]
+
+  4. 15:00 - 16:38  Psoty
+     Duration: 1h 38m (movie starts ~15:15)
+     [12 min break]
+
+  5. 16:50 - 18:33  Wysokie i niskie tony
+     Duration: 1h 43m (movie starts ~17:05)
+
+  6. 18:20 - 19:50  90 minut do wolności
+     Duration: 1h 30m (movie starts ~18:35)
+     [30 min break]
+
+  7. 20:20 - 22:25  Hamnet
+     Duration: 2h 5m (movie starts ~20:35)
+
+  8. 22:15 - 24:02  Dom dobry
+     Duration: 1h 47m (movie starts ~22:30)
+
+────────────────────────────────────────────────────────────
+  OPTION 5:
+────────────────────────────────────────────────────────────
+
+  1. 10:00 - 11:50  Wielka Warszawska
+     Duration: 1h 50m (movie starts ~10:15)
+     [10 min break]
+
+  2. 12:00 - 13:27  Szybcy i sprytni
+     Duration: 1h 27m (movie starts ~12:15)
+
+  3. 13:20 - 14:57  Anzu. Kot duch
+     Duration: 1h 37m (movie starts ~13:35)
+     [13 min break]
+
+  4. 15:10 - 16:38  SpongeBob: Klątwa pirata
+     Duration: 1h 28m (movie starts ~15:25)
+     [12 min break]
+
+  5. 16:50 - 18:33  Wysokie i niskie tony
+     Duration: 1h 43m (movie starts ~17:05)
+
+  6. 18:20 - 19:50  90 minut do wolności
+     Duration: 1h 30m (movie starts ~18:35)
+     [30 min break]
+
+  7. 20:20 - 22:25  Hamnet
+     Duration: 2h 5m (movie starts ~20:35)
+
+  8. 22:15 - 24:02  Dom dobry
+     Duration: 1h 47m (movie starts ~22:30)
+
+────────────────────────────────────────────────────────────
+  ... and 1477 more combinations
+  (use -n to show more, e.g., -n 10)
