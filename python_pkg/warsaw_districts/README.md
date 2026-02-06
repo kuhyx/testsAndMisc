@@ -20,6 +20,7 @@ District boundaries are sourced from [andilabs/warszawa-dzielnice-geojson](https
 Install dependencies using your preferred method:
 
 ### Using pyenv (recommended)
+
 ```bash
 pyenv install 3.10  # or later
 pyenv shell 3.10
@@ -27,17 +28,20 @@ pip install matplotlib genanki geopandas
 ```
 
 ### Using pipx
+
 ```bash
 pipx install --python python3.10 matplotlib genanki geopandas
 ```
 
 ### Using system package manager (Arch Linux)
+
 ```bash
 sudo pacman -S python-matplotlib python-geopandas
 pip install genanki
 ```
 
 ### Using pip directly
+
 ```bash
 pip install matplotlib genanki geopandas
 ```
@@ -52,6 +56,7 @@ python -m python_pkg.warsaw_districts.warsaw_districts_anki
 ```
 
 This creates:
+
 - `warsaw_districts.apkg` - Self-contained Anki package with all images embedded
 
 ### Custom options

@@ -15,6 +15,7 @@ Generate Anki flashcards for HTTP status codes with cat images from [http.cat](h
 ## Installation
 
 Dependencies are already included in the main `requirements.txt`:
+
 - `requests` - For downloading images
 - `genanki` - For creating Anki packages
 

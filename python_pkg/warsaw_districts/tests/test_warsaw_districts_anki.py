@@ -56,7 +56,7 @@ class TestDistricts:
             "Mokotów",
             "Ochota",
             "Praga Południe",  # Note: space, not hyphen
-            "Praga Północ",     # Note: space, not hyphen
+            "Praga Północ",  # Note: space, not hyphen
             "Rembertów",
             "Śródmieście",
             "Targówek",
