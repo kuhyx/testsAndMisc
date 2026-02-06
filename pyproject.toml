@@ -282,6 +282,50 @@ partial_branches = [
 # vulture --min-confidence 80 --exclude ".venv,Bash" .
 
 # ============================================================================
+# FLAKE8 - Python linter (via Flake8-pyproject for pyproject.toml support)
+# ============================================================================
+[tool.flake8]
+# Maximum line length (matches ruff/black)
+max-line-length = 88
+# Maximum McCabe complexity (matches ruff C901 threshold)
+max-complexity = 10
+# Maximum cognitive complexity (flake8-cognitive-complexity)
+max-cognitive-complexity = 12
+# Maximum function length (flake8-functions)
+max-function-length = 50
+# Maximum returns/arguments per function
+max-returns = 6
+max-arguments = 5
+# Docstring convention (matches ruff)
+docstring-convention = "google"
+# Select all error codes
+select = ["E", "F", "W", "C", "B", "B950"]
+# Extend with plugin codes
+extend-select = ["B", "B9", "C4", "SIM", "PT", "TC", "ANN"]
+# Ignore rules that conflict with ruff-format or are duplicated
+extend-ignore = [
+    "E501",   # Line too long - B950 from bugbear is smarter (allows 10% overflow)
+    "W503",   # Line break before binary operator - contradicts PEP 8 update
+    "ANN101", # Missing type annotation for self
+    "ANN102", # Missing type annotation for cls
+]
+# Exclude directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "Bash/ffmpeg-build",
+]
+# Per-file ignores
+per-file-ignores = [
+    "**/tests/**/*.py:S101,ANN",
+    "**/test_*.py:S101,ANN",
+]
+
+# ============================================================================
 # PYDOCSTYLE - Docstring style checker (ruff handles this, but for standalone)
 # ============================================================================
 # Configured in ruff.lint.pydocstyle above

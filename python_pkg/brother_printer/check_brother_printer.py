@@ -13,6 +13,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass, field
 import fcntl
 import logging
@@ -243,11 +244,9 @@ def _drain_buffer(fd: int) -> None:
     """Read and discard any stale data from the USB buffer."""
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-    try:
+    with contextlib.suppress(OSError):
         while os.read(fd, 4096):
             pass
-    except (BlockingIOError, OSError):
-        pass
     fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
 
 
@@ -274,15 +273,13 @@ def pjl_query(fd: int, cmd: str, timeout_sec: float = 5.0) -> str:
         if readable:
             # Switch to non-blocking to read all available data
             fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-            try:
+            with contextlib.suppress(OSError):
                 while True:
                     chunk = os.read(fd, 4096)
                     if chunk:
                         response += chunk
                     else:
                         break
-            except (BlockingIOError, OSError):
-                pass
             fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
             # If we got meaningful PJL data, stop waiting
             if response and (b"=" in response or b"@PJL" in response):
