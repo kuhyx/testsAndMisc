@@ -292,9 +292,9 @@ max-complexity = 10
 # Maximum cognitive complexity (flake8-cognitive-complexity)
 max-cognitive-complexity = 12
 # Maximum function length (flake8-functions)
-max-function-length = 50
+max-function-length = 20
 # Maximum returns/arguments per function
-max-returns = 6
+max-returns-amount = 6
 max-arguments = 5
 # Docstring convention (matches ruff)
 docstring-convention = "google"
