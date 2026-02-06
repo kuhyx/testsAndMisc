@@ -45,6 +45,15 @@ BROWSER_PATTERNS = frozenset([
     "opera",
     "microsoft-edge",
     "ungoogled-chromium",
+    "thorium",
+])
+
+# Electron apps that should NOT be treated as browsers
+# These use Chromium under the hood but are not web browsers
+ELECTRON_IGNORE = frozenset([
+    "electron",
+    "code",  # VS Code
+    "chrome_crashpad",  # Crashpad handler used by all Electron apps
 ])
 
 # Patterns to ignore (browser helpers that aren't the main browser)
@@ -52,6 +61,7 @@ IGNORE_PATTERNS = frozenset([
     "crashhandler",
     "update",
     "helper",
+    "crashpad",
 ])
 
 
@@ -115,13 +125,14 @@ def is_steam_running(processes: Set[str]) -> bool:
 def is_browser_running(processes: Set[str]) -> bool:
     """Check if any browser is running."""
     for proc in processes:
-        # Skip ignored patterns
+        # Skip Electron apps and ignored patterns
+        if proc in ELECTRON_IGNORE:
+            continue
         if any(ign in proc for ign in IGNORE_PATTERNS):
             continue
-        # Check browser patterns
-        for pattern in BROWSER_PATTERNS:
-            if pattern in proc:
-                return True
+        # Use exact match to avoid false positives from Electron apps
+        if proc in BROWSER_PATTERNS:
+            return True
     return False
 
 

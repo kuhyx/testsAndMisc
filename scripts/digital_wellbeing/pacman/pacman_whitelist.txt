@@ -1,4 +1,5 @@
 # Exact package names that should bypass the block even if matching a keyword.
+thorium-browser-bin
 minizip
 miniupnpc
 haskell-generically

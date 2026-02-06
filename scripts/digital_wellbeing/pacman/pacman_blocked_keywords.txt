@@ -57,4 +57,3 @@ youtube
 google-chrome
 chromium
 ungoogled-chromium
-thorium
