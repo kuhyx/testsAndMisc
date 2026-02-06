@@ -1,0 +1,301 @@
+arch-wiki-docs
+# duh - using default linux for most compatibility
+linux
+# needed for compiling basically anything 
+distcc
+# probably already installed at this point 
+git
+# bluetooth 
+bluez
+bluez-utils
+# faster make 
+icmake
+# needed for some packages 
+yodl
+# open gl
+glu
+# sound
+pavucontrol-qt
+# faster compiling
+mold
+# faster unpacking 
+zstd
+lz4
+xz
+pigz
+lbzip2
+# needed for some packages 
+doxygen
+# programming languages needed for some packages
+tcl
+# ? Tool for optimizing the compression of PNG files
+pngcrush
+# compilers
+gcc-ada
+gcc-d
+# fonts for i3 ricing
+ttf-dejavu
+noto-fonts
+ttf-font-awesome
+# calculator
+bc
+# for battery - toDo ignore on desktop
+acpi
+# Programming language needed for some pakcages 
+cargo
+# opengl api 
+freeglut
+# Latex 
+texlive-plaingeneric
+docbook-xsl
+graphviz
+texlive-latexextra
+biber
+texlive-bibtexextra
+texlive-pictures
+texlive-fontsextra
+texlive-formatsextra
+texlive-pstricks
+texlive-games
+texlive-humanities
+texlive-science
+#  Node.js native addon build tool needed for some packages
+node-gyp
+# For writing uml diagrams - consider removing 
+plantuml
+# dependency hell injector
+npm
+# generates man pages from markdown - consider removing 
+ruby-ronn
+# for GO programming language 
+go-tools
+# ? Posssibly required by some packages - consider removing 
+asciidoctor
+# manuals
+man-db
+# git for large files like LLM 
+git-lfs
+# hell for servers
+nodejs
+# hell for desktop 
+electron
+# better npm 
+yarn
+# for compatibility of some packages
+openssl-1.1
+# needed for some packages 
+tk
+# needed for some packages jpeg 
+jasper
+# opencv dependency  
+libdc1394
+# needed for a lot of packages 
+cblas
+# Parsing Expression Grammar Template Library consider removing 
+pegtl
+# needed for a lot of packages
+hdf5
+# needed for a lot of packages
+proj
+# needed for a lot of packages
+gcc-fortran
+# needed for a lot of packages
+python-nose
+# needed for a lot of packages
+python-pyproject-metadata
+# needed for a lot of packages
+meson-python
+# needed for a lot of packages
+lapack
+# needed for a lot of packages
+python-numpy
+# needed for a lot of packages
+openmpi
+# needed for a lot of packages
+boost
+# needed for some packages
+suitesparse
+# needed for some packages
+vtk
+junit
+java-hamcrest
+ant
+chrpath
+source-highlight
+gdb
+python-markdown
+gtk-doc
+gobject-introspection
+cdparanoia
+adobe-source-sans-pro-fonts
+perl-font-ttf
+perl-sort-versions
+ttf-liberation
+aalib
+libcaca
+libdv
+qt5-wayland
+qt6-tools
+qt6-shadertools
+gst-plugins-base
+libgphoto2
+lapacke
+opencv
+vulkan-validation-layers
+libltc
+libavtp
+libmpcdec
+neon
+soundtouch
+wildmidi
+gtk2
+liblqr
+djvulibre
+imagemagick
+zbar
+wpewebkit
+openh264
+libmpeg2
+ladspa
+check
+lirc
+rtkit
+xmltoman
+python-pyqt5
+smbclient
+libomxil-bellagio
+rhash
+avisynthplus
+librist
+expac
+gn
+gperf
+lld
+lldb
+ocaml
+ocaml-ctypes
+python-pyparsing
+ffmpeg
+lua52
+cabextract
+mingw-w64-gcc
+lib32-gst-plugins-base-libs
+lib32-gnutls
+lib32-gmp
+lib32-libcups
+lib32-libpulse
+lib32-libxcomposite
+lib32-libxinerama
+lib32-opencl-icd-loader
+lib32-pcsclite
+lib32-sdl2
+lib32-v4l-utils
+samba
+lib32-attr
+lib32-libvpx
+libsoup
+lib32-libsoup
+lib32-speex
+steam
+steam-native-runtime
+fontforge
+python-pefile
+glib2-devel
+lib32-gtk3
+rust
+lib32-rust-libs
+python-booleanoperations
+python-brotli
+python-defcon
+python-fontmath
+python-fontpens
+python-fonttools
+python-fs
+python-tqdm
+python-ufoprocessor
+python-unicodedata2
+python-zopfli
+afdko
+pyside6
+python-pyaml
+python-zstandard
+zip
+#virtualbox
+#virtualbox-guest-iso
+#virtualbox-ext-vnc
+imath
+embree
+jdk-openjdk
+openjdk-doc
+openjdk-src
+libharu
+openxr
+opencolorio
+openimageio
+openvdb
+lttng-ust2.12
+opensubdiv
+openshadinglanguage
+blender
+p7zip
+udftools
+dotnet-runtime
+dotnet-sdk
+godot
+joyutils
+gparted
+xorg-xinput
+glew
+mangohud
+lib32-mangohud
+pcmanfm-gtk3
+tumbler
+ffmpegthumbnailer
+webp-pixbuf-loader
+poppler-glib
+freetype2
+libgsf
+totem
+evince
+gnome-epub-thumbnailer
+f3d
+python-dbus-next
+python-parse
+python-systemd
+python-colorlog
+zsh
+keepassxc
+ghostscript
+perl
+ruby
+texlive
+texlive-basic
+texlive-latex
+texlive-latexrecommended
+texlive-latexextra
+texlive-fontsrecommended
+texlive-fontsextra
+texlive-xetex
+texlive-luatex
+texlive-bibtexextra
+texlive-mathscience
+texlive-lang
+perl-yaml-tiny
+perl-file-homedir
+texlive-binextra
+texlive-plaingeneric
+linux-firmware-qlogic
+linux-firmware-bnx2x
+linux-firmware-liquidio
+linux-firmware-mellanox
+linux-firmware-nfp
+wine
+libaec
+pugixml
+gl2ps
+twolame
+yasm
+a52dec
+deluge
+screengrab
+python-poetry

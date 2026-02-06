@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+printf 'Running auto-fixers and shell_check before committing...\n'
+
+# Get list of staged shell files
+mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sh|bash|zsh)$' || true)
+
+if [[ ${#staged_files[@]} -gt 0 ]]; then
+  printf 'Auto-fixing %d shell file(s)...\n' "${#staged_files[@]}"
+
+  # Auto-fix with shfmt if available
+  if command -v shfmt > /dev/null 2>&1; then
+    printf '  → Running shfmt...\n'
+    for file in "${staged_files[@]}"; do
+      if [[ -f $file ]]; then
+        shfmt -w "$file" 2> /dev/null || true
+      fi
+    done
+  fi
+
+  # Re-stage the auto-fixed files
+  for file in "${staged_files[@]}"; do
+    if [[ -f $file ]]; then
+      git add "$file"
+    fi
+  done
+
+  printf '  ✓ Auto-fixes applied and staged\n'
+fi
+
+printf 'Running shell_check validation...\n'
+
+# Run shell_check to validate all checks
+# Note: We only validate the staged files since we just auto-formatted them
+# Validate only shellcheck, not shfmt (we already applied formatting)
+mapfile -d '' -t staged_shell_files < <(git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.(sh|bash|zsh)$' || true)
+
+if [[ ${#staged_shell_files[@]} -gt 0 ]]; then
+  # Run shellcheck on staged files
+  # -x: follow source directives
+  # -S warning: only fail on warning or higher (not info-level SC1091)
+  if command -v shellcheck > /dev/null 2>&1; then
+    if ! shellcheck -x -S warning "${staged_shell_files[@]}" 2>&1; then
+      printf '\nCommit aborted: shellcheck found issues.\n' >&2
+      printf 'Fix the remaining problems and retry the commit.\n' >&2
+      exit 1
+    fi
+  fi
+fi
+
+printf 'shell_check passed.\n'
+
+# Run duplicate code detection
+printf 'Running duplicate code detection...\n'
+
+JSCPD_BIN="${HOME}/.local/node_modules/.bin/jscpd"
+
+# Install jscpd if not present
+if [[ ! -x $JSCPD_BIN ]]; then
+  printf '  → jscpd not found, installing...\n'
+  if ! npm install --prefix ~/.local jscpd 2>&1; then
+    printf '\nCommit aborted: failed to install jscpd.\n' >&2
+    printf 'Please install manually: npm install --prefix ~/.local jscpd\n' >&2
+    exit 1
+  fi
+  printf '  ✓ jscpd installed\n'
+fi
+
+# Run jscpd and capture output
+# --min-lines 14: minimum 14 lines to consider a clone (ignores small boilerplate)
+# --min-tokens 25: minimum 25 tokens to consider a clone
+# --threshold 2: fail if more than 2% duplication
+jscpd_output=$("$JSCPD_BIN" \
+  --pattern "**/*.sh" \
+  --min-lines 14 \
+  --min-tokens 25 \
+  --threshold 2 \
+  --reporters "console" \
+  --ignore "**/node_modules/**,**/.git/**,**/misc/testsAndMisc-bash/**,**/*.txt" \
+  . 2>&1) || jscpd_exit=$?
+
+if [[ ${jscpd_exit:-0} -ne 0 ]]; then
+  printf '\n%s\n' "$jscpd_output"
+  printf '\nCommit aborted: duplicate code exceeds 2%% threshold.\n' >&2
+  printf 'Consider extracting common code to scripts/lib/common.sh\n' >&2
+  printf 'To see all duplicates: %s --pattern "**/*.sh" --min-lines 5 .\n' "$JSCPD_BIN" >&2
+  exit 1
+fi
+printf '  ✓ Duplication check passed (under 2%% threshold)\n'
+
+printf 'All checks passed. Proceeding with commit.\n'
