@@ -1,0 +1,1 @@
+"""Anki flashcard deck generators."""

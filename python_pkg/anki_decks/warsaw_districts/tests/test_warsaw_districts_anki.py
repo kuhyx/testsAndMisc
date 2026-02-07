@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pytest
 
 try:
-    from python_pkg.warsaw_districts.warsaw_districts_anki import (
+    from python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki import (
         WARSAW_DISTRICTS,
         create_district_map,
         generate_anki_package,
@@ -18,8 +18,8 @@ try:
 except ImportError:
     import sys
 
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-    from python_pkg.warsaw_districts.warsaw_districts_anki import (
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+    from python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki import (
         WARSAW_DISTRICTS,
         create_district_map,
         generate_anki_package,

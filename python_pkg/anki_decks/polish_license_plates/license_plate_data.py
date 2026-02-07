@@ -31,7 +31,7 @@ Data source:
 
 Note:
     This data can be automatically updated by running:
-    python -m python_pkg.polish_license_plates.fetch_license_plates
+    python -m python_pkg.anki_decks.polish_license_plates.fetch_license_plates
 
 Examples:
     WA = Warszawa (Warsaw)

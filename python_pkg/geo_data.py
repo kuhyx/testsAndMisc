@@ -262,7 +262,10 @@ def get_warsaw_boundary() -> gpd.GeoDataFrame:
 
     # Try to use districts file first
     districts_path = (
-        Path(__file__).parent / "warsaw_districts" / "warszawa-dzielnice.geojson"
+        Path(__file__).parent
+        / "anki_decks"
+        / "warsaw_districts"
+        / "warszawa-dzielnice.geojson"
     )
     if districts_path.exists():
         warsaw_gdf = gpd.read_file(districts_path)
@@ -315,7 +318,10 @@ def get_warsaw_districts() -> gpd.GeoDataFrame:
         GeoDataFrame with district boundaries.
     """
     districts_path = (
-        Path(__file__).parent / "warsaw_districts" / "warszawa-dzielnice.geojson"
+        Path(__file__).parent
+        / "anki_decks"
+        / "warsaw_districts"
+        / "warszawa-dzielnice.geojson"
     )
     if districts_path.exists():
         gdf = gpd.read_file(districts_path)

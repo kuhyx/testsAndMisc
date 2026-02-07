@@ -7,10 +7,11 @@ from OpenStreetMap.
 
 Usage:
     # Generate Anki cards for all Warsaw districts
-    python -m python_pkg.warsaw_districts.warsaw_districts_anki
+    python -m python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki
 
     # Specify custom output file
-    python -m python_pkg.warsaw_districts.warsaw_districts_anki --output warsaw.apkg
+    python -m python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki \
+        --output warsaw.apkg
 
 Output:
     Creates a self-contained .apkg file that can be directly imported into Anki.

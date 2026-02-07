@@ -9,10 +9,10 @@ Creates two types of cards:
 
 Usage:
     # Generate Anki cards for all Polish license plates
-    python -m python_pkg.polish_license_plates.polish_license_plates_anki
+    python -m python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki
 
     # Specify custom output file
-    python -m python_pkg.polish_license_plates.polish_license_plates_anki \
+    python -m python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki \
         --output plates.apkg
 
 Output:
@@ -30,7 +30,9 @@ from typing import TYPE_CHECKING
 
 import genanki
 
-from python_pkg.polish_license_plates.license_plate_data import LICENSE_PLATE_CODES
+from python_pkg.anki_decks.polish_license_plates.license_plate_data import (
+    LICENSE_PLATE_CODES,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

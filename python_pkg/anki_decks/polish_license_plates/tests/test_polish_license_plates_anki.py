@@ -7,21 +7,21 @@ from pathlib import Path
 import pytest
 
 try:
-    from python_pkg.polish_license_plates.license_plate_data import (
+    from python_pkg.anki_decks.polish_license_plates.license_plate_data import (
         LICENSE_PLATE_CODES,
     )
-    from python_pkg.polish_license_plates.polish_license_plates_anki import (
+    from python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki import (
         generate_anki_package,
         main,
     )
 except ImportError:
     import sys
 
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-    from python_pkg.polish_license_plates.license_plate_data import (
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+    from python_pkg.anki_decks.polish_license_plates.license_plate_data import (
         LICENSE_PLATE_CODES,
     )
-    from python_pkg.polish_license_plates.polish_license_plates_anki import (
+    from python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki import (
         generate_anki_package,
         main,
     )

@@ -27,7 +27,7 @@ Polish license plates use a system where:
 License plate data is automatically extracted from Wikipedia's authoritative table:
 
 - **Source**: [Vehicle registration plates of Poland](https://en.wikipedia.org/wiki/Vehicle_registration_plates_of_Poland)
-- **Update**: Run `python -m python_pkg.polish_license_plates.fetch_license_plates` to refresh data
+- **Update**: Run `python -m python_pkg.anki_decks.polish_license_plates.fetch_license_plates` to refresh data
 
 This ensures the codes are always based on the most current public information.
 
@@ -37,14 +37,14 @@ This ensures the codes are always based on the most current public information.
 
 ```bash
 # Generate with default settings
-python -m python_pkg.polish_license_plates.polish_license_plates_anki
+python -m python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki
 
 # Specify custom output file
-python -m python_pkg.polish_license_plates.polish_license_plates_anki \
+python -m python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki \
     --output my_plates.apkg
 
 # Use custom deck name
-python -m python_pkg.polish_license_plates.polish_license_plates_anki \
+python -m python_pkg.anki_decks.polish_license_plates.polish_license_plates_anki \
     --deck-name "My Polish Plates"
 ```
 
@@ -54,10 +54,10 @@ To fetch the latest data from Wikipedia:
 
 ```bash
 # Use cached data if available (default)
-python -m python_pkg.polish_license_plates.fetch_license_plates
+python -m python_pkg.anki_decks.polish_license_plates.fetch_license_plates
 
 # Force refresh from Wikipedia (ignore cache)
-python -m python_pkg.polish_license_plates.fetch_license_plates --force
+python -m python_pkg.anki_decks.polish_license_plates.fetch_license_plates --force
 ```
 
 **Caching**: Downloaded Wikipedia data is cached for 7 days in `.wikipedia_cache/` to avoid unnecessary requests. Use `--force` to bypass the cache.

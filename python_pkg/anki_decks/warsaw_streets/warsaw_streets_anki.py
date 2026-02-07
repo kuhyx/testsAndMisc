@@ -5,7 +5,7 @@ Generates Anki-compatible flashcard decks with maps showing individual
 Warsaw streets highlighted on a city map.
 
 Usage:
-    python -m python_pkg.warsaw_streets.warsaw_streets_anki
+    python -m python_pkg.anki_decks.warsaw_streets.warsaw_streets_anki
 
 Output:
     Creates a self-contained .apkg file that can be directly imported into Anki.

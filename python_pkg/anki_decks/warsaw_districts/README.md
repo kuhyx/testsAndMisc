@@ -52,7 +52,7 @@ pip install matplotlib genanki geopandas
 
 ```bash
 # From the repository root
-python -m python_pkg.warsaw_districts.warsaw_districts_anki
+python -m python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki
 ```
 
 This creates:
@@ -63,10 +63,10 @@ This creates:
 
 ```bash
 # Custom output file
-python -m python_pkg.warsaw_districts.warsaw_districts_anki --output my_cards.apkg
+python -m python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki --output my_cards.apkg
 
 # Custom deck name
-python -m python_pkg.warsaw_districts.warsaw_districts_anki --deck-name "Warszawa - Dzielnice"
+python -m python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki --deck-name "Warszawa - Dzielnice"
 ```
 
 ## Importing into Anki

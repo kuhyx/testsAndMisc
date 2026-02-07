@@ -1,0 +1,287 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ratusz-Arsena\u0142",
+        "line": "",
+        "osm_id": 35121250
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0008823, 52.2452163] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Marymont", "line": "", "osm_id": 291414851 },
+      "geometry": { "type": "Point", "coordinates": [20.9719399, 52.2715768] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Stare Bielany",
+        "line": "",
+        "osm_id": 307389114
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9493511, 52.2818277] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Wawrzyszew", "line": "", "osm_id": 307389115 },
+      "geometry": { "type": "Point", "coordinates": [20.939515, 52.2863474] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "M\u0142ociny", "line": "", "osm_id": 307389116 },
+      "geometry": { "type": "Point", "coordinates": [20.9298678, 52.2907703] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "S\u0142odowiec",
+        "line": "",
+        "osm_id": 1958108834
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9601259, 52.2768261] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dworzec Wile\u0144ski",
+        "line": "",
+        "osm_id": 3390187815
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0357972, 52.2537771] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Stadion Narodowy",
+        "line": "",
+        "osm_id": 3390197100
+      },
+      "geometry": { "type": "Point", "coordinates": [21.042847, 52.2468346] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Centrum Nauki Kopernik",
+        "line": "",
+        "osm_id": 3390230685
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0317878, 52.2399148] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nowy \u015awiat-Uniwersytet",
+        "line": "",
+        "osm_id": 3390237898
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0168168, 52.2368196] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Rondo ONZ", "line": "", "osm_id": 3390266492 },
+      "geometry": { "type": "Point", "coordinates": [20.9981024, 52.2330735] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Rondo Daszy\u0144skiego",
+        "line": "",
+        "osm_id": 3390267294
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9828946, 52.2300827] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Kabaty", "line": "", "osm_id": 3390283399 },
+      "geometry": { "type": "Point", "coordinates": [21.0650711, 52.1320765] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Stok\u0142osy",
+        "line": "",
+        "osm_id": 3390289961
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0347233, 52.1560759] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Natolin", "line": "", "osm_id": 3390290324 },
+      "geometry": { "type": "Point", "coordinates": [21.0564351, 52.1411007] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Imielin", "line": "", "osm_id": 3390290598 },
+      "geometry": { "type": "Point", "coordinates": [21.0461062, 52.1493] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ursyn\u00f3w",
+        "line": "",
+        "osm_id": 3390304927
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0276283, 52.1620456] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "S\u0142u\u017cew",
+        "line": "",
+        "osm_id": 3390306374
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0262866, 52.1727624] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Rac\u0142awicka",
+        "line": "",
+        "osm_id": 3390327068
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0122349, 52.1988637] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Wierzbno", "line": "", "osm_id": 3390333313 },
+      "geometry": { "type": "Point", "coordinates": [21.0167966, 52.1898719] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Wilanowska", "line": "", "osm_id": 3390336021 },
+      "geometry": { "type": "Point", "coordinates": [21.0231452, 52.1818168] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pole Mokotowskie",
+        "line": "",
+        "osm_id": 3390342469
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0079298, 52.2087775] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Politechnika",
+        "line": "",
+        "osm_id": 3390361095
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0153031, 52.2186581] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Centrum", "line": "", "osm_id": 3390365405 },
+      "geometry": { "type": "Point", "coordinates": [21.010186, 52.2310069] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dworzec Gda\u0144ski",
+        "line": "",
+        "osm_id": 3416840991
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9941857, 52.2580586] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Plac Wilsona",
+        "line": "",
+        "osm_id": 3615569910
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9844973, 52.2692619] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "P\u0142ocka", "line": "", "osm_id": 4930657482 },
+      "geometry": { "type": "Point", "coordinates": [20.9663847, 52.2324542] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Trocka", "line": "", "osm_id": 4930657487 },
+      "geometry": { "type": "Point", "coordinates": [21.0550586, 52.2751021] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "\u015awi\u0119tokrzyska",
+        "line": "",
+        "osm_id": 5117464830
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0078988, 52.2350954] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ksi\u0119cia Janusza",
+        "line": "",
+        "osm_id": 5907821373
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9443771, 52.2391822] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "M\u0142yn\u00f3w",
+        "line": "",
+        "osm_id": 5907821374
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9601048, 52.2376624] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Szwedzka", "line": "", "osm_id": 6053348692 },
+      "geometry": { "type": "Point", "coordinates": [21.0455232, 52.2634709] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Targ\u00f3wek Mieszkaniowy",
+        "line": "",
+        "osm_id": 6564265270
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0513658, 52.2692518] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Bemowo", "line": "", "osm_id": 7362922676 },
+      "geometry": { "type": "Point", "coordinates": [20.9154991, 52.2392071] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ulrych\u00f3w",
+        "line": "",
+        "osm_id": 7362922677
+      },
+      "geometry": { "type": "Point", "coordinates": [20.9298652, 52.2403314] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Br\u00f3dno",
+        "line": "",
+        "osm_id": 10058224345
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0289387, 52.293585] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kondratowicza",
+        "line": "",
+        "osm_id": 10058224348
+      },
+      "geometry": { "type": "Point", "coordinates": [21.0486889, 52.2920848] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Zacisze", "line": "", "osm_id": 10058224349 },
+      "geometry": { "type": "Point", "coordinates": [21.062148, 52.2837496] }
+    }
+  ]
+}
