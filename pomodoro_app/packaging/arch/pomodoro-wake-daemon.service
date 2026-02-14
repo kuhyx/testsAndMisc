@@ -1,0 +1,12 @@
+[Unit]
+Description=Pomodoro wake daemon - auto-launches app across devices
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/pomodoro-wake-daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

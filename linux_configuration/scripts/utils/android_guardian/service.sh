@@ -28,6 +28,12 @@ log() {
 
 log "=== Android Guardian starting ==="
 
+# Enable wireless ADB on boot (persistent port 5555)
+setprop service.adb.tcp.port 5555
+stop adbd
+start adbd
+log "Wireless ADB enabled on port 5555"
+
 # Function to check if guardian is enabled (via ADB control, not Magisk UI)
 is_enabled() {
   [ "$(cat "$CONTROL_FILE" 2> /dev/null)" = "ENABLED" ]

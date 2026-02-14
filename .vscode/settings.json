@@ -2,5 +2,6 @@
   "files.associations": {
     "*.py": "python",
     "stdio.h": "c"
-  }
+  },
+  "dart.flutterSdkPath": ".fvm/versions/stable"
 }

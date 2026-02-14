@@ -1,0 +1,76 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# SC2034: Variables like pkgver, pkgrel etc. are used by makepkg.
+# SC2154: Variables like startdir, pkgdir are provided by makepkg.
+# Maintainer: kuhy
+pkgname=pomodoro-app
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='A Pomodoro timer with LAN sync between devices'
+arch=('x86_64')
+url='https://github.com/kuhy/testsAndMisc'
+license=('MIT')
+depends=(
+  'gtk3'
+  'glib2'
+  'python'
+  'zlib'
+)
+makedepends=(
+  'clang'
+  'cmake'
+  'ninja'
+  'pkg-config'
+)
+
+# Flutter must be available on PATH (e.g. via fvm or manual install).
+# Install: https://docs.flutter.dev/get-started/install/linux/desktop
+
+build() {
+  cd "$startdir/../.." || return
+
+  if ! command -v flutter >/dev/null 2>&1; then
+    # Try common fvm location.
+    export PATH="$HOME/fvm/default/bin:$PATH"
+  fi
+
+  flutter build linux --release
+}
+
+package() {
+  cd "$startdir/../.." || return
+
+  local _bundle="build/linux/x64/release/bundle"
+
+  # Install the main binary.
+  install -Dm755 "$_bundle/pomodoro_app" \
+    "$pkgdir/usr/lib/$pkgname/pomodoro_app"
+
+  # Install bundled shared libraries.
+  install -Dm644 "$_bundle/lib/libapp.so" \
+    "$pkgdir/usr/lib/$pkgname/lib/libapp.so"
+  install -Dm644 "$_bundle/lib/libflutter_linux_gtk.so" \
+    "$pkgdir/usr/lib/$pkgname/lib/libflutter_linux_gtk.so"
+
+  # Install data directory.
+  install -Dm644 "$_bundle/data/icudtl.dat" \
+    "$pkgdir/usr/lib/$pkgname/data/icudtl.dat"
+  cp -r "$_bundle/data/flutter_assets" \
+    "$pkgdir/usr/lib/$pkgname/data/flutter_assets"
+
+  # Install launcher script.
+  install -Dm755 "packaging/arch/pomodoro-app.sh" \
+    "$pkgdir/usr/bin/pomodoro-app"
+
+  # Install desktop entry and icon.
+  install -Dm644 "packaging/arch/pomodoro-app.desktop" \
+    "$pkgdir/usr/share/applications/pomodoro-app.desktop"
+  install -Dm644 "packaging/arch/pomodoro-app.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/pomodoro-app.svg"
+
+  # Install wake daemon and systemd user service.
+  install -Dm755 "packaging/arch/pomodoro-wake-daemon.py" \
+    "$pkgdir/usr/bin/pomodoro-wake-daemon"
+  install -Dm644 "packaging/arch/pomodoro-wake-daemon.service" \
+    "$pkgdir/usr/lib/systemd/user/pomodoro-wake-daemon.service"
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Tomato body -->
+  <ellipse cx="128" cy="148" rx="100" ry="90" fill="#e74c3c"/>
+  <!-- Highlight -->
+  <ellipse cx="100" cy="120" rx="30" ry="40" fill="#ec7063" opacity="0.5"/>
+  <!-- Stem -->
+  <rect x="120" y="52" width="16" height="24" rx="4" fill="#27ae60"/>
+  <!-- Leaf -->
+  <path d="M136 64 Q160 40 156 62 Q150 72 136 68Z" fill="#2ecc71"/>
+  <!-- Clock face -->
+  <circle cx="128" cy="152" r="50" fill="none" stroke="#fff" stroke-width="4" opacity="0.85"/>
+  <!-- Minute hand -->
+  <line x1="128" y1="152" x2="128" y2="112" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <!-- Hour hand -->
+  <line x1="128" y1="152" x2="152" y2="140" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <!-- Center dot -->
+  <circle cx="128" cy="152" r="4" fill="#fff" opacity="0.9"/>
+</svg>
