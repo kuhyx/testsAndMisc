@@ -10,8 +10,18 @@ set -euo pipefail
 
 SERVICE_NAME="media-organizer"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-ORGANIZE_SCRIPT="/home/kuhy/linux-configuration/scripts/utils/organize_downloads.sh"
-TARGET_USER="kuhy"
+
+DEFAULT_ORGANIZE_SCRIPT="/home/kuhy/testsAndMisc/linux_configuration/scripts/utils/organize_downloads.sh"
+LEGACY_ORGANIZE_SCRIPT="/home/kuhy/linux-configuration/scripts/utils/organize_downloads.sh"
+if [[ -f $DEFAULT_ORGANIZE_SCRIPT ]]; then
+  ORGANIZE_SCRIPT="$DEFAULT_ORGANIZE_SCRIPT"
+elif [[ -f $LEGACY_ORGANIZE_SCRIPT ]]; then
+  ORGANIZE_SCRIPT="$LEGACY_ORGANIZE_SCRIPT"
+else
+  ORGANIZE_SCRIPT="$DEFAULT_ORGANIZE_SCRIPT"
+fi
+
+TARGET_USER="${SUDO_USER:-kuhy}"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"

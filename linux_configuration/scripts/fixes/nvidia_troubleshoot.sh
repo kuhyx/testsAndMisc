@@ -69,17 +69,20 @@ configure_xorg() {
   backup_file "$NVIDIA_CONF"
 
   # Create NVIDIA-specific configuration
+  # NOTE: RenderAccel must be "true" (or omitted, since it defaults to true).
+  # Setting it to "false" forces software rendering, causing Xorg to consume
+  # 30%+ CPU on the desktop and making the system feel extremely sluggish.
   cat > "$NVIDIA_CONF" << EOF
-# NVIDIA configuration with RenderAccel disabled
+# NVIDIA configuration - hardware acceleration enabled
 # Created by nvidia_troubleshoot.sh on $(date)
 Section "Device"
     Identifier "NVIDIA Card"
     Driver "nvidia"
-    Option "RenderAccel" "false"
+    Option "RenderAccel" "true"
 EndSection
 EOF
 
-  echo "✓ Created $NVIDIA_CONF with RenderAccel disabled"
+  echo "✓ Created $NVIDIA_CONF with RenderAccel enabled"
 }
 
 # Function to add GCC mismatch workaround
