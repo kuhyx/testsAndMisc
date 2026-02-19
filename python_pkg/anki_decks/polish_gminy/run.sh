@@ -13,8 +13,8 @@ echo "WARNING: This may take a very long time (fetching ~2500 gminy)"
 echo
 
 if [ ! -d "$VENV_DIR" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv "$VENV_DIR"
+	echo "Creating virtual environment..."
+	python3 -m venv "$VENV_DIR"
 fi
 
 echo "Activating virtual environment..."

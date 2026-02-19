@@ -11,8 +11,8 @@ echo "=== Warsaw Streets Anki Generator ==="
 echo
 
 if [ ! -d "$VENV_DIR" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv "$VENV_DIR"
+	echo "Creating virtual environment..."
+	python3 -m venv "$VENV_DIR"
 fi
 
 echo "Activating virtual environment..."
