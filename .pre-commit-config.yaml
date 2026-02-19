@@ -1,5 +1,5 @@
 # ==============================================================================
-# Pre-commit Configuration - AGGRESSIVE Python Linting & Formatting
+# Pre-commit Configuration - Multi-language Linting & Formatting
 # ==============================================================================
 # Install: pre-commit install
 # Run all: pre-commit run --all-files
@@ -261,6 +261,62 @@ repos:
     hooks:
       - id: shellcheck
         args: [--severity=warning]
+
+  # ===========================================================================
+  # CLANG-FORMAT - C/C++ code formatting
+  # ===========================================================================
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.6
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+
+  # ===========================================================================
+  # CPPCHECK - C/C++ static analysis
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: cppcheck
+        name: cppcheck
+        entry: cppcheck
+        language: system
+        types_or: [c, c++]
+        args:
+          - --enable=warning,style,performance,portability
+          - --inconclusive
+          - --force
+          - --quiet
+          - --error-exitcode=1
+          - --inline-suppr
+          - --suppress=missingIncludeSystem
+          - --std=c11
+
+  # ===========================================================================
+  # FLAWFINDER - C/C++ security scanner
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: flawfinder
+        name: flawfinder
+        entry: flawfinder
+        language: system
+        types_or: [c, c++]
+        args:
+          - --error-level=4
+          - --quiet
+          - --columns
+
+  # ===========================================================================
+  # ESLINT - TypeScript/JavaScript linting
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: npx eslint --no-warn-ignored
+        language: system
+        types_or: [ts, tsx]
+        files: ^TS/
 
   # ===========================================================================
   # REMOVE EMPTY DIRECTORIES - Clean up empty folders in the repo

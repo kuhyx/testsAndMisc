@@ -1,10 +1,10 @@
-#include <random>
 #include <iostream>
+#include <random>
 
 int main() {
-    std::random_device rd;
-    std::uniform_real_distribution<double> dist(1.0, 10.0);
+  std::random_device rd;
+  std::uniform_real_distribution<double> dist(1.0, 10.0);
 
-    for (int i=0; i<16; ++i)
-        std::cout << dist(rd) << "\n";
+  for (int i = 0; i < 16; ++i)
+    std::cout << dist(rd) << "\n";
 }

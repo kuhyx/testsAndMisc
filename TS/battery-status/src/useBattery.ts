@@ -83,8 +83,8 @@ export function useBattery() {
         }
 
         setLoading(false)
-      } catch (e: any) {
-        setError(e?.message ?? 'Failed to read battery status')
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to read battery status')
         setLoading(false)
       }
     }

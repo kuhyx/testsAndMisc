@@ -125,7 +125,7 @@ export class AppComponent {
 
     // Iterate through possible values of n1, which must be multiples of x, at least y, and not more than z
     for (let n1 = y; n1 <= ml - y && n1 <= z; n1 += x) {
-        let n2 = ml - n1;
+        const n2 = ml - n1;
         // Ensure n2 is also a multiple of x, n2 >= y, and n2 <= z
         if (n2 % x === 0 && n2 >= y && n2 <= z) {
             results.push([n1, n2]);

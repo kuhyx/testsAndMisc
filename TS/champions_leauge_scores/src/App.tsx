@@ -27,7 +27,7 @@ type ApiResponse = {
   fetchedAt: string;
 };
 
-function useFetchOnce<T>(fn: () => Promise<T>) {
+function _useFetchOnce<T>(fn: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,8 +41,8 @@ function useFetchOnce<T>(fn: () => Promise<T>) {
           setData(result);
           setError(null);
         }
-      } catch (e: any) {
-        if (mounted) setError(e?.message || 'Failed to fetch');
+      } catch (e: unknown) {
+        if (mounted) setError(e instanceof Error ? e.message : 'Failed to fetch');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -57,14 +57,13 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { cache: 'no-store', ...init });
   if (!res.ok) {
     const text = await res.text();
-    let body: any = null;
+    let body: unknown = null;
     try { body = text ? JSON.parse(text) : null; } catch { /* noop */ }
-    const err: any = new Error(`HTTP ${res.status}`);
-    err.status = res.status;
-    err.body = body;
+    const err: { message: string; status: number; body: unknown; waitSec?: number } = { message: `HTTP ${res.status}`, status: res.status, body };
     // Try to derive wait seconds for 429 from body.details.message like: "You reached your request limit. Wait 56 seconds."
     if (res.status === 429) {
-      const msg: string | undefined = body?.details?.message || body?.message || body?.error;
+      const details = body as Record<string, unknown> | null;
+      const msg: string | undefined = (details?.message as string) || (details?.error as string) || (details?.details as Record<string, unknown>)?.message as string | undefined;
       const m = msg ? msg.match(/(\d+)\s*seconds?/) : null;
       if (m) err.waitSec = Number(m[1]);
     }
@@ -143,18 +142,19 @@ function useBackoffUntilSuccess<T>(fn: () => Promise<T>, opts?: { baseDelaySec?:
         clearTimers();
         setData(result);
         setError(null);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
+        const httpErr = e as { status?: number; waitSec?: number; message?: string };
         // 429: backoff and retry
-        if (e?.status === 429) {
-          const suggested = Number(e?.waitSec) || delayRef.current || base;
+        if (httpErr?.status === 429) {
+          const suggested = Number(httpErr?.waitSec) || delayRef.current || base;
           const next = Math.min(max, Math.max(base, suggested));
           delayRef.current = Math.min(max, Math.ceil(next * factor));
           setError(`Rate limited. Retrying in ${next}s...`);
           scheduleRetry(next);
           return;
         }
-        setError(e?.message || 'Failed to fetch');
+        setError(httpErr?.message || 'Failed to fetch');
       } finally {
         inFlightRef.current = false;
         if (mounted) setLoading(false);

@@ -123,11 +123,28 @@ static size_t json_escaped_len(const char* s) {
 }
 
 static inline char* json_append_escaped(char* w, char c) {
-  if (c == '"' || c == '\\') { *w++ = '\\'; *w++ = c; return w; }
-  if (c == '\n') { *w++ = '\\'; *w++ = 'n'; return w; }
-  if (c == '\r') { *w++ = '\\'; *w++ = 'r'; return w; }
-  if (c == '\t') { *w++ = '\\'; *w++ = 't'; return w; }
-  *w++ = c; return w;
+  if (c == '"' || c == '\\') {
+    *w++ = '\\';
+    *w++ = c;
+    return w;
+  }
+  if (c == '\n') {
+    *w++ = '\\';
+    *w++ = 'n';
+    return w;
+  }
+  if (c == '\r') {
+    *w++ = '\\';
+    *w++ = 'r';
+    return w;
+  }
+  if (c == '\t') {
+    *w++ = '\\';
+    *w++ = 't';
+    return w;
+  }
+  *w++ = c;
+  return w;
 }
 
 static void json_escape_into(char* out, const char* s) {
@@ -164,12 +181,23 @@ static inline char json_unescape_char(char c) {
 }
 
 static void parse_json_string_core(const char* v, char* out, size_t* w, const char** after_end) {
-  bool esc = false; const char* p = v;
+  bool esc = false;
+  const char* p = v;
   for (; *p; ++p) {
     char c = *p;
-    if (esc) { out[(*w)++] = json_unescape_char(c); esc = false; continue; }
-    if (c == '\\') { esc = true; continue; }
-    if (c == '"') { *after_end = p + 1; break; }
+    if (esc) {
+      out[(*w)++] = json_unescape_char(c);
+      esc = false;
+      continue;
+    }
+    if (c == '\\') {
+      esc = true;
+      continue;
+    }
+    if (c == '"') {
+      *after_end = p + 1;
+      break;
+    }
     out[(*w)++] = c;
   }
   if (!*after_end) *after_end = p;

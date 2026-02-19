@@ -10,7 +10,7 @@ const API_BASE = 'https://api.football-data.org/v4';
 const API_TOKEN = process.env.FOOTBALL_DATA_API_KEY;
 
 if (!API_TOKEN) {
-  // eslint-disable-next-line no-console
+   
   console.warn('[server] FOOTBALL_DATA_API_KEY is not set. Live data will not work until you set it.');
 }
 
@@ -32,34 +32,40 @@ app.use((req, res, next) => {
   const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
 
   // Attach id so downstream handlers could use it if needed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (res as any).locals = { ...(res as any).locals, requestId: id };
 
   // Patch res.json and res.send to capture response payload
   const originalJson = res.json.bind(res);
   const originalSend = res.send.bind(res);
-  (res as any).json = (body: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (res as any).json = (body: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     try { (res as any).locals.bodyForLog = body; } catch { /* ignore */ }
     return originalJson(body);
   };
-  (res as any).send = (body: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (res as any).send = (body: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     try { (res as any).locals.bodyForLog = body; } catch { /* ignore */ }
-    return originalSend(body as any);
+    return originalSend(body);
   };
 
-  // eslint-disable-next-line no-console
+   
   console.log(`[#${id}] -> ${req.method} ${req.originalUrl}` + (Object.keys(req.query || {}).length ? ` query=${JSON.stringify(req.query)}` : ''));
 
   res.on('finish', () => {
     const durMs = Number(process.hrtime.bigint() - start) / 1_000_000;
     let bodyPreview = '';
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const body = (res as any).locals?.bodyForLog;
       if (body !== undefined) {
         const str = typeof body === 'string' ? body : JSON.stringify(body);
         bodyPreview = ` body=${clip(str)}`;
       }
     } catch { /* ignore */ }
-    // eslint-disable-next-line no-console
+     
     console.log(`[#${id}] <- ${req.method} ${req.originalUrl} ${res.statusCode} ${durMs.toFixed(1)}ms${bodyPreview}`);
   });
 
@@ -69,13 +75,14 @@ app.use((req, res, next) => {
 // Axios interceptors to log outgoing requests and incoming responses
 axios.interceptors.request.use(
   (config) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (config as any).metadata = { start: Date.now() };
-    // eslint-disable-next-line no-console
+     
     console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
-    // eslint-disable-next-line no-console
+     
     console.warn('[axios req error]', error?.message || error);
     return Promise.reject(error);
   }
@@ -83,6 +90,7 @@ axios.interceptors.request.use(
 
 axios.interceptors.response.use(
   (response) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const started = (response.config as any).metadata?.start || Date.now();
     const dur = Date.now() - started;
     let dataStr = '';
@@ -92,12 +100,13 @@ axios.interceptors.response.use(
     const size = dataStr?.length || 0;
     const MAX_LOG_BODY = 2000;
     const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
-    // eslint-disable-next-line no-console
+     
     console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B data=${clip(dataStr)}`);
     return response;
   },
   (error) => {
     const cfg = error?.config || {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const started = (cfg as any).metadata?.start || Date.now();
     const dur = Date.now() - started;
     const status = error?.response?.status;
@@ -108,7 +117,7 @@ axios.interceptors.response.use(
     } catch { /* ignore */ }
     const MAX_LOG_BODY = 2000;
     const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
-    // eslint-disable-next-line no-console
+     
     console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms data=${dataStr ? clip(dataStr) : (error?.message || 'error')}`);
     return Promise.reject(error);
   }
@@ -122,7 +131,8 @@ function buildHeaders() {
   } as Record<string, string>;
 }
 
-function normalizeMatch(m: any) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeMatch(m: Record<string, any>) {
   return {
     id: m.id,
     utcDate: m.utcDate,
@@ -135,7 +145,8 @@ function normalizeMatch(m: any) {
     score: m.score,
     competition: m.competition?.name || 'UEFA Champions League',
     venue: m.venue,
-    referees: m.referees?.map((r: any) => r.name).filter(Boolean) || [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    referees: m.referees?.map((r: Record<string, any>) => r.name).filter(Boolean) || [],
   };
 }
 
@@ -160,9 +171,10 @@ app.get('/api/live', async (_req: Request, res: Response) => {
     const { data } = await axios.get(url, { headers: buildHeaders(), params: { status: 'LIVE' } });
     const matches = (data.matches || []).map(normalizeMatch);
     res.json({ count: matches.length, matches, fetchedAt: new Date().toISOString() });
-  } catch (err: any) {
-    const status = err?.response?.status || 500;
-    res.status(status).json({ error: 'Failed to fetch live matches', details: err?.response?.data || err?.message });
+  } catch (err: unknown) {
+    const axErr = err as { response?: { status?: number; data?: unknown }; message?: string };
+    const status = axErr?.response?.status || 500;
+    res.status(status).json({ error: 'Failed to fetch live matches', details: axErr?.response?.data || axErr?.message });
   }
 });
 
@@ -191,13 +203,14 @@ app.get('/api/matches', async (req: Request, res: Response) => {
     });
     const matches = (data.matches || []).map(normalizeMatch);
     res.json({ count: matches.length, matches, fetchedAt: new Date().toISOString() });
-  } catch (err: any) {
-    const status = err?.response?.status || 500;
-    res.status(status).json({ error: 'Failed to fetch matches', details: err?.response?.data || err?.message });
+  } catch (err: unknown) {
+    const axErr = err as { response?: { status?: number; data?: unknown }; message?: string };
+    const status = axErr?.response?.status || 500;
+    res.status(status).json({ error: 'Failed to fetch matches', details: axErr?.response?.data || axErr?.message });
   }
 });
 
 app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
+   
   console.log(`[server] Listening on http://localhost:${PORT}`);
 });
