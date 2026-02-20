@@ -513,6 +513,61 @@ check_hosts() {
 		status="warning"
 	fi
 
+	# Check resolved.conf has ReadEtcHosts=yes
+	if [[ -f /etc/systemd/resolved.conf ]]; then
+		local read_etc_hosts
+		read_etc_hosts=$(grep -E '^\s*ReadEtcHosts\s*=' /etc/systemd/resolved.conf 2>/dev/null |
+			tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+		if [[ "$read_etc_hosts" == "yes" ]]; then
+			msg "resolved.conf ReadEtcHosts=yes"
+		else
+			issues+=("resolved.conf ReadEtcHosts='$read_etc_hosts' — /etc/hosts is bypassed by systemd-resolved!")
+			status="error"
+		fi
+
+		# Check DNSOverTLS is not enabled
+		local dns_over_tls
+		dns_over_tls=$(grep -E '^\s*DNSOverTLS\s*=' /etc/systemd/resolved.conf 2>/dev/null |
+			tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+		if [[ -z "$dns_over_tls" || "$dns_over_tls" == "no" ]]; then
+			msg "resolved.conf DNSOverTLS is disabled"
+		else
+			issues+=("resolved.conf DNSOverTLS='$dns_over_tls' — can bypass /etc/hosts!")
+			status="error"
+		fi
+
+		# Check for drop-in overrides
+		if [[ -d /etc/systemd/resolved.conf.d ]]; then
+			local dropin_count
+			dropin_count=$(find /etc/systemd/resolved.conf.d -name '*.conf' -type f 2>/dev/null | wc -l)
+			if [[ "$dropin_count" -gt 0 ]]; then
+				issues+=("Found $dropin_count resolved.conf drop-in override(s) — potential bypass!")
+				status="error"
+			fi
+		fi
+
+		# Check immutable attribute
+		if command -v lsattr &>/dev/null; then
+			if lsattr /etc/systemd/resolved.conf 2>/dev/null | grep -q '.*i.*e.*'; then
+				msg "resolved.conf has immutable attribute"
+			else
+				issues+=("resolved.conf missing immutable attribute")
+				[[ "$status" == "ok" ]] && status="warning"
+			fi
+		fi
+	else
+		issues+=("/etc/systemd/resolved.conf does not exist")
+		[[ "$status" == "ok" ]] && status="warning"
+	fi
+
+	# Check resolved guard
+	if systemctl is-enabled resolved-guard.path &>/dev/null; then
+		msg "resolved-guard.path is enabled"
+	else
+		issues+=("resolved-guard.path is not enabled")
+		[[ "$status" == "ok" ]] && status="warning"
+	fi
+
 	# Report issues
 	if [[ $status != "ok" ]]; then
 		for issue in "${issues[@]}"; do
@@ -540,6 +595,56 @@ check_hosts() {
 					fi
 					((FIXES_APPLIED++)) || true
 					msg "nsswitch.conf fixed: $(grep '^hosts:' /etc/nsswitch.conf)"
+				fi
+			fi
+
+			# Fix resolved.conf if ReadEtcHosts is not yes
+			if [[ -f /etc/systemd/resolved.conf ]]; then
+				local resolved_reh
+				resolved_reh=$(grep -E '^\s*ReadEtcHosts\s*=' /etc/systemd/resolved.conf 2>/dev/null |
+					tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+				if [[ "$resolved_reh" != "yes" ]]; then
+					note "Fixing resolved.conf — setting ReadEtcHosts=yes..."
+					chattr -i /etc/systemd/resolved.conf 2>/dev/null || true
+					if grep -qE '^\s*ReadEtcHosts\s*=' /etc/systemd/resolved.conf; then
+						run sed -i -E 's/^\s*ReadEtcHosts\s*=.*/ReadEtcHosts=yes/' /etc/systemd/resolved.conf
+					elif grep -q '^\[Resolve\]' /etc/systemd/resolved.conf; then
+						run sed -i '/^\[Resolve\]/a ReadEtcHosts=yes' /etc/systemd/resolved.conf
+					else
+						printf '\n[Resolve]\nReadEtcHosts=yes\n' >>/etc/systemd/resolved.conf
+					fi
+					chattr +i /etc/systemd/resolved.conf 2>/dev/null || true
+					run systemctl restart systemd-resolved
+					((FIXES_APPLIED++)) || true
+					msg "resolved.conf ReadEtcHosts fixed"
+				fi
+
+				# Fix DNSOverTLS if enabled
+				local resolved_dot
+				resolved_dot=$(grep -E '^\s*DNSOverTLS\s*=' /etc/systemd/resolved.conf 2>/dev/null |
+					tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+				if [[ -n "$resolved_dot" && "$resolved_dot" != "no" ]]; then
+					note "Fixing resolved.conf — disabling DNSOverTLS..."
+					chattr -i /etc/systemd/resolved.conf 2>/dev/null || true
+					run sed -i -E 's/^\s*DNSOverTLS\s*=.*/#DNSOverTLS=no/' /etc/systemd/resolved.conf
+					chattr +i /etc/systemd/resolved.conf 2>/dev/null || true
+					run systemctl restart systemd-resolved
+					((FIXES_APPLIED++)) || true
+					msg "resolved.conf DNSOverTLS disabled"
+				fi
+
+				# Remove drop-in overrides
+				if [[ -d /etc/systemd/resolved.conf.d ]]; then
+					local dropin_fix_count
+					dropin_fix_count=$(find /etc/systemd/resolved.conf.d -name '*.conf' -type f 2>/dev/null | wc -l)
+					if [[ "$dropin_fix_count" -gt 0 ]]; then
+						note "Removing $dropin_fix_count resolved.conf drop-in override(s)..."
+						chattr -i /etc/systemd/resolved.conf.d 2>/dev/null || true
+						find /etc/systemd/resolved.conf.d -name '*.conf' -type f -delete
+						chattr +i /etc/systemd/resolved.conf.d 2>/dev/null || true
+						run systemctl restart systemd-resolved
+						((FIXES_APPLIED++)) || true
+					fi
 				fi
 			fi
 
@@ -579,6 +684,8 @@ check_hosts() {
 			# Re-verify after fixes
 			if [[ $DRY_RUN -eq 0 ]]; then
 				if systemctl is-enabled hosts-guard.path &>/dev/null &&
+					systemctl is-enabled nsswitch-guard.path &>/dev/null &&
+					systemctl is-enabled resolved-guard.path &>/dev/null &&
 					[[ -f /usr/local/sbin/enforce-hosts.sh ]] &&
 					[[ -f /usr/local/share/locked-hosts ]] &&
 					[[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]]; then
