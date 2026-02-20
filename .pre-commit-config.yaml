@@ -162,7 +162,7 @@ repos:
       - id: codespell
         args:
           - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
-          - --ignore-words-list=ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile
+          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|CPP/|.*\.geojson$)
 
   # ===========================================================================
