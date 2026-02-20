@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+from datetime import timedelta
 import os
 import shutil
 import subprocess
 import sys
 import time
-from datetime import timedelta
-from typing import List, Optional
 
 
 def format_bytes(size: int) -> str:
     """Format bytes as human-readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
+    for unit in ["B", "KB", "MB", "GB"]:
         if size < 1024:
             return f"{size:.1f}{unit}"
         size /= 1024
@@ -20,16 +19,19 @@ def format_bytes(size: int) -> str:
 
 def download_model_with_progress(model_name: str) -> str:
     """Download model files from HuggingFace with a visible progress bar.
-    
+
     Returns the local path to the downloaded model.
     """
     try:
-        from huggingface_hub import snapshot_download, hf_hub_download
+        from huggingface_hub import hf_hub_download
         from huggingface_hub.utils import EntryNotFoundError
     except ImportError:
-        print("[WARN] huggingface_hub not available, falling back to default download", file=sys.stderr)
+        print(
+            "[WARN] huggingface_hub not available, falling back to default download",
+            file=sys.stderr,
+        )
         return model_name
-    
+
     # Map common model names to HF repo IDs
     model_map = {
         "tiny": "Systran/faster-whisper-tiny",
@@ -49,47 +51,59 @@ def download_model_with_progress(model_name: str) -> str:
         "distil-medium.en": "Systran/faster-distil-whisper-medium.en",
         "distil-small.en": "Systran/faster-distil-whisper-small.en",
     }
-    
+
     repo_id = model_map.get(model_name, model_name)
-    
+
     # Check if it looks like a repo ID
     if "/" not in repo_id and model_name not in model_map:
         # Assume it's a Systran model
         repo_id = f"Systran/faster-whisper-{model_name}"
-    
+
     print(f"[INFO] Checking model: {repo_id}", flush=True)
-    
+
     # Files we need to download (model.bin is the large one)
     required_files = ["config.json", "model.bin", "tokenizer.json", "vocabulary.txt"]
-    
+
     try:
         # Use snapshot_download which handles caching and shows what's happening
         # First, let's check if model.bin needs downloading by checking cache
-        from huggingface_hub import try_to_load_from_cache, HfFileSystem
-        
+        from huggingface_hub import HfFileSystem, try_to_load_from_cache
+
         cache_path = try_to_load_from_cache(repo_id, "model.bin")
         if cache_path is not None:
-            print(f"[INFO] Model already cached, loading from: {os.path.dirname(cache_path)}", flush=True)
+            print(
+                f"[INFO] Model already cached, loading from: {os.path.dirname(cache_path)}",
+                flush=True,
+            )
             # Return the directory containing the cached files
             return os.path.dirname(cache_path)
-        
+
         # Model not cached, need to download
         print(f"[INFO] Downloading model files from {repo_id}...", flush=True)
-        print("[INFO] This may take several minutes for large models (~3GB for large-v3)", flush=True)
-        
+        print(
+            "[INFO] This may take several minutes for large models (~3GB for large-v3)",
+            flush=True,
+        )
+
         # Get file sizes to show progress
         try:
             fs = HfFileSystem()
             files_info = fs.ls(repo_id, detail=True)
-            total_size = sum(f.get('size', 0) for f in files_info if f.get('name', '').split('/')[-1] in required_files)
-            print(f"[INFO] Total download size: ~{format_bytes(total_size)}", flush=True)
+            total_size = sum(
+                f.get("size", 0)
+                for f in files_info
+                if f.get("name", "").split("/")[-1] in required_files
+            )
+            print(
+                f"[INFO] Total download size: ~{format_bytes(total_size)}", flush=True
+            )
         except Exception:
             pass  # Size info is optional
-        
+
         # Download with progress
         downloaded = 0
         start_time = time.time()
-        
+
         for filename in required_files:
             file_start = time.time()
             print(f"[DOWNLOAD] {filename}...", end=" ", flush=True)
@@ -100,10 +114,12 @@ def download_model_with_progress(model_name: str) -> str:
                     resume_download=True,
                 )
                 elapsed = time.time() - file_start
-                file_size = os.path.getsize(local_path) if os.path.exists(local_path) else 0
+                file_size = (
+                    os.path.getsize(local_path) if os.path.exists(local_path) else 0
+                )
                 print(f"done ({format_bytes(file_size)}, {elapsed:.1f}s)", flush=True)
                 downloaded += 1
-                
+
                 # Return directory on first successful download
                 if downloaded == 1:
                     model_dir = os.path.dirname(local_path)
@@ -111,14 +127,17 @@ def download_model_with_progress(model_name: str) -> str:
                 print("not found (optional)", flush=True)
             except Exception as e:
                 print(f"error: {e}", flush=True)
-        
+
         total_time = time.time() - start_time
         print(f"[INFO] Download complete in {total_time:.1f}s", flush=True)
-        
+
         return model_dir
-        
+
     except Exception as e:
-        print(f"[WARN] Custom download failed ({e}), falling back to default", file=sys.stderr)
+        print(
+            f"[WARN] Custom download failed ({e}), falling back to default",
+            file=sys.stderr,
+        )
         return model_name
 
 
@@ -152,34 +171,38 @@ def write_txt(segments, txt_path: str):
                 f.write(text + "\n")
 
 
-def write_srt_with_speakers(segments, labels: List[int], path: str):
+def write_srt_with_speakers(segments, labels: list[int], path: str):
     with open(path, "w", encoding="utf-8") as f:
-        for i, (seg, lab) in enumerate(zip(segments, labels), start=1):
+        for i, (seg, lab) in enumerate(zip(segments, labels, strict=False), start=1):
             text = (seg.text or "").strip()
             if not text:
                 continue
             spk = f"SPK{lab+1}"
-            f.write(f"{i}\n{format_timestamp(seg.start)} --> {format_timestamp(seg.end)}\n[{spk}] {text}\n\n")
+            f.write(
+                f"{i}\n{format_timestamp(seg.start)} --> {format_timestamp(seg.end)}\n[{spk}] {text}\n\n"
+            )
 
 
-def write_txt_with_speakers(segments, labels: List[int], path: str):
+def write_txt_with_speakers(segments, labels: list[int], path: str):
     with open(path, "w", encoding="utf-8") as f:
-        for seg, lab in zip(segments, labels):
+        for seg, lab in zip(segments, labels, strict=False):
             text = (seg.text or "").strip()
             if text:
                 spk = f"SPK{lab+1}"
                 f.write(f"[{spk}] {text}\n")
 
 
-def write_rttm(segments, labels: List[int], path: str, file_id: str = "audio"):
+def write_rttm(segments, labels: list[int], path: str, file_id: str = "audio"):
     # RTTM format: SPEAKER <file-id> 1 <start> <duration> <ortho> <stype> <name> <conf>
     with open(path, "w", encoding="utf-8") as f:
-        for seg, lab in zip(segments, labels):
+        for seg, lab in zip(segments, labels, strict=False):
             start = float(getattr(seg, "start", 0.0) or 0.0)
             end = float(getattr(seg, "end", start) or start)
             dur = max(0.0, end - start)
             name = f"SPK{lab+1}"
-            f.write(f"SPEAKER {file_id} 1 {start:.3f} {dur:.3f} <NA> <NA> {name} <NA>\n")
+            f.write(
+                f"SPEAKER {file_id} 1 {start:.3f} {dur:.3f} <NA> <NA> {name} <NA>\n"
+            )
 
 
 def hhmmss(seconds: float) -> str:
@@ -230,6 +253,7 @@ def get_media_duration(path: str) -> float | None:
 
 def _resample_linear(x, src_sr: int, tgt_sr: int):
     import numpy as np
+
     if src_sr == tgt_sr:
         return x
     ratio = float(tgt_sr) / float(src_sr)
@@ -242,6 +266,7 @@ def _resample_linear(x, src_sr: int, tgt_sr: int):
 
 def _kmeans_cosine(embs, k: int, iters: int = 50, seed: int = 0):
     import numpy as np
+
     rng = np.random.default_rng(seed)
     X = np.asarray(embs, dtype=np.float32)
     if X.ndim != 2 or X.shape[0] == 0:
@@ -254,7 +279,7 @@ def _kmeans_cosine(embs, k: int, iters: int = 50, seed: int = 0):
     # If fewer samples than k, pad with random
     if C.shape[0] < k:
         pad = rng.standard_normal(size=(k - C.shape[0], X.shape[1])).astype(np.float32)
-        pad /= (np.linalg.norm(pad, axis=1, keepdims=True) + 1e-8)
+        pad /= np.linalg.norm(pad, axis=1, keepdims=True) + 1e-8
         C = np.concatenate([C, pad], axis=0)
     for _ in range(iters):
         # Assign by cosine similarity (maximize dot product)
@@ -267,7 +292,7 @@ def _kmeans_cosine(embs, k: int, iters: int = 50, seed: int = 0):
                 newC[j] = C[j]
             else:
                 v = sel.mean(axis=0)
-                v /= (np.linalg.norm(v) + 1e-8)
+                v /= np.linalg.norm(v) + 1e-8
                 newC[j] = v
         if np.allclose(newC, C, atol=1e-4):
             break
@@ -275,11 +300,12 @@ def _kmeans_cosine(embs, k: int, iters: int = 50, seed: int = 0):
     return labels
 
 
-def _ffmpeg_transcode_to_wav16_mono(src_path: str) -> Optional[str]:
+def _ffmpeg_transcode_to_wav16_mono(src_path: str) -> str | None:
     """If ffmpeg is available, transcode input to a temporary 16k mono WAV and return its path."""
     if not shutil.which("ffmpeg"):
         return None
     import tempfile
+
     tmp = tempfile.NamedTemporaryFile(prefix="fw_diar_", suffix=".wav", delete=False)
     tmp_path = tmp.name
     tmp.close()
@@ -300,7 +326,9 @@ def _ffmpeg_transcode_to_wav16_mono(src_path: str) -> Optional[str]:
         tmp_path,
     ]
     try:
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         return tmp_path
     except Exception:
         try:
@@ -310,35 +338,44 @@ def _ffmpeg_transcode_to_wav16_mono(src_path: str) -> Optional[str]:
         return None
 
 
-def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Optional[list]:
+def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> list | None:
     """Simple diarization: compute speaker embeddings per segment and cluster with KMeans.
     Returns a list of speaker labels aligned with segments, or None on failure.
     """
     try:
-        import numpy as np
         import soundfile as sf
+
         # Use non-deprecated import path
         from speechbrain.inference import EncoderClassifier
         import torch
     except Exception as e:
-        print(f"[WARN] Diarization dependencies missing ({e}); skipping speaker labels.", file=sys.stderr)
+        print(
+            f"[WARN] Diarization dependencies missing ({e}); skipping speaker labels.",
+            file=sys.stderr,
+        )
         return None
 
     # Load audio
-    temp_to_cleanup: Optional[str] = None
+    temp_to_cleanup: str | None = None
     try:
         wav, sr = sf.read(audio_path, dtype="float32", always_2d=False)
     except Exception as e:
         # Try ffmpeg transcoding fallback
         alt = _ffmpeg_transcode_to_wav16_mono(audio_path)
         if alt is None:
-            print(f"[WARN] Could not read audio for diarization and no ffmpeg fallback available: {e}", file=sys.stderr)
+            print(
+                f"[WARN] Could not read audio for diarization and no ffmpeg fallback available: {e}",
+                file=sys.stderr,
+            )
             return None
         try:
             wav, sr = sf.read(alt, dtype="float32", always_2d=False)
             temp_to_cleanup = alt
         except Exception as e2:
-            print(f"[WARN] Could not read transcoded audio for diarization: {e2}", file=sys.stderr)
+            print(
+                f"[WARN] Could not read transcoded audio for diarization: {e2}",
+                file=sys.stderr,
+            )
             try:
                 os.unlink(alt)
             except Exception:
@@ -354,7 +391,9 @@ def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Option
         classifier = EncoderClassifier.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb",
             run_opts={"device": "cpu"},
-            savedir=os.path.join(os.path.expanduser("~"), ".cache", "speechbrain_ecapa"),
+            savedir=os.path.join(
+                os.path.expanduser("~"), ".cache", "speechbrain_ecapa"
+            ),
         )
     except Exception as e:
         print(f"[WARN] Could not load speaker embedding model: {e}", file=sys.stderr)
@@ -383,7 +422,9 @@ def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Option
             i1 = min(len(wav16), i0 + 1600)
         segment_wav = torch.tensor(wav16[i0:i1]).unsqueeze(0)
         with torch.no_grad():
-            emb = classifier.encode_batch(segment_wav).squeeze(0).squeeze(0).cpu().numpy()
+            emb = (
+                classifier.encode_batch(segment_wav).squeeze(0).squeeze(0).cpu().numpy()
+            )
         embs.append(emb.astype("float32"))
 
     if len(embs) == 0:
@@ -399,22 +440,56 @@ def diarize_segments(audio_path: str, segments, num_speakers: int = 2) -> Option
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Transcribe audio with faster-whisper and write .txt and .srt")
+    parser = argparse.ArgumentParser(
+        description="Transcribe audio with faster-whisper and write .txt and .srt"
+    )
     parser.add_argument("input", help="Path to audio/video file")
-    parser.add_argument("--model", default=os.environ.get("FW_MODEL", "large-v3"), help="Model size or path (default: large-v3)")
-    parser.add_argument("--language", default=None, help="Language code (e.g., en). Leave None for auto-detect")
-    parser.add_argument("--device", default=os.environ.get("FW_DEVICE", "auto"), choices=["auto", "cpu", "cuda"], help="Device to run on")
-    parser.add_argument("--compute-type", dest="compute_type", default=os.environ.get("FW_COMPUTE", "auto"), help="Compute type (auto,int8,float16,float32,int8_float16,etc.)")
-    parser.add_argument("--outdir", default=None, help="Output directory (default: next to input)")
-    parser.add_argument("--no-progress", action="store_true", help="Disable live progress output")
-    parser.add_argument("--diarize", action="store_true", help="Enable speaker diarization (labels)")
-    parser.add_argument("--num-speakers", type=int, default=int(os.environ.get("FW_NUM_SPEAKERS", "2")), help="Assumed number of speakers (default: 2)")
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("FW_MODEL", "large-v3"),
+        help="Model size or path (default: large-v3)",
+    )
+    parser.add_argument(
+        "--language",
+        default=None,
+        help="Language code (e.g., en). Leave None for auto-detect",
+    )
+    parser.add_argument(
+        "--device",
+        default=os.environ.get("FW_DEVICE", "auto"),
+        choices=["auto", "cpu", "cuda"],
+        help="Device to run on",
+    )
+    parser.add_argument(
+        "--compute-type",
+        dest="compute_type",
+        default=os.environ.get("FW_COMPUTE", "auto"),
+        help="Compute type (auto,int8,float16,float32,int8_float16,etc.)",
+    )
+    parser.add_argument(
+        "--outdir", default=None, help="Output directory (default: next to input)"
+    )
+    parser.add_argument(
+        "--no-progress", action="store_true", help="Disable live progress output"
+    )
+    parser.add_argument(
+        "--diarize", action="store_true", help="Enable speaker diarization (labels)"
+    )
+    parser.add_argument(
+        "--num-speakers",
+        type=int,
+        default=int(os.environ.get("FW_NUM_SPEAKERS", "2")),
+        help="Assumed number of speakers (default: 2)",
+    )
     args = parser.parse_args()
 
     try:
         from faster_whisper import WhisperModel
     except Exception as e:
-        print("[ERROR] faster-whisper is not installed in this environment.", file=sys.stderr)
+        print(
+            "[ERROR] faster-whisper is not installed in this environment.",
+            file=sys.stderr,
+        )
         print(str(e), file=sys.stderr)
         return 2
 
@@ -438,7 +513,9 @@ def main():
         # Prefer accuracy over speed by default
         compute_type = "float16" if device == "cuda" else "float32"
 
-    print(f"[INFO] Loading model='{args.model}', device='{device}', compute_type='{compute_type}'")
+    print(
+        f"[INFO] Loading model='{args.model}', device='{device}', compute_type='{compute_type}'"
+    )
 
     # Pre-download model files with explicit progress if not already cached
     model_path = args.model
@@ -447,7 +524,8 @@ def main():
 
     # Show CTranslate2 conversion progress
     import logging
-    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+    logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
     ct2_logger = logging.getLogger("faster_whisper")
     ct2_logger.setLevel(logging.INFO)
 
@@ -495,9 +573,11 @@ def main():
 
     # Finish progress line
     if not args.no_progress and sys.stderr.isatty():
-        print("", file=sys.stderr)  # newline
+        print(file=sys.stderr)  # newline
 
-    print(f"[INFO] Detected language: {getattr(info, 'language', None)} (prob={getattr(info, 'language_probability', None)})")
+    print(
+        f"[INFO] Detected language: {getattr(info, 'language', None)} (prob={getattr(info, 'language_probability', None)})"
+    )
     print(f"[INFO] Segments: {len(collected)}")
 
     # Optionally diarize
@@ -510,9 +590,14 @@ def main():
             write_srt_with_speakers(collected, labels, diar_srt)
             write_txt_with_speakers(collected, labels, diar_txt)
             write_rttm(collected, labels, rttm_path, file_id=base)
-            print(f"[OK] Wrote: {diar_txt}\n[OK] Wrote: {diar_srt}\n[OK] Wrote: {rttm_path}")
+            print(
+                f"[OK] Wrote: {diar_txt}\n[OK] Wrote: {diar_srt}\n[OK] Wrote: {rttm_path}"
+            )
         else:
-            print("[WARN] Diarization failed or returned mismatched labels; writing plain outputs.", file=sys.stderr)
+            print(
+                "[WARN] Diarization failed or returned mismatched labels; writing plain outputs.",
+                file=sys.stderr,
+            )
 
     # Write base outputs
     write_txt(collected, txt_path)

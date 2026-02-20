@@ -1,21 +1,19 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Transcribe tiny online smoke test",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"/home/kuhy/testsAndMisc/Bash/transcribe.sh",
-				"--online",
-				"-m",
-				"tiny"
-			],
-			"isBackground": false,
-			"problemMatcher": [
-				"$gcc"
-			],
-			"group": "build"
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Transcribe tiny online smoke test",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "/home/kuhy/testsAndMisc/Bash/transcribe.sh",
+        "--online",
+        "-m",
+        "tiny"
+      ],
+      "isBackground": false,
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    }
+  ]
 }

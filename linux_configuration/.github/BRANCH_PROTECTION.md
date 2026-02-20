@@ -7,10 +7,12 @@ This repository uses GitHub Actions to ensure code quality before merging to `ma
 ### Shell Script Linting
 
 The `Shell Script Linting` workflow automatically runs on:
+
 - Pull requests targeting `main` or `master` branches (including from forks)
 - Direct pushes to `main` or `master` branches
 
 This workflow checks:
+
 - Shell script syntax with `shellcheck`
 - Code formatting with `shfmt` (2-space indentation, no tabs)
 - Optional checks: `checkbashisms`, syntax validation
@@ -38,6 +40,7 @@ bash scripts/meta/shell_check.sh
 ```
 
 This will:
+
 - Install required linters on Arch Linux (if needed)
 - Check all shell scripts in the repository
 - Report any formatting or syntax issues
@@ -56,6 +59,7 @@ find . -name "*.sh" -type f | xargs shfmt -w -i 2 -ci -sr -s
 ## What Gets Checked
 
 The workflow validates shell scripts with these extensions or shebangs:
+
 - `*.sh`, `*.bash`, `*.zsh` files
 - Executable files with shell shebangs (`#!/bin/bash`, `#!/bin/sh`, etc.)
 

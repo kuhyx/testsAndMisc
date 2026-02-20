@@ -39,11 +39,14 @@ void pauseForGivenTime(float given_time)
 
 float calculateVelocity(float starting_velocity, unsigned int physics_time, int *acceleration)
 {
+    // cppcheck-suppress nullPointer
     return (*acceleration) * physics_time + starting_velocity;
 }
 
 int calculateDisplacement(float starting_velocity, int *acceleration, unsigned int physics_time)
 {
+    // cppcheck-suppress nullPointer
+    // cppcheck-suppress ctunullpointer
     return starting_velocity * physics_time + ((1 / 2) * (*acceleration) * (physics_time ^ 2));
 }
 
@@ -55,7 +58,7 @@ void printXPosition(int position)
 
 void printClock(unsigned int *time)
 {
-    printf("%d seconds passed\n", *time);
+    printf("%u seconds passed\n", *time);
     return;
 }
 

@@ -1,6 +1,6 @@
 # Clang-format configuration for imageViewer project
 ---
-Language: C
+Language: Cpp
 # Base style
 BasedOnStyle: LLVM
 

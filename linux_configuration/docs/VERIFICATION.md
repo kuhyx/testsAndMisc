@@ -35,9 +35,11 @@
   - Verified: Fails installation if critical files missing
 
 ### Security Test Results
+
 ```bash
 bash tests/test_pacman_wrapper_security.sh
 ```
+
 - [x] Test 1: Wrapper syntax valid
 - [x] Test 4: Integrity check function exists
 - [x] Test 5: Hardcoded VirtualBox check exists
@@ -48,11 +50,11 @@ bash tests/test_pacman_wrapper_security.sh
 
 ### Attack Resistance
 
-| Attack Vector | Before | After | Difficulty Increase |
-|--------------|--------|-------|-------------------|
-| Edit greylist.txt | Easy (1 min) | Hard (requires chattr -i, root, reinstall, still blocked by hardcoded check) | ⭐⭐⭐⭐⭐ |
-| Remove from greylist & reinstall | Easy (2 min) | Impossible (hardcoded in wrapper code) | ∞ |
-| Replace wrapper binary | Easy (1 min) | Moderate (integrity check on next run, periodic monitoring) | ⭐⭐⭐ |
+| Attack Vector                    | Before       | After                                                                        | Difficulty Increase |
+| -------------------------------- | ------------ | ---------------------------------------------------------------------------- | ------------------- |
+| Edit greylist.txt                | Easy (1 min) | Hard (requires chattr -i, root, reinstall, still blocked by hardcoded check) | ⭐⭐⭐⭐⭐          |
+| Remove from greylist & reinstall | Easy (2 min) | Impossible (hardcoded in wrapper code)                                       | ∞                   |
+| Replace wrapper binary           | Easy (1 min) | Moderate (integrity check on next run, periodic monitoring)                  | ⭐⭐⭐              |
 
 ---
 
@@ -100,9 +102,11 @@ bash tests/test_pacman_wrapper_security.sh
   - Verified: User understands privilege escalation
 
 ### Security Test Results
+
 ```bash
 bash tests/test_pacman_wrapper_security.sh
 ```
+
 - [x] Test 3: VirtualBox enforcement script syntax valid
 - [x] Test 10: VirtualBox enforcement integrated
 - [x] Test 11: VirtualBox script has help text
@@ -110,28 +114,31 @@ bash tests/test_pacman_wrapper_security.sh
 
 ### Enforcement Effectiveness
 
-| Bypass Attempt | Prevention Mechanism | Effectiveness |
-|----------------|---------------------|---------------|
-| Use VM without Guest Additions | DNS proxy still enforces host DNS | ⭐⭐⭐⭐ |
-| Manually modify VM /etc/hosts | File synced on boot (with startup script) | ⭐⭐⭐⭐ |
-| Use bridged network | User must explicitly reconfigure VM | ⭐⭐⭐ |
-| Create new VM after VBox install | Auto-enforcement applies to all VMs | ⭐⭐⭐⭐⭐ |
+| Bypass Attempt                   | Prevention Mechanism                      | Effectiveness |
+| -------------------------------- | ----------------------------------------- | ------------- |
+| Use VM without Guest Additions   | DNS proxy still enforces host DNS         | ⭐⭐⭐⭐      |
+| Manually modify VM /etc/hosts    | File synced on boot (with startup script) | ⭐⭐⭐⭐      |
+| Use bridged network              | User must explicitly reconfigure VM       | ⭐⭐⭐        |
+| Create new VM after VBox install | Auto-enforcement applies to all VMs       | ⭐⭐⭐⭐⭐    |
 
 ---
 
 ## Overall Implementation Status
 
 ### Files Created (4)
+
 1. ✅ `scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh` - 282 lines
 2. ✅ `tests/test_pacman_wrapper_security.sh` - 131 lines (12 tests)
 3. ✅ `docs/PACMAN_WRAPPER_SECURITY.md` - 245 lines
 4. ✅ `docs/SUMMARY.md` - 149 lines
 
 ### Files Modified (2)
+
 1. ✅ `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh` - +70 lines
 2. ✅ `scripts/digital_wellbeing/pacman/pacman_wrapper.sh` - +154 lines
 
 ### Total Changes
+
 - **Lines added**: 1,031
 - **Security layers**: 5
 - **Tests**: 12 (all passing ✅)
@@ -142,26 +149,31 @@ bash tests/test_pacman_wrapper_security.sh
 ## Defense in Depth Verification
 
 ### Layer 1: Immutable Policy Files ✅
+
 - Implementation: `chattr +i` in installer
 - Test: Manual attempt to edit results in permission denied
 - Bypass difficulty: Requires root + knowledge of chattr
 
 ### Layer 2: SHA256 Integrity Checks ✅
+
 - Implementation: Checksums verified on every invocation
 - Test: Modified file detected and blocked
 - Bypass difficulty: Requires modifying both file and checksum (both immutable)
 
 ### Layer 3: Hardcoded VirtualBox Restrictions ✅
+
 - Implementation: Pattern matching in wrapper code
 - Test: Cannot remove by editing policy files
 - Bypass difficulty: Requires modifying wrapper itself (triggers integrity check)
 
 ### Layer 4: VirtualBox Enforcement ✅
+
 - Implementation: Auto-configuration of VMs
 - Test: VMs configured to use host DNS and hosts
 - Bypass difficulty: Requires VM reconfiguration or different virtualization
 
 ### Layer 5: Psychological Friction ✅
+
 - Implementation: Enhanced challenges and delays
 - Test: 7-letter words, 150 words, 120s timeout, 45s delay
 - Bypass difficulty: Time-consuming, frustrating, encourages reflection
@@ -171,6 +183,7 @@ bash tests/test_pacman_wrapper_security.sh
 ## Code Quality Verification
 
 ### Syntax Validation ✅
+
 ```bash
 bash -n scripts/digital_wellbeing/pacman/pacman_wrapper.sh
 bash -n scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh
@@ -179,12 +192,14 @@ bash -n scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh
 ```
 
 ### Shellcheck Validation ✅
+
 ```bash
 bash scripts/meta/shell_check.sh
 # Only minor warnings (false positives about unreachable code in functions)
 ```
 
 ### Functional Testing ✅
+
 ```bash
 bash tests/test_pacman_wrapper_security.sh
 # All 12 tests pass
@@ -198,7 +213,7 @@ bash tests/test_pacman_wrapper_security.sh
 
 **Attacker**: User attempting to circumvent restrictions  
 **Goal**: Install VirtualBox and bypass /etc/hosts filtering  
-**Resources**: Root access, technical knowledge  
+**Resources**: Root access, technical knowledge
 
 ### Attack Paths
 
@@ -219,12 +234,14 @@ bash tests/test_pacman_wrapper_security.sh
 ## Documentation Verification
 
 ### User Documentation ✅
+
 - [x] Installation instructions: `docs/PACMAN_WRAPPER_SECURITY.md`
 - [x] Usage examples: `docs/PACMAN_WRAPPER_SECURITY.md`
 - [x] Security analysis: `docs/PACMAN_WRAPPER_SECURITY.md`
 - [x] Implementation summary: `docs/SUMMARY.md`
 
 ### Developer Documentation ✅
+
 - [x] Code comments explaining privilege escalation pattern
 - [x] Comments explaining each security layer
 - [x] Test documentation in test script
@@ -237,7 +254,7 @@ bash tests/test_pacman_wrapper_security.sh
 ✅ **Requirement 2**: VirtualBox VMs use host's /etc/hosts  
 ✅ **Code Quality**: All tests pass, shellcheck clean  
 ✅ **Documentation**: Comprehensive and accurate  
-✅ **Security**: Defense in depth implemented  
+✅ **Security**: Defense in depth implemented
 
 ## Implementation: COMPLETE ✅
 

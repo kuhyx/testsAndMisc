@@ -10,7 +10,7 @@ const API_BASE = 'https://api.football-data.org/v4';
 const API_TOKEN = process.env.FOOTBALL_DATA_API_KEY;
 
 if (!API_TOKEN) {
-   
+
   console.warn('[server] FOOTBALL_DATA_API_KEY is not set. Live data will not work until you set it.');
 }
 
@@ -51,7 +51,7 @@ app.use((req, res, next) => {
     return originalSend(body);
   };
 
-   
+
   console.log(`[#${id}] -> ${req.method} ${req.originalUrl}` + (Object.keys(req.query || {}).length ? ` query=${JSON.stringify(req.query)}` : ''));
 
   res.on('finish', () => {
@@ -65,7 +65,7 @@ app.use((req, res, next) => {
         bodyPreview = ` body=${clip(str)}`;
       }
     } catch { /* ignore */ }
-     
+
     console.log(`[#${id}] <- ${req.method} ${req.originalUrl} ${res.statusCode} ${durMs.toFixed(1)}ms${bodyPreview}`);
   });
 
@@ -77,12 +77,12 @@ axios.interceptors.request.use(
   (config) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (config as any).metadata = { start: Date.now() };
-     
+
     console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
-     
+
     console.warn('[axios req error]', error?.message || error);
     return Promise.reject(error);
   }
@@ -100,7 +100,7 @@ axios.interceptors.response.use(
     const size = dataStr?.length || 0;
     const MAX_LOG_BODY = 2000;
     const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
-     
+
     console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B data=${clip(dataStr)}`);
     return response;
   },
@@ -117,7 +117,7 @@ axios.interceptors.response.use(
     } catch { /* ignore */ }
     const MAX_LOG_BODY = 2000;
     const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
-     
+
     console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms data=${dataStr ? clip(dataStr) : (error?.message || 'error')}`);
     return Promise.reject(error);
   }
@@ -211,6 +211,6 @@ app.get('/api/matches', async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-   
+
   console.log(`[server] Listening on http://localhost:${PORT}`);
 });

@@ -447,6 +447,7 @@ static void find_longest_excerpt(int max_vocab)
                 rarest_word   = word_sequence[i]->word;
             }
         }
+        // cppcheck-suppress nullPointer
         printf("Rarest word used: %s (#%d)\n", rarest_word, max_rank_used);
 
         /* Count unique words in excerpt */

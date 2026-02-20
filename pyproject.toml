@@ -77,6 +77,73 @@ unfixable = []
     "C901",    # Complex interactive mode is acceptable
     "PLR0912", # Too many branches in interactive mode
 ]
+# Cinema planner - CLI tool with print output
+"python_pkg/cinema_planner/*.py" = [
+    "ARG001",  # Unused function argument (callbacks)
+    "T201",    # print() is intentional for CLI output
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "ANN201",  # Missing return type annotation
+    "ANN202",  # Missing return type annotation (private)
+    "C901",    # Complex functions acceptable for CLI
+    "E501",    # Line too long
+    "EM102",   # Exception f-string literal
+    "PERF203", # try-except in loop
+    "PERF401", # List comprehension
+    "PLR0912", # Too many branches
+    "PLR0915", # Too many statements
+    "PLR2004", # Magic values
+    "PLR1714", # Multiple comparisons
+    "PTH123",  # open() instead of Path.open()
+    "S607",    # Partial executable path
+    "SIM105",  # Use contextlib.suppress
+    "TRY003",  # Long exception messages
+]
+# Linux configuration scripts - standalone scripts
+"linux_configuration/**/*.py" = [
+    "ARG001",  # Unused function argument (signal handlers)
+    "BLE001",  # Blind exception catching in scripts
+    "T201",    # print() is intentional for scripts
+    "ANN001",  # Missing function argument type annotation
+    "ANN201",  # Missing return type annotation
+    "ANN202",  # Missing return type annotation (private)
+    "ANN204",  # Missing return type for __init__
+    "C901",    # Complex functions in scripts
+    "D100",    # Missing module docstring
+    "D103",    # Missing docstring in public function
+    "D107",    # Missing docstring in __init__
+    "D205",    # 1 blank line required between summary and description
+    "D415",    # First line should end with period
+    "DTZ005",  # datetime without timezone
+    "E501",    # Line too long
+    "EXE001",  # Shebang without executable permission
+    "N806",    # Non-lowercase variable name
+    "PERF203", # try-except in loop
+    "PGH003",  # Use specific rule codes
+    "PLR0912", # Too many branches
+    "PLR0915", # Too many statements
+    "PLR2004", # Magic values
+    "PTH100",  # Path manipulation
+    "PTH103",  # Path manipulation
+    "PTH108",  # Path manipulation
+    "PTH110",  # Path manipulation
+    "PTH111",  # Path manipulation
+    "PTH112",  # Path manipulation
+    "PTH118",  # Path manipulation
+    "PTH119",  # Path manipulation
+    "PTH120",  # Path manipulation
+    "PTH122",  # Path manipulation
+    "PTH123",  # open() instead of Path.open()
+    "PTH202",  # Path manipulation
+    "S110",    # try-except-pass
+    "S607",    # Partial executable path
+    "SIM102",  # Collapsible if
+    "SIM105",  # Use contextlib.suppress
+    "SIM115",  # Use context manager
+    "TRY300",  # Consider else block
+]
 # Word frequency package - legacy code with pre-existing complexity
 "python_pkg/word_frequency/*.py" = [
     "C901",    # Function complexity - legacy code

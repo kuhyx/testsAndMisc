@@ -43,14 +43,14 @@ bool errorUserInput(std::string userInput) {
 
 std::string convertToTier(float nominator, float denominator) {
   float fraction = nominator / denominator;
-  int tierIndex;
+  int tierIndex = 0;
   for (int i = TIER_BASE; i > 0; i--) {
     if (fraction >= (i / TIER_BASE)) {
       tierIndex = i - 1;
       break;
     }
   }
-  if (tierIndex == 0 & fraction > (1.1 / 10.0))
+  if (tierIndex == 0 && fraction > (1.1 / 10.0))
     return TIERS[1];
   return TIERS[tierIndex];
 }

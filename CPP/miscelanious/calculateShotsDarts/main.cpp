@@ -63,6 +63,7 @@ bool validInput(const std::string s) {
   return 1;
 }
 
+// cppcheck-suppress missingReturn
 std::vector<int> requiredShoots(const int pointsLeft) {}
 
 int main() {

@@ -11,12 +11,14 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 ### 1. `/etc/hosts` Protection System
 
 **Files involved:**
+
 - [hosts/install.sh](../hosts/install.sh) - Main hosts installer
 - [hosts/guard/setup_hosts_guard.sh](../hosts/guard/setup_hosts_guard.sh) - Guard layer setup
 - [hosts/guard/enforce-hosts.sh](../hosts/guard/enforce-hosts.sh) - Enforcement script
 - [hosts/guard/psychological/unlock-hosts.sh](../hosts/guard/psychological/unlock-hosts.sh) - Delayed unlock
 
 **Current Protection Layers:**
+
 1. ✅ Immutable attribute (`chattr +i`)
 2. ✅ Canonical copy at `/usr/local/share/locked-hosts`
 3. ✅ Path watcher (`hosts-guard.path`) auto-restores on modification
@@ -25,9 +27,11 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 6. ✅ Shell history suppression for `unlock-hosts` command
 
 **CRITICAL VULNERABILITY IDENTIFIED:**
+
 - ❌ **NO protection for `/etc/nsswitch.conf`** - A user can simply edit nsswitch.conf and remove `files` from the `hosts:` line, completely bypassing ALL /etc/hosts protections without touching the hosts file itself!
 
 **Example bypass:**
+
 ```bash
 # Original: hosts: mymachines resolve [!UNAVAIL=return] files myhostname dns
 # Tampered: hosts: mymachines resolve [!UNAVAIL=return] myhostname dns
@@ -39,9 +43,11 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 ### 2. Midnight Shutdown System
 
 **Files involved:**
+
 - [scripts/digital_wellbeing/setup_midnight_shutdown.sh](../scripts/digital_wellbeing/setup_midnight_shutdown.sh) (1359 lines)
 
 **Current Protection Layers:**
+
 1. ✅ Immutable attribute on `/etc/shutdown-schedule.conf`
 2. ✅ Canonical copy at `/usr/local/share/locked-shutdown-schedule.conf`
 3. ✅ Path watcher restores config if tampered
@@ -49,6 +55,7 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 5. ✅ Unlock script with psychological delay
 
 **VULNERABILITIES IDENTIFIED:**
+
 - ❌ The unlock script **explicitly tells users how to bypass**: "sudo /usr/local/sbin/unlock-shutdown-schedule"
 - ❌ The schedule change logic is communicated in the error message
 - ❌ No protection against stopping/disabling the timer services
@@ -61,11 +68,13 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 **File:** `/home/kuhy/testsAndMisc/python_pkg/screen_locker/screen_lock.py`
 
 **Current Workout Types:**
+
 1. Running - distance, time, pace validation
 2. Strength - exercises, sets, reps, weights, total calculation
 3. Table Tennis - duration, sets, points won/lost
 
 **VULNERABILITIES IDENTIFIED:**
+
 - ❌ **Running option too easy to fake** - just enter plausible numbers
 - ❌ **Table Tennis lacks real verification** - no mathematical cross-check
 - ❌ Users can close the window via keyboard shortcuts (Alt+F4, etc.)
@@ -77,11 +86,13 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 ### 4. Pacman Wrapper
 
 **Files involved:**
+
 - [scripts/digital_wellbeing/pacman/pacman_wrapper.sh](../scripts/digital_wellbeing/pacman/pacman_wrapper.sh) (823 lines)
 - [scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt](../scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt)
 - [scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh](../scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh)
 
 **Current Protection:**
+
 1. ✅ Policy file integrity verification (SHA256)
 2. ✅ Blocked keywords list
 3. ✅ Greylist with challenge
@@ -89,6 +100,7 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 5. ✅ Steam weekend-only restriction
 
 **VULNERABILITIES IDENTIFIED:**
+
 - ❌ **Google Chrome not blocked** - `google-chrome` and `google-chrome-stable` missing from blocked list
 - ❌ No automatic LeechBlock installation when browsers are detected
 - ❌ User can download `.deb`/`.tar.gz` and install manually
@@ -100,11 +112,13 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 **File:** [scripts/digital_wellbeing/block_compulsive_opening.sh](../scripts/digital_wellbeing/block_compulsive_opening.sh) (507 lines)
 
 **Current Behavior:**
+
 - Records first open per hour in state file
 - Blocks subsequent launches within same hour
 - Shows notification when blocked
 
 **CRITICAL VULNERABILITY:**
+
 - ❌ **App stays running indefinitely** - User can:
   1. Open app once per hour (allowed)
   2. Minimize/hide the window
@@ -118,10 +132,12 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 **File:** [scripts/digital_wellbeing/youtube-music-wrapper.sh](../scripts/digital_wellbeing/youtube-music-wrapper.sh)
 
 **Current Behavior:**
+
 - Checks if focus apps (VSCode, games, etc.) are running
 - Blocks YouTube Music launch if focus app detected
 
 **REQUESTED ENHANCEMENT:**
+
 - When Steam is open → Block ALL browsers, close any open browsers
 - When browsers open → Block Steam, close Steam if running
 - This creates mutual exclusion between gaming and browsing
@@ -133,11 +149,13 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 ### Shell (Bash) Limitations
 
 **Pros:**
+
 - Native to the system, no dependencies
 - Direct access to systemd, chattr, filesystem
 - Fast for simple operations
 
 **Cons:**
+
 - No persistent daemon capability (need systemd for that)
 - Race conditions in file operations
 - Complex state management is fragile
@@ -147,6 +165,7 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 ### Python Advantages for Certain Tasks
 
 **Where Python would be better:**
+
 1. **Process monitoring daemon** - Watch for Steam/browsers in real-time with proper event loop
 2. **Window management** - Using `python-xlib` for proper X11 interaction
 3. **Complex state machines** - Like the screen locker
@@ -154,16 +173,17 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 
 ### Recommendation
 
-| Component | Keep Bash | Move to Python | Reason |
-|-----------|-----------|----------------|--------|
-| hosts guard | ✅ | | Simple file ops, systemd integration |
-| shutdown schedule | ✅ | | Systemd timers, config files |
-| screen locker | | ✅ Already | Complex UI, state machine |
-| pacman wrapper | ✅ | | Must intercept pacman |
-| compulsive block | | ✅ | Needs daemon for auto-close |
-| music wrapper | | ✅ | Needs real-time process monitoring |
+| Component         | Keep Bash | Move to Python | Reason                               |
+| ----------------- | --------- | -------------- | ------------------------------------ |
+| hosts guard       | ✅        |                | Simple file ops, systemd integration |
+| shutdown schedule | ✅        |                | Systemd timers, config files         |
+| screen locker     |           | ✅ Already     | Complex UI, state machine            |
+| pacman wrapper    | ✅        |                | Must intercept pacman                |
+| compulsive block  |           | ✅             | Needs daemon for auto-close          |
+| music wrapper     |           | ✅             | Needs real-time process monitoring   |
 
 **New Python Daemon Needed:** A single "digital wellbeing daemon" that:
+
 1. Monitors running processes
 2. Auto-closes apps after timeout
 3. Enforces Steam/browser mutual exclusion
@@ -179,8 +199,8 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 
 ### IMPLEMENTATION PROMPT
 
-```
-I need to implement comprehensive security hardening for a Linux digital wellbeing system. 
+````
+I need to implement comprehensive security hardening for a Linux digital wellbeing system.
 The codebase is at ~/linux-configuration/ with these components needing changes:
 
 ## 1. HOSTS PROTECTION - nsswitch.conf Guard
@@ -190,12 +210,12 @@ Location: hosts/guard/
 Create a new protection layer for /etc/nsswitch.conf that:
 - Monitors nsswitch.conf for changes (systemd path watcher)
 - Ensures the "hosts:" line ALWAYS contains "files" before "dns"
-- Creates canonical copy at /usr/local/share/locked-nsswitch.conf  
+- Creates canonical copy at /usr/local/share/locked-nsswitch.conf
 - Enforces with chattr +i
 - Add to setup_hosts_guard.sh installer
 - Must restore automatically if tampered
 
-The nsswitch.conf protection is CRITICAL because removing "files" from the 
+The nsswitch.conf protection is CRITICAL because removing "files" from the
 hosts line completely bypasses /etc/hosts without touching it.
 
 ## 2. MIDNIGHT SHUTDOWN - Silent Denial
@@ -236,7 +256,7 @@ Location: scripts/digital_wellbeing/pacman/
 
 Changes needed to pacman_blocked_keywords.txt:
 - Add: google-chrome
-- Add: google-chrome-stable  
+- Add: google-chrome-stable
 - Add: chromium
 - Add: ungoogled-chromium
 
@@ -269,14 +289,14 @@ launch_with_timer() {
   local timeout_minutes=10
   local real_binary="$2"
   shift 2
-  
+
   # Launch app in background
   "$real_binary" "$@" &
   local app_pid=$!
-  
+
   # Record state
   echo "$app_pid $(date +%s)" > "$STATE_DIR/${app}.running"
-  
+
   # Spawn killer daemon (detached)
   (
     sleep $((timeout_minutes * 60))
@@ -289,11 +309,11 @@ launch_with_timer() {
     rm -f "$STATE_DIR/${app}.running"
   ) &
   disown
-  
+
   # Wait for app to exit
   wait $app_pid 2>/dev/null || true
 }
-```
+````
 
 ## 6. YOUTUBE MUSIC → STEAM/BROWSER MUTUAL EXCLUSION
 
@@ -302,9 +322,10 @@ This requires a more sophisticated approach. Create a new Python daemon.
 Location: scripts/digital_wellbeing/focus_mode_daemon.py (new file)
 
 Behavior:
+
 - Run as a systemd user service
 - Monitor running processes continuously
-- When Steam (steam_app_* or steam game processes) detected:
+- When Steam (steam*app*\* or steam game processes) detected:
   - Kill any running browsers (firefox, chrome, brave, etc.)
   - Block browser launches (via wrapper modification or DBus signal)
   - Show notification: "Gaming mode active - browsers disabled"
@@ -326,14 +347,16 @@ Behavior:
 ## FILES TO CREATE/MODIFY
 
 New files:
+
 - hosts/guard/nsswitch-guard.path
-- hosts/guard/nsswitch-guard.service  
+- hosts/guard/nsswitch-guard.service
 - hosts/guard/enforce-nsswitch.sh
 - scripts/digital_wellbeing/focus_mode_daemon.py
 - scripts/digital_wellbeing/install_focus_mode_daemon.sh
 - tests/test_security_hardening.sh
 
 Modified files:
+
 - hosts/guard/setup_hosts_guard.sh (add nsswitch protection)
 - scripts/digital_wellbeing/setup_midnight_shutdown.sh (remove helpful messages)
 - scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt (add chrome)
@@ -342,7 +365,9 @@ Modified files:
 - scripts/digital_wellbeing/youtube-music-wrapper.sh (daemon integration)
 
 External repo (separate changes):
+
 - ~/testsAndMisc/python_pkg/screen_locker/screen_lock.py (remove running, harden table tennis)
+
 ```
 
 ---
@@ -352,40 +377,48 @@ External repo (separate changes):
 ### Agent: Hosts Guard Expert
 
 ```
+
 You are an expert on the linux-configuration hosts guard system. You understand:
 
 FILES YOU KNOW:
+
 - hosts/install.sh - Downloads StevenBlack hosts, adds custom entries, protects with chattr
 - hosts/guard/setup_hosts_guard.sh - Installs all guard layers (path watcher, bind mount, unlock script)
 - hosts/guard/enforce-hosts.sh - Called when tampering detected, restores from canonical
 - hosts/guard/psychological/unlock-hosts.sh - 45-second delay, logs reason, opens editor
 - hosts/guard/hosts-guard.path/.service - Systemd path watcher
 - hosts/guard/hosts-bind-mount.service - Read-only bind mount
-- hosts/guard/pacman-hooks/*.sh - Pre/post transaction hooks for pacman
+- hosts/guard/pacman-hooks/\*.sh - Pre/post transaction hooks for pacman
 
 KEY CONCEPTS:
+
 - Canonical copy at /usr/local/share/locked-hosts
 - Custom entries state at /etc/hosts.custom-entries.state
 - Multi-layer defense: chattr + path watcher + bind mount
 - Shell history suppression for unlock commands
 
 COMMON TASKS:
+
 - Adding new blocked domains: Edit hosts/install.sh heredoc section
 - Temporarily allowing edits: sudo /usr/local/sbin/unlock-hosts
 - Checking status: lsattr /etc/hosts, systemctl status hosts-guard.path
 
 GOTCHAS:
+
 - Must run hosts/install.sh BEFORE setup_hosts_guard.sh
 - Removing custom entries is blocked by protection mechanism
 - nsswitch.conf bypass is currently unprotected (needs fix)
+
 ```
 
 ### Agent: Shutdown Schedule Expert
 
 ```
+
 You are an expert on the midnight shutdown system. You understand:
 
 FILES YOU KNOW:
+
 - scripts/digital_wellbeing/setup_midnight_shutdown.sh - Main installer (1300+ lines)
 - /etc/shutdown-schedule.conf - Runtime config (MON_WED_HOUR, THU_SUN_HOUR, MORNING_END_HOUR)
 - /usr/local/share/locked-shutdown-schedule.conf - Canonical protected copy
@@ -395,6 +428,7 @@ FILES YOU KNOW:
 - /etc/systemd/system/shutdown-schedule-guard.path/.service - Config protection
 
 KEY CONCEPTS:
+
 - Day-specific windows: Mon-Wed vs Thu-Sun have different hours
 - Making schedule STRICTER (earlier) = allowed without delay
 - Making schedule MORE LENIENT (later) = blocked or requires unlock
@@ -402,22 +436,27 @@ KEY CONCEPTS:
 - Monitor service re-enables timer if user disables it
 
 PROTECTION LAYERS:
+
 1. Script checks canonical config, blocks lenient changes
 2. Config file has chattr +i
 3. Path watcher restores if file modified
 4. Canonical copy takes precedence
 
 INTEGRATION:
+
 - i3blocks shutdown_countdown.sh reads the config
 - screen_lock.py can adjust shutdown time (reward/punishment)
+
 ```
 
 ### Agent: Pacman Wrapper Expert
 
 ```
+
 You are an expert on the pacman wrapper security system. You understand:
 
 FILES YOU KNOW:
+
 - scripts/digital_wellbeing/pacman/pacman_wrapper.sh - Main wrapper (823 lines)
 - scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh - Backs up real pacman
 - scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt - Always blocked
@@ -427,6 +466,7 @@ FILES YOU KNOW:
 - /var/lib/pacman-wrapper/policy.sha256 - Integrity checksums
 
 KEY CONCEPTS:
+
 - Real pacman at /usr/bin/pacman.orig, wrapper symlinked to /usr/bin/pacman
 - Policy integrity verification via SHA256 before ANY operation
 - Three tiers: blocked (always denied), greylist (challenge), whitelist (bypass)
@@ -434,6 +474,7 @@ KEY CONCEPTS:
 - Steam is weekend-only with word scramble challenge
 
 POLICY ENFORCEMENT:
+
 1. Load policy lists from text files
 2. Verify integrity hashes match
 3. Check if package matches blocked keywords (unless whitelisted)
@@ -441,67 +482,81 @@ POLICY ENFORCEMENT:
 5. After transaction, remove any blocked packages that got installed
 
 HOSTS INTEGRATION:
+
 - Calls /usr/local/share/hosts-guard/pacman-pre-unlock-hosts.sh before transaction
 - Calls pacman-post-relock-hosts.sh after transaction
 - Enforces VirtualBox hosts sharing if vbox detected
 
 MAINTENANCE INTEGRATION:
+
 - Auto-runs setup_periodic_system.sh if maintenance services missing
+
 ```
 
 ### Agent: Compulsive Opening Blocker Expert
 
 ```
+
 You are an expert on the block_compulsive_opening.sh script. You understand:
 
 FILES YOU KNOW:
+
 - scripts/digital_wellbeing/block_compulsive_opening.sh - Main script (507 lines)
 - /usr/local/bin/block-compulsive-opening.sh - Installed location
-- ~/.local/state/compulsive-block/*.lastopen - Per-app state files
+- ~/.local/state/compulsive-block/\*.lastopen - Per-app state files
 - ~/.local/state/compulsive-block/compulsive-block.log - Activity log
 - /etc/pacman.d/hooks/95-compulsive-block-rewrap.hook - Auto-rewrap hook
 
 MANAGED APPS:
+
 - beeper → /opt/beeper/beepertexts
 - signal-desktop → /usr/lib/signal-desktop/signal-desktop
 - discord → /opt/discord/Discord
 
 KEY CONCEPTS:
+
 - Wrapper replaces /usr/bin/<app>, original saved as .orig or SYMLINK: marker
 - Hour-based tracking: YYYY-MM-DD-HH format
 - First launch per hour allowed, subsequent launches blocked
 - Pacman hook re-installs wrappers after package updates
 
 WRAPPER FLOW:
+
 1. wrapper_main() called with app name
-2. Check was_opened_this_hour() 
+2. Check was_opened_this_hour()
 3. If yes: block_app() + notification + exit 1
 4. If no: record_opening() + exec real binary
 
 LIMITATION (needs fix):
+
 - Once app is launched, it can run indefinitely
 - User can minimize and keep checking via Alt+Tab
 - Needs auto-close timer functionality
+
 ```
 
 ### Agent: Screen Locker Expert
 
 ```
+
 You are an expert on the screen_lock.py workout locker. You understand:
 
 FILE LOCATION: ~/testsAndMisc/python_pkg/screen_locker/screen_lock.py (1261 lines)
 
 PURPOSE:
+
 - Full-screen lock requiring workout verification to unlock
 - Integrates with shutdown schedule system
 
 WORKOUT TYPES:
+
 1. Running: distance, time, pace with cross-validation
 2. Strength: exercises, sets, reps, weights with total calculation
 3. Table Tennis: duration, sets, points won/lost
 4. Sick Day: 2-minute wait, shutdown moved 1.5h earlier
 
 KEY FEATURES:
+
 - 30-second delay before submit button enabled
 - Cross-validation (e.g., pace = time / distance)
 - 15% tolerance on calculated values
@@ -509,16 +564,19 @@ KEY FEATURES:
 - JSON workout log stored in same directory
 
 SHUTDOWN INTEGRATION:
-- _adjust_shutdown_time_earlier() - sick day penalty
-- _adjust_shutdown_time_later() - workout reward (+1.5h)
+
+- \_adjust_shutdown_time_earlier() - sick day penalty
+- \_adjust_shutdown_time_later() - workout reward (+1.5h)
 - Uses adjust_shutdown_schedule.sh helper script
 - Sick day state tracked in sick_day_state.json
 
 SECURITY CONCERNS (needs fix):
+
 - Running option too easy to fake
 - Table tennis lacks rigorous validation
 - Window can potentially be closed via keyboard
-```
+
+````
 
 ---
 
@@ -535,13 +593,15 @@ These should be created in the respective directories:
 Prevent tampering with /etc/hosts to maintain website blocking.
 
 ## Architecture
-```
+````
+
 /etc/hosts (immutable) ←── canonical (/usr/local/share/locked-hosts)
-                                ↑
-                    path watcher detects changes
-                                ↓
-                    enforce-hosts.sh restores
-```
+↑
+path watcher detects changes
+↓
+enforce-hosts.sh restores
+
+````
 
 ## Critical Files
 | File | Purpose | Protected By |
@@ -562,13 +622,15 @@ sudo /usr/local/sbin/unlock-hosts
 # Reinstall/repair
 sudo ~/linux-configuration/hosts/install.sh
 sudo ~/linux-configuration/hosts/guard/setup_hosts_guard.sh
-```
+````
 
 ## DO NOT
+
 - Edit /etc/nsswitch.conf (bypasses hosts entirely)
 - Stop hosts-guard.path without understanding consequences
 - Remove entries from install.sh without state file cleanup
-```
+
+````
 
 ### [scripts/digital_wellbeing/pacman/README_FOR_LLM.md](to be created)
 
@@ -579,11 +641,13 @@ sudo ~/linux-configuration/hosts/guard/setup_hosts_guard.sh
 Intercept pacman to enforce package installation policies.
 
 ## Architecture
-```
+````
+
 /usr/bin/pacman (symlink) → pacman_wrapper.sh
-                                   ↓
-                          /usr/bin/pacman.orig (real)
-```
+↓
+/usr/bin/pacman.orig (real)
+
+````
 
 ## Policy Files
 | File | Purpose |
@@ -609,8 +673,9 @@ echo "newpackage" >> pacman_blocked_keywords.txt
 
 # Re-run installer to update checksums
 sudo ./install_pacman_wrapper.sh
-```
-```
+````
+
+````
 
 ---
 
@@ -680,7 +745,7 @@ echo "Results: $PASS passed, $FAIL failed"
 echo "=========================================="
 
 exit $FAIL
-```
+````
 
 ---
 

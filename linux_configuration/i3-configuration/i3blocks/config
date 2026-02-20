@@ -91,5 +91,3 @@ markup=pango
 command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
 interval=1
 color=#50FA7B
-
-

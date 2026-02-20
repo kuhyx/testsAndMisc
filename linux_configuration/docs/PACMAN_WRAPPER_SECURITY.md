@@ -19,6 +19,7 @@ The original pacman wrapper had the following vulnerabilities:
 **File**: `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh`
 
 The installer now:
+
 - Generates SHA256 checksums of all policy files during installation
 - Stores checksums in `/var/lib/pacman-wrapper/policy.sha256`
 - Makes the integrity file immutable using `chattr +i`
@@ -27,12 +28,14 @@ The installer now:
 **File**: `scripts/digital_wellbeing/pacman/pacman_wrapper.sh`
 
 The wrapper now:
+
 - Verifies policy file integrity on **every invocation**
 - Compares current file checksums against stored checksums
 - **Blocks all operations** if tampering is detected
 - Displays security warnings and instructs user to reinstall
 
 **Benefits**:
+
 - Cannot bypass restrictions by editing policy files
 - Tampering is immediately detected and blocked
 - Must use `chattr -i` (requires root) to modify files, making bypass harder
@@ -51,11 +54,13 @@ function is_virtualbox_package() {
 ```
 
 This function:
+
 - Is compiled into the wrapper code itself
 - Cannot be disabled by editing text files
 - Catches all VirtualBox-related packages
 
 **Enhanced Challenge**:
+
 - 7-letter words (harder than greylist's 6-letter words)
 - 150 words to memorize (more than greylist's 120)
 - 120-second timeout (longer than greylist's 90s)
@@ -63,6 +68,7 @@ This function:
 - 30-50 second post-challenge delay
 
 **Warning Messages**:
+
 - Explicit warning about /etc/hosts bypass potential
 - Lists security measures that will be applied
 - Emphasizes that restrictions are hardcoded
@@ -74,18 +80,21 @@ This function:
 A new enforcement script that:
 
 **For Host Configuration**:
+
 - Configures all VMs to use host's DNS resolution (`--natdnshostresolver1 on`)
 - Enables NAT DNS proxy (`--natdnsproxy1 on`)
 - Adds `/etc` as a read-only shared folder to all VMs
 - Tracks enforcement status with marker file
 
 **For Guest Configuration**:
+
 - Generates a startup script for VMs
 - Mounts the shared `/etc` folder inside the VM
 - Syncs host's `/etc/hosts` to VM's `/etc/hosts`
 - Makes the hosts file read-only in the VM
 
 **Commands**:
+
 ```bash
 # Apply enforcement to all VMs
 sudo enforce_vbox_hosts.sh enforce
@@ -99,6 +108,7 @@ sudo enforce_vbox_hosts.sh generate-script
 
 **Auto-Integration**:
 The pacman wrapper automatically:
+
 - Detects VirtualBox installation after any install operation
 - Locates and runs the enforcement script
 - Applies enforcement to all existing VMs
@@ -109,6 +119,7 @@ The pacman wrapper automatically:
 **File**: `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh`
 
 The installer now:
+
 - Installs VirtualBox enforcement script to `/usr/local/share/digital_wellbeing/virtualbox/`
 - Makes the enforcement script executable
 - Reports installation status to user
@@ -159,6 +170,7 @@ bash tests/test_pacman_wrapper_security.sh
 ```
 
 Tests verify:
+
 - Script syntax validity
 - Integrity check function exists and is called
 - Hardcoded VirtualBox check exists
@@ -176,6 +188,7 @@ sudo ./install_pacman_wrapper.sh
 ```
 
 This will:
+
 - Install the wrapper and policy files
 - Generate integrity checksums
 - Make policy files immutable

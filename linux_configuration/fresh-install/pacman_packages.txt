@@ -1,16 +1,16 @@
 arch-wiki-docs
 # duh - using default linux for most compatibility
 linux
-# needed for compiling basically anything 
+# needed for compiling basically anything
 distcc
-# probably already installed at this point 
+# probably already installed at this point
 git
-# bluetooth 
+# bluetooth
 bluez
 bluez-utils
-# faster make 
+# faster make
 icmake
-# needed for some packages 
+# needed for some packages
 yodl
 # open gl
 glu
@@ -18,13 +18,13 @@ glu
 pavucontrol-qt
 # faster compiling
 mold
-# faster unpacking 
+# faster unpacking
 zstd
 lz4
 xz
 pigz
 lbzip2
-# needed for some packages 
+# needed for some packages
 doxygen
 # programming languages needed for some packages
 tcl
@@ -41,11 +41,11 @@ ttf-font-awesome
 bc
 # for battery - toDo ignore on desktop
 acpi
-# Programming language needed for some pakcages 
+# Programming language needed for some pakcages
 cargo
-# opengl api 
+# opengl api
 freeglut
-# Latex 
+# Latex
 texlive-plaingeneric
 docbook-xsl
 graphviz
@@ -61,37 +61,37 @@ texlive-humanities
 texlive-science
 #  Node.js native addon build tool needed for some packages
 node-gyp
-# For writing uml diagrams - consider removing 
+# For writing uml diagrams - consider removing
 plantuml
 # dependency hell injector
 npm
-# generates man pages from markdown - consider removing 
+# generates man pages from markdown - consider removing
 ruby-ronn
-# for GO programming language 
+# for GO programming language
 go-tools
-# ? Posssibly required by some packages - consider removing 
+# ? Posssibly required by some packages - consider removing
 asciidoctor
 # manuals
 man-db
-# git for large files like LLM 
+# git for large files like LLM
 git-lfs
 # hell for servers
 nodejs
-# hell for desktop 
+# hell for desktop
 electron
-# better npm 
+# better npm
 yarn
 # for compatibility of some packages
 openssl-1.1
-# needed for some packages 
+# needed for some packages
 tk
-# needed for some packages jpeg 
+# needed for some packages jpeg
 jasper
-# opencv dependency  
+# opencv dependency
 libdc1394
-# needed for a lot of packages 
+# needed for a lot of packages
 cblas
-# Parsing Expression Grammar Template Library consider removing 
+# Parsing Expression Grammar Template Library consider removing
 pegtl
 # needed for a lot of packages
 hdf5

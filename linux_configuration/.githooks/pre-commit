@@ -93,4 +93,21 @@ if [[ ${jscpd_exit:-0} -ne 0 ]]; then
 fi
 printf '  ✓ Duplication check passed (under 2%% threshold)\n'
 
+# Run pre-commit framework hooks (.pre-commit-config.yaml)
+# This covers: Python (ruff, mypy, pylint, bandit, flake8, autoflake),
+# C/C++ (clang-format, cppcheck, flawfinder), TypeScript (eslint),
+# shell (shellcheck), and general checks (trailing-whitespace, etc.)
+if command -v pre-commit > /dev/null 2>&1; then
+  printf '\nRunning pre-commit framework hooks...\n'
+  if ! pre-commit run --hook-stage pre-commit; then
+    printf '\nCommit aborted: pre-commit hooks failed.\n' >&2
+    printf 'Fix the issues above and retry the commit.\n' >&2
+    exit 1
+  fi
+  printf '  ✓ pre-commit framework hooks passed\n'
+else
+  printf '\n⚠ pre-commit not installed, skipping framework hooks.\n' >&2
+  printf '  Install with: sudo pacman -S python-pre-commit && pre-commit install\n' >&2
+fi
+
 printf 'All checks passed. Proceeding with commit.\n'
