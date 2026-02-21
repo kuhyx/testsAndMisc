@@ -41,7 +41,9 @@ testem.log
 .DS_Store
 Thumbs.db
 *.mkv
+*.mp4
 imageviewer
+title_test.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

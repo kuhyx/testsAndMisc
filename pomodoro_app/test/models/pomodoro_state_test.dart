@@ -2,6 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/models/pomodoro_state.dart';
 
 void main() {
+  group('TimerStyle', () {
+    test('label returns correct strings', () {
+      expect(TimerStyle.pomodoro.label, 'Pomodoro');
+      expect(TimerStyle.ultraradian.label, 'Ultraradian');
+    });
+
+    test('pomodoro has correct defaults', () {
+      expect(TimerStyle.pomodoro.defaultWorkMinutes, 25);
+      expect(TimerStyle.pomodoro.defaultShortBreakMinutes, 5);
+      expect(TimerStyle.pomodoro.defaultLongBreakMinutes, 15);
+      expect(TimerStyle.pomodoro.defaultPomodorosPerCycle, 4);
+    });
+
+    test('ultraradian has correct defaults', () {
+      expect(TimerStyle.ultraradian.defaultWorkMinutes, 90);
+      expect(TimerStyle.ultraradian.defaultShortBreakMinutes, 30);
+      expect(TimerStyle.ultraradian.defaultLongBreakMinutes, 30);
+      expect(TimerStyle.ultraradian.defaultPomodorosPerCycle, 1);
+    });
+  });
+
   group('PomodoroMode', () {
     test('label returns correct strings', () {
       expect(PomodoroMode.work.label, 'Work');
@@ -95,6 +116,30 @@ void main() {
       final original = PomodoroState.initial();
       final copy = original.copyWith();
       expect(copy, original);
+    });
+  });
+
+  group('PomodoroState.modeDisplayLabel', () {
+    test('returns mode label when pomodorosPerCycle > 1', () {
+      final state = PomodoroState.initial();
+      expect(state.modeDisplayLabel, 'Work');
+
+      final breakState = state.copyWith(mode: PomodoroMode.shortBreak);
+      expect(breakState.modeDisplayLabel, 'Short Break');
+
+      final longBreakState = state.copyWith(mode: PomodoroMode.longBreak);
+      expect(longBreakState.modeDisplayLabel, 'Long Break');
+    });
+
+    test('returns Break when pomodorosPerCycle is 1 and not work', () {
+      final state = PomodoroState.initial(pomodorosPerCycle: 1);
+      expect(state.modeDisplayLabel, 'Work');
+
+      final breakState = state.copyWith(mode: PomodoroMode.shortBreak);
+      expect(breakState.modeDisplayLabel, 'Break');
+
+      final longBreakState = state.copyWith(mode: PomodoroMode.longBreak);
+      expect(longBreakState.modeDisplayLabel, 'Break');
     });
   });
 

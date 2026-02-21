@@ -174,5 +174,34 @@ void main() {
       // We can check that the PomodoroIndicators widget is present.
       expect(find.text('0 pomodoros completed'), findsOneWidget);
     });
+
+    testWidgets('shows style picker with Pomodoro selected', (tester) async {
+      await tester.pumpWidget(createApp());
+      expect(find.text('Pomodoro'), findsOneWidget);
+      expect(find.text('Ultraradian'), findsOneWidget);
+    });
+
+    testWidgets('switching to ultraradian updates timer', (tester) async {
+      await tester.pumpWidget(createApp());
+
+      await tester.tap(find.text('Ultraradian'));
+      await tester.pump();
+
+      // Ultraradian work session is 90 minutes.
+      expect(find.text('90:00'), findsOneWidget);
+      expect(timer.timerStyle, TimerStyle.ultraradian);
+    });
+
+    testWidgets('switching back to pomodoro resets timer', (tester) async {
+      await tester.pumpWidget(createApp());
+
+      await tester.tap(find.text('Ultraradian'));
+      await tester.pump();
+      expect(find.text('90:00'), findsOneWidget);
+
+      await tester.tap(find.text('Pomodoro'));
+      await tester.pump();
+      expect(find.text('25:00'), findsOneWidget);
+    });
   });
 }

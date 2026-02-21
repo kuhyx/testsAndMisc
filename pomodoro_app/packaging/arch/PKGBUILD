@@ -47,10 +47,10 @@ package() {
     "$pkgdir/usr/lib/$pkgname/pomodoro_app"
 
   # Install bundled shared libraries.
-  install -Dm644 "$_bundle/lib/libapp.so" \
-    "$pkgdir/usr/lib/$pkgname/lib/libapp.so"
-  install -Dm644 "$_bundle/lib/libflutter_linux_gtk.so" \
-    "$pkgdir/usr/lib/$pkgname/lib/libflutter_linux_gtk.so"
+  for lib in "$_bundle"/lib/*.so; do
+    install -Dm644 "$lib" \
+      "$pkgdir/usr/lib/$pkgname/lib/$(basename "$lib")"
+  done
 
   # Install data directory.
   install -Dm644 "$_bundle/data/icudtl.dat" \

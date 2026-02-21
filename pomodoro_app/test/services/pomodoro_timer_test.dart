@@ -247,6 +247,70 @@ void main() {
     });
   });
 
+  group('switchStyle()', () {
+    test('switches to ultraradian with correct durations', () {
+      timer.switchStyle(TimerStyle.ultraradian);
+      expect(timer.timerStyle, TimerStyle.ultraradian);
+      expect(timer.state.remainingSeconds, 90 * 60);
+      expect(timer.state.totalSeconds, 90 * 60);
+      expect(timer.state.pomodorosPerCycle, 1);
+      expect(timer.state.mode, PomodoroMode.work);
+      expect(timer.state.isRunning, false);
+    });
+
+    test('switches back to pomodoro', () {
+      timer.switchStyle(TimerStyle.ultraradian);
+      timer.switchStyle(TimerStyle.pomodoro);
+      expect(timer.timerStyle, TimerStyle.pomodoro);
+      expect(timer.state.remainingSeconds, 25 * 60);
+      expect(timer.state.totalSeconds, 25 * 60);
+      expect(timer.state.pomodorosPerCycle, 4);
+    });
+
+    test('resets running timer when switching', () {
+      timer.start();
+      fakeController.tick();
+      expect(timer.state.isRunning, true);
+
+      timer.switchStyle(TimerStyle.ultraradian);
+      expect(timer.state.isRunning, false);
+      expect(timer.state.remainingSeconds, 90 * 60);
+    });
+
+    test('does nothing when switching to same style', () {
+      timer.start();
+      fakeController.tick();
+      final stateBefore = timer.state;
+
+      timer.switchStyle(TimerStyle.pomodoro);
+      expect(timer.state, stateBefore);
+    });
+
+    test('notifies listeners', () {
+      var notified = false;
+      timer.addListener(() => notified = true);
+      timer.switchStyle(TimerStyle.ultraradian);
+      expect(notified, true);
+    });
+
+    test('resets completed pomodoros', () {
+      timer.start();
+      for (var i = 0; i < 60; i++) {
+        fakeController.tick();
+      }
+      expect(timer.state.completedPomodoros, 1);
+
+      timer.switchStyle(TimerStyle.ultraradian);
+      expect(timer.state.completedPomodoros, 0);
+    });
+  });
+
+  group('timerStyle getter', () {
+    test('defaults to pomodoro', () {
+      expect(timer.timerStyle, TimerStyle.pomodoro);
+    });
+  });
+
   group('applyRemoteState()', () {
     test('applies remote state and notifies listeners', () {
       var notified = false;

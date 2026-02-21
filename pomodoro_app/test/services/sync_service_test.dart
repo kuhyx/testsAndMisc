@@ -10,12 +10,12 @@ import 'package:pomodoro_app/services/sync_service.dart';
 /// injecting received messages.
 class FakeDatagramSocket implements RawDatagramSocket {
   final _controller = StreamController<RawSocketEvent>.broadcast();
-  final List<_SentDatagram> sentMessages = [];
+  final List<SentDatagram> sentMessages = [];
   Datagram? _pendingDatagram;
 
   @override
   int send(List<int> buffer, InternetAddress address, int port) {
-    sentMessages.add(_SentDatagram(buffer, address, port));
+    sentMessages.add(SentDatagram(buffer, address, port));
     return buffer.length;
   }
 
@@ -61,8 +61,8 @@ class FakeDatagramSocket implements RawDatagramSocket {
   dynamic noSuchMethod(Invocation invocation) => null;
 }
 
-class _SentDatagram {
-  _SentDatagram(this.data, this.address, this.port);
+class SentDatagram {
+  SentDatagram(this.data, this.address, this.port);
   final List<int> data;
   final InternetAddress address;
   final int port;
@@ -118,7 +118,6 @@ void main() {
     });
 
     test('ignores own messages', () async {
-      final state = PomodoroState.initial();
       final message = jsonEncode({
         'deviceId': 'test-device-1', // Same as our device.
         'timestamp': DateTime.now().millisecondsSinceEpoch,
@@ -212,7 +211,7 @@ void main() {
         PomodoroState? received;
 
         final sender = SyncService(
-          onStateReceived: (_, __) {},
+          onStateReceived: (_, _) {},
           deviceId: 'sender',
           socketFactory: (h, p) async => fakeSocket,
         );

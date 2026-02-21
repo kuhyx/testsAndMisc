@@ -15,6 +15,8 @@ com.glovo.courier
 com.wolt.android
 
 # Bolt Food / Bolt
+com.bolt.deliveryclient
+ee.mtakso.client
 ee.mtakso.food
 ee.mtakso
 

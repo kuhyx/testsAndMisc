@@ -57,6 +57,13 @@ def _out(text: str = "") -> None:
     sys.stdout.write(text + "\n")
 
 
+def _prompt(text: str) -> str:
+    """Read user input with a prompt."""
+    sys.stdout.write(text)
+    sys.stdout.flush()
+    return sys.stdin.readline().strip()
+
+
 # ── Brother PJL status codes ────────────────────────────────────────
 # Documented in Brother PJL Technical Reference.
 # Format: code -> (severity, short_text, action)
@@ -91,26 +98,23 @@ BROTHER_STATUS_CODES: dict[int, tuple[str, str, str]] = {
     40309: (
         "critical",
         "Replace Toner",
-        "The toner cartridge needs immediate replacement"
-        " (TN-1050/TN-1030 compatible).",
+        "The toner cartridge needs immediate replacement (TN-1050/TN-1030 compatible).",
     ),
     40310: (
         "critical",
         "Toner End",
-        "The toner cartridge is empty. Replace now" " (TN-1050/TN-1030 compatible).",
+        "The toner cartridge is empty. Replace now (TN-1050/TN-1030 compatible).",
     ),
     # Drum
     30201: (
         "warn",
         "Drum End Soon",
-        "The drum unit is nearing end of life."
-        " Order replacement (DR-1050 compatible).",
+        "The drum unit is nearing end of life. Order replacement (DR-1050 compatible).",
     ),
     40201: (
         "warn",
         "Drum End Soon",
-        "The drum unit is nearing end of life."
-        " Order replacement (DR-1050 compatible).",
+        "The drum unit is nearing end of life. Order replacement (DR-1050 compatible).",
     ),
     40019: (
         "critical",
@@ -145,6 +149,28 @@ BROTHER_STATUS_CODES: dict[int, tuple[str, str, str]] = {
 
 
 # ── Data classes ─────────────────────────────────────────────────────
+
+
+@dataclass
+class CUPSJob:
+    """A single CUPS print job."""
+
+    job_id: str
+    user: str
+    size: str
+    date: str
+
+
+@dataclass
+class CUPSQueueStatus:
+    """Status of the CUPS print queue for a printer."""
+
+    printer_name: str = ""
+    enabled: bool = True
+    reason: str = ""
+    jobs: list[CUPSJob] = field(default_factory=list)
+    has_backend_errors: bool = False
+    last_backend_error: str = ""
 
 
 @dataclass
@@ -481,6 +507,362 @@ def query_network_snmp(ip: str) -> NetworkResult:
     return _build_network_result(ip, community, timeout)
 
 
+# ── CUPS queue inspection ────────────────────────────────────────────
+
+
+def _find_cups_printer_name() -> str:
+    """Find the CUPS queue name for a Brother printer."""
+    lpstat_path = shutil.which("lpstat")
+    if not lpstat_path:
+        return ""
+    try:
+        r = subprocess.run(
+            [lpstat_path, "-v"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in r.stdout.splitlines():
+            if "brother" in line.lower():
+                # e.g. device for Brother_HL-1110_series: usb://...
+                match = re.match(r"device for (\S+):", line)
+                if match:
+                    return match.group(1)
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        pass
+    return ""
+
+
+def _parse_lpstat_printer_line(line: str) -> tuple[bool, str]:
+    """Parse an lpstat -p line. Returns (enabled, reason)."""
+    enabled = "disabled" not in line.lower()
+    reason = ""
+    # Reason follows the dash after the date
+    match = re.search(r"\d{4}\s+-\s*(.+)", line)
+    if match:
+        reason = match.group(1).strip()
+    return enabled, reason
+
+
+def _parse_lpstat_jobs(output: str, printer_name: str) -> list[CUPSJob]:
+    """Parse lpstat -o output into CUPSJob list."""
+    jobs: list[CUPSJob] = []
+    for line in output.splitlines():
+        if not line.startswith(printer_name):
+            continue
+        parts = line.split()
+        if len(parts) >= 4:  # noqa: PLR2004
+            job_id = parts[0]
+            user = parts[1]
+            size = parts[2]
+            date = " ".join(parts[3:])
+            jobs.append(CUPSJob(job_id=job_id, user=user, size=size, date=date))
+    return jobs
+
+
+def get_cups_queue_status() -> CUPSQueueStatus:
+    """Check if the CUPS queue is disabled and list pending jobs."""
+    printer_name = _find_cups_printer_name()
+    if not printer_name:
+        return CUPSQueueStatus()
+
+    result = CUPSQueueStatus(printer_name=printer_name)
+    lpstat_path = shutil.which("lpstat")
+    if not lpstat_path:
+        return result
+
+    # Check printer enabled/disabled state
+    try:
+        r = subprocess.run(
+            [lpstat_path, "-p", printer_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in r.stdout.splitlines():
+            if "printer" in line.lower() and printer_name in line:
+                result.enabled, result.reason = _parse_lpstat_printer_line(line)
+                break
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        pass
+
+    # List pending jobs
+    try:
+        r = subprocess.run(
+            [lpstat_path, "-o", printer_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        result.jobs = _parse_lpstat_jobs(r.stdout, printer_name)
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        pass
+
+    # Check for stale backend errors
+    has_errors, last_error = _check_cups_backend_errors(printer_name)
+    result.has_backend_errors = has_errors
+    result.last_backend_error = last_error
+
+    return result
+
+
+def _cups_enable_printer(printer_name: str) -> bool:
+    """Re-enable a disabled CUPS printer. Returns True on success."""
+    cupsenable_path = shutil.which("cupsenable")
+    if not cupsenable_path:
+        _out(f"  {RED}cupsenable not found.{RESET}")
+        return False
+    try:
+        subprocess.run(
+            [cupsenable_path, printer_name],
+            timeout=5,
+            check=True,
+        )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
+        _out(f"  {RED}Failed to enable printer: {e}{RESET}")
+        return False
+    else:
+        return True
+
+
+def _cups_cancel_all_jobs(printer_name: str) -> bool:
+    """Cancel all pending jobs. Returns True on success."""
+    cancel_path = shutil.which("cancel")
+    if not cancel_path:
+        _out(f"  {RED}cancel command not found.{RESET}")
+        return False
+    try:
+        subprocess.run(
+            [cancel_path, "-a", printer_name],
+            timeout=5,
+            check=True,
+        )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
+        _out(f"  {RED}Failed to cancel jobs: {e}{RESET}")
+        return False
+    else:
+        return True
+
+
+def _cups_cancel_job(job_id: str) -> bool:
+    """Cancel a specific job. Returns True on success."""
+    cancel_path = shutil.which("cancel")
+    if not cancel_path:
+        return False
+    try:
+        subprocess.run(
+            [cancel_path, job_id],
+            timeout=5,
+            check=True,
+        )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
+        return False
+    else:
+        return True
+
+
+def _cups_restart_service() -> bool:
+    """Restart the CUPS service. Returns True on success."""
+    systemctl_path = shutil.which("systemctl")
+    if not systemctl_path:
+        _out(f"  {RED}systemctl not found.{RESET}")
+        return False
+    try:
+        subprocess.run(
+            [systemctl_path, "restart", "cups"],
+            timeout=15,
+            check=True,
+        )
+        time.sleep(2)  # wait for CUPS to come back up
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
+        _out(f"  {RED}Failed to restart CUPS: {e}{RESET}")
+        return False
+    else:
+        return True
+
+
+def _check_cups_backend_errors(
+    printer_name: str,  # noqa: ARG001
+) -> tuple[bool, str]:
+    """Check CUPS error log for backend errors. Returns (has_errors, last_error)."""
+    log_path = Path("/var/log/cups/error_log")
+    if not log_path.exists():
+        return False, ""
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return False, ""
+
+    # Look for backend errors related to this printer (scan from end)
+    backend_error = ""
+    error_timestamp = ""
+    last_success_timestamp = ""
+
+    for line in reversed(lines):
+        if (
+            "backend errors" in line or "stopped with status" in line
+        ) and not backend_error:
+            backend_error = line.strip()
+            ts_match = re.search(r"\[([^\]]+)\]", line)
+            if ts_match:
+                error_timestamp = ts_match.group(1)
+        # Check if a job completed successfully after the error
+        if ("Completed" in line or "total" in line) and error_timestamp:
+            ts_match = re.search(r"\[([^\]]+)\]", line)
+            if ts_match:
+                last_success_timestamp = ts_match.group(1)
+                break
+
+    if not backend_error:
+        return False, ""
+
+    # If there's been a successful print after the error, backend is fine
+    if last_success_timestamp and last_success_timestamp > error_timestamp:
+        return False, ""
+
+    return True, backend_error
+
+
+def _display_cups_queue_status(queue: CUPSQueueStatus) -> None:
+    """Display CUPS queue status and offer interactive fixes."""
+    if not queue.printer_name:
+        return
+    if queue.enabled and not queue.jobs and not queue.has_backend_errors:
+        return
+
+    _out()
+    _out(f"{BOLD}── Print Queue ──{RESET}")
+    _out()
+
+    if queue.has_backend_errors and queue.enabled and not queue.jobs:
+        _out(f"  {YELLOW}{BOLD}⚡ CUPS backend has stale errors{RESET}")
+        _out(
+            f"  {DIM}New print jobs may silently fail."
+            f" A CUPS restart usually fixes this.{RESET}"
+        )
+        _out()
+
+    if not queue.enabled:
+        _out(f"  {RED}{BOLD}⚠  Printer queue is DISABLED{RESET}")
+        if queue.reason:
+            _out(f"  {DIM}Reason: {queue.reason}{RESET}")
+        _out()
+
+    if queue.jobs:
+        _out(f"  {BOLD}Pending jobs ({len(queue.jobs)}):{RESET}")
+        for job in queue.jobs:
+            _out(f"    {job.job_id}  {DIM}{job.user}  {job.size}B  {job.date}{RESET}")
+        _out()
+
+    _offer_queue_fix(queue)
+
+
+def _offer_queue_fix(queue: CUPSQueueStatus) -> None:
+    """Prompt the user to fix a disabled queue / pending jobs."""
+    _out(f"  {BOLD}Available actions:{RESET}")
+
+    options: list[str] = []
+    if not queue.enabled and queue.jobs:
+        _out(f"    {CYAN}1){RESET} Re-enable printer and retry all jobs")
+        _out(f"    {CYAN}2){RESET} Re-enable printer and cancel all jobs")
+        _out(f"    {CYAN}3){RESET} Cancel all jobs (keep printer disabled)")
+        _out(f"    {CYAN}4){RESET} Restart CUPS service (fixes stale backend)")
+        _out(f"    {CYAN}5){RESET} Restart CUPS + re-enable + retry all jobs")
+        _out(f"    {CYAN}6){RESET} Do nothing")
+        options = ["1", "2", "3", "4", "5", "6"]
+    elif not queue.enabled:
+        _out(f"    {CYAN}1){RESET} Re-enable printer")
+        _out(f"    {CYAN}2){RESET} Restart CUPS service (fixes stale backend)")
+        _out(f"    {CYAN}3){RESET} Do nothing")
+        options = ["1", "2", "3"]
+    elif queue.jobs:
+        _out(f"    {CYAN}1){RESET} Cancel all pending jobs")
+        _out(f"    {CYAN}2){RESET} Restart CUPS service (fixes stale backend)")
+        _out(f"    {CYAN}3){RESET} Do nothing")
+        options = ["1", "2", "3"]
+    else:
+        # Backend errors only, printer enabled, no jobs
+        _out(f"    {CYAN}1){RESET} Restart CUPS service (fixes stale backend)")
+        _out(f"    {CYAN}2){RESET} Do nothing")
+        options = ["1", "2"]
+
+    _out()
+    choice = _prompt(f"  Choose [{'/'.join(options)}]: ")
+    _out()
+
+    if not queue.enabled and queue.jobs:
+        _handle_disabled_with_jobs(queue, choice)
+    elif not queue.enabled:
+        _handle_disabled_no_jobs(queue, choice)
+    elif queue.jobs:
+        _handle_enabled_with_jobs(queue, choice)
+    else:
+        _handle_backend_errors_only(choice)
+
+
+def _handle_disabled_with_jobs(queue: CUPSQueueStatus, choice: str) -> None:  # noqa: C901
+    """Handle fix for disabled printer with pending jobs."""
+    if choice == "1":
+        if _cups_enable_printer(queue.printer_name):
+            _out(f"  {GREEN}✓ Printer re-enabled. Jobs will be retried.{RESET}")
+    elif choice == "2":
+        _cups_cancel_all_jobs(queue.printer_name)
+        if _cups_enable_printer(queue.printer_name):
+            _out(f"  {GREEN}✓ All jobs cancelled and printer re-enabled.{RESET}")
+    elif choice == "3":
+        if _cups_cancel_all_jobs(queue.printer_name):
+            _out(f"  {GREEN}✓ All jobs cancelled.{RESET}")
+    elif choice == "4":
+        if _cups_restart_service():
+            _out(f"  {GREEN}✓ CUPS restarted.{RESET}")
+    elif choice == "5":
+        if _cups_restart_service():
+            _cups_enable_printer(queue.printer_name)
+            _out(
+                f"  {GREEN}✓ CUPS restarted, printer re-enabled."
+                f" Jobs will be retried.{RESET}"
+            )
+    else:
+        _out(f"  {DIM}No changes made.{RESET}")
+
+
+def _handle_disabled_no_jobs(queue: CUPSQueueStatus, choice: str) -> None:
+    """Handle fix for disabled printer with no pending jobs."""
+    if choice == "1":
+        if _cups_enable_printer(queue.printer_name):
+            _out(f"  {GREEN}✓ Printer re-enabled.{RESET}")
+    elif choice == "2":
+        if _cups_restart_service():
+            _cups_enable_printer(queue.printer_name)
+            _out(f"  {GREEN}✓ CUPS restarted and printer re-enabled.{RESET}")
+    else:
+        _out(f"  {DIM}No changes made.{RESET}")
+
+
+def _handle_enabled_with_jobs(queue: CUPSQueueStatus, choice: str) -> None:
+    """Handle fix for enabled printer with stuck jobs."""
+    if choice == "1":
+        if _cups_cancel_all_jobs(queue.printer_name):
+            _out(f"  {GREEN}✓ All jobs cancelled.{RESET}")
+    elif choice == "2":
+        if _cups_restart_service():
+            _out(f"  {GREEN}✓ CUPS restarted.{RESET}")
+    else:
+        _out(f"  {DIM}No changes made.{RESET}")
+
+
+def _handle_backend_errors_only(choice: str) -> None:
+    """Handle fix when only stale backend errors are detected."""
+    if choice == "1":
+        if _cups_restart_service():
+            _out(f"  {GREEN}✓ CUPS restarted. Stale backend errors cleared.{RESET}")
+    else:
+        _out(f"  {DIM}No changes made.{RESET}")
+
+
 # ── Status code lookup ──────────────────────────────────────────────
 
 
@@ -564,8 +946,7 @@ _SEVERITY_SUMMARIES: dict[str, str] = {
     "warn": f"{YELLOW}{BOLD}⚡ WARNING: Maintenance will be needed"
     f" soon.{RESET}\n{YELLOW}   Order replacement parts"
     f" now to avoid interruption.{RESET}",
-    "critical": f"{RED}{BOLD}⚠  ACTION REQUIRED: Replacement or fix"
-    f" needed now!{RESET}",
+    "critical": f"{RED}{BOLD}⚠  ACTION REQUIRED: Replacement or fix needed now!{RESET}",
 }
 
 
@@ -618,6 +999,9 @@ def display_usb_results(result: USBResult) -> None:
     _display_pjl_status(result)
     _out()
     _display_consumables_reference()
+
+    queue = get_cups_queue_status()
+    _display_cups_queue_status(queue)
 
 
 # ── Display: Network helpers ────────────────────────────────────────
@@ -810,7 +1194,7 @@ def _run_usb_mode(usb_line: str) -> None:
     """Handle USB printer mode."""
     _out(f"{CYAN}Found Brother printer on USB: {usb_line}{RESET}")
     if os.geteuid() != 0:
-        _out(f"{RED}Root access required for USB printer." f" Re-run with sudo.{RESET}")
+        _out(f"{RED}Root access required for USB printer. Re-run with sudo.{RESET}")
         sys.exit(1)
     display_usb_results(query_usb_pjl())
 
