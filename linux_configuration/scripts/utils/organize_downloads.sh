@@ -235,7 +235,7 @@ create_media_archive() {
 			# Check readability first to provide a clearer error
 			if [[ ! -r $file ]]; then
 				log "WARNING: Cannot read $file (permission denied?)"
-				((copy_errors++))
+				((copy_errors++)) || true
 				continue
 			fi
 
@@ -250,7 +250,7 @@ create_media_archive() {
 				if echo "$cp_err" | grep -qi "No space left on device"; then
 					log "HINT: Not enough free space to stage files. Using $TEMP_DIR. Free up space or change TEMP_DIR."
 				fi
-				((copy_errors++))
+				((copy_errors++)) || true
 			fi
 		fi
 	done
