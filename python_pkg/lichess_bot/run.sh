@@ -67,4 +67,4 @@ echo "Starting Lichess bot..."
 echo "Tip: Open another terminal to watch logs; press Ctrl+C here to stop."
 
 trap 'echo; echo "Stopping bot (Ctrl+C)."' INT
-"$PY" -m PYTHON.lichess_bot.main "$@"
+"$PY" -m python_pkg.lichess_bot.main "$@"

@@ -14,7 +14,7 @@ if ! command -v sdl2-config >/dev/null 2>&1; then
         sudo apt-get install -y libsdl2-dev
         ;;
       arch|manjaro|endeavouros)
-        sudo pacman -Syu --noconfirm sdl2
+        pacman -Q sdl2 &>/dev/null || sudo pacman -S --noconfirm sdl2
         ;;
       fedora)
         sudo dnf install -y SDL2-devel

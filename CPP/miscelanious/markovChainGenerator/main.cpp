@@ -9,21 +9,20 @@
 struct wordOccurences {
   std::string word;
   int occurences;
-}
+};
 
 struct previousWords {
   std::string word;
   std::vector<wordOccurences> previousWords;
 };
 
-struct wordProbabiliy {
+struct wordProbability {
   std::string previousWord;
   std::string nextWord;
   float probability;
-}
+};
 
-bool validInput(const std::string userInput)
-{
+bool validInput(const std::string userInput) {
   if (stringContainsNumbers(userInput))
     return 0;
   return 1;
@@ -61,8 +60,10 @@ int wordRepeats(const std::vector<previousWords> wordsList,
 bool alreadyExists(const std::vector<previousWords> wordsList,
                    const std::string s) {
   for (unsigned int i = 0; i < wordsList.size(); i++) {
-                if(s == wordsList.previousWOrds
+    if (s == wordsList.at(i).word)
+      return true;
   }
+  return false;
 }
 
 std::vector<previousWords>
@@ -73,17 +74,16 @@ getWordsAndTheirPrevious(const std::vector<std::string> words) {
     previousWords temp;
     temp.word = words.at(i);
     wordOccurences tempTwo;
-                tempTwo.word = words.at(i - 1));
-                tempTwo.occurences = 1;
-                temp.previousWords.push_back(tempTwo);
-                int position = wordRepeats(wordsList, temp.word);
-                if (position == -1) {
-                  wordsList.push_back(temp);
-                } else {
+    tempTwo.word = words.at(i - 1);
+    tempTwo.occurences = 1;
+    temp.previousWords.push_back(tempTwo);
+    int position = wordRepeats(wordsList, temp.word);
+    if (position == -1) {
+      wordsList.push_back(temp);
+    } else {
 
-                  wordsList.at(position).previousWords.push_back(
-                      temp.previousWords.at(0));
-                }
+      wordsList.at(position).previousWords.push_back(temp.previousWords.at(0));
+    }
   }
   return wordsList;
 }
@@ -92,7 +92,7 @@ void printPreviousWord(const previousWords word) {
   std::cout << "The word is \"" << word.word
             << "\" Words before it are: " << std::endl;
   for (unsigned int i = 0; i < word.previousWords.size(); i++) {
-    print(word.previousWords.at(i));
+    print(word.previousWords.at(i).word);
   }
 }
 
@@ -105,9 +105,22 @@ void printPreviousWordsVector(const std::vector<previousWords> v) {
 std::vector<wordProbability>
 getWordProbability(const std::vector<previousWords> wordsList) {
   std::vector<wordProbability> probalityVector;
-  for (unsigned int i = 0; i - 1 < wordsList.size(); i++) {
-    pro
+  for (unsigned int i = 0; i < wordsList.size(); i++) {
+    int total = 0;
+    for (unsigned int j = 0; j < wordsList.at(i).previousWords.size(); j++)
+      total += wordsList.at(i).previousWords.at(j).occurences;
+    for (unsigned int j = 0; j < wordsList.at(i).previousWords.size(); j++) {
+      wordProbability wp;
+      wp.previousWord = wordsList.at(i).previousWords.at(j).word;
+      wp.nextWord = wordsList.at(i).word;
+      wp.probability =
+          total > 0
+              ? (float)wordsList.at(i).previousWords.at(j).occurences / total
+              : 0.0f;
+      probalityVector.push_back(wp);
+    }
   }
+  return probalityVector;
 }
 
 int main() {

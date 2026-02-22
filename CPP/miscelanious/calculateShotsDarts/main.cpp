@@ -63,8 +63,78 @@ bool validInput(const std::string s) {
   return 1;
 }
 
-// cppcheck-suppress missingReturn
-std::vector<int> requiredShoots(const int pointsLeft) {}
+// Darts checkout finder: find combinations of up to 3 darts that reduce
+// pointsLeft to exactly 0, finishing on a double (standard 501 rules).
+std::vector<int> requiredShoots(const int pointsLeft) {
+  // All valid dart scores with labels
+  std::vector<std::pair<int, std::string>> all_darts;
+  for (int i = MIN_SPOT; i <= MAX_SPOT; i++)
+    all_darts.push_back({i, std::to_string(i)});
+  all_darts.push_back({25, "Bull"});
+  for (int i = MIN_SPOT; i <= MAX_SPOT; i++)
+    all_darts.push_back({i * 2, "D" + std::to_string(i)});
+  all_darts.push_back({50, "D-Bull"});
+  for (int i = MIN_SPOT; i <= MAX_SPOT; i++)
+    all_darts.push_back({i * 3, "T" + std::to_string(i)});
+
+  // Doubles only (valid finishing darts)
+  std::vector<std::pair<int, std::string>> doubles;
+  for (int i = MIN_SPOT; i <= MAX_SPOT; i++)
+    doubles.push_back({i * 2, "D" + std::to_string(i)});
+  doubles.push_back({50, "D-Bull"});
+
+  std::vector<std::vector<std::string>> checkouts;
+  const int MAX_RESULTS = 5;
+
+  // 1-dart checkouts
+  for (auto &d : doubles)
+    if (d.first == pointsLeft)
+      checkouts.push_back({d.second});
+
+  // 2-dart checkouts
+  for (auto &d1 : all_darts) {
+    for (auto &d2 : doubles) {
+      if (d1.first + d2.first == pointsLeft) {
+        checkouts.push_back({d1.second, d2.second});
+        if ((int)checkouts.size() >= MAX_RESULTS)
+          goto done;
+      }
+    }
+  }
+
+  // 3-dart checkouts (stop early once we have enough results)
+  for (auto &d1 : all_darts) {
+    for (auto &d2 : all_darts) {
+      for (auto &d3 : doubles) {
+        if (d1.first + d2.first + d3.first == pointsLeft) {
+          checkouts.push_back({d1.second, d2.second, d3.second});
+          if ((int)checkouts.size() >= MAX_RESULTS)
+            goto done;
+        }
+      }
+    }
+  }
+done:
+  if (checkouts.empty()) {
+    print("No checkout possible for " + std::to_string(pointsLeft) +
+          " points.");
+    return {};
+  }
+
+  print("Possible checkouts (showing up to " + std::to_string(MAX_RESULTS) +
+        "):");
+  std::vector<int> firstCheckout;
+  for (auto &combo : checkouts) {
+    std::string line;
+    for (unsigned int i = 0; i < combo.size(); i++) {
+      if (i > 0)
+        line += " \u2192 ";
+      line += combo[i];
+    }
+    print(line);
+  }
+  return firstCheckout;
+}
 
 int main() {
   print("Enter points left: ");

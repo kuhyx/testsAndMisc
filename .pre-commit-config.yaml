@@ -312,6 +312,18 @@ repos:
         files: ^TS/
 
   # ===========================================================================
+  # CHECK C/C++ BUILD FILES - Ensure every C/C++ dir has Makefile and run.sh
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: check-c-cpp-build-files
+        name: check C/C++ dirs have Makefile and run.sh
+        entry: scripts/check_c_cpp_build_files.sh
+        language: script
+        types_or: [c, c++]
+        exclude: ^CPP/mini_browser/
+
+  # ===========================================================================
   # REMOVE EMPTY DIRECTORIES - Clean up empty folders in the repo
   # ===========================================================================
   - repo: local

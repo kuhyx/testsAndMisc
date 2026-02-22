@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <windows.h>
 
 void print(const std::string s) { std::cout << s << std::endl; }
 void printErrorStringContainsNotNumber(const std::string s) {

@@ -24,8 +24,12 @@ fi
 # shellcheck disable=SC1090
 source "$VENV_DIR/bin/activate"
 
-# Install dependencies quietly
-pip install -r "$SCRIPT_DIR/requirements.txt" >/dev/null
+# Install dependencies only if requirements.txt has changed
+_REQ="$SCRIPT_DIR/requirements.txt"
+_HASH=$(md5sum "$_REQ" | cut -d' ' -f1)
+_LOCK="$VENV_DIR/.req_${_HASH:0:8}.lock"
+[[ -f "$_LOCK" ]] || { pip install -r "$_REQ" >/dev/null && touch "$_LOCK"; }
+unset _REQ _HASH _LOCK
 
 # Default engine (can override with STOCKFISH env var)
 ENGINE_BIN="${STOCKFISH:-stockfish}"

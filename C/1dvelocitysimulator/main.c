@@ -1,7 +1,24 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef _WIN32
 #include <windows.h>
+#define SLEEP_MS(ms) Sleep(ms)
+#define CLEAR_SCREEN() system("CLS")
+#define PAUSE() system("PAUSE")
+#else
+#include <unistd.h>
+#define SLEEP_MS(ms) usleep((ms) * 1000U)
+#define CLEAR_SCREEN() system("clear")
+#define PAUSE()                                                                                    \
+    do                                                                                             \
+    {                                                                                              \
+        printf("Press Enter to continue...");                                                      \
+        getchar();                                                                                 \
+    } while (0)
+#endif
+
 #define LINE_LENGTH 100
 
 void C()
@@ -13,27 +30,27 @@ void C()
 void printAcceleration(int acceleration)
 {
     printf("The value of acceleration is: %d\n", acceleration);
-    system("PAUSE");
+    PAUSE();
     return;
 }
 
-void pauseSystem() { system("PAUSE"); }
+void pauseSystem() { PAUSE(); }
 
 void clearScreen()
 {
-    system("CLS");
+    CLEAR_SCREEN();
     return;
 }
 
 void pauseForASecond()
 {
-    Sleep(1000);
+    SLEEP_MS(1000);
     return;
 }
 
 void pauseForGivenTime(float given_time)
 {
-    Sleep(fabs(given_time * 1000));
+    SLEEP_MS((unsigned int)fabs(given_time * 1000));
     return;
 }
 

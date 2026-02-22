@@ -4,7 +4,7 @@
 const std::vector<std::string> ATUTY = {"BA", "Trefl", "Karo", "Kier", "Pik"};
 const bool A_ID = 0;
 const bool B_ID = 1;
-const std::vector<std::string> GRACZE = {};
+const std::vector<std::string> GRACZE = {"Gracz A", "Gracz B"};
 const std::vector<std::string> PO_PARTII{"Nikt", GRACZE[A_ID], GRACZE[B_ID],
                                          "Obaj Gracze"};
 const int DOMYSLNE_LEWY = 6;

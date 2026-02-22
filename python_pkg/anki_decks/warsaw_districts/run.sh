@@ -22,8 +22,7 @@ source "$VENV_DIR/bin/activate"
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install --quiet --upgrade pip
-pip install --quiet matplotlib genanki geopandas
+pip show genanki &>/dev/null || pip install --quiet matplotlib genanki geopandas
 
 # Export preview images
 echo

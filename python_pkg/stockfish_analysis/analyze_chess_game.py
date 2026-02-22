@@ -367,19 +367,19 @@ def _configure_hash(
 
 
 def _configure_multipv(
-    engine: chess.engine.SimpleEngine, options: EngineOptions, requested: int
+    _engine: chess.engine.SimpleEngine, options: EngineOptions, requested: int
 ) -> int:
     """Configure MultiPV and return effective value."""
     effective = max(1, int(requested))
-    if "MultiPV" not in options:
-        return effective
-    try:
-        max_mpv = getattr(options["MultiPV"], "max", None)
-        if isinstance(max_mpv, int):
-            effective = min(effective, max_mpv)
-        engine.configure({"MultiPV": int(effective)})
-    except (AttributeError, TypeError, ValueError):
-        _logger.debug("Failed to configure MultiPV option")
+    # MultiPV is automatically managed by python-chess and passed directly to
+    # engine.analyse(..., multipv=N) — do not configure() it here.
+    if "MultiPV" in options:
+        try:
+            max_mpv = getattr(options["MultiPV"], "max", None)
+            if isinstance(max_mpv, int):
+                effective = min(effective, max_mpv)
+        except (AttributeError, TypeError, ValueError):
+            _logger.debug("Failed to read MultiPV max option")
     return effective
 
 

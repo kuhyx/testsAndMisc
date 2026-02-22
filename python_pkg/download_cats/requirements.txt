@@ -1,4 +1,1 @@
-json
-os
-pathlib
 requests

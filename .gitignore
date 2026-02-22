@@ -252,6 +252,39 @@ fps_demo
 server_c
 Bash/ffmpeg-build/FFmpeg
 
+# C/C++ compiled binaries
+C/1dvelocitysimulator/1dvelocitysimulator
+C/imageViewer/imageviewer
+C/lichess_random_engine/random_engine
+C/lichess_random_engine/perft
+C/misc/generating_words
+C/misc/randomJPG/generate_images
+C/misc/split/split
+C/opening_learner/opening_learner
+C/scrapeWebsite/scrape
+C/tests/polish_letters
+C/vocabulary_curve/vocabulary_curve
+C/websocketServer/websocket_server
+CPP/miscelanious/brydz/brydz
+CPP/miscelanious/calculateShotsDarts/darts
+CPP/miscelanious/findIntegerPercentageValue/find_percentage
+CPP/miscelanious/howManyValidISBNNumbersAreThere/isbn_counter
+CPP/miscelanious/howOftenDoesCharOccur
+CPP/miscelanious/quickchallenges
+CPP/miscelanious/reverseString
+CPP/miscelanious/solveQuadraticEquation
+CPP/miscelanious/markovChainGenerator/markov
+CPP/miscelanious/mutiplicationWithoutStar/multiplication
+CPP/miscelanious/Pi/pi
+CPP/miscelanious/randomDevice/random_device_demo
+CPP/miscelanious/tictactoe/tictactoe
+CPP/miscelanious/tierListConverter/tier_list_converter
+CPP/miscelanious/xGoesTo0/xgoes
+CPP/miscelanious/yousuckatcards/a.out
+CPP/miscelanious/yousuckatcards/Bernouli/bernouli
+CPP/miscelanious/yousuckatcards/Bernouli/test
+CPP/tests/division_test
+
 # Screen locker workout log
 python_pkg/screen_locker/workout_log.json
 python_pkg/music_gen/output/
@@ -282,3 +315,4 @@ python_pkg/cinema_planner/pasted_content.txt
 
 # FVM Version Cache
 .fvm/
+CPP/miscelanious/howManyValidISBNNumbersAreThere/ISBN.txt

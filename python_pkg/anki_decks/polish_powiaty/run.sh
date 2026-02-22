@@ -19,8 +19,7 @@ echo "Activating virtual environment..."
 source "$VENV_DIR/bin/activate"
 
 echo "Installing dependencies..."
-pip install --quiet --upgrade pip
-pip install --quiet matplotlib genanki geopandas
+pip show genanki &>/dev/null || pip install --quiet matplotlib genanki geopandas
 
 cd "$SCRIPT_DIR"
 
