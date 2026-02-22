@@ -181,6 +181,28 @@ unfixable = []
     "C416",    # Unnecessary list comprehension - legacy code
     "E501",    # Line too long - legacy code
 ]
+# Thesis diagram generators - one-off matplotlib plotting scripts
+"python_pkg/praca_magisterska_video/**/*.py" = [
+    "ANN001",  # Missing type annotation - plotting scripts, not library code
+    "ANN202",  # Missing return type (private)
+    "BLE001",  # Blind exception (file I/O error handling)
+    "C901",    # Function complexity - long plotting functions
+    "E501",    # Line too long - matplotlib call chains
+    "E741",    # Ambiguous variable name - math convention (l, I)
+    "ERA001",  # Commented-out code - contains notes and alternatives
+    "FBT002",  # Boolean default argument - matplotlib patterns
+    "FBT003",  # Boolean positional value - matplotlib API calls
+    "N806",    # Uppercase variable - math convention (X, Y, F_A)
+    "PERF203", # try-except in loop - file processing
+    "PERF401", # List append in loop
+    "PLR0912", # Too many branches - plotting functions
+    "PLR0913", # Too many arguments - plotting functions
+    "PLR0915", # Too many statements - plotting functions
+    "PLR2004", # Magic values - plot coordinates and sizes
+    "PLW2901", # Loop variable overwritten - data processing
+    "S110",    # try-except-pass - optional dependency handling
+    "T201",    # print() for script output
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"  # Use Google docstring convention
@@ -241,6 +263,7 @@ exclude = [
     "Bash/ffmpeg-build/",
     ".venv/",
     "python_pkg/music_gen/",  # Uses dynamic imports from transformers
+    "python_pkg/praca_magisterska_video/",  # Thesis plotting scripts
 ]
 
 # ============================================================================

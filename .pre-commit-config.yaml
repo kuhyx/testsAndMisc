@@ -96,7 +96,7 @@ repos:
           - types-requests
           - types-PyYAML
           - types-python-dateutil
-        exclude: ^(Bash/|\.venv/|python_pkg/music_gen/)
+        exclude: ^(Bash/|\.venv/|python_pkg/music_gen/|python_pkg/praca_magisterska_video/)
 
   # ===========================================================================
   # PYLINT - Comprehensive Python linter
@@ -162,7 +162,7 @@ repos:
       - id: codespell
         args:
           - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
-          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile
+          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,proces,serwer,parametr,adres,hart,dout
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|CPP/|.*\.geojson$)
 
   # ===========================================================================
