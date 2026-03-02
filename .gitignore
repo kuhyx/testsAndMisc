@@ -316,3 +316,6 @@ python_pkg/cinema_planner/pasted_content.txt
 # FVM Version Cache
 .fvm/
 CPP/miscelanious/howManyValidISBNNumbersAreThere/ISBN.txt
+
+# Focus mode secrets (contains home GPS coordinates)
+phone_focus_mode/config_secrets.sh
