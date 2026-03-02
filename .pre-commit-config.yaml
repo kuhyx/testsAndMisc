@@ -336,6 +336,17 @@ repos:
         always_run: true
 
   # ===========================================================================
+  # SECRET PATTERNS - Block commits containing sensitive data
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: check-no-secrets
+        name: check for leaked secrets
+        entry: scripts/check_no_secrets.sh
+        language: script
+        exclude: ^(\.secret-patterns|\.pre-commit-config\.yaml|.*\.geojson)$
+
+  # ===========================================================================
   # COMMITIZEN - Conventional commits (optional)
   # ===========================================================================
   # - repo: https://github.com/commitizen-tools/commitizen
