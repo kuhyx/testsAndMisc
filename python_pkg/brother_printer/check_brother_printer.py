@@ -2,7 +2,8 @@
 
 Supports both USB-connected and network printers on Arch Linux.
 
-USB:     Queries via PJL over /dev/usb/lp* (requires root).
+USB:     Queries via PJL over /dev/usb/lp* (requires root + usblp module).
+         Falls back to CUPS IPP status when usblp is unavailable (no root needed).
 Network: Queries via SNMP (requires net-snmp).
 
 Usage:
@@ -16,6 +17,7 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass, field
 import fcntl
+import json
 import logging
 import os
 from pathlib import Path
@@ -50,6 +52,12 @@ SNMP_LEVEL_LOW = -2
 SUPPLY_LOW_PCT = 10
 SUPPLY_WARN_PCT = 25
 PROGRESS_BAR_WIDTH = 25
+
+# Brother HL-1110 consumable page ratings
+TONER_RATED_PAGES = 1000
+DRUM_RATED_PAGES = 10000
+CUPS_PAGE_LOG = Path("/var/log/cups/page_log")
+CONSUMABLE_STATE_FILE = Path.home() / ".config" / "brother_printer" / "state.json"
 
 
 def _out(text: str = "") -> None:
@@ -174,6 +182,30 @@ class CUPSQueueStatus:
 
 
 @dataclass
+class PageCountEstimate:
+    """Estimated consumable life based on CUPS page count."""
+
+    total_pages: int = 0
+    toner_pages: int = 0
+    drum_pages: int = 0
+    toner_pct_remaining: int = 100
+    drum_pct_remaining: int = 100
+    toner_exhausted: bool = False
+    toner_low: bool = False
+    drum_near_end: bool = False
+
+
+@dataclass
+class USBPortStatus:
+    """IEEE 1284 USB printer port status bits."""
+
+    paper_empty: bool = False
+    online: bool = True
+    error: bool = False
+    raw_byte: int = 0
+
+
+@dataclass
 class USBResult:
     """Result from a USB PJL query."""
 
@@ -186,6 +218,7 @@ class USBResult:
     online: str = ""
     economode: str = ""
     error: str = ""
+    port_status: USBPortStatus | None = None
 
 
 @dataclass
@@ -395,7 +428,7 @@ def query_usb_pjl(max_retries: int = 2) -> USBResult:
     """Query a Brother printer via PJL over /dev/usb/lp*."""
     dev_path = find_usb_printer_dev()
     if not dev_path:
-        return USBResult(error="No USB printer device found at /dev/usb/lp*")
+        return _query_usb_via_cups()
 
     result = _init_usb_result(dev_path)
     if not os.access(dev_path, os.R_OK | os.W_OK):
@@ -412,6 +445,424 @@ def query_usb_pjl(max_retries: int = 2) -> USBResult:
     finally:
         if fd is not None:
             os.close(fd)
+    return result
+
+
+# ── CUPS-based USB fallback ──────────────────────────────────────────
+# When the usblp kernel module is not available, /dev/usb/lp* devices
+# don't exist even though CUPS can print fine via its own libusb backend.
+# These functions query printer status through CUPS IPP instead.
+
+_CUPS_REASONS_TO_STATUS: dict[str, int] = {
+    "paused": 10023,
+    "moving-to-paused": 10023,
+    "toner-low": 30010,
+    "toner-empty": 40310,
+    "marker-supply-low": 30010,
+    "marker-supply-empty": 40310,
+    "media-empty": 40302,
+    "media-needed": 40302,
+    "media-jam": 40000,
+    "cover-open": 41000,
+    "door-open": 41000,
+    "input-tray-missing": 40300,
+}
+
+_CUPS_STATE_TO_STATUS: dict[str, int] = {
+    "idle": 10001,
+    "processing": 10007,
+    "stopped": 10023,
+}
+
+
+BROTHER_USB_VENDOR_ID = 0x04F9
+
+
+def _get_pyusb_device_info() -> dict[str, str]:
+    """Get Brother USB printer info via pyusb (no interface claim needed)."""
+    try:
+        import usb.core
+
+        dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
+        if dev is None:
+            return {}
+    except Exception:  # noqa: BLE001
+        return {}
+    else:
+        return {
+            "product": dev.product or "",
+            "serial": dev.serial_number or "",
+        }
+
+
+def _stop_cups() -> bool:
+    """Stop CUPS service and sockets. Returns True on success."""
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return False
+    try:
+        subprocess.run(
+            [systemctl, "stop", "cups.service", "cups.socket", "cups.path"],
+            timeout=15,
+            check=True,
+        )
+        time.sleep(2)
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
+        return False
+    return True
+
+
+def _is_cups_scheduler_running() -> bool:
+    """Check if the CUPS scheduler is currently running."""
+    lpstat = shutil.which("lpstat")
+    if not lpstat:
+        return False
+    try:
+        r = subprocess.run(
+            [lpstat, "-r"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+        return (
+            "is running" in r.stdout.lower() and "not running" not in r.stdout.lower()
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def _start_cups() -> bool:
+    """Start CUPS service, socket, and path units. Returns True on success."""
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return False
+    try:
+        subprocess.run(
+            [systemctl, "start", "cups.service", "cups.socket", "cups.path"],
+            timeout=15,
+            check=True,
+        )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
+        return False
+    # Verify CUPS is actually responding
+    for _ in range(10):
+        if _is_cups_scheduler_running():
+            return True
+        time.sleep(1)
+    return False
+
+
+def _query_usb_port_status_raw() -> USBPortStatus | None:
+    """Query USB printer port status via pyusb control transfer.
+
+    Requires root and temporarily stops CUPS to access the USB device.
+    Returns None if the query fails.
+    """
+    try:
+        import usb.core
+        import usb.util
+    except ImportError:
+        return None
+
+    dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
+    if dev is None:
+        return None
+
+    if not _stop_cups():
+        return None
+
+    try:
+        dev.reset()
+        time.sleep(2)
+        dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
+        if dev is None:
+            return None
+
+        try:
+            if dev.is_kernel_driver_active(0):
+                dev.detach_kernel_driver(0)
+        except (usb.core.USBError, NotImplementedError):
+            pass
+
+        usb.util.claim_interface(dev, 0)
+        try:
+            # USB Printer Class GET_PORT_STATUS (bRequest=0x01)
+            raw = dev.ctrl_transfer(0xA1, 0x01, 0, 0, 1, timeout=5000)
+            port_byte = raw[0]
+            return USBPortStatus(
+                paper_empty=bool(port_byte & 0x20),
+                online=bool(port_byte & 0x10),
+                error=not bool(port_byte & 0x08),
+                raw_byte=port_byte,
+            )
+        finally:
+            usb.util.release_interface(dev, 0)
+            usb.util.dispose_resources(dev)
+    except Exception:  # noqa: BLE001
+        logger.debug("USB port status query failed", exc_info=True)
+        return None
+    finally:
+        _start_cups()
+
+
+def _get_cups_total_pages() -> int:
+    """Parse CUPS page_log to get total pages printed (deduplicated by job)."""
+    if not CUPS_PAGE_LOG.exists():
+        return 0
+    try:
+        text = CUPS_PAGE_LOG.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return 0
+    # page_log format: printer user job_id [date] total N ...
+    # Deduplicate by job_id (retries produce repeated lines)
+    jobs: dict[str, int] = {}
+    for line in text.splitlines():
+        match = re.search(r"\s(\d+)\s+\[.*?\]\s+total\s+(\d+)", line)
+        if match:
+            job_id = match.group(1)
+            pages = int(match.group(2))
+            jobs[job_id] = max(jobs.get(job_id, 0), pages)
+    return sum(jobs.values())
+
+
+def _load_consumable_state() -> dict[str, int]:
+    """Load consumable replacement state from disk.
+
+    Returns dict with keys 'toner_replaced_at' and 'drum_replaced_at'
+    (page counts when each consumable was last replaced).
+    """
+    defaults: dict[str, int] = {"toner_replaced_at": 0, "drum_replaced_at": 0}
+    if not CONSUMABLE_STATE_FILE.exists():
+        return defaults
+    try:
+        data = json.loads(
+            CONSUMABLE_STATE_FILE.read_text(encoding="utf-8"),
+        )
+        return {
+            "toner_replaced_at": int(data.get("toner_replaced_at", 0)),
+            "drum_replaced_at": int(data.get("drum_replaced_at", 0)),
+        }
+    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        return defaults
+
+
+def _save_consumable_state(state: dict[str, int]) -> None:
+    """Persist consumable replacement state to disk."""
+    CONSUMABLE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CONSUMABLE_STATE_FILE.write_text(
+        json.dumps(state, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _reset_consumable(name: str) -> None:
+    """Record current page count as replacement point for a consumable."""
+    total = _get_cups_total_pages()
+    state = _load_consumable_state()
+    key = f"{name}_replaced_at"
+    state[key] = total
+    _save_consumable_state(state)
+    _out(
+        f"{GREEN}✓ {name.capitalize()} counter reset at page count" f" {total}.{RESET}"
+    )
+    _out(f"  State saved to {CONSUMABLE_STATE_FILE}")
+
+
+def _estimate_consumable_life() -> PageCountEstimate:
+    """Estimate toner/drum life from CUPS page count since last replacement."""
+    total = _get_cups_total_pages()
+    if total <= 0:
+        return PageCountEstimate()
+    state = _load_consumable_state()
+    toner_pages = max(0, total - state["toner_replaced_at"])
+    drum_pages = max(0, total - state["drum_replaced_at"])
+    toner_pct = max(0, 100 - (toner_pages * 100 // TONER_RATED_PAGES))
+    drum_pct = max(0, 100 - (drum_pages * 100 // DRUM_RATED_PAGES))
+    return PageCountEstimate(
+        total_pages=total,
+        toner_pages=toner_pages,
+        drum_pages=drum_pages,
+        toner_pct_remaining=toner_pct,
+        drum_pct_remaining=drum_pct,
+        toner_exhausted=toner_pages >= TONER_RATED_PAGES,
+        toner_low=toner_pages >= TONER_RATED_PAGES * 80 // 100,
+        drum_near_end=drum_pages >= DRUM_RATED_PAGES * 90 // 100,
+    )
+
+
+def _parse_ipp_attributes(output: str) -> dict[str, str]:
+    """Parse ipptool verbose output into an attribute dict."""
+    attrs: dict[str, str] = {}
+    for line in output.splitlines():
+        match = re.match(r"\s+(\S+)\s+\([^)]+\)\s+=\s+(.*)", line)
+        if match:
+            attrs[match.group(1)] = match.group(2).strip()
+    return attrs
+
+
+def _get_cups_ipp_status(printer_name: str) -> dict[str, str]:
+    """Query printer attributes via CUPS IPP using ipptool."""
+    ipptool_path = shutil.which("ipptool")
+    if not ipptool_path:
+        return {}
+    uri = f"ipp://localhost/printers/{printer_name}"
+    try:
+        r = subprocess.run(
+            [ipptool_path, "-tv", uri, "get-printer-attributes.test"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        return _parse_ipp_attributes(r.stdout)
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        return {}
+
+
+def _get_cups_economode(printer_name: str) -> str:
+    """Query toner save mode setting via lpoptions."""
+    lpoptions_path = shutil.which("lpoptions")
+    if not lpoptions_path:
+        return ""
+    try:
+        r = subprocess.run(
+            [lpoptions_path, "-p", printer_name, "-l"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in r.stdout.splitlines():
+            if "conomode" in line.lower():
+                match = re.search(r"\*(\w+)", line)
+                if match:
+                    return "ON" if match.group(1).lower() == "true" else "OFF"
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        pass
+    return ""
+
+
+def _map_cups_to_status_code(state: str, reasons: str) -> str:
+    """Map CUPS state + reasons to a Brother PJL status code string."""
+    for keyword, code in _CUPS_REASONS_TO_STATUS.items():
+        if keyword in reasons.lower():
+            return str(code)
+    clean_state = re.sub(r"\(.*\)", "", state).strip().lower()
+    return str(_CUPS_STATE_TO_STATUS.get(clean_state, 10001))
+
+
+_ERROR_REASON_MAP: tuple[tuple[tuple[str, ...], str, str], ...] = (
+    (("media-jam",), "40000", "Paper Jam"),
+    (("cover-open", "door-open"), "41000", "Cover Open"),
+    (("toner-empty",), "40310", "Toner End"),
+    (("toner-low",), "30010", "Toner Low"),
+)
+
+
+def _cups_reasons_to_error(cups_reasons: str) -> tuple[str, str]:
+    """Map CUPS reason keywords to a (status_code, display) pair."""
+    reasons_lower = cups_reasons.lower()
+    for keywords, code, display in _ERROR_REASON_MAP:
+        if any(kw in reasons_lower for kw in keywords):
+            return code, display
+    return "42000", "Printer Error"
+
+
+def _port_status_to_status_code(
+    ps: USBPortStatus,
+    cups_reasons: str,
+) -> tuple[str, str]:
+    """Map USB port status + CUPS reasons to (status_code, display)."""
+    # Hardware error flags take priority
+    if ps.error and ps.paper_empty:
+        return "40302", "No Paper"
+    if ps.error and not ps.online:
+        return "41000", "Cover Open"
+    if ps.error:
+        return _cups_reasons_to_error(cups_reasons)
+    if ps.paper_empty:
+        return "40302", "No Paper"
+    if not ps.online:
+        return "10002", "Offline / Sleep"
+    return "", ""
+
+
+def _ensure_cups_running() -> bool:
+    """Make sure CUPS is running, starting it if necessary."""
+    if _is_cups_scheduler_running():
+        return True
+    # CUPS not running — try to start it (needs root)
+    if os.geteuid() == 0:
+        return _start_cups()
+    return False
+
+
+def _query_usb_via_cups() -> USBResult:
+    """Query USB printer status through CUPS when /dev/usb/lp* is unavailable."""
+    _ensure_cups_running()
+    printer_name = _find_cups_printer_name()
+    if not printer_name:
+        return USBResult(
+            error="No USB printer device at /dev/usb/lp*"
+            " (usblp module not available)"
+            " and no Brother printer found in CUPS.",
+        )
+
+    pyusb_info = _get_pyusb_device_info()
+    cups_info = get_printer_info_from_cups()
+
+    result = USBResult(
+        device="cups",
+        product=(
+            pyusb_info.get("product")
+            or cups_info.get("product")
+            or "Brother Laser Printer"
+        ),
+        serial=pyusb_info.get("serial") or cups_info.get("serial", ""),
+    )
+
+    ipp = _get_cups_ipp_status(printer_name)
+    state = ipp.get("printer-state", "")
+    reasons = ipp.get("printer-state-reasons", "none")
+    result.economode = _get_cups_economode(printer_name)
+
+    # Try direct USB hardware status query (requires root)
+    if os.geteuid() == 0:
+        port_status = _query_usb_port_status_raw()
+        if port_status is not None:
+            result.port_status = port_status
+            hw_code, hw_display = _port_status_to_status_code(
+                port_status,
+                reasons,
+            )
+            if hw_code:
+                result.status_code = hw_code
+                result.display = hw_display
+                result.online = "TRUE" if port_status.online else "FALSE"
+                return result
+            # Hardware says OK — check page count for toner/drum warnings
+            estimate = _estimate_consumable_life()
+            if estimate.toner_exhausted:
+                result.status_code = "40310"
+                result.display = "Toner End (estimated from page count)"
+                result.online = "TRUE"
+                return result
+            if estimate.toner_low:
+                result.status_code = "30010"
+                result.display = "Toner Low (estimated from page count)"
+                result.online = "TRUE"
+                return result
+            result.status_code = _map_cups_to_status_code(state, reasons)
+            result.display = ipp.get("printer-state-message", "")
+            result.online = "TRUE"
+            return result
+
+    # Non-root or pyusb unavailable: CUPS-only fallback
+    result.status_code = _map_cups_to_status_code(state, reasons)
+    result.display = ipp.get("printer-state-message", "")
+    result.online = "TRUE" if state.lower() in {"idle", "processing"} else "FALSE"
+
     return result
 
 
@@ -670,33 +1121,77 @@ def _cups_restart_service() -> bool:
     if not systemctl_path:
         _out(f"  {RED}systemctl not found.{RESET}")
         return False
+    sys.stdout.write(f"  {DIM}Restarting CUPS...{RESET}")
+    sys.stdout.flush()
     try:
-        subprocess.run(
+        proc = subprocess.Popen(
             [systemctl_path, "restart", "cups"],
-            timeout=15,
-            check=True,
         )
-        time.sleep(2)  # wait for CUPS to come back up
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
+        deadline = time.time() + 30
+        while proc.poll() is None:
+            if time.time() > deadline:
+                proc.kill()
+                proc.wait()
+                sys.stdout.write("\n")
+                _out(
+                    f"  {RED}CUPS restart timed out"
+                    f" (stuck backend process?).{RESET}"
+                )
+                _out(
+                    f"  {DIM}Try: sudo kill -9 $(pgrep -f 'cups/backend/usb')"
+                    f" && sudo systemctl restart cups{RESET}"
+                )
+                return False
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            time.sleep(1)
+        sys.stdout.write("\n")
+        if proc.returncode != 0:
+            _out(
+                f"  {RED}CUPS restart failed" f" (exit code {proc.returncode}).{RESET}"
+            )
+            return False
+    except OSError as e:
+        sys.stdout.write("\n")
         _out(f"  {RED}Failed to restart CUPS: {e}{RESET}")
         return False
-    else:
-        return True
+    time.sleep(2)  # wait for CUPS to come back up
+    return True
 
 
-def _check_cups_backend_errors(
-    printer_name: str,  # noqa: ARG001
-) -> tuple[bool, str]:
-    """Check CUPS error log for backend errors. Returns (has_errors, last_error)."""
-    log_path = Path("/var/log/cups/error_log")
-    if not log_path.exists():
-        return False, ""
+def _is_cups_printer_healthy(printer_name: str) -> bool:
+    """Check live CUPS state via lpstat. Returns True if enabled with no issues."""
+    lpstat_path = shutil.which("lpstat")
+    if not lpstat_path:
+        return False
     try:
-        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return False, ""
+        r = subprocess.run(
+            [lpstat_path, "-p", printer_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in r.stdout.splitlines():
+            if (
+                printer_name in line
+                and "idle" in line.lower()
+                and "enabled" in line.lower()
+            ):
+                return True
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        pass
+    return False
 
-    # Look for backend errors related to this printer (scan from end)
+
+def _find_backend_error_in_log(
+    lines: list[str],
+) -> tuple[str, str, str]:
+    """Scan CUPS log lines (reversed) for backend errors.
+
+    Returns:
+        (backend_error, error_timestamp, last_success_timestamp)
+    """
     backend_error = ""
     error_timestamp = ""
     last_success_timestamp = ""
@@ -715,6 +1210,29 @@ def _check_cups_backend_errors(
             if ts_match:
                 last_success_timestamp = ts_match.group(1)
                 break
+
+    return backend_error, error_timestamp, last_success_timestamp
+
+
+def _check_cups_backend_errors(
+    printer_name: str,
+) -> tuple[bool, str]:
+    """Check CUPS error log for backend errors. Returns (has_errors, last_error)."""
+    # If the printer is currently healthy, ignore stale log entries.
+    if _is_cups_printer_healthy(printer_name):
+        return False, ""
+
+    log_path = Path("/var/log/cups/error_log")
+    if not log_path.exists():
+        return False, ""
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return False, ""
+
+    backend_error, error_timestamp, last_success_timestamp = _find_backend_error_in_log(
+        lines
+    )
 
     if not backend_error:
         return False, ""
@@ -890,6 +1408,67 @@ def _display_report_header() -> None:
     _out()
 
 
+def _display_page_count_estimate() -> None:
+    """Show estimated consumable life based on CUPS page count."""
+    estimate = _estimate_consumable_life()
+    if estimate.total_pages <= 0:
+        return
+    _out(f"{BOLD}── Page Count Estimate ──{RESET}")
+    _out()
+    _out(
+        f"  {BOLD}Total pages printed:{RESET} {estimate.total_pages}"
+        f"  (toner: {estimate.toner_pages} since replacement,"
+        f" drum: {estimate.drum_pages} since replacement)"
+    )
+    _out()
+    # Toner bar
+    toner_pct = estimate.toner_pct_remaining
+    toner_filled = toner_pct * PROGRESS_BAR_WIDTH // 100
+    toner_empty = PROGRESS_BAR_WIDTH - toner_filled
+    toner_bar = f"[{'█' * toner_filled}{'░' * toner_empty}]"
+    if estimate.toner_exhausted:
+        toner_color = RED
+        toner_note = " ← REPLACE NOW"
+    elif estimate.toner_low:
+        toner_color = YELLOW
+        toner_note = " ← order soon"
+    else:
+        toner_color = GREEN
+        toner_note = ""
+    _out(
+        f"  {BOLD}Toner:{RESET} {toner_color}{toner_bar} ~{toner_pct}%"
+        f"{toner_note}{RESET}"
+    )
+    # Drum bar
+    drum_pct = estimate.drum_pct_remaining
+    drum_filled = drum_pct * PROGRESS_BAR_WIDTH // 100
+    drum_empty = PROGRESS_BAR_WIDTH - drum_filled
+    drum_bar = f"[{'█' * drum_filled}{'░' * drum_empty}]"
+    if estimate.drum_near_end:
+        drum_color = YELLOW
+        drum_note = " ← nearing end"
+    else:
+        drum_color = GREEN
+        drum_note = ""
+    _out(
+        f"  {BOLD}Drum:{RESET}  {drum_color}{drum_bar} ~{drum_pct}%"
+        f"{drum_note}{RESET}"
+    )
+    _out(
+        f"  {DIM}Based on pages since last replacement"
+        f" vs rated capacity (toner ~{TONER_RATED_PAGES},"
+        f" drum ~{DRUM_RATED_PAGES}).{RESET}"
+    )
+    _out(f"  {DIM}Reset after replacing: --reset-toner" f" or --reset-drum{RESET}")
+    if estimate.toner_exhausted:
+        _out()
+        _out(
+            f"  {RED}{BOLD}⚠  Toner is likely exhausted."
+            f" This is probably why the orange light is flashing.{RESET}"
+        )
+    _out()
+
+
 def _display_consumables_reference() -> None:
     """Print compatible consumables reference."""
     _out(f"{BOLD}── Compatible Consumables ──{RESET}")
@@ -988,6 +1567,25 @@ def _display_pjl_status(result: USBResult) -> None:
 # ── Display: USB results ────────────────────────────────────────────
 
 
+def _display_cups_fallback_note(result: USBResult) -> None:
+    """Show a note when running in CUPS fallback mode."""
+    _out()
+    if result.port_status is not None:
+        _out(
+            f"  {DIM}Note: Hardware status obtained via USB port query."
+            f" Toner/drum percentages not available.{RESET}"
+        )
+    else:
+        _out(
+            f"  {DIM}Note: Status obtained via CUPS only"
+            f" (run with sudo for direct hardware query).{RESET}"
+        )
+        _out(
+            f"  {DIM}Detailed toner/drum levels are not available in this"
+            f" mode.{RESET}"
+        )
+
+
 def display_usb_results(result: USBResult) -> None:
     """Print a formatted report for USB PJL query results."""
     if result.error:
@@ -997,7 +1595,12 @@ def display_usb_results(result: USBResult) -> None:
     _display_report_header()
     _display_usb_device_info(result)
     _display_pjl_status(result)
+
+    if result.device == "cups":
+        _display_cups_fallback_note(result)
+
     _out()
+    _display_page_count_estimate()
     _display_consumables_reference()
 
     queue = get_cups_queue_status()
@@ -1193,7 +1796,8 @@ def _run_network_mode(printer_ip: str) -> None:
 def _run_usb_mode(usb_line: str) -> None:
     """Handle USB printer mode."""
     _out(f"{CYAN}Found Brother printer on USB: {usb_line}{RESET}")
-    if os.geteuid() != 0:
+    has_dev = find_usb_printer_dev() is not None
+    if has_dev and os.geteuid() != 0:
         _out(f"{RED}Root access required for USB printer. Re-run with sudo.{RESET}")
         sys.exit(1)
     display_usb_results(query_usb_pjl())
@@ -1214,6 +1818,15 @@ def _no_printer_found() -> None:
 def main(argv: list[str] | None = None) -> None:
     """Entry point: auto-detect USB or network Brother printer."""
     args = argv if argv is not None else sys.argv[1:]
+
+    # Handle consumable reset commands
+    if args and args[0] == "--reset-toner":
+        _reset_consumable("toner")
+        return
+    if args and args[0] == "--reset-drum":
+        _reset_consumable("drum")
+        return
+
     printer_ip = args[0] if args else ""
 
     if printer_ip:
