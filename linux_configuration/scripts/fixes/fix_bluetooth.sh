@@ -12,9 +12,12 @@
 # 7. Hung PipeWire/WirePlumber audio stack
 # 8. Auto scan/pair/trust/connect when MAC is provided
 # 9. SBC-XQ codec causing dropouts on older adapters
+# 10. Stale HCI link state (link tx timeout) requiring btusb reload
+# 11. A2DP ServicesResolved stuck at false after connect
+# 12. PipeWire bluez audio card not appearing after connection
 #
 # Usage:
-#   ./fix_bluetooth.sh                          # Diagnose and fix all issues
+#   ./fix_bluetooth.sh                          # Diagnose and fix + connect JBL Charge 5
 #   ./fix_bluetooth.sh --interactive            # Prompt before each fix
 #   ./fix_bluetooth.sh <MAC>                    # Fix + auto-connect to device
 #   ./fix_bluetooth.sh --interactive <MAC>      # Both
@@ -30,7 +33,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 parse_interactive_args "$@"
 shift "$COMMON_ARGS_SHIFT"
 
-TARGET_MAC="${1:-}"
+TARGET_MAC="${1:-F8:5C:7E:0E:50:6B}"
 
 require_root "$@"
 
@@ -225,6 +228,69 @@ _reload_btusb() {
 	modprobe -r btusb && sleep 1 && modprobe btusb && sleep 2
 }
 
+# ---------------------------------------------------------------------------
+# Helper: check if A2DP services are resolved for a connected device
+# Returns 0 if resolved, 1 otherwise.
+# ---------------------------------------------------------------------------
+_services_resolved() {
+	local mac="$1"
+	local dbus_path="/org/bluez/hci0/dev_${mac//:/_}"
+	local result
+	result=$(dbus-send --system --print-reply \
+		--dest=org.bluez "$dbus_path" \
+		org.freedesktop.DBus.Properties.Get \
+		string:"org.bluez.Device1" string:"ServicesResolved" 2>/dev/null || true)
+	echo "$result" | grep -q "boolean true"
+}
+
+# ---------------------------------------------------------------------------
+# Helper: full reset cycle — btusb reload + service restarts + reconnect.
+# Fixes stale HCI link state ("link tx timeout" / ServicesResolved stuck).
+# ---------------------------------------------------------------------------
+_full_adapter_reset_and_connect() {
+	local mac="$1"
+
+	log_info "Performing full adapter reset (btusb reload)..."
+	_btctl disconnect "$mac" >/dev/null 2>&1 || true
+	sleep 1
+
+	modprobe -r btusb && sleep 2 && modprobe btusb && sleep 5
+	systemctl restart bluetooth.service
+	sleep 3
+
+	_restart_pipewire_stack
+	sleep 3
+
+	log_info "Reconnecting to $mac after adapter reset..."
+	{ echo "power on"; sleep 1; echo "connect $mac"; sleep 20; } \
+		| bluetoothctl 2>/dev/null || true
+}
+
+# ---------------------------------------------------------------------------
+# Helper: verify the Bluetooth audio sink appeared in PipeWire.
+# ---------------------------------------------------------------------------
+_verify_audio_sink() {
+	local mac="$1"
+	local card_name="bluez_card.${mac//:/_}"
+
+	if ! has_cmd pactl; then
+		return 0
+	fi
+
+	# Give PipeWire time to create the audio card
+	local _attempt
+	for _attempt in 1 2 3 4 5; do
+		if pactl list cards short 2>/dev/null | grep -q "$card_name"; then
+			log_ok "Bluetooth audio card detected in PipeWire."
+			return 0
+		fi
+		sleep 3
+	done
+
+	log_warn "Bluetooth audio card not found in PipeWire after connection."
+	return 1
+}
+
 # ==========================================================================
 # 5. Remove stale pairing for target device (if specified)
 # ==========================================================================
@@ -415,9 +481,7 @@ connect_device() {
 		{ echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
 			| bluetoothctl 2>/dev/null || true
 
-		info=$(_btctl info "$TARGET_MAC" || true)
-		if echo "$info" | grep -q "Connected: yes"; then
-			log_ok "Connected to $TARGET_MAC!"
+		if _check_connection_health "$TARGET_MAC"; then
 			return 0
 		fi
 
@@ -458,16 +522,57 @@ connect_device() {
 	{ echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
 		| bluetoothctl 2>/dev/null || true
 
-	# Verify connection
+	# Verify connection + services + audio
+	if _check_connection_health "$TARGET_MAC"; then
+		return 0
+	fi
+
+	log_error "Connection to $TARGET_MAC failed."
+	log_info "Try putting the device in pairing mode and re-run."
+	return 1
+}
+
+# ---------------------------------------------------------------------------
+# Helper: verify connection is fully healthy (connected + services + audio).
+# If connected but services stuck, triggers full adapter reset + retry.
+# ---------------------------------------------------------------------------
+_check_connection_health() {
+	local mac="$1"
+	local info
+
 	sleep 2
-	info=$(_btctl info "$TARGET_MAC" || true)
-	if echo "$info" | grep -q "Connected: yes"; then
-		log_ok "Successfully connected to $TARGET_MAC!"
-	else
-		log_error "Connection to $TARGET_MAC failed."
-		log_info "Try putting the device in pairing mode and re-run."
+	info=$(_btctl info "$mac" || true)
+
+	# Not connected at all
+	if ! echo "$info" | grep -q "Connected: yes"; then
 		return 1
 	fi
+
+	# Connected — check if A2DP services resolved
+	local _attempt
+	for _attempt in 1 2 3; do
+		if _services_resolved "$mac"; then
+			log_ok "Connected to $mac with A2DP services resolved."
+			_verify_audio_sink "$mac" || true
+			return 0
+		fi
+		sleep 3
+	done
+
+	# Connected but ServicesResolved stuck at false — stale HCI link state.
+	log_warn "Connected but A2DP services not resolved (stale HCI link state)."
+	apply_fix "Full adapter reset to fix stale link" \
+		_full_adapter_reset_and_connect "$mac"
+
+	# Verify after reset
+	sleep 3
+	if _services_resolved "$mac"; then
+		log_ok "Connected to $mac with A2DP services resolved after reset."
+		_verify_audio_sink "$mac" || true
+		return 0
+	fi
+
+	return 1
 }
 
 # ==========================================================================
