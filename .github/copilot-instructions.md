@@ -42,6 +42,13 @@ cd C/lichess_random_engine && make
 - `search.c/h` - Alpha-beta search with scoring
 - `Makefile` - Build with `make`, clean with `make clean`
 
+### Go Projects (`robotgo_demo/`)
+
+- **robotgo_demo/** - Desktop automation using [go-vgo/robotgo](https://github.com/go-vgo/robotgo)
+  - `main.go` - Demo: mouse, keyboard, screen, clipboard, window control
+  - Requires X11 (Arch Linux), built with `go build -o robotgo_demo .`
+  - See `robotgo_demo/.github/copilot-instructions.md` for full API reference
+
 ### Cross-Language Integration
 
 - Python `engine.py` → calls C binary via `subprocess.Popen`
