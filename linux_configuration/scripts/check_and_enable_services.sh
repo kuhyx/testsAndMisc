@@ -44,6 +44,8 @@ THORIUM_STARTUP_SCRIPT="$CONFIG_DIR/scripts/setup_thorium_startup.sh"
 LEECHBLOCK_SCRIPT="$CONFIG_DIR/scripts/digital_wellbeing/install_leechblock.sh"
 REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/scripts/digital_wellbeing/remove_guest_mode.sh"
 VBOX_HOSTS_SCRIPT="$CONFIG_DIR/scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
+WORKOUT_LOCKER_INSTALL_SCRIPT="$(dirname "$CONFIG_DIR")/python_pkg/screen_locker/install_systemd.sh"
+WORKOUT_LOCKER_SCRIPT="$(dirname "$CONFIG_DIR")/python_pkg/screen_locker/screen_lock.py"
 
 ######################################################################
 # Helpers
@@ -96,6 +98,7 @@ Services checked:
  10. LeechBlock           - Browser extension for site blocking
  11. Guest mode removal   - Disable Chromium guest mode via policy
  12. VirtualBox hosts     - Enforce /etc/hosts inside VMs
+ 13. Workout lock screen  - Requires workout logging to unlock screen (user service)
 EOF
 }
 
@@ -510,7 +513,23 @@ check_hosts() {
 		msg "nsswitch-guard.path is enabled"
 	else
 		issues+=("nsswitch-guard.path is not enabled")
-		status="warning"
+		status="error"
+	fi
+
+	# Check nsswitch enforcement script
+	if [[ -f /usr/local/sbin/enforce-nsswitch.sh ]]; then
+		msg "nsswitch enforcement script exists at /usr/local/sbin/enforce-nsswitch.sh"
+	else
+		issues+=("enforce-nsswitch.sh not found")
+		status="error"
+	fi
+
+	# Check canonical nsswitch snapshot
+	if [[ -f /usr/local/share/locked-nsswitch.conf ]]; then
+		msg "Canonical nsswitch snapshot exists at /usr/local/share/locked-nsswitch.conf"
+	else
+		issues+=("Canonical nsswitch snapshot not found at /usr/local/share/locked-nsswitch.conf")
+		status="error"
 	fi
 
 	# Check resolved.conf has ReadEtcHosts=yes
@@ -528,7 +547,7 @@ check_hosts() {
 		# Check DNSOverTLS is not enabled
 		local dns_over_tls
 		dns_over_tls=$(grep -E '^\s*DNSOverTLS\s*=' /etc/systemd/resolved.conf 2>/dev/null |
-			tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+			tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]') || true
 		if [[ -z "$dns_over_tls" || "$dns_over_tls" == "no" ]]; then
 			msg "resolved.conf DNSOverTLS is disabled"
 		else
@@ -565,7 +584,23 @@ check_hosts() {
 		msg "resolved-guard.path is enabled"
 	else
 		issues+=("resolved-guard.path is not enabled")
-		[[ "$status" == "ok" ]] && status="warning"
+		status="error"
+	fi
+
+	# Check resolved enforcement script
+	if [[ -f /usr/local/sbin/enforce-resolved.sh ]]; then
+		msg "resolved enforcement script exists at /usr/local/sbin/enforce-resolved.sh"
+	else
+		issues+=("enforce-resolved.sh not found")
+		status="error"
+	fi
+
+	# Check canonical resolved.conf snapshot
+	if [[ -f /usr/local/share/locked-resolved.conf ]]; then
+		msg "Canonical resolved.conf snapshot exists at /usr/local/share/locked-resolved.conf"
+	else
+		issues+=("Canonical resolved.conf snapshot not found at /usr/local/share/locked-resolved.conf")
+		status="error"
 	fi
 
 	# Report issues
@@ -622,7 +657,7 @@ check_hosts() {
 				# Fix DNSOverTLS if enabled
 				local resolved_dot
 				resolved_dot=$(grep -E '^\s*DNSOverTLS\s*=' /etc/systemd/resolved.conf 2>/dev/null |
-					tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+					tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]') || true
 				if [[ -n "$resolved_dot" && "$resolved_dot" != "no" ]]; then
 					note "Fixing resolved.conf — disabling DNSOverTLS..."
 					chattr -i /etc/systemd/resolved.conf 2>/dev/null || true
@@ -659,9 +694,16 @@ check_hosts() {
 				fi
 			fi
 
-			# Run hosts guard setup
-			if ! systemctl is-enabled hosts-guard.path &>/dev/null || [[ ! -f /usr/local/sbin/enforce-hosts.sh ]]; then
-				note "Setting up hosts guard..."
+			# Run hosts guard setup (also installs nsswitch-guard and resolved-guard)
+			if ! systemctl is-enabled hosts-guard.path &>/dev/null ||
+				! systemctl is-enabled nsswitch-guard.path &>/dev/null ||
+				! systemctl is-enabled resolved-guard.path &>/dev/null ||
+				[[ ! -f /usr/local/sbin/enforce-hosts.sh ]] ||
+				[[ ! -f /usr/local/sbin/enforce-nsswitch.sh ]] ||
+				[[ ! -f /usr/local/sbin/enforce-resolved.sh ]] ||
+				[[ ! -f /usr/local/share/locked-nsswitch.conf ]] ||
+				[[ ! -f /usr/local/share/locked-resolved.conf ]]; then
+				note "Setting up hosts guard (includes nsswitch-guard and resolved-guard)..."
 				if [[ -f $HOSTS_GUARD_SCRIPT ]]; then
 					run bash "$HOSTS_GUARD_SCRIPT"
 					((FIXES_APPLIED++)) || true
@@ -687,7 +729,11 @@ check_hosts() {
 					systemctl is-enabled nsswitch-guard.path &>/dev/null &&
 					systemctl is-enabled resolved-guard.path &>/dev/null &&
 					[[ -f /usr/local/sbin/enforce-hosts.sh ]] &&
+					[[ -f /usr/local/sbin/enforce-nsswitch.sh ]] &&
+					[[ -f /usr/local/sbin/enforce-resolved.sh ]] &&
 					[[ -f /usr/local/share/locked-hosts ]] &&
+					[[ -f /usr/local/share/locked-nsswitch.conf ]] &&
+					[[ -f /usr/local/share/locked-resolved.conf ]] &&
 					[[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]]; then
 					# Downgrade to warning if only minor issues remain (immutable attr, etc.)
 					status="ok"
@@ -1049,9 +1095,64 @@ check_vbox_hosts() {
 	SERVICE_STATUS["vbox_hosts"]=$status
 }
 
-######################################################################
-# Summary
-######################################################################
+check_workout_locker() {
+	header "Workout Lock Screen"
+
+	local status="ok"
+	local issues=()
+	local user="${SUDO_USER:-$USER}"
+
+	# Check screen_lock.py script exists
+	if [[ -f $WORKOUT_LOCKER_SCRIPT ]]; then
+		msg "screen_lock.py exists at $WORKOUT_LOCKER_SCRIPT"
+	else
+		issues+=("screen_lock.py not found at $WORKOUT_LOCKER_SCRIPT")
+		status="error"
+	fi
+
+	# Check user service is enabled
+	if sudo -u "$user" systemctl --user is-enabled workout-locker.service &>/dev/null 2>&1; then
+		msg "workout-locker.service is enabled (user service)"
+	else
+		issues+=("workout-locker.service is not enabled (user service)")
+		status="error"
+	fi
+
+	# Check user service is active (advisory — it only runs at login)
+	if sudo -u "$user" systemctl --user is-active workout-locker.service &>/dev/null 2>&1; then
+		msg "workout-locker.service is active"
+	else
+		issues+=("workout-locker.service is not active (expected at login time)")
+		if [[ $status != "error" ]]; then status="warning"; fi
+	fi
+
+	if [[ $status != "ok" ]]; then
+		for issue in "${issues[@]}"; do
+			if [[ $status == "error" ]]; then
+				err "$issue"
+			else
+				warn "$issue"
+			fi
+		done
+		((ISSUES_FOUND++)) || true
+
+		if [[ $STATUS_ONLY -eq 0 && $status == "error" ]]; then
+			note "Installing workout locker service..."
+			if [[ -f $WORKOUT_LOCKER_INSTALL_SCRIPT ]]; then
+				run sudo -u "$user" bash "$WORKOUT_LOCKER_INSTALL_SCRIPT"
+				((FIXES_APPLIED++)) || true
+				# Re-verify
+				if [[ $DRY_RUN -eq 0 ]] && sudo -u "$user" systemctl --user is-enabled workout-locker.service &>/dev/null 2>&1; then
+					status="ok"
+				fi
+			else
+				err "Install script not found: $WORKOUT_LOCKER_INSTALL_SCRIPT"
+			fi
+		fi
+	fi
+
+	SERVICE_STATUS["workout_locker"]=$status
+}
 print_summary() {
 	header "Summary"
 
@@ -1059,7 +1160,7 @@ print_summary() {
 	printf "%-25s %s\n" "Service" "Status"
 	printf "%-25s %s\n" "-------" "------"
 
-	for service in pacman_wrapper midnight_shutdown startup_monitor periodic_systems hosts thesis_tracker focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts; do
+	for service in pacman_wrapper midnight_shutdown startup_monitor periodic_systems hosts thesis_tracker focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
 		local status="${SERVICE_STATUS[$service]:-unknown}"
 		local color
 		case "$status" in
@@ -1122,6 +1223,7 @@ main() {
 	check_leechblock
 	check_guest_mode_removal
 	check_vbox_hosts
+	check_workout_locker
 
 	print_summary
 }
