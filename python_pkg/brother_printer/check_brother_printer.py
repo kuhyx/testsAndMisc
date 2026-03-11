@@ -1,15 +1,17 @@
 """Check Brother laser printer consumable/maintenance status.
 
 Supports both USB-connected and network printers on Arch Linux.
+Requires root (sudo) for USB hardware queries and CUPS management.
 
-USB:     Queries via PJL over /dev/usb/lp* (requires root + usblp module).
-         Falls back to CUPS IPP status when usblp is unavailable (no root needed).
+USB:     Queries via PJL over /dev/usb/lp* (requires usblp module).
+         Falls back to USB port status query + CUPS IPP when usblp is unavailable.
 Network: Queries via SNMP (requires net-snmp).
 
 Usage:
     sudo python3 -m brother_printer              # auto-detect USB or network
     sudo python3 -m brother_printer <printer_ip>  # force network/SNMP mode
-    sudo python3 brother_printer.py               # run directly
+    sudo python3 -m brother_printer --reset-toner # after replacing toner
+    sudo python3 -m brother_printer --reset-drum  # after replacing drum
 """
 
 from __future__ import annotations
@@ -792,10 +794,7 @@ def _ensure_cups_running() -> bool:
     """Make sure CUPS is running, starting it if necessary."""
     if _is_cups_scheduler_running():
         return True
-    # CUPS not running — try to start it (needs root)
-    if os.geteuid() == 0:
-        return _start_cups()
-    return False
+    return _start_cups()
 
 
 def _query_usb_via_cups() -> USBResult:
@@ -827,38 +826,37 @@ def _query_usb_via_cups() -> USBResult:
     reasons = ipp.get("printer-state-reasons", "none")
     result.economode = _get_cups_economode(printer_name)
 
-    # Try direct USB hardware status query (requires root)
-    if os.geteuid() == 0:
-        port_status = _query_usb_port_status_raw()
-        if port_status is not None:
-            result.port_status = port_status
-            hw_code, hw_display = _port_status_to_status_code(
-                port_status,
-                reasons,
-            )
-            if hw_code:
-                result.status_code = hw_code
-                result.display = hw_display
-                result.online = "TRUE" if port_status.online else "FALSE"
-                return result
-            # Hardware says OK — check page count for toner/drum warnings
-            estimate = _estimate_consumable_life()
-            if estimate.toner_exhausted:
-                result.status_code = "40310"
-                result.display = "Toner End (estimated from page count)"
-                result.online = "TRUE"
-                return result
-            if estimate.toner_low:
-                result.status_code = "30010"
-                result.display = "Toner Low (estimated from page count)"
-                result.online = "TRUE"
-                return result
-            result.status_code = _map_cups_to_status_code(state, reasons)
-            result.display = ipp.get("printer-state-message", "")
+    # Direct USB hardware status query
+    port_status = _query_usb_port_status_raw()
+    if port_status is not None:
+        result.port_status = port_status
+        hw_code, hw_display = _port_status_to_status_code(
+            port_status,
+            reasons,
+        )
+        if hw_code:
+            result.status_code = hw_code
+            result.display = hw_display
+            result.online = "TRUE" if port_status.online else "FALSE"
+            return result
+        # Hardware says OK — check page count for toner/drum warnings
+        estimate = _estimate_consumable_life()
+        if estimate.toner_exhausted:
+            result.status_code = "40310"
+            result.display = "Toner End (estimated from page count)"
             result.online = "TRUE"
             return result
+        if estimate.toner_low:
+            result.status_code = "30010"
+            result.display = "Toner Low (estimated from page count)"
+            result.online = "TRUE"
+            return result
+        result.status_code = _map_cups_to_status_code(state, reasons)
+        result.display = ipp.get("printer-state-message", "")
+        result.online = "TRUE"
+        return result
 
-    # Non-root or pyusb unavailable: CUPS-only fallback
+    # pyusb unavailable: CUPS-only fallback
     result.status_code = _map_cups_to_status_code(state, reasons)
     result.display = ipp.get("printer-state-message", "")
     result.online = "TRUE" if state.lower() in {"idle", "processing"} else "FALSE"
@@ -1577,12 +1575,9 @@ def _display_cups_fallback_note(result: USBResult) -> None:
         )
     else:
         _out(
-            f"  {DIM}Note: Status obtained via CUPS only"
-            f" (run with sudo for direct hardware query).{RESET}"
-        )
-        _out(
-            f"  {DIM}Detailed toner/drum levels are not available in this"
-            f" mode.{RESET}"
+            f"  {DIM}Note: pyusb not available; status obtained via"
+            f" CUPS only. Detailed toner/drum levels are not"
+            f" available in this mode.{RESET}"
         )
 
 
@@ -1796,10 +1791,6 @@ def _run_network_mode(printer_ip: str) -> None:
 def _run_usb_mode(usb_line: str) -> None:
     """Handle USB printer mode."""
     _out(f"{CYAN}Found Brother printer on USB: {usb_line}{RESET}")
-    has_dev = find_usb_printer_dev() is not None
-    if has_dev and os.geteuid() != 0:
-        _out(f"{RED}Root access required for USB printer. Re-run with sudo.{RESET}")
-        sys.exit(1)
     display_usb_results(query_usb_pjl())
 
 
@@ -1826,6 +1817,14 @@ def main(argv: list[str] | None = None) -> None:
     if args and args[0] == "--reset-drum":
         _reset_consumable("drum")
         return
+
+    # Enforce root — needed for USB hardware queries and CUPS management
+    if os.geteuid() != 0:
+        _out(
+            f"{RED}Root access required. Re-run with sudo:{RESET}\n"
+            f"  sudo python3 -m brother_printer {' '.join(args)}".rstrip(),
+        )
+        sys.exit(1)
 
     printer_ip = args[0] if args else ""
 
