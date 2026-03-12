@@ -262,7 +262,7 @@ _full_adapter_reset_and_connect() {
 	sleep 3
 
 	log_info "Reconnecting to $mac after adapter reset..."
-	{ echo "power on"; sleep 1; echo "connect $mac"; sleep 20; } \
+	{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "connect $mac"; sleep 20; } \
 		| bluetoothctl 2>/dev/null || true
 }
 
@@ -280,7 +280,7 @@ _verify_audio_sink() {
 	# Give PipeWire time to create the audio card
 	local _attempt
 	for _attempt in 1 2 3 4 5; do
-		if pactl list cards short 2>/dev/null | grep -q "$card_name"; then
+		if _run_as_user pactl list cards short 2>/dev/null | grep -q "$card_name"; then
 			log_ok "Bluetooth audio card detected in PipeWire."
 			return 0
 		fi
@@ -426,7 +426,7 @@ check_pipewire_health() {
 	fi
 
 	# Test if PipeWire is responding within 3 seconds
-	if timeout 3 wpctl status &>/dev/null; then
+	if timeout 3 _run_as_user wpctl status &>/dev/null; then
 		log_ok "PipeWire is responsive."
 		return 0
 	fi
@@ -436,8 +436,11 @@ check_pipewire_health() {
 		_restart_pipewire_stack
 }
 
-_restart_pipewire_stack() {
-	# Restart as the calling user (these are user services)
+# ---------------------------------------------------------------------------
+# Helper: run a command as the actual (non-root) user with PipeWire env.
+# Needed because pactl/wpctl/systemctl --user talk to the user session.
+# ---------------------------------------------------------------------------
+_run_as_user() {
 	local target_user
 	target_user="${SUDO_USER:-$USER}"
 	local target_uid
@@ -446,7 +449,11 @@ _restart_pipewire_stack() {
 	sudo -u "$target_user" \
 		XDG_RUNTIME_DIR="/run/user/$target_uid" \
 		DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$target_uid/bus" \
-		systemctl --user restart pipewire pipewire-pulse wireplumber
+		"$@"
+}
+
+_restart_pipewire_stack() {
+	_run_as_user systemctl --user restart pipewire pipewire-pulse wireplumber
 
 	sleep 3
 	log_info "Waiting for audio stack to initialize..."
@@ -478,7 +485,7 @@ connect_device() {
 	# ---- Attempt 1: direct connect (existing pairing) ----
 	if echo "$info" | grep -q "Paired: yes"; then
 		log_info "Device is already paired. Trying direct connect..."
-		{ echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
+		{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
 			| bluetoothctl 2>/dev/null || true
 
 		if _check_connection_health "$TARGET_MAC"; then
@@ -510,7 +517,7 @@ connect_device() {
 
 	# Pair
 	log_info "Pairing..."
-	{ echo "power on"; sleep 1; echo "pair $TARGET_MAC"; sleep 5; } \
+	{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "pair $TARGET_MAC"; sleep 5; } \
 		| bluetoothctl 2>/dev/null || true
 
 	# Trust (so it auto-reconnects in the future)
@@ -519,7 +526,7 @@ connect_device() {
 
 	# Connect
 	log_info "Connecting..."
-	{ echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
+	{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
 		| bluetoothctl 2>/dev/null || true
 
 	# Verify connection + services + audio
@@ -595,7 +602,7 @@ set_audio_profile() {
 
 	local card_name="bluez_card.${TARGET_MAC//:/_}"
 	local card_info
-	card_info=$(pactl list cards 2>/dev/null || true)
+	card_info=$(_run_as_user pactl list cards 2>/dev/null || true)
 
 	if ! echo "$card_info" | grep -q "$card_name"; then
 		log_info "No PipeWire audio card found for device (may not be an audio device)."
@@ -608,7 +615,7 @@ set_audio_profile() {
 	if [[ $current_profile == *"sbc_xq"* ]]; then
 		log_warn "SBC-XQ codec active — may cause audio dropouts on older adapters."
 		apply_fix "Switching to standard SBC codec" \
-			pactl set-card-profile "$card_name" a2dp-sink
+			_run_as_user pactl set-card-profile "$card_name" a2dp-sink
 	elif [[ -n $current_profile ]]; then
 		log_ok "Audio profile: $current_profile"
 	fi
@@ -693,6 +700,7 @@ main() {
 	check_packages
 	check_firmware
 	check_adapter_stuck
+	remove_stale_pairing
 	fix_usb_autosuspend
 	check_pipewire_health
 	restart_bluetooth
