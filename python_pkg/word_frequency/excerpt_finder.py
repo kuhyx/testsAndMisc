@@ -6,21 +6,28 @@ specified length (in words) where the target words appear most frequently.
 
 Usage:
     # From raw text with target words
-    python -m python_pkg.word_frequency.excerpt_finder --text "they went somewhere he and she and the guy" --words and the --length 3
+    python -m python_pkg.word_frequency.excerpt_finder \
+        --text "they went somewhere he and she and the guy" \
+        --words and the --length 3
 
     # From a file
-    python -m python_pkg.word_frequency.excerpt_finder --file path/to/file.txt --words the and of --length 10
+    python -m python_pkg.word_frequency.excerpt_finder \
+        --file path/to/file.txt --words the and of --length 10
 
     # Target words from a file (one word per line)
-    python -m python_pkg.word_frequency.excerpt_finder --file text.txt --words-file targets.txt --length 20
+    python -m python_pkg.word_frequency.excerpt_finder \
+        --file text.txt --words-file targets.txt --length 20
 
     # Show top N excerpts instead of just the best one
-    python -m python_pkg.word_frequency.excerpt_finder --file text.txt --words the and --length 10 --top 5
+    python -m python_pkg.word_frequency.excerpt_finder \
+        --file text.txt --words the and --length 10 --top 5
 """
 
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
+import logging
 from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, NamedTuple
@@ -32,6 +39,17 @@ except ModuleNotFoundError:
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ExcerptSearchOptions:
+    """Options for excerpt search and display."""
+
+    case_sensitive: bool = False
+    top_n: int = 1
+    context_words: int = 0
 
 
 class ExcerptResult(NamedTuple):
@@ -141,45 +159,28 @@ def find_best_excerpt(
     return output
 
 
-def find_best_excerpt_with_context(
+def _expand_results_with_context(
     text: str,
-    target_words: Sequence[str],
-    excerpt_length: int,
+    base_results: list[ExcerptResult],
+    context_words: int,
     *,
     case_sensitive: bool = False,
-    top_n: int = 1,
-    context_words: int = 0,
 ) -> list[ExcerptResult]:
-    """Find the excerpt(s) with optional surrounding context.
+    """Expand excerpt results with surrounding context words.
 
     Args:
-        text: The input text to search.
-        target_words: Words to search for in the excerpt.
-        excerpt_length: Length of the excerpt in words.
-        case_sensitive: If False, match words case-insensitively.
-        top_n: Number of top excerpts to return.
-        context_words: Number of words to include before/after the excerpt.
+        text: The full source text.
+        base_results: Results from find_best_excerpt.
+        context_words: Number of words to include before/after.
+        case_sensitive: If False, words are lowercased.
 
     Returns:
-        List of ExcerptResult with context included in the excerpt.
+        Expanded ExcerptResult list with context.
     """
-    base_results = find_best_excerpt(
-        text,
-        target_words,
-        excerpt_length,
-        case_sensitive=case_sensitive,
-        top_n=top_n,
-    )
-
-    if context_words <= 0:
-        return base_results
-
-    # Re-extract all words to get context
     all_words = extract_words(text, case_sensitive=case_sensitive)
 
     expanded_results: list[ExcerptResult] = []
     for result in base_results:
-        # Expand the excerpt with context
         ctx_start = max(0, result.start_index - context_words)
         ctx_end = min(len(all_words), result.end_index + context_words)
         context_excerpt_words = all_words[ctx_start:ctx_end]
@@ -196,6 +197,40 @@ def find_best_excerpt_with_context(
         )
 
     return expanded_results
+
+
+def find_best_excerpt_with_context(
+    text: str,
+    target_words: Sequence[str],
+    excerpt_length: int,
+    options: ExcerptSearchOptions | None = None,
+) -> list[ExcerptResult]:
+    """Find the excerpt(s) with optional surrounding context.
+
+    Args:
+        text: The input text to search.
+        target_words: Words to search for in the excerpt.
+        excerpt_length: Length of the excerpt in words.
+        options: Search options (case_sensitive, top_n, context_words).
+
+    Returns:
+        List of ExcerptResult with context included in the excerpt.
+    """
+    opts = options or ExcerptSearchOptions()
+    base_results = find_best_excerpt(
+        text,
+        target_words,
+        excerpt_length,
+        case_sensitive=opts.case_sensitive,
+        top_n=opts.top_n,
+    )
+
+    if opts.context_words <= 0:
+        return base_results
+
+    return _expand_results_with_context(
+        text, base_results, opts.context_words, case_sensitive=opts.case_sensitive
+    )
 
 
 def format_excerpt_results(
@@ -224,7 +259,8 @@ def format_excerpt_results(
         lines.append(f'Excerpt: "{result.excerpt}"')
         lines.append(f"Word position: {result.start_index} - {result.end_index - 1}")
         lines.append(
-            f"Matches: {result.match_count}/{len(result.words)} ({result.match_percentage:.2f}%)"
+            f"Matches: {result.match_count}/{len(result.words)}"
+            f" ({result.match_percentage:.2f}%)"
         )
         lines.append("")
 
@@ -316,10 +352,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         # Get input text
-        if args.text:
-            text = args.text
-        else:
-            text = read_file(args.file)
+        text = args.text or read_file(args.file)
 
         # Get target words
         if args.words:
@@ -329,7 +362,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             target_words = [w.strip() for w in words_content.splitlines() if w.strip()]
 
         if not target_words:
-            print("Error: No target words provided", file=sys.stderr)
+            logger.error("No target words provided")
             return 1
 
         # Find excerpts
@@ -337,9 +370,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             text,
             target_words,
             args.length,
-            case_sensitive=args.case_sensitive,
-            top_n=args.top,
-            context_words=args.context,
+            ExcerptSearchOptions(
+                case_sensitive=args.case_sensitive,
+                top_n=args.top,
+                context_words=args.context,
+            ),
         )
 
         # Format and print results
@@ -347,15 +382,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output:
             Path(args.output).write_text(output, encoding="utf-8")
-            print(f"Output written to {args.output}")
+            logger.info("Output written to %s", args.output)
         else:
-            print(output)
+            logger.info("%s", output)
 
-    except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)
+    except FileNotFoundError:
+        logger.exception("File not found")
         return 1
-    except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)
+    except UnicodeDecodeError:
+        logger.exception("Could not decode file as UTF-8")
         return 1
 
     return 0

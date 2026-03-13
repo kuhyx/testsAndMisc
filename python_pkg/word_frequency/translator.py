@@ -1,149 +1,163 @@
 #!/usr/bin/env python3
-"""Translator - translates words/text between languages.
+r"""Translator - translates words/text between languages.
 
 This module provides translation capabilities using either:
-1. Argos Translate (offline, requires large downloads) - preferred if installed
-2. deep-translator (online, uses Google Translate) - lightweight fallback
 
-Usage:
+1. Argos Translate (offline, requires large downloads)
+2. deep-translator (online, uses Google Translate)
+
+Usage::
+
     # Translate a single word
-    python -m python_pkg.word_frequency.translator --text "hello" --from en --to es
+    python -m python_pkg.word_frequency.translator \\
+        --text "hello" --from en --to es
 
     # Translate multiple words
-    python -m python_pkg.word_frequency.translator --words hello world goodbye --from en --to pl
+    python -m python_pkg.word_frequency.translator \\
+        --words hello world goodbye --from en --to pl
 
     # Translate words from a file (one word per line)
-    python -m python_pkg.word_frequency.translator --words-file words.txt --from la --to en
+    python -m python_pkg.word_frequency.translator \\
+        --words-file words.txt --from la --to en
 
     # List available languages
-    python -m python_pkg.word_frequency.translator --list-languages
+    python -m python_pkg.word_frequency.translator \\
+        --list-languages
 
     # Output to file
-    python -m python_pkg.word_frequency.translator --words-file vocab.txt --from pl --to en --output translations.txt
+    python -m python_pkg.word_frequency.translator \\
+        --words-file vocab.txt --from pl --to en \\
+        --output translations.txt
 
-Dependencies (install one):
-    pip install deep-translator    # Lightweight, uses Google Translate (online)
-    pip install argostranslate     # Offline translation (requires ~3GB downloads)
+Dependencies (install one)::
+
+    pip install deep-translator
+    pip install argostranslate
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib
+import logging
+import os
 from pathlib import Path
+import subprocess
 import sys
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-# Lazy imports for translation backends (may not be installed)
-_argos_available: bool | None = None
-_deep_translator_available: bool | None = None
-_langdetect_available: bool | None = None
-_gpu_initialized: bool = False
-_gpu_available: bool | None = None
+try:
+    import torch
+except ImportError:
+    torch = None  # type: ignore[assignment]
+
+try:
+    import argostranslate.package
+    import argostranslate.translate
+except ImportError:
+    argostranslate = None  # type: ignore[assignment]
+
+try:
+    from deep_translator import GoogleTranslator
+except ImportError:
+    GoogleTranslator = None
+
+try:
+    import langdetect
+except ImportError:
+    langdetect = None  # type: ignore[assignment]
+
+try:
+    from python_pkg.word_frequency.cache import (
+        get_translation_cache,
+    )
+except ImportError:
+    get_translation_cache = None
+
+logger = logging.getLogger(__name__)
+
+_LANG_DETECT_SAMPLE_SIZE = 5000
+_BATCH_SIZE = 100
+
+
+class _TranslatorState:
+    """Holds module-level state for lazy-initialized backends."""
+
+    gpu_initialized: bool = False
 
 
 def _check_cuda_available() -> bool:
     """Check if CUDA is available for GPU acceleration."""
-    global _gpu_available
-    if _gpu_available is None:
-        try:
-            import torch
+    return torch is not None and torch.cuda.is_available()
 
-            _gpu_available = torch.cuda.is_available()
-        except ImportError:
-            _gpu_available = False
-    return _gpu_available
+
+def _validate_gpu_device() -> str:
+    """Validate GPU device availability and return device name.
+
+    Raises:
+        RuntimeError: If no GPU devices are found.
+    """
+    device_count = torch.cuda.device_count()
+    if device_count == 0:
+        msg = "CUDA reports available but no GPU devices found"
+        raise RuntimeError(msg)
+    return torch.cuda.get_device_name(0)
 
 
 def _init_gpu_if_available() -> None:
     """Initialize GPU for argostranslate if CUDA is available.
 
     Raises:
-        RuntimeError: If CUDA is available but GPU initialization fails.
+        RuntimeError: If CUDA is available but GPU init fails.
     """
-    global _gpu_initialized
-    if _gpu_initialized:
+    if _TranslatorState.gpu_initialized:
         return
 
     if not _check_cuda_available():
-        _gpu_initialized = True
+        _TranslatorState.gpu_initialized = True
         return
 
-    import sys
-
-    print("CUDA detected, initializing GPU acceleration...", file=sys.stderr)
+    logger.info(
+        "CUDA detected, initializing GPU acceleration..."
+    )
 
     try:
-        import torch
-
-        # Force CTranslate2 to use CUDA
-        device_count = torch.cuda.device_count()
-        if device_count == 0:
-            raise RuntimeError("CUDA reports available but no GPU devices found")
-
-        device_name = torch.cuda.get_device_name(0)
-        print(f"  Using GPU: {device_name}", file=sys.stderr)
-
-        # Set environment variable to force GPU usage in argos
-        import os
+        device_name = _validate_gpu_device()
+        logger.info("  Using GPU: %s", device_name)
 
         os.environ["CT2_CUDA_ALLOW_FP16"] = "1"
         os.environ["CT2_USE_EXPERIMENTAL_PACKED_GEMM"] = "1"
 
-        _gpu_initialized = True
-        print("  GPU acceleration enabled.", file=sys.stderr)
+        _TranslatorState.gpu_initialized = True
+        logger.info("  GPU acceleration enabled.")
 
     except Exception as e:
-        raise RuntimeError(
-            f"CUDA is available but GPU initialization failed: {e}\n"
-            f"This may be due to incompatible CUDA version or driver issues.\n"
-            f"To disable GPU and use CPU only, set environment variable: CT2_FORCE_CPU=1"
-        ) from e
+        msg = (
+            f"CUDA is available but GPU initialization failed: "
+            f"{e}\nThis may be due to incompatible CUDA "
+            "version or driver issues.\n"
+            "To disable GPU and use CPU only, set "
+            "environment variable: CT2_FORCE_CPU=1"
+        )
+        raise RuntimeError(msg) from e
 
 
 def _check_argos() -> bool:
     """Check if argostranslate is available."""
-    global _argos_available
-    if _argos_available is None:
-        try:
-            import argostranslate.package
-            import argostranslate.translate
-
-            _ = (argostranslate.package, argostranslate.translate)
-            _argos_available = True
-        except ImportError:
-            _argos_available = False
-    return _argos_available
+    return argostranslate is not None
 
 
 def _check_deep_translator() -> bool:
     """Check if deep-translator is available."""
-    global _deep_translator_available
-    if _deep_translator_available is None:
-        try:
-            from deep_translator import GoogleTranslator
-
-            _ = GoogleTranslator
-            _deep_translator_available = True
-        except ImportError:
-            _deep_translator_available = False
-    return _deep_translator_available
+    return GoogleTranslator is not None
 
 
 def _check_langdetect() -> bool:
     """Check if langdetect is available."""
-    global _langdetect_available
-    if _langdetect_available is None:
-        try:
-            import langdetect
-
-            _ = langdetect
-            _langdetect_available = True
-        except ImportError:
-            _langdetect_available = False
-    return _langdetect_available
+    return langdetect is not None
 
 
 def detect_language(text: str) -> str | None:
@@ -158,13 +172,14 @@ def detect_language(text: str) -> str | None:
     if not _check_langdetect():
         return None
 
-    import langdetect
-
     try:
-        # Use a sample of the text for detection (faster and more reliable)
-        sample = text[:5000] if len(text) > 5000 else text
-        return langdetect.detect(sample)  # type: ignore[no-any-return]
-    except langdetect.LangDetectException:  # type: ignore[attr-defined]
+        sample = (
+            text[:_LANG_DETECT_SAMPLE_SIZE]
+            if len(text) > _LANG_DETECT_SAMPLE_SIZE
+            else text
+        )
+        return langdetect.detect(sample)  # type: ignore[no-any-return,union-attr]
+    except langdetect.LangDetectException:  # type: ignore[attr-defined,union-attr]
         return None
 
 
@@ -188,8 +203,6 @@ def get_installed_languages() -> list[tuple[str, str]]:
     if not _check_argos():
         return []
 
-    import argostranslate.translate
-
     languages = argostranslate.translate.get_installed_languages()
     return [(lang.code, lang.name) for lang in languages]
 
@@ -202,8 +215,6 @@ def get_available_packages() -> list[tuple[str, str, str, str]]:
     """
     if not _check_argos():
         return []
-
-    import argostranslate.package
 
     argostranslate.package.update_package_index()
     available = argostranslate.package.get_available_packages()
@@ -227,12 +238,10 @@ def download_languages(lang_codes: Sequence[str]) -> dict[str, bool]:
     if not _check_argos():
         return {}
 
-    import argostranslate.package
-
     results: dict[str, bool] = {}
 
     # Update package index
-    print("Updating package index...")
+    logger.info("Updating package index...")
     argostranslate.package.update_package_index()
     available = argostranslate.package.get_available_packages()
 
@@ -255,13 +264,26 @@ def download_languages(lang_codes: Sequence[str]) -> dict[str, bool]:
             if pkg_key in available_lookup:
                 pkg = available_lookup[pkg_key]
                 try:
-                    print(f"Downloading {from_code} -> {to_code}...")
+                    logger.info(
+                        "Downloading %s -> %s...",
+                        from_code,
+                        to_code,
+                    )
                     argostranslate.package.install_from_path(pkg.download())
                     results[key] = True
-                    print(f"  ✓ Installed {from_code} -> {to_code}")
-                except Exception as e:  # noqa: BLE001
+                    logger.info(
+                        "  Installed %s -> %s",
+                        from_code,
+                        to_code,
+                    )
+                except (OSError, RuntimeError, ValueError) as e:
                     results[key] = False
-                    print(f"  ✗ Failed {from_code} -> {to_code}: {e}")
+                    logger.info(
+                        "  Failed %s -> %s: %s",
+                        from_code,
+                        to_code,
+                        e,
+                    )
             else:
                 # Package not available
                 results[key] = False
@@ -278,32 +300,38 @@ def _ensure_argos_installed() -> None:
     if _check_argos():
         return
 
-    import subprocess
-    import sys
-
-    print("argostranslate not found. Attempting to install...")
+    logger.info("argostranslate not found. Attempting to install...")
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "argostranslate"],
             check=True,
             capture_output=True,
         )
-        # Reset the check flag and verify
-        global _argos_available
-        _argos_available = None
-        if not _check_argos():
-            raise ImportError("argostranslate installation succeeded but import failed")
-        print("argostranslate installed successfully.")
+        # Attempt runtime re-import
+        importlib.import_module("argostranslate.package")
+        importlib.import_module("argostranslate.translate")
+        logger.info("argostranslate installed successfully.")
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.decode() if e.stderr else str(e)
-        raise ImportError(
-            f"argostranslate is required for offline translation.\n\n"
-            f"Install manually with one of:\n"
-            f"  pip install argostranslate          # In a virtualenv\n"
-            f"  pipx install argostranslate         # System-wide via pipx\n"
-            f"  pacman -S python-argostranslate     # Arch Linux (if available)\n\n"
+        msg = (
+            "argostranslate is required for offline "
+            "translation.\n\n"
+            "Install manually with one of:\n"
+            "  pip install argostranslate"
+            "          # In a virtualenv\n"
+            "  pipx install argostranslate"
+            "         # System-wide via pipx\n"
+            "  pacman -S python-argostranslate"
+            "     # Arch Linux (if available)\n\n"
             f"Original error: {error_msg}"
-        ) from e
+        )
+        raise ImportError(msg) from e
+    except ImportError:
+        msg = (
+            "argostranslate installation succeeded but "
+            "import failed"
+        )
+        raise ImportError(msg) from None
 
 
 def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
@@ -316,11 +344,9 @@ def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
     Raises:
         ValueError: If language pair cannot be obtained.
     """
-    import argostranslate.package
-    import argostranslate.translate
-
-    # Check if already installed
-    installed_languages = argostranslate.translate.get_installed_languages()
+    installed_languages = (
+        argostranslate.translate.get_installed_languages()
+    )
     from_lang_obj = None
     to_lang_obj = None
 
@@ -337,37 +363,44 @@ def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
             return  # Already available
 
     # Need to download
-    import sys
-
-    print(
-        f"Downloading language pack: {from_lang} -> {to_lang}...",
-        file=sys.stderr,
+    logger.info(
+        "Downloading language pack: %s -> %s...",
+        from_lang,
+        to_lang,
     )
-    print("  Fetching package index...", file=sys.stderr)
+    logger.info("  Fetching package index...")
     argostranslate.package.update_package_index()
     available = argostranslate.package.get_available_packages()
 
     pkg = next(
-        (p for p in available if p.from_code == from_lang and p.to_code == to_lang),
+        (
+            p
+            for p in available
+            if p.from_code == from_lang and p.to_code == to_lang
+        ),
         None,
     )
 
     if pkg is None:
-        raise ValueError(
-            f"No language pack available for {from_lang} -> {to_lang}. "
-            f"Available pairs can be listed with --list-languages."
+        msg = (
+            f"No language pack available for "
+            f"{from_lang} -> {to_lang}. "
+            "Available pairs can be listed with "
+            "--list-languages."
         )
+        raise ValueError(msg)
 
-    print(
-        "  Downloading package (~50-100MB, this may take a minute)...",
-        file=sys.stderr,
+    logger.info(
+        "  Downloading package (~50-100MB, "
+        "this may take a minute)...",
     )
     download_path = pkg.download()
-    print("  Installing language pack...", file=sys.stderr)
+    logger.info("  Installing language pack...")
     argostranslate.package.install_from_path(download_path)
-    print(
-        f"Language pack {from_lang} -> {to_lang} installed.",
-        file=sys.stderr,
+    logger.info(
+        "Language pack %s -> %s installed.",
+        from_lang,
+        to_lang,
     )
 
 
@@ -393,38 +426,30 @@ def translate_word(
         ImportError: If argostranslate is not available and cannot be installed.
     """
     # Check cache first
-    if use_cache:
-        try:
-            from python_pkg.word_frequency.cache import get_translation_cache
-
-            cache = get_translation_cache()
-            cached = cache.get(word, from_lang, to_lang)
-            if cached is not None:
-                return TranslationResult(
-                    source_word=word,
-                    translated_word=cached,
-                    source_lang=from_lang,
-                    target_lang=to_lang,
-                    success=True,
-                )
-        except ImportError:
-            pass  # Cache not available
+    if use_cache and get_translation_cache is not None:
+        cache = get_translation_cache()
+        cached = cache.get(word, from_lang, to_lang)
+        if cached is not None:
+            return TranslationResult(
+                source_word=word,
+                translated_word=cached,
+                source_lang=from_lang,
+                target_lang=to_lang,
+                success=True,
+            )
 
     # Ensure argos is installed (will raise if it can't be)
     _ensure_argos_installed()
 
-    import argostranslate.translate
-
     try:
-        translated = argostranslate.translate.translate(word, from_lang, to_lang)
+        translated = argostranslate.translate.translate(
+            word, from_lang, to_lang,
+        )
         # Cache the result
-        if use_cache:
-            try:
-                from python_pkg.word_frequency.cache import get_translation_cache
-
-                get_translation_cache().set(word, from_lang, to_lang, translated)
-            except ImportError:
-                pass
+        if use_cache and get_translation_cache is not None:
+            get_translation_cache().set(
+                word, from_lang, to_lang, translated,
+            )
         return TranslationResult(
             source_word=word,
             translated_word=translated,
@@ -432,7 +457,7 @@ def translate_word(
             target_lang=to_lang,
             success=True,
         )
-    except Exception as e:  # noqa: BLE001
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         return TranslationResult(
             source_word=word,
             translated_word="",
@@ -483,8 +508,6 @@ def _translate_batch_worker(
     Returns:
         Tuple of (batch_idx, translations dict).
     """
-    import argostranslate.translate
-
     translations: dict[str, str] = {}
 
     # Batch translate by joining with newlines
@@ -505,6 +528,78 @@ def _translate_batch_worker(
             translations[word.lower()] = translated
 
     return batch_idx, translations
+
+
+def _run_batch_translation(
+    words_to_translate: list[str],
+    from_lang: str,
+    to_lang: str,
+) -> dict[str, str]:
+    """Translate a list of words in batches with progress logging.
+
+    Args:
+        words_to_translate: Words needing translation.
+        from_lang: Source language code.
+        to_lang: Target language code.
+
+    Returns:
+        Dict mapping lowercased words to translations.
+
+    Raises:
+        RuntimeError: If translation fails.
+    """
+    new_translations: dict[str, str] = {}
+    num_to_translate = len(words_to_translate)
+
+    gpu_status = (
+        " (GPU)" if _check_cuda_available() else " (CPU)"
+    )
+    logger.info(
+        "Translating %d words from %s to %s%s...",
+        num_to_translate,
+        from_lang,
+        to_lang,
+        gpu_status,
+    )
+
+    try:
+        batches = [
+            words_to_translate[i : i + _BATCH_SIZE]
+            for i in range(0, num_to_translate, _BATCH_SIZE)
+        ]
+        total_batches = len(batches)
+
+        for batch_idx, batch_words in enumerate(batches):
+            words_done = min(
+                (batch_idx + 1) * _BATCH_SIZE,
+                num_to_translate,
+            )
+            pct = int(words_done / num_to_translate * 100)
+
+            logger.info(
+                "  [%3d%%] Translating batch %d/%d "
+                "(%d/%d words)...",
+                pct,
+                batch_idx + 1,
+                total_batches,
+                words_done,
+                num_to_translate,
+            )
+
+            _, batch_translations = _translate_batch_worker(
+                batch_words, from_lang, to_lang, batch_idx,
+            )
+            new_translations.update(batch_translations)
+
+        logger.info("  Translation complete.")
+    except Exception as e:
+        msg = (
+            f"Translation failed for "
+            f"{from_lang} -> {to_lang}: {e}"
+        )
+        raise RuntimeError(msg) from e
+
+    return new_translations
 
 
 def translate_words_batch(
@@ -535,90 +630,36 @@ def translate_words_batch(
     if not words:
         return []
 
-    # Ensure argos is installed (will raise if it can't be)
     _ensure_argos_installed()
-
-    # Initialize GPU if available (will raise if CUDA available but fails)
     _init_gpu_if_available()
-
-    # Ensure language pair is available
     _ensure_language_pair(from_lang, to_lang)
 
     # Check cache for already-translated words
     cached_results: dict[str, str] = {}
-    words_to_translate: list[str] = []
-
-    if use_cache:
-        try:
-            from python_pkg.word_frequency.cache import get_translation_cache
-
-            cache = get_translation_cache()
-            cached_results = cache.get_many(list(words), from_lang, to_lang)
-        except ImportError:
-            pass
+    if use_cache and get_translation_cache is not None:
+        cache = get_translation_cache()
+        cached_results = cache.get_many(
+            list(words), from_lang, to_lang,
+        )
 
     # Find words that still need translation
-    for word in words:
-        if word.lower() not in cached_results:
-            words_to_translate.append(word)
+    words_to_translate = [
+        word for word in words
+        if word.lower() not in cached_results
+    ]
 
     # Translate uncached words using argos batch
     new_translations: dict[str, str] = {}
     if words_to_translate:
-        import sys
-
-        num_to_translate = len(words_to_translate)
-
-        # Check if GPU is being used
-        gpu_status = " (GPU)" if _gpu_available else " (CPU)"
-        print(
-            f"Translating {num_to_translate} words from {from_lang} to {to_lang}{gpu_status}...",
-            file=sys.stderr,
-            flush=True,
+        new_translations = _run_batch_translation(
+            words_to_translate, from_lang, to_lang,
         )
 
-        try:
-            # Split into batches - larger batches are faster but show progress less often
-            BATCH_SIZE = 100
-            batches: list[list[str]] = []
-            for i in range(0, num_to_translate, BATCH_SIZE):
-                batches.append(words_to_translate[i : i + BATCH_SIZE])
-
-            total_batches = len(batches)
-
-            # Sequential translation with progress
-            # (argostranslate is not thread-safe - uses global model)
-            for batch_idx, batch_words in enumerate(batches):
-                words_done = (batch_idx + 1) * BATCH_SIZE
-                words_done = min(words_done, num_to_translate)
-                pct = int(words_done / num_to_translate * 100)
-
-                print(
-                    f"  [{pct:3d}%] Translating batch {batch_idx + 1}/{total_batches} "
-                    f"({words_done}/{num_to_translate} words)...",
-                    file=sys.stderr,
-                    flush=True,
-                )
-
-                _, batch_translations = _translate_batch_worker(
-                    batch_words, from_lang, to_lang, batch_idx
-                )
-                new_translations.update(batch_translations)
-
-            print("  Translation complete.", file=sys.stderr, flush=True)
-        except Exception as e:
-            raise RuntimeError(
-                f"Translation failed for {from_lang} -> {to_lang}: {e}"
-            ) from e
-
         # Cache new translations
-        if use_cache and new_translations:
-            try:
-                from python_pkg.word_frequency.cache import get_translation_cache
-
-                get_translation_cache().set_many(new_translations, from_lang, to_lang)
-            except ImportError:
-                pass
+        if use_cache and get_translation_cache is not None:
+            get_translation_cache().set_many(
+                new_translations, from_lang, to_lang,
+            )
 
     # Merge cached and new translations
     all_translations = {**cached_results, **new_translations}
@@ -694,22 +735,14 @@ def read_file(filepath: str | Path) -> str:
     return Path(filepath).read_text(encoding="utf-8")
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Main entry point for the translator.
-
-    Args:
-        argv: Command line arguments.
-
-    Returns:
-        Exit code.
-    """
+def _build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for the translator CLI."""
     parser = argparse.ArgumentParser(
         description="Offline translator using Argos Translate.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
 
-    # Actions
     action_group = parser.add_mutually_exclusive_group()
     action_group.add_argument(
         "--list-languages",
@@ -728,10 +761,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "-d",
         nargs="+",
         metavar="LANG",
-        help="Download language packs (e.g., --download en es pl)",
+        help=(
+            "Download language packs "
+            "(e.g., --download en es pl)"
+        ),
     )
 
-    # Input
     input_group = parser.add_mutually_exclusive_group()
     input_group.add_argument(
         "--text",
@@ -752,7 +787,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="File with words to translate (one per line)",
     )
 
-    # Language options
     parser.add_argument(
         "--from",
         "-f",
@@ -769,8 +803,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="en",
         help="Target language code (default: en)",
     )
-
-    # Output
     parser.add_argument(
         "--output",
         "-o",
@@ -778,86 +810,141 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Output file path",
     )
 
-    args = parser.parse_args(argv)
+    return parser
 
-    # Check if argostranslate is available
-    if not _check_argos():
-        print(
-            "Error: argostranslate is not installed.\n"
-            "Install it with: pip install argostranslate",
-            file=sys.stderr,
+
+def _handle_list_languages() -> int:
+    """Handle --list-languages command."""
+    langs = get_installed_languages()
+    if not langs:
+        sys.stdout.write("No languages installed.\n")
+        sys.stdout.write(
+            "Download some with: --download en es pl de fr\n",
         )
-        return 1
+    else:
+        sys.stdout.write("Installed languages:\n")
+        for code, name in sorted(langs):
+            sys.stdout.write(f"  {code}: {name}\n")
+    return 0
 
-    # Handle list-languages
-    if args.list_languages:
-        langs = get_installed_languages()
-        if not langs:
-            print("No languages installed.")
-            print("Download some with: --download en es pl de fr")
-        else:
-            print("Installed languages:")
-            for code, name in sorted(langs):
-                print(f"  {code}: {name}")
-        return 0
 
-    # Handle list-available
-    if args.list_available:
-        packages = get_available_packages()
-        if not packages:
-            print("No packages available (check internet connection).")
-        else:
-            print("Available language packages:")
-            for from_code, from_name, to_code, to_name in sorted(packages):
-                print(f"  {from_code} ({from_name}) -> {to_code} ({to_name})")
-        return 0
+def _handle_list_available() -> int:
+    """Handle --list-available command."""
+    packages = get_available_packages()
+    if not packages:
+        sys.stdout.write(
+            "No packages available "
+            "(check internet connection).\n",
+        )
+    else:
+        sys.stdout.write("Available language packages:\n")
+        for from_code, from_name, to_code, to_name in sorted(
+            packages,
+        ):
+            sys.stdout.write(
+                f"  {from_code} ({from_name})"
+                f" -> {to_code} ({to_name})\n",
+            )
+    return 0
 
-    # Handle download
-    if args.download:
-        download_results = download_languages(args.download)
-        success_count = sum(1 for v in download_results.values() if v)
-        print(f"\nDownloaded {success_count}/{len(download_results)} language pairs.")
-        return 0 if success_count > 0 else 1
 
-    # Handle translation
-    words: list[str] = []
+def _handle_download(lang_codes: list[str]) -> int:
+    """Handle --download command."""
+    download_results = download_languages(lang_codes)
+    success_count = sum(
+        1 for v in download_results.values() if v
+    )
+    sys.stdout.write(
+        f"\nDownloaded {success_count}/"
+        f"{len(download_results)} language pairs.\n",
+    )
+    return 0 if success_count > 0 else 1
+
+
+def _collect_words(
+    args: argparse.Namespace,
+) -> list[str] | None:
+    """Collect words from args. Returns None on error."""
     if args.text:
-        words = [args.text]
-    elif args.words:
-        words = args.words
-    elif args.words_file:
+        return [args.text]
+    if args.words:
+        return args.words
+    if args.words_file:
         try:
             content = read_file(args.words_file)
-            words = [w.strip() for w in content.splitlines() if w.strip()]
         except FileNotFoundError:
-            print(f"Error: File not found: {args.words_file}", file=sys.stderr)
-            return 1
+            sys.stderr.write(
+                f"Error: File not found: {args.words_file}\n",
+            )
+            return None
+        return [
+            w.strip()
+            for w in content.splitlines()
+            if w.strip()
+        ]
+    return []
 
-    if not words:
-        parser.print_help()
-        return 1
 
-    # Translate
+def _handle_translation(args: argparse.Namespace) -> int:
+    """Handle the translation action."""
     try:
-        results = translate_words_batch(words, args.from_lang, args.to_lang)
-    except ImportError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        results = translate_words_batch(
+            args.words, args.from_lang, args.to_lang,
+        )
+    except ImportError:
+        logger.exception("Translation import error")
         return 1
 
     output = format_translations(results)
 
-    # Output
     if args.output:
         Path(args.output).write_text(output, encoding="utf-8")
-        print(f"Translations written to {args.output}")
+        sys.stdout.write(
+            f"Translations written to {args.output}\n",
+        )
     else:
-        print(output)
+        sys.stdout.write(output + "\n")
 
-    # Return error if any translation failed
     if any(not r.success for r in results):
         return 1
 
     return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Main entry point for the translator.
+
+    Args:
+        argv: Command line arguments.
+
+    Returns:
+        Exit code.
+    """
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+
+    if not _check_argos():
+        sys.stderr.write(
+            "Error: argostranslate is not installed.\n"
+            "Install it with: pip install argostranslate\n",
+        )
+        return 1
+
+    if args.list_languages:
+        return _handle_list_languages()
+    if args.list_available:
+        return _handle_list_available()
+    if args.download:
+        return _handle_download(args.download)
+
+    words = _collect_words(args)
+    if not words:
+        if words is not None:
+            parser.print_help()
+        return 1
+
+    args.words = words
+    return _handle_translation(args)
 
 
 if __name__ == "__main__":

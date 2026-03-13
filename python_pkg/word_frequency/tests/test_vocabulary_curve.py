@@ -89,7 +89,7 @@ class TestExcerptValidity:
     """Tests that verify excerpts are actually found in the source text."""
 
     def test_excerpt_exists_in_source_text(self, sample_text_file: Path) -> None:
-        """Test that each excerpt can be found in the source text as contiguous words."""
+        """Test that each excerpt can be found in source text."""
         import re
 
         source_text = sample_text_file.read_text(encoding="utf-8").lower()
