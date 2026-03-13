@@ -1,1 +1,1 @@
-# Cinema Planner package initialization
+"""Cinema Planner - maximize movies watched in a day."""
