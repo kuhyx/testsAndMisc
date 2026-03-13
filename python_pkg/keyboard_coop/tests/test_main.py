@@ -1,8 +1,5 @@
 """Unit tests for keyboard_coop module."""
 
-# ruff: noqa: SLF001
-# Tests need to access private members to verify internal logic
-
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 

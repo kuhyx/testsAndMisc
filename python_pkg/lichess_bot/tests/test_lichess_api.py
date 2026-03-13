@@ -1,13 +1,5 @@
 """Unit tests for lichess_bot lichess_api module."""
 
-# ruff: noqa: SLF001, S105, ARG001, PT012, TRY003, EM101, PERF402
-# SLF001: Tests need to access private members to verify internal logic
-# S105: Test tokens are not real passwords
-# ARG001: Mock functions need *args, **kwargs signature
-# PT012: pytest.raises can contain multiple statements for generator testing
-# TRY003, EM101: Exception messages in tests are fine
-# PERF402: We need loop append for generator consumption with exception break
-
 from http import HTTPStatus
 import json
 from unittest.mock import MagicMock, patch
@@ -17,6 +9,8 @@ import pytest
 import requests
 
 from python_pkg.lichess_bot.lichess_api import LichessAPI
+
+_TERMINATION_MSG = "Test termination"
 
 
 class _TestTerminationError(Exception):
@@ -30,7 +24,8 @@ class TestLichessAPIInit:
         """Test initialization creates session with proper headers."""
         api = LichessAPI("test_token")
 
-        assert api.token == "test_token"
+        expected = "test_token"
+        assert api.token == expected
         assert "Bearer test_token" in api.session.headers["Authorization"]
         assert "application/json" in api.session.headers["Accept"]
 
@@ -119,7 +114,7 @@ class TestStreamEvents:
         # stream_events has a while True loop, so we need to break out of it
         # by raising an exception after yielding our test data
 
-        def iter_lines_with_stop(*args: object, **kwargs: object) -> list[str]:
+        def iter_lines_with_stop(*_args: object, **_kwargs: object) -> list[str]:
             """Return lines then signal generator to stop."""
             return ['{"type": "challenge"}', "", '{"type": "gameStart"}']
 
@@ -131,12 +126,12 @@ class TestStreamEvents:
 
         call_count = 0
 
-        def mock_request(*args: object, **kwargs: object) -> MagicMock:
+        def mock_request(*_args: object, **_kwargs: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
             if call_count > 1:
                 # Break out of while True on second iteration
-                raise _TestTerminationError("Test termination")
+                raise _TestTerminationError(_TERMINATION_MSG)
             return mock_response
 
         events_collected: list[dict] = []
@@ -144,8 +139,7 @@ class TestStreamEvents:
             patch.object(api, "_request", side_effect=mock_request),
             pytest.raises(_TestTerminationError),
         ):
-            for event in api.stream_events():
-                events_collected.append(event)
+            events_collected.extend(api.stream_events())
 
         assert len(events_collected) == 2
         assert events_collected[0]["type"] == "challenge"
@@ -154,7 +148,7 @@ class TestStreamEvents:
     def test_stream_events_skips_invalid_json(self, api: LichessAPI) -> None:
         """Test stream_events skips non-JSON lines."""
 
-        def iter_lines_with_invalid(*args: object, **kwargs: object) -> list[str]:
+        def iter_lines_with_invalid(*_args: object, **_kwargs: object) -> list[str]:
             return ['{"type": "challenge"}', "not json", '{"type": "gameStart"}']
 
         mock_response = MagicMock()
@@ -165,11 +159,11 @@ class TestStreamEvents:
 
         call_count = 0
 
-        def mock_request(*args: object, **kwargs: object) -> MagicMock:
+        def mock_request(*_args: object, **_kwargs: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
             if call_count > 1:
-                raise _TestTerminationError("Test termination")
+                raise _TestTerminationError(_TERMINATION_MSG)
             return mock_response
 
         events_collected: list[dict] = []
@@ -177,8 +171,7 @@ class TestStreamEvents:
             patch.object(api, "_request", side_effect=mock_request),
             pytest.raises(_TestTerminationError),
         ):
-            for event in api.stream_events():
-                events_collected.append(event)
+            events_collected.extend(api.stream_events())
 
         assert len(events_collected) == 2
 
@@ -192,7 +185,7 @@ class TestStreamEvents:
         mock_response_429.__enter__ = MagicMock(return_value=mock_response_429)
         mock_response_429.__exit__ = MagicMock(return_value=False)
 
-        def iter_lines_ok(*args: object, **kwargs: object) -> list[str]:
+        def iter_lines_ok(*_args: object, **_kwargs: object) -> list[str]:
             return ['{"type": "test"}']
 
         mock_response_ok = MagicMock()
@@ -203,14 +196,14 @@ class TestStreamEvents:
 
         call_count = 0
 
-        def mock_request(*args: object, **kwargs: object) -> MagicMock:
+        def mock_request(*_args: object, **_kwargs: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 return mock_response_429
             if call_count == 2:
                 return mock_response_ok
-            raise _TestTerminationError("Test termination")
+            raise _TestTerminationError(_TERMINATION_MSG)
 
         events_collected: list[dict] = []
         with (
@@ -218,8 +211,7 @@ class TestStreamEvents:
             patch("python_pkg.lichess_bot.lichess_api.time.sleep"),
             pytest.raises(_TestTerminationError),
         ):
-            for event in api.stream_events():
-                events_collected.append(event)
+            events_collected.extend(api.stream_events())
 
         assert len(events_collected) == 1
         assert call_count == 3  # 429 + OK + termination
@@ -411,7 +403,7 @@ class TestMakeMove:
 
         call_count = 0
 
-        def mock_request(*args: object, **kwargs: object) -> MagicMock:
+        def mock_request(*_args: object, **_kwargs: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
             if call_count == 1:

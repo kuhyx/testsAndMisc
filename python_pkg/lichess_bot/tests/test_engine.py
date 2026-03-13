@@ -1,8 +1,5 @@
 """Unit tests for lichess_bot engine module."""
 
-# ruff: noqa: SLF001
-# Tests need to access private members to verify internal logic
-
 import json
 from pathlib import Path
 import subprocess
