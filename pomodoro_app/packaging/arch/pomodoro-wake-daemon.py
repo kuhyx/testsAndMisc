@@ -36,6 +36,9 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+MIN_DEVICE_PARTS = 2
+
+
 def is_app_running() -> bool:
     """Check whether the Pomodoro app is running locally."""
     pgrep = shutil.which("pgrep")
@@ -88,7 +91,7 @@ def get_adb_devices() -> list[str]:
     devices: list[str] = []
     for line in result.stdout.strip().splitlines()[1:]:
         parts = line.split()
-        if len(parts) >= 2 and parts[1] == "device":  # noqa: PLR2004
+        if len(parts) >= MIN_DEVICE_PARTS and parts[1] == "device":
             devices.append(parts[0])
     return devices
 

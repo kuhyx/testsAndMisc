@@ -235,7 +235,10 @@ def _download_github_geojson(url: str, cache_path: Path) -> gpd.GeoDataFrame:
         return gpd.read_file(cache_path)
 
     sys.stdout.write(f"Downloading from {url}...\n")
-    with urlopen(url, timeout=REQUEST_TIMEOUT) as response:  # noqa: S310
+    if not url.startswith(("http://", "https://")):
+        msg = f"Unsupported URL scheme: {url}"
+        raise ValueError(msg)
+    with urlopen(url, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode())
 
     _ensure_cache_dir()

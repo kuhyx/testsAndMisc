@@ -39,28 +39,21 @@ def check_dependencies(*, include_bark: bool = False) -> bool:
     Args:
         include_bark: Whether to check for Bark dependencies as well.
     """
+    import importlib.util
+
     missing = []
 
-    try:
-        import torch  # noqa: F401
-    except ImportError:
+    if importlib.util.find_spec("torch") is None:
         missing.append("torch")
 
-    try:
-        import transformers  # noqa: F401
-    except ImportError:
+    if importlib.util.find_spec("transformers") is None:
         missing.append("transformers")
 
-    try:
-        import scipy  # noqa: F401
-    except ImportError:
+    if importlib.util.find_spec("scipy") is None:
         missing.append("scipy")
 
-    if include_bark:
-        try:
-            from bark import generate_audio as _bark_gen  # noqa: F401
-        except ImportError:
-            missing.append("git+https://github.com/suno-ai/bark.git")
+    if include_bark and importlib.util.find_spec("bark") is None:
+        missing.append("git+https://github.com/suno-ai/bark.git")
 
     if missing:
         print("Missing dependencies. Install with:")

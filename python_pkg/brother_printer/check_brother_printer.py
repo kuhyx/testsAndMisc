@@ -60,6 +60,7 @@ TONER_RATED_PAGES = 1000
 DRUM_RATED_PAGES = 10000
 CUPS_PAGE_LOG = Path("/var/log/cups/page_log")
 CONSUMABLE_STATE_FILE = Path.home() / ".config" / "brother_printer" / "state.json"
+MIN_LPSTAT_JOB_PARTS = 4
 
 
 def _out(text: str = "") -> None:
@@ -250,7 +251,7 @@ def find_brother_usb() -> str:
         return ""
     try:
         r = subprocess.run(
-            ["lsusb"],  # noqa: S607
+            ["/usr/bin/lsusb"],
             capture_output=True,
             text=True,
             timeout=5,
@@ -285,7 +286,7 @@ def get_printer_info_from_cups() -> dict[str, str]:
     info: dict[str, str] = {"product": "", "serial": ""}
     try:
         r = subprocess.run(
-            ["lpstat", "-v"],  # noqa: S607
+            ["/usr/bin/lpstat", "-v"],
             capture_output=True,
             text=True,
             timeout=5,
@@ -488,7 +489,7 @@ def _get_pyusb_device_info() -> dict[str, str]:
         dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
         if dev is None:
             return {}
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, ValueError):
         return {}
     else:
         return {
@@ -601,7 +602,7 @@ def _query_usb_port_status_raw() -> USBPortStatus | None:
         finally:
             usb.util.release_interface(dev, 0)
             usb.util.dispose_resources(dev)
-    except Exception:  # noqa: BLE001
+    except (OSError, ValueError):
         logger.debug("USB port status query failed", exc_info=True)
         return None
     finally:
@@ -1001,7 +1002,7 @@ def _parse_lpstat_jobs(output: str, printer_name: str) -> list[CUPSJob]:
         if not line.startswith(printer_name):
             continue
         parts = line.split()
-        if len(parts) >= 4:  # noqa: PLR2004
+        if len(parts) >= MIN_LPSTAT_JOB_PARTS:
             job_id = parts[0]
             user = parts[1]
             size = parts[2]
@@ -1319,28 +1320,55 @@ def _offer_queue_fix(queue: CUPSQueueStatus) -> None:
         _handle_backend_errors_only(choice)
 
 
-def _handle_disabled_with_jobs(queue: CUPSQueueStatus, choice: str) -> None:  # noqa: C901
+def _dwj_enable_only(printer_name: str) -> None:
+    """Choice 1: re-enable printer so queued jobs are retried."""
+    if _cups_enable_printer(printer_name):
+        _out(f"  {GREEN}✓ Printer re-enabled. Jobs will be retried.{RESET}")
+
+
+def _dwj_cancel_and_enable(printer_name: str) -> None:
+    """Choice 2: cancel all jobs then re-enable."""
+    _cups_cancel_all_jobs(printer_name)
+    if _cups_enable_printer(printer_name):
+        _out(f"  {GREEN}✓ All jobs cancelled and printer re-enabled.{RESET}")
+
+
+def _dwj_cancel_only(printer_name: str) -> None:
+    """Choice 3: cancel all jobs."""
+    if _cups_cancel_all_jobs(printer_name):
+        _out(f"  {GREEN}✓ All jobs cancelled.{RESET}")
+
+
+def _dwj_restart_only(_printer_name: str) -> None:
+    """Choice 4: restart CUPS."""
+    if _cups_restart_service():
+        _out(f"  {GREEN}✓ CUPS restarted.{RESET}")
+
+
+def _dwj_restart_and_enable(printer_name: str) -> None:
+    """Choice 5: restart CUPS and re-enable printer."""
+    if _cups_restart_service():
+        _cups_enable_printer(printer_name)
+        _out(
+            f"  {GREEN}✓ CUPS restarted, printer re-enabled."
+            f" Jobs will be retried.{RESET}"
+        )
+
+
+_DWJ_ACTIONS: dict[str, Callable[[str], None]] = {
+    "1": _dwj_enable_only,
+    "2": _dwj_cancel_and_enable,
+    "3": _dwj_cancel_only,
+    "4": _dwj_restart_only,
+    "5": _dwj_restart_and_enable,
+}
+
+
+def _handle_disabled_with_jobs(queue: CUPSQueueStatus, choice: str) -> None:
     """Handle fix for disabled printer with pending jobs."""
-    if choice == "1":
-        if _cups_enable_printer(queue.printer_name):
-            _out(f"  {GREEN}✓ Printer re-enabled. Jobs will be retried.{RESET}")
-    elif choice == "2":
-        _cups_cancel_all_jobs(queue.printer_name)
-        if _cups_enable_printer(queue.printer_name):
-            _out(f"  {GREEN}✓ All jobs cancelled and printer re-enabled.{RESET}")
-    elif choice == "3":
-        if _cups_cancel_all_jobs(queue.printer_name):
-            _out(f"  {GREEN}✓ All jobs cancelled.{RESET}")
-    elif choice == "4":
-        if _cups_restart_service():
-            _out(f"  {GREEN}✓ CUPS restarted.{RESET}")
-    elif choice == "5":
-        if _cups_restart_service():
-            _cups_enable_printer(queue.printer_name)
-            _out(
-                f"  {GREEN}✓ CUPS restarted, printer re-enabled."
-                f" Jobs will be retried.{RESET}"
-            )
+    action = _DWJ_ACTIONS.get(choice)
+    if action is not None:
+        action(queue.printer_name)
     else:
         _out(f"  {DIM}No changes made.{RESET}")
 
