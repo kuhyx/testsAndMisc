@@ -469,7 +469,7 @@ class RepoExplorer(tk.Tk):
         fcntl.fcntl(master_fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
         self._proc = subprocess.Popen(
-            ["bash", "run.sh", *extra],  # noqa: S607
+            ["/usr/bin/bash", "run.sh", *extra],
             cwd=path,
             stdin=slave_fd,
             stdout=slave_fd,
@@ -485,7 +485,27 @@ class RepoExplorer(tk.Tk):
         threading.Thread(target=self._read_pty, daemon=True).start()
         threading.Thread(target=self._wait_proc, daemon=True).start()
 
-    def _read_pty(self) -> None:  # noqa: C901, PLR0912
+    @staticmethod
+    def _decode_buf(buf: bytes) -> str:
+        """Decode a byte buffer, strip ANSI codes and carriage returns."""
+        return _strip_ansi(buf.decode("utf-8", errors="replace").replace("\r", ""))
+
+    def _flush_partial_buf(self, buf: bytes) -> None:
+        """Flush a partial (no trailing newline) buffer to output."""
+        text = self._decode_buf(buf)
+        if text:
+            self._write_output(text)
+
+    def _process_complete_lines(self, buf: bytes) -> bytes:
+        """Split buf on newlines, output complete lines, return remainder."""
+        while b"\n" in buf:
+            line, buf = buf.split(b"\n", 1)
+            text = self._decode_buf(line)
+            if text:
+                self._write_output(text + "\n")
+        return buf
+
+    def _read_pty(self) -> None:
         """Stream PTY output to the widget, stripping ANSI codes.
 
         Partial lines (prompts without a trailing newline) are flushed after
@@ -503,11 +523,7 @@ class RepoExplorer(tk.Tk):
                 if buf:
                     idle_ticks += 1
                     if idle_ticks >= self._IDLE_FLUSH_TICKS:
-                        text = _strip_ansi(
-                            buf.decode("utf-8", errors="replace").replace("\r", "")
-                        )
-                        if text:
-                            self._write_output(text)
+                        self._flush_partial_buf(buf)
                         buf = b""
                         idle_ticks = 0
                 continue
@@ -519,18 +535,10 @@ class RepoExplorer(tk.Tk):
             if not chunk:
                 break
             buf += chunk
-            while b"\n" in buf:
-                line, buf = buf.split(b"\n", 1)
-                text = _strip_ansi(
-                    line.decode("utf-8", errors="replace").replace("\r", "")
-                )
-                if text:
-                    self._write_output(text + "\n")
+            buf = self._process_complete_lines(buf)
         # flush remainder
         if buf:
-            text = _strip_ansi(buf.decode("utf-8", errors="replace").replace("\r", ""))
-            if text:
-                self._write_output(text)
+            self._flush_partial_buf(buf)
         if self._master_fd is not None:
             with contextlib.suppress(OSError):
                 os.close(self._master_fd)

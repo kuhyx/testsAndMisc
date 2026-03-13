@@ -28,16 +28,7 @@ import shutil
 import tempfile
 from typing import TYPE_CHECKING
 
-import numpy as np
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-logger = logging.getLogger(__name__)
-
-os.environ["FFMPEG_BINARY"] = "/usr/bin/ffmpeg"
-
-from moviepy import (  # noqa: E402
+from moviepy import (
     AudioArrayClip,
     AudioClip,
     BitmapClip,
@@ -53,7 +44,7 @@ from moviepy import (  # noqa: E402
     concatenate_audioclips,
     concatenate_videoclips,
 )
-from moviepy.audio.fx import (  # noqa: E402
+from moviepy.audio.fx import (
     AudioDelay,
     AudioFadeIn,
     AudioFadeOut,
@@ -62,10 +53,10 @@ from moviepy.audio.fx import (  # noqa: E402
     MultiplyStereoVolume,
     MultiplyVolume,
 )
-from moviepy.video.compositing.CompositeVideoClip import (  # noqa: E402
+from moviepy.video.compositing.CompositeVideoClip import (
     clips_array,
 )
-from moviepy.video.fx import (  # noqa: E402
+from moviepy.video.fx import (
     AccelDecel,
     BlackAndWhite,
     Blink,
@@ -99,11 +90,19 @@ from moviepy.video.fx import (  # noqa: E402
     TimeMirror,
     TimeSymmetrize,
 )
-from moviepy.video.tools.drawing import (  # noqa: E402
+from moviepy.video.tools.drawing import (
     circle,
     color_gradient,
     color_split,
 )
+import numpy as np
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
+
+os.environ["FFMPEG_BINARY"] = "/usr/bin/ffmpeg"
 
 # ── Constants ─────────────────────────────────────────────────────
 W, H = 1920, 1080
@@ -473,30 +472,26 @@ def part2_clip_methods() -> list[VideoClip]:
 # ══════════════════════════════════════════════════════════════════
 # PART 3 — Video Effects (all 34)
 # ══════════════════════════════════════════════════════════════════
-def part3_video_effects() -> list[VideoClip]:  # noqa: PLR0915
-    """Demonstrate all 34 video effects."""
-    scenes: list[VideoClip] = [
-        _section_header(
-            "Part 3: Video Effects",
-            "All 34 effects from moviepy.video.fx",
-        ),
-    ]
+def _fx(effect: object, label: str, dur: float = CLIP_DUR) -> VideoClip:
+    """Apply effect to base clip and label it."""
+    b = _base_clip(dur)
+    try:
+        result = b.with_effects([effect])
+        # Ensure it has a finite duration
+        if result.duration is None or result.duration <= 0:
+            result = result.with_duration(dur)
+        result = result.with_duration(min(result.duration, dur))
+    except (ValueError, OSError, AttributeError):
+        result = b
+    # Make sure it fits the canvas
+    if result.size != (W, H):
+        result = _resize_to_canvas(result)
+    return _titled(result, label)
 
-    def _fx(effect: object, label: str, dur: float = CLIP_DUR) -> VideoClip:
-        """Apply effect to base clip and label it."""
-        b = _base_clip(dur)
-        try:
-            result = b.with_effects([effect])
-            # Ensure it has a finite duration
-            if result.duration is None or result.duration <= 0:
-                result = result.with_duration(dur)
-            result = result.with_duration(min(result.duration, dur))
-        except (ValueError, OSError, AttributeError):
-            result = b
-        # Make sure it fits the canvas
-        if result.size != (W, H):
-            result = _resize_to_canvas(result)
-        return _titled(result, label)
+
+def _part3_effects_1_to_17() -> list[VideoClip]:
+    """Video effects 1-17: AccelDecel through MakeLoopable."""
+    scenes: list[VideoClip] = []
 
     # 1. AccelDecel
     scenes.append(
@@ -577,8 +572,8 @@ def part3_video_effects() -> list[VideoClip]:  # noqa: PLR0915
     scenes.append(
         _fx(
             HeadBlur(
-                fx=lambda t: W // 2,  # noqa: ARG005
-                fy=lambda t: H // 2,  # noqa: ARG005
+                fx=lambda _: W // 2,
+                fy=lambda _: H // 2,
                 radius=100,
                 intensity=None,
             ),
@@ -606,6 +601,13 @@ def part3_video_effects() -> list[VideoClip]:  # noqa: PLR0915
     scenes.append(
         _fx(MakeLoopable(overlap_duration=0.5), "MakeLoopable(overlap_duration=0.5)")
     )
+
+    return scenes
+
+
+def _part3_effects_18_to_34() -> list[VideoClip]:
+    """Video effects 18-34: Margin through TimeSymmetrize."""
+    scenes: list[VideoClip] = []
 
     # 18. Margin
     b_margin = _base_clip().with_effects(
@@ -734,6 +736,19 @@ def part3_video_effects() -> list[VideoClip]:  # noqa: PLR0915
         _titled(ts.with_duration(CLIP_DUR), "TimeSymmetrize()  # forward then reverse")
     )
 
+    return scenes
+
+
+def part3_video_effects() -> list[VideoClip]:
+    """Demonstrate all 34 video effects."""
+    scenes: list[VideoClip] = [
+        _section_header(
+            "Part 3: Video Effects",
+            "All 34 effects from moviepy.video.fx",
+        ),
+    ]
+    scenes.extend(_part3_effects_1_to_17())
+    scenes.extend(_part3_effects_18_to_34())
     return scenes
 
 

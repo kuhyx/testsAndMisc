@@ -13,6 +13,7 @@ import hashlib
 import logging
 from pathlib import Path
 import sys
+import tempfile
 from typing import TYPE_CHECKING
 
 import genanki
@@ -357,7 +358,7 @@ class _DeckBuilder:
         filename = f"http_cat_{status_code}.jpg"
 
         # Save to temp directory for genanki
-        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path = Path(tempfile.gettempdir()) / filename
         temp_path.write_bytes(image_data)
         self.media_files.append(str(temp_path))
 
