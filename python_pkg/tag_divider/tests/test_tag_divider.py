@@ -5,6 +5,7 @@ making it difficult to test the main functionality without refactoring.
 These tests verify the module-level constants.
 """
 
+import importlib
 from pathlib import Path
 import sys
 from unittest.mock import MagicMock, patch
@@ -88,7 +89,7 @@ class TestModuleExecution:
             patch("pathlib.Path.iterdir", return_value=[]),
             patch("os.chdir"),
         ):
-            import python_pkg.tag_divider.tag_divider  # noqa: F401
+            importlib.import_module("python_pkg.tag_divider.tag_divider")
 
         # mkdir should have been called twice (once for each folder)
         assert mock_mkdir.call_count == 2
@@ -108,7 +109,7 @@ class TestModuleExecution:
             patch("pathlib.Path.iterdir", return_value=[]),
             patch("os.chdir"),
         ):
-            import python_pkg.tag_divider.tag_divider  # noqa: F401
+            importlib.import_module("python_pkg.tag_divider.tag_divider")
 
         # mkdir should not have been called
         mock_mkdir.assert_not_called()
@@ -137,7 +138,7 @@ class TestModuleExecution:
             patch.dict("sys.modules", {"cv2": mock_cv2}),
             patch("shutil.move", mock_move),
         ):
-            import python_pkg.tag_divider.tag_divider  # noqa: F401
+            importlib.import_module("python_pkg.tag_divider.tag_divider")
 
         # Image should be moved to first folder
         mock_move.assert_called_once()
@@ -166,7 +167,7 @@ class TestModuleExecution:
             patch.dict("sys.modules", {"cv2": mock_cv2}),
             patch("shutil.move", mock_move),
         ):
-            import python_pkg.tag_divider.tag_divider  # noqa: F401
+            importlib.import_module("python_pkg.tag_divider.tag_divider")
 
         # Image should be moved to second folder
         mock_move.assert_called_once()
@@ -192,7 +193,7 @@ class TestModuleExecution:
             patch.dict("sys.modules", {"cv2": mock_cv2}),
             patch("shutil.move", mock_move),
         ):
-            import python_pkg.tag_divider.tag_divider  # noqa: F401
+            importlib.import_module("python_pkg.tag_divider.tag_divider")
 
         # No image processing should have occurred
         mock_cv2.imread.assert_not_called()
@@ -222,7 +223,7 @@ class TestModuleExecution:
             patch.dict("sys.modules", {"cv2": mock_cv2}),
             patch("shutil.move", mock_move),
         ):
-            import python_pkg.tag_divider.tag_divider  # noqa: F401
+            importlib.import_module("python_pkg.tag_divider.tag_divider")
 
         # File should not be moved
         mock_move.assert_not_called()
