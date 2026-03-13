@@ -7,6 +7,8 @@ Designed for A4 laser printer output (300 DPI, black & white).
 
 from __future__ import annotations
 
+import logging
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -19,6 +21,8 @@ import matplotlib.pyplot as plt
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
+
+logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = str(Path(__file__).resolve().parent / "img")
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -33,19 +37,35 @@ FIXED_COLOR = "#D0F0D0"  # light green-ish gray for fixed
 FD_ARROW_COLOR = "#444444"
 
 
+def _compute_col_widths(
+    headers: list[str],
+    rows: list[list[str]],
+) -> list[float]:
+    """Auto-calculate column widths based on content."""
+    col_widths: list[float] = []
+    for c in range(len(headers)):
+        max_len = len(headers[c])
+        for r in rows:
+            if c < len(r):
+                max_len = max(max_len, len(str(r[c])))
+        col_widths.append(max(max_len * 0.08 + 0.1, 0.5))
+    return col_widths
+
+
 def draw_table(
-    ax,
-    x,
-    y,
-    title,
-    headers,
-    rows,
-    col_widths=None,
-    highlight_cols=None,
-    highlight_rows=None,
-    highlight_cells=None,
-    strikethrough_cells=None,
-    title_fontsize=9,
+    ax: Axes,
+    x: float,
+    y: float,
+    title: str,
+    headers: list[str],
+    rows: list[list[str]],
+    *,
+    col_widths: list[float] | None = None,
+    highlight_cols: set[int] | None = None,
+    highlight_rows: set[int] | None = None,
+    highlight_cells: set[tuple[int, int]] | None = None,
+    strikethrough_cells: set[tuple[int, int]] | None = None,
+    title_fontsize: int = 9,
 ) -> tuple[float, float]:
     """Draw a single table on the axes at position (x, y).
 
@@ -66,18 +86,10 @@ def draw_table(
     Returns:
         (width, height) of the drawn table
     """
-    n_cols = len(headers)
     n_rows = len(rows)
 
     if col_widths is None:
-        # Auto-calculate based on content
-        col_widths = []
-        for c in range(n_cols):
-            max_len = len(headers[c])
-            for r in rows:
-                if c < len(r):
-                    max_len = max(max_len, len(str(r[c])))
-            col_widths.append(max(max_len * 0.08 + 0.1, 0.5))
+        col_widths = _compute_col_widths(headers, rows)
 
     row_height = 0.22
     total_width = sum(col_widths)
@@ -172,7 +184,10 @@ def draw_table(
     return total_width, total_height + 0.25  # extra for title
 
 
-def create_figure(width_inches=11.69, height_inches=8.27) -> tuple[Figure, Axes]:
+def create_figure(
+    width_inches: float = 11.69,
+    height_inches: float = 8.27,
+) -> tuple[Figure, Axes]:
     """Create A4 landscape figure."""
     fig, ax = plt.subplots(1, 1, figsize=(width_inches, height_inches), dpi=DPI)
     ax.set_xlim(0, width_inches)
@@ -182,7 +197,16 @@ def create_figure(width_inches=11.69, height_inches=8.27) -> tuple[Figure, Axes]
     return fig, ax
 
 
-def add_arrow(ax, x1, y1, x2, y2, label="", color="black") -> None:
+def add_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    label: str = "",
+    *,
+    color: str = "black",
+) -> None:
     """Draw an arrow with optional label."""
     ax.annotate(
         "",
@@ -205,7 +229,15 @@ def add_arrow(ax, x1, y1, x2, y2, label="", color="black") -> None:
 
 
 def add_label(
-    ax, x, y, text, fontsize=8, color="black", ha="left", style="normal"
+    ax: Axes,
+    x: float,
+    y: float,
+    text: str,
+    *,
+    fontsize: int = 8,
+    color: str = "black",
+    ha: str = "left",
+    style: str = "normal",
 ) -> None:
     """Add a text label."""
     ax.text(
@@ -289,7 +321,10 @@ def draw_0nf() -> None:
         ax,
         0.8,
         1.2,
-        "Zaleznosci funkcyjne:  StID -> Imie, WydzialID    |    WydzialID -> NazwaWydzialu",
+        (
+            "Zaleznosci funkcyjne:  StID -> Imie, WydzialID"
+            "    |    WydzialID -> NazwaWydzialu"
+        ),
         fontsize=8,
         color="#333333",
     )
@@ -297,7 +332,10 @@ def draw_0nf() -> None:
         ax,
         0.8,
         0.9,
-        "  KursID -> NazwaKursu    |    (StID,KursID) -> Prowadzacy    |    Prowadzacy -> KursID",
+        (
+            "  KursID -> NazwaKursu    |    (StID,KursID)"
+            " -> Prowadzacy    |    Prowadzacy -> KursID"
+        ),
         fontsize=8,
         color="#333333",
     )
@@ -309,7 +347,7 @@ def draw_0nf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_0nf_table.png")
+    logger.info("Generated: nf_0nf_table.png")
 
 
 # ============================================================
@@ -399,7 +437,10 @@ def draw_1nf() -> None:
         ax,
         0.5,
         1.5,
-        "             Imie, WydzialID, NazwaWydzialu zaleza TYLKO od StID (czesc klucza).",
+        (
+            "             Imie, WydzialID, NazwaWydzialu"
+            " zaleza TYLKO od StID (czesc klucza)."
+        ),
         fontsize=9,
         color="black",
     )
@@ -419,7 +460,7 @@ def draw_1nf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_1nf_tables.png")
+    logger.info("Generated: nf_1nf_tables.png")
 
 
 # ============================================================
@@ -477,7 +518,10 @@ def draw_2nf() -> None:
         ax,
         0.3,
         3.3,
-        "KROK: Rozbito czesc. zaleznosci — atrybuty zalezne od czesci klucza wydzielone.",
+        (
+            "KROK: Rozbito czesc. zaleznosci"
+            " — atrybuty zalezne od czesci klucza wydzielone."
+        ),
         fontsize=9,
     )
     add_label(
@@ -528,7 +572,7 @@ def draw_2nf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_2nf_tables.png")
+    logger.info("Generated: nf_2nf_tables.png")
 
 
 # ============================================================

@@ -6,12 +6,16 @@ Creates a tab-separated file compatible with Anki import.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
-import traceback
+
+logger = logging.getLogger(__name__)
+
+MIN_HEADER_WORDS = 3
 
 
-def extract_main_question(content, filename) -> str:
+def extract_main_question(content: str, filename: str) -> str:
     """Extract the main exam question from the file."""
     # Extract the main question from ## Pytanie section
     question_match = re.search(
@@ -26,13 +30,13 @@ def extract_main_question(content, filename) -> str:
     return title_match.group(1) if title_match else filename
 
 
-def extract_subject(content) -> str:
+def extract_subject(content: str) -> str:
     """Extract the subject code."""
     subject_match = re.search(r"Przedmiot:\s*(\w+)", content)
     return subject_match.group(1) if subject_match else "Ogólne"
 
 
-def extract_key_points(content) -> list[str]:
+def extract_key_points(content: str) -> list[str]:
     """Extract key points from the main answer section."""
     points = []
 
@@ -51,14 +55,14 @@ def extract_key_points(content) -> list[str]:
     headers = re.findall(r"^### (.+)$", answer_text, re.MULTILINE)
     for h in headers[:6]:
         # Clean header
-        h = re.sub(r"\d+\.\s*", "", h).strip()
-        if h and len(h) > 3:
-            points.append(h)
+        cleaned = re.sub(r"\d+\.\s*", "", h).strip()
+        if cleaned and len(cleaned) > MIN_HEADER_WORDS:
+            points.append(cleaned)
 
     return points
 
 
-def extract_definitions(content) -> list[tuple[str, str]]:
+def extract_definitions(content: str) -> list[tuple[str, str]]:
     """Extract key definitions from the content."""
     definitions = []
 
@@ -66,9 +70,9 @@ def extract_definitions(content) -> list[tuple[str, str]]:
     pattern = r"\*\*([^*\n]+)\*\*\s*[--:]\s*([^*\n]{20,150})"
     matches = re.findall(pattern, content)
 
-    for term, definition in matches:
-        term = term.strip()
-        definition = definition.strip()
+    for raw_term, raw_def in matches:
+        term = raw_term.strip()
+        definition = raw_def.strip()
         # Filter out non-definition patterns
         if (
             term
@@ -81,7 +85,7 @@ def extract_definitions(content) -> list[tuple[str, str]]:
     return definitions[:5]
 
 
-def clean_html(text) -> str:
+def clean_html(text: str) -> str:
     """Convert markdown to HTML and clean for Anki."""
     if not text:
         return ""
@@ -101,7 +105,7 @@ def clean_html(text) -> str:
     return text.strip()
 
 
-def process_file(filepath) -> list[dict[str, str]]:
+def process_file(filepath: str) -> list[dict[str, str]]:
     """Process a single file and return flashcards."""
     with Path(filepath).open(encoding="utf-8") as f:
         content = f.read()
@@ -111,11 +115,7 @@ def process_file(filepath) -> list[dict[str, str]]:
     # Extract metadata
     filename = Path(filepath).name
     match = re.match(r"(\d+)-(.+)\.md", filename)
-    if match:
-        num = match.group(1)
-        match.group(2).replace("-", "_")
-    else:
-        num = "00"
+    num = match.group(1) if match else "00"
 
     subject = extract_subject(content)
     main_question = extract_main_question(content, filename)
@@ -156,14 +156,13 @@ def main() -> None:
 
     # Process each file
     for md_file in sorted(odpowiedzi_dir.glob("*.md")):
-        print(f"Processing: {md_file.name}")
+        logger.info("Processing: %s", md_file.name)
         try:
             cards = process_file(md_file)
             all_cards.extend(cards)
-            print(f"  -> {len(cards)} cards")
-        except Exception as e:
-            print(f"  -> Error: {e}")
-            traceback.print_exc()
+            logger.info("  -> %d cards", len(cards))
+        except (ValueError, OSError):
+            logger.exception("  -> Error processing file")
 
     # Write Anki-compatible file
     with Path(output_file).open("w", encoding="utf-8") as f:
@@ -186,16 +185,22 @@ def main() -> None:
 
             f.write(f"{front}\t{back}\t{tags}\n")
 
-    print(f"\n✅ Created {len(all_cards)} flashcards")
-    print(f"📁 Output: {output_file}")
-    print("\n=== Import Instructions ===")
-    print("1. Open Anki desktop → File → Import")
-    print("2. Select: anki_egzamin_magisterski.txt")
-    print("3. Set 'Fields separated by: Tab'")
-    print("4. Check 'Allow HTML in fields'")
-    print("5. Map: Field 1 → Front, Field 2 → Back, Field 3 → Tags")
-    print("6. Click Import")
-    print("\nFor AnkiWeb/AnkiDroid: Sync after importing on desktop")
+    logger.info("Created %d flashcards", len(all_cards))
+    logger.info("Output: %s", output_file)
+    logger.info("=== Import Instructions ===")
+    logger.info("1. Open Anki desktop -> File -> Import")
+    logger.info("2. Select: anki_egzamin_magisterski.txt")
+    logger.info("3. Set 'Fields separated by: Tab'")
+    logger.info("4. Check 'Allow HTML in fields'")
+    logger.info(
+        "5. Map: Field 1 -> Front, Field 2 -> Back,"
+        " Field 3 -> Tags"
+    )
+    logger.info("6. Click Import")
+    logger.info(
+        "For AnkiWeb/AnkiDroid:"
+        " Sync after importing on desktop"
+    )
 
 
 if __name__ == "__main__":

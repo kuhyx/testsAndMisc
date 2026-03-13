@@ -7,11 +7,17 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
+logger = logging.getLogger(__name__)
 
-def clean_text(text) -> str:
+MIN_BODY_LENGTH = 50
+MIN_ANSWER_LENGTH = 100
+
+
+def clean_text(text: str) -> str:
     """Clean text."""
     if not text:
         return ""
@@ -23,7 +29,7 @@ def clean_text(text) -> str:
     return text.strip()
 
 
-def extract_cards(filepath) -> list[dict[str, str]]:
+def extract_cards(filepath: str) -> list[dict[str, str]]:
     """Extract cards."""
     with Path(filepath).open(encoding="utf-8") as f:
         content = f.read()
@@ -68,10 +74,10 @@ def extract_cards(filepath) -> list[dict[str, str]]:
         content,
         re.MULTILINE | re.DOTALL,
     )
-    for header, body in sections:
-        header = header.strip()
-        body = body.strip()
-        if len(body) < 50:
+    for raw_header, raw_body in sections:
+        header = raw_header.strip()
+        body = raw_body.strip()
+        if len(body) < MIN_BODY_LENGTH:
             continue
 
         # Get first paragraph
@@ -102,8 +108,10 @@ def main() -> None:
     for md_file in sorted(odpowiedzi_dir.glob("*.md")):
         all_cards.extend(extract_cards(md_file))
 
-    # APPROACH 1: Strict filtering - only cards with answer > 100 chars
-    filtered_cards = [c for c in all_cards if len(c["back"]) > 100]
+    # APPROACH 1: Strict filtering - only cards with answer > threshold
+    filtered_cards = [
+        c for c in all_cards if len(c["back"]) > MIN_ANSWER_LENGTH
+    ]
 
     # Remove duplicates
     seen = set()
@@ -120,7 +128,11 @@ def main() -> None:
         for c in unique:
             f.write(f"{c['front']}\t{c['back']}\t{c['tags']}\n")
 
-    print(f"✅ Approach 1 (Strict Filter): {len(unique)} cards -> {output_file.name}")
+    logger.info(
+        "Approach 1 (Strict Filter): %d cards -> %s",
+        len(unique),
+        output_file.name,
+    )
 
 
 if __name__ == "__main__":

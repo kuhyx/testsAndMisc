@@ -7,31 +7,41 @@ Usage:
 Options:
     --filter      Apply strict filtering (answers > 100 chars)
     --extract     Use improved extraction algorithm
-    --main-only   Only generate main exam questions (45 comprehensive cards)
+    --main-only   Only generate main exam questions
 
 Combinations:
-    python anki_generator.py                           # Basic extraction, no filter
-    python anki_generator.py --filter                  # Approach 1: Strict filter only
-    python anki_generator.py --extract                 # Approach 2: Better extraction only
-    python anki_generator.py --main-only               # Approach 3: Main questions only
-    python anki_generator.py --filter --extract        # Approach 4: Filter + Better extraction
-    python anki_generator.py --filter --main-only      # Approach 5: Filter + Main only
-    python anki_generator.py --extract --main-only     # Approach 6: Better extraction + Main only
-    python anki_generator.py --filter --extract --main-only  # Approach 7: All three
+    python anki_generator.py
+    python anki_generator.py --filter
+    python anki_generator.py --extract
+    python anki_generator.py --main-only
+    python anki_generator.py --filter --extract
+    python anki_generator.py --filter --main-only
+    python anki_generator.py --extract --main-only
+    python anki_generator.py --filter --extract --main-only
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 import re
+
+logger = logging.getLogger(__name__)
+
+MIN_PARTS_THRESHOLD = 2
+MIN_BODY_LENGTH = 50
+MIN_PARA_LENGTH = 30
+SHORT_THRESHOLD = 50
+MEDIUM_THRESHOLD = 150
+DEFAULT_MIN_ANSWER_LENGTH = 100
 
 # =============================================================================
 # SHARED UTILITIES
 # =============================================================================
 
 
-def clean_text(text) -> str:
+def clean_text(text: str) -> str:
     """Clean and format text for Anki."""
     if not text:
         return ""
@@ -43,7 +53,7 @@ def clean_text(text) -> str:
     return text.strip()
 
 
-def get_file_metadata(filepath) -> tuple[str, str, str]:
+def get_file_metadata(filepath: str) -> tuple[str, str, str]:
     """Extract question number and subject from filename."""
     filename = Path(filepath).name
     match = re.match(r"(\d+)-(.+)\.md", filename)
@@ -58,7 +68,7 @@ def get_file_metadata(filepath) -> tuple[str, str, str]:
     return num, subject, content
 
 
-def get_main_question(content) -> str | None:
+def get_main_question(content: str) -> str | None:
     """Extract the main exam question."""
     q_match = re.search(
         r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*', content, re.DOTALL
@@ -73,7 +83,10 @@ def get_main_question(content) -> str | None:
 # =============================================================================
 
 
-def apply_strict_filter(cards, min_length=100) -> list[dict[str, str]]:
+def apply_strict_filter(
+    cards: list[dict[str, str]],
+    min_length: int = DEFAULT_MIN_ANSWER_LENGTH,
+) -> list[dict[str, str]]:
     """Filter cards to only include those with answers > min_length characters."""
     return [c for c in cards if len(c["back"]) > min_length]
 
@@ -83,7 +96,7 @@ def apply_strict_filter(cards, min_length=100) -> list[dict[str, str]]:
 # =============================================================================
 
 
-def extract_structured_content(body) -> str | None:
+def extract_structured_content(body: str) -> str | None:
     """Improved extraction - multiple content types with better formatting."""
     parts = []
 
@@ -101,7 +114,7 @@ def extract_structured_content(body) -> str | None:
             parts.append(f"• <b>{term}</b>")
 
     # 3. Key-value patterns
-    if len(parts) < 2:
+    if len(parts) < MIN_PARTS_THRESHOLD:
         kvs = re.findall(r"\*\*([^*\n]+)\*\*\s*[--:]\s*([^\n*]{10,150})", body)
         for k, v in kvs[:4]:
             entry = f"<b>{k.strip()}</b>: {v.strip()}"
@@ -116,15 +129,14 @@ def extract_structured_content(body) -> str | None:
             if p.strip()
             and not p.startswith("```")
             and not p.startswith("|")
-            and len(p.strip()) > 30
+            and len(p.strip()) > MIN_PARA_LENGTH
         ]
-        for p in paras[:2]:
-            parts.append(p[:300])
+        parts.extend(p[:300] for p in paras[:2])
 
     return "<br>".join([clean_text(p) for p in parts]) if parts else None
 
 
-def extract_cards_better(filepath) -> list[dict[str, str]]:
+def extract_cards_better(filepath: str) -> list[dict[str, str]]:
     """Extract cards with improved algorithm."""
     num, subject, content = get_file_metadata(filepath)
     base_tags = f"egzamin pyt{num} {subject}"
@@ -153,13 +165,13 @@ def extract_cards_better(filepath) -> list[dict[str, str]]:
         content,
         re.MULTILINE | re.DOTALL,
     )
-    for header, body in sections:
-        header = header.strip()
+    for raw_header, body in sections:
+        header = raw_header.strip()
         if (
             "Przykład" in header
             or '"' in header
             or "Mnemonic" in header
-            or len(body) < 50
+            or len(body) < MIN_BODY_LENGTH
         ):
             continue
 
@@ -176,7 +188,7 @@ def extract_cards_better(filepath) -> list[dict[str, str]]:
     return cards
 
 
-def extract_cards_basic(filepath) -> list[dict[str, str]]:
+def extract_cards_basic(filepath: str) -> list[dict[str, str]]:
     """Basic extraction - simpler algorithm."""
     num, subject, content = get_file_metadata(filepath)
     base_tags = f"egzamin pyt{num} {subject}"
@@ -212,10 +224,10 @@ def extract_cards_basic(filepath) -> list[dict[str, str]]:
         content,
         re.MULTILINE | re.DOTALL,
     )
-    for header, body in sections:
-        header = header.strip()
-        body = body.strip()
-        if len(body) < 50 or "Przykład" in header:
+    for raw_header, raw_body in sections:
+        header = raw_header.strip()
+        body = raw_body.strip()
+        if len(body) < MIN_BODY_LENGTH or "Przykład" in header:
             continue
 
         paras = [
@@ -241,7 +253,28 @@ def extract_cards_basic(filepath) -> list[dict[str, str]]:
 # =============================================================================
 
 
-def extract_main_only(filepath) -> list[dict[str, str]]:
+def _extract_key_point(body: str) -> str | None:
+    """Extract a key point from a section body."""
+    # Try to get a definition or first bullet
+    def_match = re.search(
+        r"Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*", body
+    )
+    if def_match:
+        return def_match.group(1).strip()
+
+    bullets = re.findall(r"[-•]\s*\*\*([^*]+)\*\*[:\s-]*([^\n]*)", body)
+    if bullets:
+        term, desc = bullets[0]
+        return f"{term}: {desc.strip()}" if desc.strip() else term
+
+    para_match = re.search(r"\n\n([^#\n\-•|`][^\n]{20,150})", body)
+    if para_match:
+        return para_match.group(1).strip()
+
+    return None
+
+
+def extract_main_only(filepath: str) -> list[dict[str, str]]:
     """Extract only the main exam question with comprehensive answer."""
     num, subject, content = get_file_metadata(filepath)
     base_tags = f"egzamin pyt{num} {subject} main"
@@ -255,7 +288,9 @@ def extract_main_only(filepath) -> list[dict[str, str]]:
 
     # Get main answer section
     answer_match = re.search(
-        r"## 📚 Odpowiedź główna\s*\n(.+?)(?=\n## [^�]|\Z)", content, re.DOTALL
+        r"## 📚 Odpowiedź główna\s*\n(.+?)(?=\n## [^�]|\Z)",
+        content,
+        re.DOTALL,
     )
     if answer_match:
         section = answer_match.group(1)
@@ -267,32 +302,16 @@ def extract_main_only(filepath) -> list[dict[str, str]]:
             re.MULTILINE | re.DOTALL,
         )
 
-        for header, body in headers[:5]:
-            header = header.strip()
-            if "Przykład" in header or "Mnemonic" in header or '"' in header:
+        for raw_header, body in headers[:5]:
+            header = raw_header.strip()
+            if (
+                "Przykład" in header
+                or "Mnemonic" in header
+                or '"' in header
+            ):
                 continue
 
-            # Get key point from this section
-            key_point = None
-
-            # Try to get a definition or first bullet
-            def_match = re.search(
-                r"Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*", body
-            )
-            if def_match:
-                key_point = def_match.group(1).strip()
-
-            if not key_point:
-                bullets = re.findall(r"[-•]\s*\*\*([^*]+)\*\*[:\s-]*([^\n]*)", body)
-                if bullets:
-                    term, desc = bullets[0]
-                    key_point = f"{term}: {desc.strip()}" if desc.strip() else term
-
-            if not key_point:
-                para_match = re.search(r"\n\n([^#\n\-•|`][^\n]{20,150})", body)
-                if para_match:
-                    key_point = para_match.group(1).strip()
-
+            key_point = _extract_key_point(body)
             if key_point:
                 answer_parts.append(f"<b>{header}</b>: {key_point}")
 
@@ -308,9 +327,58 @@ def extract_main_only(filepath) -> list[dict[str, str]]:
 # =============================================================================
 
 
-def generate_anki(use_filter=False, use_better_extract=False, main_only=False) -> Path:
+def _collect_cards(
+    odpowiedzi_dir: Path,
+    *,
+    use_better_extract: bool,
+    main_only: bool,
+) -> list[dict[str, str]]:
+    """Collect cards from all files using the specified approach."""
+    all_cards = []
+    for md_file in sorted(odpowiedzi_dir.glob("*.md")):
+        if main_only:
+            cards = extract_main_only(md_file)
+        elif use_better_extract:
+            cards = extract_cards_better(md_file)
+        else:
+            cards = extract_cards_basic(md_file)
+        all_cards.extend(cards)
+    return all_cards
+
+
+def _log_statistics(unique: list[dict[str, str]], output_file: Path) -> None:
+    """Log quality statistics for the generated cards."""
+    lengths = [len(c["back"]) for c in unique]
+    short = sum(1 for length in lengths if length < SHORT_THRESHOLD)
+    medium = sum(
+        1
+        for length in lengths
+        if SHORT_THRESHOLD <= length < MEDIUM_THRESHOLD
+    )
+    good = sum(
+        1 for length in lengths if length >= MEDIUM_THRESHOLD
+    )
+
+    logger.info("Generated: %s", output_file.name)
+    logger.info("   Cards: %d", len(unique))
+    logger.info(
+        "   Quality: %d short / %d medium / %d good",
+        short,
+        medium,
+        good,
+    )
+
+
+def generate_anki(
+    *,
+    use_filter: bool = False,
+    use_better_extract: bool = False,
+    main_only: bool = False,
+) -> Path:
     """Generate Anki deck with specified approaches."""
-    odpowiedzi_dir = Path("/home/kuchy/praca_magisterska/pytania/odpowiedzi")
+    odpowiedzi_dir = Path(
+        "/home/kuchy/praca_magisterska/pytania/odpowiedzi"
+    )
 
     # Determine output filename based on options
     suffix_parts = []
@@ -322,30 +390,25 @@ def generate_anki(use_filter=False, use_better_extract=False, main_only=False) -
         suffix_parts.append("main")
     suffix = "_".join(suffix_parts) if suffix_parts else "basic"
 
-    output_file = Path(f"/home/kuchy/praca_magisterska/pytania/anki_{suffix}.txt")
+    output_file = Path(
+        f"/home/kuchy/praca_magisterska/pytania/anki_{suffix}.txt"
+    )
     deck_name = f"Egzamin_{suffix.replace('_', '+')}"
 
-    all_cards = []
-
-    for md_file in sorted(odpowiedzi_dir.glob("*.md")):
-        if main_only:
-            # Approach 3: Only main questions
-            cards = extract_main_only(md_file)
-        elif use_better_extract:
-            # Approach 2: Better extraction
-            cards = extract_cards_better(md_file)
-        else:
-            # Basic extraction
-            cards = extract_cards_basic(md_file)
-
-        all_cards.extend(cards)
+    all_cards = _collect_cards(
+        odpowiedzi_dir,
+        use_better_extract=use_better_extract,
+        main_only=main_only,
+    )
 
     # Approach 1: Apply filtering if requested
     if use_filter:
-        all_cards = apply_strict_filter(all_cards, min_length=100)
+        all_cards = apply_strict_filter(
+            all_cards, min_length=DEFAULT_MIN_ANSWER_LENGTH
+        )
 
     # Remove duplicates
-    seen = set()
+    seen: set[str] = set()
     unique = []
     for c in all_cards:
         key = c["front"][:80]
@@ -355,20 +418,14 @@ def generate_anki(use_filter=False, use_better_extract=False, main_only=False) -
 
     # Write output
     with Path(output_file).open("w", encoding="utf-8") as f:
-        f.write(f"#separator:Tab\n#html:true\n#notetype:Basic\n#deck:{deck_name}\n\n")
+        f.write(
+            "#separator:Tab\n#html:true\n"
+            f"#notetype:Basic\n#deck:{deck_name}\n\n"
+        )
         for c in unique:
             f.write(f"{c['front']}\t{c['back']}\t{c['tags']}\n")
 
-    # Statistics
-    lengths = [len(c["back"]) for c in unique]
-    short = sum(1 for l in lengths if l < 50)
-    medium = sum(1 for l in lengths if 50 <= l < 150)
-    good = sum(1 for l in lengths if l >= 150)
-
-    print(f"✅ Generated: {output_file.name}")
-    print(f"   Cards: {len(unique)}")
-    print(f"   Quality: {short} short / {medium} medium / {good} good")
-    print()
+    _log_statistics(unique, output_file)
 
     return output_file
 
@@ -397,9 +454,9 @@ def main() -> None:
 
     if args.all_combinations:
         # Generate all 7 combinations
-        print("=" * 60)
-        print("Generating all 7 combinations...")
-        print("=" * 60 + "\n")
+        logger.info("=" * 60)
+        logger.info("Generating all 7 combinations...")
+        logger.info("=" * 60)
 
         combinations = [
             (True, False, False),  # 1: Filter only
@@ -411,9 +468,22 @@ def main() -> None:
             (True, True, True),  # 7: All three
         ]
 
-        for i, (f, e, m) in enumerate(combinations, 1):
-            print(f"--- Combination {i} (filter={f}, extract={e}, main={m}) ---")
-            generate_anki(use_filter=f, use_better_extract=e, main_only=m)
+        for i, (f_flag, e_flag, m_flag) in enumerate(
+            combinations, 1
+        ):
+            logger.info(
+                "--- Combination %d (filter=%s, extract=%s,"
+                " main=%s) ---",
+                i,
+                f_flag,
+                e_flag,
+                m_flag,
+            )
+            generate_anki(
+                use_filter=f_flag,
+                use_better_extract=e_flag,
+                main_only=m_flag,
+            )
     else:
         generate_anki(
             use_filter=args.filter,

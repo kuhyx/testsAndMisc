@@ -9,13 +9,24 @@
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
-from pathlib import Path
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -36,26 +47,82 @@ LIGHT_RED = "#F8D7DA"
 LIGHT_BLUE = "#D6EAF8"
 LIGHT_YELLOW = "#FFF9C4"
 
+INNER_RATIO = 0.82
+ARROW_OFFSET = 0.4
+LOOP_RAD = 1.8
+LOOP_OFFSET = 0.12
+LOOP_LABEL_OFFSET = 0.35
+MUTATION_SCALE = 12
+HEAD_MARKER_FONTSIZE = 8
+
+
+@dataclass(frozen=True)
+class StateStyle:
+    """Optional styling for automaton state circles."""
+
+    accepting: bool = False
+    initial: bool = False
+    fillcolor: str = "white"
+    fontsize: float = FS
+
+
+@dataclass(frozen=True)
+class ArrowStyle:
+    """Optional styling for curved arrows."""
+
+    connectionstyle: str = "arc3,rad=0.3"
+    fontsize: float = FS_SMALL
+    label_offset: tuple[float, float] = (0, 0)
+
+
+@dataclass(frozen=True)
+class LoopStyle:
+    """Optional styling for self-loops."""
+
+    direction: str = "top"
+    fontsize: float = FS_SMALL
+
 
 def draw_state_circle(
-    ax, x, y, r, label, accepting=False, initial=False, fillcolor="white", fontsize=FS
+    ax: Axes,
+    pos: tuple[float, float],
+    r: float,
+    label: str,
+    style: StateStyle | None = None,
 ) -> None:
     """Draw an automaton state circle."""
+    s = style or StateStyle()
+    x, y = pos
     circle = plt.Circle(
-        (x, y), r, fill=True, facecolor=fillcolor, edgecolor=LN, linewidth=1.5, zorder=3
+        (x, y),
+        r,
+        fill=True,
+        facecolor=s.fillcolor,
+        edgecolor=LN,
+        linewidth=1.5,
+        zorder=3,
     )
     ax.add_patch(circle)
-    if accepting:
+    if s.accepting:
         inner = plt.Circle(
-            (x, y), r * 0.82, fill=False, edgecolor=LN, linewidth=1.2, zorder=3
+            (x, y),
+            r * INNER_RATIO,
+            fill=False,
+            edgecolor=LN,
+            linewidth=1.2,
+            zorder=3,
         )
         ax.add_patch(inner)
-    if initial:
+    if s.initial:
         ax.annotate(
             "",
             xy=(x - r, y),
-            xytext=(x - r - 0.4, y),
-            arrowprops={"arrowstyle": "->", "color": LN, "lw": 1.5},
+            xytext=(x - r - ARROW_OFFSET, y),
+            arrowprops={
+                "arrowstyle": "->",
+                "color": LN,
+                "lw": 1.5,
+            },
             zorder=4,
         )
     ax.text(
@@ -64,25 +131,23 @@ def draw_state_circle(
         label,
         ha="center",
         va="center",
-        fontsize=fontsize,
+        fontsize=s.fontsize,
         fontweight="bold",
         zorder=5,
     )
 
 
 def draw_curved_arrow(
-    ax,
-    x1,
-    y1,
-    x2,
-    y2,
-    label,
-    _r=0.25,
-    connectionstyle="arc3,rad=0.3",
-    fontsize=FS_SMALL,
-    label_offset=(0, 0),
+    ax: Axes,
+    start: tuple[float, float],
+    end: tuple[float, float],
+    label: str,
+    style: ArrowStyle | None = None,
 ) -> None:
     """Draw a curved arrow between points with label."""
+    s = style or ArrowStyle()
+    x1, y1 = start
+    x2, y2 = end
     ax.annotate(
         "",
         xy=(x2, y2),
@@ -91,19 +156,19 @@ def draw_curved_arrow(
             "arrowstyle": "->",
             "color": LN,
             "lw": 1.2,
-            "connectionstyle": connectionstyle,
+            "connectionstyle": s.connectionstyle,
         },
         zorder=2,
     )
-    mx = (x1 + x2) / 2 + label_offset[0]
-    my = (y1 + y2) / 2 + label_offset[1]
+    mx = (x1 + x2) / 2 + s.label_offset[0]
+    my = (y1 + y2) / 2 + s.label_offset[1]
     ax.text(
         mx,
         my,
         label,
         ha="center",
         va="center",
-        fontsize=fontsize,
+        fontsize=s.fontsize,
         fontstyle="italic",
         zorder=5,
         bbox={
@@ -115,15 +180,23 @@ def draw_curved_arrow(
     )
 
 
-def draw_self_loop(ax, x, y, r, label, direction="top", fontsize=FS_SMALL) -> None:
+def draw_self_loop(
+    ax: Axes,
+    pos: tuple[float, float],
+    r: float,
+    label: str,
+    style: LoopStyle | None = None,
+) -> None:
     """Draw a self-loop on a state."""
-    if direction == "top":
+    s = style or LoopStyle()
+    x, y = pos
+    if s.direction == "top":
         loop = mpatches.FancyArrowPatch(
-            (x - 0.12, y + r),
-            (x + 0.12, y + r),
-            connectionstyle="arc3,rad=-1.8",
+            (x - LOOP_OFFSET, y + r),
+            (x + LOOP_OFFSET, y + r),
+            connectionstyle=f"arc3,rad=-{LOOP_RAD}",
             arrowstyle="->",
-            mutation_scale=12,
+            mutation_scale=MUTATION_SCALE,
             lw=1.2,
             color=LN,
             zorder=2,
@@ -131,21 +204,21 @@ def draw_self_loop(ax, x, y, r, label, direction="top", fontsize=FS_SMALL) -> No
         ax.add_patch(loop)
         ax.text(
             x,
-            y + r + 0.35,
+            y + r + LOOP_LABEL_OFFSET,
             label,
             ha="center",
             va="center",
-            fontsize=fontsize,
+            fontsize=s.fontsize,
             fontstyle="italic",
             zorder=5,
         )
-    elif direction == "bottom":
+    elif s.direction == "bottom":
         loop = mpatches.FancyArrowPatch(
-            (x - 0.12, y - r),
-            (x + 0.12, y - r),
-            connectionstyle="arc3,rad=1.8",
+            (x - LOOP_OFFSET, y - r),
+            (x + LOOP_OFFSET, y - r),
+            connectionstyle=f"arc3,rad={LOOP_RAD}",
             arrowstyle="->",
-            mutation_scale=12,
+            mutation_scale=MUTATION_SCALE,
             lw=1.2,
             color=LN,
             zorder=2,
@@ -153,11 +226,11 @@ def draw_self_loop(ax, x, y, r, label, direction="top", fontsize=FS_SMALL) -> No
         ax.add_patch(loop)
         ax.text(
             x,
-            y - r - 0.35,
+            y - r - LOOP_LABEL_OFFSET,
             label,
             ha="center",
             va="center",
-            fontsize=fontsize,
+            fontsize=s.fontsize,
             fontstyle="italic",
             zorder=5,
         )
@@ -169,7 +242,10 @@ def draw_self_loop(ax, x, y, r, label, direction="top", fontsize=FS_SMALL) -> No
 def draw_fa_recognition() -> None:
     """FA state diagram + step-by-step trace for 'baab'."""
     _fig, axes = plt.subplots(
-        1, 2, figsize=(11.69, 4), gridspec_kw={"width_ratios": [1, 1.3]}
+        1,
+        2,
+        figsize=(11.69, 4),
+        gridspec_kw={"width_ratios": [1, 1.3]},
     )
 
     # --- Left: State diagram ---
@@ -179,69 +255,99 @@ def draw_fa_recognition() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        'DFA — diagram stanów\nL = {słowa nad {a,b} kończące się na "ab"}',
+        "DFA — diagram stanów\n"
+        'L = {słowa nad {a,b} kończące się na "ab"}',
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
     )
 
-    R = 0.35
-    # States positions
-    states = {"q₀": (0.8, 0.5), "q₁": (2.8, 0.5), "q₂": (4.8, 0.5)}
+    state_r = 0.35
+    states = {
+        "q₀": (0.8, 0.5),
+        "q₁": (2.8, 0.5),
+        "q₂": (4.8, 0.5),
+    }
 
-    draw_state_circle(ax, *states["q₀"], R, "q₀", initial=True)
-    draw_state_circle(ax, *states["q₁"], R, "q₁")
-    draw_state_circle(ax, *states["q₂"], R, "q₂", accepting=True, fillcolor=LIGHT_GREEN)
+    draw_state_circle(
+        ax,
+        states["q₀"],
+        state_r,
+        "q₀",
+        StateStyle(initial=True),
+    )
+    draw_state_circle(ax, states["q₁"], state_r, "q₁")
+    draw_state_circle(
+        ax,
+        states["q₂"],
+        state_r,
+        "q₂",
+        StateStyle(
+            accepting=True, fillcolor=LIGHT_GREEN
+        ),
+    )
 
     # Transitions
     # q₀ --a--> q₁
     draw_curved_arrow(
         ax,
-        states["q₀"][0] + R,
-        states["q₀"][1] + 0.05,
-        states["q₁"][0] - R,
-        states["q₁"][1] + 0.05,
+        (states["q₀"][0] + state_r, states["q₀"][1] + 0.05),
+        (states["q₁"][0] - state_r, states["q₁"][1] + 0.05),
         "a",
-        connectionstyle="arc3,rad=0.15",
-        label_offset=(0, 0.25),
+        ArrowStyle(
+            connectionstyle="arc3,rad=0.15",
+            label_offset=(0, 0.25),
+        ),
     )
     # q₁ --b--> q₂
     draw_curved_arrow(
         ax,
-        states["q₁"][0] + R,
-        states["q₁"][1] + 0.05,
-        states["q₂"][0] - R,
-        states["q₂"][1] + 0.05,
+        (states["q₁"][0] + state_r, states["q₁"][1] + 0.05),
+        (states["q₂"][0] - state_r, states["q₂"][1] + 0.05),
         "b",
-        connectionstyle="arc3,rad=0.15",
-        label_offset=(0, 0.25),
+        ArrowStyle(
+            connectionstyle="arc3,rad=0.15",
+            label_offset=(0, 0.25),
+        ),
     )
     # q₂ --a--> q₁
     draw_curved_arrow(
         ax,
-        states["q₂"][0] - R,
-        states["q₂"][1] - 0.05,
-        states["q₁"][0] + R,
-        states["q₁"][1] - 0.05,
+        (states["q₂"][0] - state_r, states["q₂"][1] - 0.05),
+        (states["q₁"][0] + state_r, states["q₁"][1] - 0.05),
         "a",
-        connectionstyle="arc3,rad=0.15",
-        label_offset=(0, -0.3),
+        ArrowStyle(
+            connectionstyle="arc3,rad=0.15",
+            label_offset=(0, -0.3),
+        ),
     )
     # q₂ --b--> q₀
     draw_curved_arrow(
         ax,
-        states["q₂"][0] - 0.2,
-        states["q₂"][1] - R,
-        states["q₀"][0] + 0.2,
-        states["q₀"][1] - R,
+        (states["q₂"][0] - 0.2, states["q₂"][1] - state_r),
+        (states["q₀"][0] + 0.2, states["q₀"][1] - state_r),
         "b",
-        connectionstyle="arc3,rad=0.4",
-        label_offset=(0, -0.4),
+        ArrowStyle(
+            connectionstyle="arc3,rad=0.4",
+            label_offset=(0, -0.4),
+        ),
     )
     # q₀ --b--> q₀ (self-loop)
-    draw_self_loop(ax, *states["q₀"], R, "b", direction="top")
+    draw_self_loop(
+        ax,
+        states["q₀"],
+        state_r,
+        "b",
+        LoopStyle(direction="top"),
+    )
     # q₁ --a--> q₁ (self-loop)
-    draw_self_loop(ax, *states["q₁"], R, "a", direction="top")
+    draw_self_loop(
+        ax,
+        states["q₁"],
+        state_r,
+        "a",
+        LoopStyle(direction="top"),
+    )
 
     # Legend
     ax.text(
@@ -251,18 +357,31 @@ def draw_fa_recognition() -> None:
         fontsize=FS_SMALL,
         ha="left",
         va="center",
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": GRAY4, "edgecolor": GRAY3},
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": GRAY4,
+            "edgecolor": GRAY3,
+        },
     )
 
     # --- Right: Step-by-step trace ---
     ax2 = axes[1]
     ax2.axis("off")
     ax2.set_title(
-        'Ślad wykonania — wejście: "baab"', fontsize=FS_TITLE, fontweight="bold", pad=10
+        'Ślad wykonania — wejście: "baab"',
+        fontsize=FS_TITLE,
+        fontweight="bold",
+        pad=10,
     )
 
     trace_data = [
-        ["Krok", "Czytam", "Stan przed", "Przejście", "Stan po"],
+        [
+            "Krok",
+            "Czytam",
+            "Stan przed",
+            "Przejście",
+            "Stan po",
+        ],
         ["—", "—", "q₀ (start)", "—", "q₀"],
         ["1", "b", "q₀", "δ(q₀, b) = q₀", "q₀"],
         ["2", "a", "q₀", "δ(q₀, a) = q₁", "q₁"],
@@ -277,7 +396,7 @@ def draw_fa_recognition() -> None:
         loc="center",
         bbox=[0.05, 0.15, 0.9, 0.75],
     )
-    table.auto_set_font_size(False)
+    table.auto_set_font_size(auto=False)
     table.set_fontsize(FS)
     for (row, _col), cell in table.get_celld().items():
         cell.set_edgecolor(GRAY3)
@@ -297,7 +416,11 @@ def draw_fa_recognition() -> None:
         fontsize=FS + 1,
         fontweight="bold",
         transform=ax2.transAxes,
-        bbox={"boxstyle": "round,pad=0.4", "facecolor": LIGHT_GREEN, "edgecolor": LN},
+        bbox={
+            "boxstyle": "round,pad=0.4",
+            "facecolor": LIGHT_GREEN,
+            "edgecolor": LN,
+        },
     )
 
     plt.tight_layout()
@@ -308,16 +431,19 @@ def draw_fa_recognition() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ fa_recognition_example.png")
+    logger.info("  ✓ fa_recognition_example.png")
 
 
 # ============================================================
 # 2. PDA Recognition Example — PDA for aⁿbⁿ
 # ============================================================
 def draw_pda_recognition() -> None:
-    """PDA state diagram + step-by-step trace with stack visualization for 'aabb'."""
+    """PDA state diagram + step-by-step trace with stack."""
     _fig, axes = plt.subplots(
-        1, 2, figsize=(11.69, 5.5), gridspec_kw={"width_ratios": [1, 1.4]}
+        1,
+        2,
+        figsize=(11.69, 5.5),
+        gridspec_kw={"width_ratios": [1, 1.4]},
     )
 
     # --- Left: State diagram ---
@@ -333,66 +459,107 @@ def draw_pda_recognition() -> None:
         pad=10,
     )
 
-    R = 0.38
-    states = {"q₀": (0.8, 0.5), "q₁": (2.8, 0.5), "q₂": (4.8, 0.5)}
+    state_r = 0.38
+    states = {
+        "q₀": (0.8, 0.5),
+        "q₁": (2.8, 0.5),
+        "q₂": (4.8, 0.5),
+    }
 
-    draw_state_circle(ax, *states["q₀"], R, "q₀", initial=True)
-    draw_state_circle(ax, *states["q₁"], R, "q₁")
-    draw_state_circle(ax, *states["q₂"], R, "q₂", accepting=True, fillcolor=LIGHT_GREEN)
+    draw_state_circle(
+        ax,
+        states["q₀"],
+        state_r,
+        "q₀",
+        StateStyle(initial=True),
+    )
+    draw_state_circle(ax, states["q₁"], state_r, "q₁")
+    draw_state_circle(
+        ax,
+        states["q₂"],
+        state_r,
+        "q₂",
+        StateStyle(
+            accepting=True, fillcolor=LIGHT_GREEN
+        ),
+    )
 
     # q₀ --b,A/ε--> q₁
     draw_curved_arrow(
         ax,
-        states["q₀"][0] + R,
-        states["q₀"][1],
-        states["q₁"][0] - R,
-        states["q₁"][1],
+        (states["q₀"][0] + state_r, states["q₀"][1]),
+        (states["q₁"][0] - state_r, states["q₁"][1]),
         "b, A → ε\n(pop A)",
-        connectionstyle="arc3,rad=0.0",
-        label_offset=(0, 0.4),
+        ArrowStyle(
+            connectionstyle="arc3,rad=0.0",
+            label_offset=(0, 0.4),
+        ),
     )
     # q₁ --ε,Z₀/Z₀--> q₂
     draw_curved_arrow(
         ax,
-        states["q₁"][0] + R,
-        states["q₁"][1],
-        states["q₂"][0] - R,
-        states["q₂"][1],
+        (states["q₁"][0] + state_r, states["q₁"][1]),
+        (states["q₂"][0] - state_r, states["q₂"][1]),
         "ε, Z₀ → Z₀\n(akceptuj)",
-        connectionstyle="arc3,rad=0.0",
-        label_offset=(0, 0.45),
+        ArrowStyle(
+            connectionstyle="arc3,rad=0.0",
+            label_offset=(0, 0.45),
+        ),
     )
     # q₀ self-loop: a, Z₀/AZ₀ and a, A/AA
     draw_self_loop(
-        ax, *states["q₀"], R, "a, Z₀ → AZ₀\na, A → AA\n(push A)", direction="top"
+        ax,
+        states["q₀"],
+        state_r,
+        "a, Z₀ → AZ₀\na, A → AA\n(push A)",
+        LoopStyle(direction="top"),
     )
     # q₁ self-loop: b, A/ε
-    draw_self_loop(ax, *states["q₁"], R, "b, A → ε\n(pop A)", direction="top")
+    draw_self_loop(
+        ax,
+        states["q₁"],
+        state_r,
+        "b, A → ε\n(pop A)",
+        LoopStyle(direction="top"),
+    )
 
     # Key explanation
     ax.text(
         0.3,
         -1.3,
-        "Notacja: symbol_wejścia, szczyt_stosu → nowy_szczyt\n"
-        "ε = brak symbolu (przejście spontaniczne lub pusty stos)",
+        "Notacja: symbol_wejścia, szczyt_stosu"
+        " → nowy_szczyt\n"
+        "ε = brak symbolu "
+        "(przejście spontaniczne lub pusty stos)",
         fontsize=FS_SMALL,
         ha="left",
         va="center",
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": GRAY4, "edgecolor": GRAY3},
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": GRAY4,
+            "edgecolor": GRAY3,
+        },
     )
 
     # --- Right: Step trace with stack ---
     ax2 = axes[1]
     ax2.axis("off")
     ax2.set_title(
-        'Ślad wykonania z wizualizacją stosu — wejście: "aabb"',
+        "Ślad wykonania z wizualizacją stosu"
+        ' — wejście: "aabb"',
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
     )
 
     trace_data = [
-        ["Krok", "Czytam", "Stan", "Stos (szczyt→)", "Operacja"],
+        [
+            "Krok",
+            "Czytam",
+            "Stan",
+            "Stos (szczyt→)",
+            "Operacja",
+        ],
         ["start", "—", "q₀", "[Z₀]", "—"],
         ["1", "a", "q₀", "[A, Z₀]", "push A"],
         ["2", "a", "q₀", "[A, A, Z₀]", "push A"],
@@ -416,7 +583,7 @@ def draw_pda_recognition() -> None:
         loc="center",
         bbox=[0.02, 0.08, 0.96, 0.82],
     )
-    table.auto_set_font_size(False)
+    table.auto_set_font_size(auto=False)
     table.set_fontsize(FS)
     for (row, _col), cell in table.get_celld().items():
         cell.set_edgecolor(GRAY3)
@@ -430,14 +597,20 @@ def draw_pda_recognition() -> None:
     ax2.text(
         0.5,
         0.0,
-        'Wynik: q₂ ∈ F, stos=[Z₀] → "aabb" AKCEPTOWANE ✓\n'
-        'Intuicja: 2x push A (za "aa") + 2x pop A (za "bb") = stos pusty = OK',
+        "Wynik: q₂ ∈ F, stos=[Z₀]"
+        ' → "aabb" AKCEPTOWANE ✓\n'
+        'Intuicja: 2x push A (za "aa") '
+        '+ 2x pop A (za "bb") = stos pusty = OK',
         ha="center",
         va="center",
         fontsize=FS,
         fontweight="bold",
         transform=ax2.transAxes,
-        bbox={"boxstyle": "round,pad=0.4", "facecolor": LIGHT_GREEN, "edgecolor": LN},
+        bbox={
+            "boxstyle": "round,pad=0.4",
+            "facecolor": LIGHT_GREEN,
+            "edgecolor": LN,
+        },
     )
 
     plt.tight_layout()
@@ -448,7 +621,7 @@ def draw_pda_recognition() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ pda_recognition_example.png")
+    logger.info("  ✓ pda_recognition_example.png")
 
 
 # ============================================================
@@ -468,16 +641,23 @@ def draw_lba_recognition() -> None:
         pad=10,
     )
 
-    CELL_W = 0.9
-    CELL_H = 0.7
-    TAPE_X0 = 1.5
-    HEAD_COLOR = "#FFD700"
+    cell_w = 0.9
+    cell_h = 0.7
+    tape_x0 = 1.5
+    head_color = "#FFD700"
 
-    def draw_tape(y, cells, head_pos, label, step_label="") -> None:
-        """Draw a tape row with cells, head position highlighted."""
+    def draw_tape(
+        tape_y: float,
+        cells: list[tuple[str, str]],
+        head_pos: int | None,
+        label: str,
+        *,
+        step_label: str = "",
+    ) -> None:
+        """Draw a tape row with cells, head highlighted."""
         ax.text(
             0.2,
-            y + CELL_H / 2,
+            tape_y + cell_h / 2,
             label,
             ha="right",
             va="center",
@@ -485,44 +665,53 @@ def draw_lba_recognition() -> None:
             fontweight="bold",
         )
         for i, (sym, color) in enumerate(cells):
-            x = TAPE_X0 + i * CELL_W
-            fc = HEAD_COLOR if i == head_pos else color
+            x = tape_x0 + i * cell_w
+            fc = head_color if i == head_pos else color
             rect = mpatches.FancyBboxPatch(
-                (x, y),
-                CELL_W,
-                CELL_H,
+                (x, tape_y),
+                cell_w,
+                cell_h,
                 boxstyle="round,pad=0.03",
                 lw=1.2,
                 edgecolor=LN,
                 facecolor=fc,
             )
             ax.add_patch(rect)
+            bold = (
+                "bold"
+                if sym in ("X", "Y", "Z")
+                else "normal"
+            )
             ax.text(
-                x + CELL_W / 2,
-                y + CELL_H / 2,
+                x + cell_w / 2,
+                tape_y + cell_h / 2,
                 sym,
                 ha="center",
                 va="center",
                 fontsize=FS + 2,
-                fontweight="bold" if sym in ("X", "Y", "Z") else "normal",
+                fontweight=bold,
                 family="monospace",
             )
         if head_pos is not None:
-            hx = TAPE_X0 + head_pos * CELL_W + CELL_W / 2
+            hx = (
+                tape_x0
+                + head_pos * cell_w
+                + cell_w / 2
+            )
             ax.annotate(
                 "▼",
-                xy=(hx, y + CELL_H),
-                xytext=(hx, y + CELL_H + 0.25),
+                xy=(hx, tape_y + cell_h),
+                xytext=(hx, tape_y + cell_h + 0.25),
                 ha="center",
                 va="bottom",
-                fontsize=8,
+                fontsize=HEAD_MARKER_FONTSIZE,
                 color="black",
             )
         if step_label:
-            sx = TAPE_X0 + 6 * CELL_W + 0.5
+            sx = tape_x0 + 6 * cell_w + 0.5
             ax.text(
                 sx,
-                y + CELL_H / 2,
+                tape_y + cell_h / 2,
                 step_label,
                 ha="left",
                 va="center",
@@ -534,54 +723,84 @@ def draw_lba_recognition() -> None:
                 },
             )
 
-    W = "white"
-    MK = GRAY1  # marked cell color
+    white = "white"
+    mk = GRAY1  # marked cell color
 
     # Row 1: Initial tape
-    y = 9.0
+    tape_y = 9.0
     draw_tape(
-        y,
-        [("a", W), ("a", W), ("b", W), ("b", W), ("c", W), ("c", W)],
+        tape_y,
+        [
+            ("a", white),
+            ("a", white),
+            ("b", white),
+            ("b", white),
+            ("c", white),
+            ("c", white),
+        ],
         0,
         "Początek",
-        "taśma = [a, a, b, b, c, c], głowica na 0",
+        step_label=(
+            "taśma = [a, a, b, b, c, c], głowica na 0"
+        ),
     )
 
     # Row 2: After marking first 'a'
-    y = 7.8
+    tape_y = 7.8
     draw_tape(
-        y,
-        [("X", MK), ("a", W), ("b", W), ("b", W), ("c", W), ("c", W)],
+        tape_y,
+        [
+            ("X", mk),
+            ("a", white),
+            ("b", white),
+            ("b", white),
+            ("c", white),
+            ("c", white),
+        ],
         1,
         "R1, krok 1",
-        "zaznacz a→X, szukaj b",
+        step_label="zaznacz a→X, szukaj b",
     )
 
     # Row 3: After marking first 'b'
-    y = 6.6
+    tape_y = 6.6
     draw_tape(
-        y,
-        [("X", MK), ("a", W), ("Y", MK), ("b", W), ("c", W), ("c", W)],
+        tape_y,
+        [
+            ("X", mk),
+            ("a", white),
+            ("Y", mk),
+            ("b", white),
+            ("c", white),
+            ("c", white),
+        ],
         3,
         "R1, krok 2",
-        "zaznacz b→Y, szukaj c",
+        step_label="zaznacz b→Y, szukaj c",
     )
 
     # Row 4: After marking first 'c'
-    y = 5.4
+    tape_y = 5.4
     draw_tape(
-        y,
-        [("X", MK), ("a", W), ("Y", MK), ("b", W), ("Z", MK), ("c", W)],
+        tape_y,
+        [
+            ("X", mk),
+            ("a", white),
+            ("Y", mk),
+            ("b", white),
+            ("Z", mk),
+            ("c", white),
+        ],
         0,
         "R1, krok 3",
-        "zaznacz c→Z, wróć na początek",
+        step_label="zaznacz c→Z, wróć na początek",
     )
 
     # Runda 2 header
-    y = 4.5
+    tape_y = 4.5
     ax.text(
-        TAPE_X0 + 3 * CELL_W,
-        y + 0.3,
+        tape_x0 + 3 * cell_w,
+        tape_y + 0.3,
         "═══ RUNDA 2 ═══",
         ha="center",
         va="center",
@@ -591,53 +810,81 @@ def draw_lba_recognition() -> None:
     )
 
     # Row 5: After marking second 'a'
-    y = 3.6
+    tape_y = 3.6
     draw_tape(
-        y,
-        [("X", MK), ("X", MK), ("Y", MK), ("b", W), ("Z", MK), ("c", W)],
+        tape_y,
+        [
+            ("X", mk),
+            ("X", mk),
+            ("Y", mk),
+            ("b", white),
+            ("Z", mk),
+            ("c", white),
+        ],
         2,
         "R2, krok 1",
-        "pomiń X, zaznacz a→X, szukaj b",
+        step_label="pomiń X, zaznacz a→X, szukaj b",
     )
 
     # Row 6: After marking second 'b'
-    y = 2.4
+    tape_y = 2.4
     draw_tape(
-        y,
-        [("X", MK), ("X", MK), ("Y", MK), ("Y", MK), ("Z", MK), ("c", W)],
+        tape_y,
+        [
+            ("X", mk),
+            ("X", mk),
+            ("Y", mk),
+            ("Y", mk),
+            ("Z", mk),
+            ("c", white),
+        ],
         4,
         "R2, krok 2",
-        "pomiń Y, zaznacz b→Y, szukaj c",
+        step_label="pomiń Y, zaznacz b→Y, szukaj c",
     )
 
     # Row 7: After marking second 'c'
-    y = 1.2
+    tape_y = 1.2
     draw_tape(
-        y,
-        [("X", MK), ("X", MK), ("Y", MK), ("Y", MK), ("Z", MK), ("Z", MK)],
+        tape_y,
+        [
+            ("X", mk),
+            ("X", mk),
+            ("Y", mk),
+            ("Y", mk),
+            ("Z", mk),
+            ("Z", mk),
+        ],
         None,
         "R2, krok 3",
-        "zaznacz c→Z, wróć na początek",
+        step_label="zaznacz c→Z, wróć na początek",
     )
 
     # Result
-    y = 0.0
+    tape_y = 0.0
     ax.text(
-        TAPE_X0 + 3 * CELL_W,
-        y + 0.3,
-        'Wszystko zaznaczone → q_acc → "aabbcc" AKCEPTOWANE ✓',
+        tape_x0 + 3 * cell_w,
+        tape_y + 0.3,
+        "Wszystko zaznaczone → q_acc"
+        ' → "aabbcc" AKCEPTOWANE ✓',
         ha="center",
         va="center",
         fontsize=FS + 1,
         fontweight="bold",
-        bbox={"boxstyle": "round,pad=0.4", "facecolor": LIGHT_GREEN, "edgecolor": LN},
+        bbox={
+            "boxstyle": "round,pad=0.4",
+            "facecolor": LIGHT_GREEN,
+            "edgecolor": LN,
+        },
     )
 
     # Key
     ax.text(
-        TAPE_X0 + 6 * CELL_W + 0.5,
-        y + 0.3,
-        'Ograniczenie LBA:\ngłowica ≤ 6 komórek\n(= |w| = |"aabbcc"|)',
+        tape_x0 + 6 * cell_w + 0.5,
+        tape_y + 0.3,
+        "Ograniczenie LBA:\n"
+        "głowica ≤ 6 komórek\n"
+        '(= |w| = |"aabbcc"|)',
         ha="left",
         va="center",
         fontsize=FS_SMALL,
@@ -656,36 +903,44 @@ def draw_lba_recognition() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ lba_recognition_example.png")
+    logger.info("  ✓ lba_recognition_example.png")
 
 
 # ============================================================
 # 4. TM Recognition Example — TM for 0ⁿ1ⁿ
 # ============================================================
 def draw_tm_recognition() -> None:
-    """TM tape visualization for 0ⁿ1ⁿ with infinite tape shown."""
+    """TM tape visualization for 0ⁿ1ⁿ with infinite tape."""
     _fig, ax = plt.subplots(1, 1, figsize=(11.69, 6.5))
     ax.set_xlim(-0.5, 13)
     ax.set_ylim(-1, 10.5)
     ax.axis("off")
     ax.set_title(
         "TM — rozpoznawanie 0ⁿ1ⁿ (n=2)\n"
-        "Strategia: zaznacz jedno 0 i jedno 1 w każdej rundzie",
+        "Strategia: zaznacz jedno 0 i jedno 1"
+        " w każdej rundzie",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
     )
 
-    CELL_W = 0.9
-    CELL_H = 0.7
-    TAPE_X0 = 1.5
-    HEAD_COLOR = "#FFD700"
+    cell_w = 0.9
+    cell_h = 0.7
+    tape_x0 = 1.5
+    head_color = "#FFD700"
 
-    def draw_tape(y, cells, head_pos, label, step_label="") -> None:
+    def draw_tape(
+        tape_y: float,
+        cells: list[tuple[str, str]],
+        head_pos: int | None,
+        label: str,
+        *,
+        step_label: str = "",
+    ) -> None:
         """Draw tape."""
         ax.text(
             0.2,
-            y + CELL_H / 2,
+            tape_y + cell_h / 2,
             label,
             ha="right",
             va="center",
@@ -693,16 +948,16 @@ def draw_tm_recognition() -> None:
             fontweight="bold",
         )
         for i, (sym, color) in enumerate(cells):
-            x = TAPE_X0 + i * CELL_W
-            fc = HEAD_COLOR if i == head_pos else color
+            x = tape_x0 + i * cell_w
+            fc = head_color if i == head_pos else color
             lw = 1.2
             ls = "-"
             if sym == "⊔":
                 ls = "--"
             rect = mpatches.FancyBboxPatch(
-                (x, y),
-                CELL_W,
-                CELL_H,
+                (x, tape_y),
+                cell_w,
+                cell_h,
                 boxstyle="round,pad=0.03",
                 lw=lw,
                 edgecolor=LN,
@@ -710,43 +965,51 @@ def draw_tm_recognition() -> None:
                 linestyle=ls,
             )
             ax.add_patch(rect)
+            bold = (
+                "bold" if sym in ("X", "Y") else "normal"
+            )
+            clr = GRAY3 if sym == "⊔" else LN
             ax.text(
-                x + CELL_W / 2,
-                y + CELL_H / 2,
+                x + cell_w / 2,
+                tape_y + cell_h / 2,
                 sym,
                 ha="center",
                 va="center",
                 fontsize=FS + 2,
-                fontweight="bold" if sym in ("X", "Y") else "normal",
+                fontweight=bold,
                 family="monospace",
-                color=GRAY3 if sym == "⊔" else LN,
+                color=clr,
             )
         # ∞ arrow
-        last_x = TAPE_X0 + len(cells) * CELL_W
+        last_x = tape_x0 + len(cells) * cell_w
         ax.annotate(
             "→ ∞",
-            xy=(last_x + 0.3, y + CELL_H / 2),
+            xy=(last_x + 0.3, tape_y + cell_h / 2),
             fontsize=FS,
             ha="left",
             va="center",
             color=GRAY3,
         )
         if head_pos is not None:
-            hx = TAPE_X0 + head_pos * CELL_W + CELL_W / 2
+            hx = (
+                tape_x0
+                + head_pos * cell_w
+                + cell_w / 2
+            )
             ax.annotate(
                 "▼",
-                xy=(hx, y + CELL_H),
-                xytext=(hx, y + CELL_H + 0.25),
+                xy=(hx, tape_y + cell_h),
+                xytext=(hx, tape_y + cell_h + 0.25),
                 ha="center",
                 va="bottom",
-                fontsize=8,
+                fontsize=HEAD_MARKER_FONTSIZE,
                 color="black",
             )
         if step_label:
-            sx = TAPE_X0 + 8 * CELL_W + 0.8
+            sx = tape_x0 + 8 * cell_w + 0.8
             ax.text(
                 sx,
-                y + CELL_H / 2,
+                tape_y + cell_h / 2,
                 step_label,
                 ha="left",
                 va="center",
@@ -758,45 +1021,37 @@ def draw_tm_recognition() -> None:
                 },
             )
 
-    W = "white"
-    MK = GRAY1
-    BL = "#F0F0F0"  # blank cell
+    white = "white"
+    mk = GRAY1
+    bl = "#F0F0F0"  # blank cell
 
-    # Row 1: Initial
-    y = 9.0
-    draw_tape(
-        y,
-        [("0", W), ("0", W), ("1", W), ("1", W), ("⊔", BL), ("⊔", BL), ("⊔", BL)],
-        0,
-        "Początek",
-        "taśma = [0,0,1,1,⊔,⊔,...∞]",
-    )
-
-    # Row 2: Mark first 0
-    y = 7.8
-    draw_tape(
-        y,
-        [("X", MK), ("0", W), ("1", W), ("1", W), ("⊔", BL), ("⊔", BL), ("⊔", BL)],
-        1,
-        "R1, krok 1",
-        "zaznacz 0→X, idź w prawo",
-    )
-
-    # Row 3: Skip to first 1, mark it
-    y = 6.6
-    draw_tape(
-        y,
-        [("X", MK), ("0", W), ("Y", MK), ("1", W), ("⊔", BL), ("⊔", BL), ("⊔", BL)],
-        0,
-        "R1, krok 2",
-        "zaznacz 1→Y, wróć na początek",
-    )
+    tape_rows = [
+        (9.0, [("0", white), ("0", white), ("1", white),
+               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
+         0, "Początek", "taśma = [0,0,1,1,⊔,⊔,...∞]"),
+        (7.8, [("X", mk), ("0", white), ("1", white),
+               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
+         1, "R1, krok 1", "zaznacz 0→X, idź w prawo"),
+        (6.6, [("X", mk), ("0", white), ("Y", mk),
+               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
+         0, "R1, krok 2", "zaznacz 1→Y, wróć na początek"),
+        (4.8, [("X", mk), ("X", mk), ("Y", mk),
+               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
+         2, "R2, krok 1", "pomiń X, zaznacz 0→X"),
+        (3.6, [("X", mk), ("X", mk), ("Y", mk),
+               ("Y", mk), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
+         0, "R2, krok 2", "pomiń Y, zaznacz 1→Y, wróć"),
+        (2.4, [("X", mk), ("X", mk), ("Y", mk),
+               ("Y", mk), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
+         None, "Sprawdzenie",
+         "brak niezaznaczonych → q_acc"),
+    ]
 
     # Runda 2 header
-    y = 5.8
+    runda2_y = 5.8
     ax.text(
-        TAPE_X0 + 3.5 * CELL_W,
-        y + 0.3,
+        tape_x0 + 3.5 * cell_w,
+        runda2_y + 0.3,
         "═══ RUNDA 2 ═══",
         ha="center",
         va="center",
@@ -804,56 +1059,37 @@ def draw_tm_recognition() -> None:
         fontweight="bold",
     )
 
-    # Row 4: Mark second 0
-    y = 4.8
-    draw_tape(
-        y,
-        [("X", MK), ("X", MK), ("Y", MK), ("1", W), ("⊔", BL), ("⊔", BL), ("⊔", BL)],
-        2,
-        "R2, krok 1",
-        "pomiń X, zaznacz 0→X",
-    )
-
-    # Row 5: Mark second 1
-    y = 3.6
-    draw_tape(
-        y,
-        [("X", MK), ("X", MK), ("Y", MK), ("Y", MK), ("⊔", BL), ("⊔", BL), ("⊔", BL)],
-        0,
-        "R2, krok 2",
-        "pomiń Y, zaznacz 1→Y, wróć",
-    )
-
-    # Row 6: Check — all marked
-    y = 2.4
-    draw_tape(
-        y,
-        [("X", MK), ("X", MK), ("Y", MK), ("Y", MK), ("⊔", BL), ("⊔", BL), ("⊔", BL)],
-        None,
-        "Sprawdzenie",
-        "brak niezaznaczonych → q_acc",
-    )
+    for row_y, cells, head, lbl, step in tape_rows:
+        draw_tape(
+            row_y, cells, head, lbl, step_label=step
+        )
 
     # Result + TM vs LBA comparison
-    y = 0.8
+    tape_y = 0.8
     ax.text(
-        TAPE_X0 + 3.5 * CELL_W,
-        y + 0.3,
+        tape_x0 + 3.5 * cell_w,
+        tape_y + 0.3,
         '"0011" AKCEPTOWANE ✓',
         ha="center",
         va="center",
         fontsize=FS + 1,
         fontweight="bold",
-        bbox={"boxstyle": "round,pad=0.4", "facecolor": LIGHT_GREEN, "edgecolor": LN},
+        bbox={
+            "boxstyle": "round,pad=0.4",
+            "facecolor": LIGHT_GREEN,
+            "edgecolor": LN,
+        },
     )
 
-    y = -0.3
+    tape_y = -0.3
     ax.text(
-        TAPE_X0 + 3.5 * CELL_W,
-        y + 0.3,
-        "Różnica TM vs LBA: taśma TM jest nieskończona (⊔ → ∞)\n"
+        tape_x0 + 3.5 * cell_w,
+        tape_y + 0.3,
+        "Różnica TM vs LBA: taśma TM jest "
+        "nieskończona (⊔ → ∞)\n"
         "LBA: głowica ograniczona do |w| komórek\n"
-        "TM: głowica może wyjść POZA wejście i pisać na pustych ⊔",
+        "TM: głowica może wyjść POZA wejście "
+        "i pisać na pustych ⊔",
         ha="center",
         va="center",
         fontsize=FS_SMALL,
@@ -872,16 +1108,18 @@ def draw_tm_recognition() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ tm_recognition_example.png")
+    logger.info("  ✓ tm_recognition_example.png")
 
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
-    print("Generating automata diagrams for PYTANIE 1...")
+    logger.info(
+        "Generating automata diagrams for PYTANIE 1..."
+    )
     draw_fa_recognition()
     draw_pda_recognition()
     draw_lba_recognition()
     draw_tm_recognition()
-    print(f"\nAll diagrams saved to {OUTPUT_DIR}/")
+    logger.info("All diagrams saved to %s/", OUTPUT_DIR)
