@@ -11,8 +11,9 @@ import argparse
 import hashlib
 from io import BytesIO
 from pathlib import Path
-import random
+import secrets
 import sys
+import tempfile
 from typing import TYPE_CHECKING
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -156,7 +157,7 @@ def generate_anki_package(
     deck_name: str = "Warsaw Osiedla",
 ) -> genanki.Package:
     """Generate Anki package for Warsaw osiedla."""
-    model_id_hash = hashlib.md5(f"warsaw_osiedla_{deck_name}".encode())  # noqa: S324
+    model_id_hash = hashlib.sha256(f"warsaw_osiedla_{deck_name}".encode())
     model_id = int(model_id_hash.hexdigest()[:8], 16)
 
     card_css = """
@@ -212,7 +213,7 @@ def generate_anki_package(
         css=card_css,
     )
 
-    deck_id = random.randrange(1 << 30, 1 << 31)  # noqa: S311
+    deck_id = secrets.randbelow(1 << 30) + (1 << 30)
     my_deck = genanki.Deck(deck_id, deck_name)
     media_files = []
 
@@ -232,7 +233,7 @@ def generate_anki_package(
         )
         my_deck.add_note(note)
 
-        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path = Path(tempfile.gettempdir()) / filename
         temp_path.write_bytes(image_data)
         media_files.append(str(temp_path))
 
