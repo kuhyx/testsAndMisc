@@ -6,18 +6,27 @@ Creates a tab-separated file compatible with Anki import.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
+logger = logging.getLogger(__name__)
 
-def extract_question_and_answer(filepath) -> list[dict[str, str]]:
-    """Extract main question and key answer points from a markdown file."""
+MIN_BODY_LENGTH = 50
+MIN_DEFINITION_LENGTH = 20
+MAX_DEFINITION_LENGTH = 200
+MIN_BULLET_COUNT = 5
+MIN_SUBSECTION_LENGTH = 5
+MIN_FORMULA_LENGTH = 20
+
+
+def _get_metadata(
+    filepath: str,
+) -> tuple[str, str, str, str, str]:
+    """Extract metadata from file."""
     with Path(filepath).open(encoding="utf-8") as f:
         content = f.read()
 
-    cards = []
-
-    # Extract file number for tagging
     filename = Path(filepath).name
     match = re.match(r"(\d+)-(.+)\.md", filename)
     if match:
@@ -27,13 +36,13 @@ def extract_question_and_answer(filepath) -> list[dict[str, str]]:
         num = "00"
         topic = "unknown"
 
-    # Extract main title (usually contains the question)
     title_match = re.search(r"^# (.+)$", content, re.MULTILINE)
     title = title_match.group(1) if title_match else "Unknown"
 
-    # Extract the main question from ## Pytanie section
     question_match = re.search(
-        r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*', content, re.DOTALL
+        r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*',
+        content,
+        re.DOTALL,
     )
     if question_match:
         main_question = question_match.group(1).strip()
@@ -41,124 +50,207 @@ def extract_question_and_answer(filepath) -> list[dict[str, str]]:
     else:
         main_question = title
 
-    # Extract subject/przedmiot
-    subject_match = re.search(r"Przedmiot:\s*(\w+)", content)
-    subject = subject_match.group(1) if subject_match else "Ogólne"
+    return num, topic, title, main_question, content
 
-    # Create main question card - extract key sections for answer
-    answer_parts = []
 
-    # Look for main answer section
+def _extract_main_card(
+    content: str,
+    main_question: str,
+    subject: str,
+    num: str,
+    topic: str,
+) -> list[dict[str, str]]:
+    """Extract the main question card."""
+    answer_parts: list[str] = []
+
     main_answer = re.search(
-        r"## 📚 Odpowiedź główna\s*\n(.+?)(?=\n## |\n---\s*\n## |\Z)",
+        r"## 📚 Odpowiedź główna\s*\n(.+?)"
+        r"(?=\n## |\n---\s*\n## |\Z)",
         content,
         re.DOTALL,
     )
     if main_answer:
         answer_text = main_answer.group(1)
-        # Extract key points, definitions, headers
         headers = re.findall(r"### (.+)", answer_text)
-        for h in headers[:5]:  # Limit to first 5 headers
-            answer_parts.append(f"• {h}")
+        answer_parts.extend(f"• {h}" for h in headers[:5])
 
-    # Also extract key definitions if present
-    definitions = re.findall(r"\*\*([^*]+)\*\*\s*[--:]\s*([^*\n]+)", content)
+    definitions = re.findall(
+        r"\*\*([^*]+)\*\*\s*[--:]\s*([^*\n]+)", content
+    )
     for term, definition in definitions[:3]:
-        if len(definition) > 20 and len(definition) < 200:
-            answer_parts.append(f"• {term}: {definition.strip()}")
+        if (
+            len(definition) > MIN_DEFINITION_LENGTH
+            and len(definition) < MAX_DEFINITION_LENGTH
+        ):
+            answer_parts.append(
+                f"• {term}: {definition.strip()}"
+            )
 
-    # If we found answer parts, create main card
-    if answer_parts:
-        answer_html = "<br>".join(answer_parts[:8])  # Limit answer length
-        cards.append(
-            {
-                "question": main_question,
-                "answer": answer_html,
-                "tags": f"egzamin_magisterski pytanie_{num} {subject} {topic}",
-            }
+    if not answer_parts:
+        return []
+
+    answer_html = "<br>".join(answer_parts[:8])
+    return [
+        {
+            "question": main_question,
+            "answer": answer_html,
+            "tags": (
+                f"egzamin_magisterski pytanie_{num}"
+                f" {subject} {topic}"
+            ),
+        }
+    ]
+
+
+def _extract_subsection_answer(body_clean: str) -> str | None:
+    """Extract answer text from a subsection body."""
+    bullets = re.findall(
+        r"[-•]\s*\*\*(.+?)\*\*[:\s]*([^\n]+)?", body_clean
+    )
+    if bullets:
+        return "<br>".join(
+            f"• {b[0]}: {b[1].strip()}" if b[1] else f"• {b[0]}"
+            for b in bullets[:MIN_BULLET_COUNT]
         )
 
-    # Extract sub-questions and key concepts as additional cards
-    # Look for ### headers with explanations
+    paragraphs = [
+        p.strip()
+        for p in body_clean.split("\n\n")
+        if p.strip()
+        and not p.startswith("```")
+        and not p.startswith("|")
+    ]
+    if paragraphs:
+        first_para = paragraphs[0]
+        first_para = re.sub(r"\*\*(.+?)\*\*", r"\1", first_para)
+        first_para = re.sub(r"\*(.+?)\*", r"\1", first_para)
+        return first_para[:400]
+
+    return None
+
+
+def _extract_sub_cards(
+    content: str,
+    title: str,
+    subject: str,
+    num: str,
+    topic: str,
+) -> list[dict[str, str]]:
+    """Extract sub-concept cards."""
+    cards: list[dict[str, str]] = []
     subsections = re.findall(
-        r"### (\d+\.\s+)?(.+?)\n\n(.+?)(?=\n### |\n## |\n---|\Z)", content, re.DOTALL
+        r"### (\d+\.\s+)?(.+?)\n\n(.+?)"
+        r"(?=\n### |\n## |\n---|\Z)",
+        content,
+        re.DOTALL,
     )
 
     for _, header, body in subsections:
-        if len(header) < 5 or header.startswith("Przykład"):
-            continue
-
-        # Extract first substantive paragraph or key points
-        body_clean = body.strip()
-
-        # Skip very short or code-only sections
-        if len(body_clean) < 50:
-            continue
-
-        # Extract bullet points or first paragraph
-        bullets = re.findall(r"[-•]\s*\*\*(.+?)\*\*[:\s]*([^\n]+)?", body_clean)
-        if bullets:
-            answer_text = "<br>".join(
-                [
-                    f"• {b[0]}: {b[1].strip()}" if b[1] else f"• {b[0]}"
-                    for b in bullets[:5]
-                ]
-            )
-        else:
-            # Get first meaningful paragraph
-            paragraphs = [
-                p.strip()
-                for p in body_clean.split("\n\n")
-                if p.strip() and not p.startswith("```") and not p.startswith("|")
-            ]
-            if paragraphs:
-                first_para = paragraphs[0]
-                # Clean markdown
-                first_para = re.sub(r"\*\*(.+?)\*\*", r"\1", first_para)
-                first_para = re.sub(r"\*(.+?)\*", r"\1", first_para)
-                answer_text = first_para[:400]
-            else:
-                continue
-
-        # Create sub-concept card
-        sub_question = f"Co to jest {header}?" if not header.endswith("?") else header
         if (
-            "Charakterystyka" in header
-            or "Definicja" in header
-            or "Właściwości" in header
+            len(header) < MIN_SUBSECTION_LENGTH
+            or header.startswith("Przykład")
         ):
-            # These are answer-type headers, reframe
-            parent_topic = title.replace("Pytanie", "").strip(": 0123456789")
-            sub_question = f"{header} - {parent_topic}"
+            continue
+
+        body_clean = body.strip()
+        if len(body_clean) < MIN_BODY_LENGTH:
+            continue
+
+        answer_text = _extract_subsection_answer(body_clean)
+        if not answer_text:
+            continue
+
+        sub_question = (
+            f"Co to jest {header}?"
+            if not header.endswith("?")
+            else header
+        )
+
+        if any(
+            kw in header
+            for kw in ("Charakterystyka", "Definicja", "Właściwości")
+        ):
+            parent = title.replace("Pytanie", "").strip(
+                ": 0123456789"
+            )
+            sub_question = f"{header} - {parent}"
 
         cards.append(
             {
                 "question": sub_question,
                 "answer": answer_text,
-                "tags": f"egzamin_magisterski pytanie_{num} {subject} {topic} szczegoly",
+                "tags": (
+                    f"egzamin_magisterski pytanie_{num}"
+                    f" {subject} {topic} szczegoly"
+                ),
             }
         )
 
-    # Extract key formulas/definitions as separate cards
+    return cards
+
+
+def _extract_formula_cards(
+    content: str,
+    subject: str,
+    num: str,
+) -> list[dict[str, str]]:
+    """Extract formula/definition cards."""
+    cards: list[dict[str, str]] = []
     formulas = re.findall(
-        r"\*\*([A-Za-z\s]+(?:formuła|wzór|twierdzenie|definicja|lemat))\*\*[:\s]*\n?(.+?)(?=\n\n|\n\*\*|\Z)",
+        r"\*\*([A-Za-z\s]+"
+        r"(?:formuła|wzór|twierdzenie|definicja|lemat))"
+        r"\*\*[:\s]*\n?(.+?)(?=\n\n|\n\*\*|\Z)",
         content,
         re.IGNORECASE | re.DOTALL,
     )
     for formula_name, formula_content in formulas:
-        if len(formula_content) > 20:
+        if len(formula_content) > MIN_FORMULA_LENGTH:
             cards.append(
                 {
                     "question": f"Podaj {formula_name.strip()}",
                     "answer": formula_content.strip()[:300],
-                    "tags": f"egzamin_magisterski pytanie_{num} {subject} formuly",
+                    "tags": (
+                        f"egzamin_magisterski pytanie_{num}"
+                        f" {subject} formuly"
+                    ),
                 }
             )
 
     return cards
 
 
-def clean_for_anki(text) -> str:
+def extract_question_and_answer(
+    filepath: str,
+) -> list[dict[str, str]]:
+    """Extract main question and key answer points from a markdown file."""
+    num, topic, title, main_question, content = _get_metadata(
+        filepath
+    )
+
+    subject_match = re.search(r"Przedmiot:\s*(\w+)", content)
+    subject = (
+        subject_match.group(1) if subject_match else "Ogólne"
+    )
+
+    cards: list[dict[str, str]] = []
+    cards.extend(
+        _extract_main_card(
+            content, main_question, subject, num, topic
+        )
+    )
+    cards.extend(
+        _extract_sub_cards(
+            content, title, subject, num, topic
+        )
+    )
+    cards.extend(
+        _extract_formula_cards(content, subject, num)
+    )
+
+    return cards
+
+
+def clean_for_anki(text: str) -> str:
     """Clean text for Anki import - escape special characters."""
     # Replace tabs with spaces
     text = text.replace("\t", "    ")
@@ -187,13 +279,13 @@ def main() -> None:
 
     # Process each file
     for md_file in sorted(odpowiedzi_dir.glob("*.md")):
-        print(f"Processing: {md_file.name}")
+        logger.info("Processing: %s", md_file.name)
         try:
             cards = extract_question_and_answer(md_file)
             all_cards.extend(cards)
-            print(f"  -> Extracted {len(cards)} cards")
-        except Exception as e:
-            print(f"  -> Error: {e}")
+            logger.info("  -> Extracted %d cards", len(cards))
+        except (ValueError, OSError) as e:
+            logger.info("  -> Error: %s", e)
 
     # Write Anki file with headers
     with Path(output_file).open("w", encoding="utf-8") as f:
@@ -211,13 +303,13 @@ def main() -> None:
             tags = card["tags"]
             f.write(f"{front}\t{back}\t{tags}\n")
 
-    print(f"\n✅ Created {len(all_cards)} flashcards")
-    print(f"📁 Output: {output_file}")
-    print("\nTo import into Anki:")
-    print("1. Open Anki → File → Import")
-    print("2. Select the .txt file")
-    print("3. Verify 'Allow HTML' is checked")
-    print("4. Click Import")
+    logger.info("Created %d flashcards", len(all_cards))
+    logger.info("Output: %s", output_file)
+    logger.info("To import into Anki:")
+    logger.info("1. Open Anki -> File -> Import")
+    logger.info("2. Select the .txt file")
+    logger.info("3. Verify 'Allow HTML' is checked")
+    logger.info("4. Click Import")
 
 
 if __name__ == "__main__":

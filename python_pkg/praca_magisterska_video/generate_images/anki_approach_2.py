@@ -7,11 +7,17 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
+logger = logging.getLogger(__name__)
 
-def clean_text(text) -> str:
+MIN_PARA_LENGTH = 30
+MIN_BODY_LENGTH = 50
+
+
+def clean_text(text: str) -> str:
     """Clean text."""
     if not text:
         return ""
@@ -23,7 +29,7 @@ def clean_text(text) -> str:
     return text.strip()
 
 
-def extract_structured_content(body) -> str | None:
+def extract_structured_content(body: str) -> str | None:
     """Better extraction - look for multiple content types."""
     parts = []
 
@@ -54,15 +60,14 @@ def extract_structured_content(body) -> str | None:
             if p.strip()
             and not p.startswith("```")
             and not p.startswith("|")
-            and len(p.strip()) > 30
+            and len(p.strip()) > MIN_PARA_LENGTH
         ]
-        for p in paras[:2]:
-            parts.append(p[:300])
+        parts.extend(p[:300] for p in paras[:2])
 
     return "<br>".join([clean_text(p) for p in parts]) if parts else None
 
 
-def extract_cards(filepath) -> list[dict[str, str]]:
+def extract_cards(filepath: str) -> list[dict[str, str]]:
     """Extract cards."""
     with Path(filepath).open(encoding="utf-8") as f:
         content = f.read()
@@ -99,9 +104,9 @@ def extract_cards(filepath) -> list[dict[str, str]]:
         content,
         re.MULTILINE | re.DOTALL,
     )
-    for header, body in sections:
-        header = header.strip()
-        if "Przykład" in header or '"' in header or len(body) < 50:
+    for raw_header, body in sections:
+        header = raw_header.strip()
+        if "Przykład" in header or '"' in header or len(body) < MIN_BODY_LENGTH:
             continue
 
         answer = extract_structured_content(body)
@@ -143,8 +148,10 @@ def main() -> None:
         for c in unique:
             f.write(f"{c['front']}\t{c['back']}\t{c['tags']}\n")
 
-    print(
-        f"✅ Approach 2 (Better Extraction): {len(unique)} cards -> {output_file.name}"
+    logger.info(
+        "Approach 2 (Better Extraction): %d cards -> %s",
+        len(unique),
+        output_file.name,
     )
 
 

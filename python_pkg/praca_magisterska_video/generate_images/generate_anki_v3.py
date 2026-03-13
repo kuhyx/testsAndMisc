@@ -3,11 +3,18 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
+logger = logging.getLogger(__name__)
 
-def clean_text(text) -> str:
+MIN_PARA_LENGTH = 20
+MAX_PARA_LENGTH = 400
+MIN_BODY_LENGTH = 80
+
+
+def clean_text(text: str) -> str:
     """Clean text for Anki."""
     if not text:
         return ""
@@ -19,7 +26,7 @@ def clean_text(text) -> str:
     return text.strip()
 
 
-def extract_real_answer(content, section_name) -> str | None:
+def extract_real_answer(content: str, section_name: str) -> str | None:
     """Extract actual content from a section, not just headers."""
     # Find the section
     pattern = rf"### (?:\d+\.\s*)?{re.escape(section_name)}\s*\n((?:(?!^### ).)+)"
@@ -52,19 +59,21 @@ def extract_real_answer(content, section_name) -> str | None:
             for p in body.split("\n\n")
             if p.strip() and not p.startswith("```") and not p.startswith("|")
         ]
-        for p in paras[:2]:
-            if len(p) > 20 and len(p) < 400:
-                lines.append(p)
+        lines.extend(
+            p for p in paras[:2]
+            if len(p) > MIN_PARA_LENGTH and len(p) < MAX_PARA_LENGTH
+        )
 
     return "<br>".join(lines[:6]) if lines else None
 
 
-def extract_cards(filepath) -> list[dict[str, str]]:
-    """Extract flashcards from a file."""
+def _read_file_metadata(
+    filepath: str | Path,
+) -> tuple[str, str, str | None]:
+    """Read file and extract metadata."""
     with Path(filepath).open(encoding="utf-8") as f:
         content = f.read()
 
-    cards = []
     filename = Path(filepath).name
     match = re.match(r"(\d+)-(.+)\.md", filename)
     num = match.group(1) if match else "00"
@@ -73,186 +82,246 @@ def extract_cards(filepath) -> list[dict[str, str]]:
     subject = subj_match.group(1) if subj_match else "Ogólne"
     base_tags = f"egzamin_magisterski pyt{num} {subject}"
 
-    # Get main question
     q_match = re.search(
-        r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*', content, re.DOTALL
+        r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*',
+        content,
+        re.DOTALL,
     )
-    main_question = re.sub(r"\s+", " ", q_match.group(1).strip()) if q_match else None
+    main_question = (
+        re.sub(r"\s+", " ", q_match.group(1).strip()) if q_match else None
+    )
 
-    # ===============================================
-    # MAIN CARD: Question with REAL answer summary
-    # ===============================================
-    if main_question:
-        # Build a real answer from the main sections
-        answer_parts = []
+    return content, base_tags, main_question
 
-        # For automata question - extract key facts about each automaton
-        if "automat" in main_question.lower() or "maszyn" in main_question.lower():
-            # FA
-            fa_match = re.search(
-                r"Automat Skończony.*?Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*",
-                content,
-                re.DOTALL,
+
+def _extract_automata_facts(content: str) -> list[str]:
+    """Extract automata-specific facts."""
+    parts: list[str] = []
+    automata = [
+        ("Automat Skończony", "FA"),
+        ("Automat ze Stosem", "PDA"),
+        ("Maszyna Turinga", "TM"),
+    ]
+    for name, abbrev in automata:
+        pattern = (
+            rf"{name}.*?Rozpoznawana klasa języków"
+            r"\s*\n\s*\*\*([^*]+)\*\*"
+        )
+        match = re.search(pattern, content, re.DOTALL)
+        if match:
+            parts.append(
+                f"<b>{name} ({abbrev})</b>: "
+                f"{match.group(1).strip()}"
             )
-            if fa_match:
-                answer_parts.append(
-                    f"<b>Automat Skończony (FA)</b>: {fa_match.group(1).strip()}"
-                )
+    return parts
 
-            # PDA
-            pda_match = re.search(
-                r"Automat ze Stosem.*?Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*",
-                content,
-                re.DOTALL,
+
+def _extract_generic_facts(content: str) -> list[str]:
+    """Extract generic definitions and summaries."""
+    parts: list[str] = []
+    key_patterns = [
+        r"#### Definicja\s*\n([^\n#]+)",
+        r"#### Charakterystyka\s*\n([^\n#]+)",
+        r"\*\*Definicja[:\s]*\*\*\s*([^\n]+)",
+    ]
+    for pattern in key_patterns:
+        parts.extend(
+            found.strip()
+            for found in re.findall(pattern, content)[:3]
+            if len(found) > MIN_PARA_LENGTH
+        )
+    return parts
+
+
+def _extract_first_paragraphs(content: str) -> list[str]:
+    """Extract first substantive paragraphs from main answer."""
+    main_answer = re.search(
+        r"## 📚 Odpowiedź główna\s*\n(.+?)(?=\n## |\Z)",
+        content,
+        re.DOTALL,
+    )
+    if not main_answer:
+        return []
+    text = main_answer.group(1)
+    paras = re.findall(r"\n\n([^#\n][^\n]{50,300})", text)
+    return paras[:3]
+
+
+def _build_main_card(
+    content: str,
+    main_question: str | None,
+    base_tags: str,
+) -> dict[str, str] | None:
+    """Build the main question card."""
+    if not main_question:
+        return None
+
+    answer_parts: list[str] = []
+    if (
+        "automat" in main_question.lower()
+        or "maszyn" in main_question.lower()
+    ):
+        answer_parts = _extract_automata_facts(content)
+
+    if not answer_parts:
+        answer_parts = _extract_generic_facts(content)
+
+    if not answer_parts:
+        answer_parts = _extract_first_paragraphs(content)
+
+    if not answer_parts:
+        return None
+
+    answer = "<br><br>".join(
+        clean_text(p) for p in answer_parts
+    )
+    return {
+        "front": clean_text(main_question),
+        "back": answer,
+        "tags": f"{base_tags} pytanie_glowne",
+    }
+
+
+def _extract_section_content(body: str) -> list[str]:
+    """Extract content lines from a section body."""
+    answer_lines: list[str] = []
+
+    def_match = re.search(
+        r"#### Definicja[^\n]*\n([^\n#]+(?:\n[^\n#]+)?)", body,
+    )
+    if def_match:
+        answer_lines.append(def_match.group(1).strip())
+
+    char_match = re.search(
+        r"#### Charakterystyka\s*\n((?:[-•][^\n]+\n?)+)", body,
+    )
+    if char_match:
+        bullets = re.findall(
+            r"[-•]\s*\*\*([^*]+)\*\*[:\s]*([^\n]*)",
+            char_match.group(1),
+        )
+        for term, desc in bullets[:4]:
+            answer_lines.append(
+                f"• <b>{term}</b>: {desc.strip()}"
+                if desc
+                else f"• <b>{term}</b>"
             )
-            if pda_match:
-                answer_parts.append(
-                    f"<b>Automat ze Stosem (PDA)</b>: {pda_match.group(1).strip()}"
-                )
 
-            # TM
-            tm_match = re.search(
-                r"Maszyna Turinga.*?Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*",
-                content,
-                re.DOTALL,
-            )
-            if tm_match:
-                answer_parts.append(
-                    f"<b>Maszyna Turinga (TM)</b>: {tm_match.group(1).strip()}"
-                )
-
-        # Generic extraction if specific didn't work
-        if not answer_parts:
-            # Look for key definitions/summaries
-            key_patterns = [
-                r"#### Definicja\s*\n([^\n#]+)",
-                r"#### Charakterystyka\s*\n([^\n#]+)",
-                r"\*\*Definicja[:\s]*\*\*\s*([^\n]+)",
-            ]
-            for pattern in key_patterns:
-                for match in re.findall(pattern, content)[:3]:
-                    if len(match) > 20:
-                        answer_parts.append(match.strip())
-
-        # Still nothing? Get first substantive paragraph from main answer
-        if not answer_parts:
-            main_answer = re.search(
-                r"## 📚 Odpowiedź główna\s*\n(.+?)(?=\n## |\Z)", content, re.DOTALL
-            )
-            if main_answer:
-                # Skip headers, get actual content
-                text = main_answer.group(1)
-                paras = re.findall(r"\n\n([^#\n][^\n]{50,300})", text)
-                answer_parts = paras[:3]
-
-        if answer_parts:
-            answer = "<br><br>".join([clean_text(p) for p in answer_parts])
-            cards.append(
-                {
-                    "front": clean_text(main_question),
-                    "back": answer,
-                    "tags": f"{base_tags} pytanie_glowne",
-                }
+    if not answer_lines:
+        bullets = re.findall(
+            r"[-•]\s*\*\*([^*]+)\*\*[:\s]*([^\n]*)", body,
+        )
+        for term, desc in bullets[:5]:
+            answer_lines.append(
+                f"• <b>{term}</b>: {desc.strip()}"
+                if desc
+                else f"• <b>{term}</b>"
             )
 
-    # ===============================================
-    # CONCEPT CARDS: Specific topics with real content
-    # ===============================================
-    # Find all ### sections and extract their actual content
+    if not answer_lines:
+        first_para = re.search(
+            r"^([^#\n\-•|`][^\n]{30,250})", body, re.MULTILINE,
+        )
+        if first_para:
+            answer_lines.append(first_para.group(1))
+
+    return answer_lines
+
+
+def _build_concept_cards(
+    content: str, base_tags: str,
+) -> list[dict[str, str]]:
+    """Build concept cards from ### sections."""
+    cards: list[dict[str, str]] = []
     sections = re.findall(
         r"^### (?:\d+\.\s*)?([^\n]+)\n((?:(?!^### ).)*)",
         content,
         re.MULTILINE | re.DOTALL,
     )
 
-    for header, body in sections:
-        header = header.strip()
-        body = body.strip()
+    for raw_header, raw_body in sections:
+        header = raw_header.strip()
+        body = raw_body.strip()
 
-        # Skip short sections, mnemonics, examples
         if (
-            len(body) < 80
+            len(body) < MIN_BODY_LENGTH
             or "Przykład" in header
             or "Mnemonic" in header
             or '"' in header
         ):
             continue
 
-        # Extract real content
-        answer_lines = []
-
-        # Get definition if present
-        def_match = re.search(r"#### Definicja[^\n]*\n([^\n#]+(?:\n[^\n#]+)?)", body)
-        if def_match:
-            answer_lines.append(def_match.group(1).strip())
-
-        # Get characterization
-        char_match = re.search(r"#### Charakterystyka\s*\n((?:[-•][^\n]+\n?)+)", body)
-        if char_match:
-            bullets = re.findall(
-                r"[-•]\s*\*\*([^*]+)\*\*[:\s]*([^\n]*)", char_match.group(1)
-            )
-            for term, desc in bullets[:4]:
-                answer_lines.append(
-                    f"• <b>{term}</b>: {desc.strip()}" if desc else f"• <b>{term}</b>"
-                )
-
-        # Get bullet points if no structured content yet
+        answer_lines = _extract_section_content(body)
         if not answer_lines:
-            bullets = re.findall(r"[-•]\s*\*\*([^*]+)\*\*[:\s]*([^\n]*)", body)
-            for term, desc in bullets[:5]:
-                answer_lines.append(
-                    f"• <b>{term}</b>: {desc.strip()}" if desc else f"• <b>{term}</b>"
-                )
+            continue
 
-        # Get first paragraph if still nothing
-        if not answer_lines:
-            first_para = re.search(r"^([^#\n\-•|`][^\n]{30,250})", body, re.MULTILINE)
-            if first_para:
-                answer_lines.append(first_para.group(1))
+        question = (
+            header if header.endswith("?") else f"Wyjaśnij: {header}"
+        )
+        answer = "<br>".join(
+            clean_text(line) for line in answer_lines
+        )
+        cards.append(
+            {
+                "front": clean_text(question),
+                "back": answer,
+                "tags": f"{base_tags} szczegoly",
+            }
+        )
 
-        if answer_lines:
-            question = f"Wyjaśnij: {header}" if not header.endswith("?") else header
-            answer = "<br>".join([clean_text(l) for l in answer_lines])
+    return cards
 
-            cards.append(
-                {
-                    "front": clean_text(question),
-                    "back": answer,
-                    "tags": f"{base_tags} szczegoly",
-                }
-            )
 
-    # ===============================================
-    # Q&A CARDS: From practice questions section
-    # ===============================================
+def _build_qa_cards(
+    content: str, base_tags: str,
+) -> list[dict[str, str]]:
+    """Build Q&A practice cards."""
+    cards: list[dict[str, str]] = []
     qa_matches = re.findall(
-        r'### Q\d+:\s*["\']?([^"\'?\n]+)\?*["\']?\s*\n.*?Odpowiedź:\s*\n(.+?)(?=\n### |\n## |\Z)',
+        r'### Q\d+:\s*["\']?([^"\'?\n]+)\?*["\']?\s*\n'
+        r".*?Odpowiedź:\s*\n(.+?)(?=\n### |\n## |\Z)",
         content,
         re.DOTALL,
     )
 
-    for question, answer in qa_matches[:5]:
-        question = question.strip()
-        answer = answer.strip()
+    for raw_question, raw_answer in qa_matches[:5]:
+        question = raw_question.strip()
+        answer_text = raw_answer.strip()
 
-        # Clean up answer - get first meaningful part
-        answer_lines = answer.split("\n")
-        clean_answer = []
-        for line in answer_lines[:6]:
-            line = line.strip()
-            if line and not line.startswith("```") and not line.startswith("|"):
-                clean_answer.append(line)
+        answer_lines = answer_text.split("\n")
+        clean_answer = [
+            stripped
+            for raw_line in answer_lines[:6]
+            if (stripped := raw_line.strip())
+            and not stripped.startswith("```")
+            and not stripped.startswith("|")
+        ]
 
         if clean_answer:
             cards.append(
                 {
                     "front": clean_text(question + "?"),
-                    "back": "<br>".join([clean_text(l) for l in clean_answer]),
+                    "back": "<br>".join(
+                        clean_text(line) for line in clean_answer
+                    ),
                     "tags": f"{base_tags} qa",
                 }
             )
 
+    return cards
+
+
+def extract_cards(filepath: str | Path) -> list[dict[str, str]]:
+    """Extract flashcards from a file."""
+    content, base_tags, main_question = _read_file_metadata(filepath)
+
+    cards: list[dict[str, str]] = []
+    main_card = _build_main_card(content, main_question, base_tags)
+    if main_card:
+        cards.append(main_card)
+
+    cards.extend(_build_concept_cards(content, base_tags))
+    cards.extend(_build_qa_cards(content, base_tags))
     return cards
 
 
@@ -266,13 +335,13 @@ def main() -> None:
     all_cards = []
 
     for md_file in sorted(odpowiedzi_dir.glob("*.md")):
-        print(f"Processing: {md_file.name}", end=" ")
+        logger.info("Processing: %s", md_file.name)
         try:
             cards = extract_cards(md_file)
             all_cards.extend(cards)
-            print(f"→ {len(cards)} cards")
-        except Exception as e:
-            print(f"→ ERROR: {e}")
+            logger.info("  -> %d cards", len(cards))
+        except (ValueError, OSError):
+            logger.exception("  -> Error processing file")
 
     # Remove duplicates
     seen = set()
@@ -299,8 +368,12 @@ def main() -> None:
             tags = card["tags"]
             f.write(f"{front}\t{back}\t{tags}\n")
 
-    print(f"\n✅ Generated {len(unique_cards)} flashcards")
-    print(f"📁 Output: {output_file}")
+    logger.info(
+        "Generated %d unique cards from %d total",
+        len(unique_cards),
+        len(all_cards),
+    )
+    logger.info("Output: %s", output_file)
 
 
 if __name__ == "__main__":

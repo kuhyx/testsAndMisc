@@ -6,11 +6,22 @@ Creates tab-separated file for Anki import with proper HTML formatting.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import re
 
+logger = logging.getLogger(__name__)
 
-def clean_text(text) -> str:
+MIN_HEADER_LENGTH = 3
+MIN_MATCH_LENGTH = 10
+MIN_BODY_LENGTH = 50
+MIN_QA_LENGTH = 30
+MAX_CONTENT_LENGTH = 300
+MAX_ANSWER_LENGTH = 400
+MAX_COMPARISON_ITEMS = 6
+
+
+def clean_text(text: str) -> str:
     """Clean and format text for Anki."""
     if not text:
         return ""
@@ -28,7 +39,7 @@ def clean_text(text) -> str:
     return text.strip()
 
 
-def format_list(items, numbered=False) -> str:
+def format_list(items: list[str], *, numbered: bool = False) -> str:
     """Format a list of items as HTML."""
     if not items:
         return ""
@@ -43,119 +54,148 @@ def format_list(items, numbered=False) -> str:
     return html
 
 
-def extract_from_file(filepath) -> list[dict[str, str]]:
-    """Extract flashcard data from a markdown file."""
+def _get_file_metadata(
+    filepath: str,
+) -> tuple[str, str, str]:
+    """Extract metadata from file."""
     with Path(filepath).open(encoding="utf-8") as f:
         content = f.read()
 
-    cards = []
-
-    # Get file metadata
     filename = Path(filepath).name
     match = re.match(r"(\d+)-(.+)\.md", filename)
     num = match.group(1) if match else "00"
-    match.group(2).replace("-", "_") if match else "unknown"
 
-    # Extract subject
     subj_match = re.search(r"Przedmiot:\s*(\w+)", content)
     subject = subj_match.group(1) if subj_match else "Ogólne"
 
-    # Base tags
-    base_tags = f"egzamin_magisterski pyt{num} {subject}"
+    return num, subject, content
 
-    # =====================================================
-    # CARD TYPE 1: Main Exam Question
-    # =====================================================
+
+def _extract_main_question_card(
+    content: str, base_tags: str,
+) -> list[dict[str, str]]:
+    """Extract the main exam question card."""
     q_match = re.search(
-        r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*', content, re.DOTALL
+        r'## Pytanie\s*\n\s*\*\*["\']?(.+?)["\']?\*\*',
+        content,
+        re.DOTALL,
     )
-    if q_match:
-        main_q = re.sub(r"\s+", " ", q_match.group(1).strip())
+    if not q_match:
+        return []
 
-        # Extract key topics from main answer
-        answer_match = re.search(
-            r"## 📚 Odpowiedź główna\s*\n(.+?)(?=\n## [�🎯]|\n---\s*\n## |\Z)",
-            content,
-            re.DOTALL,
+    main_q = re.sub(r"\s+", " ", q_match.group(1).strip())
+    answer_match = re.search(
+        r"## 📚 Odpowiedź główna\s*\n(.+?)"
+        r"(?=\n## [📚🎯]|\n---\s*\n## |\Z)",
+        content,
+        re.DOTALL,
+    )
+    if not answer_match:
+        return []
+
+    answer_section = answer_match.group(1)
+    headers = re.findall(
+        r"^### (?:\d+\.\s*)?(.+)$",
+        answer_section,
+        re.MULTILINE,
+    )
+    headers = [
+        h.strip()
+        for h in headers
+        if len(h.strip()) > MIN_HEADER_LENGTH
+    ][:6]
+
+    if not headers:
+        return []
+
+    answer_html = (
+        "<b>Kluczowe zagadnienia:</b>" + format_list(headers)
+    )
+    return [
+        {
+            "front": clean_text(main_q),
+            "back": answer_html,
+            "tags": f"{base_tags} pytanie_glowne",
+        }
+    ]
+
+
+def _make_question_text(header: str) -> str:
+    """Generate a question from a section header."""
+    if "Definicja" in header or "Co to" in header:
+        return (
+            f"Co to jest:"
+            f" {header.replace('Definicja', '').strip()}?"
         )
-        if answer_match:
-            answer_section = answer_match.group(1)
-            # Get main headers
-            headers = re.findall(
-                r"^### (?:\d+\.\s*)?(.+)$", answer_section, re.MULTILINE
+    if "Charakterystyka" in header:
+        stripped = header.replace("Charakterystyka", "").strip()
+        return f"Scharakteryzuj: {stripped}"
+    if header.endswith("?"):
+        return header
+    return f"Omów: {header}"
+
+
+def _extract_body_parts(body: str) -> list[str]:
+    """Extract structured answer parts from a section body."""
+    answer_parts: list[str] = []
+
+    subheaders = re.findall(r"^#### (.+)$", body, re.MULTILINE)
+    if subheaders:
+        answer_parts.extend(subheaders[:4])
+
+    bullets = re.findall(
+        r"[-•]\s*\*\*([^*]+)\*\*[:\s-]*([^\n]+)?", body
+    )
+    for term, desc in bullets[:5]:
+        if desc:
+            answer_parts.append(
+                f"<b>{term}</b>: {desc.strip()}"
             )
-            headers = [h.strip() for h in headers if len(h.strip()) > 3][:6]
+        else:
+            answer_parts.append(f"<b>{term}</b>")
 
-            if headers:
-                answer_html = "<b>Kluczowe zagadnienia:</b>" + format_list(headers)
-                cards.append(
-                    {
-                        "front": clean_text(main_q),
-                        "back": answer_html,
-                        "tags": f"{base_tags} pytanie_glowne",
-                    }
-                )
+    if not answer_parts:
+        paras = [
+            p.strip()
+            for p in body.split("\n\n")
+            if p.strip()
+            and not p.strip().startswith("```")
+            and not p.strip().startswith("|")
+        ]
+        if paras:
+            first = paras[0]
+            if len(first) > MAX_CONTENT_LENGTH:
+                first = first[:MAX_CONTENT_LENGTH] + "..."
+            answer_parts.append(first)
 
-    # =====================================================
-    # CARD TYPE 2: Subsection Cards (detailed concepts)
-    # =====================================================
-    # Find all ### sections
+    return answer_parts
+
+
+def _extract_subsection_cards(
+    content: str, base_tags: str,
+) -> list[dict[str, str]]:
+    """Extract subsection detail cards."""
+    cards: list[dict[str, str]] = []
     sections = re.findall(
-        r"^### (?:\d+\.\s*)?(.+?)\n((?:(?!^###).)+)", content, re.MULTILINE | re.DOTALL
+        r"^### (?:\d+\.\s*)?(.+?)\n((?:(?!^###).)+)",
+        content,
+        re.MULTILINE | re.DOTALL,
     )
 
-    for header, body in sections:
-        header = header.strip()
-        body = body.strip()
+    for raw_header, raw_body in sections:
+        header = raw_header.strip()
+        body = raw_body.strip()
 
-        # Skip very short sections or example sections
-        if len(body) < 50 or header.lower().startswith("przykład"):
+        if (
+            len(body) < MIN_BODY_LENGTH
+            or header.lower().startswith("przykład")
+        ):
             continue
 
-        # Extract key information from body
-        answer_parts = []
-
-        # Look for #### sub-headers
-        subheaders = re.findall(r"^#### (.+)$", body, re.MULTILINE)
-        if subheaders:
-            answer_parts.extend(subheaders[:4])
-
-        # Look for bullet points with bold terms
-        bullets = re.findall(r"[-•]\s*\*\*([^*]+)\*\*[:\s-]*([^\n]+)?", body)
-        for term, desc in bullets[:5]:
-            if desc:
-                answer_parts.append(f"<b>{term}</b>: {desc.strip()}")
-            else:
-                answer_parts.append(f"<b>{term}</b>")
-
-        # If no structured content, get first paragraph
-        if not answer_parts:
-            paras = [
-                p.strip()
-                for p in body.split("\n\n")
-                if p.strip()
-                and not p.strip().startswith("```")
-                and not p.strip().startswith("|")
-            ]
-            if paras:
-                first = paras[0]
-                # Limit length
-                if len(first) > 300:
-                    first = first[:300] + "..."
-                answer_parts.append(first)
+        answer_parts = _extract_body_parts(body)
 
         if answer_parts:
-            # Determine card type
-            if "Definicja" in header or "Co to" in header:
-                q = f"Co to jest: {header.replace('Definicja', '').strip()}?"
-            elif "Charakterystyka" in header:
-                q = f"Scharakteryzuj: {header.replace('Charakterystyka', '').strip()}"
-            elif header.endswith("?"):
-                q = header
-            else:
-                q = f"Omów: {header}"
-
-            # Format answer
+            question = _make_question_text(header)
             if len(answer_parts) > 1:
                 answer_html = format_list(answer_parts)
             else:
@@ -163,15 +203,20 @@ def extract_from_file(filepath) -> list[dict[str, str]]:
 
             cards.append(
                 {
-                    "front": clean_text(q),
+                    "front": clean_text(question),
                     "back": answer_html,
                     "tags": f"{base_tags} szczegoly",
                 }
             )
 
-    # =====================================================
-    # CARD TYPE 3: Algorithms/Formulas
-    # =====================================================
+    return cards
+
+
+def _extract_algo_cards(
+    content: str, base_tags: str,
+) -> list[dict[str, str]]:
+    """Extract algorithm/formula cards."""
+    cards: list[dict[str, str]] = []
     algo_patterns = [
         r"#### Złożoność(?:\s+czasowa)?\s*\n(.+?)(?=\n####|\n###|\Z)",
         r"Złożoność:\s*\*\*([^*]+)\*\*",
@@ -179,85 +224,137 @@ def extract_from_file(filepath) -> list[dict[str, str]]:
 
     for pattern in algo_patterns:
         matches = re.findall(pattern, content, re.DOTALL)
-        for match in matches[:2]:
-            if len(match) > 10:
-                # Find context - which algorithm?
+        for algo_match in matches[:2]:
+            if len(algo_match) > MIN_MATCH_LENGTH:
                 algo_context = re.search(
-                    r"### (\d+\.\s*)?(.+?)(?=\n)", content[: content.find(match)]
+                    r"### (\d+\.\s*)?(.+?)(?=\n)",
+                    content[: content.find(algo_match)],
                 )
                 if algo_context:
                     algo_name = algo_context.group(2).strip()
                     cards.append(
                         {
-                            "front": f"Jaka jest złożoność algorytmu/metody: {algo_name}?",
-                            "back": clean_text(match.strip()[:200]),
+                            "front": (
+                                "Jaka jest złożoność"
+                                f" algorytmu/metody: {algo_name}?"
+                            ),
+                            "back": clean_text(
+                                algo_match.strip()[:200]
+                            ),
                             "tags": f"{base_tags} zlozonosc",
                         }
                     )
                     break
 
-    # =====================================================
-    # CARD TYPE 4: Comparisons (when file contains comparisons)
-    # =====================================================
+    return cards
+
+
+def _extract_comparison_cards(
+    content: str, base_tags: str, num: str,
+) -> list[dict[str, str]]:
+    """Extract comparison cards."""
     compare_match = re.search(
         r"## .*(Porównanie|Zestawienie|vs).*\n(.+?)(?=\n## |\Z)",
         content,
         re.DOTALL | re.IGNORECASE,
     )
-    if compare_match:
-        compare_section = compare_match.group(2)
-        # Extract comparison items
-        items = re.findall(r"\|\s*\*\*([^|*]+)\*\*\s*\|([^|]+)\|", compare_section)
-        if items:
-            comparison_html = "<table><tr><th>Aspekt</th><th>Wartość</th></tr>"
-            for aspect, value in items[:6]:
-                comparison_html += f"<tr><td>{clean_text(aspect)}</td><td>{clean_text(value)}</td></tr>"
-            comparison_html += "</table>"
+    if not compare_match:
+        return []
 
-            # Get comparison title
-            title_match = re.search(
-                r"## .*(Porównanie|Zestawienie).*?(\w+.*?(?:vs|i|oraz).*?\w+)",
-                compare_match.group(0),
-                re.IGNORECASE,
-            )
-            if title_match:
-                cards.append(
-                    {
-                        "front": f"Porównaj kluczowe różnice w temacie: pytanie {num}",
-                        "back": comparison_html,
-                        "tags": f"{base_tags} porownanie",
-                    }
-                )
+    compare_section = compare_match.group(2)
+    items = re.findall(
+        r"\|\s*\*\*([^|*]+)\*\*\s*\|([^|]+)\|",
+        compare_section,
+    )
+    if not items:
+        return []
 
-    # =====================================================
-    # CARD TYPE 5: Q&A from practice questions section
-    # =====================================================
-    qa_section = re.search(r"## 🎓 Pytania.*?\n(.+?)(?=\n## |\Z)", content, re.DOTALL)
-    if qa_section:
-        qa_content = qa_section.group(1)
-        # Find Q&A pairs
-        qas = re.findall(
-            r'### Q\d+:?\s*["\']?(.+?)["\']?\s*\n.*?Odpowiedź:\s*\n?(.+?)(?=\n### |\Z)',
-            qa_content,
-            re.DOTALL,
+    comparison_html = (
+        "<table><tr><th>Aspekt</th><th>Wartość</th></tr>"
+    )
+    for aspect, value in items[:MAX_COMPARISON_ITEMS]:
+        comparison_html += (
+            f"<tr><td>{clean_text(aspect)}</td>"
+            f"<td>{clean_text(value)}</td></tr>"
         )
-        for q, a in qas[:3]:
-            q = re.sub(r"\s+", " ", q.strip())
-            a = a.strip()
-            if len(a) > 30:
-                # Limit answer length
-                a_lines = a.split("\n")
-                a_short = "\n".join(a_lines[:5])
-                if len(a_short) > 400:
-                    a_short = a_short[:400] + "..."
+    comparison_html += "</table>"
 
-                cards.append(
-                    {
-                        "front": clean_text(q),
-                        "back": clean_text(a_short).replace("\n", "<br>"),
-                        "tags": f"{base_tags} egzamin_praktyka",
-                    }
-                )
+    title_match = re.search(
+        r"## .*(Porównanie|Zestawienie)"
+        r".*?(\w+.*?(?:vs|i|oraz).*?\w+)",
+        compare_match.group(0),
+        re.IGNORECASE,
+    )
+    if not title_match:
+        return []
+
+    return [
+        {
+            "front": (
+                "Porównaj kluczowe różnice"
+                f" w temacie: pytanie {num}"
+            ),
+            "back": comparison_html,
+            "tags": f"{base_tags} porownanie",
+        }
+    ]
+
+
+def _extract_qa_cards(
+    content: str, base_tags: str,
+) -> list[dict[str, str]]:
+    """Extract Q&A practice cards."""
+    cards: list[dict[str, str]] = []
+    qa_section = re.search(
+        r"## 🎓 Pytania.*?\n(.+?)(?=\n## |\Z)",
+        content,
+        re.DOTALL,
+    )
+    if not qa_section:
+        return cards
+
+    qa_content = qa_section.group(1)
+    qas = re.findall(
+        r"### Q\d+:?\s*[\"']?(.+?)[\"']?\s*\n"
+        r".*?Odpowiedź:\s*\n?(.+?)(?=\n### |\Z)",
+        qa_content,
+        re.DOTALL,
+    )
+    for raw_q, raw_a in qas[:3]:
+        question = re.sub(r"\s+", " ", raw_q.strip())
+        answer = raw_a.strip()
+        if len(answer) > MIN_QA_LENGTH:
+            a_lines = answer.split("\n")
+            a_short = "\n".join(a_lines[:5])
+            if len(a_short) > MAX_ANSWER_LENGTH:
+                a_short = a_short[:MAX_ANSWER_LENGTH] + "..."
+
+            cards.append(
+                {
+                    "front": clean_text(question),
+                    "back": clean_text(a_short).replace(
+                        "\n", "<br>"
+                    ),
+                    "tags": f"{base_tags} egzamin_praktyka",
+                }
+            )
+
+    return cards
+
+
+def extract_from_file(filepath: str) -> list[dict[str, str]]:
+    """Extract flashcard data from a markdown file."""
+    num, subject, content = _get_file_metadata(filepath)
+    base_tags = f"egzamin_magisterski pyt{num} {subject}"
+
+    cards: list[dict[str, str]] = []
+    cards.extend(_extract_main_question_card(content, base_tags))
+    cards.extend(_extract_subsection_cards(content, base_tags))
+    cards.extend(_extract_algo_cards(content, base_tags))
+    cards.extend(
+        _extract_comparison_cards(content, base_tags, num)
+    )
+    cards.extend(_extract_qa_cards(content, base_tags))
 
     return cards
 
@@ -272,13 +369,13 @@ def main() -> None:
     all_cards = []
 
     for md_file in sorted(odpowiedzi_dir.glob("*.md")):
-        print(f"Processing: {md_file.name}", end=" ")
+        logger.info("Processing: %s", md_file.name)
         try:
             cards = extract_from_file(md_file)
             all_cards.extend(cards)
-            print(f"→ {len(cards)} cards")
-        except Exception as e:
-            print(f"→ ERROR: {e}")
+            logger.info("  -> %d cards", len(cards))
+        except (ValueError, OSError) as e:
+            logger.info("  -> ERROR: %s", e)
 
     # Remove potential duplicates (same front)
     seen = set()
@@ -306,23 +403,25 @@ def main() -> None:
 
             f.write(f"{front}\t{back}\t{tags}\n")
 
-    print(f"\n{'=' * 50}")
-    print(f"✅ Generated {len(unique_cards)} unique flashcards")
-    print(f"📁 Saved to: {output_file}")
-    print(f"{'=' * 50}")
-    print("\n📋 IMPORT INSTRUCTIONS:")
-    print("─" * 40)
-    print("Anki Desktop:")
-    print("  1. File → Import")
-    print("  2. Select: anki_egzamin_magisterski.txt")
-    print("  3. Verify: Fields separated by Tab")
-    print("  4. Check: Allow HTML in fields")
-    print("  5. Click Import")
-    print()
-    print("AnkiWeb / AnkiDroid:")
-    print("  1. First import on Anki Desktop")
-    print("  2. Click Sync to upload to AnkiWeb")
-    print("  3. Sync on mobile to download")
+    logger.info("=" * 50)
+    logger.info(
+        "Generated %d unique flashcards", len(unique_cards)
+    )
+    logger.info("Saved to: %s", output_file)
+    logger.info("=" * 50)
+    logger.info("IMPORT INSTRUCTIONS:")
+    logger.info("-" * 40)
+    logger.info("Anki Desktop:")
+    logger.info("  1. File -> Import")
+    logger.info("  2. Select: anki_egzamin_magisterski.txt")
+    logger.info("  3. Verify: Fields separated by Tab")
+    logger.info("  4. Check: Allow HTML in fields")
+    logger.info("  5. Click Import")
+    logger.info("")
+    logger.info("AnkiWeb / AnkiDroid:")
+    logger.info("  1. First import on Anki Desktop")
+    logger.info("  2. Click Sync to upload to AnkiWeb")
+    logger.info("  3. Sync on mobile to download")
 
 
 if __name__ == "__main__":
