@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import logging
 import time
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 import python_pkg.word_frequency.learning_pipe as learning_pipe_module
 from python_pkg.word_frequency.learning_pipe import (
     DEFAULT_STOPWORDS_EN,
+    LessonConfig,
     generate_learning_lesson,
     load_stopwords,
     main,
@@ -23,7 +27,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mock_translation() -> Generator[MagicMock, None, None]:
+def _mock_translation() -> Generator[MagicMock, None, None]:
     """Mock translation to avoid requiring argostranslate."""
 
     def fake_batch_translate(
@@ -31,7 +35,7 @@ def mock_translation() -> Generator[MagicMock, None, None]:
         from_lang: str,
         to_lang: str,
         *,
-        use_cache: bool = True,
+        _use_cache: bool = True,
     ) -> list[TranslationResult]:
         """Fake batch translation that returns word with prefix."""
         return [
@@ -95,7 +99,7 @@ class TestGenerateLearningLesson:
         """Test basic lesson generation."""
         text = "hello world hello hello world test test test test"
         result = generate_learning_lesson(
-            text, batch_size=3, num_batches=1, skip_default_stopwords=True
+            text, LessonConfig(batch_size=3, num_batches=1, skip_default_stopwords=True)
         )
 
         assert "LANGUAGE LEARNING LESSON" in result
@@ -106,7 +110,7 @@ class TestGenerateLearningLesson:
         """Test generation with multiple batches."""
         text = " ".join(f"word{i}" * (100 - i) for i in range(20))
         result = generate_learning_lesson(
-            text, batch_size=5, num_batches=3, skip_default_stopwords=True
+            text, LessonConfig(batch_size=5, num_batches=3, skip_default_stopwords=True)
         )
 
         assert "BATCH 1" in result
@@ -116,7 +120,9 @@ class TestGenerateLearningLesson:
     def test_stopwords_filtering(self) -> None:
         """Test that default stopwords are filtered."""
         text = "the the the hello world"
-        result = generate_learning_lesson(text, batch_size=5, num_batches=1)
+        result = generate_learning_lesson(
+            text, LessonConfig(batch_size=5, num_batches=1)
+        )
 
         # "the" should be filtered, "hello" and "world" should appear
         lines = result.split("\n")
@@ -139,7 +145,7 @@ class TestGenerateLearningLesson:
         """Test disabling default stopword filtering."""
         text = "the the the hello"
         result = generate_learning_lesson(
-            text, batch_size=5, num_batches=1, skip_default_stopwords=True
+            text, LessonConfig(batch_size=5, num_batches=1, skip_default_stopwords=True)
         )
 
         assert "the" in result.lower()
@@ -148,7 +154,7 @@ class TestGenerateLearningLesson:
         """Test that numbers are filtered by default."""
         text = "123 123 123 hello world"
         result = generate_learning_lesson(
-            text, batch_size=5, num_batches=1, skip_default_stopwords=True
+            text, LessonConfig(batch_size=5, num_batches=1, skip_default_stopwords=True)
         )
 
         # Check vocabulary section doesn't include "123"
@@ -162,10 +168,12 @@ class TestGenerateLearningLesson:
         text = "123 123 123 hello"
         result = generate_learning_lesson(
             text,
-            batch_size=5,
-            num_batches=1,
-            skip_default_stopwords=True,
-            skip_numbers=False,
+            LessonConfig(
+                batch_size=5,
+                num_batches=1,
+                skip_default_stopwords=True,
+                skip_numbers=False,
+            ),
         )
 
         assert "123" in result
@@ -174,7 +182,7 @@ class TestGenerateLearningLesson:
         """Test that coverage percentage is calculated."""
         text = "hello hello hello world world test"
         result = generate_learning_lesson(
-            text, batch_size=3, num_batches=1, skip_default_stopwords=True
+            text, LessonConfig(batch_size=3, num_batches=1, skip_default_stopwords=True)
         )
 
         assert "recognize" in result.lower()
@@ -185,11 +193,13 @@ class TestGenerateLearningLesson:
         text = "hello world hello world hello world test test test"
         result = generate_learning_lesson(
             text,
-            batch_size=2,
-            num_batches=1,
-            excerpt_length=3,
-            excerpts_per_batch=2,
-            skip_default_stopwords=True,
+            LessonConfig(
+                batch_size=2,
+                num_batches=1,
+                excerpt_length=3,
+                excerpts_per_batch=2,
+                skip_default_stopwords=True,
+            ),
         )
 
         assert "PRACTICE EXCERPTS" in result
@@ -200,45 +210,45 @@ class TestMain:
     """Tests for main CLI function."""
 
     def test_basic_text_input(
-        self, capsys: pytest.CaptureFixture[str], mock_translation: None
+        self, caplog: pytest.LogCaptureFixture, _mock_translation: None
     ) -> None:
         """Test with text input."""
-        exit_code = main(
-            [
-                "--text",
-                "hello world hello world test test test",
-                "--batch-size",
-                "3",
-                "--no-default-stopwords",
-            ]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--text",
+                    "hello world hello world test test test",
+                    "--batch-size",
+                    "3",
+                    "--no-default-stopwords",
+                ]
+            )
 
         assert exit_code == 0
-        assert "LANGUAGE LEARNING LESSON" in captured.out
+        assert "LANGUAGE LEARNING LESSON" in caplog.text
 
     def test_file_input(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], mock_translation: None
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, _mock_translation: None
     ) -> None:
         """Test with file input."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("hello world hello world test", encoding="utf-8")
 
-        exit_code = main(
-            [
-                "--file",
-                str(test_file),
-                "--batch-size",
-                "3",
-                "--no-default-stopwords",
-            ]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--file",
+                    str(test_file),
+                    "--batch-size",
+                    "3",
+                    "--no-default-stopwords",
+                ]
+            )
 
         assert exit_code == 0
-        assert "hello" in captured.out.lower()
+        assert "hello" in caplog.text.lower()
 
-    def test_output_to_file(self, tmp_path: Path, mock_translation: None) -> None:
+    def test_output_to_file(self, tmp_path: Path, _mock_translation: None) -> None:
         """Test outputting to file."""
         output_file = tmp_path / "lesson.txt"
 
@@ -258,7 +268,7 @@ class TestMain:
         assert "LANGUAGE LEARNING LESSON" in content
 
     def test_custom_stopwords(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], mock_translation: None
+        self, tmp_path: Path, _mock_translation: None
     ) -> None:
         """Test with custom stopwords file."""
         stopwords_file = tmp_path / "stop.txt"
@@ -275,41 +285,40 @@ class TestMain:
                 "5",
             ]
         )
-        capsys.readouterr()
 
         assert exit_code == 0
         # "hello" should be filtered by custom stopwords
 
     def test_multiple_batches_option(
-        self, capsys: pytest.CaptureFixture[str], mock_translation: None
+        self, caplog: pytest.LogCaptureFixture, _mock_translation: None
     ) -> None:
         """Test --batches option."""
         text = " ".join(f"word{i}" * (50 - i) for i in range(30))
-        exit_code = main(
-            [
-                "--text",
-                text,
-                "--batch-size",
-                "5",
-                "--batches",
-                "3",
-                "--no-default-stopwords",
-            ]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--text",
+                    text,
+                    "--batch-size",
+                    "5",
+                    "--batches",
+                    "3",
+                    "--no-default-stopwords",
+                ]
+            )
 
         assert exit_code == 0
-        assert "BATCH 1" in captured.out
-        assert "BATCH 2" in captured.out
-        assert "BATCH 3" in captured.out
+        assert "BATCH 1" in caplog.text
+        assert "BATCH 2" in caplog.text
+        assert "BATCH 3" in caplog.text
 
-    def test_file_not_found(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_file_not_found(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test error handling for missing file."""
-        exit_code = main(["--file", "/nonexistent/file.txt"])
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.ERROR):
+            exit_code = main(["--file", "/nonexistent/file.txt"])
 
         assert exit_code == 1
-        assert "Error" in captured.err
+        assert "Error" in caplog.text
 
 
 class TestPerformance:
@@ -324,10 +333,12 @@ class TestPerformance:
         start_time = time.perf_counter()
         result = generate_learning_lesson(
             large_text,
-            batch_size=50,
-            num_batches=5,
-            excerpt_length=30,
-            skip_default_stopwords=True,
+            LessonConfig(
+                batch_size=50,
+                num_batches=5,
+                excerpt_length=30,
+                skip_default_stopwords=True,
+            ),
         )
         elapsed = time.perf_counter() - start_time
 
@@ -358,9 +369,11 @@ class TestTranslationIntegration:
         text = "hello world hello world hello"
         result = generate_learning_lesson(
             text,
-            batch_size=5,
-            num_batches=1,
-            skip_default_stopwords=True,
+            LessonConfig(
+                batch_size=5,
+                num_batches=1,
+                skip_default_stopwords=True,
+            ),
         )
 
         assert "hello" in result
@@ -368,17 +381,19 @@ class TestTranslationIntegration:
         # Should not have translation arrows
         assert " -> " not in result or "Translation" not in result
 
-    def test_lesson_with_translation_params(self, mock_translation: None) -> None:
+    def test_lesson_with_translation_params(self, _mock_translation: None) -> None:
         """Test that translation params are accepted."""
         text = "hello world hello world hello"
         # This should work with mocked translation
         result = generate_learning_lesson(
             text,
-            batch_size=5,
-            num_batches=1,
-            skip_default_stopwords=True,
-            translate_from="en",
-            translate_to="es",
+            LessonConfig(
+                batch_size=5,
+                num_batches=1,
+                skip_default_stopwords=True,
+                translate_from="en",
+                translate_to="es",
+            ),
         )
 
         # The lesson should still be generated
@@ -386,7 +401,7 @@ class TestTranslationIntegration:
         assert "hello" in result
 
     def test_main_with_translate_flags(
-        self, tmp_path: Path, mock_translation: None
+        self, tmp_path: Path, _mock_translation: None
     ) -> None:
         """Test that main accepts translation flags."""
         text_file = tmp_path / "test.txt"
@@ -408,36 +423,42 @@ class TestTranslationIntegration:
         assert result == 0
 
     def test_translate_to_defaults_to_english(
-        self, capsys: pytest.CaptureFixture[str], mock_translation: None
+        self, _mock_translation: None
     ) -> None:
         """Test that translate_to defaults to 'en' when using auto-detection."""
         text = "hello world"
-        # When using --translate flag (translate_from="auto"), translate_to defaults to "en"
-        result = generate_learning_lesson(
-            text,
-            batch_size=5,
-            num_batches=1,
-            skip_default_stopwords=True,
-            translate_from="auto",  # Auto-detect source language
-            translate_to=None,  # Should default to English
-        )
+        # When using --translate flag (translate_from="auto"),
+        # translate_to defaults to "en"
+        with patch.object(
+            learning_pipe_module, "detect_language", return_value="es"
+        ):
+            result = generate_learning_lesson(
+                text,
+                LessonConfig(
+                    batch_size=5,
+                    num_batches=1,
+                    skip_default_stopwords=True,
+                    translate_from="auto",  # Auto-detect source language
+                    translate_to=None,  # Should default to English
+                ),
+            )
 
         # Should have translation output with auto-detected source -> en
         assert "Detected language:" in result
         assert " -> en" in result
 
-    def test_no_translation_when_both_none(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        """Test no translation happens when both translate_from and translate_to are None."""
+    def test_no_translation_when_both_none(self) -> None:
+        """Test no translation when both translate params are None."""
         text = "hello world"
         result = generate_learning_lesson(
             text,
-            batch_size=5,
-            num_batches=1,
-            skip_default_stopwords=True,
-            translate_from=None,
-            translate_to=None,
+            LessonConfig(
+                batch_size=5,
+                num_batches=1,
+                skip_default_stopwords=True,
+                translate_from=None,
+                translate_to=None,
+            ),
         )
 
         # Should not have translation output

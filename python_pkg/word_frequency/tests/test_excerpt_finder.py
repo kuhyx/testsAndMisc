@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import logging
 import time
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 from python_pkg.word_frequency.excerpt_finder import (
     ExcerptResult,
+    ExcerptSearchOptions,
     find_best_excerpt,
     find_best_excerpt_with_context,
     format_excerpt_results,
@@ -146,7 +151,8 @@ class TestFindBestExcerptWithContext:
         """Test with zero context (should behave like find_best_excerpt)."""
         text = "a b c d e f g"
         result = find_best_excerpt_with_context(
-            text, ["c"], excerpt_length=1, context_words=0
+            text, ["c"], excerpt_length=1,
+            options=ExcerptSearchOptions(context_words=0),
         )
 
         assert result[0].excerpt == "c"
@@ -155,7 +161,8 @@ class TestFindBestExcerptWithContext:
         """Test with context words."""
         text = "a b c d e f g"
         result = find_best_excerpt_with_context(
-            text, ["d"], excerpt_length=1, context_words=2
+            text, ["d"], excerpt_length=1,
+            options=ExcerptSearchOptions(context_words=2),
         )
 
         # "d" at index 3, with context should include 2 words before and after
@@ -167,7 +174,8 @@ class TestFindBestExcerptWithContext:
         """Test context doesn't go before start of text."""
         text = "a b c d e"
         result = find_best_excerpt_with_context(
-            text, ["a"], excerpt_length=1, context_words=3
+            text, ["a"], excerpt_length=1,
+            options=ExcerptSearchOptions(context_words=3),
         )
 
         # Can't go before "a", so just get words after
@@ -178,7 +186,8 @@ class TestFindBestExcerptWithContext:
         """Test context doesn't go beyond end of text."""
         text = "a b c d e"
         result = find_best_excerpt_with_context(
-            text, ["e"], excerpt_length=1, context_words=3
+            text, ["e"], excerpt_length=1,
+            options=ExcerptSearchOptions(context_words=3),
         )
 
         # Can't go beyond "e"
@@ -240,33 +249,33 @@ class TestFormatExcerptResults:
 class TestMain:
     """Tests for main CLI function."""
 
-    def test_text_and_words_input(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_text_and_words_input(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test --text and --words options."""
-        exit_code = main(
-            ["--text", "hello world hello", "--words", "hello", "--length", "2"]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                ["--text", "hello world hello", "--words", "hello", "--length", "2"]
+            )
 
         assert exit_code == 0
-        assert "hello" in captured.out
+        assert "hello" in caplog.text
 
     def test_file_input(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test --file input option."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("hello world hello world", encoding="utf-8")
 
-        exit_code = main(
-            ["--file", str(test_file), "--words", "hello", "--length", "2"]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                ["--file", str(test_file), "--words", "hello", "--length", "2"]
+            )
 
         assert exit_code == 0
-        assert "hello" in captured.out
+        assert "hello" in caplog.text
 
     def test_words_file_input(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test --words-file option."""
         text_file = tmp_path / "text.txt"
@@ -274,91 +283,91 @@ class TestMain:
         text_file.write_text("hello world hello world", encoding="utf-8")
         words_file.write_text("hello\nworld\n", encoding="utf-8")
 
-        exit_code = main(
-            [
-                "--file",
-                str(text_file),
-                "--words-file",
-                str(words_file),
-                "--length",
-                "2",
-            ]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--file",
+                    str(text_file),
+                    "--words-file",
+                    str(words_file),
+                    "--length",
+                    "2",
+                ]
+            )
 
         assert exit_code == 0
-        assert "100.00%" in captured.out  # Both words match
+        assert "100.00%" in caplog.text  # Both words match
 
-    def test_top_option(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_top_option(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test --top option."""
-        exit_code = main(
-            [
-                "--text",
-                "a b c d e f",
-                "--words",
-                "a",
-                "b",
-                "--length",
-                "2",
-                "--top",
-                "3",
-            ]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--text",
+                    "a b c d e f",
+                    "--words",
+                    "a",
+                    "b",
+                    "--length",
+                    "2",
+                    "--top",
+                    "3",
+                ]
+            )
 
         assert exit_code == 0
         # Should show multiple results
-        assert "Result #1" in captured.out
+        assert "Result #1" in caplog.text
 
-    def test_context_option(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_context_option(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test --context option."""
-        exit_code = main(
-            [
-                "--text",
-                "a b c d e f g",
-                "--words",
-                "d",
-                "--length",
-                "1",
-                "--context",
-                "2",
-            ]
-        )
-        capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--text",
+                    "a b c d e f g",
+                    "--words",
+                    "d",
+                    "--length",
+                    "1",
+                    "--context",
+                    "2",
+                ]
+            )
 
         assert exit_code == 0
         # Excerpt should include context words
 
-    def test_case_sensitive_option(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_case_sensitive_option(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test --case-sensitive option."""
-        exit_code = main(
-            [
-                "--text",
-                "Hello HELLO hello",
-                "--words",
-                "hello",
-                "--length",
-                "1",
-                "--case-sensitive",
-            ]
-        )
-        capsys.readouterr()
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--text",
+                    "Hello HELLO hello",
+                    "--words",
+                    "hello",
+                    "--length",
+                    "1",
+                    "--case-sensitive",
+                ]
+            )
 
         assert exit_code == 0
         # Only lowercase "hello" should match
 
-    def test_file_not_found(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_file_not_found(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test error handling for missing file."""
-        exit_code = main(
-            ["--file", "/nonexistent/file.txt", "--words", "hello", "--length", "2"]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.ERROR):
+            exit_code = main(
+                ["--file", "/nonexistent/file.txt", "--words", "hello", "--length", "2"]
+            )
 
         assert exit_code == 1
-        assert "Error" in captured.err
+        assert "Error" in caplog.text
 
     def test_empty_words_file(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test error when words file is empty."""
         text_file = tmp_path / "text.txt"
@@ -366,20 +375,20 @@ class TestMain:
         text_file.write_text("hello world", encoding="utf-8")
         words_file.write_text("", encoding="utf-8")
 
-        exit_code = main(
-            [
-                "--file",
-                str(text_file),
-                "--words-file",
-                str(words_file),
-                "--length",
-                "2",
-            ]
-        )
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.ERROR):
+            exit_code = main(
+                [
+                    "--file",
+                    str(text_file),
+                    "--words-file",
+                    str(words_file),
+                    "--length",
+                    "2",
+                ]
+            )
 
         assert exit_code == 1
-        assert "No target words" in captured.err
+        assert "No target words" in caplog.text
 
 
 class TestPerformance:

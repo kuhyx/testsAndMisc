@@ -10,6 +10,7 @@ import pytest
 
 try:
     from python_pkg.word_frequency.anki_generator import (
+        DeckInput,
         find_word_contexts,
         generate_anki_deck,
         main,
@@ -20,6 +21,7 @@ except ImportError:
 
     sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
     from python_pkg.word_frequency.anki_generator import (
+        DeckInput,
         find_word_contexts,
         generate_anki_deck,
         main,
@@ -77,7 +79,7 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_length_1(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 1."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+        excerpt, excerpt_words, _all_vocab = parse_vocabulary_curve_output(
             sample_vocabulary_output, 1
         )
         assert excerpt == "the"
@@ -85,7 +87,7 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_length_2(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 2."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+        excerpt, excerpt_words, _all_vocab = parse_vocabulary_curve_output(
             sample_vocabulary_output, 2
         )
         assert excerpt == "the dog"
@@ -93,7 +95,7 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_length_3(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for length 3."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+        excerpt, excerpt_words, _all_vocab = parse_vocabulary_curve_output(
             sample_vocabulary_output, 3
         )
         assert excerpt == "the quick fox"
@@ -104,7 +106,7 @@ class TestParseVocabularyCurveOutput:
 
     def test_parse_nonexistent_length(self, sample_vocabulary_output: str) -> None:
         """Test parsing output for non-existent length."""
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(
+        excerpt, excerpt_words, _all_vocab = parse_vocabulary_curve_output(
             sample_vocabulary_output, 100
         )
         assert excerpt == ""
@@ -121,7 +123,7 @@ hello;1
 world;2
 VOCAB_DUMP_END
 """
-        excerpt, excerpt_words, all_vocab = parse_vocabulary_curve_output(output, 2)
+        _excerpt, _excerpt_words, all_vocab = parse_vocabulary_curve_output(output, 2)
         assert all_vocab == [("hello", 1), ("world", 2)]
 
 
@@ -168,10 +170,12 @@ class TestGenerateAnkiDeck:
                 MagicMock(success=True, source_word="hello", translated_word="hola")
             ]
             result = generate_anki_deck(
-                [("hello", 1)],
-                source_lang="en",
-                target_lang="es",
-                deck_name="TestDeck",
+                DeckInput(
+                    words_with_ranks=[("hello", 1)],
+                    source_lang="en",
+                    target_lang="es",
+                    deck_name="TestDeck",
+                ),
             )
 
         assert "#separator:semicolon" in result
@@ -188,9 +192,11 @@ class TestGenerateAnkiDeck:
                 MagicMock(success=True, source_word="world", translated_word="mundo"),
             ]
             result = generate_anki_deck(
-                [("hello", 1), ("world", 2)],
-                source_lang="en",
-                target_lang="es",
+                DeckInput(
+                    words_with_ranks=[("hello", 1), ("world", 2)],
+                    source_lang="en",
+                    target_lang="es",
+                ),
             )
 
         # Check that words and translations are present
@@ -208,9 +214,11 @@ class TestGenerateAnkiDeck:
                 MagicMock(success=True, source_word="test", translated_word="prueba")
             ]
             result = generate_anki_deck(
-                [("test", 42)],
-                source_lang="en",
-                target_lang="es",
+                DeckInput(
+                    words_with_ranks=[("test", 42)],
+                    source_lang="en",
+                    target_lang="es",
+                ),
             )
 
         assert "#42" in result
@@ -226,9 +234,11 @@ class TestGenerateAnkiDeck:
                 )
             ]
             result = generate_anki_deck(
-                [("test;word", 1)],
-                source_lang="en",
-                target_lang="es",
+                DeckInput(
+                    words_with_ranks=[("test;word", 1)],
+                    source_lang="en",
+                    target_lang="es",
+                ),
             )
 
         # Semicolons should be replaced with commas
@@ -244,10 +254,12 @@ class TestGenerateAnkiDeck:
             ]
             contexts = {"hello": "...say hello to..."}
             result = generate_anki_deck(
-                [("hello", 1)],
-                source_lang="en",
-                target_lang="es",
-                contexts=contexts,
+                DeckInput(
+                    words_with_ranks=[("hello", 1)],
+                    source_lang="en",
+                    target_lang="es",
+                    contexts=contexts,
+                ),
                 include_context=True,
             )
 
@@ -257,9 +269,11 @@ class TestGenerateAnkiDeck:
     def test_no_translate_flag(self) -> None:
         """Test that no_translate skips translation."""
         result = generate_anki_deck(
-            [("hello", 1), ("world", 2)],
-            source_lang="en",
-            target_lang="es",
+            DeckInput(
+                words_with_ranks=[("hello", 1), ("world", 2)],
+                source_lang="en",
+                target_lang="es",
+            ),
             no_translate=True,
         )
 
@@ -280,7 +294,7 @@ class TestMain:
         result = main(["--file", "nonexistent.txt", "--length", "10"])
         assert result == 1
 
-    def test_help_flag(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_help_flag(self) -> None:
         """Test that --help works."""
         with pytest.raises(SystemExit) as exc_info:
             main(["--help"])
@@ -309,7 +323,7 @@ class TestIntegration:
         ) as mock_translate:
             # Mock translation to avoid network calls
             def mock_translate_fn(
-                words: list[str], from_lang: str, to_lang: str
+                words: list[str], _from_lang: str, _to_lang: str
             ) -> list[MagicMock]:
                 return [
                     MagicMock(success=True, source_word=w, translated_word=f"[{w}]")
@@ -324,6 +338,8 @@ class TestIntegration:
                     str(sample_text_file),
                     "--length",
                     "5",
+                    "--from",
+                    "en",
                     "--output",
                     str(output_file),
                     "--quiet",
@@ -337,9 +353,11 @@ class TestIntegration:
         assert "#separator:semicolon" in content
 
     def test_cli_with_sample_file(
-        self, sample_text_file: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, sample_text_file: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test CLI with actual file."""
+        import logging
+
         from python_pkg.word_frequency.anki_generator import C_EXECUTABLE
 
         if not C_EXECUTABLE.exists():
@@ -347,9 +365,12 @@ class TestIntegration:
 
         output_file = tmp_path / "anki_output.txt"
 
-        with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
-        ) as mock_translate:
+        with (
+            caplog.at_level(logging.INFO),
+            patch(
+                "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            ) as mock_translate,
+        ):
             mock_translate.return_value = [
                 MagicMock(success=True, source_word="the", translated_word="le")
             ]
@@ -360,14 +381,15 @@ class TestIntegration:
                     str(sample_text_file),
                     "--length",
                     "1",
+                    "--from",
+                    "en",
                     "--output",
                     str(output_file),
                 ]
             )
 
         assert result == 0
-        captured = capsys.readouterr()
-        assert "FLASHCARD GENERATION COMPLETE" in captured.out
+        assert "FLASHCARD GENERATION COMPLETE" in caplog.text
 
 
 if __name__ == "__main__":

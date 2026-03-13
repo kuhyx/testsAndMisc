@@ -14,7 +14,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
+import re
 import sys
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -25,6 +27,9 @@ try:
     from python_pkg.word_frequency.analyzer import analyze_text, read_file
 except ImportError:
     from analyzer import analyze_text, read_file
+
+
+logger = logging.getLogger(__name__)
 
 
 class ExcerptAnalysis(NamedTuple):
@@ -111,8 +116,6 @@ def find_optimal_excerpts(
     ranked_words = [word for word, _ in word_counts.most_common()]
 
     # Extract all words from text (preserving order)
-    import re
-
     all_words = re.findall(r"\b[\w]+\b", text, re.UNICODE)
     if not case_sensitive:
         all_words = [w.lower() for w in all_words]
@@ -148,6 +151,9 @@ def find_optimal_excerpts(
             )
 
     return results
+
+
+_MAX_EXCERPT_DISPLAY_LEN = 50
 
 
 def format_results(
@@ -198,7 +204,7 @@ def format_results(
         if show_excerpts:
             # Truncate long excerpts
             excerpt = r.best_excerpt
-            if len(excerpt) > 50:
+            if len(excerpt) > _MAX_EXCERPT_DISPLAY_LEN:
                 excerpt = excerpt[:47] + "..."
             lines.append(f"{r.excerpt_length:>6}  {r.min_vocab_needed:>5}  {excerpt}")
         else:
@@ -285,10 +291,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        if args.text:
-            text = args.text
-        else:
-            text = read_file(args.file)
+        text = args.text or read_file(args.file)
 
         results = find_optimal_excerpts(
             text,
@@ -304,15 +307,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output:
             Path(args.output).write_text(output, encoding="utf-8")
-            print(f"Output written to {args.output}")
+            logger.info("Output written to %s", args.output)
         else:
-            print(output)
+            logger.info("%s", output)
 
-    except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)
+    except FileNotFoundError:
+        logger.exception("File not found")
         return 1
-    except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file - {e}", file=sys.stderr)
+    except UnicodeDecodeError:
+        logger.exception("Could not decode file")
         return 1
 
     return 0

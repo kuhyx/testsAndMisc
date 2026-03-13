@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import logging
 from pathlib import Path
 import re
 import sys
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -90,9 +93,7 @@ def read_files(filepaths: Sequence[str | Path]) -> str:
     Returns:
         Combined text content of all files.
     """
-    texts = []
-    for filepath in filepaths:
-        texts.append(read_file(filepath))
+    texts = [read_file(filepath) for filepath in filepaths]
     return "\n".join(texts)
 
 
@@ -244,15 +245,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.output:
             Path(args.output).write_text(result, encoding="utf-8")
-            print(f"Output written to {args.output}")
+            logger.info("Output written to %s", args.output)
         else:
-            print(result)
+            sys.stdout.write(result + "\n")
 
-    except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)
+    except FileNotFoundError:
+        logger.exception("File not found")
         return 1
-    except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)
+    except UnicodeDecodeError:
+        logger.exception("Could not decode file as UTF-8")
         return 1
 
     return 0

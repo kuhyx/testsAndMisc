@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from collections import Counter
-from pathlib import Path
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import pytest
 
@@ -251,12 +254,13 @@ class TestMain:
         assert exit_code == 0
         assert "Unique words: 3" in captured.out
 
-    def test_file_not_found_error(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_file_not_found_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test error handling for missing file."""
         exit_code = main(["--file", "/nonexistent/file.txt"])
-        captured = capsys.readouterr()
         assert exit_code == 1
-        assert "Error" in captured.err
+        assert "File not found" in caplog.text
 
 
 class TestPerformance:
@@ -283,7 +287,7 @@ class TestPerformance:
         assert elapsed < 10.0, f"Analysis took {elapsed:.2f}s, expected < 10s"
         assert "word0" in result  # Most common word should be present
 
-    def test_bible_sized_text_performance(self, tmp_path: Path) -> None:
+    def test_bible_sized_text_performance(self) -> None:
         """Test with Bible-sized text (~800k words)."""
         # Generate text similar in size to the Bible
         base_words = ["the", "and", "of", "to", "in", "a", "that", "is", "was", "for"]

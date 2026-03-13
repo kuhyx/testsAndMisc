@@ -11,22 +11,14 @@ Cache location: ~/.cache/word_frequency/
 
 from __future__ import annotations
 
-import argparse
-from dataclasses import dataclass
 import hashlib
 import json
-import logging
 import os
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 # Default cache directory
 DEFAULT_CACHE_DIR = Path.home() / ".cache" / "word_frequency"
-
-_ONE_KB = 1024
-_ONE_MB = 1024 * 1024
 
 
 def get_cache_dir() -> Path:
@@ -50,7 +42,7 @@ def get_file_hash(filepath: Path) -> str:
         Hex digest of file hash.
     """
     hasher = hashlib.sha256()
-    with filepath.open("rb") as f:
+    with open(filepath, "rb") as f:
         # Read in chunks for large files
         for chunk in iter(lambda: f.read(65536), b""):
             hasher.update(chunk)
@@ -282,15 +274,14 @@ class VocabCurveCache:
 
         try:
             data = json.loads(cache_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, KeyError, OSError):
-            return None
-        else:
             # Verify hash matches
             if data.get("file_hash") != file_hash:
                 return None
             excerpt = data["excerpt"]
             words = [(w, r) for w, r in data["words"]]
             return excerpt, words
+        except (json.JSONDecodeError, KeyError, OSError):
+            return None
 
     def set(
         self,
@@ -348,17 +339,6 @@ class VocabCurveCache:
 # =============================================================================
 
 
-@dataclass(frozen=True)
-class AnkiDeckKey:
-    """Key parameters for Anki deck cache lookups."""
-
-    filepath: Path
-    length: int
-    target_lang: str
-    include_context: bool
-    all_vocab: bool
-
-
 class AnkiDeckCache:
     """Cache for generated Anki decks."""
 
@@ -400,7 +380,6 @@ class AnkiDeckCache:
         file_hash: str,
         length: int,
         target_lang: str,
-        *,
         include_context: bool,
         all_vocab: bool,
     ) -> str:
@@ -421,35 +400,36 @@ class AnkiDeckCache:
 
     def get(
         self,
-        key: AnkiDeckKey,
+        filepath: Path,
+        length: int,
+        target_lang: str,
+        include_context: bool,
+        all_vocab: bool,
     ) -> tuple[str, str, int, int] | None:
         """Get cached Anki deck.
 
         Args:
-            key: Cache key parameters.
+            filepath: Path to source file.
+            length: Excerpt length.
+            target_lang: Target language.
+            include_context: Whether context is included.
+            all_vocab: Whether all vocab is included.
 
         Returns:
-            Tuple of (anki_content, excerpt, num_words, max_rank)
-            or None.
+            Tuple of (anki_content, excerpt, num_words, max_rank) or None.
         """
-        file_hash = get_file_hash(key.filepath)
-        cache_key = self._make_key(
-            file_hash,
-            key.length,
-            key.target_lang,
-            include_context=key.include_context,
-            all_vocab=key.all_vocab,
-        )
+        file_hash = get_file_hash(filepath)
+        key = self._make_key(file_hash, length, target_lang, include_context, all_vocab)
         metadata = self._load_metadata()
 
-        if cache_key not in metadata:
+        if key not in metadata:
             return None
 
-        entry = metadata[cache_key]
+        entry = metadata[key]
         if entry.get("file_hash") != file_hash:
             return None
 
-        deck_file = self.cache_dir / f"{cache_key}.txt"
+        deck_file = self.cache_dir / f"{key}.txt"
         if not deck_file.exists():
             return None
 
@@ -466,7 +446,11 @@ class AnkiDeckCache:
 
     def set(
         self,
-        key: AnkiDeckKey,
+        filepath: Path,
+        length: int,
+        target_lang: str,
+        include_context: bool,
+        all_vocab: bool,
         anki_content: str,
         excerpt: str,
         num_words: int,
@@ -475,34 +459,32 @@ class AnkiDeckCache:
         """Store Anki deck in cache.
 
         Args:
-            key: Cache key parameters.
+            filepath: Path to source file.
+            length: Excerpt length.
+            target_lang: Target language.
+            include_context: Whether context is included.
+            all_vocab: Whether all vocab is included.
             anki_content: The Anki deck content.
             excerpt: The excerpt text.
             num_words: Number of words in deck.
             max_rank: Maximum word rank.
         """
-        file_hash = get_file_hash(key.filepath)
-        cache_key = self._make_key(
-            file_hash,
-            key.length,
-            key.target_lang,
-            include_context=key.include_context,
-            all_vocab=key.all_vocab,
-        )
+        file_hash = get_file_hash(filepath)
+        key = self._make_key(file_hash, length, target_lang, include_context, all_vocab)
 
         # Save deck content
-        deck_file = self.cache_dir / f"{cache_key}.txt"
+        deck_file = self.cache_dir / f"{key}.txt"
         deck_file.write_text(anki_content, encoding="utf-8")
 
         # Update metadata
         metadata = self._load_metadata()
-        metadata[cache_key] = {
+        metadata[key] = {
             "file_hash": file_hash,
-            "filepath": str(key.filepath),
-            "length": key.length,
-            "target_lang": key.target_lang,
-            "include_context": key.include_context,
-            "all_vocab": key.all_vocab,
+            "filepath": str(filepath),
+            "length": length,
+            "target_lang": target_lang,
+            "include_context": include_context,
+            "all_vocab": all_vocab,
             "excerpt": excerpt,
             "num_words": num_words,
             "max_rank": max_rank,
@@ -537,33 +519,34 @@ class AnkiDeckCache:
 # Global Cache Instances
 # =============================================================================
 
-class _CacheHolder:
-    """Holds singleton cache instances."""
-
-    translation: TranslationCache | None = None
-    vocab_curve: VocabCurveCache | None = None
-    anki_deck: AnkiDeckCache | None = None
+# Singleton instances
+_translation_cache: TranslationCache | None = None
+_vocab_curve_cache: VocabCurveCache | None = None
+_anki_deck_cache: AnkiDeckCache | None = None
 
 
 def get_translation_cache() -> TranslationCache:
     """Get the global translation cache instance."""
-    if _CacheHolder.translation is None:
-        _CacheHolder.translation = TranslationCache()
-    return _CacheHolder.translation
+    global _translation_cache
+    if _translation_cache is None:
+        _translation_cache = TranslationCache()
+    return _translation_cache
 
 
 def get_vocab_curve_cache() -> VocabCurveCache:
     """Get the global vocabulary curve cache instance."""
-    if _CacheHolder.vocab_curve is None:
-        _CacheHolder.vocab_curve = VocabCurveCache()
-    return _CacheHolder.vocab_curve
+    global _vocab_curve_cache
+    if _vocab_curve_cache is None:
+        _vocab_curve_cache = VocabCurveCache()
+    return _vocab_curve_cache
 
 
 def get_anki_deck_cache() -> AnkiDeckCache:
     """Get the global Anki deck cache instance."""
-    if _CacheHolder.anki_deck is None:
-        _CacheHolder.anki_deck = AnkiDeckCache()
-    return _CacheHolder.anki_deck
+    global _anki_deck_cache
+    if _anki_deck_cache is None:
+        _anki_deck_cache = AnkiDeckCache()
+    return _anki_deck_cache
 
 
 def clear_all_caches() -> None:
@@ -592,6 +575,8 @@ def main() -> int:
     Returns:
         Exit code.
     """
+    import argparse
+
     parser = argparse.ArgumentParser(description="Manage word frequency caches")
     parser.add_argument("--stats", action="store_true", help="Show cache statistics")
     parser.add_argument("--clear", action="store_true", help="Clear all caches")
@@ -609,42 +594,42 @@ def main() -> int:
 
     if args.clear:
         clear_all_caches()
-        logger.info("All caches cleared.")
+        print("All caches cleared.")
         return 0
 
     if args.clear_translations:
         get_translation_cache().clear()
-        logger.info("Translation cache cleared.")
+        print("Translation cache cleared.")
         return 0
 
     if args.clear_excerpts:
         get_vocab_curve_cache().clear()
-        logger.info("Excerpt cache cleared.")
+        print("Excerpt cache cleared.")
         return 0
 
     if args.clear_anki:
         get_anki_deck_cache().clear()
-        logger.info("Anki deck cache cleared.")
+        print("Anki deck cache cleared.")
         return 0
 
     # Default: show stats
     stats = get_all_cache_stats()
-    logger.info("Cache Statistics")
-    logger.info("=" * 50)
+    print("Cache Statistics")
+    print("=" * 50)
     for cache_name, cache_stats in stats.items():
-        logger.info("\n%s:", cache_name.upper())
+        print(f"\n{cache_name.upper()}:")
         for key, value in cache_stats.items():
             if key == "cache_size_bytes":
                 # Format as human-readable
-                if value < _ONE_KB:
+                if value < 1024:
                     size_str = f"{value} B"
-                elif value < _ONE_MB:
-                    size_str = f"{value / _ONE_KB:.1f} KB"
+                elif value < 1024 * 1024:
+                    size_str = f"{value / 1024:.1f} KB"
                 else:
-                    size_str = f"{value / _ONE_MB:.1f} MB"
-                logger.info("  %s: %s", key, size_str)
+                    size_str = f"{value / (1024 * 1024):.1f} MB"
+                print(f"  {key}: {size_str}")
             else:
-                logger.info("  %s: %s", key, value)
+                print(f"  {key}: {value}")
 
     return 0
 

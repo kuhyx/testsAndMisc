@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Learning pipe - combines word frequency analysis with excerpt finding for language learning.
+r"""Learning pipe - combines word frequency analysis with excerpt finding.
 
-This script helps language learners by:
+Helps language learners by:
+
 1. Analyzing a text to find the most common words
 2. Finding excerpts where those common words are most prevalent
 3. Creating a progressive learning experience in batches
@@ -11,26 +12,35 @@ The idea is to:
 - Then read excerpts that are dense with those words
 - Progressively learn more words and more complex excerpts
 
-Usage:
-    # Basic usage - get top 20 words and find excerpts with them
-    python -m python_pkg.word_frequency.learning_pipe --file text.txt
+Usage::
+
+    # Basic usage
+    python -m python_pkg.word_frequency.learning_pipe \\
+        --file text.txt
 
     # Custom batch size and excerpt length
-    python -m python_pkg.word_frequency.learning_pipe --file text.txt --batch-size 30 --excerpt-length 50
+    python -m python_pkg.word_frequency.learning_pipe \\
+        --file text.txt --batch-size 30 --excerpt-length 50
 
     # Multiple batches for progressive learning
-    python -m python_pkg.word_frequency.learning_pipe --file text.txt --batches 5 --batch-size 20
+    python -m python_pkg.word_frequency.learning_pipe \\
+        --file text.txt --batches 5 --batch-size 20
 
     # Output to file
-    python -m python_pkg.word_frequency.learning_pipe --file text.txt --output lesson.txt
+    python -m python_pkg.word_frequency.learning_pipe \\
+        --file text.txt --output lesson.txt
 
-    # Skip common words (like "the", "a", "is") using a stopwords file
-    python -m python_pkg.word_frequency.learning_pipe --file text.txt --stopwords stopwords.txt
+    # Skip common words using a stopwords file
+    python -m python_pkg.word_frequency.learning_pipe \\
+        --file text.txt --stopwords stopwords.txt
 """
 
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
+from dataclasses import replace as _replace_dc
+import logging
 from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
@@ -52,6 +62,8 @@ except ModuleNotFoundError:
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+logger = logging.getLogger(__name__)
 
 
 # Common stopwords for various languages (can be overridden with --stopwords)
@@ -181,57 +193,210 @@ def load_stopwords(filepath: str | Path | None) -> frozenset[str]:
     )
 
 
+@dataclass(frozen=True)
+class LessonConfig:
+    """Configuration for learning lesson generation."""
+
+    batch_size: int = 20
+    num_batches: int = 1
+    excerpt_length: int = 30
+    excerpts_per_batch: int = 3
+    stopwords: frozenset[str] | None = None
+    skip_default_stopwords: bool = False
+    skip_numbers: bool = True
+    case_sensitive: bool = False
+    translate_from: str | None = None
+    translate_to: str | None = None
+
+
+def _resolve_stopwords(config: LessonConfig) -> frozenset[str]:
+    """Resolve combined stopwords from config."""
+    if config.skip_default_stopwords:
+        return config.stopwords or frozenset()
+    return DEFAULT_STOPWORDS_EN | (config.stopwords or frozenset())
+
+
+def _detect_translation_language(
+    text: str,
+    config: LessonConfig,
+    lines: list[str],
+) -> tuple[str | None, str | None]:
+    """Detect translation settings and return (from, to) pair."""
+    actual_from = config.translate_from
+    actual_to = config.translate_to or "en"
+
+    if actual_from == "auto" or (
+        config.translate_to and not config.translate_from
+    ):
+        detected = detect_language(text)
+        if detected:
+            actual_from = detected
+            lines.append(f"Detected language: {detected}")
+        else:
+            lines.append(
+                "Warning: Could not detect language "
+                "(install langdetect: "
+                "pip install langdetect)"
+            )
+            actual_from = None
+
+    return actual_from, actual_to
+
+
+def _format_word_list(
+    batch_words: list[tuple[str, int]],
+    start_idx: int,
+    total_words: int,
+    translations: dict[str, str],
+) -> list[str]:
+    """Format the vocabulary word list for a batch."""
+    lines: list[str] = []
+    for i, (word, count) in enumerate(
+        batch_words, start=start_idx + 1,
+    ):
+        percentage = (count / total_words) * 100
+        if translations:
+            trans = translations.get(word, "?")
+            lines.append(
+                f"  {i:3}. {word:<20} -> {trans:<20}"
+                f" ({count:,} occurrences, "
+                f"{percentage:.2f}%)"
+            )
+        else:
+            lines.append(
+                f"  {i:3}. {word:<20}"
+                f" ({count:,} occurrences, "
+                f"{percentage:.2f}%)"
+            )
+    return lines
+
+
+@dataclass(frozen=True)
+class _LessonContext:
+    """Shared context for batch generation."""
+
+    text: str
+    word_counts: dict[str, int]
+    config: LessonConfig
+
+
+def _generate_batch_section(
+    ctx: _LessonContext,
+    batch_num: int,
+    batch_words: list[tuple[str, int]],
+    cumulative_words: list[str],
+) -> list[str]:
+    """Generate lines for a single batch section."""
+    config = ctx.config
+    total_words = sum(ctx.word_counts.values())
+    start_idx = batch_num * config.batch_size
+    end_idx = start_idx + config.batch_size
+
+    lines: list[str] = []
+    lines.append("-" * 70)
+    lines.append(
+        f"BATCH {batch_num + 1}: Words "
+        f"{start_idx + 1} - "
+        f"{min(end_idx, start_idx + len(batch_words))}"
+    )
+    lines.append("-" * 70)
+    lines.append("")
+
+    # Get translations if requested
+    translations: dict[str, str] = {}
+    do_translate = (
+        config.translate_from is not None
+        and config.translate_to is not None
+    )
+    if do_translate:
+        words_to_translate = [word for word, _ in batch_words]
+        translation_results = translate_words_batch(
+            words_to_translate,
+            config.translate_from,  # type: ignore[arg-type]
+            config.translate_to,  # type: ignore[arg-type]
+        )
+        translations = {
+            r.source_word: r.translated_word
+            for r in translation_results
+            if r.success
+        }
+
+    lines.append("VOCABULARY TO LEARN:")
+    lines.append("")
+    lines.extend(
+        _format_word_list(
+            batch_words, start_idx, total_words, translations,
+        )
+    )
+    lines.append("")
+
+    # Cumulative coverage
+    cumulative_count = sum(
+        ctx.word_counts[w]
+        for w in cumulative_words
+        if w in ctx.word_counts
+    )
+    coverage = (cumulative_count / total_words) * 100
+    lines.append(
+        "After learning these words, "
+        f"you'll recognize ~{coverage:.1f}% of the text"
+    )
+    lines.append("")
+
+    # Excerpts
+    lines.append("PRACTICE EXCERPTS:")
+    lines.append(
+        "(Excerpts where your learned vocabulary "
+        "is most concentrated)"
+    )
+    lines.append("")
+
+    excerpts = find_best_excerpt(
+        ctx.text,
+        cumulative_words,
+        config.excerpt_length,
+        case_sensitive=config.case_sensitive,
+        top_n=config.excerpts_per_batch,
+    )
+
+    for j, excerpt in enumerate(excerpts, 1):
+        lines.append(
+            f"  Excerpt {j} "
+            f"({excerpt.match_percentage:.1f}% known words):"
+        )
+        lines.append(f'  "{excerpt.excerpt}"')
+        lines.append("")
+
+    return lines
+
+
 def generate_learning_lesson(
     text: str,
-    *,
-    batch_size: int = 20,
-    num_batches: int = 1,
-    excerpt_length: int = 30,
-    excerpts_per_batch: int = 3,
-    stopwords: frozenset[str] | None = None,
-    skip_default_stopwords: bool = False,
-    skip_numbers: bool = True,
-    case_sensitive: bool = False,
-    context_words: int = 5,
-    translate_from: str | None = None,
-    translate_to: str | None = None,
+    config: LessonConfig | None = None,
 ) -> str:
     """Generate a learning lesson from text.
 
     Args:
         text: The source text to analyze.
-        batch_size: Number of words per learning batch.
-        num_batches: Number of batches to generate.
-        excerpt_length: Length of each excerpt in words.
-        excerpts_per_batch: Number of excerpts to find per batch.
-        stopwords: Custom stopwords to skip (in addition to defaults).
-        skip_default_stopwords: If True, don't filter out default English stopwords.
-        skip_numbers: If True, filter out numeric words (default: True).
-        case_sensitive: If True, treat words case-sensitively.
-        context_words: Words of context to include around excerpts.
-        translate_from: Source language code for translation (e.g., 'la', 'pl').
-        translate_to: Target language code for translation (e.g., 'en').
+        config: Lesson configuration. Uses defaults if None.
 
     Returns:
         Formatted learning lesson as a string.
     """
-    # Combine stopwords
-    all_stopwords: frozenset[str]
-    if skip_default_stopwords:
-        all_stopwords = stopwords or frozenset()
-    else:
-        all_stopwords = DEFAULT_STOPWORDS_EN | (stopwords or frozenset())
+    if config is None:
+        config = LessonConfig()
 
-    # Analyze text for word frequencies
-    word_counts = analyze_text(text, case_sensitive=case_sensitive)
+    all_stopwords = _resolve_stopwords(config)
+    word_counts = analyze_text(
+        text, case_sensitive=config.case_sensitive,
+    )
 
-    # Filter out stopwords and get sorted words
     filtered_words = [
         (word, count)
         for word, count in word_counts.most_common()
         if word.lower() not in all_stopwords
         and len(word) > 1
-        and not (skip_numbers and word.isdigit())
+        and not (config.skip_numbers and word.isdigit())
     ]
 
     total_words = sum(word_counts.values())
@@ -241,125 +406,62 @@ def generate_learning_lesson(
     lines.append("LANGUAGE LEARNING LESSON")
     lines.append("=" * 70)
     lines.append(
-        f"Source text: {total_words:,} total words, {len(word_counts):,} unique words"
+        f"Source text: {total_words:,} total words, "
+        f"{len(word_counts):,} unique words"
     )
     if all_stopwords:
         lines.append(
-            f"After filtering {len(all_stopwords)} stopwords: {len(filtered_words):,} vocabulary words"
+            f"After filtering {len(all_stopwords)} "
+            f"stopwords: {len(filtered_words):,} "
+            "vocabulary words"
         )
     else:
-        lines.append(f"Vocabulary words: {len(filtered_words):,}")
+        lines.append(
+            f"Vocabulary words: {len(filtered_words):,}",
+        )
 
-    # Handle translation setup
-    actual_translate_from = translate_from
-    actual_translate_to = translate_to or "en"  # Default to English
-
-    # Auto-detect language if translation is enabled but source not specified
-    if translate_from == "auto" or (translate_to and not translate_from):
-        detected = detect_language(text)
-        if detected:
-            actual_translate_from = detected
-            lines.append(f"Detected language: {detected}")
-            # Note: langdetect doesn't support Latin (often detected as Italian)
-            # If detection seems wrong, use --translate-from to override
-        else:
-            lines.append(
-                "Warning: Could not detect language "
-                "(install langdetect: pip install langdetect)"
-            )
-            actual_translate_from = None
-
-    do_translate = actual_translate_from is not None and actual_translate_to is not None
+    actual_from, actual_to = _detect_translation_language(
+        text, config, lines,
+    )
+    do_translate = (
+        actual_from is not None and actual_to is not None
+    )
     if do_translate:
-        lines.append(f"Translation: {actual_translate_from} -> {actual_translate_to}")
-
+        lines.append(
+            f"Translation: {actual_from} -> {actual_to}",
+        )
     lines.append("")
 
-    # Generate batches
+    # Create resolved config with detected translation
+    resolved_config = _replace_dc(
+        config,
+        translate_from=actual_from,
+        translate_to=actual_to,
+    )
+    ctx = _LessonContext(
+        text=text,
+        word_counts=word_counts,
+        config=resolved_config,
+    )
+
     cumulative_words: list[str] = []
-
-    for batch_num in range(num_batches):
-        start_idx = batch_num * batch_size
-        end_idx = start_idx + batch_size
-
+    for batch_num in range(config.num_batches):
+        start_idx = batch_num * config.batch_size
+        end_idx = start_idx + config.batch_size
         if start_idx >= len(filtered_words):
             break
 
         batch_words = filtered_words[start_idx:end_idx]
         cumulative_words.extend(word for word, _ in batch_words)
 
-        lines.append("-" * 70)
-        lines.append(
-            f"BATCH {batch_num + 1}: Words {start_idx + 1} - {min(end_idx, len(filtered_words))}"
-        )
-        lines.append("-" * 70)
-        lines.append("")
-
-        # Get translations if requested
-        translations: dict[str, str] = {}
-        if do_translate:
-            words_to_translate = [word for word, _ in batch_words]
-            translation_results = translate_words_batch(
-                words_to_translate,
-                actual_translate_from,  # type: ignore[arg-type]
-                actual_translate_to,  # type: ignore[arg-type]
+        lines.extend(
+            _generate_batch_section(
+                ctx,
+                batch_num,
+                batch_words,
+                cumulative_words,
             )
-            translations = {
-                r.source_word: r.translated_word
-                for r in translation_results
-                if r.success
-            }
-
-        # Word list with frequencies
-        lines.append("VOCABULARY TO LEARN:")
-        lines.append("")
-
-        if do_translate and translations:
-            # Include translations in output
-            for i, (word, count) in enumerate(batch_words, start=start_idx + 1):
-                percentage = (count / total_words) * 100
-                trans = translations.get(word, "?")
-                lines.append(
-                    f"  {i:3}. {word:<20} -> {trans:<20} ({count:,} occurrences, {percentage:.2f}%)"
-                )
-        else:
-            for i, (word, count) in enumerate(batch_words, start=start_idx + 1):
-                percentage = (count / total_words) * 100
-                lines.append(
-                    f"  {i:3}. {word:<20} ({count:,} occurrences, {percentage:.2f}%)"
-                )
-
-        lines.append("")
-
-        # Calculate cumulative coverage
-        cumulative_count = sum(
-            word_counts[word] for word in cumulative_words if word in word_counts
         )
-        coverage = (cumulative_count / total_words) * 100
-        lines.append(
-            f"After learning these words, you'll recognize ~{coverage:.1f}% of the text"
-        )
-        lines.append("")
-
-        # Find excerpts using cumulative words
-        lines.append("PRACTICE EXCERPTS:")
-        lines.append("(Excerpts where your learned vocabulary is most concentrated)")
-        lines.append("")
-
-        excerpts = find_best_excerpt(
-            text,
-            cumulative_words,
-            excerpt_length,
-            case_sensitive=case_sensitive,
-            top_n=excerpts_per_batch,
-        )
-
-        for j, excerpt in enumerate(excerpts, 1):
-            lines.append(
-                f"  Excerpt {j} ({excerpt.match_percentage:.1f}% known words):"
-            )
-            lines.append(f'  "{excerpt.excerpt}"')
-            lines.append("")
 
     # Summary
     lines.append("=" * 70)
@@ -368,14 +470,25 @@ def generate_learning_lesson(
 
     if cumulative_words:
         final_coverage = sum(
-            word_counts[word] for word in cumulative_words if word in word_counts
+            word_counts[w]
+            for w in cumulative_words
+            if w in word_counts
         )
-        final_percentage = (final_coverage / total_words) * 100
-        lines.append(f"Total vocabulary words learned: {len(cumulative_words)}")
-        lines.append(f"Text coverage: {final_percentage:.1f}%")
+        final_pct = (final_coverage / total_words) * 100
+        lines.append(
+            "Total vocabulary words learned: "
+            f"{len(cumulative_words)}"
+        )
+        lines.append(f"Text coverage: {final_pct:.1f}%")
         lines.append("")
-        lines.append("TIP: Focus on understanding the excerpts first, then read")
-        lines.append("more of the original text as your vocabulary grows!")
+        lines.append(
+            "TIP: Focus on understanding the excerpts "
+            "first, then read"
+        )
+        lines.append(
+            "more of the original text as your "
+            "vocabulary grows!"
+        )
 
     return "\n".join(lines)
 
@@ -475,7 +588,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--translate-from",
         type=str,
         metavar="LANG",
-        help="Source language code (e.g., 'la', 'pl', 'de'). If omitted, auto-detected.",
+        help=(
+            "Source language code (e.g., 'la', 'pl'). "
+            "If omitted, auto-detected."
+        ),
     )
     parser.add_argument(
         "--translate-to",
@@ -496,27 +612,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        # Get input text
-        if args.text:
-            text = args.text
-        else:
-            text = read_file(args.file)
+        text = args.text or read_file(args.file)
 
         # Load custom stopwords if provided
         custom_stopwords = load_stopwords(args.stopwords)
 
         # Determine translation settings
-        # Translation enabled by default, --no-translate disables it
         translate_from: str | None = None
         translate_to: str | None = None
 
         if not args.no_translate:
-            translate_from = args.translate_from or "auto"  # "auto" triggers detection
+            translate_from = (
+                args.translate_from or "auto"
+            )
             translate_to = args.translate_to
 
-        # Generate lesson
-        lesson = generate_learning_lesson(
-            text,
+        config = LessonConfig(
             batch_size=args.batch_size,
             num_batches=args.batches,
             excerpt_length=args.excerpt_length,
@@ -528,19 +639,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             translate_from=translate_from,
             translate_to=translate_to,
         )
+        lesson = generate_learning_lesson(text, config)
 
         # Output
         if args.output:
-            Path(args.output).write_text(lesson, encoding="utf-8")
-            print(f"Lesson written to {args.output}")
+            Path(args.output).write_text(
+                lesson, encoding="utf-8",
+            )
+            logger.info(
+                "Lesson written to %s", args.output,
+            )
         else:
-            print(lesson)
+            logger.info(lesson)
 
-    except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)
+    except FileNotFoundError:
+        logger.exception("Error: File not found")
         return 1
-    except UnicodeDecodeError as e:
-        print(f"Error: Could not decode file as UTF-8 - {e}", file=sys.stderr)
+    except UnicodeDecodeError:
+        logger.exception(
+            "Error: Could not decode file as UTF-8",
+        )
         return 1
 
     return 0
