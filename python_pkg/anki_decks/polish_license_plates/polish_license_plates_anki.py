@@ -24,7 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 from pathlib import Path
-import random
+import secrets
 import sys
 from typing import TYPE_CHECKING
 
@@ -142,7 +142,7 @@ def generate_anki_package(
     )
 
     # Create unique deck ID
-    deck_id = random.randrange(1 << 30, 1 << 31)  # noqa: S311
+    deck_id = secrets.randbelow(1 << 30) + (1 << 30)
 
     # Create the deck
     my_deck = genanki.Deck(deck_id, deck_name)

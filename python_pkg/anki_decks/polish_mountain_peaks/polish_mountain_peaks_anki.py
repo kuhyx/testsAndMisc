@@ -11,10 +11,10 @@ import hashlib
 from io import BytesIO
 import multiprocessing as mp
 from pathlib import Path
-import random
+import secrets
 import sys
 import tempfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import genanki
 import geopandas as gpd
@@ -101,16 +101,14 @@ def generate_peak_image_bytes(
     return buf.read()
 
 
-# Global variables for multiprocessing (set via initializer)
-_mp_poland_boundary: gpd.GeoDataFrame | None = None
-_mp_zoom: bool = True
+# Multiprocessing shared state (set via initializer)
+_mp_state: dict[str, Any] = {}
 
 
 def _init_worker(poland_geojson: str, zoom_mode: str) -> None:
     """Initialize worker process with shared data."""
-    global _mp_poland_boundary, _mp_zoom  # noqa: PLW0603
-    _mp_poland_boundary = gpd.read_file(poland_geojson)
-    _mp_zoom = zoom_mode == "zoom"
+    _mp_state["poland_boundary"] = gpd.read_file(poland_geojson)
+    _mp_state["zoom"] = zoom_mode == "zoom"
 
 
 def _render_single_peak(args: tuple[str, str]) -> tuple[str, bytes]:
@@ -125,9 +123,13 @@ def _render_single_peak(args: tuple[str, str]) -> tuple[str, bytes]:
     peak_name, peak_geojson = args
     peak_gdf = gpd.read_file(peak_geojson)
 
-    assert _mp_poland_boundary is not None  # noqa: S101
+    if "poland_boundary" not in _mp_state:
+        msg = "Worker not initialized"
+        raise RuntimeError(msg)
 
-    image_data = generate_peak_image_bytes(peak_gdf, _mp_poland_boundary, zoom=_mp_zoom)
+    image_data = generate_peak_image_bytes(
+        peak_gdf, _mp_state["poland_boundary"], zoom=_mp_state["zoom"]
+    )
     return peak_name, image_data
 
 
@@ -139,7 +141,7 @@ def generate_anki_package(
     zoom: bool = True,
 ) -> genanki.Package:
     """Generate Anki package for Polish mountain peaks."""
-    model_id_hash = hashlib.md5(  # noqa: S324
+    model_id_hash = hashlib.sha256(
         f"polish_mountain_peaks_{deck_name}".encode()
     )
     model_id = int(model_id_hash.hexdigest()[:8], 16)
@@ -207,7 +209,7 @@ def generate_anki_package(
         css=card_css,
     )
 
-    deck_id = random.randrange(1 << 30, 1 << 31)  # noqa: S311
+    deck_id = secrets.randbelow(1 << 30) + (1 << 30)
     my_deck = genanki.Deck(deck_id, deck_name)
     media_files = []
 
@@ -259,7 +261,7 @@ def generate_anki_package(
         )
         my_deck.add_note(note)
 
-        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path = Path(tempfile.gettempdir()) / filename
         temp_path.write_bytes(image_data)
         media_files.append(str(temp_path))
 

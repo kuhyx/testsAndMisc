@@ -24,8 +24,9 @@ import argparse
 import hashlib
 from io import BytesIO
 from pathlib import Path
-import random
+import secrets
 import sys
+import tempfile
 from typing import TYPE_CHECKING
 
 import genanki
@@ -183,7 +184,7 @@ def generate_anki_package(
         genanki.Package object ready to be written to file.
     """
     # Create a unique model ID based on deck name
-    model_id_hash = hashlib.md5(  # noqa: S324
+    model_id_hash = hashlib.sha256(
         f"warsaw_districts_{deck_name}".encode()
     )
     model_id = int(model_id_hash.hexdigest()[:8], 16)
@@ -243,7 +244,7 @@ def generate_anki_package(
     )
 
     # Create a unique deck ID based on deck name
-    deck_id = random.randrange(1 << 30, 1 << 31)  # noqa: S311
+    deck_id = secrets.randbelow(1 << 30) + (1 << 30)
 
     # Create the deck
     my_deck = genanki.Deck(deck_id, deck_name)
@@ -272,7 +273,7 @@ def generate_anki_package(
         my_deck.add_note(note)
 
         # Save image data to temporary file for packaging
-        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path = Path(tempfile.gettempdir()) / filename
         temp_path.write_bytes(image_data)
         media_files.append(str(temp_path))
 

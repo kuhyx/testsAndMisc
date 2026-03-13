@@ -11,10 +11,10 @@ import hashlib
 from io import BytesIO
 import multiprocessing as mp
 from pathlib import Path
-import random
+import secrets
 import sys
 import tempfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import genanki
 import geopandas as gpd
@@ -76,14 +76,13 @@ def generate_reserve_image_bytes(
     return buf.read()
 
 
-# Global variables for multiprocessing (set via initializer)
-_mp_poland_boundary: gpd.GeoDataFrame | None = None
+# Multiprocessing shared state (set via initializer)
+_mp_state: dict[str, Any] = {}
 
 
 def _init_worker(poland_geojson: str) -> None:
     """Initialize worker process with shared data."""
-    global _mp_poland_boundary  # noqa: PLW0603
-    _mp_poland_boundary = gpd.read_file(poland_geojson)
+    _mp_state["poland_boundary"] = gpd.read_file(poland_geojson)
 
 
 def _render_single_reserve(args: tuple[str, str]) -> tuple[str, bytes]:
@@ -98,9 +97,11 @@ def _render_single_reserve(args: tuple[str, str]) -> tuple[str, bytes]:
     reserve_name, reserve_geojson = args
     reserve_gdf = gpd.read_file(reserve_geojson)
 
-    assert _mp_poland_boundary is not None  # noqa: S101
+    if "poland_boundary" not in _mp_state:
+        msg = "Worker not initialized"
+        raise RuntimeError(msg)
 
-    image_data = generate_reserve_image_bytes(reserve_gdf, _mp_poland_boundary)
+    image_data = generate_reserve_image_bytes(reserve_gdf, _mp_state["poland_boundary"])
     return reserve_name, image_data
 
 
@@ -110,7 +111,7 @@ def generate_anki_package(
     deck_name: str = "Polish Nature Reserves",
 ) -> genanki.Package:
     """Generate Anki package for Polish nature reserves."""
-    model_id_hash = hashlib.md5(  # noqa: S324
+    model_id_hash = hashlib.sha256(
         f"polish_nature_reserves_{deck_name}".encode()
     )
     model_id = int(model_id_hash.hexdigest()[:8], 16)
@@ -178,7 +179,7 @@ def generate_anki_package(
         css=card_css,
     )
 
-    deck_id = random.randrange(1 << 30, 1 << 31)  # noqa: S311
+    deck_id = secrets.randbelow(1 << 30) + (1 << 30)
     my_deck = genanki.Deck(deck_id, deck_name)
     media_files = []
 
@@ -225,7 +226,7 @@ def generate_anki_package(
         area_km2 = round(row["area_km2"], 2) if "area_km2" in row else 0
         image_data = results[reserve_name]
         # Use hash for unique filename since names may have special chars
-        name_hash = hashlib.md5(reserve_name.encode()).hexdigest()[:8]  # noqa: S324
+        name_hash = hashlib.sha256(reserve_name.encode()).hexdigest()[:8]
         safe_name = reserve_name.replace(" ", "_").replace("/", "_")[:30]
         filename = f"reserve_{safe_name}_{name_hash}.png"
 
@@ -236,7 +237,7 @@ def generate_anki_package(
         )
         my_deck.add_note(note)
 
-        temp_path = Path(f"/tmp/{filename}")  # noqa: S108
+        temp_path = Path(tempfile.gettempdir()) / filename
         temp_path.write_bytes(image_data)
         media_files.append(str(temp_path))
 
