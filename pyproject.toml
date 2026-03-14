@@ -51,6 +51,7 @@ unfixable = []
 "**/tests/**/*.py" = [
     "S101",    # Allow assert in tests
     "PLR2004", # Allow magic values in tests
+    "PT019",   # Allow underscore-prefixed fixture params
     "SLF001",  # Allow private member access in tests
 ]
 "**/test_*.py" = [
@@ -59,8 +60,12 @@ unfixable = []
     "S607",    # Allow partial executable path in tests
     "PLC0415", # Allow late imports for test isolation
     "PLR2004", # Allow magic values in tests
+    "PT019",   # Allow underscore-prefixed fixture params
     "SLF001",  # Allow private member access in tests
 ]
+# Files using urlopen with validated URL schemes
+"python_pkg/geo_data.py" = ["S310"]
+"python_pkg/steam_backlog_enforcer/library_hider.py" = ["S310"]
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
@@ -70,6 +75,10 @@ unfixable = []
 "python_pkg/screen_locker/screen_lock.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
+# Brother printer - optional usb.core/usb.util imports
+"python_pkg/brother_printer/check_brother_printer.py" = [
+    "PLC0415", # Late imports for optional pyusb dependency
+]
 # Music generator - CLI script with intentional patterns
 "python_pkg/music_gen/music_generator.py" = [
     "T201",    # print() is intentional for CLI feedback
@@ -77,132 +86,11 @@ unfixable = []
     "C901",    # Complex interactive mode is acceptable
     "PLR0912", # Too many branches in interactive mode
 ]
-# Cinema planner - CLI tool with print output
-"python_pkg/cinema_planner/*.py" = [
-    "ARG001",  # Unused function argument (callbacks)
-    "T201",    # print() is intentional for CLI output
-    "D101",    # Missing docstring in public class
-    "D102",    # Missing docstring in public method
-    "D103",    # Missing docstring in public function
-    "D104",    # Missing docstring in public package
-    "ANN201",  # Missing return type annotation
-    "ANN202",  # Missing return type annotation (private)
-    "C901",    # Complex functions acceptable for CLI
-    "E501",    # Line too long
-    "EM102",   # Exception f-string literal
-    "PERF203", # try-except in loop
-    "PERF401", # List comprehension
-    "PLR0912", # Too many branches
-    "PLR0915", # Too many statements
-    "PLR2004", # Magic values
-    "PLR1714", # Multiple comparisons
-    "PTH123",  # open() instead of Path.open()
-    "S607",    # Partial executable path
-    "SIM105",  # Use contextlib.suppress
-    "TRY003",  # Long exception messages
-]
-# Linux configuration scripts - standalone scripts
-"linux_configuration/**/*.py" = [
-    "ARG001",  # Unused function argument (signal handlers)
-    "BLE001",  # Blind exception catching in scripts
-    "T201",    # print() is intentional for scripts
-    "ANN001",  # Missing function argument type annotation
-    "ANN201",  # Missing return type annotation
-    "ANN202",  # Missing return type annotation (private)
-    "ANN204",  # Missing return type for __init__
-    "C901",    # Complex functions in scripts
-    "D100",    # Missing module docstring
-    "D103",    # Missing docstring in public function
-    "D107",    # Missing docstring in __init__
-    "D205",    # 1 blank line required between summary and description
-    "D415",    # First line should end with period
-    "DTZ005",  # datetime without timezone
-    "E501",    # Line too long
-    "EXE001",  # Shebang without executable permission
-    "N806",    # Non-lowercase variable name
-    "PERF203", # try-except in loop
-    "PGH003",  # Use specific rule codes
-    "PLR0912", # Too many branches
-    "PLR0915", # Too many statements
-    "PLR2004", # Magic values
-    "PTH100",  # Path manipulation
-    "PTH103",  # Path manipulation
-    "PTH108",  # Path manipulation
-    "PTH110",  # Path manipulation
-    "PTH111",  # Path manipulation
-    "PTH112",  # Path manipulation
-    "PTH118",  # Path manipulation
-    "PTH119",  # Path manipulation
-    "PTH120",  # Path manipulation
-    "PTH122",  # Path manipulation
-    "PTH123",  # open() instead of Path.open()
-    "PTH202",  # Path manipulation
-    "S110",    # try-except-pass
-    "S607",    # Partial executable path
-    "SIM102",  # Collapsible if
-    "SIM105",  # Use contextlib.suppress
-    "SIM115",  # Use context manager
-    "TRY300",  # Consider else block
-]
-# Word frequency package - legacy code with pre-existing complexity
-"python_pkg/word_frequency/*.py" = [
-    "C901",    # Function complexity - legacy code
-    "PLR0911", # Too many return statements - legacy code
-    "PLR0912", # Too many branches - legacy code
-    "PLR0913", # Too many arguments - legacy code
-    "PLR0915", # Too many statements - legacy code
-    "PLR2004", # Magic values - legacy code
-    "FBT001",  # Boolean typed argument - legacy code
-    "FBT002",  # Boolean default argument - legacy code
-    "FBT003",  # Boolean positional value - legacy code
-    "T201",    # print() used for CLI feedback
-    "TRY003",  # Long exception messages - legacy code
-    "EM101",   # Exception string literal - legacy code
-    "EM102",   # Exception f-string literal - legacy code
-    "SIM105",  # Use contextlib.suppress - legacy code
-    "SIM108",  # Use ternary operator - legacy code
-    "SIM117",  # Use single with statement - legacy code
-    "PLW2901", # Loop variable overwritten - legacy code
-    "PLW0603", # Global statement - legacy code
-    "TRY300",  # Consider else block - legacy code
-    "TRY301",  # Abstract raise - legacy code
-    "PTH123",  # open() instead of Path.open() - legacy code
-    "EXE001",  # Shebang without executable - legacy code
-    "ARG001",  # Unused function argument - legacy code
-    "ARG002",  # Unused method argument - legacy code
-    "ARG005",  # Unused lambda argument - legacy code
-    "F401",    # Unused import - legacy code
-    "F841",    # Unused variable - legacy code
-    "TC003",   # Move stdlib import to type-checking block - legacy code
-    "SLF001",  # Private member access - legacy code
-    "SIM101",  # Multiple isinstance calls - legacy code
-    "PERF401", # List comprehension - legacy code
-    "N806",    # Non-lowercase variable - legacy code
-    "C416",    # Unnecessary list comprehension - legacy code
-    "E501",    # Line too long - legacy code
-]
-# Thesis diagram generators - one-off matplotlib plotting scripts
+# Thesis diagram generation scripts - matplotlib plotting helpers need many params
 "python_pkg/praca_magisterska_video/**/*.py" = [
-    "ANN001",  # Missing type annotation - plotting scripts, not library code
-    "ANN202",  # Missing return type (private)
-    "BLE001",  # Blind exception (file I/O error handling)
-    "C901",    # Function complexity - long plotting functions
-    "E501",    # Line too long - matplotlib call chains
-    "E741",    # Ambiguous variable name - math convention (l, I)
-    "ERA001",  # Commented-out code - contains notes and alternatives
-    "FBT002",  # Boolean default argument - matplotlib patterns
-    "FBT003",  # Boolean positional value - matplotlib API calls
-    "N806",    # Uppercase variable - math convention (X, Y, F_A)
-    "PERF203", # try-except in loop - file processing
-    "PERF401", # List append in loop
-    "PLR0912", # Too many branches - plotting functions
-    "PLR0913", # Too many arguments - plotting functions
-    "PLR0915", # Too many statements - plotting functions
-    "PLR2004", # Magic values - plot coordinates and sizes
-    "PLW2901", # Loop variable overwritten - data processing
-    "S110",    # try-except-pass - optional dependency handling
-    "T201",    # print() for script output
+    "PLR0913", # Matplotlib drawing functions inherently require many parameters
 ]
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"  # Use Google docstring convention
