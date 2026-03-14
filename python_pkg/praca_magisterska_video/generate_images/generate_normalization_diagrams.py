@@ -582,7 +582,7 @@ def draw_3nf() -> None:
     """Draw 3nf."""
     fig, ax = create_figure(11.69, 6.5)
 
-    # Studenci (fixed)
+    # Student table after removing transitive dependency
     h1 = ["StID*", "Imie", "WydzialID"]
     r1 = [["1", "Anna", "W4"], ["2", "Jan", "W4"], ["3", "Ewa", "W2"]]
     cw1 = [0.55, 0.55, 0.85]
@@ -633,7 +633,8 @@ def draw_3nf() -> None:
         ax,
         0.3,
         2.95,
-        "  StID -> WydzialID -> NazwaWydzialu  rozbito: NazwaWydzialu w osobnej tabeli.",
+        "  StID -> WydzialID -> NazwaWydzialu"
+        "  rozbito: NazwaWydzialu w osobnej tabeli.",
         fontsize=8,
         color="#333333",
     )
@@ -665,7 +666,8 @@ def draw_3nf() -> None:
         ax,
         0.3,
         1.5,
-        "  BCNF nie ma takiego wyjatku -> kazda nietrywialna FD wymaga nadklucza po lewej.",
+        "  BCNF nie ma takiego wyjatku"
+        " -> kazda nietrywialna FD wymaga nadklucza po lewej.",
         fontsize=9,
         color="#333333",
     )
@@ -677,7 +679,7 @@ def draw_3nf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_3nf_tables.png")
+    logger.info("Generated: nf_3nf_tables.png")
 
 
 # ============================================================
@@ -713,7 +715,7 @@ def draw_bcnf() -> None:
         ax, 7.2, 6.8, "ProwadzacyKurs (kl: Prow.)", h4, r4, cw4, title_fontsize=9
     )
 
-    # StudentProwadzacy (NEW)
+    # New student-advisor junction table
     h5 = ["StID*", "Prowadzacy*"]
     r5 = [["1", "Kowalski"], ["1", "Nowak"], ["2", "Kowalski"], ["3", "Wisniewski"]]
     cw5 = [0.55, 1.05]
@@ -733,7 +735,8 @@ def draw_bcnf() -> None:
         ax,
         0.3,
         2.55,
-        "  ProwadzacyKurs(Prowadzacy, KursID)  — FD: Prowadzacy -> KursID, klucz: Prowadzacy",
+        "  ProwadzacyKurs(Prowadzacy, KursID)"
+        "  — FD: Prowadzacy -> KursID, klucz: Prowadzacy",
         fontsize=8,
         color="#333333",
     )
@@ -756,7 +759,8 @@ def draw_bcnf() -> None:
         ax,
         0.3,
         1.45,
-        "Rekonstrukcja: StudentProw. JOIN ProwadzacyKurs ON Prowadzacy -> odtworzenie Zapisy.",
+        "Rekonstrukcja: StudentProw. JOIN ProwadzacyKurs"
+        " ON Prowadzacy -> odtworzenie Zapisy.",
         fontsize=8,
         color="#333333",
     )
@@ -768,7 +772,7 @@ def draw_bcnf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_bcnf_tables.png")
+    logger.info("Generated: nf_bcnf_tables.png")
 
 
 # ============================================================
@@ -903,7 +907,7 @@ def draw_4nf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_4nf_example.png")
+    logger.info("Generated: nf_4nf_example.png")
 
 
 # ============================================================
@@ -1013,14 +1017,16 @@ def draw_5nf() -> None:
         ax,
         0.3,
         2.0,
-        "Weryfikacja: Alfa dostarcza Nakretke? Alfa -> Wiezowiec? Nakretka -> Wiezowiec?",
+        "Weryfikacja: Alfa dostarcza Nakretke?"
+        " Alfa -> Wiezowiec? Nakretka -> Wiezowiec?",
         fontsize=8,
     )
     add_label(
         ax,
         0.3,
         1.65,
-        "  TAK, TAK, TAK --> wg reguly cyklicznej: Alfa dostarcza Nakretke do Wiezowca.",
+        "  TAK, TAK, TAK --> wg reguly cyklicznej:"
+        " Alfa dostarcza Nakretke do Wiezowca.",
         fontsize=8,
         color="#333333",
     )
@@ -1035,7 +1041,8 @@ def draw_5nf() -> None:
         ax,
         0.3,
         0.9,
-        "  --> Alfa dostarcza Nakretke do Mostu. (Tego wiersza NIE MA w oryginale -- BLAD!)",
+        "  --> Alfa dostarcza Nakretke do Mostu."
+        " (Tego wiersza NIE MA w oryginale -- BLAD!)",
         fontsize=8,
         color="black",
     )
@@ -1043,7 +1050,8 @@ def draw_5nf() -> None:
         ax,
         0.3,
         0.5,
-        "  Dekompozycja 5NF jest poprawna TYLKO jesli regula cykliczna rzeczywiscie zachodzi!",
+        "  Dekompozycja 5NF jest poprawna TYLKO"
+        " jesli regula cykliczna rzeczywiscie zachodzi!",
         fontsize=8,
         color="black",
     )
@@ -1055,7 +1063,7 @@ def draw_5nf() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_5nf_example.png")
+    logger.info("Generated: nf_5nf_example.png")
 
 
 # ============================================================
@@ -1142,7 +1150,7 @@ def draw_summary_flow() -> None:
                 arrowprops={"arrowstyle": "<-", "color": "black", "lw": 1.5},
             )
 
-    # Bottom: mnemonic
+    # Mnemonic quote at the bottom
     ax.text(
         5.85,
         2.2,
@@ -1178,7 +1186,8 @@ def draw_summary_flow() -> None:
     ax.text(
         5.85,
         0.8,
-        "5NF  (zawiera sie w)  4NF  (zaw.)  BCNF  (zaw.)  3NF  (zaw.)  2NF  (zaw.)  1NF",
+        "5NF  (zawiera sie w)  4NF  (zaw.)  BCNF"
+        "  (zaw.)  3NF  (zaw.)  2NF  (zaw.)  1NF",
         fontsize=8,
         ha="center",
         va="center",
@@ -1193,14 +1202,15 @@ def draw_summary_flow() -> None:
         pad_inches=0.2,
     )
     plt.close(fig)
-    print("Generated: nf_summary_flow.png")
+    logger.info("Generated: nf_summary_flow.png")
 
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
-    print("Generating normalization diagrams...")
+    logging.basicConfig(level=logging.INFO)
+    logger.info("Generating normalization diagrams...")
     draw_0nf()
     draw_1nf()
     draw_2nf()
@@ -1209,4 +1219,4 @@ if __name__ == "__main__":
     draw_4nf()
     draw_5nf()
     draw_summary_flow()
-    print("\nDone! All diagrams saved to:", OUTPUT_DIR)
+    logger.info("Done! All diagrams saved to %s", OUTPUT_DIR)

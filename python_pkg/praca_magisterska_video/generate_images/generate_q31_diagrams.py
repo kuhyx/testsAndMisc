@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
-"""Generate diagrams for PYTANIE 31: Interaktywne wspomaganie decyzji w warunkach ryzyka.
+"""Generate diagrams for PYTANIE 31.
+
+Interaktywne wspomaganie decyzji w warunkach ryzyka.
 
 Diagrams:
   1. Payoff matrix + all criteria results comparison (bar chart)
   2. Regret matrix construction step-by-step
-  3. Hurwicz \u03b1 interpolation between maximax and maximin
+  3. Hurwicz alpha interpolation between maximax and maximin
   4. Decision criteria mnemonic map
   5. Expected value criterion with probability-weighted bars
-  6. Decision conditions spectrum (pewność → ryzyko → niepewność)
+  6. Decision conditions spectrum
 
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 
@@ -21,6 +28,11 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -36,29 +48,45 @@ GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
 GRAY5 = "#C0C0C0"
 
+# Number of regret table header columns before the max-regret column
+_REGRET_HEADER_COLS = 4
+# Number of data state columns
+_DATA_STATE_COLS = 3
+# Expected-value for the winning alternative
+_WINNING_EV = 95
+
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    *,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    rounded: bool = True,
 ) -> None:
-    """Draw box."""
+    """Draw a labeled box on the axes."""
     if rounded:
         rect = FancyBboxPatch(
-            (x, y), w, h, boxstyle="round,pad=0.05", lw=lw, edgecolor=LN, facecolor=fill
+            (x, y),
+            w,
+            h,
+            boxstyle="round,pad=0.05",
+            lw=lw,
+            edgecolor=LN,
+            facecolor=fill,
         )
     else:
-        rect = mpatches.Rectangle((x, y), w, h, lw=lw, edgecolor=LN, facecolor=fill)
+        rect = mpatches.Rectangle(
+            (x, y), w, h, lw=lw, edgecolor=LN, facecolor=fill
+        )
     ax.add_patch(rect)
     ax.text(
         x + w / 2,
@@ -72,35 +100,45 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
-    """Draw arrow."""
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
+    """Draw an arrow between two points."""
     ax.annotate(
         "",
         xy=(x2, y2),
         xytext=(x1, y1),
-        arrowprops={"arrowstyle": style, "color": color, "lw": lw},
+        arrowprops={
+            "arrowstyle": style,
+            "color": color,
+            "lw": lw,
+        },
     )
 
 
 # ============================================================
 # 1. PAYOFF MATRIX + ALL CRITERIA BAR CHART
 # ============================================================
-def draw_criteria_comparison() -> None:
-    """Draw criteria comparison."""
-    fig, axes = plt.subplots(
-        1, 2, figsize=(8.27, 4.5), gridspec_kw={"width_ratios": [1.2, 1]}
-    )
-
-    # -- Left: Payoff matrix as styled table --
-    ax = axes[0]
+def _draw_payoff_table(ax: Axes) -> None:
+    """Draw the payoff matrix table on the left panel."""
     ax.axis("off")
     ax.set_xlim(0, 6)
     ax.set_ylim(0, 6)
     ax.set_title(
-        "Macierz wypłat (tys. zł)", fontsize=FS_TITLE, fontweight="bold", pad=8
+        "Macierz wypłat (tys. zł)",
+        fontsize=FS_TITLE,
+        fontweight="bold",
+        pad=8,
     )
 
-    # Headers
     headers_col = ["", "S₁\n(dobra)", "S₂\n(średnia)", "S₃\n(zła)"]
     rows = [
         ["A₁ (fabryka)", "200", "50", "-100"],
@@ -118,7 +156,12 @@ def draw_criteria_comparison() -> None:
     for j, h in enumerate(headers_col):
         fill = GRAY2 if j > 0 else GRAY3
         rect = mpatches.Rectangle(
-            (x, start_y), col_w[j], row_h, lw=1, edgecolor=LN, facecolor=fill
+            (x, start_y),
+            col_w[j],
+            row_h,
+            lw=1,
+            edgecolor=LN,
+            facecolor=fill,
         )
         ax.add_patch(rect)
         ax.text(
@@ -137,12 +180,18 @@ def draw_criteria_comparison() -> None:
         x = start_x
         y = start_y - (i + 1) * row_h
         for j, val in enumerate(row):
-            fill = GRAY4 if j == 0 else ("white" if i % 2 == 0 else GRAY1)
-            # Highlight negative
+            fill = GRAY4 if j == 0 else (
+                "white" if i % 2 == 0 else GRAY1
+            )
             if val.startswith("-"):
                 fill = "#D8D8D8"
             rect = mpatches.Rectangle(
-                (x, y), col_w[j], row_h, lw=1, edgecolor=LN, facecolor=fill
+                (x, y),
+                col_w[j],
+                row_h,
+                lw=1,
+                edgecolor=LN,
+                facecolor=fill,
             )
             ax.add_patch(rect)
             fw = "bold" if j == 0 else "normal"
@@ -164,7 +213,12 @@ def draw_criteria_comparison() -> None:
     for j, val in enumerate(probs):
         fill = GRAY5 if j > 0 else GRAY3
         rect = mpatches.Rectangle(
-            (x, y), col_w[j], row_h * 0.7, lw=1, edgecolor=LN, facecolor=fill
+            (x, y),
+            col_w[j],
+            row_h * 0.7,
+            lw=1,
+            edgecolor=LN,
+            facecolor=fill,
         )
         ax.add_patch(rect)
         ax.text(
@@ -179,8 +233,9 @@ def draw_criteria_comparison() -> None:
         )
         x += col_w[j]
 
-    # -- Right: Bar chart comparing criteria results --
-    ax2 = axes[1]
+
+def _draw_criteria_bars(ax2: Axes) -> None:
+    """Draw the criteria comparison bar chart on the right panel."""
     criteria = [
         "E[X]",
         "Laplace",
@@ -190,33 +245,36 @@ def draw_criteria_comparison() -> None:
         "Savage",
     ]
 
-    # Recalculate with probabilities 0.5, 0.3, 0.2
-    # E[X]: A1=200*0.5+50*0.3+(-100)*0.2=100+15-20=95
-    #        A2=80*0.5+70*0.3+40*0.2=40+21+8=69
-    #        A3=30*0.5+30*0.3+30*0.2=15+9+6=30
     ev = [95, 69, 30]
     laplace = [50, 63.3, 30]
     maximax = [200, 80, 30]
     maximin = [-100, 40, 30]
-    hurwicz = [80, 64, 30]  # alpha=0.6
-    savage_maxregret = [140, 120, 170]  # lower = better
+    hurwicz = [80, 64, 30]
+    savage_maxregret = [140, 120, 170]
 
-    # Which alternative wins for each criterion?
-    winners = [0, 1, 0, 1, 0, 1]  # index of winning alternative
+    winners = [0, 1, 0, 1, 0, 1]
 
-    # Display as grouped bar chart - each criterion shows the 3 alternatives
     x_pos = np.arange(len(criteria))
     width = 0.22
     hatches = ["///", "...", "xxx"]
     labels = ["A₁ (fabryka)", "A₂ (sklep)", "A₃ (obligacje)"]
 
     all_vals = [
-        [ev[0], laplace[0], maximax[0], maximin[0], hurwicz[0], savage_maxregret[0]],
-        [ev[1], laplace[1], maximax[1], maximin[1], hurwicz[1], savage_maxregret[1]],
-        [ev[2], laplace[2], maximax[2], maximin[2], hurwicz[2], savage_maxregret[2]],
+        [
+            ev[0], laplace[0], maximax[0],
+            maximin[0], hurwicz[0], savage_maxregret[0],
+        ],
+        [
+            ev[1], laplace[1], maximax[1],
+            maximin[1], hurwicz[1], savage_maxregret[1],
+        ],
+        [
+            ev[2], laplace[2], maximax[2],
+            maximin[2], hurwicz[2], savage_maxregret[2],
+        ],
     ]
 
-    for i in range(3):
+    for i in range(_DATA_STATE_COLS):
         ax2.bar(
             x_pos + (i - 1) * width,
             all_vals[i],
@@ -228,7 +286,6 @@ def draw_criteria_comparison() -> None:
             lw=0.8,
         )
 
-    # Mark winners with star
     for c_idx in range(len(criteria)):
         w = winners[c_idx]
         val = all_vals[w][c_idx]
@@ -245,14 +302,18 @@ def draw_criteria_comparison() -> None:
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels(criteria, fontsize=7)
     ax2.set_ylabel("Wartość kryterium", fontsize=8)
-    ax2.set_title("Porównanie kryteriów", fontsize=FS_TITLE, fontweight="bold", pad=8)
+    ax2.set_title(
+        "Porównanie kryteriów",
+        fontsize=FS_TITLE,
+        fontweight="bold",
+        pad=8,
+    )
     ax2.legend(fontsize=7, loc="upper right")
     ax2.axhline(y=0, color=LN, lw=0.5, ls="-")
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_visible(False)
     ax2.tick_params(labelsize=7)
 
-    # Note about Savage
     ax2.text(
         5,
         -30,
@@ -263,30 +324,35 @@ def draw_criteria_comparison() -> None:
         style="italic",
     )
 
+
+def draw_criteria_comparison() -> None:
+    """Draw payoff matrix and criteria comparison chart."""
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(8.27, 4.5),
+        gridspec_kw={"width_ratios": [1.2, 1]},
+    )
+
+    _draw_payoff_table(axes[0])
+    _draw_criteria_bars(axes[1])
+
     plt.tight_layout()
     outpath = str(Path(OUTPUT_DIR) / "q31_criteria_comparison.png")
     fig.savefig(outpath, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {outpath}")
+    _logger.info("  Saved: %s", outpath)
 
 
 # ============================================================
 # 2. REGRET MATRIX CONSTRUCTION
 # ============================================================
-def draw_regret_matrix() -> None:
-    """Draw regret matrix."""
-    fig, ax = plt.subplots(1, 1, figsize=(8.27, 5))
-    ax.axis("off")
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 7)
-    ax.set_title(
-        "Kryterium Savage'a — budowa macierzy żalu",
-        fontsize=FS_TITLE + 1,
-        fontweight="bold",
-        pad=10,
-    )
-
-    # --- Step 1: Original payoff matrix (left) ---
+def _draw_original_payoff(
+    ax: Axes,
+    start_y: float,
+    row_h: float,
+) -> None:
+    """Draw the original payoff matrix (left side of regret fig)."""
     ax.text(
         2.2,
         6.3,
@@ -298,7 +364,6 @@ def draw_regret_matrix() -> None:
     )
 
     col_w = 1.0
-    row_h = 0.55
     headers = ["", "S₁", "S₂", "S₃"]
     data = [
         ["A₁", "200", "50", "-100"],
@@ -306,13 +371,17 @@ def draw_regret_matrix() -> None:
         ["A₃", "30", "30", "30"],
     ]
     start_x = 0.3
-    start_y = 5.5
 
     for j, h in enumerate(headers):
         w = 0.7 if j == 0 else col_w
         x = start_x + (0 if j == 0 else 0.7 + (j - 1) * col_w)
         rect = mpatches.Rectangle(
-            (x, start_y), w, row_h, lw=1, edgecolor=LN, facecolor=GRAY2
+            (x, start_y),
+            w,
+            row_h,
+            lw=1,
+            edgecolor=LN,
+            facecolor=GRAY2,
         )
         ax.add_patch(rect)
         ax.text(
@@ -332,45 +401,37 @@ def draw_regret_matrix() -> None:
             x = start_x + (0 if j == 0 else 0.7 + (j - 1) * col_w)
             fill = GRAY4 if j == 0 else "white"
             rect = mpatches.Rectangle(
-                (x, y), w, row_h, lw=1, edgecolor=LN, facecolor=fill
+                (x, y),
+                w,
+                row_h,
+                lw=1,
+                edgecolor=LN,
+                facecolor=fill,
             )
             ax.add_patch(rect)
             ax.text(
-                x + w / 2, y + row_h / 2, val, ha="center", va="center", fontsize=FS
+                x + w / 2,
+                y + row_h / 2,
+                val,
+                ha="center",
+                va="center",
+                fontsize=FS,
             )
 
     # Max per column annotation
-    max_y = start_y - 3 * row_h - 0.1
-    ax.text(
-        start_x + 0.7 + 0.5 * col_w,
-        max_y,
-        "max=200",
-        fontsize=7,
-        ha="center",
-        va="top",
-        fontweight="bold",
-        color="#333",
-    )
-    ax.text(
-        start_x + 0.7 + 1.5 * col_w,
-        max_y,
-        "max=70",
-        fontsize=7,
-        ha="center",
-        va="top",
-        fontweight="bold",
-        color="#333",
-    )
-    ax.text(
-        start_x + 0.7 + 2.5 * col_w,
-        max_y,
-        "max=40",
-        fontsize=7,
-        ha="center",
-        va="top",
-        fontweight="bold",
-        color="#333",
-    )
+    max_y = start_y - _DATA_STATE_COLS * row_h - 0.1
+    col_maxes = ["max=200", "max=70", "max=40"]
+    for idx, label in enumerate(col_maxes):
+        ax.text(
+            start_x + 0.7 + (idx + 0.5) * col_w,
+            max_y,
+            label,
+            fontsize=7,
+            ha="center",
+            va="top",
+            fontweight="bold",
+            color="#333",
+        )
 
     # Arrow
     ax.annotate(
@@ -389,7 +450,13 @@ def draw_regret_matrix() -> None:
         fontweight="bold",
     )
 
-    # --- Step 2: Regret matrix (right) ---
+
+def _draw_regret_table(
+    ax: Axes,
+    start_y: float,
+    row_h: float,
+) -> None:
+    """Draw the regret matrix (right side of regret fig)."""
     ax.text(
         7.5,
         6.3,
@@ -409,21 +476,25 @@ def draw_regret_matrix() -> None:
     start_x2 = 5.3
 
     for j, h in enumerate(headers2):
-        w = 0.7 if j == 0 else (0.9 if j < 4 else 1.0)
+        w = 0.7 if j == 0 else (
+            0.9 if j < _REGRET_HEADER_COLS else 1.0
+        )
         x = start_x2
         if j == 0:
             x = start_x2
-        elif j <= 3:
+        elif j <= _DATA_STATE_COLS:
             x = start_x2 + 0.7 + (j - 1) * 0.9
         else:
-            x = start_x2 + 0.7 + 3 * 0.9
+            x = start_x2 + 0.7 + _DATA_STATE_COLS * 0.9
         rect = mpatches.Rectangle(
             (x, start_y),
             w,
             row_h,
             lw=1,
             edgecolor=LN,
-            facecolor=GRAY2 if j < 4 else GRAY3,
+            facecolor=(
+                GRAY2 if j < _REGRET_HEADER_COLS else GRAY3
+            ),
         )
         ax.add_patch(rect)
         ax.text(
@@ -441,16 +512,26 @@ def draw_regret_matrix() -> None:
         y = start_y - (i + 1) * row_h
         for j, val in enumerate(row):
             w = 0.7 if j == 0 else 0.9
-            x = start_x2 + (0 if j == 0 else 0.7 + (j - 1) * 0.9)
+            x = start_x2 + (
+                0 if j == 0 else 0.7 + (j - 1) * 0.9
+            )
             fill = GRAY4 if j == 0 else "white"
-            # Highlight the max regret cell
             if j > 0 and int(val) == max_regrets[i]:
                 fill = GRAY2
             rect = mpatches.Rectangle(
-                (x, y), w, row_h, lw=1, edgecolor=LN, facecolor=fill
+                (x, y),
+                w,
+                row_h,
+                lw=1,
+                edgecolor=LN,
+                facecolor=fill,
             )
             ax.add_patch(rect)
-            fw = "bold" if (j > 0 and int(val) == max_regrets[i]) else "normal"
+            fw = (
+                "bold"
+                if (j > 0 and int(val) == max_regrets[i])
+                else "normal"
+            )
             ax.text(
                 x + w / 2,
                 y + row_h / 2,
@@ -462,19 +543,20 @@ def draw_regret_matrix() -> None:
             )
 
         # Max regret column
-        x = start_x2 + 0.7 + 3 * 0.9
+        x = start_x2 + 0.7 + _DATA_STATE_COLS * 0.9
         w = 1.0
-        fill = "#C8C8C8" if max_regrets[i] == min(max_regrets) else GRAY1
+        is_winner = max_regrets[i] == min(max_regrets)
+        fill = "#C8C8C8" if is_winner else GRAY1
         rect = mpatches.Rectangle(
             (x, y),
             w,
             row_h,
-            lw=1.5 if max_regrets[i] == min(max_regrets) else 1,
+            lw=1.5 if is_winner else 1,
             edgecolor=LN,
             facecolor=fill,
         )
         ax.add_patch(rect)
-        marker = " ★" if max_regrets[i] == min(max_regrets) else ""
+        marker = " ★" if is_winner else ""
         ax.text(
             x + w / 2,
             y + row_h / 2,
@@ -485,11 +567,32 @@ def draw_regret_matrix() -> None:
             fontweight="bold",
         )
 
+
+def draw_regret_matrix() -> None:
+    """Draw the regret matrix construction diagram."""
+    fig, ax = plt.subplots(1, 1, figsize=(8.27, 5))
+    ax.axis("off")
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 7)
+    ax.set_title(
+        "Kryterium Savage'a \u2014 budowa macierzy żalu",
+        fontsize=FS_TITLE + 1,
+        fontweight="bold",
+        pad=10,
+    )
+
+    start_y = 5.5
+    row_h = 0.55
+
+    _draw_original_payoff(ax, start_y, row_h)
+    _draw_regret_table(ax, start_y, row_h)
+
     # Bottom conclusion
     ax.text(
         5.0,
         2.8,
-        "Krok 3: Wybierz min z max żalu → A₂ (max żal = 120)",
+        "Krok 3: Wybierz min z max żalu"
+        " → A₂ (max żal = 120)",
         fontsize=10,
         ha="center",
         va="center",
@@ -502,13 +605,15 @@ def draw_regret_matrix() -> None:
         },
     )
 
-    # Interpretatation examples
+    # Interpretation examples
     ax.text(
         5.0,
         2.0,
         "Interpretacja żalu: r₁₃ = 140 oznacza:\n"
-        "„Gdyby nastąpił S₃ (zła koniunktura), a wybrałbym A₁,\n"
-        'żałowałbym, bo najlepszą opcją byłoby A₂ z wynikiem 40 — traciłbym 140"',
+        "\u201eGdyby nastąpił S₃ (zła koniunktura),"
+        " a wybrałbym A₁,\n"
+        "żałowałbym, bo najlepszą opcją byłoby"
+        " A₂ z wynikiem 40 \u2014 traciłbym 140\u201d",
         fontsize=7.5,
         ha="center",
         va="center",
@@ -525,8 +630,9 @@ def draw_regret_matrix() -> None:
     ax.text(
         5.0,
         0.8,
-        'Mnemonik: Savage = „Żal jak nóż"\nMaksymalny żal to nóż '
-        "— wybierz opcję z NAJMNIEJSZYM nożem",
+        "Mnemonik: Savage = \u201eŻal jak nóż\u201d\n"
+        "Maksymalny żal to nóż "
+        "\u2014 wybierz opcję z NAJMNIEJSZYM nożem",
         fontsize=8,
         ha="center",
         va="center",
@@ -543,17 +649,18 @@ def draw_regret_matrix() -> None:
     outpath = str(Path(OUTPUT_DIR) / "q31_regret_matrix.png")
     fig.savefig(outpath, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {outpath}")
+    _logger.info("  Saved: %s", outpath)
 
 
 # ============================================================
 # 3. HURWICZ alpha INTERPOLATION
 # ============================================================
 def draw_hurwicz_interpolation() -> None:
-    """Draw hurwicz interpolation."""
+    """Draw Hurwicz alpha interpolation diagram."""
     fig, ax = plt.subplots(1, 1, figsize=(8.27, 4))
     ax.set_title(
-        "Kryterium Hurwicza — wpływ \u03b1 na wybór alternatywy",
+        "Kryterium Hurwicza"
+        " \u2014 wpływ \u03b1 na wybór alternatywy",
         fontsize=FS_TITLE + 1,
         fontweight="bold",
         pad=10,
@@ -561,25 +668,26 @@ def draw_hurwicz_interpolation() -> None:
 
     alphas = np.linspace(0, 1, 200)
 
-    # V(Ai) = alpha * max_i + (1-alpha) * min_i
-    # A1: max=200, min=-100
-    # A2: max=80, min=40
-    # A3: max=30, min=30
     v1 = alphas * 200 + (1 - alphas) * (-100)
     v2 = alphas * 80 + (1 - alphas) * 40
     v3 = alphas * 30 + (1 - alphas) * 30
 
-    ax.plot(alphas, v1, "k-", lw=2, label="A₁ (fabryka): V = 300\u03b1 - 100")
-    ax.plot(alphas, v2, "k--", lw=2, label="A₂ (sklep): V = 40\u03b1 + 40")
-    ax.plot(alphas, v3, "k:", lw=2, label="A₃ (obligacje): V = 30")
+    ax.plot(
+        alphas, v1, "k-", lw=2,
+        label="A₁ (fabryka): V = 300\u03b1 - 100",
+    )
+    ax.plot(
+        alphas, v2, "k--", lw=2,
+        label="A₂ (sklep): V = 40\u03b1 + 40",
+    )
+    ax.plot(
+        alphas, v3, "k:", lw=2,
+        label="A₃ (obligacje): V = 30",
+    )
 
-    # Find crossover points
-    # A2 = A1: 40alpha + 40 = 300alpha - 100  →  140 = 260alpha  →  alpha = 140/260 ≈ 0.538
+    # Crossover A2=A1
     alpha_cross_12 = 140 / 260
     v_cross_12 = 40 * alpha_cross_12 + 40
-
-    # A2 = A3: 40alpha + 40 = 30  →  40alpha = -10  →  alpha = -0.25 (never — A2 always > A3)
-    # A1 = A3: 300alpha - 100 = 30  →  300alpha = 130  →  alpha = 130/300 ≈ 0.433
 
     ax.plot(alpha_cross_12, v_cross_12, "ko", markersize=8, zorder=5)
     ax.annotate(
@@ -588,12 +696,16 @@ def draw_hurwicz_interpolation() -> None:
         xytext=(alpha_cross_12 + 0.12, v_cross_12 - 30),
         fontsize=8,
         fontweight="bold",
-        arrowprops={"arrowstyle": "->", "color": LN, "lw": 1},
+        arrowprops={
+            "arrowstyle": "->",
+            "color": LN,
+            "lw": 1,
+        },
     )
 
     # Shade winning regions
-    ax.axvspan(0, alpha_cross_12, alpha=0.08, color="black", label="_")
-    ax.axvspan(alpha_cross_12, 1, alpha=0.15, color="black", label="_")
+    ax.axvspan(0, alpha_cross_12, alpha=0.08, color="black")
+    ax.axvspan(alpha_cross_12, 1, alpha=0.15, color="black")
 
     ax.text(
         alpha_cross_12 / 2,
@@ -602,7 +714,11 @@ def draw_hurwicz_interpolation() -> None:
         fontsize=8,
         ha="center",
         va="center",
-        bbox={"boxstyle": "round", "facecolor": "white", "edgecolor": LN},
+        bbox={
+            "boxstyle": "round",
+            "facecolor": "white",
+            "edgecolor": LN,
+        },
     )
     ax.text(
         (alpha_cross_12 + 1) / 2,
@@ -611,7 +727,11 @@ def draw_hurwicz_interpolation() -> None:
         fontsize=8,
         ha="center",
         va="center",
-        bbox={"boxstyle": "round", "facecolor": "white", "edgecolor": LN},
+        bbox={
+            "boxstyle": "round",
+            "facecolor": "white",
+            "edgecolor": LN,
+        },
     )
 
     # Special alpha values
@@ -637,7 +757,9 @@ def draw_hurwicz_interpolation() -> None:
     )
 
     ax.set_xlabel("Współczynnik optymizmu \u03b1", fontsize=9)
-    ax.set_ylabel("V(Aᵢ) = \u03b1·max + (1-\u03b1)·min", fontsize=9)
+    ax.set_ylabel(
+        "V(Aᵢ) = \u03b1·max + (1-\u03b1)·min", fontsize=9
+    )
     ax.legend(fontsize=8, loc="upper left")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -649,21 +771,21 @@ def draw_hurwicz_interpolation() -> None:
     outpath = str(Path(OUTPUT_DIR) / "q31_hurwicz_alpha.png")
     fig.savefig(outpath, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {outpath}")
+    _logger.info("  Saved: %s", outpath)
 
 
 # ============================================================
 # 4. DECISION CRITERIA MNEMONIC MAP
 # ============================================================
 def draw_criteria_mnemonic() -> None:
-    """Draw criteria mnemonic."""
+    """Draw decision criteria mnemonic map diagram."""
     fig, ax = plt.subplots(1, 1, figsize=(8.27, 6))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 8)
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Mapa mnemoniczna — 6 kryteriów decyzyjnych",
+        "Mapa mnemoniczna \u2014 6 kryteriów decyzyjnych",
         fontsize=FS_TITLE + 2,
         fontweight="bold",
         pad=10,
@@ -685,34 +807,49 @@ def draw_criteria_mnemonic() -> None:
 
     # Criteria boxes around the center
     criteria = [
-        # (x, y, w, h, title, mnemonic, formula)
         (
-            0,
-            6.5,
-            3,
-            1.2,
+            0, 6.5, 3, 1.2,
             "WARTOŚĆ OCZEKIWANA",
-            '„Mam prawdopodobieństwa"',
+            "\u201eMam prawdopodobieństwa\u201d",
             "E[Aᵢ] = Σ pⱼ·aᵢⱼ",
         ),
-        (3.5, 6.5, 3, 1.2, "LAPLACE", '„Wszystko po równo"', "V = Σaᵢⱼ / n"),
-        (7, 6.5, 3, 1.2, "MAXIMAX", '„Optymista: max z max"', "max maxⱼ aᵢⱼ"),
-        (0, 0.5, 3, 1.2, "MAXIMIN (Wald)", '„Pesymista: max z min"', "max minⱼ aᵢⱼ"),
         (
-            3.5,
-            0.5,
-            3,
-            1.2,
+            3.5, 6.5, 3, 1.2,
+            "LAPLACE",
+            "\u201eWszystko po równo\u201d",
+            "V = Σaᵢⱼ / n",
+        ),
+        (
+            7, 6.5, 3, 1.2,
+            "MAXIMAX",
+            "\u201eOptymista: max z max\u201d",
+            "max maxⱼ aᵢⱼ",
+        ),
+        (
+            0, 0.5, 3, 1.2,
+            "MAXIMIN (Wald)",
+            "\u201ePesymista: max z min\u201d",
+            "max minⱼ aᵢⱼ",
+        ),
+        (
+            3.5, 0.5, 3, 1.2,
             "HURWICZ",
-            '„\u03b1 pomiędzy"',
+            "\u201e\u03b1 pomiędzy\u201d",
             "\u03b1·max + (1-\u03b1)·min",
         ),
-        (7, 0.5, 3, 1.2, "SAVAGE", '„Min max żalu"', "min maxⱼ rᵢⱼ"),
+        (
+            7, 0.5, 3, 1.2,
+            "SAVAGE",
+            "\u201eMin max żalu\u201d",
+            "min maxⱼ rᵢⱼ",
+        ),
     ]
 
     fills = [GRAY3, GRAY1, "white", "white", GRAY1, GRAY3]
 
-    for i, (x, y, w, h, title, mnem, formula) in enumerate(criteria):
+    for i, (x, y, w, h, title, mnem, formula) in enumerate(
+        criteria
+    ):
         rect = FancyBboxPatch(
             (x, y),
             w,
@@ -753,9 +890,10 @@ def draw_criteria_mnemonic() -> None:
         )
 
         # Arrows from center to each box
-        cx, cy = 5, 4  # center of macierz
-        bx, by = x + w / 2, y + h / 2
-        if by > cy:
+        cx, cy = 5, 4
+        bx = x + w / 2
+        by_center = y + h / 2
+        if by_center > cy:
             ax.annotate(
                 "",
                 xy=(bx, y),
@@ -781,112 +919,51 @@ def draw_criteria_mnemonic() -> None:
             )
 
     # Labels on arrows
-    ax.text(
-        1.2,
-        5.6,
-        "znane p",
-        fontsize=7,
-        ha="center",
-        va="center",
-        bbox={
-            "boxstyle": "round,pad=0.15",
-            "facecolor": "white",
-            "edgecolor": GRAY3,
-            "lw": 0.5,
-        },
-    )
-    ax.text(
-        5,
-        5.6,
-        "p = 1/n",
-        fontsize=7,
-        ha="center",
-        va="center",
-        bbox={
-            "boxstyle": "round,pad=0.15",
-            "facecolor": "white",
-            "edgecolor": GRAY3,
-            "lw": 0.5,
-        },
-    )
-    ax.text(
-        8.7,
-        5.6,
-        "max ↑",
-        fontsize=7,
-        ha="center",
-        va="center",
-        bbox={
-            "boxstyle": "round,pad=0.15",
-            "facecolor": "white",
-            "edgecolor": GRAY3,
-            "lw": 0.5,
-        },
-    )
-    ax.text(
-        1.2,
-        2.5,
-        "min ↑",
-        fontsize=7,
-        ha="center",
-        va="center",
-        bbox={
-            "boxstyle": "round,pad=0.15",
-            "facecolor": "white",
-            "edgecolor": GRAY3,
-            "lw": 0.5,
-        },
-    )
-    ax.text(
-        5,
-        2.5,
-        "podaj \u03b1",
-        fontsize=7,
-        ha="center",
-        va="center",
-        bbox={
-            "boxstyle": "round,pad=0.15",
-            "facecolor": "white",
-            "edgecolor": GRAY3,
-            "lw": 0.5,
-        },
-    )
-    ax.text(
-        8.7,
-        2.5,
-        "macierz\nżalu",
-        fontsize=7,
-        ha="center",
-        va="center",
-        bbox={
-            "boxstyle": "round,pad=0.15",
-            "facecolor": "white",
-            "edgecolor": GRAY3,
-            "lw": 0.5,
-        },
-    )
+    arrow_labels = [
+        (1.2, 5.6, "znane p"),
+        (5, 5.6, "p = 1/n"),
+        (8.7, 5.6, "max ↑"),
+        (1.2, 2.5, "min ↑"),
+        (5, 2.5, "podaj \u03b1"),
+        (8.7, 2.5, "macierz\nżalu"),
+    ]
+    for lx, ly, ltext in arrow_labels:
+        ax.text(
+            lx,
+            ly,
+            ltext,
+            fontsize=7,
+            ha="center",
+            va="center",
+            bbox={
+                "boxstyle": "round,pad=0.15",
+                "facecolor": "white",
+                "edgecolor": GRAY3,
+                "lw": 0.5,
+            },
+        )
 
     plt.tight_layout()
     outpath = str(Path(OUTPUT_DIR) / "q31_criteria_mnemonic.png")
     fig.savefig(outpath, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {outpath}")
+    _logger.info("  Saved: %s", outpath)
 
 
 # ============================================================
 # 5. EXPECTED VALUE CRITERION WITH PROBABILITY BARS
 # ============================================================
 def draw_expected_value() -> None:
-    """Draw expected value."""
+    """Draw expected value criterion with probability-weighted bars."""
     fig, axes = plt.subplots(1, 3, figsize=(8.27, 3.5), sharey=True)
     fig.suptitle(
-        "Kryterium wartości oczekiwanej E[X] — rozkład wyników per alternatywa",
+        "Kryterium wartości oczekiwanej E[X]"
+        " \u2014 rozkład wyników per alternatywa",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=1.02,
     )
 
-    # Probabilities: p1=0.5, p2=0.3, p3=0.2
     probs = [0.5, 0.3, 0.2]
     alts = [
         ("A₁ (fabryka)", [200, 50, -100], 95),
@@ -896,12 +973,15 @@ def draw_expected_value() -> None:
 
     hatches = ["///", "...", "xxx"]
 
-    for _idx, (ax, (name, vals, ev)) in enumerate(zip(axes, alts, strict=False)):
-        # Bar: height = payoff, width proportional to probability
+    for _idx, (ax, (name, vals, ev)) in enumerate(
+        zip(axes, alts, strict=False)
+    ):
         x_positions = [0, 0.6, 1.0]
         widths = [p * 0.9 for p in probs]
 
-        for i, (v, p, h) in enumerate(zip(vals, probs, hatches, strict=False)):
+        for i, (v, p, h) in enumerate(
+            zip(vals, probs, hatches, strict=False)
+        ):
             color = "white" if v >= 0 else GRAY2
             ax.bar(
                 x_positions[i],
@@ -913,7 +993,6 @@ def draw_expected_value() -> None:
                 lw=0.8,
                 align="edge",
             )
-            # Value label
             offset = 8 if v >= 0 else -12
             ax.text(
                 x_positions[i] + widths[i] / 2,
@@ -924,7 +1003,6 @@ def draw_expected_value() -> None:
                 fontsize=8,
                 fontweight="bold",
             )
-            # Probability contribution
             contrib = v * p
             ax.text(
                 x_positions[i] + widths[i] / 2,
@@ -946,7 +1024,11 @@ def draw_expected_value() -> None:
             fontweight="bold",
             va="center",
             ha="left",
-            bbox={"boxstyle": "round,pad=0.15", "facecolor": GRAY1, "edgecolor": LN},
+            bbox={
+                "boxstyle": "round,pad=0.15",
+                "facecolor": GRAY1,
+                "edgecolor": LN,
+            },
         )
 
         ax.set_title(name, fontsize=9, fontweight="bold")
@@ -958,7 +1040,7 @@ def draw_expected_value() -> None:
         ax.tick_params(labelsize=7)
 
         # Star on winner
-        if ev == 95:
+        if ev == _WINNING_EV:
             ax.text(
                 0.7,
                 ev + 20,
@@ -975,21 +1057,22 @@ def draw_expected_value() -> None:
     outpath = str(Path(OUTPUT_DIR) / "q31_expected_value.png")
     fig.savefig(outpath, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {outpath}")
+    _logger.info("  Saved: %s", outpath)
 
 
 # ============================================================
 # 6. DECISION CONDITIONS SPECTRUM
 # ============================================================
 def draw_conditions_spectrum() -> None:
-    """Draw conditions spectrum."""
+    """Draw decision conditions spectrum diagram."""
     fig, ax = plt.subplots(1, 1, figsize=(8.27, 3.5))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 5)
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Warunki decyzyjne — spektrum wiedzy decydenta",
+        "Warunki decyzyjne"
+        " \u2014 spektrum wiedzy decydenta",
         fontsize=FS_TITLE + 1,
         fontweight="bold",
         pad=10,
@@ -998,12 +1081,8 @@ def draw_conditions_spectrum() -> None:
     # Three zones
     zones = [
         (
-            0.3,
-            1.5,
-            2.8,
-            2.5,
-            "PEWNOŚĆ",
-            "white",
+            0.3, 1.5, 2.8, 2.5,
+            "PEWNOŚĆ", "white",
             [
                 "Znamy dokładny wynik",
                 "Przykład: lokata 5%",
@@ -1012,12 +1091,8 @@ def draw_conditions_spectrum() -> None:
             ],
         ),
         (
-            3.5,
-            1.5,
-            2.8,
-            2.5,
-            "RYZYKO",
-            GRAY1,
+            3.5, 1.5, 2.8, 2.5,
+            "RYZYKO", GRAY1,
             [
                 "Znamy wyniki I prawdop.",
                 "Przykład: gra w kości",
@@ -1026,12 +1101,8 @@ def draw_conditions_spectrum() -> None:
             ],
         ),
         (
-            6.7,
-            1.5,
-            2.8,
-            2.5,
-            "NIEPEWNOŚĆ",
-            GRAY3,
+            6.7, 1.5, 2.8, 2.5,
+            "NIEPEWNOŚĆ", GRAY3,
             [
                 "Znamy wyniki, ale",
                 "NIE znamy prawdop.",
@@ -1043,7 +1114,13 @@ def draw_conditions_spectrum() -> None:
 
     for x, y, w, h, title, fill, lines in zones:
         rect = FancyBboxPatch(
-            (x, y), w, h, boxstyle="round,pad=0.1", lw=2, edgecolor=LN, facecolor=fill
+            (x, y),
+            w,
+            h,
+            boxstyle="round,pad=0.1",
+            lw=2,
+            edgecolor=LN,
+            facecolor=fill,
         )
         ax.add_patch(rect)
         ax.text(
@@ -1088,17 +1165,32 @@ def draw_conditions_spectrum() -> None:
         w = 9.2 / n_steps + 0.01
         gray_val = 1 - (i / n_steps) * 0.7
         rect = mpatches.Rectangle(
-            (x, gradient_y), w, gradient_h, lw=0, facecolor=str(gray_val)
+            (x, gradient_y),
+            w,
+            gradient_h,
+            lw=0,
+            facecolor=str(gray_val),
         )
         ax.add_patch(rect)
 
     rect = mpatches.Rectangle(
-        (0.3, gradient_y), 9.2, gradient_h, lw=1.5, edgecolor=LN, facecolor="none"
+        (0.3, gradient_y),
+        9.2,
+        gradient_h,
+        lw=1.5,
+        edgecolor=LN,
+        facecolor="none",
     )
     ax.add_patch(rect)
 
-    ax.text(0.3, gradient_y - 0.15, "Dużo wiedzy", fontsize=7, ha="left", va="top")
-    ax.text(9.5, gradient_y - 0.15, "Mało wiedzy", fontsize=7, ha="right", va="top")
+    ax.text(
+        0.3, gradient_y - 0.15,
+        "Dużo wiedzy", fontsize=7, ha="left", va="top",
+    )
+    ax.text(
+        9.5, gradient_y - 0.15,
+        "Mało wiedzy", fontsize=7, ha="right", va="top",
+    )
     ax.text(
         4.95,
         gradient_y + gradient_h / 2,
@@ -1114,18 +1206,19 @@ def draw_conditions_spectrum() -> None:
     outpath = str(Path(OUTPUT_DIR) / "q31_conditions_spectrum.png")
     fig.savefig(outpath, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {outpath}")
+    _logger.info("  Saved: %s", outpath)
 
 
 # ============================================================
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    print("Generating PYTANIE 31 diagrams...")
+    logging.basicConfig(level=logging.INFO)
+    _logger.info("Generating PYTANIE 31 diagrams...")
     draw_criteria_comparison()
     draw_regret_matrix()
     draw_hurwicz_interpolation()
     draw_criteria_mnemonic()
     draw_expected_value()
     draw_conditions_spectrum()
-    print("Done! All Q31 diagrams saved to:", OUTPUT_DIR)
+    _logger.info("Done! All Q31 diagrams saved to: %s", OUTPUT_DIR)

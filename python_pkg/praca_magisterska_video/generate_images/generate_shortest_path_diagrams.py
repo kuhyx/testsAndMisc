@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Generate diagrams for PYTANIE 2: Shortest path algorithms.
 
-  1. Graph structure — the shared example graph (A,B,C,D)
-  2. Dijkstra traversal — step-by-step on that graph
-  3. Bellman-Ford traversal — step-by-step
-  4. A* traversal — step-by-step with heuristics.
+  1. Graph structure -- the shared example graph (A,B,C,D)
+  2. Dijkstra traversal -- step-by-step on that graph
+  3. Bellman-Ford traversal -- step-by-step
+  4. A* traversal -- step-by-step with heuristics.
 
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 
@@ -17,47 +22,65 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
+
 DPI = 300
 BG = "white"
 LN = "black"
 FS = 8
 FS_TITLE = 11
-FS_SMALL = 6.5
 FS_EDGE = 9
 OUTPUT_DIR = str(Path(__file__).resolve().parent / "img")
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
-GRAY1 = "#E8E8E8"
-GRAY2 = "#D0D0D0"
 GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
-GRAY5 = "#C0C0C0"
 LIGHT_GREEN = "#D5E8D4"
-LIGHT_RED = "#F8D7DA"
 LIGHT_BLUE = "#D6EAF8"
 LIGHT_YELLOW = "#FFF9C4"
-LIGHT_ORANGE = "#FFE0B2"
-LIGHT_PURPLE = "#E8D5F5"
 
-# --- Shared graph layout ---
-# Graph: A--2--B--3--D, A--4--C--5--D, D--1--C (directed: C->D has weight 5)
-NODE_POS = {"A": (1, 2), "B": (3.5, 3.2), "C": (1, 0), "D": (3.5, 0.8)}
-EDGES = [("A", "B", 2), ("A", "C", 4), ("B", "D", 3), ("C", "D", 5)]
+NODE_POS: dict[str, tuple[float, float]] = {
+    "A": (1, 2),
+    "B": (3.5, 3.2),
+    "C": (1, 0),
+    "D": (3.5, 0.8),
+}
+EDGES: list[tuple[str, str, int]] = [
+    ("A", "B", 2),
+    ("A", "C", 4),
+    ("B", "D", 3),
+    ("C", "D", 5),
+]
 
 
 def draw_graph_node(
-    ax,
-    name,
-    pos,
-    color="white",
-    current=False,
-    visited=False,
-    dist_label=None,
-    fontsize=12,
+    ax: Axes,
+    name: str,
+    pos: tuple[float, float],
+    *,
+    color: str = "white",
+    current: bool = False,
+    visited: bool = False,
+    dist_label: str | None = None,
+    fontsize: int = 12,
 ) -> None:
-    """Draw a graph node (circle with label)."""
+    """Draw a graph node (circle with label).
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        name: Node label text.
+        pos: (x, y) position of the node center.
+        color: Fill color when not current/visited.
+        current: Whether this node is being processed.
+        visited: Whether this node has been visited.
+        dist_label: Optional distance label below node.
+        fontsize: Font size for the node label.
+    """
     x, y = pos
-    r = 0.35
+    radius = 0.35
     lw = 2.5 if current else 1.5
     ec = "#D32F2F" if current else LN
     fc = LIGHT_GREEN if visited else color
@@ -65,7 +88,13 @@ def draw_graph_node(
         fc = LIGHT_YELLOW
 
     circle = plt.Circle(
-        (x, y), r, fill=True, facecolor=fc, edgecolor=ec, linewidth=lw, zorder=5
+        (x, y),
+        radius,
+        fill=True,
+        facecolor=fc,
+        edgecolor=ec,
+        linewidth=lw,
+        zorder=5,
     )
     ax.add_patch(circle)
     ax.text(
@@ -97,25 +126,52 @@ def draw_graph_node(
         )
 
 
-def draw_graph_edge(ax, pos1, pos2, weight, highlighted=False, relaxed=False) -> None:
-    """Draw an edge between two nodes with weight label."""
+def draw_graph_edge(
+    ax: Axes,
+    pos1: tuple[float, float],
+    pos2: tuple[float, float],
+    weight: int,
+    *,
+    highlighted: bool = False,
+    relaxed: bool = False,
+) -> None:
+    """Draw an edge between two nodes with weight label.
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        pos1: Start node position.
+        pos2: End node position.
+        weight: Edge weight value.
+        highlighted: Whether edge is highlighted.
+        relaxed: Whether edge was just relaxed.
+    """
     x1, y1 = pos1
     x2, y2 = pos2
 
     # Shorten line to not overlap node circles
     dx, dy = x2 - x1, y2 - y1
     length = np.sqrt(dx**2 + dy**2)
-    r = 0.38
-    sx = x1 + r * dx / length
-    sy = y1 + r * dy / length
-    ex = x2 - r * dx / length
-    ey = y2 - r * dy / length
+    node_radius = 0.38
+    sx = x1 + node_radius * dx / length
+    sy = y1 + node_radius * dy / length
+    ex = x2 - node_radius * dx / length
+    ey = y2 - node_radius * dy / length
 
-    color = "#D32F2F" if relaxed else ("#1565C0" if highlighted else GRAY3)
+    color = (
+        "#D32F2F"
+        if relaxed
+        else ("#1565C0" if highlighted else GRAY3)
+    )
     lw = 2.5 if (highlighted or relaxed) else 1.5
-    ls = "-"
 
-    ax.plot([sx, ex], [sy, ey], color=color, linewidth=lw, linestyle=ls, zorder=2)
+    ax.plot(
+        [sx, ex],
+        [sy, ey],
+        color=color,
+        linewidth=lw,
+        linestyle="-",
+        zorder=2,
+    )
 
     # Weight label
     mx = (x1 + x2) / 2
@@ -135,7 +191,9 @@ def draw_graph_edge(ax, pos1, pos2, weight, highlighted=False, relaxed=False) ->
         bbox={
             "boxstyle": "round,pad=0.15",
             "facecolor": "white",
-            "edgecolor": GRAY3 if not highlighted else color,
+            "edgecolor": (
+                GRAY3 if not highlighted else color
+            ),
             "alpha": 0.95,
         },
         zorder=4,
@@ -143,15 +201,26 @@ def draw_graph_edge(ax, pos1, pos2, weight, highlighted=False, relaxed=False) ->
 
 
 def draw_full_graph(
-    ax,
-    title="",
-    dist=None,
-    current=None,
-    visited=None,
-    highlighted_edges=None,
-    relaxed_edges=None,
+    ax: Axes,
+    *,
+    title: str = "",
+    dist: dict[str, str] | None = None,
+    current: str | None = None,
+    visited: set[str] | None = None,
+    highlighted_edges: set[tuple[str, str]] | None = None,
+    relaxed_edges: set[tuple[str, str]] | None = None,
 ) -> None:
-    """Draw the complete graph with optional highlighting."""
+    """Draw the complete graph with optional highlighting.
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        title: Subplot title.
+        dist: Distance labels per node.
+        current: Currently processed node name.
+        visited: Set of visited node names.
+        highlighted_edges: Edges to highlight.
+        relaxed_edges: Edges that were just relaxed.
+    """
     if visited is None:
         visited = set()
     if highlighted_edges is None:
@@ -170,17 +239,35 @@ def draw_full_graph(
 
     # Draw edges
     for u, v, w in EDGES:
-        hl = (u, v) in highlighted_edges or (v, u) in highlighted_edges
-        rl = (u, v) in relaxed_edges or (v, u) in relaxed_edges
-        draw_graph_edge(ax, NODE_POS[u], NODE_POS[v], w, highlighted=hl, relaxed=rl)
+        hl = (
+            (u, v) in highlighted_edges
+            or (v, u) in highlighted_edges
+        )
+        rl = (
+            (u, v) in relaxed_edges
+            or (v, u) in relaxed_edges
+        )
+        draw_graph_edge(
+            ax,
+            NODE_POS[u],
+            NODE_POS[v],
+            w,
+            highlighted=hl,
+            relaxed=rl,
+        )
 
     # Draw nodes
-    for name, pos in NODE_POS.items():
-        is_current = name == current
-        is_visited = name in visited
-        d_label = dist.get(name)
+    for node_name, pos in NODE_POS.items():
+        is_current = node_name == current
+        is_visited = node_name in visited
+        d_label = dist.get(node_name)
         draw_graph_node(
-            ax, name, pos, current=is_current, visited=is_visited, dist_label=d_label
+            ax,
+            node_name,
+            pos,
+            current=is_current,
+            visited=is_visited,
+            dist_label=d_label,
         )
 
 
@@ -188,7 +275,7 @@ def draw_full_graph(
 # 1. Graph structure diagram
 # ============================================================
 def draw_graph_structure() -> None:
-    """The shared example graph used across all three algorithms."""
+    """Draw the shared example graph used across all algorithms."""
     _fig, ax = plt.subplots(1, 1, figsize=(5, 4))
     ax.set_xlim(-0.5, 5.0)
     ax.set_ylim(-1.2, 4.5)
@@ -207,8 +294,8 @@ def draw_graph_structure() -> None:
         draw_graph_edge(ax, NODE_POS[u], NODE_POS[v], w)
 
     # Draw nodes
-    for name, pos in NODE_POS.items():
-        draw_graph_node(ax, name, pos)
+    for node_name, pos in NODE_POS.items():
+        draw_graph_node(ax, node_name, pos)
 
     # Start arrow
     ax.annotate(
@@ -241,14 +328,14 @@ def draw_graph_structure() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ graph_example_structure.png")
+    _logger.info("graph_example_structure.png")
 
 
 # ============================================================
 # 2. Dijkstra traversal
 # ============================================================
 def draw_dijkstra_traversal() -> None:
-    """Step-by-step Dijkstra on the shared graph."""
+    """Draw step-by-step Dijkstra on the shared graph."""
     steps = [
         {
             "title": "Krok 0: Inicjalizacja\nd = {A:0, B:∞, C:∞, D:∞}",
@@ -259,7 +346,11 @@ def draw_dijkstra_traversal() -> None:
             "relaxed": set(),
         },
         {
-            "title": "Krok 1: Przetwarzam A (d=0)\nRelaksacja: A→B: 0+2=2<∞ ✓  A→C: 0+4=4<∞ ✓",
+            "title": (
+                "Krok 1: Przetwarzam A (d=0)\n"
+                "Relaksacja: A→B: 0+2=2<∞ ✓"
+                "  A→C: 0+4=4<∞ ✓"
+            ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "∞"},
             "current": "A",
             "visited": {"A"},
@@ -267,7 +358,11 @@ def draw_dijkstra_traversal() -> None:
             "relaxed": {("A", "B"), ("A", "C")},
         },
         {
-            "title": "Krok 2: Przetwarzam B (d=2) — minimum\nRelaksacja: B→D: 2+3=5<∞ ✓",
+            "title": (
+                "Krok 2: Przetwarzam B (d=2)"
+                " — minimum\n"
+                "Relaksacja: B→D: 2+3=5<∞ ✓"
+            ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "5"},
             "current": "B",
             "visited": {"A", "B"},
@@ -275,7 +370,11 @@ def draw_dijkstra_traversal() -> None:
             "relaxed": {("B", "D")},
         },
         {
-            "title": "Krok 3: Przetwarzam C (d=4)\nRelaksacja: C→D: 4+5=9 > 5 ✗ (nie poprawia)",
+            "title": (
+                "Krok 3: Przetwarzam C (d=4)\n"
+                "Relaksacja: C→D: 4+5=9 > 5"
+                " ✗ (nie poprawia)"
+            ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "5"},
             "current": "C",
             "visited": {"A", "B", "C"},
@@ -283,7 +382,11 @@ def draw_dijkstra_traversal() -> None:
             "relaxed": set(),
         },
         {
-            "title": "Krok 4: WYNIK — wszystkie przetworzone\nd = {A:0, B:2, C:4, D:5}",
+            "title": (
+                "Krok 4: WYNIK"
+                " — wszystkie przetworzone\n"
+                "d = {A:0, B:2, C:4, D:5}"
+            ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "5"},
             "current": None,
             "visited": {"A", "B", "C", "D"},
@@ -294,7 +397,8 @@ def draw_dijkstra_traversal() -> None:
 
     fig, axes = plt.subplots(1, 5, figsize=(14, 3.5))
     fig.suptitle(
-        "Dijkstra — przejście grafu krok po kroku (zachłannie: zawsze bierz min d)",
+        "Dijkstra — przejście grafu krok po kroku"
+        " (zachłannie: zawsze bierz min d)",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=1.02,
@@ -315,11 +419,17 @@ def draw_dijkstra_traversal() -> None:
     fig.text(
         0.5,
         -0.04,
-        "[zolty] = aktualnie przetwarzany    [zielony] = odwiedzony (zamkniety)    "
-        "czerwona krawedz = relaksacja OK    szara krawedz = nie poprawia",
+        "[zolty] = aktualnie przetwarzany"
+        "    [zielony] = odwiedzony (zamkniety)"
+        "    czerwona krawedz = relaksacja OK"
+        "    szara krawedz = nie poprawia",
         ha="center",
         fontsize=FS,
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": GRAY4, "edgecolor": GRAY3},
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": GRAY4,
+            "edgecolor": GRAY3,
+        },
     )
 
     plt.tight_layout()
@@ -330,18 +440,19 @@ def draw_dijkstra_traversal() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ dijkstra_traversal.png")
+    _logger.info("dijkstra_traversal.png")
 
 
 # ============================================================
 # 3. Bellman-Ford traversal
 # ============================================================
 def draw_bellman_ford_traversal() -> None:
-    """Step-by-step Bellman-Ford on the shared graph."""
+    """Draw step-by-step Bellman-Ford on the shared graph."""
     fig = plt.figure(figsize=(14, 7))
     fig.suptitle(
         "Bellman-Ford — przejście grafu krok po kroku\n"
-        "(V-1 = 3 iteracje, w każdej relaksuj WSZYSTKIE krawędzie)",
+        "(V-1 = 3 iteracje, w każdej relaksuj"
+        " WSZYSTKIE krawędzie)",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=0.98,
@@ -408,14 +519,23 @@ def draw_bellman_ford_traversal() -> None:
         )
 
     # Negative cycle check note
+    neg_cycle_msg = (
+        "Po 3 iteracjach: sprawdz raz jeszcze"
+        " — nic sie nie zmienia"
+        " → BRAK cyklu ujemnego → wynik poprawny"
+    )
     fig.text(
         0.5,
         0.01,
-        "Po 3 iteracjach: sprawdź raz jeszcze — nic się nie zmienia → BRAK cyklu ujemnego → wynik poprawny",
+        neg_cycle_msg,
         ha="center",
         fontsize=FS,
         fontweight="bold",
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": LIGHT_GREEN, "edgecolor": LN},
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": LIGHT_GREEN,
+            "edgecolor": LN,
+        },
     )
 
     plt.tight_layout(rect=[0, 0.05, 1, 0.95])
@@ -426,21 +546,22 @@ def draw_bellman_ford_traversal() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ bellman_ford_traversal.png")
+    _logger.info("bellman_ford_traversal.png")
 
 
 # ============================================================
 # 4. A* traversal
 # ============================================================
 def draw_astar_traversal() -> None:
-    """Step-by-step A* on the shared graph with heuristics."""
+    """Draw step-by-step A* on the shared graph with heuristics."""
     # Heuristic values (straight-line distance to D)
     h_vals = {"A": 4, "B": 2, "C": 3, "D": 0}
 
     fig = plt.figure(figsize=(14, 7.5))
     fig.suptitle(
         "A* — przejście grafu krok po kroku (cel = D)\n"
-        "f(n) = g(n) + h(n), heurystyka h = oszacowana odległość do D",
+        "f(n) = g(n) + h(n), heurystyka h"
+        " = oszacowana odległość do D",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=0.99,
@@ -520,11 +641,11 @@ def draw_astar_traversal() -> None:
         )
 
         # Add h values as small labels
-        for name, pos in NODE_POS.items():
+        for node_name, pos in NODE_POS.items():
             ax_g.text(
                 pos[0] + 0.35,
                 pos[1] + 0.35,
-                f"h={h_vals[name]}",
+                f"h={h_vals[node_name]}",
                 ha="center",
                 va="center",
                 fontsize=5.5,
@@ -558,8 +679,11 @@ def draw_astar_traversal() -> None:
     fig.text(
         0.5,
         0.01,
-        "A* odwiedził 3 wierzchołki (A, B, D) — POMINĄŁ C!\n"
-        "Dijkstra odwiedziłby wszystkie 4. Heurystyka h kieruje przeszukiwanie w stronę celu.",
+        "A* odwiedził 3 wierzchołki (A, B, D)"
+        " — POMINĄŁ C!\n"
+        "Dijkstra odwiedziłby wszystkie 4."
+        " Heurystyka h kieruje przeszukiwanie"
+        " w stronę celu.",
         ha="center",
         fontsize=FS,
         fontweight="bold",
@@ -578,16 +702,17 @@ def draw_astar_traversal() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ astar_traversal.png")
+    _logger.info("astar_traversal.png")
 
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
-    print("Generating shortest path diagrams for PYTANIE 2...")
+    logging.basicConfig(level=logging.INFO)
+    _logger.info("Generating shortest path diagrams...")
     draw_graph_structure()
     draw_dijkstra_traversal()
     draw_bellman_ford_traversal()
     draw_astar_traversal()
-    print(f"\nAll diagrams saved to {OUTPUT_DIR}/")
+    _logger.info("All diagrams saved to %s/", OUTPUT_DIR)
