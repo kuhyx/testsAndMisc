@@ -10,6 +10,11 @@
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -20,6 +25,11 @@ from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -37,19 +47,20 @@ GRAY5 = "#C0C0C0"
 
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    *,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    rounded: bool = True,
 ) -> None:
     """Draw box."""
     if rounded:
@@ -71,7 +82,17 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -92,7 +113,9 @@ def draw_network_models() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        'Sieciowe modele optymalizacji — „Nasz Mały Mikołaj Przydzielił Trasy Ciężarówkom Mapując"',
+        "Sieciowe modele optymalizacji"
+        " — \u201eNasz Ma\u0142y Miko\u0142aj Przydzieli\u0142"
+        " Trasy Ci\u0119\u017car\u00f3wkom Mapuj\u0105c\u201d",
         fontsize=10,
         fontweight="bold",
         pad=10,
@@ -146,7 +169,6 @@ def draw_network_models() -> None:
 
     # Layout: 3 pairs + 1, arranged in labeled groups
     group_positions = [
-        # (group_label, [(model_idx, x, y), ...])
         ("DROGI", [(0, 0.3, 4.0), (6, 0.3, 1.5)]),
         ("PRZEPŁYW", [(1, 3.3, 4.0), (2, 3.3, 1.5)]),
         ("ZARZĄDZANIE", [(3, 6.3, 4.0), (5, 6.3, 1.5)]),
@@ -270,7 +292,7 @@ def draw_network_models() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ network_models_mnemonic.png")
+    _logger.info("  ✓ network_models_mnemonic.png")
 
 
 # ============================================================
@@ -297,7 +319,6 @@ def draw_vector_clock_timeline() -> None:
 
     # Events
     events = [
-        # (name, process_y, x, vector, fill)
         ("A", 3.5, 1.5, "[1,0,0]", GRAY1),
         ("B", 2.0, 2.5, "[0,1,0]", GRAY2),
         ("C", 2.0, 5.0, "[1,2,0]", GRAY2),
@@ -390,7 +411,7 @@ def draw_vector_clock_timeline() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ vector_clock_timeline.png")
+    _logger.info("  ✓ vector_clock_timeline.png")
 
 
 # ============================================================
@@ -493,7 +514,7 @@ def draw_linearizability_vs_sequential() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ linearizability_vs_sequential.png")
+    _logger.info("  ✓ linearizability_vs_sequential.png")
 
 
 # ============================================================
@@ -615,7 +636,7 @@ def draw_paxos_flow() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ paxos_flow.png")
+    _logger.info("  ✓ paxos_flow.png")
 
 
 # ============================================================
@@ -717,7 +738,7 @@ def draw_hog_pipeline() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ hog_svm_pipeline.png")
+    _logger.info("  ✓ hog_svm_pipeline.png")
 
 
 # ============================================================
@@ -814,7 +835,81 @@ def draw_rcnn_evolution() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ rcnn_evolution.png")
+    _logger.info("  ✓ rcnn_evolution.png")
+
+
+def _draw_instance_panel(ax: Axes) -> None:
+    """Draw instance segmentation panel."""
+    ax.add_patch(
+        mpatches.Rectangle((0, 4), 6, 2, facecolor="#E8E8E8", edgecolor=LN, lw=0.5)
+    )
+    ax.text(3, 5, "\u2014", ha="center", va="center", fontsize=7, color="#999999")
+    ax.add_patch(
+        mpatches.Rectangle((0, 0), 6, 2.5, facecolor="#E8E8E8", edgecolor=LN, lw=0.5)
+    )
+    ax.text(3, 1, "\u2014", ha="center", va="center", fontsize=7, color="#999999")
+    ax.add_patch(
+        mpatches.Rectangle((0.5, 2), 2, 1.5, facecolor="#888888", edgecolor=LN, lw=0.8)
+    )
+    ax.text(1.5, 2.75, "auto#1", ha="center", va="center", fontsize=6, color="white")
+    ax.add_patch(
+        mpatches.Rectangle((3.5, 2), 2, 1.5, facecolor="#555555", edgecolor=LN, lw=0.8)
+    )
+    ax.text(4.5, 2.75, "auto#2", ha="center", va="center", fontsize=6, color="white")
+    ax.text(
+        3,
+        -0.3,
+        "R\u00d3\u017bNE instancje!",
+        ha="center",
+        fontsize=6,
+        color="#555555",
+        style="italic",
+    )
+
+
+def _draw_panoptic_panel(ax: Axes) -> None:
+    """Draw panoptic segmentation panel."""
+    ax.add_patch(
+        mpatches.Rectangle((0, 4), 6, 2, facecolor="#E8E8E8", edgecolor=LN, lw=0.5)
+    )
+    ax.text(3, 5, "niebo (stuff)", ha="center", va="center", fontsize=6)
+    ax.add_patch(
+        mpatches.Rectangle((0, 0), 6, 2.5, facecolor="#C8C8C8", edgecolor=LN, lw=0.5)
+    )
+    ax.text(3, 1, "droga (stuff)", ha="center", va="center", fontsize=6)
+    ax.add_patch(
+        mpatches.Rectangle((0.5, 2), 2, 1.5, facecolor="#888888", edgecolor=LN, lw=0.8)
+    )
+    ax.text(
+        1.5,
+        2.75,
+        "auto#1\n(thing)",
+        ha="center",
+        va="center",
+        fontsize=5.5,
+        color="white",
+    )
+    ax.add_patch(
+        mpatches.Rectangle((3.5, 2), 2, 1.5, facecolor="#555555", edgecolor=LN, lw=0.8)
+    )
+    ax.text(
+        4.5,
+        2.75,
+        "auto#2\n(thing)",
+        ha="center",
+        va="center",
+        fontsize=5.5,
+        color="white",
+    )
+    ax.text(
+        3,
+        -0.3,
+        "klasy + instancje!",
+        ha="center",
+        fontsize=6,
+        color="#555555",
+        style="italic",
+    )
 
 
 # ============================================================
@@ -842,8 +937,6 @@ def draw_segmentation_types() -> None:
 
     # Image: sky (top), two cars (bottom), road
     # Semantic: all sky=one color, all cars=one color, road=one color
-    # Instance: sky=one, car1=distinct, car2=distinct, road=one
-    # Panoptic: both
 
     # Original image (stylized)
     ax = axes[0]
@@ -893,76 +986,10 @@ def draw_segmentation_types() -> None:
     )
 
     # Instance: different labels for cars
-    ax = axes[2]
-    ax.add_patch(
-        mpatches.Rectangle((0, 4), 6, 2, facecolor="#E8E8E8", edgecolor=LN, lw=0.5)
-    )
-    ax.text(3, 5, "—", ha="center", va="center", fontsize=7, color="#999999")
-    ax.add_patch(
-        mpatches.Rectangle((0, 0), 6, 2.5, facecolor="#E8E8E8", edgecolor=LN, lw=0.5)
-    )
-    ax.text(3, 1, "—", ha="center", va="center", fontsize=7, color="#999999")
-    ax.add_patch(
-        mpatches.Rectangle((0.5, 2), 2, 1.5, facecolor="#888888", edgecolor=LN, lw=0.8)
-    )
-    ax.text(1.5, 2.75, "auto#1", ha="center", va="center", fontsize=6, color="white")
-    ax.add_patch(
-        mpatches.Rectangle((3.5, 2), 2, 1.5, facecolor="#555555", edgecolor=LN, lw=0.8)
-    )
-    ax.text(4.5, 2.75, "auto#2", ha="center", va="center", fontsize=6, color="white")
-    ax.text(
-        3,
-        -0.3,
-        "RÓŻNE instancje!",
-        ha="center",
-        fontsize=6,
-        color="#555555",
-        style="italic",
-    )
+    _draw_instance_panel(axes[2])
 
     # Panoptic: both semantic labels AND instance IDs
-    ax = axes[3]
-    ax.add_patch(
-        mpatches.Rectangle((0, 4), 6, 2, facecolor="#E8E8E8", edgecolor=LN, lw=0.5)
-    )
-    ax.text(3, 5, "niebo (stuff)", ha="center", va="center", fontsize=6)
-    ax.add_patch(
-        mpatches.Rectangle((0, 0), 6, 2.5, facecolor="#C8C8C8", edgecolor=LN, lw=0.5)
-    )
-    ax.text(3, 1, "droga (stuff)", ha="center", va="center", fontsize=6)
-    ax.add_patch(
-        mpatches.Rectangle((0.5, 2), 2, 1.5, facecolor="#888888", edgecolor=LN, lw=0.8)
-    )
-    ax.text(
-        1.5,
-        2.75,
-        "auto#1\n(thing)",
-        ha="center",
-        va="center",
-        fontsize=5.5,
-        color="white",
-    )
-    ax.add_patch(
-        mpatches.Rectangle((3.5, 2), 2, 1.5, facecolor="#555555", edgecolor=LN, lw=0.8)
-    )
-    ax.text(
-        4.5,
-        2.75,
-        "auto#2\n(thing)",
-        ha="center",
-        va="center",
-        fontsize=5.5,
-        color="white",
-    )
-    ax.text(
-        3,
-        -0.3,
-        "klasy + instancje!",
-        ha="center",
-        fontsize=6,
-        color="#555555",
-        style="italic",
-    )
+    _draw_panoptic_panel(axes[3])
 
     plt.tight_layout()
     plt.savefig(
@@ -972,7 +999,7 @@ def draw_segmentation_types() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ segmentation_types.png")
+    _logger.info("  ✓ segmentation_types.png")
 
 
 # ============================================================
@@ -993,11 +1020,11 @@ def draw_fsd_ssd() -> None:
     ax.set_title("FSD: F_A(x) ≤ F_B(x) ∀x", fontsize=9, fontweight="bold")
     x = np.linspace(-2, 6, 200)
     # A ~ shifted right (better), B ~ shifted left
-    F_A = norm.cdf(x, loc=2.5, scale=1.0)
-    F_B = norm.cdf(x, loc=1.5, scale=1.0)
-    ax.plot(x, F_A, "k-", lw=2, label="F_A (lepsza — niżej)")
-    ax.plot(x, F_B, "k--", lw=2, label="F_B (gorsza — wyżej)")
-    ax.fill_between(x, F_A, F_B, alpha=0.15, color="gray")
+    cdf_a = norm.cdf(x, loc=2.5, scale=1.0)
+    cdf_b = norm.cdf(x, loc=1.5, scale=1.0)
+    ax.plot(x, cdf_a, "k-", lw=2, label="F_A (lepsza — niżej)")
+    ax.plot(x, cdf_b, "k--", lw=2, label="F_B (gorsza — wyżej)")
+    ax.fill_between(x, cdf_a, cdf_b, alpha=0.15, color="gray")
     ax.set_xlabel("x (wynik)", fontsize=8)
     ax.set_ylabel("F(x) = P(X ≤ x)", fontsize=8)
     ax.legend(fontsize=7, loc="lower right")
@@ -1008,7 +1035,7 @@ def draw_fsd_ssd() -> None:
         fontsize=7,
         bbox={"boxstyle": "round", "facecolor": GRAY4},
     )
-    ax.grid(True, alpha=0.3)
+    ax.grid(visible=True, alpha=0.3)
     ax.tick_params(labelsize=7)
 
     # SSD: CDFs can cross, but integral is less
@@ -1016,13 +1043,13 @@ def draw_fsd_ssd() -> None:
     ax.set_title(
         "SSD: ∫F_A ≤ ∫F_B ∀x (CDFs mogą się krzyżować)", fontsize=9, fontweight="bold"
     )
-    F_A2 = norm.cdf(x, loc=2.0, scale=0.8)
-    F_B2 = norm.cdf(x, loc=2.0, scale=1.5)  # same mean, more spread
-    ax.plot(x, F_A2, "k-", lw=2, label="F_A (mniej ryzyka)")
-    ax.plot(x, F_B2, "k--", lw=2, label="F_B (więcej ryzyka)")
-    ax.fill_between(x, F_A2, F_B2, where=F_A2 < F_B2, alpha=0.15, color="gray")
+    cdf_a2 = norm.cdf(x, loc=2.0, scale=0.8)
+    cdf_b2 = norm.cdf(x, loc=2.0, scale=1.5)  # same mean, more spread
+    ax.plot(x, cdf_a2, "k-", lw=2, label="F_A (mniej ryzyka)")
+    ax.plot(x, cdf_b2, "k--", lw=2, label="F_B (więcej ryzyka)")
+    ax.fill_between(x, cdf_a2, cdf_b2, where=cdf_a2 < cdf_b2, alpha=0.15, color="gray")
     ax.fill_between(
-        x, F_A2, F_B2, where=F_A2 >= F_B2, alpha=0.08, color="gray", hatch="///"
+        x, cdf_a2, cdf_b2, where=cdf_a2 >= cdf_b2, alpha=0.08, color="gray", hatch="///"
     )
     ax.set_xlabel("x (wynik)", fontsize=8)
     ax.set_ylabel("F(x)", fontsize=8)
@@ -1034,7 +1061,7 @@ def draw_fsd_ssd() -> None:
         fontsize=7,
         bbox={"boxstyle": "round", "facecolor": GRAY4},
     )
-    ax.grid(True, alpha=0.3)
+    ax.grid(visible=True, alpha=0.3)
     ax.tick_params(labelsize=7)
 
     plt.tight_layout()
@@ -1045,14 +1072,15 @@ def draw_fsd_ssd() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ fsd_ssd_comparison.png")
+    _logger.info("  ✓ fsd_ssd_comparison.png")
 
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
-    print("Generating study diagrams...")
+    logging.basicConfig(level=logging.INFO)
+    _logger.info("Generating study diagrams...")
     draw_network_models()
     draw_vector_clock_timeline()
     draw_linearizability_vs_sequential()
@@ -1061,4 +1089,4 @@ if __name__ == "__main__":
     draw_rcnn_evolution()
     draw_segmentation_types()
     draw_fsd_ssd()
-    print(f"\nAll diagrams saved to {OUTPUT_DIR}/")
+    _logger.info("All diagrams saved to %s/", OUTPUT_DIR)
