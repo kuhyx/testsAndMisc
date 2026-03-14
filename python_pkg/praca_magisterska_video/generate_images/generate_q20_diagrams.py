@@ -4,6 +4,11 @@
 Monochrome, A4-printable PNGs (300 DPI).
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -13,6 +18,12 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+
+_logger = logging.getLogger(__name__)
 
 rng = np.random.default_rng(42)
 
@@ -34,21 +45,22 @@ GRAY5 = "#C0C0C0"
 
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
-    edgecolor=LN,
-    linestyle="-",
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    *,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    rounded: bool = True,
+    edgecolor: str = LN,
+    linestyle: str = "-",
 ) -> None:
     """Draw box."""
     if rounded:
@@ -85,7 +97,16 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -95,26 +116,26 @@ def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
     )
 
 
-def save_fig(fig, name) -> None:
+def save_fig(fig: Figure, name: str) -> None:
     """Save fig."""
     path = str(Path(OUTPUT_DIR) / name)
     fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG, pad_inches=0.15)
     plt.close(fig)
-    print(f"  Saved: {path}")
+    _logger.info("  Saved: %s", path)
 
 
 def draw_table(
-    ax,
-    headers,
-    rows,
-    x0,
-    y0,
-    col_widths,
-    row_h=0.4,
-    header_fill=GRAY2,
-    row_fills=None,
-    fontsize=FS,
-    header_fontsize=None,
+    ax: Axes,
+    headers: list[str],
+    rows: list[list[str]],
+    x0: float,
+    y0: float,
+    col_widths: list[float],
+    row_h: float = 0.4,
+    header_fill: str = GRAY2,
+    row_fills: list[str] | None = None,
+    fontsize: float = FS,
+    header_fontsize: float | None = None,
 ) -> None:
     """Draw table."""
     if header_fontsize is None:
@@ -288,16 +309,8 @@ def gen_batch_vs_streaming() -> None:
 # ============================================================
 # 2. All 4 window types (TSSG)
 # ============================================================
-def gen_window_types() -> None:
-    """Gen window types."""
-    fig, axes = plt.subplots(4, 1, figsize=(9, 10))
-    fig.suptitle("4 typy okien — TSSG", fontsize=FS_TITLE, fontweight="bold")
-
-    # Events on a timeline (shared concept)
-    events = list(range(1, 13))
-
-    # --- Tumbling ---
-    ax = axes[0]
+def _draw_tumbling_window(ax: Axes, events: list[int]) -> None:
+    """Draw tumbling window section."""
     ax.set_xlim(0, 14)
     ax.set_ylim(0, 4)
     ax.set_aspect("auto")
@@ -360,8 +373,10 @@ def gen_window_types() -> None:
         bbox={"boxstyle": "round,pad=0.2", "facecolor": GRAY4, "edgecolor": GRAY5},
     )
 
-    # --- Sliding ---
-    ax = axes[1]
+
+
+def _draw_sliding_window(ax: Axes, events: list[int]) -> None:
+    """Draw sliding window section."""
     ax.set_xlim(0, 14)
     ax.set_ylim(0, 5)
     ax.set_aspect("auto")
@@ -420,8 +435,10 @@ def gen_window_types() -> None:
         bbox={"boxstyle": "round,pad=0.2", "facecolor": GRAY4, "edgecolor": GRAY5},
     )
 
-    # --- Session ---
-    ax = axes[2]
+
+
+def _draw_session_window(ax: Axes) -> None:
+    """Draw session window section."""
     ax.set_xlim(0, 14)
     ax.set_ylim(0, 4)
     ax.set_aspect("auto")
@@ -505,8 +522,10 @@ def gen_window_types() -> None:
         style="italic",
     )
 
-    # --- Global ---
-    ax = axes[3]
+
+
+def _draw_global_window(ax: Axes) -> None:
+    """Draw global window section."""
     ax.set_xlim(0, 14)
     ax.set_ylim(0, 4)
     ax.set_aspect("auto")
@@ -571,9 +590,22 @@ def gen_window_types() -> None:
         style="italic",
     )
 
+
+
+def gen_window_types() -> None:
+    """Gen window types."""
+    fig, axes = plt.subplots(4, 1, figsize=(9, 10))
+    fig.suptitle("4 typy okien — TSSG", fontsize=FS_TITLE, fontweight="bold")
+
+    events = list(range(1, 13))
+
+    _draw_tumbling_window(axes[0], events)
+    _draw_sliding_window(axes[1], events)
+    _draw_session_window(axes[2])
+    _draw_global_window(axes[3])
+
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     save_fig(fig, "q20_window_types.png")
-
 
 # ============================================================
 # 3. Event Time vs Processing Time scatter + watermark
@@ -2093,7 +2125,7 @@ def gen_decision_tree() -> None:
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    print("Generating ALL PYTANIE 20 diagrams...")
+    _logger.info("Generating ALL PYTANIE 20 diagrams...")
     gen_batch_vs_streaming()
     gen_window_types()
     gen_event_vs_processing_time()
@@ -2111,4 +2143,4 @@ if __name__ == "__main__":
     gen_exactly_once()
     gen_late_data_strategies()
     gen_decision_tree()
-    print("\nAll 17 PYTANIE 20 diagrams generated successfully!")
+    _logger.info("All 17 PYTANIE 20 diagrams generated successfully!")
