@@ -10,6 +10,11 @@
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -18,6 +23,11 @@ from pathlib import Path
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -34,7 +44,14 @@ GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.3) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.3,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -44,25 +61,34 @@ def draw_arrow(ax, x1, y1, x2, y2, lw=1.3) -> None:
     )
 
 
-def draw_line(ax, x1, y1, x2, y2, lw=1.3, ls="-") -> None:
+def draw_line(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.3,
+    ls: str = "-",
+) -> None:
     """Draw line."""
     ax.plot([x1, x2], [y1, y2], color=LN, lw=lw, linestyle=ls)
 
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.5,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=False,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    fill: str = "white",
+    lw: float = 1.5,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    *,
+    rounded: bool = False,
 ) -> None:
     """Draw box."""
     if rounded:
@@ -82,6 +108,66 @@ def draw_box(
         fontweight=fontweight,
         wrap=True,
     )
+
+
+def _draw_class(
+    ax: Axes,
+    x: float,
+    y: float,
+    name: str,
+    attrs: list[str],
+    methods: list[str],
+    w: float = 28,
+    fill: str = GRAY1,
+) -> None:
+    """Draw UML-style class box."""
+    h_name = 6
+    h_attr = len(attrs) * 4 + 2
+    h_meth = len(methods) * 4 + 2
+    h_total = h_name + h_attr + h_meth
+    ax.add_patch(
+        plt.Rectangle(
+            (x, y), w, h_total, lw=1.5,
+            edgecolor=LN, facecolor=fill,
+        )
+    )
+    ax.plot(
+        [x, x + w],
+        [y + h_total - h_name, y + h_total - h_name],
+        color=LN,
+        lw=1,
+    )
+    ax.text(
+        x + w / 2,
+        y + h_total - h_name / 2,
+        name,
+        ha="center",
+        va="center",
+        fontsize=7,
+        fontweight="bold",
+    )
+    ax.plot(
+        [x, x + w], [y + h_meth, y + h_meth],
+        color=LN, lw=1,
+    )
+    for i, a in enumerate(attrs):
+        ax.text(
+            x + 2,
+            y + h_total - h_name - 2 - i * 4,
+            a,
+            fontsize=6,
+            va="top",
+            family="monospace",
+        )
+    for i, m in enumerate(methods):
+        ax.text(
+            x + 2,
+            y + h_meth - 2 - i * 4,
+            m,
+            fontsize=6,
+            va="top",
+            family="monospace",
+        )
 
 
 # =========================================================================
@@ -126,17 +212,15 @@ def generate_togaf_adm() -> None:
         ("F: Migration\nPlanning", 180),
         ("G: Implementation\nGovernance", 135),
     ]
-    # H: Architecture Change Management between G and Preliminary
-    # Put it at ~112 degrees
 
-    R = 8  # radius of phase placement
+    radius = 8  # radius of phase placement
     box_w = 4.5
     box_h = 2.2
 
     for i, (label, angle_deg) in enumerate(phases):
         angle = np.radians(angle_deg)
-        cx = R * np.cos(angle)
-        cy = R * np.sin(angle)
+        cx = radius * np.cos(angle)
+        cy = radius * np.sin(angle)
 
         fill = GRAY1 if i % 2 == 0 else GRAY4
         rect = FancyBboxPatch(
@@ -155,7 +239,7 @@ def generate_togaf_adm() -> None:
         inner_r = 2.8
         ix = inner_r * np.cos(angle)
         iy = inner_r * np.sin(angle)
-        outer_r = R - box_w / 2 - 0.3
+        outer_r = radius - box_w / 2 - 0.3
         ox = outer_r * np.cos(angle)
         oy = outer_r * np.sin(angle)
         # Dashed line to center
@@ -170,7 +254,7 @@ def generate_togaf_adm() -> None:
         mid_angle = (a1 + a2) / 2
         if phases[i][1] < phases[(i + 1) % len(phases)][1]:
             mid_angle += np.pi  # handle wrap
-        ar = R + 0.3
+        ar = radius + 0.3
         ar * np.cos(mid_angle)
         ar * np.sin(mid_angle)
 
@@ -178,10 +262,10 @@ def generate_togaf_adm() -> None:
         # arrow a bit outside the boxes
         src_angle = a1 - np.radians(18)
         dst_angle = a2 + np.radians(18)
-        sx = (R + 2.8) * np.cos(src_angle)
-        sy = (R + 2.8) * np.sin(src_angle)
-        dx = (R + 2.8) * np.cos(dst_angle)
-        dy = (R + 2.8) * np.sin(dst_angle)
+        sx = (radius + 2.8) * np.cos(src_angle)
+        sy = (radius + 2.8) * np.sin(src_angle)
+        dx = (radius + 2.8) * np.cos(dst_angle)
+        dy = (radius + 2.8) * np.sin(dst_angle)
 
         ax.annotate(
             "",
@@ -199,8 +283,10 @@ def generate_togaf_adm() -> None:
     ax.text(
         0,
         -11.5,
-        "Cykl iteracyjny: ka\u017cda faza mo\u017ce wraca\u0107 do wcze\u015bniejszych.\n"
-        "Requirements Management w centrum \u2014 wp\u0142ywa na ka\u017cd\u0105 faz\u0119.",
+        "Cykl iteracyjny: każda faza"
+        " może wracać do wcześniejszych.\n"
+        "Requirements Management w centrum"
+        " — wpływa na każdą fazę.",
         ha="center",
         va="center",
         fontsize=7,
@@ -215,7 +301,7 @@ def generate_togaf_adm() -> None:
         bbox_inches="tight",
     )
     plt.close(fig)
-    print("  OK TOGAF ADM")
+    _logger.info("  OK TOGAF ADM")
 
 
 # =========================================================================
@@ -234,7 +320,6 @@ def generate_4plus1() -> None:
     )
 
     cx, cy = 50, 32
-    # Center: Scenarios (+1)
     cw, ch = 18, 8
     draw_box(
         ax,
@@ -259,7 +344,8 @@ def generate_4plus1() -> None:
             "Programista",
         ),
         (
-            "Process View\n(Wsp\u00f3\u0142bie\u017cno\u015b\u0107,\nprzep\u0142yw danych)",
+            "Process View\n(Współbieżność,"
+            "\nprzepływ danych)",
             cx + 28,
             cy,
             "Integrator",
@@ -351,7 +437,8 @@ def generate_4plus1() -> None:
         50,
         2,
         "Ka\u017cdy widok odpowiada innemu interesariuszowi.\n"
-        "Scenarios (\u0142\u0105cz\u0105cy +1) weryfikuj\u0105 sp\u00f3jno\u015b\u0107 4 widok\u00f3w.",
+        "Scenarios (łączący +1) weryfikują"
+        " spójność 4 widoków.",
         ha="center",
         fontsize=7,
         fontstyle="italic",
@@ -365,12 +452,232 @@ def generate_4plus1() -> None:
         bbox_inches="tight",
     )
     plt.close(fig)
-    print("  OK 4+1 View Model")
+    _logger.info("  OK 4+1 View Model")
 
 
 # =========================================================================
 # 3. C4 Model — 4 Zoom Levels
 # =========================================================================
+def _draw_c4_system_context(ax1: Axes) -> None:
+    """Draw C4 Level 1: System Context."""
+    # Person
+    ax1.add_patch(
+        plt.Circle(
+            (20, 55), 4, lw=1.5,
+            edgecolor=LN, facecolor=GRAY1,
+        )
+    )
+    # Head
+    ax1.add_patch(
+        plt.Circle(
+            (20, 57.5), 1.5, lw=1.2,
+            edgecolor=LN, facecolor="white",
+        )
+    )
+    # Body
+    draw_line(ax1, 20, 56, 20, 52.5, lw=1.2)
+    draw_line(ax1, 17, 55, 23, 55, lw=1.2)
+    ax1.text(
+        20, 48, "Klient",
+        ha="center", fontsize=8, fontweight="bold",
+    )
+
+    draw_box(
+        ax1, 38, 43, 24, 18,
+        "System\nE-commerce",
+        fill=GRAY2, lw=2, fontsize=9,
+        fontweight="bold", rounded=True,
+    )
+
+    draw_box(
+        ax1, 72, 48, 20, 12,
+        "System\nP\u0142atno\u015bci\n(zewn.)",
+        fill=GRAY4, lw=1.5, fontsize=7,
+        rounded=True,
+    )
+    ax1.add_patch(
+        plt.Rectangle(
+            (72, 48), 20, 12, lw=1.5,
+            edgecolor=LN, facecolor="none",
+            linestyle="--",
+        )
+    )
+
+    draw_arrow(ax1, 24, 54, 38, 54)
+    ax1.text(
+        31, 56, "sk\u0142ada\nzam\u00f3wienia",
+        fontsize=6, ha="center",
+    )
+    draw_arrow(ax1, 62, 54, 72, 54)
+    ax1.text(67, 56, "API", fontsize=6, ha="center")
+
+    ax1.text(
+        50, 20,
+        "Kto u\u017cywa systemu?\nZ czym si\u0119 integruje?",
+        ha="center", fontsize=7, fontstyle="italic",
+        bbox={
+            "boxstyle": "round",
+            "facecolor": GRAY4,
+            "edgecolor": LN,
+            "lw": 0.5,
+        },
+    )
+
+
+def _draw_c4_container(ax2: Axes) -> None:
+    """Draw C4 Level 2: Container."""
+    ax2.add_patch(
+        plt.Rectangle(
+            (5, 15), 90, 58, lw=1.5,
+            edgecolor=LN, facecolor="none",
+            linestyle="--",
+        )
+    )
+    ax2.text(
+        50, 75, "System E-commerce",
+        ha="center", fontsize=8,
+        fontweight="bold", fontstyle="italic",
+    )
+
+    containers = [
+        ("SPA\n(React)", 15, 50, 18, 12, GRAY1),
+        ("API\nServer\n(Node.js)", 42, 50, 18, 12, GRAY2),
+        ("Database\n(PostgreSQL)", 70, 50, 18, 12, GRAY3),
+        ("Worker\n(Python)", 42, 25, 18, 12, GRAY1),
+    ]
+    for label, x, y, w, h, fill in containers:
+        draw_box(
+            ax2, x, y, w, h, label,
+            fill=fill, lw=1.5, fontsize=7,
+            fontweight="bold", rounded=True,
+        )
+
+    draw_arrow(ax2, 33, 56, 42, 56)
+    ax2.text(37.5, 58, "REST", fontsize=6, ha="center")
+    draw_arrow(ax2, 60, 56, 70, 56)
+    ax2.text(65, 58, "SQL", fontsize=6, ha="center")
+    draw_arrow(ax2, 51, 50, 51, 37)
+    ax2.text(53, 44, "async", fontsize=6)
+
+    ax2.text(
+        50, 8,
+        "Jakie kontenery techniczne\n"
+        "sk\u0142adaj\u0105 si\u0119 na system?",
+        ha="center", fontsize=7, fontstyle="italic",
+        bbox={
+            "boxstyle": "round",
+            "facecolor": GRAY4,
+            "edgecolor": LN,
+            "lw": 0.5,
+        },
+    )
+
+
+def _draw_c4_component(ax3: Axes) -> None:
+    """Draw C4 Level 3: Component."""
+    ax3.add_patch(
+        plt.Rectangle(
+            (5, 15), 90, 58, lw=1.5,
+            edgecolor=LN, facecolor="none",
+            linestyle="--",
+        )
+    )
+    ax3.text(
+        50, 75, "API Server (Node.js)",
+        ha="center", fontsize=8,
+        fontweight="bold", fontstyle="italic",
+    )
+
+    components = [
+        ("OrderController", 10, 50, 22, 10, GRAY1),
+        ("AuthService", 40, 50, 22, 10, GRAY2),
+        ("PaymentGateway\n(adapter)", 70, 50, 22, 10, GRAY1),
+        ("OrderRepository", 25, 25, 22, 10, GRAY2),
+        ("NotificationService", 57, 25, 22, 10, GRAY1),
+    ]
+    for label, x, y, w, h, fill in components:
+        draw_box(
+            ax3, x, y, w, h, label,
+            fill=fill, lw=1.5, fontsize=6.5,
+            fontweight="bold", rounded=True,
+        )
+
+    draw_arrow(ax3, 32, 55, 40, 55)
+    draw_arrow(ax3, 62, 55, 70, 55)
+    draw_arrow(ax3, 21, 50, 30, 35)
+    draw_arrow(ax3, 51, 50, 62, 35)
+
+    ax3.text(
+        50, 8,
+        "Jakie modu\u0142y/komponenty\n"
+        "wewn\u0105trz kontenera?",
+        ha="center", fontsize=7, fontstyle="italic",
+        bbox={
+            "boxstyle": "round",
+            "facecolor": GRAY4,
+            "edgecolor": LN,
+            "lw": 0.5,
+        },
+    )
+
+
+def _draw_c4_code(ax4: Axes) -> None:
+    """Draw C4 Level 4: Code (UML)."""
+    _draw_class(
+        ax4, 5, 40,
+        "\u00abinterface\u00bb\nIOrderRepository",
+        [],
+        ["+save(order)", "+findById(id)"],
+        w=32, fill=GRAY4,
+    )
+    _draw_class(
+        ax4, 55, 40,
+        "OrderRepository",
+        ["-db: Database"],
+        ["+save(order)", "+findById(id)"],
+        w=32, fill=GRAY1,
+    )
+    _draw_class(
+        ax4, 30, 10,
+        "Order",
+        ["-id: UUID", "-items: List", "-total: Money"],
+        ["+addItem(item)", "+calculateTotal()"],
+        w=32, fill=GRAY2,
+    )
+
+    ax4.annotate(
+        "",
+        xy=(37, 46),
+        xytext=(55, 50),
+        arrowprops={
+            "arrowstyle": "-|>",
+            "color": LN,
+            "lw": 1.2,
+            "linestyle": "--",
+        },
+    )
+    ax4.text(
+        46, 52, "\u00abimplements\u00bb",
+        fontsize=6, ha="center", fontstyle="italic",
+    )
+
+    draw_arrow(ax4, 71, 40, 50, 24)
+    ax4.text(64, 32, "uses", fontsize=6, fontstyle="italic")
+
+    ax4.text(
+        50, 3,
+        "Diagramy klas UML\n"
+        "(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
+        ha="center", fontsize=7, fontstyle="italic",
+        bbox={
+            "boxstyle": "round",
+            "facecolor": GRAY4,
+            "edgecolor": LN,
+            "lw": 0.5,
+        },
+    )
+
+
 def generate_c4() -> None:
     """Generate c4."""
     fig, axes = plt.subplots(2, 2, figsize=(8.27, 10))
@@ -394,281 +701,15 @@ def generate_c4() -> None:
         ax_item.set_ylim(0, 80)
         ax_item.set_aspect("equal")
         ax_item.axis("off")
-        ax_item.set_title(titles[idx], fontsize=10, fontweight="bold", pad=8)
-
-    # --- Level 1: System Context ---
-    ax1 = axes[0, 0]
-    # Person
-    ax1.add_patch(plt.Circle((20, 55), 4, lw=1.5, edgecolor=LN, facecolor=GRAY1))
-    # Head (smaller circle on top)
-    ax1.add_patch(plt.Circle((20, 57.5), 1.5, lw=1.2, edgecolor=LN, facecolor="white"))
-    # Body (lines)
-    draw_line(ax1, 20, 56, 20, 52.5, lw=1.2)
-    draw_line(ax1, 17, 55, 23, 55, lw=1.2)
-    ax1.text(20, 48, "Klient", ha="center", fontsize=8, fontweight="bold")
-
-    # System
-    draw_box(
-        ax1,
-        38,
-        43,
-        24,
-        18,
-        "System\nE-commerce",
-        fill=GRAY2,
-        lw=2,
-        fontsize=9,
-        fontweight="bold",
-        rounded=True,
-    )
-
-    # External
-    draw_box(
-        ax1,
-        72,
-        48,
-        20,
-        12,
-        "System\nP\u0142atno\u015bci\n(zewn.)",
-        fill=GRAY4,
-        lw=1.5,
-        fontsize=7,
-        rounded=True,
-    )
-    ax1.add_patch(
-        plt.Rectangle(
-            (72, 48), 20, 12, lw=1.5, edgecolor=LN, facecolor="none", linestyle="--"
-        )
-    )
-
-    draw_arrow(ax1, 24, 54, 38, 54)
-    ax1.text(31, 56, "sk\u0142ada\nzam\u00f3wienia", fontsize=6, ha="center")
-    draw_arrow(ax1, 62, 54, 72, 54)
-    ax1.text(67, 56, "API", fontsize=6, ha="center")
-
-    ax1.text(
-        50,
-        20,
-        "Kto u\u017cywa systemu?\nZ czym si\u0119 integruje?",
-        ha="center",
-        fontsize=7,
-        fontstyle="italic",
-        bbox={"boxstyle": "round", "facecolor": GRAY4, "edgecolor": LN, "lw": 0.5},
-    )
-
-    # --- Level 2: Container ---
-    ax2 = axes[0, 1]
-    # Big system boundary
-    ax2.add_patch(
-        plt.Rectangle(
-            (5, 15), 90, 58, lw=1.5, edgecolor=LN, facecolor="none", linestyle="--"
-        )
-    )
-    ax2.text(
-        50,
-        75,
-        "System E-commerce",
-        ha="center",
-        fontsize=8,
-        fontweight="bold",
-        fontstyle="italic",
-    )
-
-    containers = [
-        ("SPA\n(React)", 15, 50, 18, 12, GRAY1),
-        ("API\nServer\n(Node.js)", 42, 50, 18, 12, GRAY2),
-        ("Database\n(PostgreSQL)", 70, 50, 18, 12, GRAY3),
-        ("Worker\n(Python)", 42, 25, 18, 12, GRAY1),
-    ]
-    for label, x, y, w, h, fill in containers:
-        draw_box(
-            ax2,
-            x,
-            y,
-            w,
-            h,
-            label,
-            fill=fill,
-            lw=1.5,
-            fontsize=7,
-            fontweight="bold",
-            rounded=True,
+        ax_item.set_title(
+            titles[idx], fontsize=10,
+            fontweight="bold", pad=8,
         )
 
-    draw_arrow(ax2, 33, 56, 42, 56)
-    ax2.text(37.5, 58, "REST", fontsize=6, ha="center")
-    draw_arrow(ax2, 60, 56, 70, 56)
-    ax2.text(65, 58, "SQL", fontsize=6, ha="center")
-    draw_arrow(ax2, 51, 50, 51, 37)
-    ax2.text(53, 44, "async", fontsize=6)
-
-    ax2.text(
-        50,
-        8,
-        "Jakie kontenery techniczne\nsk\u0142adaj\u0105 si\u0119 na system?",
-        ha="center",
-        fontsize=7,
-        fontstyle="italic",
-        bbox={"boxstyle": "round", "facecolor": GRAY4, "edgecolor": LN, "lw": 0.5},
-    )
-
-    # --- Level 3: Component ---
-    ax3 = axes[1, 0]
-    ax3.add_patch(
-        plt.Rectangle(
-            (5, 15), 90, 58, lw=1.5, edgecolor=LN, facecolor="none", linestyle="--"
-        )
-    )
-    ax3.text(
-        50,
-        75,
-        "API Server (Node.js)",
-        ha="center",
-        fontsize=8,
-        fontweight="bold",
-        fontstyle="italic",
-    )
-
-    components = [
-        ("OrderController", 10, 50, 22, 10, GRAY1),
-        ("AuthService", 40, 50, 22, 10, GRAY2),
-        ("PaymentGateway\n(adapter)", 70, 50, 22, 10, GRAY1),
-        ("OrderRepository", 25, 25, 22, 10, GRAY2),
-        ("NotificationService", 57, 25, 22, 10, GRAY1),
-    ]
-    for label, x, y, w, h, fill in components:
-        draw_box(
-            ax3,
-            x,
-            y,
-            w,
-            h,
-            label,
-            fill=fill,
-            lw=1.5,
-            fontsize=6.5,
-            fontweight="bold",
-            rounded=True,
-        )
-
-    draw_arrow(ax3, 32, 55, 40, 55)
-    draw_arrow(ax3, 62, 55, 70, 55)
-    draw_arrow(ax3, 21, 50, 30, 35)
-    draw_arrow(ax3, 51, 50, 62, 35)
-
-    ax3.text(
-        50,
-        8,
-        "Jakie modu\u0142y/komponenty\nwewn\u0105trz kontenera?",
-        ha="center",
-        fontsize=7,
-        fontstyle="italic",
-        bbox={"boxstyle": "round", "facecolor": GRAY4, "edgecolor": LN, "lw": 0.5},
-    )
-
-    # --- Level 4: Code ---
-    ax4 = axes[1, 1]
-
-    # UML-style class boxes
-    def draw_class(ax, x, y, name, attrs, methods, w=28, fill=GRAY1) -> None:
-        """Draw class."""
-        h_name = 6
-        h_attr = len(attrs) * 4 + 2
-        h_meth = len(methods) * 4 + 2
-        h_total = h_name + h_attr + h_meth
-        # Name
-        ax.add_patch(
-            plt.Rectangle((x, y), w, h_total, lw=1.5, edgecolor=LN, facecolor=fill)
-        )
-        ax.plot(
-            [x, x + w], [y + h_total - h_name, y + h_total - h_name], color=LN, lw=1
-        )
-        ax.text(
-            x + w / 2,
-            y + h_total - h_name / 2,
-            name,
-            ha="center",
-            va="center",
-            fontsize=7,
-            fontweight="bold",
-        )
-        # Attrs
-        ax.plot([x, x + w], [y + h_meth, y + h_meth], color=LN, lw=1)
-        for i, a in enumerate(attrs):
-            ax.text(
-                x + 2,
-                y + h_total - h_name - 2 - i * 4,
-                a,
-                fontsize=6,
-                va="top",
-                family="monospace",
-            )
-        # Methods
-        for i, m in enumerate(methods):
-            ax.text(
-                x + 2,
-                y + h_meth - 2 - i * 4,
-                m,
-                fontsize=6,
-                va="top",
-                family="monospace",
-            )
-
-    draw_class(
-        ax4,
-        5,
-        40,
-        "\u00abinterface\u00bb\nIOrderRepository",
-        [],
-        ["+save(order)", "+findById(id)"],
-        w=32,
-        fill=GRAY4,
-    )
-    draw_class(
-        ax4,
-        55,
-        40,
-        "OrderRepository",
-        ["-db: Database"],
-        ["+save(order)", "+findById(id)"],
-        w=32,
-        fill=GRAY1,
-    )
-    draw_class(
-        ax4,
-        30,
-        10,
-        "Order",
-        ["-id: UUID", "-items: List", "-total: Money"],
-        ["+addItem(item)", "+calculateTotal()"],
-        w=32,
-        fill=GRAY2,
-    )
-
-    # Implements arrow (dashed)
-    ax4.annotate(
-        "",
-        xy=(37, 46),
-        xytext=(55, 50),
-        arrowprops={"arrowstyle": "-|>", "color": LN, "lw": 1.2, "linestyle": "--"},
-    )
-    ax4.text(
-        46, 52, "\u00abimplements\u00bb", fontsize=6, ha="center", fontstyle="italic"
-    )
-
-    # Dependency
-    draw_arrow(ax4, 71, 40, 50, 24)
-    ax4.text(64, 32, "uses", fontsize=6, fontstyle="italic")
-
-    ax4.text(
-        50,
-        3,
-        "Diagramy klas UML\n(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
-        ha="center",
-        fontsize=7,
-        fontstyle="italic",
-        bbox={"boxstyle": "round", "facecolor": GRAY4, "edgecolor": LN, "lw": 0.5},
-    )
+    _draw_c4_system_context(axes[0, 0])
+    _draw_c4_container(axes[0, 1])
+    _draw_c4_component(axes[1, 0])
+    _draw_c4_code(axes[1, 1])
 
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(
@@ -678,7 +719,7 @@ def generate_c4() -> None:
         bbox_inches="tight",
     )
     plt.close(fig)
-    print("  OK C4 Model")
+    _logger.info("  OK C4 Model")
 
 
 # =========================================================================
@@ -801,8 +842,10 @@ def generate_zachman() -> None:
     ax.text(
         50,
         1,
-        "Ka\u017cda kom\u00f3rka = artefakt opisuj\u0105cy system z danej perspektywy i aspektu.\n"
-        "Zachman nie m\u00f3wi JAK modelowa\u0107 \u2014 m\u00f3wi CO nale\u017cy udokumentowa\u0107.",
+        "Każda komórka = artefakt opisujący system"
+        " z danej perspektywy i aspektu.\n"
+        "Zachman nie mówi JAK modelować"
+        " — mówi CO należy udokumentować.",
         ha="center",
         fontsize=7,
         fontstyle="italic",
@@ -816,7 +859,7 @@ def generate_zachman() -> None:
         bbox_inches="tight",
     )
     plt.close(fig)
-    print("  OK Zachman Framework")
+    _logger.info("  OK Zachman Framework")
 
 
 # =========================================================================
@@ -868,7 +911,7 @@ def generate_archimate() -> None:
             fontweight="bold",
         )
 
-    # Layers (rows)
+    # Layer rows
     layers = [
         (
             "Business\nLayer",
@@ -1012,25 +1055,40 @@ def generate_archimate() -> None:
         bbox_inches="tight",
     )
     plt.close(fig)
-    print("  OK ArchiMate")
+    _logger.info("  OK ArchiMate")
 
 
 # =========================================================================
 if __name__ == "__main__":
-    print(f"Generating architecture diagrams to {OUTPUT_DIR}/...")
+    _logger.info(
+        "Generating architecture diagrams to %s/...",
+        OUTPUT_DIR,
+    )
     generate_togaf_adm()
     generate_4plus1()
     generate_c4()
     generate_zachman()
     generate_archimate()
-    print(f"\nAll diagrams saved to {OUTPUT_DIR}/")
-    for f in sorted([p.name for p in Path(OUTPUT_DIR).iterdir()]):
+    _logger.info("All diagrams saved to %s/", OUTPUT_DIR)
+    for diagram_file in sorted(
+        p.name for p in Path(OUTPUT_DIR).iterdir()
+    ):
         if (
-            "togaf" in f
-            or "4plus1" in f
-            or "c4" in f
-            or "zachman" in f
-            or "archimate" in f
+            "togaf" in diagram_file
+            or "4plus1" in diagram_file
+            or "c4" in diagram_file
+            or "zachman" in diagram_file
+            or "archimate" in diagram_file
         ):
-            size_kb = Path(str(Path(OUTPUT_DIR).stat().st_size / f)) / 1024
-            print(f"  {f} ({size_kb:.0f} KB)")
+            size_kb = (
+                Path(
+                    str(
+                        Path(OUTPUT_DIR).stat().st_size
+                        / diagram_file
+                    )
+                )
+                / 1024
+            )
+            _logger.info(
+                "  %s (%.0f KB)", diagram_file, size_kb,
+            )
