@@ -4,15 +4,26 @@
 Monochrome, A4-printable PNGs (300 DPI).
 """
 
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
-from pathlib import Path
 
 import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+
+_logger = logging.getLogger(__name__)
 
 rng = np.random.default_rng(42)
 
@@ -32,23 +43,30 @@ GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
 GRAY5 = "#C0C0C0"
 
+_PIXEL_BRIGHT_THRESH = 127
+_GRADIENT_BRIGHT_THRESH = 100
+_DATA_BRIGHT_THRESH = 5
+_II_BRIGHT_THRESH = 25
+_DOTS_STAGE_IDX = 2
+
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
-    edgecolor=LN,
-    linestyle="-",
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    *,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    rounded: bool = True,
+    edgecolor: str = LN,
+    linestyle: str = "-",
 ) -> None:
     """Draw box."""
     if rounded:
@@ -85,7 +103,17 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -95,26 +123,27 @@ def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
     )
 
 
-def save_fig(fig, name) -> None:
+def save_fig(fig: Figure, name: str) -> None:
     """Save fig."""
     path = str(Path(OUTPUT_DIR) / name)
     fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG, pad_inches=0.15)
     plt.close(fig)
-    print(f"  Saved: {path}")
+    _logger.info("  Saved: %s", path)
 
 
 def draw_table(
-    ax,
-    headers,
-    rows,
-    x0,
-    y0,
-    col_widths,
-    row_h=0.4,
-    header_fill=GRAY2,
-    row_fills=None,
-    fontsize=FS,
-    header_fontsize=None,
+    ax: Axes,
+    headers: list[str],
+    rows: list[list[str]],
+    x0: float,
+    y0: float,
+    col_widths: list[float],
+    *,
+    row_h: float = 0.4,
+    header_fill: str = GRAY2,
+    row_fills: list[str] | None = None,
+    fontsize: float = FS,
+    header_fontsize: float | None = None,
 ) -> None:
     """Draw table."""
     if header_fontsize is None:
@@ -307,7 +336,7 @@ def draw_hog_gradient_steps() -> None:
                 va="center",
                 fontsize=FS_LABEL,
                 fontweight="bold",
-                color="white" if patch[i, j] > 127 else "black",
+                color="white" if patch[i, j] > _PIXEL_BRIGHT_THRESH else "black",
             )
     ax.set_title("① Fragment obrazu\n(jasność pikseli)", fontsize=FS, fontweight="bold")
     ax.set_xticks([])
@@ -327,7 +356,7 @@ def draw_hog_gradient_steps() -> None:
                 va="center",
                 fontsize=FS_LABEL,
                 fontweight="bold",
-                color="white" if gx[i, j] > 100 else "black",
+                color="white" if gx[i, j] > _GRADIENT_BRIGHT_THRESH else "black",
             )
     ax.set_title("② Gradient Gx\n(krawędź pionowa!)", fontsize=FS, fontweight="bold")
     ax.set_xticks([])
@@ -476,7 +505,7 @@ def draw_viola_jones_cascade() -> None:
             )
 
         # Dots between stage 3 and stage 25
-        if i == 2:
+        if i == _DOTS_STAGE_IDX:
             ax.text(
                 x_pos + 2.0, 3.1, "· · ·", ha="center", fontsize=12, fontweight="bold"
             )
@@ -592,26 +621,29 @@ def draw_haar_features() -> None:
     ax.axis("off")
     ax.set_title("Linia (3 prostokąty)\n(nos vs policzki)", fontsize=FS)
 
-    # Feature 4: Application on face (schematic)
-    ax = axes[3]
-    # Draw face outline (oval)
-    face = mpatches.Ellipse((1.2, 1.2), 2.0, 2.4, facecolor=GRAY4, edgecolor=LN, lw=1.5)
+    _draw_haar_face_panel(axes[3])
+
+    fig.tight_layout()
+    save_fig(fig, "q24_haar_features.png")
+
+
+def _draw_haar_face_panel(ax: Axes) -> None:
+    """Draw Haar feature application on face schematic."""
+    face = mpatches.Ellipse(
+        (1.2, 1.2), 2.0, 2.4, facecolor=GRAY4, edgecolor=LN, lw=1.5,
+    )
     ax.add_patch(face)
-    # Eyes (dark)
     ax.add_patch(
         mpatches.Ellipse((0.7, 1.6), 0.4, 0.2, facecolor=GRAY3, edgecolor=LN, lw=1)
     )
     ax.add_patch(
         mpatches.Ellipse((1.7, 1.6), 0.4, 0.2, facecolor=GRAY3, edgecolor=LN, lw=1)
     )
-    # Nose (light)
     ax.plot([1.2, 1.1, 1.3], [1.3, 0.9, 0.9], color=LN, lw=1)
-    # Mouth
     ax.plot([0.8, 1.0, 1.2, 1.4, 1.6], [0.55, 0.5, 0.55, 0.5, 0.55], color=LN, lw=1)
-    # Haar feature overlay on eyes
     ax.add_patch(
         mpatches.Rectangle(
-            (0.3, 1.4), 1.8, 0.4, facecolor="none", edgecolor=LN, lw=2, linestyle="--"
+            (0.3, 1.4), 1.8, 0.4, facecolor="none", edgecolor=LN, lw=2, linestyle="--",
         )
     )
     ax.annotate(
@@ -627,9 +659,6 @@ def draw_haar_features() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title("Zastosowanie na twarzy", fontsize=FS)
-
-    fig.tight_layout()
-    save_fig(fig, "q24_haar_features.png")
 
 
 # ============================================================
@@ -659,7 +688,7 @@ def draw_integral_image() -> None:
                 va="center",
                 fontsize=12,
                 fontweight="bold",
-                color="white" if data[i, j] > 5 else "black",
+                color="white" if data[i, j] > _DATA_BRIGHT_THRESH else "black",
             )
     ax.set_title("① Obraz oryginalny", fontsize=FS, fontweight="bold")
     ax.set_xticks([])
@@ -679,7 +708,7 @@ def draw_integral_image() -> None:
                 va="center",
                 fontsize=12,
                 fontweight="bold",
-                color="white" if ii[i, j] > 25 else "black",
+                color="white" if ii[i, j] > _II_BRIGHT_THRESH else "black",
             )
     ax.set_title("② Integral Image\n(sumy kumulatywne)", fontsize=FS, fontweight="bold")
     ax.set_xticks([])
@@ -859,6 +888,75 @@ def draw_rcnn_evolution() -> None:
     save_fig(fig, "q24_rcnn_evolution.png")
 
 
+def _draw_yolo_cell_prediction(ax: Axes) -> None:
+    """Draw YOLO cell prediction vector panel."""
+    ax.axis("off")
+    ax.set_xlim(0, 6)
+    ax.set_ylim(-1, 5)
+
+    labels = [
+        "x", "y", "w", "h", "conf",
+        "x", "y", "w", "h", "conf",
+        "P(c₁)", "...", "P(c₂₀)",
+    ]
+    colors_vec = [GRAY4] * 5 + [GRAY2] * 5 + [GRAY1] * 3
+
+    bw = 0.42
+    for i, (label, col) in enumerate(
+        zip(labels, colors_vec, strict=False),
+    ):
+        x_pos = 0.3 + i * bw
+        ax.add_patch(
+            mpatches.Rectangle(
+                (x_pos, 2.5), bw - 0.02, 0.6,
+                facecolor=col, edgecolor=LN, lw=0.8,
+            )
+        )
+        ax.text(
+            x_pos + bw / 2,
+            2.8,
+            label,
+            ha="center",
+            va="center",
+            fontsize=5,
+            fontweight="bold",
+        )
+
+    ax.annotate(
+        "", xy=(0.3, 2.4), xytext=(2.4, 2.4),
+        arrowprops={"arrowstyle": "-", "lw": 1},
+    )
+    ax.text(1.35, 2.15, "bbox 1 (5 wartości)", ha="center", fontsize=FS_SMALL)
+
+    ax.annotate(
+        "", xy=(2.4, 2.4), xytext=(4.5, 2.4),
+        arrowprops={"arrowstyle": "-", "lw": 1},
+    )
+    ax.text(3.45, 2.15, "bbox 2 (5 wartości)", ha="center", fontsize=FS_SMALL)
+
+    ax.annotate(
+        "", xy=(4.5, 2.4), xytext=(5.8, 2.4),
+        arrowprops={"arrowstyle": "-", "lw": 1},
+    )
+    ax.text(5.15, 2.15, "20 klas", ha="center", fontsize=FS_SMALL)
+
+    ax.text(
+        3.0,
+        3.5,
+        "Każda komórka → 30 wartości\n= 2x(x,y,w,h,conf) + 20 klas",
+        ha="center",
+        fontsize=FS,
+        fontweight="bold",
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": GRAY4, "edgecolor": GRAY3},
+    )
+
+    ax.set_title(
+        "② Predykcja jednej komórki\n(S=7, B=2, C=20)",
+        fontsize=FS,
+        fontweight="bold",
+    )
+
+
 # ============================================================
 # 7. YOLO Grid
 # ============================================================
@@ -874,14 +972,17 @@ def draw_yolo_grid() -> None:
 
     # Grid on image
     ax = axes[0]
-    S = 7
-    ax.set_xlim(0, S)
-    ax.set_ylim(0, S)
-    for i in range(S + 1):
+    grid_size = 7
+    ax.set_xlim(0, grid_size)
+    ax.set_ylim(0, grid_size)
+    for i in range(grid_size + 1):
         ax.axhline(y=i, color=LN, lw=0.5, alpha=0.5)
         ax.axvline(x=i, color=LN, lw=0.5, alpha=0.5)
     ax.add_patch(
-        mpatches.Rectangle((0, 0), S, S, facecolor=GRAY4, edgecolor=LN, lw=1.5)
+        mpatches.Rectangle(
+            (0, 0), grid_size, grid_size,
+            facecolor=GRAY4, edgecolor=LN, lw=1.5,
+        )
     )
     # Highlight one cell
     ax.add_patch(mpatches.Rectangle((3, 3), 1, 1, facecolor=GRAY2, edgecolor=LN, lw=2))
@@ -907,77 +1008,7 @@ def draw_yolo_grid() -> None:
     ax.set_xticks([])
     ax.set_yticks([])
 
-    # Cell prediction
-    ax = axes[1]
-    ax.axis("off")
-    ax.set_xlim(0, 6)
-    ax.set_ylim(-1, 5)
-
-    # Draw prediction vector
-    labels = [
-        "x",
-        "y",
-        "w",
-        "h",
-        "conf",
-        "x",
-        "y",
-        "w",
-        "h",
-        "conf",
-        "P(c₁)",
-        "...",
-        "P(c₂₀)",
-    ]
-    colors_vec = [GRAY4] * 5 + [GRAY2] * 5 + [GRAY1] * 3
-
-    bw = 0.42
-    for i, (l, c) in enumerate(zip(labels, colors_vec, strict=False)):
-        x_pos = 0.3 + i * bw
-        ax.add_patch(
-            mpatches.Rectangle(
-                (x_pos, 2.5), bw - 0.02, 0.6, facecolor=c, edgecolor=LN, lw=0.8
-            )
-        )
-        ax.text(
-            x_pos + bw / 2,
-            2.8,
-            l,
-            ha="center",
-            va="center",
-            fontsize=5,
-            fontweight="bold",
-        )
-
-    # Brackets for grouping
-    ax.annotate(
-        "", xy=(0.3, 2.4), xytext=(2.4, 2.4), arrowprops={"arrowstyle": "-", "lw": 1}
-    )
-    ax.text(1.35, 2.15, "bbox 1 (5 wartości)", ha="center", fontsize=FS_SMALL)
-
-    ax.annotate(
-        "", xy=(2.4, 2.4), xytext=(4.5, 2.4), arrowprops={"arrowstyle": "-", "lw": 1}
-    )
-    ax.text(3.45, 2.15, "bbox 2 (5 wartości)", ha="center", fontsize=FS_SMALL)
-
-    ax.annotate(
-        "", xy=(4.5, 2.4), xytext=(5.8, 2.4), arrowprops={"arrowstyle": "-", "lw": 1}
-    )
-    ax.text(5.15, 2.15, "20 klas", ha="center", fontsize=FS_SMALL)
-
-    ax.text(
-        3.0,
-        3.5,
-        "Każda komórka → 30 wartości\n= 2x(x,y,w,h,conf) + 20 klas",
-        ha="center",
-        fontsize=FS,
-        fontweight="bold",
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": GRAY4, "edgecolor": GRAY3},
-    )
-
-    ax.set_title(
-        "② Predykcja jednej komórki\n(S=7, B=2, C=20)", fontsize=FS, fontweight="bold"
-    )
+    _draw_yolo_cell_prediction(axes[1])
 
     # Speed comparison
     ax = axes[2]
@@ -1429,7 +1460,6 @@ def draw_svm_hyperplane() -> None:
         pad=12,
     )
 
-    # Class +1 (top-right)
     x_pos = rng.standard_normal(15) * 0.5 + 3
     y_pos = rng.standard_normal(15) * 0.5 + 3
     ax.scatter(
@@ -1444,7 +1474,6 @@ def draw_svm_hyperplane() -> None:
         zorder=3,
     )
 
-    # Class -1 (bottom-left)
     x_neg = rng.standard_normal(15) * 0.5 + 1
     y_neg = rng.standard_normal(15) * 0.5 + 1
     ax.scatter(
@@ -1610,7 +1639,7 @@ def draw_roi_pooling() -> None:
                 va="center",
                 fontsize=10,
                 fontweight="bold",
-                color="white" if roi_data[i, j] > 5 else "black",
+                color="white" if roi_data[i, j] > _DATA_BRIGHT_THRESH else "black",
             )
     ax.set_title("② ROI podzielony\nna siatkę 2x2", fontsize=FS, fontweight="bold")
     ax.set_xticks([])
@@ -1633,7 +1662,7 @@ def draw_roi_pooling() -> None:
                 va="center",
                 fontsize=14,
                 fontweight="bold",
-                color="white" if out[i, j] > 5 else "black",
+                color="white" if out[i, j] > _DATA_BRIGHT_THRESH else "black",
             )
     ax.set_title(
         "③ Po ROI Pool 2x2\n(max z każdej komórki)", fontsize=FS, fontweight="bold"
@@ -1866,7 +1895,6 @@ def draw_fpn() -> None:
         pad=12,
     )
 
-    # Bottom-up (backbone)
     levels = [
         (0, 0, 2.0, 2.0, "C2\n56x56", "duże\ndetale"),
         (0, 2.2, 1.5, 1.5, "C3\n28x28", ""),
@@ -1993,7 +2021,6 @@ def draw_anchor_boxes() -> None:
 
     # 9 anchors: 3 sizes x 3 ratios
     anchors = [
-        # (w, h, style, label)
         (0.8, 0.8, "-", "1:1 small"),
         (1.6, 1.6, "-", "1:1 medium"),
         (2.4, 2.4, "-", "1:1 large"),
@@ -2247,7 +2274,7 @@ def draw_cnn_architecture() -> None:
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    print("Generating PYTANIE 24 diagrams...")
+    _logger.info("Generating PYTANIE 24 diagrams...")
     draw_hog_svm_pipeline()
     draw_hog_gradient_steps()
     draw_viola_jones_cascade()
@@ -2267,4 +2294,4 @@ if __name__ == "__main__":
     draw_anchor_boxes()
     draw_detection_tasks()
     draw_cnn_architecture()
-    print("\nAll PYTANIE 24 diagrams generated!")
+    _logger.info("All PYTANIE 24 diagrams generated!")
