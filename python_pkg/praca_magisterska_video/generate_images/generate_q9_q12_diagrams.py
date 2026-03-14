@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 """Generate diagrams for PYTANIE 9 and PYTANIE 12.
 
-  PYTANIE 9:  Processes & Threads (IPC mechanisms, deadlock, producer-consumer)
-  PYTANIE 12: Network optimization models (Ford-Fulkerson, Hungarian, CPM, Kruskal, TSP, Min-cost flow).
+  PYTANIE 9:  Processes & Threads
+    (IPC mechanisms, deadlock, producer-consumer)
+  PYTANIE 12: Network optimization models
+    (Ford-Fulkerson, Hungarian, CPM, Kruskal, TSP, Min-cost).
 
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
 mpl.use("Agg")
 from pathlib import Path
@@ -16,6 +27,8 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -37,23 +50,26 @@ LIGHT_RED = "#F8D7DA"
 LIGHT_BLUE = "#D6EAF8"
 LIGHT_YELLOW = "#FFF9C4"
 LIGHT_ORANGE = "#FFE0B2"
+_LAST_CONDITION_INDEX = 3
+_CENTER_Y = 2.5
 
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
-    edgecolor=LN,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    *,
+    rounded: bool = True,
+    edgecolor: str = LN,
 ) -> None:
     """Draw box."""
     if rounded:
@@ -83,7 +99,16 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -93,12 +118,12 @@ def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
     )
 
 
-def save_fig(fig, name) -> None:
+def save_fig(fig: Figure, name: str) -> None:
     """Save fig."""
     path = str(Path(OUTPUT_DIR) / name)
     fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG, pad_inches=0.15)
     plt.close(fig)
-    print(f"  Saved: {path}")
+    _logger.info("  Saved: %s", path)
 
 
 # ============================================================
@@ -250,7 +275,7 @@ def gen_deadlock_illustration() -> None:
         fontweight="bold",
     )
 
-    # Arrows: "holds" (down)
+    # Hold arrows (downward)
     draw_arrow(ax, 1.5, 3.5, 1.5, 1.8, lw=2.0, color="#333333")
     ax.text(0.3, 2.65, "trzyma", fontsize=FS, ha="center", rotation=90, color="#333333")
 
@@ -288,8 +313,8 @@ def gen_deadlock_illustration() -> None:
         "4. Circular Wait — cykl oczekiwania ← złam ten!",
     ]
     for i, cond in enumerate(conditions):
-        color_c = "#C62828" if i == 3 else LN
-        fw = "bold" if i == 3 else "normal"
+        color_c = "#C62828" if i == _LAST_CONDITION_INDEX else LN
+        fw = "bold" if i == _LAST_CONDITION_INDEX else "normal"
         ax.text(
             0.5,
             0.5 - i * 0.25 + 0.2,
@@ -430,7 +455,14 @@ def gen_producer_consumer() -> None:
 # ============================================================
 
 
-def draw_network_node(ax, name, pos, color="white", fontsize=10, r=0.3) -> None:
+def draw_network_node(
+    ax: Axes,
+    name: str,
+    pos: tuple[float, float],
+    color: str = "white",
+    fontsize: float = 10,
+    r: float = 0.3,
+) -> None:
     """Draw a network node (circle)."""
     x, y = pos
     circle = plt.Circle(
@@ -450,16 +482,17 @@ def draw_network_node(ax, name, pos, color="white", fontsize=10, r=0.3) -> None:
 
 
 def draw_network_edge(
-    ax,
-    pos1,
-    pos2,
-    label="",
-    color=LN,
-    lw=1.5,
-    offset=0.0,
-    directed=True,
-    r=0.33,
-    label_bg="white",
+    ax: Axes,
+    pos1: tuple[float, float],
+    pos2: tuple[float, float],
+    label: str = "",
+    color: str = LN,
+    lw: float = 1.5,
+    offset: float = 0.0,
+    *,
+    directed: bool = True,
+    r: float = 0.33,
+    label_bg: str = "white",
 ) -> None:
     """Draw a directed edge with label."""
     x1, y1 = pos1
@@ -807,7 +840,7 @@ def gen_cpm() -> None:
     ]
     for name, label in es_ef:
         x, y = tasks[name]
-        offset_y = 0.7 if y > 2.5 else -0.7
+        offset_y = 0.7 if y > _CENTER_Y else -0.7
         ax.text(
             x,
             y + offset_y,
@@ -1116,12 +1149,13 @@ def gen_min_cost_flow() -> None:
 # ============================================================
 
 if __name__ == "__main__":
-    print("Generating PYTANIE 9 diagrams...")
+    logging.basicConfig(level=logging.INFO)
+    _logger.info("Generating PYTANIE 9 diagrams...")
     gen_ipc_mechanisms()
     gen_deadlock_illustration()
     gen_producer_consumer()
 
-    print("\nGenerating PYTANIE 12 diagrams...")
+    _logger.info("Generating PYTANIE 12 diagrams...")
     gen_ford_fulkerson()
     gen_hungarian()
     gen_cpm()
@@ -1129,4 +1163,4 @@ if __name__ == "__main__":
     gen_tsp()
     gen_min_cost_flow()
 
-    print("\nAll diagrams generated successfully!")
+    _logger.info("All diagrams generated successfully!")
