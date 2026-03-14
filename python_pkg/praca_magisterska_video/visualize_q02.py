@@ -6,6 +6,8 @@ on a small example graph, rendering each algorithm step by step.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+import logging
 import os
 from pathlib import Path
 
@@ -32,6 +34,9 @@ FONT_R = "/usr/share/fonts/TTF/DejaVuSans.ttf"
 OUTPUT_DIR = Path(__file__).resolve().parent / "videos"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT = str(OUTPUT_DIR / "q02_shortest_path.mp4")
+
+logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 # Graph definition
 NODE_POS = {"S": (250, 280), "A": (550, 180), "B": (550, 450), "C": (850, 320)}
@@ -101,13 +106,13 @@ def _draw_circle(
 
 def _draw_line(
     frame: np.ndarray,
-    x1: int,
-    y1: int,
-    x2: int,
-    y2: int,
+    start: tuple[int, int],
+    end: tuple[int, int],
     color: tuple[int, ...],
     thickness: int = 2,
 ) -> None:
+    x1, y1 = start
+    x2, y2 = end
     length = max(int(np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)), 1)
     for i in range(length):
         frac = i / length
@@ -122,13 +127,13 @@ def _draw_line(
 
 def _draw_arrow(
     frame: np.ndarray,
-    x1: int,
-    y1: int,
-    x2: int,
-    y2: int,
+    start: tuple[int, int],
+    end: tuple[int, int],
     color: tuple[int, ...],
     thickness: int = 2,
 ) -> None:
+    x1, y1 = start
+    x2, y2 = end
     r = 32
     length = max(np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2), 1)
     ddx = (x2 - x1) / length
@@ -137,14 +142,14 @@ def _draw_arrow(
     sy = int(y1 + ddy * r)
     ex = int(x2 - ddx * r)
     ey = int(y2 - ddy * r)
-    _draw_line(frame, sx, sy, ex, ey, color, thickness)
+    _draw_line(frame, (sx, sy), (ex, ey), color, thickness)
     angle = np.arctan2(ey - sy, ex - sx)
     arrow_len = 12
     for side in [-1, 1]:
         a = angle + np.pi + side * 0.4
         ax = int(ex + arrow_len * np.cos(a))
         ay = int(ey + arrow_len * np.sin(a))
-        _draw_line(frame, ex, ey, ax, ay, color, thickness)
+        _draw_line(frame, (ex, ey), (ax, ay), color, thickness)
 
 
 def _render_graph(
@@ -163,7 +168,7 @@ def _render_graph(
         sx, sy = nodes[src]
         dx, dy = nodes[dst]
         ec = COL_EDGE_ACT if active_edge == (src, dst) else COL_EDGE
-        _draw_arrow(frame, sx, sy, dx, dy, ec, thickness=2)
+        _draw_arrow(frame, (sx, sy), (dx, dy), ec, thickness=2)
 
     for name, (x, y) in nodes.items():
         if name == current:
@@ -184,19 +189,32 @@ def _render_graph(
     return frame
 
 
+@dataclass
+class _StepConfig:
+    """Configuration for a single algorithm visualization step."""
+
+    nodes: dict[str, tuple[int, int]]
+    edges: list[tuple[str, str, int]]
+    distances: dict[str, str]
+    current: str | None = None
+    visited: set[str] | None = None
+    active_edge: tuple[str, str] | None = None
+    step_text: str = ""
+    algo_name: str = ""
+
+
 def _make_step(
-    nodes: dict[str, tuple[int, int]],
-    edges: list[tuple[str, str, int]],
-    distances: dict[str, str],
-    current: str | None = None,
-    visited: set[str] | None = None,
-    active_edge: tuple[str, str] | None = None,
-    step_text: str = "",
-    algo_name: str = "",
+    cfg: _StepConfig,
     duration: float = STEP_DUR,
 ) -> CompositeVideoClip:
-    if visited is None:
-        visited = set()
+    nodes = cfg.nodes
+    edges = cfg.edges
+    distances = cfg.distances
+    current = cfg.current
+    visited = cfg.visited if cfg.visited is not None else set()
+    active_edge = cfg.active_edge
+    step_text = cfg.step_text
+    algo_name = cfg.algo_name
 
     graph_frame = _render_graph(nodes, edges, distances, current, visited, active_edge)
 
@@ -305,50 +323,66 @@ def _dijkstra_steps() -> list[CompositeVideoClip]:
     e = EDGES_DIJKSTRA
     return [
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": INF, "B": INF, "C": INF},
-            current="S",
-            step_text="Inicjalizacja: d[S]=0, reszta=∞. Wybierz S (min d).",
-            algo_name="Algorytm Dijkstry",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": INF, "B": INF, "C": INF},
+                current="S",
+                step_text="Inicjalizacja: d[S]=0, reszta=∞. Wybierz S (min d).",
+                algo_name="Algorytm Dijkstry",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": INF},
-            current="S",
-            active_edge=("S", "A"),
-            step_text="Relaksacja S→A: d[A]=0+2=2.  S→B: d[B]=0+5=5.",
-            algo_name="Algorytm Dijkstry",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": INF},
+                current="S",
+                active_edge=("S", "A"),
+                step_text="Relaksacja S→A: d[A]=0+2=2.  S→B: d[B]=0+5=5.",
+                algo_name="Algorytm Dijkstry",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": "5"},
-            current="A",
-            visited={"S"},
-            active_edge=("A", "C"),
-            step_text="Zamknij S. Min=A(2). Relaksacja A→C: d[C]=2+3=5.",
-            algo_name="Algorytm Dijkstry",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": "5"},
+                current="A",
+                visited={"S"},
+                active_edge=("A", "C"),
+                step_text="Zamknij S. Min=A(2). Relaksacja A→C: d[C]=2+3=5.",
+                algo_name="Algorytm Dijkstry",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": "5"},
-            current="B",
-            visited={"S", "A"},
-            active_edge=("B", "A"),
-            step_text="Zamknij A. Min=B(5). B→A: 5+1=6>2, nie zmieniaj. B→C: 5+6=11>5.",
-            algo_name="Algorytm Dijkstry",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": "5"},
+                current="B",
+                visited={"S", "A"},
+                active_edge=("B", "A"),
+                step_text=(
+                    "Zamknij A. Min=B(5). B→A: 5+1=6>2, "
+                    "nie zmieniaj. B→C: 5+6=11>5."
+                ),
+                algo_name="Algorytm Dijkstry",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": "5"},
-            current="C",
-            visited={"S", "A", "B"},
-            step_text="Zamknij B. Min=C(5). Koniec!  Wynik: d={S:0, A:2, B:5, C:5}.",
-            algo_name="Dijkstra -- WYNIK",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": "5"},
+                current="C",
+                visited={"S", "A", "B"},
+                step_text=(
+                    "Zamknij B. Min=C(5). Koniec! "
+                    "Wynik: d={S:0, A:2, B:5, C:5}."
+                ),
+                algo_name="Dijkstra -- WYNIK",
+            ),
         ),
     ]
 
@@ -358,42 +392,67 @@ def _bellman_ford_steps() -> list[CompositeVideoClip]:
     e = EDGES_BF
     return [
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": INF, "B": INF, "C": INF},
-            step_text="Bellman-Ford: relaksuj WSZYSTKIE krawędzie V-1=3 razy. Ujemne wagi OK!",
-            algo_name="Algorytm Bellmana-Forda",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": INF, "B": INF, "C": INF},
+                step_text=(
+                    "Bellman-Ford: relaksuj WSZYSTKIE "
+                    "krawędzie V-1=3 razy. Ujemne wagi OK!"
+                ),
+                algo_name="Algorytm Bellmana-Forda",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": "5"},
-            active_edge=("S", "A"),
-            step_text="Iteracja 1: S→A:2, A→C:5, S→B:5. Potem B→A: 5+(-4)=1 < 2 → A=1!",
-            algo_name="Bellman-Ford -- iteracja 1",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": "5"},
+                active_edge=("S", "A"),
+                step_text=(
+                    "Iteracja 1: S→A:2, A→C:5, S→B:5. "
+                    "Potem B→A: 5+(-4)=1 < 2 → A=1!"
+                ),
+                algo_name="Bellman-Ford -- iteracja 1",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "1", "B": "5", "C": "5"},
-            active_edge=("B", "A"),
-            step_text="B→A z ujemną wagą -4: d[A] poprawione z 2 na 1! (Dijkstra by to pominął!)",
-            algo_name="Bellman-Ford -- ujemna waga",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "1", "B": "5", "C": "5"},
+                active_edge=("B", "A"),
+                step_text=(
+                    "B→A z ujemną wagą -4: d[A] poprawione "
+                    "z 2 na 1! (Dijkstra by to pominął!)"
+                ),
+                algo_name="Bellman-Ford -- ujemna waga",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "1", "B": "5", "C": "4"},
-            active_edge=("A", "C"),
-            step_text="Iteracja 2: A→C: 1+3=4 < 5 → C=4. Propagacja poprawionego A.",
-            algo_name="Bellman-Ford -- iteracja 2",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "1", "B": "5", "C": "4"},
+                active_edge=("A", "C"),
+                step_text=(
+                    "Iteracja 2: A→C: 1+3=4 < 5 → C=4. "
+                    "Propagacja poprawionego A."
+                ),
+                algo_name="Bellman-Ford -- iteracja 2",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "1", "B": "5", "C": "4"},
-            step_text="Iteracja 3: brak zmian. V-ta iteracja: brak popraw → brak cyklu ujemnego.",
-            algo_name="Bellman-Ford -- WYNIK, O(V*E)",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "1", "B": "5", "C": "4"},
+                step_text=(
+                    "Iteracja 3: brak zmian. V-ta iteracja: "
+                    "brak popraw → brak cyklu ujemnego."
+                ),
+                algo_name="Bellman-Ford -- WYNIK, O(V*E)",
+            ),
         ),
     ]
 
@@ -403,40 +462,60 @@ def _astar_steps() -> list[CompositeVideoClip]:
     e = EDGES_DIJKSTRA
     return [
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": INF, "B": INF, "C": INF},
-            current="S",
-            step_text="A*: f(n)=g(n)+h(n). Cel=C. h(S)=5, h(A)=3, h(B)=4, h(C)=0. f(S)=0+5=5.",
-            algo_name="Algorytm A*",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": INF, "B": INF, "C": INF},
+                current="S",
+                step_text=(
+                    "A*: f(n)=g(n)+h(n). Cel=C. "
+                    "h(S)=5, h(A)=3, h(B)=4, h(C)=0. f(S)=0+5=5."
+                ),
+                algo_name="Algorytm A*",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": INF},
-            current="S",
-            active_edge=("S", "A"),
-            step_text="Relaksuj S: A(g=2,f=2+3=5), B(g=5,f=5+4=9). Min f → A(5).",
-            algo_name="A* -- rozwijanie S",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": INF},
+                current="S",
+                active_edge=("S", "A"),
+                step_text=(
+                    "Relaksuj S: A(g=2,f=2+3=5), "
+                    "B(g=5,f=5+4=9). Min f → A(5)."
+                ),
+                algo_name="A* -- rozwijanie S",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": "5"},
-            current="A",
-            visited={"S"},
-            active_edge=("A", "C"),
-            step_text="Rozwiń A(f=5): A→C: g=2+3=5, f=5+0=5. Min f → C(5) = CEL!",
-            algo_name="A* -- rozwijanie A",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": "5"},
+                current="A",
+                visited={"S"},
+                active_edge=("A", "C"),
+                step_text=(
+                    "Rozwiń A(f=5): A→C: g=2+3=5, "
+                    "f=5+0=5. Min f → C(5) = CEL!"
+                ),
+                algo_name="A* -- rozwijanie A",
+            ),
         ),
         _make_step(
-            n,
-            e,
-            {"S": "0", "A": "2", "B": "5", "C": "5"},
-            current="C",
-            visited={"S", "A"},
-            step_text="Dotarliśmy do C! Koszt=5. A* NIE przetwarza B (3 vs 4 w Dijkstrze).",
-            algo_name="A* -- cel osiągnięty!",
+            _StepConfig(
+                n,
+                e,
+                {"S": "0", "A": "2", "B": "5", "C": "5"},
+                current="C",
+                visited={"S", "A"},
+                step_text=(
+                    "Dotarliśmy do C! Koszt=5. "
+                    "A* NIE przetwarza B (3 vs 4 w Dijkstrze)."
+                ),
+                algo_name="A* -- cel osiągnięty!",
+            ),
         ),
     ]
 
@@ -523,7 +602,7 @@ def main() -> None:
     final.write_videofile(
         OUTPUT, fps=FPS, codec="libx264", audio=False, preset="medium", threads=4
     )
-    print(f"Video saved to: {OUTPUT}")
+    _logger.info("Video saved to: %s", OUTPUT)
 
 
 if __name__ == "__main__":
