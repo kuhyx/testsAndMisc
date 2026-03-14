@@ -4,15 +4,25 @@
 A4-compatible, monochrome-friendly (grays + one accent), 300 DPI.
 """
 
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
-from pathlib import Path
 
 from matplotlib import patches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 rng = np.random.default_rng(42)
 
@@ -38,6 +48,87 @@ FS = 9
 FS_TITLE = 11
 FS_SMALL = 7
 FS_TINY = 6
+
+_RIDGE_X = 5
+_VALLEY2_END = 9
+_DARK_PIXEL_THRESHOLD = 100
+_GRID_LAST_IDX = 3
+_HIGHLIGHT_START = 3
+_HIGHLIGHT_END = 5
+_BRIGHT_THRESHOLD = 170
+_OTSU_THRESHOLD = 128
+
+
+def _save_figure(name: str) -> None:
+    """Save current figure and log."""
+    plt.tight_layout()
+    plt.savefig(
+        str(Path(OUTPUT_DIR) / name),
+        dpi=DPI,
+        bbox_inches="tight",
+        facecolor="white",
+    )
+    plt.close()
+    _logger.info("  ✓ %s", name)
+
+
+def _render_text_lines(
+    ax: Axes,
+    lines: list[tuple[str, int, str, str]],
+    *,
+    x_pos: float = 0.5,
+    start_y: float,
+    y_step: float = 0.5,
+    y_empty_step: float = 0.2,
+) -> None:
+    """Render a list of styled text lines on an axis."""
+    y = start_y
+    for txt, size, color, weight in lines:
+        if txt == "":
+            y -= y_empty_step
+            continue
+        ax.text(
+            x_pos, y, txt,
+            fontsize=size, color=color, fontweight=weight, va="top",
+        )
+        y -= y_step
+
+
+def _draw_otsu_variance_panel(ax: Axes) -> None:
+    """Draw panel 2: within-class variance explanation."""
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis("off")
+    ax.set_title("Wariancja wewnątrzklasowa", fontsize=FS_TITLE, fontweight="bold")
+
+    texts = [
+        (
+            "Wariancja = jak bardzo wartości\nróżnią się od średniej",
+            FS,
+            "black",
+            "normal",
+        ),
+        ("", 0, "black", "normal"),
+        ("Klasa 0 (piksele ≤ T):", FS, ACCENT, "bold"),
+        ("  wartości: 30, 50, 45, 60, 55", FS_SMALL, "black", "normal"),
+        ("  średnia μ₀ = 48", FS_SMALL, "black", "normal"),
+        ("  σ₀² = ((30-48)²+(50-48)²+...)/5 = 108", FS_SMALL, "black", "normal"),
+        ("", 0, "black", "normal"),
+        ("Klasa 1 (piksele > T):", FS, RED_ACCENT, "bold"),
+        ("  wartości: 180, 200, 190, 210, 195", FS_SMALL, "black", "normal"),
+        ("  średnia μ₁ = 195", FS_SMALL, "black", "normal"),
+        ("  σ₁² = ((180-195)²+...)/5 = 100", FS_SMALL, "black", "normal"),
+        ("", 0, "black", "normal"),
+        ("σ²_wewnątrz = w₀·σ₀² + w₁·σ₁²", FS, BLACK, "bold"),
+        ("= 0.6·108 + 0.4·100 = 104.8", FS_SMALL, "black", "normal"),
+        ("", 0, "black", "normal"),
+        ("Otsu próbuje KAŻDE T: 0,1,...,255", FS_SMALL, GREEN_ACCENT, "bold"),
+        ("Wybiera T dające MINIMUM σ²_wewnątrz", FS_SMALL, GREEN_ACCENT, "bold"),
+    ]
+    _render_text_lines(
+        ax, texts,
+        x_pos=0.3, start_y=9.2, y_step=0.55, y_empty_step=0.25,
+    )
 
 
 # ============================================================
@@ -102,52 +193,7 @@ def generate_otsu_bimodal() -> None:
     ax.set_xlim(0, 255)
 
     # --- Panel 2: Within-class variance explanation ---
-    ax = axes[1]
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis("off")
-    ax.set_title("Wariancja wewnątrzklasowa", fontsize=FS_TITLE, fontweight="bold")
-
-    y = 9.2
-    texts = [
-        (
-            "Wariancja = jak bardzo wartości\nróżnią się od średniej",
-            FS,
-            "black",
-            "normal",
-        ),
-        ("", 0, "black", "normal"),
-        ("Klasa 0 (piksele ≤ T):", FS, ACCENT, "bold"),
-        ("  wartości: 30, 50, 45, 60, 55", FS_SMALL, "black", "normal"),
-        ("  średnia μ₀ = 48", FS_SMALL, "black", "normal"),
-        ("  σ₀² = ((30-48)²+(50-48)²+...)/5 = 108", FS_SMALL, "black", "normal"),
-        ("", 0, "black", "normal"),
-        ("Klasa 1 (piksele > T):", FS, RED_ACCENT, "bold"),
-        ("  wartości: 180, 200, 190, 210, 195", FS_SMALL, "black", "normal"),
-        ("  średnia μ₁ = 195", FS_SMALL, "black", "normal"),
-        ("  σ₁² = ((180-195)²+...)/5 = 100", FS_SMALL, "black", "normal"),
-        ("", 0, "black", "normal"),
-        ("σ²_wewnątrz = w₀·σ₀² + w₁·σ₁²", FS, BLACK, "bold"),
-        ("= 0.6·108 + 0.4·100 = 104.8", FS_SMALL, "black", "normal"),
-        ("", 0, "black", "normal"),
-        ("Otsu próbuje KAŻDE T: 0,1,...,255", FS_SMALL, GREEN_ACCENT, "bold"),
-        ("Wybiera T dające MINIMUM σ²_wewnątrz", FS_SMALL, GREEN_ACCENT, "bold"),
-    ]
-    for txt, size, color, weight in texts:
-        if txt == "":
-            y -= 0.25
-            continue
-        ax.text(
-            0.3,
-            y,
-            txt,
-            fontsize=size,
-            color=color,
-            fontweight=weight,
-            va="top",
-            transform=ax.transAxes if False else None,
-        )
-        y -= 0.55
+    _draw_otsu_variance_panel(axes[1])
 
     # --- Panel 3: Jednorodność explanation ---
     ax = axes[2]
@@ -209,15 +255,75 @@ def generate_otsu_bimodal() -> None:
 
     ax.legend(fontsize=FS_SMALL, loc="upper left")
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_otsu_bimodal.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
+    _save_figure("q23_otsu_bimodal.png")
+
+
+def _draw_watershed_result_panel(ax: Axes) -> None:
+    """Draw panel 3: watershed result with over-segmentation problem."""
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis("off")
+    ax.set_title("Krok 3: wynik", fontsize=FS_TITLE, fontweight="bold")
+
+    rect1 = FancyBboxPatch(
+        (0.5, 6), 3.5, 3.2,
+        boxstyle="round,pad=0.1", facecolor=ACCENT_LIGHT,
+        edgecolor=BLACK, linewidth=1,
     )
-    plt.close()
-    print("  ✓ q23_otsu_bimodal.png")
+    ax.add_patch(rect1)
+    ax.text(2.25, 8.8, "Ideał: 2 segmenty", fontsize=FS, ha="center", fontweight="bold")
+    ax.text(2.25, 7.5, "Segment A    Segment B", fontsize=FS_SMALL, ha="center")
+    ax.text(
+        2.25, 6.7, "(po marker-controlled)",
+        fontsize=FS_SMALL, ha="center", color=GREEN_ACCENT,
+    )
+
+    rect2 = FancyBboxPatch(
+        (5.5, 6), 4, 3.2,
+        boxstyle="round,pad=0.1", facecolor="#FFCDD2",
+        edgecolor=BLACK, linewidth=1,
+    )
+    ax.add_patch(rect2)
+    ax.text(
+        7.5, 8.8, "Problem: over-segmentation",
+        fontsize=FS, ha="center", fontweight="bold", color=RED_ACCENT,
+    )
+    ax.text(
+        7.5, 7.8, "47 regionów zamiast 2!",
+        fontsize=FS_SMALL, ha="center", color=RED_ACCENT,
+    )
+    ax.text(7.5, 7.1, "Każde mini-minimum", fontsize=FS_SMALL, ha="center")
+    ax.text(7.5, 6.5, '→ osobna „dolina"', fontsize=FS_SMALL, ha="center")
+
+    # Apply marker-controlled solution
+    rect3 = FancyBboxPatch(
+        (1, 0.5), 8, 4.5,
+        boxstyle="round,pad=0.15", facecolor=GRAY1,
+        edgecolor=GREEN_ACCENT, linewidth=1.5,
+    )
+    ax.add_patch(rect3)
+    ax.text(
+        5, 4.3, "Rozwiązanie: Marker-controlled watershed",
+        fontsize=FS, ha="center", fontweight="bold", color=GREEN_ACCENT,
+    )
+    ax.text(
+        5, 3.4,
+        '1. Zaznacz ręcznie „seeds" (markery) w każdym obiekcie',
+        fontsize=FS_SMALL, ha="center",
+    )
+    ax.text(
+        5, 2.7,
+        "2. Zalewaj TYLKO od tych markerów (nie od wszystkich minimów)",
+        fontsize=FS_SMALL, ha="center",
+    )
+    ax.text(
+        5, 2.0, "3. Eliminuje fałszywe doliny z szumu",
+        fontsize=FS_SMALL, ha="center",
+    )
+    ax.text(
+        5, 1.2, "Wynik: tyle segmentów, ile podano markerów",
+        fontsize=FS_SMALL, ha="center", fontweight="bold",
+    )
 
 
 # ============================================================
@@ -285,18 +391,16 @@ def generate_watershed() -> None:
 
     # Water level
     water_level = 3.2
-    (x < 5) & (surface_inv < water_level)
-    (x >= 5) & (surface_inv < water_level)
 
     # Fill water in valley 1
-    x_v1 = x[(x > 1) & (x < 5)]
-    s_v1 = surface_inv[(x > 1) & (x < 5)]
+    x_v1 = x[(x > 1) & (x < _RIDGE_X)]
+    s_v1 = surface_inv[(x > 1) & (x < _RIDGE_X)]
     ax.fill_between(
         x_v1, s_v1, water_level, where=s_v1 < water_level, color=ACCENT_LIGHT, alpha=0.6
     )
     # Fill water in valley 2
-    x_v2 = x[(x > 5) & (x < 9)]
-    s_v2 = surface_inv[(x > 5) & (x < 9)]
+    x_v2 = x[(x > _RIDGE_X) & (x < _VALLEY2_END)]
+    s_v2 = surface_inv[(x > _RIDGE_X) & (x < _VALLEY2_END)]
     ax.fill_between(
         x_v2, s_v2, water_level, where=s_v2 < water_level, color="#FFCDD2", alpha=0.6
     )
@@ -322,120 +426,9 @@ def generate_watershed() -> None:
     ax.set_ylim(0, 7)
 
     # --- Panel 3: Result with problem ---
-    ax = axes[2]
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis("off")
-    ax.set_title("Krok 3: wynik", fontsize=FS_TITLE, fontweight="bold")
+    _draw_watershed_result_panel(axes[2])
 
-    # Good result
-    rect1 = FancyBboxPatch(
-        (0.5, 6),
-        3.5,
-        3.2,
-        boxstyle="round,pad=0.1",
-        facecolor=ACCENT_LIGHT,
-        edgecolor=BLACK,
-        linewidth=1,
-    )
-    ax.add_patch(rect1)
-    ax.text(2.25, 8.8, "Ideał: 2 segmenty", fontsize=FS, ha="center", fontweight="bold")
-    ax.text(2.25, 7.5, "Segment A    Segment B", fontsize=FS_SMALL, ha="center")
-    ax.text(
-        2.25,
-        6.7,
-        "(po marker-controlled)",
-        fontsize=FS_SMALL,
-        ha="center",
-        color=GREEN_ACCENT,
-    )
-
-    # Bad result (over-segmentation)
-    rect2 = FancyBboxPatch(
-        (5.5, 6),
-        4,
-        3.2,
-        boxstyle="round,pad=0.1",
-        facecolor="#FFCDD2",
-        edgecolor=BLACK,
-        linewidth=1,
-    )
-    ax.add_patch(rect2)
-    ax.text(
-        7.5,
-        8.8,
-        "Problem: over-segmentation",
-        fontsize=FS,
-        ha="center",
-        fontweight="bold",
-        color=RED_ACCENT,
-    )
-    ax.text(
-        7.5,
-        7.8,
-        "47 regionów zamiast 2!",
-        fontsize=FS_SMALL,
-        ha="center",
-        color=RED_ACCENT,
-    )
-    ax.text(7.5, 7.1, "Każde mini-minimum", fontsize=FS_SMALL, ha="center")
-    ax.text(7.5, 6.5, '→ osobna „dolina"', fontsize=FS_SMALL, ha="center")
-
-    # Solution: markers
-    rect3 = FancyBboxPatch(
-        (1, 0.5),
-        8,
-        4.5,
-        boxstyle="round,pad=0.15",
-        facecolor=GRAY1,
-        edgecolor=GREEN_ACCENT,
-        linewidth=1.5,
-    )
-    ax.add_patch(rect3)
-    ax.text(
-        5,
-        4.3,
-        "Rozwiązanie: Marker-controlled watershed",
-        fontsize=FS,
-        ha="center",
-        fontweight="bold",
-        color=GREEN_ACCENT,
-    )
-    ax.text(
-        5,
-        3.4,
-        '1. Zaznacz ręcznie „seeds" (markery) w każdym obiekcie',
-        fontsize=FS_SMALL,
-        ha="center",
-    )
-    ax.text(
-        5,
-        2.7,
-        "2. Zalewaj TYLKO od tych markerów (nie od wszystkich minimów)",
-        fontsize=FS_SMALL,
-        ha="center",
-    )
-    ax.text(
-        5, 2.0, "3. Eliminuje fałszywe doliny z szumu", fontsize=FS_SMALL, ha="center"
-    )
-    ax.text(
-        5,
-        1.2,
-        "Wynik: tyle segmentów, ile podano markerów",
-        fontsize=FS_SMALL,
-        ha="center",
-        fontweight="bold",
-    )
-
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_watershed.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_watershed.png")
+    _save_figure("q23_watershed.png")
 
 
 # ============================================================
@@ -467,15 +460,12 @@ def generate_mean_shift() -> None:
     ax.set_xlabel("Cecha 1: jasność", fontsize=FS)
     ax.set_ylabel("Cecha 2: pozycja x", fontsize=FS)
     ax.set_title("Przestrzeń cech", fontsize=FS_TITLE, fontweight="bold")
-    ax.text(
-        2, 0.3, "Klaster 1\n(ciemne, lewo)", ha="center", fontsize=FS_TINY, color=GRAY6
-    )
-    ax.text(
-        6, 5.3, "Klaster 2\n(jasne, prawo)", ha="center", fontsize=FS_TINY, color=GRAY6
-    )
-    ax.text(
-        8, 1.3, "Klaster 3\n(jasne, dół)", ha="center", fontsize=FS_TINY, color=GRAY6
-    )
+    for lx, ly, ltxt in [
+        (2, 0.3, "Klaster 1\n(ciemne, lewo)"),
+        (6, 5.3, "Klaster 2\n(jasne, prawo)"),
+        (8, 1.3, "Klaster 3\n(jasne, dół)"),
+    ]:
+        ax.text(lx, ly, ltxt, ha="center", fontsize=FS_TINY, color=GRAY6)
     ax.legend(fontsize=FS_SMALL, loc="upper left")
 
     # --- Panel 2: Kernel/window moving ---
@@ -546,7 +536,6 @@ def generate_mean_shift() -> None:
     ax.axis("off")
     ax.set_title("Dlaczego bez K?", fontsize=FS_TITLE, fontweight="bold")
 
-    y = 9.0
     lines = [
         ("K-means wymaga:", FS, RED_ACCENT, "bold"),
         ('  „Podaj K=3 klastry"', FS_SMALL, "black", "normal"),
@@ -568,22 +557,67 @@ def generate_mean_shift() -> None:
         ("  Przesuń okno na tę średnią.", FS_SMALL, "black", "normal"),
         ("  Powtórz aż się zatrzyma.", FS_SMALL, "black", "normal"),
     ]
-    for txt, size, color, weight in lines:
-        if txt == "":
-            y -= 0.2
-            continue
-        ax.text(0.5, y, txt, fontsize=size, color=color, fontweight=weight, va="top")
-        y -= 0.5
+    _render_text_lines(ax, lines, start_y=9.0)
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_mean_shift.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_mean_shift.png")
+    _save_figure("q23_mean_shift.png")
+
+
+def _draw_ncuts_pixel_grid(
+    ax: Axes, pixel_vals: np.ndarray,
+) -> None:
+    """Draw 4x4 pixel grid with value labels and edge weights."""
+    for i in range(4):
+        for j in range(4):
+            v = pixel_vals[i, j]
+            gray_val = v / 255.0
+            str(gray_val)
+            rect = patches.Rectangle(
+                (j - 0.4, 3 - i - 0.4),
+                0.8, 0.8,
+                facecolor=(gray_val, gray_val, gray_val),
+                edgecolor=BLACK, linewidth=0.8,
+            )
+            ax.add_patch(rect)
+            text_color = (
+                "white" if v < _DARK_PIXEL_THRESHOLD else "black"
+            )
+            ax.text(
+                j, 3 - i, str(v),
+                ha="center", va="center", fontsize=FS_SMALL,
+                color=text_color, fontweight="bold",
+            )
+
+
+def _draw_ncuts_edges(
+    ax: Axes, pixel_vals: np.ndarray,
+) -> None:
+    """Draw weighted edges between adjacent pixels."""
+    for i in range(4):
+        for j in range(4):
+            if j < _GRID_LAST_IDX:
+                similarity = max(
+                    0,
+                    1 - abs(pixel_vals[i, j] - pixel_vals[i, j + 1])
+                    / 255,
+                )
+                lw = similarity * 2.5 + 0.3
+                alpha = similarity * 0.8 + 0.2
+                ax.plot(
+                    [j + 0.4, j + 0.6], [3 - i, 3 - i],
+                    color=GRAY5, linewidth=lw, alpha=alpha,
+                )
+            if i < _GRID_LAST_IDX:
+                similarity = max(
+                    0,
+                    1 - abs(pixel_vals[i, j] - pixel_vals[i + 1, j])
+                    / 255,
+                )
+                lw = similarity * 2.5 + 0.3
+                alpha = similarity * 0.8 + 0.2
+                ax.plot(
+                    [j, j], [3 - i - 0.4, 3 - i - 0.6],
+                    color=GRAY5, linewidth=lw, alpha=alpha,
+                )
 
 
 # ============================================================
@@ -600,7 +634,6 @@ def generate_normalized_cuts() -> None:
     ax.set_aspect("equal")
     ax.set_title("Obraz → graf", fontsize=FS_TITLE, fontweight="bold")
 
-    # Draw 4x4 pixel grid with colors
     pixel_vals = np.array(
         [
             [30, 35, 180, 190],
@@ -609,63 +642,8 @@ def generate_normalized_cuts() -> None:
             [190, 175, 30, 45],
         ]
     )
-    for i in range(4):
-        for j in range(4):
-            v = pixel_vals[i, j]
-            gray_val = v / 255.0
-            str(gray_val)
-            rect = patches.Rectangle(
-                (j - 0.4, 3 - i - 0.4),
-                0.8,
-                0.8,
-                facecolor=(gray_val, gray_val, gray_val),
-                edgecolor=BLACK,
-                linewidth=0.8,
-            )
-            ax.add_patch(rect)
-            text_color = "white" if v < 100 else "black"
-            ax.text(
-                j,
-                3 - i,
-                str(v),
-                ha="center",
-                va="center",
-                fontsize=FS_SMALL,
-                color=text_color,
-                fontweight="bold",
-            )
-
-    # Draw edges between adjacent pixels
-    for i in range(4):
-        for j in range(4):
-            # Right neighbor
-            if j < 3:
-                similarity = max(
-                    0, 1 - abs(pixel_vals[i, j] - pixel_vals[i, j + 1]) / 255
-                )
-                lw = similarity * 2.5 + 0.3
-                alpha = similarity * 0.8 + 0.2
-                ax.plot(
-                    [j + 0.4, j + 0.6],
-                    [3 - i, 3 - i],
-                    color=GRAY5,
-                    linewidth=lw,
-                    alpha=alpha,
-                )
-            # Bottom neighbor
-            if i < 3:
-                similarity = max(
-                    0, 1 - abs(pixel_vals[i, j] - pixel_vals[i + 1, j]) / 255
-                )
-                lw = similarity * 2.5 + 0.3
-                alpha = similarity * 0.8 + 0.2
-                ax.plot(
-                    [j, j],
-                    [3 - i - 0.4, 3 - i - 0.6],
-                    color=GRAY5,
-                    linewidth=lw,
-                    alpha=alpha,
-                )
+    _draw_ncuts_pixel_grid(ax, pixel_vals)
+    _draw_ncuts_edges(ax, pixel_vals)
 
     ax.text(
         2,
@@ -686,15 +664,15 @@ def generate_normalized_cuts() -> None:
 
     # Draw two groups of nodes
     # Group A (dark pixels)
-    positions_A = [(2, 7), (3, 8), (2, 5), (3, 6)]
-    positions_B = [(7, 7), (8, 8), (7, 5), (8, 6)]
+    positions_a = [(2, 7), (3, 8), (2, 5), (3, 6)]
+    positions_b = [(7, 7), (8, 8), (7, 5), (8, 6)]
 
     # Intra-group edges (thick = similar)
-    for i, (x1, y1) in enumerate(positions_A):
-        for x2, y2 in positions_A[i + 1 :]:
+    for i, (x1, y1) in enumerate(positions_a):
+        for x2, y2 in positions_a[i + 1 :]:
             ax.plot([x1, x2], [y1, y2], color=ACCENT, linewidth=2, alpha=0.5)
-    for i, (x1, y1) in enumerate(positions_B):
-        for x2, y2 in positions_B[i + 1 :]:
+    for i, (x1, y1) in enumerate(positions_b):
+        for x2, y2 in positions_b[i + 1 :]:
             ax.plot([x1, x2], [y1, y2], color=RED_ACCENT, linewidth=2, alpha=0.5)
 
     # Inter-group edges (thin = dissimilar) — these get cut
@@ -703,9 +681,9 @@ def generate_normalized_cuts() -> None:
         ax.plot([x1, x2], [y1, y2], color=GRAY4, linewidth=0.8, linestyle="--")
 
     # Draw nodes
-    for x, y in positions_A:
+    for x, y in positions_a:
         ax.scatter(x, y, c=ACCENT, s=120, zorder=5, edgecolors=BLACK, linewidth=0.8)
-    for x, y in positions_B:
+    for x, y in positions_b:
         ax.scatter(x, y, c="#FFCDD2", s=120, zorder=5, edgecolors=BLACK, linewidth=0.8)
 
     # Cut line
@@ -762,11 +740,13 @@ def generate_normalized_cuts() -> None:
     steps = [
         (
             "1. Zbuduj graf",
-            "Piksele = węzły\nKrawędzie = podobieństwo sąsiadów\n(kolor, jasność, odległość)",
+            "Piksele = węzły\nKrawędzie = podobieństwo"
+            " sąsiadów\n(kolor, jasność, odległość)",
         ),
         (
             "2. Macierz podobieństwa W",
-            "W[i,j] = exp(-|kolori - kolorj|² / σ²)\n→ im podobniejsze, tym wyższa waga",
+            "W[i,j] = exp(-|kolori - kolorj|² / σ²)"
+            "\n→ im podobniejsze, tym wyższa waga",
         ),
         ("3. Macierz stopni D", "D[i,i] = Σ W[i,j]\n(suma wszystkich wag z węzła i)"),
         ("4. Rozwiąż problem własny", "(D-W)·y = λ·D·y\n→ drugi najm. wektor własny y"),
@@ -790,15 +770,7 @@ def generate_normalized_cuts() -> None:
         color=RED_ACCENT,
     )
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_normalized_cuts.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_normalized_cuts.png")
+    _save_figure("q23_normalized_cuts.png")
 
 
 # ============================================================
@@ -846,7 +818,7 @@ def generate_relu() -> None:
     ax.set_title("ReLU — Rectified Linear Unit", fontsize=FS_TITLE, fontweight="bold")
     ax.legend(fontsize=FS_SMALL, loc="upper left")
     ax.set_ylim(-1, 6)
-    ax.grid(True, alpha=0.2)
+    ax.grid(visible=True, alpha=0.2)
 
     # --- Panel 2: Why ReLU ---
     ax = axes[1]
@@ -882,15 +854,7 @@ def generate_relu() -> None:
         ax.text(0.5, y, txt, fontsize=size, color=color, fontweight=weight, va="top")
         y -= 0.5
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_relu.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_relu.png")
+    _save_figure("q23_relu.png")
 
 
 # ============================================================
@@ -1009,7 +973,9 @@ def generate_dot_product() -> None:
     ax.text(
         2.5,
         0.5,
-        "(-1)·50 + 0·50 + 1·200 +\n(-1)·50 + 0·50 + 1·200 +\n(-1)·50 + 0·50 + 1·200\n= 450 (krawędź!)",
+        "(-1)·50 + 0·50 + 1·200 +\n"
+        "(-1)·50 + 0·50 + 1·200 +\n"
+        "(-1)·50 + 0·50 + 1·200\n= 450 (krawędź!)",
         ha="center",
         fontsize=FS_TINY,
         fontweight="bold",
@@ -1076,19 +1042,11 @@ def generate_dot_product() -> None:
     ax.set_xlim(-0.5, 5.5)
     ax.set_ylim(-2.5, 5.5)
     ax.set_aspect("equal")
-    ax.grid(True, alpha=0.2)
+    ax.grid(visible=True, alpha=0.2)
     ax.legend(fontsize=FS_SMALL, loc="upper left")
     ax.set_title("Geometrycznie: kąt", fontsize=FS_TITLE, fontweight="bold")
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_dot_product.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_dot_product.png")
+    _save_figure("q23_dot_product.png")
 
 
 # ============================================================
@@ -1304,15 +1262,7 @@ def generate_fcn() -> None:
         va="top",
     )
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_fc_vs_conv1x1.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_fc_vs_conv1x1.png")
+    _save_figure("q23_fc_vs_conv1x1.png")
 
 
 # ============================================================
@@ -1349,7 +1299,15 @@ def generate_unet() -> None:
         (14, 10, 2.5, 1.5, "572x572xC\n(mapa seg.)", "C"),
     ]
 
-    def draw_block(ax, x, y, w, h, label, color) -> None:
+    def draw_block(
+        ax: Axes,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        label: str,
+        color: str,
+    ) -> None:
         """Draw block."""
         rect = FancyBboxPatch(
             (x - w / 2, y - h / 2),
@@ -1535,15 +1493,7 @@ def generate_unet() -> None:
         color=ACCENT,
     )
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_unet_arch.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_unet_arch.png")
+    _save_figure("q23_unet_arch.png")
 
 
 # ============================================================
@@ -1554,7 +1504,12 @@ def generate_receptive_field() -> None:
     _fig, axes = plt.subplots(1, 3, figsize=(11, 4))
 
     def draw_grid(
-        ax, size, highlight_cells, highlight_color, title, grid_offset=(0, 0)
+        ax: Axes,
+        size: int,
+        highlight_cells: list[tuple[int, int]],
+        highlight_color: str,
+        title: str,
+        grid_offset: tuple[int, int] = (0, 0),
     ) -> None:
         """Draw grid."""
         ox, oy = grid_offset
@@ -1677,15 +1632,7 @@ def generate_receptive_field() -> None:
         ax.text(0.5, y, txt, fontsize=size, color=color, fontweight=weight, va="top")
         y -= 0.45
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_receptive_field.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_receptive_field.png")
+    _save_figure("q23_receptive_field.png")
 
 
 # ============================================================
@@ -1707,7 +1654,8 @@ def generate_transformer() -> None:
     for i in range(8):
         for j in range(8):
             color = WHITE
-            if 3 <= i <= 5 and 3 <= j <= 5:
+            if (_HIGHLIGHT_START <= i <= _HIGHLIGHT_END
+                    and _HIGHLIGHT_START <= j <= _HIGHLIGHT_END):
                 color = ACCENT_LIGHT
             rect = patches.Rectangle(
                 (j, 7 - i), 1, 1, facecolor=color, edgecolor=GRAY3, linewidth=0.3
@@ -1813,15 +1761,137 @@ def generate_transformer() -> None:
         ax.text(0.3, y, txt, fontsize=size, color=color, fontweight=weight, va="top")
         y -= 0.45
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_transformer_attention.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
+    _save_figure("q23_transformer_attention.png")
+
+
+def _draw_region_growing_grid(ax: Axes) -> None:
+    """Draw panel 2: region growing step-by-step grid."""
+    ax.set_xlim(-0.5, 6.5)
+    ax.set_ylim(-1.5, 7.5)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title(
+        "Region Growing: krok po kroku",
+        fontsize=FS_TITLE, fontweight="bold",
     )
-    plt.close()
-    print("  ✓ q23_transformer_attention.png")
+
+    pixel_grid = np.array([
+        [150, 153, 148, 200, 210, 205],
+        [147, 155, 152, 195, 208, 200],
+        [145, 148, 160, 190, 195, 210],
+        [200, 195, 190, 155, 148, 150],
+        [210, 205, 200, 150, 152, 145],
+        [215, 208, 195, 148, 147, 155],
+    ])
+    region_mask = np.array([
+        [1, 1, 1, 0, 0, 0],
+        [1, 1, 1, 0, 0, 0],
+        [1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 1],
+        [0, 0, 0, 1, 1, 1],
+        [0, 0, 0, 1, 1, 1],
+    ])
+
+    for i in range(6):
+        for j in range(6):
+            v = pixel_grid[i, j]
+            if region_mask[i, j] == 1 and v < _BRIGHT_THRESHOLD:
+                cell_color = ACCENT_LIGHT
+            elif region_mask[i, j] == 1:
+                cell_color = GRAY2
+            else:
+                cell_color = WHITE
+            if i == 1 and j == 1:
+                cell_color = "#FFD54F"
+            rect = patches.Rectangle(
+                (j, 5 - i), 1, 1,
+                facecolor=cell_color, edgecolor=GRAY4,
+                linewidth=0.5,
+            )
+            ax.add_patch(rect)
+            ax.text(
+                j + 0.5, 5 - i + 0.5, str(v),
+                ha="center", va="center",
+                fontsize=FS_TINY, fontweight="bold",
+            )
+
+    ax.annotate(
+        "SEED\n(155)", xy=(1.5, 4.5),
+        fontsize=FS_SMALL, ha="center",
+        color=RED_ACCENT, fontweight="bold",
+        arrowprops={"arrowstyle": "->", "color": RED_ACCENT},
+        xytext=(-0.5, 7),
+    )
+    ax.text(
+        3, -0.8,
+        "Próg = 20\nNiebieski = region (|val - seed| < 20)",
+        fontsize=FS_TINY, ha="center", color=ACCENT,
+    )
+
+
+def _draw_bfs_expansion(ax: Axes) -> None:
+    """Draw panel 3: BFS expansion visualization."""
+    ax.set_xlim(-0.5, 6.5)
+    ax.set_ylim(-1.5, 7.5)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title(
+        "Rosnący region (BFS)",
+        fontsize=FS_TITLE, fontweight="bold",
+    )
+
+    wave_colors = ["#FFD54F", "#FFF176", "#FFF9C4", ACCENT_LIGHT, "#B3D4FC"]
+    wave_labels = ["Seed", "Fala 1", "Fala 2", "Fala 3", "Fala 4"]
+    waves = [
+        [(1, 1)],
+        [(0, 1), (1, 0), (1, 2), (2, 1)],
+        [(0, 0), (0, 2), (2, 0), (2, 2)],
+    ]
+
+    for i in range(6):
+        for j in range(6):
+            cell_color = WHITE
+            for w_idx, wave in enumerate(waves):
+                if (i, j) in wave:
+                    cell_color = wave_colors[w_idx]
+            rect = patches.Rectangle(
+                (j, 5 - i), 1, 1,
+                facecolor=cell_color, edgecolor=GRAY4,
+                linewidth=0.5,
+            )
+            ax.add_patch(rect)
+
+    seed_x, seed_y = 1.5, 4.5
+    for dx, dy, _label in [
+        (0, 1, ""), (0, -1, ""), (1, 0, ""), (-1, 0, ""),
+    ]:
+        ax.annotate(
+            "",
+            xy=(seed_x + dx * 0.7, seed_y + dy * 0.7),
+            xytext=(seed_x, seed_y),
+            arrowprops={
+                "arrowstyle": "->", "color": RED_ACCENT, "lw": 1.2,
+            },
+        )
+
+    ax.text(
+        3, -0.5,
+        "BFS: sprawdzaj sąsiadów,\ndodawaj podobne do kolejki",
+        fontsize=FS_TINY, ha="center", color=GRAY5,
+    )
+
+    for w_idx, (wave_color, label) in enumerate(
+        zip(wave_colors[:3], wave_labels[:3], strict=False)
+    ):
+        rect = patches.Rectangle(
+            (4, 6.5 - w_idx * 0.7), 0.5, 0.5,
+            facecolor=wave_color, edgecolor=GRAY4, linewidth=0.5,
+        )
+        ax.add_patch(rect)
+        ax.text(
+            4.8, 6.75 - w_idx * 0.7, label,
+            fontsize=FS_TINY, va="center",
+        )
 
 
 # ============================================================
@@ -1866,154 +1936,82 @@ def generate_region_growing() -> None:
         y -= 0.45
 
     # --- Panel 2: Region growing step by step ---
-    ax = axes[1]
-    ax.set_xlim(-0.5, 6.5)
-    ax.set_ylim(-1.5, 7.5)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    ax.set_title("Region Growing: krok po kroku", fontsize=FS_TITLE, fontweight="bold")
-
-    # 6x6 grid with values
-    pixel_grid = np.array(
-        [
-            [150, 153, 148, 200, 210, 205],
-            [147, 155, 152, 195, 208, 200],
-            [145, 148, 160, 190, 195, 210],
-            [200, 195, 190, 155, 148, 150],
-            [210, 205, 200, 150, 152, 145],
-            [215, 208, 195, 148, 147, 155],
-        ]
-    )
-
-    # Region grown from seed (2,1) with threshold 20
-    region_mask = np.array(
-        [
-            [1, 1, 1, 0, 0, 0],
-            [1, 1, 1, 0, 0, 0],
-            [1, 1, 1, 0, 0, 0],
-            [0, 0, 0, 1, 1, 1],
-            [0, 0, 0, 1, 1, 1],
-            [0, 0, 0, 1, 1, 1],
-        ]
-    )
-
-    for i in range(6):
-        for j in range(6):
-            v = pixel_grid[i, j]
-            if region_mask[i, j] == 1 and v < 170:
-                color = ACCENT_LIGHT
-            elif region_mask[i, j] == 1:
-                color = GRAY2
-            else:
-                color = WHITE
-            if i == 1 and j == 1:
-                color = "#FFD54F"  # Seed
-            rect = patches.Rectangle(
-                (j, 5 - i), 1, 1, facecolor=color, edgecolor=GRAY4, linewidth=0.5
-            )
-            ax.add_patch(rect)
-            ax.text(
-                j + 0.5,
-                5 - i + 0.5,
-                str(v),
-                ha="center",
-                va="center",
-                fontsize=FS_TINY,
-                fontweight="bold",
-            )
-
-    # Mark seed
-    ax.annotate(
-        "SEED\n(155)",
-        xy=(1.5, 4.5),
-        fontsize=FS_SMALL,
-        ha="center",
-        color=RED_ACCENT,
-        fontweight="bold",
-        arrowprops={"arrowstyle": "->", "color": RED_ACCENT},
-        xytext=(-0.5, 7),
-    )
-
-    ax.text(
-        3,
-        -0.8,
-        "Próg = 20\nNiebieski = region (|val - seed| < 20)",
-        fontsize=FS_TINY,
-        ha="center",
-        color=ACCENT,
-    )
+    _draw_region_growing_grid(axes[1])
 
     # --- Panel 3: BFS expansion ---
-    ax = axes[2]
-    ax.set_xlim(-0.5, 6.5)
-    ax.set_ylim(-1.5, 7.5)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    ax.set_title("Rosnący region (BFS)", fontsize=FS_TITLE, fontweight="bold")
+    _draw_bfs_expansion(axes[2])
 
-    # Show expansion waves
-    wave_colors = ["#FFD54F", "#FFF176", "#FFF9C4", ACCENT_LIGHT, "#B3D4FC"]
-    wave_labels = ["Seed", "Fala 1", "Fala 2", "Fala 3", "Fala 4"]
-    waves = [
-        [(1, 1)],  # seed
-        [(0, 1), (1, 0), (1, 2), (2, 1)],  # wave 1
-        [(0, 0), (0, 2), (2, 0), (2, 2)],  # wave 2
+    _save_figure("q23_region_growing.png")
+
+
+def _draw_otsu_variance_and_pseudocode(
+    ax_var: Axes,
+    ax_code: Axes,
+    img: np.ndarray,
+) -> int:
+    """Draw panels 4 and 5: Otsu variance plot and pseudocode."""
+    thresholds = range(10, 245)
+    variances = []
+    for t in thresholds:
+        c0 = img[img <= t].ravel()
+        c1 = img[img > t].ravel()
+        if len(c0) == 0 or len(c1) == 0:
+            variances.append(np.nan)
+            continue
+        w0 = len(c0) / len(img.ravel())
+        w1 = len(c1) / len(img.ravel())
+        var = w0 * np.var(c0) + w1 * np.var(c1)
+        variances.append(var)
+
+    ax_var.plot(list(thresholds), variances, color=ACCENT, linewidth=1.5)
+    best_t = list(thresholds)[np.nanargmin(variances)]
+    ax_var.axvline(
+        x=best_t, color=RED_ACCENT,
+        linewidth=1.5, linestyle="--",
+        label=f"Otsu T={best_t}",
+    )
+    ax_var.scatter(
+        [best_t], [np.nanmin(variances)],
+        c=RED_ACCENT, s=60, zorder=5,
+    )
+    ax_var.set_xlabel("Próg T", fontsize=FS_SMALL)
+    ax_var.set_ylabel("σ² wewnątrzklasowa", fontsize=FS_SMALL)
+    ax_var.set_title(
+        "Krok 4: Otsu szuka min σ²",
+        fontsize=FS, fontweight="bold",
+    )
+    ax_var.legend(fontsize=FS_TINY)
+
+    ax_code.set_xlim(0, 10)
+    ax_code.set_ylim(0, 10)
+    ax_code.axis("off")
+    ax_code.set_title("Pseudokod Otsu", fontsize=FS, fontweight="bold")
+
+    code_lines = [
+        "best_T = 0", "min_var = ∞", "",
+        "for T in 0..255:",
+        "  c0 = piksele z jasność ≤ T",
+        "  c1 = piksele z jasność > T",
+        "  w0 = len(c0) / len(all)",
+        "  w1 = len(c1) / len(all)",
+        "  var = w0·var(c0) + w1·var(c1)",
+        "  if var < min_var:",
+        "     min_var = var", "     best_T = T", "",
+        "return best_T  # optymalny próg",
     ]
-
-    for i in range(6):
-        for j in range(6):
-            color = WHITE
-            for w_idx, wave in enumerate(waves):
-                if (i, j) in wave:
-                    color = wave_colors[w_idx]
-            rect = patches.Rectangle(
-                (j, 5 - i), 1, 1, facecolor=color, edgecolor=GRAY4, linewidth=0.5
-            )
-            ax.add_patch(rect)
-
-    # Draw BFS arrows from seed
-    seed_x, seed_y = 1.5, 4.5
-    for dx, dy, _label in [(0, 1, ""), (0, -1, ""), (1, 0, ""), (-1, 0, "")]:
-        ax.annotate(
-            "",
-            xy=(seed_x + dx * 0.7, seed_y + dy * 0.7),
-            xytext=(seed_x, seed_y),
-            arrowprops={"arrowstyle": "->", "color": RED_ACCENT, "lw": 1.2},
+    for i, line in enumerate(code_lines):
+        txt_color = (
+            ACCENT
+            if "best_T = T" in line or "return" in line
+            else BLACK
         )
-
-    ax.text(
-        3,
-        -0.5,
-        "BFS: sprawdzaj sąsiadów,\ndodawaj podobne do kolejki",
-        fontsize=FS_TINY,
-        ha="center",
-        color=GRAY5,
-    )
-
-    # Legend
-    for w_idx, (color, label) in enumerate(
-        zip(wave_colors[:3], wave_labels[:3], strict=False)
-    ):
-        rect = patches.Rectangle(
-            (4, 6.5 - w_idx * 0.7),
-            0.5,
-            0.5,
-            facecolor=color,
-            edgecolor=GRAY4,
-            linewidth=0.5,
+        ax_code.text(
+            0.5, 9.5 - i * 0.65, line,
+            fontsize=FS_TINY, fontfamily="monospace",
+            color=txt_color,
+            fontweight="bold" if txt_color == ACCENT else "normal",
         )
-        ax.add_patch(rect)
-        ax.text(4.8, 6.75 - w_idx * 0.7, label, fontsize=FS_TINY, va="center")
-
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_region_growing.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_region_growing.png")
+    return int(best_t)
 
 
 # ============================================================
@@ -2071,77 +2069,16 @@ def generate_diy_thresholding() -> None:
 
     # --- Panel 3: Thresholding result ---
     ax = axes[0, 2]
-    binary = (img > 128).astype(float)
+    binary = (img > _OTSU_THRESHOLD).astype(float)
     ax.imshow(binary, cmap="gray", vmin=0, vmax=1)
     ax.set_title("Krok 3: progowanie T=128", fontsize=FS, fontweight="bold")
     ax.axis("off")
     ax.text(32, -3, "Biały = tło, Czarny = obiekt", fontsize=FS_TINY, ha="center")
 
-    # --- Panel 4: What Otsu does (variance plot) ---
-    ax = axes[1, 0]
-    # Compute within-class variance for each threshold
-    thresholds = range(10, 245)
-    variances = []
-    for t in thresholds:
-        c0 = img[img <= t].ravel()
-        c1 = img[img > t].ravel()
-        if len(c0) == 0 or len(c1) == 0:
-            variances.append(np.nan)
-            continue
-        w0 = len(c0) / len(img.ravel())
-        w1 = len(c1) / len(img.ravel())
-        var = w0 * np.var(c0) + w1 * np.var(c1)
-        variances.append(var)
-
-    ax.plot(list(thresholds), variances, color=ACCENT, linewidth=1.5)
-    best_t = list(thresholds)[np.nanargmin(variances)]
-    ax.axvline(
-        x=best_t,
-        color=RED_ACCENT,
-        linewidth=1.5,
-        linestyle="--",
-        label=f"Otsu T={best_t}",
+    # --- Panels 4+5: Otsu variance plot + pseudocode ---
+    best_t = _draw_otsu_variance_and_pseudocode(
+        axes[1, 0], axes[1, 1], img,
     )
-    ax.scatter([best_t], [np.nanmin(variances)], c=RED_ACCENT, s=60, zorder=5)
-    ax.set_xlabel("Próg T", fontsize=FS_SMALL)
-    ax.set_ylabel("σ² wewnątrzklasowa", fontsize=FS_SMALL)
-    ax.set_title("Krok 4: Otsu szuka min σ²", fontsize=FS, fontweight="bold")
-    ax.legend(fontsize=FS_TINY)
-
-    # --- Panel 5: Pseudocode ---
-    ax = axes[1, 1]
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis("off")
-    ax.set_title("Pseudokod Otsu", fontsize=FS, fontweight="bold")
-
-    code_lines = [
-        "best_T = 0",
-        "min_var = ∞",
-        "",
-        "for T in 0..255:",
-        "  c0 = piksele z jasność ≤ T",
-        "  c1 = piksele z jasność > T",
-        "  w0 = len(c0) / len(all)",
-        "  w1 = len(c1) / len(all)",
-        "  var = w0·var(c0) + w1·var(c1)",
-        "  if var < min_var:",
-        "     min_var = var",
-        "     best_T = T",
-        "",
-        "return best_T  # optymalny próg",
-    ]
-    for i, line in enumerate(code_lines):
-        color = ACCENT if "best_T = T" in line or "return" in line else BLACK
-        ax.text(
-            0.5,
-            9.5 - i * 0.65,
-            line,
-            fontsize=FS_TINY,
-            fontfamily="monospace",
-            color=color,
-            fontweight="bold" if color == ACCENT else "normal",
-        )
 
     # --- Panel 6: Final result with Otsu ---
     ax = axes[1, 2]
@@ -2159,15 +2096,95 @@ def generate_diy_thresholding() -> None:
         fontweight="bold",
     )
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_diy_thresholding.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_diy_thresholding.png")
+    _save_figure("q23_diy_thresholding.png")
+
+
+def _draw_unet_layer_stack(
+    ax: Axes,
+    layer_sizes: list[tuple[int, int]],
+    *,
+    face_color: str,
+    edge_color: str,
+    arrow_color: str,
+    arrow_label: str,
+    add_skip: bool = False,
+) -> None:
+    """Draw encoder or decoder layer stack for DIY U-Net."""
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis("off")
+
+    y_pos = 8.5
+    for i, (s, c) in enumerate(layer_sizes):
+        w = s / 64 * 4
+        h = 0.8
+        rect = FancyBboxPatch(
+            (5 - w / 2, y_pos), w, h,
+            boxstyle="round,pad=0.05",
+            facecolor=face_color, edgecolor=edge_color,
+            linewidth=1,
+        )
+        ax.add_patch(rect)
+        label = f"{s}x{s}x{c}"
+        if add_skip and i < len(layer_sizes) - 1:
+            label += " + skip!"
+        ax.text(
+            5, y_pos + h / 2, label,
+            ha="center", va="center",
+            fontsize=FS_SMALL, fontweight="bold",
+        )
+        if i < len(layer_sizes) - 1:
+            ax.annotate(
+                "", xy=(5, y_pos - 0.3), xytext=(5, y_pos),
+                arrowprops={
+                    "arrowstyle": "->", "color": arrow_color,
+                    "lw": 1.5,
+                },
+            )
+            ax.text(
+                7, y_pos - 0.15, arrow_label,
+                fontsize=FS_TINY, color=arrow_color,
+            )
+        y_pos -= 2.2
+
+
+def _draw_unet_pseudocode(ax: Axes) -> None:
+    """Draw panel 6: U-Net pseudocode."""
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis("off")
+    ax.set_title("Pseudokod U-Net", fontsize=FS, fontweight="bold")
+
+    code_lines = [
+        "# ENCODER",
+        "e1 = conv_block(input, 64)   # 64x64",
+        "e2 = conv_block(pool(e1), 128) # 32x32",
+        "e3 = conv_block(pool(e2), 256) # 16x16",
+        "",
+        "# BOTTLENECK",
+        "b = conv_block(pool(e3), 512)  # 8x8",
+        "",
+        "# DECODER + SKIP",
+        "d3 = conv_block(concat(",
+        "       upconv(b), e3), 256)   # 16x16",
+        "d2 = conv_block(concat(",
+        "       upconv(d3), e2), 128)  # 32x32",
+        "d1 = conv_block(concat(",
+        "       upconv(d2), e1), 64)   # 64x64",
+        "",
+        "output = conv_1x1(d1, n_classes)",
+    ]
+    for i, line in enumerate(code_lines):
+        txt_color = (
+            ACCENT
+            if "concat" in line
+            else (GREEN_ACCENT if "output" in line else BLACK)
+        )
+        ax.text(
+            0.3, 9.5 - i * 0.55, line,
+            fontsize=FS_TINY, fontfamily="monospace",
+            color=txt_color,
+        )
 
 
 # ============================================================
@@ -2201,52 +2218,16 @@ def generate_diy_unet() -> None:
 
     # --- Panel 2: Encoder shrinks ---
     ax = axes[0, 1]
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis("off")
     ax.set_title("Krok 2: Encoder ZMNIEJSZA", fontsize=FS, fontweight="bold")
-
-    sizes = [(64, 3), (32, 64), (16, 128), (8, 256)]
-    y_pos = 8.5
-    for i, (s, c) in enumerate(sizes):
-        w = s / 64 * 4
-        h = 0.8
-        rect = FancyBboxPatch(
-            (5 - w / 2, y_pos),
-            w,
-            h,
-            boxstyle="round,pad=0.05",
-            facecolor=ACCENT_LIGHT,
-            edgecolor=ACCENT,
-            linewidth=1,
-        )
-        ax.add_patch(rect)
-        ax.text(
-            5,
-            y_pos + h / 2,
-            f"{s}x{s}x{c}",
-            ha="center",
-            va="center",
-            fontsize=FS_SMALL,
-            fontweight="bold",
-        )
-        if i < len(sizes) - 1:
-            ax.annotate(
-                "",
-                xy=(5, y_pos - 0.3),
-                xytext=(5, y_pos),
-                arrowprops={"arrowstyle": "->", "color": ACCENT, "lw": 1.5},
-            )
-            ax.text(7, y_pos - 0.15, "Conv+Pool", fontsize=FS_TINY, color=ACCENT)
-        y_pos -= 2.2
-
+    _draw_unet_layer_stack(
+        ax, [(64, 3), (32, 64), (16, 128), (8, 256)],
+        face_color=ACCENT_LIGHT, edge_color=ACCENT,
+        arrow_color=ACCENT, arrow_label="Conv+Pool",
+    )
     ax.text(
-        5,
-        0.3,
+        5, 0.3,
         "Wyciąga cechy:\nkrawędzie → tekstury → obiekty",
-        ha="center",
-        fontsize=FS_TINY,
-        color=GRAY5,
+        ha="center", fontsize=FS_TINY, color=GRAY5,
     )
 
     # --- Panel 3: Bottleneck ---
@@ -2284,61 +2265,21 @@ def generate_diy_unet() -> None:
 
     # --- Panel 4: Decoder enlarges ---
     ax = axes[1, 0]
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis("off")
     ax.set_title(
         "Krok 4: Decoder ZWIĘKSZA\n(+ skip connections!)",
         fontsize=FS,
         fontweight="bold",
     )
-
-    sizes_dec = [(8, 256), (16, 128), (32, 64), (64, 3)]
-    y_pos = 8.5
-    for i, (s, c) in enumerate(sizes_dec):
-        w = s / 64 * 4
-        h = 0.8
-        rect = FancyBboxPatch(
-            (5 - w / 2, y_pos),
-            w,
-            h,
-            boxstyle="round,pad=0.05",
-            facecolor="#C8E6C9",
-            edgecolor=GREEN_ACCENT,
-            linewidth=1,
-        )
-        ax.add_patch(rect)
-        label = f"{s}x{s}x{c}"
-        if i < len(sizes_dec) - 1:
-            label += " + skip!"
-        ax.text(
-            5,
-            y_pos + h / 2,
-            label,
-            ha="center",
-            va="center",
-            fontsize=FS_SMALL,
-            fontweight="bold",
-        )
-        if i < len(sizes_dec) - 1:
-            ax.annotate(
-                "",
-                xy=(5, y_pos - 0.3),
-                xytext=(5, y_pos),
-                arrowprops={"arrowstyle": "->", "color": GREEN_ACCENT, "lw": 1.5},
-            )
-            ax.text(
-                7, y_pos - 0.15, "UpConv+Concat", fontsize=FS_TINY, color=GREEN_ACCENT
-            )
-        y_pos -= 2.2
-
+    _draw_unet_layer_stack(
+        ax, [(8, 256), (16, 128), (32, 64), (64, 3)],
+        face_color="#C8E6C9", edge_color=GREEN_ACCENT,
+        arrow_color=GREEN_ACCENT, arrow_label="UpConv+Concat",
+        add_skip=True,
+    )
     ax.text(
-        5,
-        0.3,
+        5, 0.3,
         "Odtwarza rozdzielczość:\nskip → przywraca krawędzie",
-        ha="center",
-        fontsize=FS_TINY,
-        color=GRAY5,
+        ha="center", fontsize=FS_TINY, color=GRAY5,
     )
 
     # --- Panel 5: Output segmentation map ---
@@ -2352,55 +2293,9 @@ def generate_diy_unet() -> None:
     ax.text(20, -3, "Tło=0, obiekt A=1, obiekt B=2", fontsize=FS_TINY, ha="center")
 
     # --- Panel 6: Summary pseudocode ---
-    ax = axes[1, 2]
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis("off")
-    ax.set_title("Pseudokod U-Net", fontsize=FS, fontweight="bold")
+    _draw_unet_pseudocode(axes[1, 2])
 
-    code_lines = [
-        "# ENCODER",
-        "e1 = conv_block(input, 64)   # 64x64",
-        "e2 = conv_block(pool(e1), 128) # 32x32",
-        "e3 = conv_block(pool(e2), 256) # 16x16",
-        "",
-        "# BOTTLENECK",
-        "b = conv_block(pool(e3), 512)  # 8x8",
-        "",
-        "# DECODER + SKIP",
-        "d3 = conv_block(concat(",
-        "       upconv(b), e3), 256)   # 16x16",
-        "d2 = conv_block(concat(",
-        "       upconv(d3), e2), 128)  # 32x32",
-        "d1 = conv_block(concat(",
-        "       upconv(d2), e1), 64)   # 64x64",
-        "",
-        "output = conv_1x1(d1, n_classes)",
-    ]
-    for i, line in enumerate(code_lines):
-        color = (
-            ACCENT
-            if "concat" in line
-            else (GREEN_ACCENT if "output" in line else BLACK)
-        )
-        ax.text(
-            0.3,
-            9.5 - i * 0.55,
-            line,
-            fontsize=FS_TINY,
-            fontfamily="monospace",
-            color=color,
-        )
-
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_diy_unet.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_diy_unet.png")
+    _save_figure("q23_diy_unet.png")
 
 
 # ============================================================
@@ -2416,7 +2311,17 @@ def generate_mnemonics() -> None:
         "Mnemoniki — segmentacja obrazu", fontsize=FS_TITLE + 2, fontweight="bold"
     )
 
-    def draw_card(ax, x, y, w, h, title, mnemonic, color, detail="") -> None:
+    def draw_card(
+        ax: Axes,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        title: str,
+        mnemonic: str,
+        color: str,
+        detail: str = "",
+    ) -> None:
         """Draw card."""
         rect = FancyBboxPatch(
             (x, y),
@@ -2660,7 +2565,8 @@ def generate_mnemonics() -> None:
     ax.text(
         10,
         3.5,
-        "Klasyczne: Thresholding → Otsu → Region growing → Watershed → Mean shift → Norm. cuts",
+        "Klasyczne: Thresholding → Otsu → Region"
+        " growing → Watershed → Mean shift → Norm. cuts",
         ha="center",
         fontsize=FS_SMALL,
     )
@@ -2674,7 +2580,9 @@ def generate_mnemonics() -> None:
     ax.text(
         10,
         1.8,
-        '„Turyści Oglądają Rzekę, Wodospad, Morze, Nurt — Fotografują Uroczy Dwór Tajemnic"',
+        '„Turyści Oglądają Rzekę, Wodospad,'
+        ' Morze, Nurt — Fotografują Uroczy'
+        ' Dwór Tajemnic"',
         ha="center",
         fontsize=FS_SMALL,
         fontstyle="italic",
@@ -2683,28 +2591,22 @@ def generate_mnemonics() -> None:
     ax.text(
         10,
         1.0,
-        "Klasyczne: proste→auto→BFS→flood→gęstość→graf   |   Neuronowe: FC→U-skip→dilated→attention",
+        "Klasyczne: proste→auto→BFS→flood→"
+        "gęstość→graf   |   Neuronowe:"
+        " FC→U-skip→dilated→attention",
         ha="center",
         fontsize=FS_TINY,
         color=GRAY5,
     )
 
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "q23_mnemonics.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor="white",
-    )
-    plt.close()
-    print("  ✓ q23_mnemonics.png")
+    _save_figure("q23_mnemonics.png")
 
 
 # ============================================================
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    print("Generating PYTANIE 23 diagrams...")
+    _logger.info("Generating PYTANIE 23 diagrams...")
     generate_otsu_bimodal()
     generate_watershed()
     generate_mean_shift()
@@ -2719,4 +2621,4 @@ if __name__ == "__main__":
     generate_diy_thresholding()
     generate_diy_unet()
     generate_mnemonics()
-    print(f"\nAll diagrams saved to: {OUTPUT_DIR}")
+    _logger.info("All diagrams saved to: %s", OUTPUT_DIR)
