@@ -4,6 +4,11 @@
 Replaces every ASCII diagram with a monochrome A4-printable PNG (300 DPI).
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -13,6 +18,12 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -29,24 +40,26 @@ GRAY2 = "#D0D0D0"
 GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
 GRAY5 = "#C0C0C0"
+OCCUPIED_SLOTS = 2
 
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
-    edgecolor=LN,
-    linestyle="-",
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    *,
+    rounded: bool = True,
+    edgecolor: str = LN,
+    linestyle: str = "-",
 ) -> None:
     """Draw box."""
     if rounded:
@@ -83,7 +96,16 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -93,7 +115,15 @@ def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
     )
 
 
-def draw_double_arrow(ax, x1, y1, x2, y2, lw=1.2, color=LN) -> None:
+def draw_double_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.2,
+    color: str = LN,
+) -> None:
     """Draw double arrow."""
     ax.annotate(
         "",
@@ -103,26 +133,26 @@ def draw_double_arrow(ax, x1, y1, x2, y2, lw=1.2, color=LN) -> None:
     )
 
 
-def save_fig(fig, name) -> None:
+def save_fig(fig: Figure, name: str) -> None:
     """Save fig."""
     path = str(Path(OUTPUT_DIR) / name)
     fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG, pad_inches=0.15)
     plt.close(fig)
-    print(f"  Saved: {path}")
+    _logger.info("  Saved: %s", path)
 
 
 def draw_table(
-    ax,
-    headers,
-    rows,
-    x0,
-    y0,
-    col_widths,
-    row_h=0.4,
-    header_fill=GRAY2,
-    row_fills=None,
-    fontsize=FS,
-    header_fontsize=None,
+    ax: Axes,
+    headers: list[str],
+    rows: list[list[str]],
+    x0: float,
+    y0: float,
+    col_widths: list[float],
+    row_h: float = 0.4,
+    header_fill: str = GRAY2,
+    row_fills: list[str] | None = None,
+    fontsize: float = FS,
+    header_fontsize: float | None = None,
 ) -> None:
     """Draw a clean table on axes."""
     if header_fontsize is None:
@@ -540,7 +570,7 @@ def gen_speed_comparison() -> None:
         fontweight="bold",
     )
 
-    # Left: creation
+    # Creation time panel
     ax = axes[0]
     ops = ["fork()\n(nowy proces)", "pthread_create()\n(nowy wątek)"]
     times = [3.0, 0.05]  # ms
@@ -1177,15 +1207,8 @@ def gen_starvation_priority() -> None:
 # ============================================================
 # 14. Bounded buffer + readers-writers + philosophers
 # ============================================================
-def gen_classic_problems() -> None:
-    """Gen classic problems."""
-    fig, axes = plt.subplots(1, 3, figsize=(12, 5))
-    fig.suptitle(
-        "Klasyczne problemy synchronizacji", fontsize=FS_TITLE, fontweight="bold"
-    )
-
-    # Panel 1: Bounded Buffer with semaphores
-    ax = axes[0]
+def _draw_bounded_buffer_panel(ax: Axes) -> None:
+    """Draw the bounded-buffer (producer-consumer) panel."""
     ax.set_xlim(0, 8)
     ax.set_ylim(0, 7)
     ax.set_aspect("auto")
@@ -1204,7 +1227,6 @@ def gen_classic_problems() -> None:
         fill=GRAY1,
         fontsize=5.5,
     )
-    # Buffer
     items = ["A", "B", "", ""]
     for i, item in enumerate(items):
         x = 2.8 + i * 0.9
@@ -1235,7 +1257,6 @@ def gen_classic_problems() -> None:
     draw_arrow(ax, 2.2, 4.6, 2.8, 4.65, lw=1.2)
     draw_arrow(ax, 6.4, 4.65, 6.0, 4.6, lw=1.2)
 
-    # Semaphores
     sems = [("mutex = 1", GRAY2), ("empty = N", GRAY1), ("full = 0", GRAY3)]
     for i, (s, c) in enumerate(sems):
         draw_box(
@@ -1261,8 +1282,9 @@ def gen_classic_problems() -> None:
         bbox={"boxstyle": "round", "facecolor": "#F8D7DA", "edgecolor": "#C62828"},
     )
 
-    # Panel 2: Readers-Writers
-    ax = axes[1]
+
+def _draw_readers_writers_panel(ax: Axes) -> None:
+    """Draw the readers-writers panel."""
     ax.set_xlim(0, 8)
     ax.set_ylim(0, 7)
     ax.set_aspect("auto")
@@ -1271,7 +1293,6 @@ def gen_classic_problems() -> None:
         "Czytelnicy-Pisarze\n(Readers-Writers)", fontsize=FS, fontweight="bold"
     )
 
-    # Resource
     draw_box(
         ax,
         2.5,
@@ -1284,7 +1305,6 @@ def gen_classic_problems() -> None:
         fontweight="bold",
     )
 
-    # Readers
     for i in range(3):
         x = 0.3 + i * 1.0
         draw_box(
@@ -1309,7 +1329,6 @@ def gen_classic_problems() -> None:
         fontweight="bold",
     )
 
-    # Writer
     draw_box(
         ax, 5.5, 5.5, 1.5, 0.7, "Pisarz", fill=GRAY5, fontsize=FS, fontweight="bold"
     )
@@ -1324,7 +1343,6 @@ def gen_classic_problems() -> None:
         color="#C62828",
     )
 
-    # Rules
     rules = [
         "Wielu czytelników = OK",
         "Jeden pisarz = wyłączny",
@@ -1343,8 +1361,9 @@ def gen_classic_problems() -> None:
         bbox={"boxstyle": "round,pad=0.2", "facecolor": GRAY4, "edgecolor": GRAY3},
     )
 
-    # Panel 3: Dining Philosophers
-    ax = axes[2]
+
+def _draw_philosophers_panel(ax: Axes) -> None:
+    """Draw the dining-philosophers panel."""
     ax.set_xlim(0, 8)
     ax.set_ylim(0, 7)
     ax.set_aspect("auto")
@@ -1353,13 +1372,11 @@ def gen_classic_problems() -> None:
         "Ucztujący filozofowie\n(Dining Philosophers)", fontsize=FS, fontweight="bold"
     )
 
-    # Draw circular table
     cx, cy, r = 4.0, 3.8, 1.8
     table = plt.Circle((cx, cy), 0.8, fill=True, facecolor=GRAY2, edgecolor=LN, lw=1.5)
     ax.add_patch(table)
     ax.text(cx, cy, "Stół", fontsize=FS, ha="center", fontweight="bold")
 
-    # 5 philosophers around table
     for i in range(5):
         angle = np.pi / 2 + i * 2 * np.pi / 5
         px = cx + r * np.cos(angle)
@@ -1372,7 +1389,6 @@ def gen_classic_problems() -> None:
             px, py, f"F{i}", ha="center", va="center", fontsize=FS, fontweight="bold"
         )
 
-        # Fork between philosophers
         fork_angle = np.pi / 2 + (i + 0.5) * 2 * np.pi / 5
         fx = cx + (r * 0.6) * np.cos(fork_angle)
         fy = cy + (r * 0.6) * np.sin(fork_angle)
@@ -1385,7 +1401,6 @@ def gen_classic_problems() -> None:
         )
         ax.text(fx + 0.2, fy + 0.15, f"w{i}", fontsize=5, color="#555555")
 
-    # Rules
     rules = [
         "Jedzenie = 2 widelce",
         "Naiwne → DEADLOCK",
@@ -1394,6 +1409,21 @@ def gen_classic_problems() -> None:
     ]
     for i, r in enumerate(rules):
         ax.text(4.0, 1.2 - i * 0.35, r, fontsize=FS_SMALL, ha="center")
+
+
+# ============================================================
+# 14. Bounded buffer + readers-writers + philosophers
+# ============================================================
+def gen_classic_problems() -> None:
+    """Gen classic problems."""
+    fig, axes = plt.subplots(1, 3, figsize=(12, 5))
+    fig.suptitle(
+        "Klasyczne problemy synchronizacji", fontsize=FS_TITLE, fontweight="bold"
+    )
+
+    _draw_bounded_buffer_panel(axes[0])
+    _draw_readers_writers_panel(axes[1])
+    _draw_philosophers_panel(axes[2])
 
     fig.tight_layout(rect=[0, 0, 1, 0.88])
     save_fig(fig, "q9_classic_problems.png")
@@ -1523,7 +1553,7 @@ def gen_semaphore_concept() -> None:
     # Parking slots
     for i in range(3):
         x = 2.0 + i * 2.0
-        occupied = i < 2  # 2 occupied, 1 free
+        occupied = i < OCCUPIED_SLOTS
         fill = GRAY3 if occupied else "white"
         label = f"Wątek {i + 1}" if occupied else "(wolne)"
         draw_box(
@@ -1578,7 +1608,7 @@ def gen_semaphore_concept() -> None:
 # MAIN — generate all
 # ============================================================
 if __name__ == "__main__":
-    print("Generating ALL PYTANIE 9 diagrams...")
+    _logger.info("Generating ALL PYTANIE 9 diagrams...")
     gen_process_vs_thread()
     gen_memory_layout()
     gen_process_states()
@@ -1595,4 +1625,4 @@ if __name__ == "__main__":
     gen_classic_problems()
     gen_sync_comparison()
     gen_semaphore_concept()
-    print("\nAll 16 PYTANIE 9 diagrams generated successfully!")
+    _logger.info("All 16 PYTANIE 9 diagrams generated successfully!")
