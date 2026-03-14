@@ -121,7 +121,7 @@ def extract_pgn(text: str) -> str | None:
         return None
     start = m.end()
     pgn = text[start:].strip()
-    return pgn if pgn else None
+    return pgn or None
 
 
 def san_list_from_game(game: chess.pgn.Game) -> list[str]:

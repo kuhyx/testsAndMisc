@@ -17,6 +17,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
+from typing import Any
 import warnings
 
 # Suppress warnings for cleaner output
@@ -161,7 +162,7 @@ def select_model_size(user_choice: str | None = None) -> str:
 
 def load_model(
     model_size: str = "medium",
-) -> tuple:  # type: ignore[type-arg]
+) -> tuple[Any, Any]:
     """Load the MusicGen model.
 
     Args:
@@ -327,7 +328,7 @@ def _split_into_sentences(text: str) -> list[str]:
     if current:
         result.append(current)
 
-    return result if result else [text]
+    return result or [text]
 
 
 def _resample_audio(
