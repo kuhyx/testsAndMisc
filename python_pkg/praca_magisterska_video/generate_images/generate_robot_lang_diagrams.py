@@ -11,6 +11,11 @@ Diagrams:
   5. ROS architecture (pub/sub nodes)
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -20,6 +25,11 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -38,21 +48,38 @@ WHITE = "white"
 
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    *,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    rounded: bool = True,
 ) -> None:
-    """Draw box."""
+    """Draw a labeled box on the axes.
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        x: Left edge x-coordinate.
+        y: Bottom edge y-coordinate.
+        w: Box width.
+        h: Box height.
+        text: Label text inside the box.
+        fill: Fill color.
+        lw: Line width.
+        fontsize: Font size for label.
+        fontweight: Font weight for label.
+        ha: Horizontal alignment.
+        va: Vertical alignment.
+        rounded: Whether to use rounded corners.
+    """
     if rounded:
         rect = FancyBboxPatch(
             (x, y), w, h, boxstyle="round,pad=0.05", lw=lw, edgecolor=LN, facecolor=fill
@@ -72,8 +99,29 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
-    """Draw arrow."""
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
+    """Draw an arrow annotation.
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        x1: Start x-coordinate.
+        y1: Start y-coordinate.
+        x2: End x-coordinate.
+        y2: End y-coordinate.
+        lw: Line width.
+        style: Arrow style.
+        color: Arrow color.
+    """
     ax.annotate(
         "",
         xy=(x2, y2),
@@ -101,7 +149,7 @@ def draw_trms_pyramid() -> None:
 
     # Pyramid layers (bottom to top)
     layers = [
-        # (y, left_x, right_x, label, sublabel, fill, examples, timing)
+        # Fields: y  left_x  right_x  label  sublabel  fill  examples  timing
         (
             0.5,
             1.0,
@@ -261,7 +309,7 @@ def draw_trms_pyramid() -> None:
         facecolor=BG,
     )
     plt.close(fig)
-    print("  ✓ robot_trms_pyramid.png")
+    _logger.info("Generated robot_trms_pyramid.png")
 
 
 # ============================================================
@@ -411,31 +459,24 @@ def draw_vendor_comparison() -> None:
         facecolor=BG,
     )
     plt.close(fig)
-    print("  ✓ robot_vendor_comparison.png")
+    _logger.info("Generated robot_vendor_comparison.png")
 
 
 # ============================================================
 # 3. Robot Movement Types (PTP, LIN, CIRC)
 # ============================================================
-def draw_movement_types() -> None:
-    """Draw movement types."""
-    fig, axes = plt.subplots(1, 3, figsize=(8.27, 3.2))
-    fig.suptitle(
-        "Typy ruchu robota: PTP, LIN, CIRC",
-        fontsize=FS_TITLE,
-        fontweight="bold",
-        y=0.98,
-    )
-
-    # --- PTP (Point-to-Point) ---
-    ax = axes[0]
+def _draw_ptp_subplot(ax: Axes) -> None:
+    """Draw the PTP (Point-to-Point) subplot."""
     ax.set_xlim(-0.5, 4.5)
     ax.set_ylim(-0.5, 4.5)
     ax.set_aspect("equal")
-    ax.set_title("PTP (Point-to-Point)\nMoveJ / PTP", fontsize=8, fontweight="bold")
-    ax.grid(True, alpha=0.3)
+    ax.set_title(
+        "PTP (Point-to-Point)\nMoveJ / PTP",
+        fontsize=8,
+        fontweight="bold",
+    )
+    ax.grid(visible=True, alpha=0.3)
 
-    # Start and end
     start = (0.5, 0.5)
     end = (3.5, 3.5)
     ax.plot(*start, "ko", ms=10, zorder=5)
@@ -476,13 +517,18 @@ def draw_movement_types() -> None:
     ax.set_ylabel("")
     ax.tick_params(labelsize=6)
 
-    # --- LIN (Linear) ---
-    ax = axes[1]
+
+def _draw_lin_subplot(ax: Axes) -> None:
+    """Draw the LIN (Linear) subplot."""
     ax.set_xlim(-0.5, 4.5)
     ax.set_ylim(-0.5, 4.5)
     ax.set_aspect("equal")
-    ax.set_title("LIN (Linear)\nMoveL / LIN", fontsize=8, fontweight="bold")
-    ax.grid(True, alpha=0.3)
+    ax.set_title(
+        "LIN (Linear)\nMoveL / LIN",
+        fontsize=8,
+        fontweight="bold",
+    )
+    ax.grid(visible=True, alpha=0.3)
 
     start = (0.5, 1.0)
     end = (3.5, 3.5)
@@ -519,22 +565,27 @@ def draw_movement_types() -> None:
     )
     ax.tick_params(labelsize=6)
 
-    # --- CIRC (Circular) ---
-    ax = axes[2]
+
+def _draw_circ_subplot(ax: Axes) -> None:
+    """Draw the CIRC (Circular) subplot."""
     ax.set_xlim(-0.5, 4.5)
     ax.set_ylim(-0.5, 4.5)
     ax.set_aspect("equal")
-    ax.set_title("CIRC (Circular)\nMoveC / CIRC", fontsize=8, fontweight="bold")
-    ax.grid(True, alpha=0.3)
+    ax.set_title(
+        "CIRC (Circular)\nMoveC / CIRC",
+        fontsize=8,
+        fontweight="bold",
+    )
+    ax.grid(visible=True, alpha=0.3)
 
     # Arc through 3 points
     center = (2.0, 1.5)
-    r = 2.0
+    radius = 2.0
     theta_start = np.radians(20)
     theta_end = np.radians(160)
     theta = np.linspace(theta_start, theta_end, 50)
-    x_circ = center[0] + r * np.cos(theta)
-    y_circ = center[1] + r * np.sin(theta)
+    x_circ = center[0] + radius * np.cos(theta)
+    y_circ = center[1] + radius * np.sin(theta)
 
     ax.plot(x_circ, y_circ, "k-", lw=2)
     ax.annotate(
@@ -550,7 +601,11 @@ def draw_movement_types() -> None:
     ax.plot(x_circ[-1], y_circ[-1], "ks", ms=10, zorder=5)
     ax.text(x_circ[0] + 0.3, y_circ[0] - 0.3, "Start", fontsize=7)
     ax.text(
-        x_circ[24] + 0.05, y_circ[24] + 0.25, "Pkt\npomocniczy", fontsize=6, ha="center"
+        x_circ[24] + 0.05,
+        y_circ[24] + 0.25,
+        "Pkt\npomocniczy",
+        fontsize=6,
+        ha="center",
     )
     ax.text(x_circ[-1] - 0.5, y_circ[-1] - 0.3, "Cel", fontsize=7)
 
@@ -568,6 +623,21 @@ def draw_movement_types() -> None:
     )
     ax.tick_params(labelsize=6)
 
+
+def draw_movement_types() -> None:
+    """Draw movement types."""
+    fig, axes = plt.subplots(1, 3, figsize=(8.27, 3.2))
+    fig.suptitle(
+        "Typy ruchu robota: PTP, LIN, CIRC",
+        fontsize=FS_TITLE,
+        fontweight="bold",
+        y=0.98,
+    )
+
+    _draw_ptp_subplot(axes[0])
+    _draw_lin_subplot(axes[1])
+    _draw_circ_subplot(axes[2])
+
     fig.tight_layout()
     fig.savefig(
         str(Path(OUTPUT_DIR) / "robot_movement_types.png"),
@@ -576,7 +646,7 @@ def draw_movement_types() -> None:
         facecolor=BG,
     )
     plt.close(fig)
-    print("  ✓ robot_movement_types.png")
+    _logger.info("Generated robot_movement_types.png")
 
 
 # ============================================================
@@ -664,7 +734,9 @@ def draw_online_offline() -> None:
     ax.text(
         7.4,
         0.6,
-        "✓ Bez zatrzymania produkcji\n✓ Wysoka precyzja, symulacja\n✗ Wymaga kalibracji",
+        "✓ Bez zatrzymania produkcji\n"
+        "✓ Wysoka precyzja, symulacja\n"
+        "✗ Wymaga kalibracji",
         ha="center",
         va="center",
         fontsize=6.5,
@@ -679,7 +751,7 @@ def draw_online_offline() -> None:
         facecolor=BG,
     )
     plt.close(fig)
-    print("  ✓ robot_online_offline.png")
+    _logger.info("Generated robot_online_offline.png")
 
 
 # ============================================================
@@ -714,7 +786,7 @@ def draw_ros_architecture() -> None:
 
     # Topics (arrows with labels)
     topics = [
-        # (from_x, from_y, to_x, to_y, label)
+        # Fields: from_x  from_y  to_x  to_y  label
         (3.2, 5.0, 4.0, 5.0, "/scan"),
         (3.2, 3.0, 4.0, 3.0, "/image"),
         (6.2, 5.0, 7.0, 4.3, "/pose"),
@@ -780,7 +852,7 @@ def draw_ros_architecture() -> None:
         facecolor=BG,
     )
     plt.close(fig)
-    print("  ✓ robot_ros_architecture.png")
+    _logger.info("Generated robot_ros_architecture.png")
 
 
 # ============================================================
@@ -896,7 +968,9 @@ def draw_rapid_structure() -> None:
         ),
         (
             4.5,
-            "v500 = prędkość 500 mm/s\nz10 = strefa zbliżenia 10mm\nfine = dokładne dojście",
+            "v500 = prędkość 500 mm/s\n"
+            "z10 = strefa zbliżenia 10mm\n"
+            "fine = dokładne dojście",
         ),
         (2.5, "SetDO = Digital Output\nSterowanie I/O\n(chwytak, zawory)"),
     ]
@@ -925,18 +999,19 @@ def draw_rapid_structure() -> None:
         facecolor=BG,
     )
     plt.close(fig)
-    print("  ✓ robot_rapid_example.png")
+    _logger.info("Generated robot_rapid_example.png")
 
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
-    print("Generating PYTANIE 16 diagrams...")
+    logging.basicConfig(level=logging.INFO)
+    _logger.info("Generating PYTANIE 16 diagrams...")
     draw_trms_pyramid()
     draw_vendor_comparison()
     draw_movement_types()
     draw_online_offline()
     draw_ros_architecture()
     draw_rapid_structure()
-    print("Done! All diagrams saved to", OUTPUT_DIR)
+    _logger.info("Done! All diagrams saved to %s", OUTPUT_DIR)

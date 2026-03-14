@@ -5,6 +5,9 @@ Each file: pytanie_NN.md (or pytanie_NN_MM.md for dual-numbered like 13/27).
 Placed in pytania/questions/ folder.
 """
 
+from __future__ import annotations
+
+import logging
 from pathlib import Path
 import re
 
@@ -12,6 +15,9 @@ SCRIPT_DIR = str(Path(__file__).resolve().parent)
 SOURCE = str(Path(SCRIPT_DIR) / "OBRONA_MAGISTERSKA_ODPOWIEDZI.md")
 OUT_DIR = str(Path(SCRIPT_DIR) / "questions")
 Path(OUT_DIR).mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 with Path(SOURCE).open(encoding="utf-8") as f:
     lines = f.readlines()
@@ -25,7 +31,7 @@ for i, line in enumerate(lines):
         title = m.group(3).strip()
         question_starts.append((i, raw_num, title))
 
-print(f"Found {len(question_starts)} questions")
+_logger.info("Found %d questions", len(question_starts))
 
 for idx, (start_line, raw_num, title) in enumerate(question_starts):
     # End = next question start or EOF
@@ -54,6 +60,12 @@ for idx, (start_line, raw_num, title) in enumerate(question_starts):
         f.writelines(content_lines)
 
     line_count = len(content_lines)
-    print(f"  {filename:30s}  ({line_count:4d} lines)  PYTANIE {raw_num}: {title}")
+    _logger.info(
+        "  %-30s  (%4d lines)  PYTANIE %s: %s",
+        filename,
+        line_count,
+        raw_num,
+        title,
+    )
 
-print(f"\nAll files written to: {OUT_DIR}")
+_logger.info("All files written to: %s", OUT_DIR)

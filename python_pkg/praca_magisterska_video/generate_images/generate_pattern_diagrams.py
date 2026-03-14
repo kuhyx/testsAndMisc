@@ -8,6 +8,11 @@
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -17,6 +22,11 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -33,29 +43,40 @@ GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
 GRAY5 = "#C0C0C0"
 
+_BAND_HEIGHTS = [0.7, 1.3, 1.4, 1.5, 1.5]
+
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    *,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    rounded: bool = True,
 ) -> None:
-    """Draw box."""
+    """Draw a labeled box on the axes."""
     if rounded:
         rect = FancyBboxPatch(
-            (x, y), w, h, boxstyle="round,pad=0.08", lw=lw, edgecolor=LN, facecolor=fill
+            (x, y),
+            w,
+            h,
+            boxstyle="round,pad=0.08",
+            lw=lw,
+            edgecolor=LN,
+            facecolor=fill,
         )
     else:
-        rect = mpatches.Rectangle((x, y), w, h, lw=lw, edgecolor=LN, facecolor=fill)
+        rect = mpatches.Rectangle(
+            (x, y), w, h, lw=lw, edgecolor=LN, facecolor=fill
+        )
     ax.add_patch(rect)
     ax.text(
         x + w / 2,
@@ -69,8 +90,18 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
-    """Draw arrow."""
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    *,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
+    """Draw an arrow between two points."""
     ax.annotate(
         "",
         xy=(x2, y2),
@@ -83,7 +114,7 @@ def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
 # 1. Pattern Template Structure (NaPSiRoKo mnemonic)
 # ============================================================
 def generate_pattern_template() -> None:
-    """Generate pattern template."""
+    """Generate pattern template diagram with NaPSiRoKo mnemonic."""
     fig, ax = plt.subplots(figsize=(8.27, 6))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 8)
@@ -133,11 +164,17 @@ def generate_pattern_template() -> None:
         (
             "Si",
             "SIŁY (forces)",
-            "Konkurencyjne wymagania do pogodzenia\n(np. testowalność vs wydajność)",
+            "Konkurencyjne wymagania do pogodzenia\n"
+            "(np. testowalność vs wydajność)",
             GRAY1,
         ),
         ("Ro", "ROZWIĄZANIE", "Struktura, diagram, zachowanie", "white"),
-        ("Ko", "KONSEKWENCJE", "Tradeoffs: co zyskujemy, co tracimy", GRAY1),
+        (
+            "Ko",
+            "KONSEKWENCJE",
+            "Tradeoffs: co zyskujemy, co tracimy",
+            GRAY1,
+        ),
     ]
 
     band_x = card_x + 0.3
@@ -202,7 +239,14 @@ def generate_pattern_template() -> None:
 
         # Arrow connecting fields
         if i < len(fields) - 1:
-            draw_arrow(ax, band_x + 0.35, by - 0.02, band_x + 0.35, by - 0.13, lw=1.0)
+            draw_arrow(
+                ax,
+                band_x + 0.35,
+                by - 0.02,
+                band_x + 0.35,
+                by - 0.13,
+                lw=1.0,
+            )
 
     # Extra fields note at bottom
     ax.text(
@@ -232,14 +276,14 @@ def generate_pattern_template() -> None:
     out = str(Path(OUTPUT_DIR) / "q14_pattern_template.png")
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {out}")
+    _logger.info("  Saved: %s", out)
 
 
 # ============================================================
 # 2. Catalog Classification Map
 # ============================================================
 def generate_catalog_map() -> None:
-    """Generate catalog map."""
+    """Generate catalog classification map diagram."""
     fig, ax = plt.subplots(figsize=(8.27, 7))
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 9)
@@ -247,13 +291,15 @@ def generate_catalog_map() -> None:
     ax.axis("off")
     fig.patch.set_facecolor(BG)
     ax.set_title(
-        "Mapa katalog\u00f3w wzorc\u00f3w \u2014 \u201ePawe\u0142 Gra\u0142 Efektownie Pod Chmurami\u201d",
+        "Mapa katalog\u00f3w wzorc\u00f3w \u2014"
+        " \u201ePawe\u0142 Gra\u0142 Efektownie"
+        " Pod Chmurami\u201d",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=15,
     )
 
-    # Y-axis: Scale (architectural → design → idiom)
+    # Y-axis: Scale (architectural -> design -> idiom)
     ax.text(
         0.3,
         7.8,
@@ -286,7 +332,9 @@ def generate_catalog_map() -> None:
             va="center",
             fontstyle="italic",
         )
-        ax.plot([0.15, 0.45], [sy, sy], color=GRAY3, lw=0.8, ls="--")
+        ax.plot(
+            [0.15, 0.45], [sy, sy], color=GRAY3, lw=0.8, ls="--"
+        )
 
     # X-axis: Domain
     ax.text(
@@ -305,16 +353,16 @@ def generate_catalog_map() -> None:
         arrowprops={"arrowstyle": "->", "lw": 1.5, "color": LN},
     )
 
-    # Catalog boxes positioned by scale x domain
+    # Catalog boxes positioned by scale and domain
     catalogs = [
-        # (x, y, w, h, name, subtitle, fill, mnemonic_letter)
         (
             2.5,
             6.2,
             2.5,
             1.4,
             "POSA",
-            "1996 • Buschmann\nLayers, Broker,\nPipes & Filters, MVC",
+            "1996 • Buschmann\nLayers, Broker,\n"
+            "Pipes & Filters, MVC",
             GRAY1,
             "P",
         ),
@@ -324,7 +372,8 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "GoF",
-            "1994 • Gamma et al.\n23 wzorce:\n5 kreac. / 7 strukt. / 11 behaw.",
+            "1994 • Gamma et al.\n23 wzorce:\n"
+            "5 kreac. / 7 strukt. / 11 behaw.",
             GRAY2,
             "G",
         ),
@@ -334,7 +383,8 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "EIP",
-            "2003 • Hohpe & Woolf\nMessage Channel,\nRouter, Aggregator",
+            "2003 • Hohpe & Woolf\nMessage Channel,\n"
+            "Router, Aggregator",
             GRAY1,
             "E",
         ),
@@ -344,7 +394,8 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "PoEAA",
-            "2002 • M. Fowler\nRepository, Unit of Work,\nDomain Model",
+            "2002 • M. Fowler\nRepository,"
+            " Unit of Work,\nDomain Model",
             "white",
             "P",
         ),
@@ -354,7 +405,8 @@ def generate_catalog_map() -> None:
             2.8,
             1.4,
             "Cloud\nPatterns",
-            "~2015 • Azure/AWS\nCircuit Breaker,\nSaga, Sidecar",
+            "~2015 • Azure/AWS\nCircuit Breaker,\n"
+            "Saga, Sidecar",
             GRAY1,
             "C",
         ),
@@ -392,7 +444,11 @@ def generate_catalog_map() -> None:
 
         # Mnemonic letter in corner
         circle = plt.Circle(
-            (cx + 0.25, cy + ch - 0.25), 0.2, lw=1, edgecolor=LN, facecolor=GRAY5
+            (cx + 0.25, cy + ch - 0.25),
+            0.2,
+            lw=1,
+            edgecolor=LN,
+            facecolor=GRAY5,
         )
         ax.add_patch(circle)
         ax.text(
@@ -444,14 +500,14 @@ def generate_catalog_map() -> None:
     out = str(Path(OUTPUT_DIR) / "q14_catalog_map.png")
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {out}")
+    _logger.info("  Saved: %s", out)
 
 
 # ============================================================
 # 3. Three Pillars of Cataloguing
 # ============================================================
 def generate_three_pillars() -> None:
-    """Generate three pillars."""
+    """Generate three pillars of cataloguing diagram."""
     fig, ax = plt.subplots(figsize=(8.27, 5.5))
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 7)
@@ -467,7 +523,13 @@ def generate_three_pillars() -> None:
 
     # Roof / banner
     roof_pts = np.array([[1, 5.5], [6, 6.8], [11, 5.5]])
-    roof = plt.Polygon(roof_pts, closed=True, lw=2, edgecolor=LN, facecolor=GRAY4)
+    roof = plt.Polygon(
+        roof_pts,
+        closed=True,
+        lw=2,
+        edgecolor=LN,
+        facecolor=GRAY4,
+    )
     ax.add_patch(roof)
     ax.text(
         6,
@@ -484,20 +546,29 @@ def generate_three_pillars() -> None:
         (
             1.3,
             "1. SZABLON\nOPISU",
-            "Każdy wzorzec ma\nte same pola:\nNazwa → Problem\n→ Siły → Rozwiązanie\n→ Konsekwencje",
+            "Każdy wzorzec ma\nte same pola:\n"
+            "Nazwa → Problem\n→ Siły → Rozwiązanie\n"
+            "→ Konsekwencje",
             "Analogia:\nformatka\nencyklopedii",
         ),
         (
             4.8,
             "2. KLASYFIKACJA\nWIELOOSIOWA",
-            "Osie podziału:\n• Skala (arch/proj/idiom)\n• Domena problemu\n• Atrybut jakościowy\n• Domena zastosowania",
+            "Osie podziału:\n"
+            "• Skala (arch/proj/idiom)\n"
+            "• Domena problemu\n"
+            "• Atrybut jakościowy\n"
+            "• Domena zastosowania",
             "Analogia:\nkategorie\nw bibliotece",
         ),
         (
             8.3,
             "3. JĘZYK\nWZORCÓW",
-            "Wzorce referują się\nwzajemnie tworząc\nsieć/graf:\nA → wymaga → B\nB → wariant → C",
-            "Analogia:\n\u201ezobacz te\u017c\u201d\nw encyklopedii",
+            "Wzorce referują się\nwzajemnie tworząc\n"
+            "sieć/graf:\nA → wymaga → B\n"
+            "B → wariant → C",
+            "Analogia:\n\u201ezobacz te\u017c\u201d\n"
+            "w encyklopedii",
         ),
     ]
 
@@ -530,7 +601,10 @@ def generate_three_pillars() -> None:
 
         # Horizontal line under title
         ax.plot(
-            [px + 0.2, px + pw - 0.2], [py + ph - 1.0, py + ph - 1.0], color=LN, lw=0.8
+            [px + 0.2, px + pw - 0.2],
+            [py + ph - 1.0, py + ph - 1.0],
+            color=LN,
+            lw=0.8,
         )
 
         # Description
@@ -570,14 +644,19 @@ def generate_three_pillars() -> None:
     out = str(Path(OUTPUT_DIR) / "q14_three_pillars.png")
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {out}")
+    _logger.info("  Saved: %s", out)
 
 
 # ============================================================
 # 4. Filled-in Observer Pattern Card
 # ============================================================
+def _get_observer_band_height(index: int) -> float:
+    """Return band height for the given field index."""
+    return _BAND_HEIGHTS[index]
+
+
 def generate_observer_card_filled() -> None:
-    """Generate observer card filled."""
+    """Generate filled-in Observer pattern card diagram."""
     fig, ax = plt.subplots(figsize=(8.27, 8.5))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10)
@@ -610,7 +689,8 @@ def generate_observer_card_filled() -> None:
         (
             "P",
             "PROBLEM",
-            "Obiekt (Subject) zmienia stan → wielu zależnych\n"
+            "Obiekt (Subject) zmienia stan → wielu"
+            " zależnych\n"
             "obiektów musi zareagować, ale Subject nie\n"
             "powinien znać ich konkretnych typów.",
             GRAY1,
@@ -619,9 +699,12 @@ def generate_observer_card_filled() -> None:
         (
             "Si",
             "SIŁY",
-            "• loose coupling (nie znać obserwatorów z nazwy)\n"
-            "  vs koszt powiadomień (N obserwatorów = N wywołań)\n"
-            "• otwartość na rozszerzenia vs złożoność debugowania",
+            "• loose coupling (nie znać obserwatorów"
+            " z nazwy)\n"
+            "  vs koszt powiadomień"
+            " (N obserwatorów = N wywołań)\n"
+            "• otwartość na rozszerzenia"
+            " vs złożoność debugowania",
             "white",
             False,
         ),
@@ -651,21 +734,13 @@ def generate_observer_card_filled() -> None:
     band_w = card_w - 0.6
     start_y = card_y + card_h - 0.65
 
-    for i, (abbr, title, content, fill, is_title_field) in enumerate(fields):
-        if is_title_field:
-            band_h = 0.7
-        elif i == 1:
-            band_h = 1.3
-        elif i == 2:
-            band_h = 1.4
-        elif i == 3:
-            band_h = 1.5
-        else:
-            band_h = 1.5
+    for i, (abbr, title, content, fill, is_title_field) in enumerate(
+        fields
+    ):
+        band_h = _get_observer_band_height(i)
 
         by = start_y - sum(
-            (0.7 if j == 0 else 1.3 if j == 1 else 1.4 if j == 2 else 1.5) + 0.15
-            for j in range(i)
+            _get_observer_band_height(j) + 0.15 for j in range(i)
         )
 
         # Abbreviation circle
@@ -734,13 +809,24 @@ def generate_observer_card_filled() -> None:
 
         # Arrow
         if i < len(fields) - 1:
-            draw_arrow(ax, band_x + 0.35, by - 0.02, band_x + 0.35, by - 0.13, lw=1.0)
+            draw_arrow(
+                ax,
+                band_x + 0.35,
+                by - 0.02,
+                band_x + 0.35,
+                by - 0.13,
+                lw=1.0,
+            )
 
     # Extra info at bottom
     extra_y = 0.55
     extras = [
-        "Powiązane: Mediator (centralizuje), Pub/Sub (rozproszony), MVC (View = Observer)",
-        "Znane użycia: Java Swing listeners, C# event/delegate, React useState, DOM addEventListener",
+        "Powiązane: Mediator (centralizuje),"
+        " Pub/Sub (rozproszony),"
+        " MVC (View = Observer)",
+        "Znane użycia: Java Swing listeners,"
+        " C# event/delegate,"
+        " React useState, DOM addEventListener",
     ]
     for j, txt in enumerate(extras):
         ax.text(
@@ -758,14 +844,14 @@ def generate_observer_card_filled() -> None:
     out = str(Path(OUTPUT_DIR) / "q14_observer_card_filled.png")
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {out}")
+    _logger.info("  Saved: %s", out)
 
 
 # ============================================================
 # 5. Pattern Language Navigation Graph
 # ============================================================
 def generate_pattern_language_navigation() -> None:
-    """Generate pattern language navigation."""
+    """Generate pattern language navigation graph diagram."""
     fig, ax = plt.subplots(figsize=(8.27, 9))
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 12)
@@ -773,22 +859,37 @@ def generate_pattern_language_navigation() -> None:
     ax.axis("off")
     fig.patch.set_facecolor(BG)
     ax.set_title(
-        'Język wzorców — nawigacja „problem → wzorzec → nowy problem"',
+        "Język wzorców \u2014 nawigacja"
+        " \u201eproblem \u2192 wzorzec"
+        " \u2192 nowy problem\u201d",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=15,
     )
 
     # Node positions: (x, y, label, is_pattern, fill)
-    # Left column: problems; Right column: patterns
     nodes = [
-        # Problems (left, rounded rect, white)
         (1.5, 10.5, "Monolith\nnie skaluje się", False, "white"),
-        (1.5, 8.2, "Jak routować\nżądania do\nserwisów?", False, "white"),
-        (1.5, 5.9, "Co gdy serwis\nnie odpowiada?", False, "white"),
-        (1.5, 3.6, "Jak zachować\nspójność\ntransakcji?", False, "white"),
-        (1.5, 1.3, "Jak odnaleźć\nadres serwisu?", False, "white"),
-        # Patterns (right, filled rect, gray)
+        (
+            1.5, 8.2,
+            "Jak routować\nżądania do\nserwisów?",
+            False, "white",
+        ),
+        (
+            1.5, 5.9,
+            "Co gdy serwis\nnie odpowiada?",
+            False, "white",
+        ),
+        (
+            1.5, 3.6,
+            "Jak zachować\nspójność\ntransakcji?",
+            False, "white",
+        ),
+        (
+            1.5, 1.3,
+            "Jak odnaleźć\nadres serwisu?",
+            False, "white",
+        ),
         (7.0, 9.3, "Microservices", True, GRAY2),
         (7.0, 7.0, "API Gateway", True, GRAY2),
         (7.0, 4.7, "Circuit Breaker", True, GRAY2),
@@ -816,7 +917,13 @@ def generate_pattern_language_navigation() -> None:
             )
             ax.add_patch(rect)
             ax.text(
-                nx, ny, label, ha="center", va="center", fontsize=10, fontweight="bold"
+                nx,
+                ny,
+                label,
+                ha="center",
+                va="center",
+                fontsize=10,
+                fontweight="bold",
             )
         else:
             w, h = node_w_prob, node_h_prob
@@ -841,9 +948,8 @@ def generate_pattern_language_navigation() -> None:
                 fontstyle="italic",
             )
 
-    # Arrows: problem → pattern (solid), pattern → problem (dashed label)
+    # Arrows: problem -> pattern, pattern -> problem
     arrows = [
-        # (x1, y1, x2, y2, label, style)
         (2.9, 10.5, 5.75, 9.5, "rozwiązuje →", "->", 1.5),
         (7.0, 8.8, 2.9, 8.5, "← rodzi problem", "->", 1.0),
         (2.9, 8.0, 5.75, 7.2, "rozwiązuje →", "->", 1.5),
@@ -851,9 +957,7 @@ def generate_pattern_language_navigation() -> None:
         (2.9, 5.7, 5.75, 5.0, "rozwiązuje →", "->", 1.5),
         (7.0, 4.2, 2.9, 3.9, "← rodzi problem", "->", 1.0),
         (2.9, 3.3, 5.75, 2.6, "rozwiązuje →", "->", 1.5),
-        # Microservices → Service Discovery
         (8.25, 9.0, 9.5, 6.5, "wymaga →", "->", 1.0),
-        # Problem → Service Discovery
         (2.9, 1.3, 8.75, 5.6, "rozwiązuje →", "->", 1.2),
     ]
 
@@ -889,7 +993,6 @@ def generate_pattern_language_navigation() -> None:
 
     # Legend
     legend_y = 0.3
-    # Problem node
     r1 = FancyBboxPatch(
         (1.0, legend_y - 0.2),
         1.5,
@@ -901,8 +1004,10 @@ def generate_pattern_language_navigation() -> None:
         linestyle="--",
     )
     ax.add_patch(r1)
-    ax.text(1.75, legend_y, "Problem", ha="center", va="center", fontsize=7)
-    # Pattern node
+    ax.text(
+        1.75, legend_y, "Problem",
+        ha="center", va="center", fontsize=7,
+    )
     r2 = FancyBboxPatch(
         (3.5, legend_y - 0.2),
         1.5,
@@ -925,7 +1030,8 @@ def generate_pattern_language_navigation() -> None:
     ax.text(
         6.5,
         legend_y,
-        "Nawigacja: Problem → Wzorzec → Nowy Problem → Wzorzec → ...",
+        "Nawigacja: Problem \u2192 Wzorzec"
+        " \u2192 Nowy Problem \u2192 Wzorzec \u2192 ...",
         ha="left",
         va="center",
         fontsize=7,
@@ -933,20 +1039,23 @@ def generate_pattern_language_navigation() -> None:
     )
 
     fig.tight_layout()
-    out = str(Path(OUTPUT_DIR) / "q14_pattern_language_navigation.png")
+    out = str(
+        Path(OUTPUT_DIR) / "q14_pattern_language_navigation.png"
+    )
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"  Saved: {out}")
+    _logger.info("  Saved: %s", out)
 
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
-    print("Generating PYTANIE 14 diagrams...")
+    logging.basicConfig(level=logging.INFO)
+    _logger.info("Generating PYTANIE 14 diagrams...")
     generate_pattern_template()
     generate_catalog_map()
     generate_three_pillars()
     generate_observer_card_filled()
     generate_pattern_language_navigation()
-    print("Done!")
+    _logger.info("Done!")
