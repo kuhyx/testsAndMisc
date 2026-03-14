@@ -61,7 +61,7 @@ def _parse_single_number(num_str: str) -> tuple[float, int] | None:
     """
     try:
         float_num = float(num_str)
-        digits_count = len(num_str.split(".")[-1]) if "." in num_str else 0
+        digits_count = len(num_str.rsplit(".", maxsplit=1)[-1]) if "." in num_str else 0
     except ValueError:
         return None
     return float_num, digits_count
