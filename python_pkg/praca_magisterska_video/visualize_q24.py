@@ -11,6 +11,7 @@ Creates animated video demonstrating:
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -39,6 +40,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT = str(OUTPUT_DIR / "q24_object_detection.mp4")
 
 BG_COLOR = (15, 20, 35)
+
+_logger = logging.getLogger(__name__)
 
 
 def _tc(**kwargs: object) -> TextClip:
@@ -203,7 +206,8 @@ def _hog_svm_demo() -> list[CompositeVideoClip]:
                     frame[ay - 1 : ay + 2, ax : ax + 20] = (150, 150, 170)
 
         # Show gradient computation example at bottom
-        if progress > 0.2:
+        gradient_phase = 0.2
+        if progress > gradient_phase:
             # Mini pixel grid showing gradient computation
             gx, gy = 100, 430
             pixels = [50, 50, 200]
@@ -366,7 +370,8 @@ def _viola_jones_demo() -> list[CompositeVideoClip]:
             (80, 620),
         ),
         (
-            "Haar: kontrast jasna/ciemna | Integral Image: suma prostokąta O(1) = 4 odczyty",
+            "Haar: kontrast jasna/ciemna | Integral Image: "
+            "suma prostokąta O(1) = 4 odczyty",
             14,
             "#78909C",
             FONT_R,
@@ -474,7 +479,8 @@ def _rcnn_evolution() -> list[CompositeVideoClip]:
         ("Faster R-CNN (2015)", 20, "#A5D6A7", FONT_B, (50, 580)),
         ("0.2 sec → 5 fps (RPN w sieci!)", 14, "#A5D6A7", FONT_R, (720, 600)),
         (
-            "Kluczowe innowacje: ROI Pooling → stały rozmiar | RPN → propozycje w sieci",
+            "Kluczowe innowacje: ROI Pooling → stały rozmiar "
+            "| RPN → propozycje w sieci",
             14,
             "#78909C",
             FONT_R,
@@ -527,13 +533,15 @@ def _rcnn_detailed() -> list[CompositeVideoClip]:
                     min(c + 50, 255) for c in color
                 )
                 # Arrow down
-                if i < 4:
+                arrow_limit = 4
+                if i < arrow_limit:
                     ax = bx + bw // 2
                     ay = by + bh + 5
                     frame[ay : ay + 20, ax - 1 : ax + 2] = (150, 150, 170)
 
         # Illustration: many overlapping regions from Selective Search
-        if progress > 0.2:
+        overlay_phase = 0.2
+        if progress > overlay_phase:
             rng_local = np.random.default_rng(42)
             n_boxes = min(int((progress - 0.2) * 15), 8)
             for i in range(n_boxes):
@@ -599,94 +607,108 @@ def _rcnn_detailed() -> list[CompositeVideoClip]:
 
 
 # ── ROI Pooling ──────────────────────────────────────────────────
+
+
+def _draw_roi_pool_grid(frame: np.ndarray) -> None:
+    """Draw the 3x3 ROI pool grid with max-pooled feature values."""
+    out_x, out_y = 400, 220
+    out_cell = 50
+    out_n = 3
+    roi_r1, roi_c1 = 2, 1
+    roi_r2, roi_c2 = 6, 5
+    roi_h = roi_r2 - roi_r1
+    roi_w = roi_c2 - roi_c1
+    for r in range(out_n):
+        for c in range(out_n):
+            x = out_x + c * out_cell
+            y = out_y + r * out_cell
+
+            # Compute the max from corresponding region
+            src_r1 = roi_r1 + r * roi_h // out_n
+            src_r2 = roi_r1 + (r + 1) * roi_h // out_n
+            src_c1 = roi_c1 + c * roi_w // out_n
+            src_c2 = roi_c1 + (c + 1) * roi_w // out_n
+            max_val = 0
+            for sr in range(src_r1, src_r2):
+                for sc in range(src_c1, src_c2):
+                    v = 30 + ((sr * 7 + sc * 13 + 42) % 40)
+                    max_val = max(max_val, v)
+
+            frame[y : y + out_cell - 2, x : x + out_cell - 2] = (
+                max_val,
+                max_val + 20,
+                max_val + 40,
+            )
+            frame[y : y + 2, x : x + out_cell - 2] = (80, 200, 120)
+            frame[y + out_cell - 4 : y + out_cell - 2, x : x + out_cell - 2] = (
+                80,
+                200,
+                120,
+            )
+
+
+def _make_roi_frame(t: float) -> np.ndarray:
+    """Render a single frame for the ROI pooling animation."""
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    frame[:] = BG_COLOR
+    progress = min(t / (STEP_DUR * 0.7), 1.0)
+
+    # Left: feature map with ROI highlighted
+    fm_x, fm_y = 60, 180
+    fm_cell = 30
+    fm_grid = 8
+    for r in range(fm_grid):
+        for c in range(fm_grid):
+            x = fm_x + c * fm_cell
+            y = fm_y + r * fm_cell
+            # Random-looking feature values
+            val = 30 + ((r * 7 + c * 13 + 42) % 40)
+            frame[y : y + fm_cell - 1, x : x + fm_cell - 1] = (
+                val,
+                val + 10,
+                val + 20,
+            )
+
+    # ROI region highlighted
+    roi_r1, roi_c1 = 2, 1
+    roi_r2, roi_c2 = 6, 5
+    for tt in range(3):
+        ry1 = fm_y + roi_r1 * fm_cell - tt
+        ry2 = fm_y + roi_r2 * fm_cell + tt
+        rx1 = fm_x + roi_c1 * fm_cell - tt
+        rx2 = fm_x + roi_c2 * fm_cell + tt
+        frame[ry1:ry2, rx1 : rx1 + 2] = (255, 200, 50)
+        frame[ry1:ry2, rx2 - 2 : rx2] = (255, 200, 50)
+        frame[ry1 : ry1 + 2, rx1:rx2] = (255, 200, 50)
+        frame[ry2 - 2 : ry2, rx1:rx2] = (255, 200, 50)
+
+    # Arrow
+    arrow_phase = 0.3
+    if progress > arrow_phase:
+        frame[300:303, 310:380] = (150, 150, 170)
+
+    # Middle: ROI divided into 3x3 grid (output_size)
+    grid_phase = 0.3
+    if progress > grid_phase:
+        _draw_roi_pool_grid(frame)
+
+    # Arrow to FC
+    fc_phase = 0.6
+    if progress > fc_phase:
+        frame[300:303, 560:630] = (150, 150, 170)
+        # FC box
+        frame[270:340, 650:730] = (200, 100, 80)
+        frame[270:272, 650:730] = (240, 140, 120)
+        frame[338:340, 650:730] = (240, 140, 120)
+
+    return frame
+
+
 def _roi_pooling_demo() -> list[CompositeVideoClip]:
     """Animate ROI Pooling: key Fast R-CNN innovation."""
     slides = []
 
-    def make_roi_frame(t: float) -> np.ndarray:
-        frame = np.zeros((H, W, 3), dtype=np.uint8)
-        frame[:] = BG_COLOR
-        progress = min(t / (STEP_DUR * 0.7), 1.0)
-
-        # Left: feature map with ROI highlighted
-        fm_x, fm_y = 60, 180
-        fm_cell = 30
-        fm_grid = 8
-        for r in range(fm_grid):
-            for c in range(fm_grid):
-                x = fm_x + c * fm_cell
-                y = fm_y + r * fm_cell
-                # Random-looking feature values
-                val = 30 + ((r * 7 + c * 13 + 42) % 40)
-                frame[y : y + fm_cell - 1, x : x + fm_cell - 1] = (
-                    val,
-                    val + 10,
-                    val + 20,
-                )
-
-        # ROI region highlighted
-        roi_r1, roi_c1 = 2, 1
-        roi_r2, roi_c2 = 6, 5
-        for tt in range(3):
-            ry1 = fm_y + roi_r1 * fm_cell - tt
-            ry2 = fm_y + roi_r2 * fm_cell + tt
-            rx1 = fm_x + roi_c1 * fm_cell - tt
-            rx2 = fm_x + roi_c2 * fm_cell + tt
-            frame[ry1:ry2, rx1 : rx1 + 2] = (255, 200, 50)
-            frame[ry1:ry2, rx2 - 2 : rx2] = (255, 200, 50)
-            frame[ry1 : ry1 + 2, rx1:rx2] = (255, 200, 50)
-            frame[ry2 - 2 : ry2, rx1:rx2] = (255, 200, 50)
-
-        # Arrow
-        if progress > 0.3:
-            frame[300:303, 310:380] = (150, 150, 170)
-
-        # Middle: ROI divided into 3x3 grid (output_size)
-        if progress > 0.3:
-            out_x, out_y = 400, 220
-            out_cell = 50
-            out_n = 3
-            roi_h = roi_r2 - roi_r1
-            roi_w = roi_c2 - roi_c1
-            for r in range(out_n):
-                for c in range(out_n):
-                    x = out_x + c * out_cell
-                    y = out_y + r * out_cell
-
-                    # Compute the max from corresponding region
-                    src_r1 = roi_r1 + r * roi_h // out_n
-                    src_r2 = roi_r1 + (r + 1) * roi_h // out_n
-                    src_c1 = roi_c1 + c * roi_w // out_n
-                    src_c2 = roi_c1 + (c + 1) * roi_w // out_n
-                    max_val = 0
-                    for sr in range(src_r1, src_r2):
-                        for sc in range(src_c1, src_c2):
-                            v = 30 + ((sr * 7 + sc * 13 + 42) % 40)
-                            max_val = max(max_val, v)
-
-                    frame[y : y + out_cell - 2, x : x + out_cell - 2] = (
-                        max_val,
-                        max_val + 20,
-                        max_val + 40,
-                    )
-                    frame[y : y + 2, x : x + out_cell - 2] = (80, 200, 120)
-                    frame[y + out_cell - 4 : y + out_cell - 2, x : x + out_cell - 2] = (
-                        80,
-                        200,
-                        120,
-                    )
-
-        # Arrow to FC
-        if progress > 0.6:
-            frame[300:303, 560:630] = (150, 150, 170)
-            # FC box
-            frame[270:340, 650:730] = (200, 100, 80)
-            frame[270:272, 650:730] = (240, 140, 120)
-            frame[338:340, 650:730] = (240, 140, 120)
-
-        return frame
-
-    roi_clip = VideoClip(make_roi_frame, duration=STEP_DUR + 1).with_fps(FPS)
+    roi_clip = VideoClip(_make_roi_frame, duration=STEP_DUR + 1).with_fps(FPS)
     dur = STEP_DUR + 1
     labels = [
         ("ROI Pooling: kluczowa innowacja Fast R-CNN", 26, "#FFE082", FONT_B, (80, 20)),
@@ -731,7 +753,8 @@ def _roi_pooling_demo() -> list[CompositeVideoClip]:
             (80, 535),
         ),
         (
-            "Fast R-CNN: CNN raz → 1 feature mapa → ROI Pool 2000 regionów → 25x szybciej!",
+            "Fast R-CNN: CNN raz → 1 feature mapa → "
+            "ROI Pool 2000 regionów → 25x szybciej!",
             16,
             "#A5D6A7",
             FONT_R,
@@ -788,7 +811,6 @@ def _rpn_anchors_demo() -> list[CompositeVideoClip]:
 
         # Draw anchors around center: 3 sizes x 3 ratios = 9
         anchor_specs = [
-            # (half_w, half_h, color)
             (30, 30, (200, 80, 80)),  # small 1:1
             (20, 40, (200, 60, 60)),  # small 1:2
             (40, 20, (180, 60, 60)),  # small 2:1
@@ -1014,7 +1036,8 @@ def _yolo_demo() -> list[CompositeVideoClip]:
             frame[y : y + 1, img_x : img_x + img_size] = (100, 100, 120)
 
         # Highlight cells containing object centers
-        if progress > 0.3:
+        car_phase = 0.3
+        if progress > car_phase:
             # Car center ~ cell (1, 1)
             cx, cy = 1, 2
             hx = img_x + cx * cell
@@ -1023,7 +1046,8 @@ def _yolo_demo() -> list[CompositeVideoClip]:
                 frame[hy : hy + cell, hx : hx + cell].astype(int) + 40, 0, 255
             ).astype(np.uint8)
 
-        if progress > 0.5:
+        person_phase = 0.5
+        if progress > person_phase:
             # Person center ~ cell (4, 4)
             cx, cy = 4, 4
             hx = img_x + cx * cell
@@ -1033,7 +1057,8 @@ def _yolo_demo() -> list[CompositeVideoClip]:
             ).astype(np.uint8)
 
         # Bounding boxes predictions from cells
-        if progress > 0.6:
+        bbox_phase = 0.6
+        if progress > bbox_phase:
             # Car bbox
             for tt in range(2):
                 frame[
@@ -1100,7 +1125,8 @@ def _yolo_demo() -> list[CompositeVideoClip]:
             (80, 620),
         ),
         (
-            "Two-stage (R-CNN): propozycje+klasyfikacja | One-stage (YOLO): bez propozycji!",
+            "Two-stage (R-CNN): propozycje+klasyfikacja "
+            "| One-stage (YOLO): bez propozycji!",
             14,
             "#90CAF9",
             FONT_R,
@@ -1152,13 +1178,15 @@ def _yolo_architecture() -> list[CompositeVideoClip]:
                 frame[by + bh - 2 : by + bh, bx : bx + bw] = tuple(
                     min(c + 50, 255) for c in color
                 )
-                if i < 4:
+                arrow_limit = 4
+                if i < arrow_limit:
                     ax = bx + bw + 5
                     ay = by + bh // 2
                     frame[ay - 1 : ay + 2, ax : ax + 25] = (150, 150, 170)
 
         # Output tensor breakdown (right side)
-        if progress > 0.6:
+        tensor_phase = 0.6
+        if progress > tensor_phase:
             # Show SxS grid
             gx, gy = 850, 180
             gs = 120
@@ -1282,18 +1310,21 @@ def _detr_demo() -> list[CompositeVideoClip]:
                 frame[by + bh - 2 : by + bh, bx : bx + bw] = tuple(
                     min(c + 50, 255) for c in color
                 )
-                if i < 4:
+                arrow_limit = 4
+                if i < arrow_limit:
                     ax = bx + bw + 5
                     ay = by + bh // 2
                     frame[ay - 1 : ay + 2, ax : ax + 25] = (150, 150, 170)
 
         # Object queries illustration (right side)
-        if progress > 0.5:
+        query_phase = 0.5
+        if progress > query_phase:
             qx, qy = 800, 140
             for i in range(6):
                 y = qy + i * 50
                 w = 130
-                active = i < 3
+                active_limit = 3
+                active = i < active_limit
                 color = (80, 180, 120) if active else (60, 50, 50)
                 frame[y : y + 35, qx : qx + w] = color
                 frame[y : y + 1, qx : qx + w] = tuple(min(c + 40, 255) for c in color)
@@ -1528,7 +1559,8 @@ def _detr_demo() -> list[CompositeVideoClip]:
             (80, 540),
         ),
         (
-            "  R-CNN (SS+CNN+SVM+NMS) → YOLO (backbone+head+NMS) → DETR (backbone+transformer)",
+            "  R-CNN (SS+CNN+SVM+NMS) → YOLO "
+            "(backbone+head+NMS) → DETR (backbone+transformer)",
             14,
             "#90CAF9",
             FONT_R,
@@ -1572,15 +1604,18 @@ def _nms_iou_demo() -> list[CompositeVideoClip]:
         boxes.append((ox + 350, oy + 50, 100, 100, 0.40, (80, 180, 255)))
 
         for i, (bx, by, bw, bh, _conf, color) in enumerate(boxes):
-            if progress > 0.4 and i > 0 and i < 3:
+            dc = color
+            nms_phase = 0.4
+            nms_limit = 3
+            if progress > nms_phase and i > 0 and i < nms_limit:
                 # After NMS, these get removed (shown as faded/crossed)
-                color = (60, 40, 40)
+                dc = (60, 40, 40)
 
             for tt in range(2):
-                frame[by - tt : by + bh + tt, bx - tt : bx - tt + 2] = color
-                frame[by - tt : by + bh + tt, bx + bw + tt - 2 : bx + bw + tt] = color
-                frame[by - tt : by - tt + 2, bx - tt : bx + bw + tt] = color
-                frame[by + bh + tt - 2 : by + bh + tt, bx - tt : bx + bw + tt] = color
+                frame[by - tt : by + bh + tt, bx - tt : bx - tt + 2] = dc
+                frame[by - tt : by + bh + tt, bx + bw + tt - 2 : bx + bw + tt] = dc
+                frame[by - tt : by - tt + 2, bx - tt : bx + bw + tt] = dc
+                frame[by + bh + tt - 2 : by + bh + tt, bx - tt : bx + bw + tt] = dc
 
         # IoU visualization on right side
         iou_x, iou_y = 700, 200
@@ -1884,7 +1919,7 @@ def main() -> None:
     final.write_videofile(
         OUTPUT, fps=FPS, codec="libx264", audio=False, preset="medium", threads=4
     )
-    print(f"Video saved to: {OUTPUT}")
+    _logger.info("Video saved to: %s", OUTPUT)
 
 
 if __name__ == "__main__":

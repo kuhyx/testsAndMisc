@@ -10,6 +10,7 @@ Creates animated video demonstrating:
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -36,6 +37,9 @@ FONT_R = "/usr/share/fonts/TTF/DejaVuSans.ttf"
 OUTPUT_DIR = Path(__file__).resolve().parent / "videos"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT = str(OUTPUT_DIR / "q23_segmentation.mp4")
+
+logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger(__name__)
 
 BG_COLOR = (15, 20, 35)
 rng = np.random.default_rng(42)
@@ -102,6 +106,25 @@ def _text_slide(
     )
 
 
+def _compose_slide(
+    base_clip: VideoClip,
+    labels: list[tuple[str, int, str, str, tuple[int, int]]],
+    duration: float,
+) -> CompositeVideoClip:
+    """Overlay text labels on an animated base clip."""
+    text_clips: list[VideoClip] = [base_clip]
+    for text, fs, color, font, pos in labels:
+        tc = (
+            _tc(text=text, font_size=fs, color=color, font=font)
+            .with_duration(duration)
+            .with_position(pos)
+        )
+        text_clips.append(tc)
+    return CompositeVideoClip(text_clips, size=(W, H)).with_effects(
+        [FadeIn(0.3), FadeOut(0.3)]
+    )
+
+
 # ── Segmentation concept ─────────────────────────────────────────
 def _segmentation_concept() -> list[CompositeVideoClip]:
     """Show what segmentation is: pixel-level labeling."""
@@ -164,7 +187,8 @@ def _segmentation_concept() -> list[CompositeVideoClip]:
         ("niebo  |  drzewo  |  droga  |  samochód", 18, "#90CAF9", FONT_R, (600, 420)),
         ("Segmentacja = klasyfikacja per-piksel", 24, "#FFE082", FONT_B, (100, 500)),
         (
-            "Semantic: klasy bez instancji | Instance: rozróżnia obiekty | Panoptic: oba",
+            "Semantic: klasy bez instancji | Instance: "
+            "rozróżnia obiekty | Panoptic: oba",
             16,
             "#78909C",
             FONT_R,
@@ -459,7 +483,8 @@ def _watershed_demo() -> list[CompositeVideoClip]:
 
         # Dam marker at ridge
         ridge_x = ox + int(0.5 * terrain_w)
-        if water_level > 160:
+        dam_visible_threshold = 160
+        if water_level > dam_visible_threshold:
             frame[oy - water_level : oy - 140, ridge_x - 2 : ridge_x + 2] = (
                 255,
                 80,
@@ -495,7 +520,9 @@ def _watershed_demo() -> list[CompositeVideoClip]:
             (100, 160),
         ),
         (
-            "Problem: over-segmentation (za dużo regionów). Rozwiązanie: marker-controlled.",
+            "Problem: over-segmentation "
+            "(za dużo regionów). "
+            "Rozwiązanie: marker-controlled.",
             16,
             "#A5D6A7",
             FONT_R,
@@ -526,84 +553,84 @@ def _watershed_demo() -> list[CompositeVideoClip]:
 
 
 # ── U-Net Architecture ───────────────────────────────────────────
+def _draw_unet_skips(
+    frame: np.ndarray,
+    enc_positions: list[tuple[int, int, int, int]],
+    n_blocks: int,
+    dec_x: int,
+    skip_threshold: int,
+) -> None:
+    """Draw horizontal dashed skip-connection lines."""
+    if n_blocks <= skip_threshold:
+        return
+    for i in range(min(n_blocks - 5, 4)):
+        ey = enc_positions[i][1] + enc_positions[i][3] // 2
+        ex_end = enc_positions[i][0] + enc_positions[i][2]
+        for dash_x in range(ex_end + 10, dec_x - 10, 15):
+            frame[ey : ey + 2, dash_x : dash_x + 8] = (255, 200, 50)
+
+
+def _make_unet_frame(t: float) -> np.ndarray:
+    """Render a single U-Net animation frame."""
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    frame[:] = BG_COLOR
+
+    enc_sizes = [(80, 120), (60, 100), (45, 80), (30, 60)]
+    dec_sizes = list(reversed(enc_sizes))
+    enc_x = 150
+    dec_x = 850
+
+    progress = min(t / (STEP_DUR * 0.6), 1.0)
+    n_blocks = int(progress * 8) + 1
+
+    enc_positions: list[tuple[int, int, int, int]] = []
+    y_offset = 120
+    for i, (bw, bh) in enumerate(enc_sizes):
+        x = enc_x
+        y = y_offset + i * 130
+        enc_positions.append((x, y, bw, bh))
+        if i < n_blocks:
+            frame[y : y + bh, x : x + bw] = (70, 130, 200)
+            frame[y : y + 2, x : x + bw] = (100, 180, 255)
+            frame[y + bh - 2 : y + bh, x : x + bw] = (100, 180, 255)
+            frame[y : y + bh, x : x + 2] = (100, 180, 255)
+            frame[y : y + bh, x + bw - 2 : x + bw] = (100, 180, 255)
+            if i < len(enc_sizes) - 1:
+                ax = x + bw // 2
+                ay = y + bh + 10
+                frame[ay : ay + 20, ax - 1 : ax + 2] = (150, 150, 170)
+
+    bx, by = 500, y_offset + 3 * 130 + 30
+    encoder_count = 4
+    if n_blocks > encoder_count:
+        frame[by : by + 50, bx : bx + 25] = (200, 100, 80)
+        frame[by : by + 2, bx : bx + 25] = (255, 140, 100)
+        frame[by + 48 : by + 50, bx : bx + 25] = (255, 140, 100)
+
+    for i, (bw, bh) in enumerate(dec_sizes):
+        x = dec_x
+        y = y_offset + (3 - i) * 130
+        if n_blocks > 4 + i + 1:
+            frame[y : y + bh, x : x + bw] = (80, 200, 120)
+            frame[y : y + 2, x : x + bw] = (120, 230, 150)
+            frame[y + bh - 2 : y + bh, x : x + bw] = (120, 230, 150)
+            frame[y : y + bh, x : x + 2] = (120, 230, 150)
+            frame[y : y + bh, x + bw - 2 : x + bw] = (120, 230, 150)
+            if i < len(dec_sizes) - 1:
+                ax = x + bw // 2
+                ay = y - 30
+                frame[ay : ay + 20, ax - 1 : ax + 2] = (150, 150, 170)
+
+    skip_threshold = 5
+    _draw_unet_skips(frame, enc_positions, n_blocks, dec_x, skip_threshold)
+
+    return frame
+
+
 def _unet_demo() -> list[CompositeVideoClip]:
     """Animate U-Net encoder-decoder architecture."""
-    slides = []
-
-    def make_unet_frame(t: float) -> np.ndarray:
-        frame = np.zeros((H, W, 3), dtype=np.uint8)
-        frame[:] = BG_COLOR
-
-        # Draw U-shape: encoder blocks going down, decoder going up
-        # Encoder: 4 blocks getting smaller
-        enc_sizes = [(80, 120), (60, 100), (45, 80), (30, 60)]
-        dec_sizes = list(reversed(enc_sizes))
-        enc_x = 150
-        dec_x = 850
-
-        progress = min(t / (STEP_DUR * 0.6), 1.0)
-        n_blocks = int(progress * 8) + 1  # 1 to 8
-
-        enc_positions = []
-        y_offset = 120
-        for i, (bw, bh) in enumerate(enc_sizes):
-            x = enc_x
-            y = y_offset + i * 130
-            enc_positions.append((x, y, bw, bh))
-            if i < n_blocks:
-                # Draw encoder block
-                frame[y : y + bh, x : x + bw] = (70, 130, 200)
-                # Border
-                frame[y : y + 2, x : x + bw] = (100, 180, 255)
-                frame[y + bh - 2 : y + bh, x : x + bw] = (100, 180, 255)
-                frame[y : y + bh, x : x + 2] = (100, 180, 255)
-                frame[y : y + bh, x + bw - 2 : x + bw] = (100, 180, 255)
-
-                # Down arrow
-                if i < len(enc_sizes) - 1:
-                    ax = x + bw // 2
-                    ay = y + bh + 10
-                    frame[ay : ay + 20, ax - 1 : ax + 2] = (150, 150, 170)
-
-        # Bottleneck
-        bx, by = 500, y_offset + 3 * 130 + 30
-        if n_blocks > 4:
-            frame[by : by + 50, bx : bx + 25] = (200, 100, 80)
-            frame[by : by + 2, bx : bx + 25] = (255, 140, 100)
-            frame[by + 48 : by + 50, bx : bx + 25] = (255, 140, 100)
-
-        # Decoder
-        dec_positions = []
-        for i, (bw, bh) in enumerate(dec_sizes):
-            x = dec_x
-            y = y_offset + (3 - i) * 130
-            dec_positions.append((x, y, bw, bh))
-            if n_blocks > 4 + i + 1:
-                frame[y : y + bh, x : x + bw] = (80, 200, 120)
-                frame[y : y + 2, x : x + bw] = (120, 230, 150)
-                frame[y + bh - 2 : y + bh, x : x + bw] = (120, 230, 150)
-                frame[y : y + bh, x : x + 2] = (120, 230, 150)
-                frame[y : y + bh, x + bw - 2 : x + bw] = (120, 230, 150)
-
-                # Up arrow
-                if i < len(dec_sizes) - 1:
-                    ax = x + bw // 2
-                    ay = y - 30
-                    frame[ay : ay + 20, ax - 1 : ax + 2] = (150, 150, 170)
-
-        # Skip connections (horizontal dashed lines)
-        if n_blocks > 5:
-            for i in range(min(n_blocks - 5, 4)):
-                ey = enc_positions[i][1] + enc_positions[i][3] // 2
-                ex_end = enc_positions[i][0] + enc_positions[i][2]
-                dx_start = dec_x
-                for dash_x in range(ex_end + 10, dx_start - 10, 15):
-                    frame[ey : ey + 2, dash_x : dash_x + 8] = (255, 200, 50)
-
-        return frame
-
-    unet_clip = VideoClip(make_unet_frame, duration=STEP_DUR + 1).with_fps(FPS)
-    text_clips: list[VideoClip] = [unet_clip]
+    dur = STEP_DUR + 1
+    unet_clip = VideoClip(_make_unet_frame, duration=dur).with_fps(FPS)
     labels = [
         ("U-Net: Encoder-Decoder + Skip Connections", 28, "#FFE082", FONT_B, (80, 20)),
         (
@@ -649,102 +676,99 @@ def _unet_demo() -> list[CompositeVideoClip]:
             (80, 670),
         ),
     ]
-    for text, fs, color, font, pos in labels:
-        tc = (
-            _tc(text=text, font_size=fs, color=color, font=font)
-            .with_duration(STEP_DUR + 1)
-            .with_position(pos)
-        )
-        text_clips.append(tc)
-
-    slides.append(
-        CompositeVideoClip(text_clips, size=(W, H)).with_effects(
-            [FadeIn(0.3), FadeOut(0.3)]
-        )
-    )
-    return slides
+    return [_compose_slide(unet_clip, labels, dur)]
 
 
 # ── FCN Architecture ─────────────────────────────────────────────
+def _draw_pipeline_blocks(
+    frame: np.ndarray,
+    blocks: list[
+        tuple[tuple[int, int], tuple[int, int], tuple[int, int, int]]
+    ],
+    n_visible: int,
+    arrow_limit: int,
+) -> None:
+    """Draw coloured blocks with connecting arrows."""
+    for i, ((bx, by), (bw, bh), color) in enumerate(blocks):
+        if i < n_visible:
+            frame[by : by + bh, bx : bx + bw] = color
+            frame[by : by + 2, bx : bx + bw] = tuple(
+                min(c + 50, 255) for c in color
+            )
+            frame[by + bh - 2 : by + bh, bx : bx + bw] = tuple(
+                min(c + 50, 255) for c in color
+            )
+            if i < arrow_limit:
+                ax = bx + bw + 3
+                ay = by + bh // 2
+                frame[ay - 1 : ay + 2, ax : ax + 12] = (150, 150, 170)
+
+
+def _draw_red_cross(
+    frame: np.ndarray,
+    x_start: int,
+    width: int,
+    top_y: int,
+    height: int,
+) -> None:
+    """Draw a red X across the given rectangle."""
+    for d in range(-2, 3):
+        for step in range(height):
+            x1 = x_start + int(step * width / height)
+            y1 = top_y + step + d
+            if 0 <= y1 < H and 0 <= x1 < W:
+                frame[y1, x1] = (255, 80, 80)
+            y2 = top_y + height - step + d
+            if 0 <= y2 < H and 0 <= x1 < W:
+                frame[y2, x1] = (255, 80, 80)
+
+
+def _make_fcn_frame(t: float) -> np.ndarray:
+    """Render a single FCN comparison frame."""
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    frame[:] = BG_COLOR
+    progress = min(t / (STEP_DUR * 0.8), 1.0)
+
+    top_y = 140
+    blocks_classic = [
+        ((80, top_y), (70, 50), (70, 130, 200)),
+        ((170, top_y), (50, 40), (50, 100, 160)),
+        ((240, top_y), (60, 50), (70, 130, 200)),
+        ((320, top_y), (40, 35), (50, 100, 160)),
+        ((385, top_y), (55, 50), (160, 80, 60)),
+        ((465, top_y), (55, 50), (180, 60, 60)),
+        ((545, top_y), (80, 50), (200, 80, 80)),
+    ]
+    n_top = min(int(progress * 7) + 1, 7)
+    arrow_limit = 6
+    _draw_pipeline_blocks(frame, blocks_classic, n_top, arrow_limit)
+
+    cross_phase = 0.6
+    if progress > cross_phase:
+        _draw_red_cross(frame, 385, 135, top_y, 50)
+
+    bot_y = 380
+    blocks_fcn = [
+        ((80, bot_y), (70, 50), (70, 130, 200)),
+        ((170, bot_y), (50, 40), (50, 100, 160)),
+        ((240, bot_y), (60, 50), (70, 130, 200)),
+        ((320, bot_y), (40, 35), (50, 100, 160)),
+        ((385, bot_y), (70, 50), (80, 200, 120)),
+        ((480, bot_y), (75, 50), (200, 160, 80)),
+        ((580, bot_y), (80, 50), (100, 200, 100)),
+    ]
+    fcn_phase = 0.4
+    if progress > fcn_phase:
+        n_bot = min(int((progress - fcn_phase) / 0.6 * 7) + 1, 7)
+        _draw_pipeline_blocks(frame, blocks_fcn, n_bot, arrow_limit)
+
+    return frame
+
+
 def _fcn_demo() -> list[CompositeVideoClip]:
     """Animate FCN step-by-step: FC → Conv 1x1 transformation."""
-    slides = []
-
-    # Slide 1: Classic CNN vs FCN pipeline comparison
-    def make_fcn_frame(t: float) -> np.ndarray:
-        frame = np.zeros((H, W, 3), dtype=np.uint8)
-        frame[:] = BG_COLOR
-        progress = min(t / (STEP_DUR * 0.8), 1.0)
-
-        # TOP: Classic CNN → FC → 1 label
-        top_y = 140
-        blocks_classic = [
-            ((80, top_y), (70, 50), (70, 130, 200)),
-            ((170, top_y), (50, 40), (50, 100, 160)),
-            ((240, top_y), (60, 50), (70, 130, 200)),
-            ((320, top_y), (40, 35), (50, 100, 160)),
-            ((385, top_y), (55, 50), (160, 80, 60)),
-            ((465, top_y), (55, 50), (180, 60, 60)),
-            ((545, top_y), (80, 50), (200, 80, 80)),
-        ]
-        n_top = min(int(progress * 7) + 1, 7)
-        for i, ((bx, by), (bw, bh), color) in enumerate(blocks_classic):
-            if i < n_top:
-                frame[by : by + bh, bx : bx + bw] = color
-                frame[by : by + 2, bx : bx + bw] = tuple(
-                    min(c + 50, 255) for c in color
-                )
-                frame[by + bh - 2 : by + bh, bx : bx + bw] = tuple(
-                    min(c + 50, 255) for c in color
-                )
-                if i < 6:
-                    ax = bx + bw + 3
-                    ay = by + bh // 2
-                    frame[ay - 1 : ay + 2, ax : ax + 12] = (150, 150, 170)
-
-        # Red X over Flatten+FC when FCN appears
-        if progress > 0.6:
-            for d in range(-2, 3):
-                for step in range(50):
-                    x1 = 385 + int(step * 135 / 50)
-                    y1 = top_y + step + d
-                    if 0 <= y1 < H and 0 <= x1 < W:
-                        frame[y1, x1] = (255, 80, 80)
-                    y2 = top_y + 50 - step + d
-                    if 0 <= y2 < H and 0 <= x1 < W:
-                        frame[y2, x1] = (255, 80, 80)
-
-        # BOTTOM: FCN pipeline
-        bot_y = 380
-        blocks_fcn = [
-            ((80, bot_y), (70, 50), (70, 130, 200)),
-            ((170, bot_y), (50, 40), (50, 100, 160)),
-            ((240, bot_y), (60, 50), (70, 130, 200)),
-            ((320, bot_y), (40, 35), (50, 100, 160)),
-            ((385, bot_y), (70, 50), (80, 200, 120)),
-            ((480, bot_y), (75, 50), (200, 160, 80)),
-            ((580, bot_y), (80, 50), (100, 200, 100)),
-        ]
-        if progress > 0.4:
-            n_bot = min(int((progress - 0.4) / 0.6 * 7) + 1, 7)
-            for i, ((bx, by), (bw, bh), color) in enumerate(blocks_fcn):
-                if i < n_bot:
-                    frame[by : by + bh, bx : bx + bw] = color
-                    frame[by : by + 2, bx : bx + bw] = tuple(
-                        min(c + 50, 255) for c in color
-                    )
-                    frame[by + bh - 2 : by + bh, bx : bx + bw] = tuple(
-                        min(c + 50, 255) for c in color
-                    )
-                    if i < 6:
-                        ax = bx + bw + 3
-                        ay = by + bh // 2
-                        frame[ay - 1 : ay + 2, ax : ax + 12] = (150, 150, 170)
-
-        return frame
-
-    fcn_clip = VideoClip(make_fcn_frame, duration=STEP_DUR + 1).with_fps(FPS)
     dur = STEP_DUR + 1
+    fcn_clip = VideoClip(_make_fcn_frame, duration=dur).with_fps(FPS)
     labels = [
         ("FCN: Fully Convolutional Network (2015)", 26, "#FFE082", FONT_B, (80, 20)),
         ("KROK 1: Zamień FC → Conv 1x1", 18, "#A5D6A7", FONT_R, (80, 60)),
@@ -807,19 +831,7 @@ def _fcn_demo() -> list[CompositeVideoClip]:
             (80, 640),
         ),
     ]
-    text_clips: list[VideoClip] = [fcn_clip]
-    for text, fs, color, font, pos in labels:
-        tc = (
-            _tc(text=text, font_size=fs, color=color, font=font)
-            .with_duration(dur)
-            .with_position(pos)
-        )
-        text_clips.append(tc)
-    slides.append(
-        CompositeVideoClip(text_clips, size=(W, H)).with_effects(
-            [FadeIn(0.3), FadeOut(0.3)]
-        )
-    )
+    slides = [_compose_slide(fcn_clip, labels, dur)]
 
     # Slide 2: FCN skip connections step by step
     skip_lines = [
@@ -909,7 +921,8 @@ def _fcn_demo() -> list[CompositeVideoClip]:
             (100, 555),
         ),
         (
-            "Im więcej skip connections → tym więcej detali z encodera → ostrzejszy wynik",
+            "Im więcej skip connections → tym więcej "
+            "detali z encodera → ostrzejszy wynik",
             17,
             "white",
             FONT_R,
@@ -922,90 +935,134 @@ def _fcn_demo() -> list[CompositeVideoClip]:
 
 
 # ── DeepLab Architecture ─────────────────────────────────────────
-def _deeplab_demo() -> list[CompositeVideoClip]:
-    """Animate DeepLab: dilated convolution + ASPP step by step."""
-    slides = []
+def _make_dilated_frame(t: float) -> np.ndarray:
+    """Render a dilated convolution comparison frame."""
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    frame[:] = BG_COLOR
+    progress = min(t / (STEP_DUR * 0.7), 1.0)
 
-    # Slide 1: Regular vs Dilated convolution
-    def make_dilated_frame(t: float) -> np.ndarray:
-        frame = np.zeros((H, W, 3), dtype=np.uint8)
-        frame[:] = BG_COLOR
-        progress = min(t / (STEP_DUR * 0.7), 1.0)
+    cell = 36
+    grids = [
+        (
+            "rate=1",
+            60,
+            [
+                (0, 0),
+                (0, 1),
+                (0, 2),
+                (1, 0),
+                (1, 1),
+                (1, 2),
+                (2, 0),
+                (2, 1),
+                (2, 2),
+            ],
+        ),
+        (
+            "rate=2",
+            420,
+            [
+                (0, 0),
+                (0, 2),
+                (0, 4),
+                (2, 0),
+                (2, 2),
+                (2, 4),
+                (4, 0),
+                (4, 2),
+                (4, 4),
+            ],
+        ),
+        (
+            "rate=3",
+            820,
+            [
+                (0, 0),
+                (0, 3),
+                (0, 6),
+                (3, 0),
+                (3, 3),
+                (3, 6),
+                (6, 0),
+                (6, 3),
+                (6, 6),
+            ],
+        ),
+    ]
 
-        cell = 36
-        # Draw three grids side by side for rate=1, rate=2, rate=3
-        grids = [
-            (
-                "rate=1",
-                60,
-                [
-                    (0, 0),
-                    (0, 1),
-                    (0, 2),
-                    (1, 0),
-                    (1, 1),
-                    (1, 2),
-                    (2, 0),
-                    (2, 1),
-                    (2, 2),
-                ],
-            ),
-            (
-                "rate=2",
-                420,
-                [
-                    (0, 0),
-                    (0, 2),
-                    (0, 4),
-                    (2, 0),
-                    (2, 2),
-                    (2, 4),
-                    (4, 0),
-                    (4, 2),
-                    (4, 4),
-                ],
-            ),
-            (
-                "rate=3",
-                820,
-                [
-                    (0, 0),
-                    (0, 3),
-                    (0, 6),
-                    (3, 0),
-                    (3, 3),
-                    (3, 6),
-                    (6, 0),
-                    (6, 3),
-                    (6, 6),
-                ],
-            ),
-        ]
-
-        for gi, (_label, gx, positions) in enumerate(grids):
-            if progress < gi * 0.3:
-                break
-            gy = 180
-            grid_size = 7
-            # Draw background grid
-            for r in range(grid_size):
-                for c in range(grid_size):
-                    x = gx + c * cell
-                    y = gy + r * cell
-                    frame[y : y + cell - 2, x : x + cell - 2] = (35, 40, 55)
-
-            # Highlight filter positions
-            for r, c in positions:
+    for gi, (_label, gx, positions) in enumerate(grids):
+        if progress < gi * 0.3:
+            break
+        gy = 180
+        grid_size = 7
+        for r in range(grid_size):
+            for c in range(grid_size):
                 x = gx + c * cell
                 y = gy + r * cell
-                frame[y : y + cell - 2, x : x + cell - 2] = (70, 130, 200)
-                frame[y : y + 2, x : x + cell - 2] = (120, 180, 255)
-                frame[y + cell - 4 : y + cell - 2, x : x + cell - 2] = (120, 180, 255)
+                frame[y : y + cell - 2, x : x + cell - 2] = (35, 40, 55)
+        for r, c in positions:
+            x = gx + c * cell
+            y = gy + r * cell
+            frame[y : y + cell - 2, x : x + cell - 2] = (70, 130, 200)
+            frame[y : y + 2, x : x + cell - 2] = (120, 180, 255)
+            frame[y + cell - 4 : y + cell - 2, x : x + cell - 2] = (120, 180, 255)
 
-        return frame
+    return frame
 
-    dil_clip = VideoClip(make_dilated_frame, duration=STEP_DUR + 1).with_fps(FPS)
+
+def _make_aspp_frame(t: float) -> np.ndarray:
+    """Render a single ASPP module animation frame."""
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    frame[:] = BG_COLOR
+    progress = min(t / (STEP_DUR * 0.7), 1.0)
+
+    frame[250:330, 50:130] = (70, 130, 200)
+    frame[250:252, 50:130] = (120, 180, 255)
+    frame[328:330, 50:130] = (120, 180, 255)
+
+    branches = [
+        ("1x1 conv", 250, (200, 170), (100, 40), (80, 200, 120)),
+        ("rate=6", 310, (200, 250), (100, 40), (200, 160, 80)),
+        ("rate=12", 370, (200, 330), (100, 40), (200, 120, 60)),
+        ("rate=18", 430, (200, 410), (100, 40), (180, 100, 80)),
+        ("GAP", 490, (200, 490), (100, 40), (160, 80, 160)),
+    ]
+    n_branches = min(int(progress * 5) + 1, 5)
+    for i, (_lbl, _h, (bx, by), (bw, bh), color) in enumerate(branches):
+        if i < n_branches:
+            frame[by : by + bh, bx : bx + bw] = color
+            frame[by : by + 2, bx : bx + bw] = tuple(
+                min(c + 50, 255) for c in color
+            )
+            ay = by + bh // 2
+            frame[ay - 1 : ay + 2, 133:197] = (150, 150, 170)
+
+    concat_phase = 0.6
+    if progress > concat_phase:
+        frame[250:530, 380:420] = (50, 60, 80)
+        frame[250:252, 380:420] = (200, 200, 100)
+        frame[528:530, 380:420] = (200, 200, 100)
+        for i, (_lbl, _h, (bx, by), (bw, bh), _c) in enumerate(branches):
+            if i < n_branches:
+                ay = by + bh // 2
+                frame[ay - 1 : ay + 2, bx + bw + 3 : 378] = (150, 150, 170)
+
+    final_conv_phase = 0.8
+    if progress > final_conv_phase:
+        frame[350:420, 450:550] = (100, 200, 100)
+        frame[350:352, 450:550] = (150, 230, 150)
+        frame[418:420, 450:550] = (150, 230, 150)
+        frame[388:391, 423:448] = (150, 150, 170)
+
+    return frame
+
+
+def _deeplab_demo() -> list[CompositeVideoClip]:
+    """Animate DeepLab: dilated convolution + ASPP step by step."""
     dur = STEP_DUR + 1
+
+    # Slide 1: Regular vs Dilated convolution
+    dil_clip = VideoClip(_make_dilated_frame, duration=dur).with_fps(FPS)
     labels = [
         ("DeepLab: Atrous (Dilated) Convolution", 26, "#FFE082", FONT_B, (80, 20)),
         (
@@ -1032,7 +1089,8 @@ def _deeplab_demo() -> list[CompositeVideoClip]:
             (80, 510),
         ),
         (
-            "TE SAME 9 wag → WIĘKSZE pole widzenia → lepszy kontekst BEZ dodatkowych parametrów!",
+            "TE SAME 9 wag → WIĘKSZE pole widzenia "
+            "→ lepszy kontekst BEZ dodatkowych parametrów!",
             16,
             "white",
             FONT_R,
@@ -1046,72 +1104,10 @@ def _deeplab_demo() -> list[CompositeVideoClip]:
             (80, 600),
         ),
     ]
-    text_clips: list[VideoClip] = [dil_clip]
-    for text, fs, color, font, pos in labels:
-        tc = (
-            _tc(text=text, font_size=fs, color=color, font=font)
-            .with_duration(dur)
-            .with_position(pos)
-        )
-        text_clips.append(tc)
-    slides.append(
-        CompositeVideoClip(text_clips, size=(W, H)).with_effects(
-            [FadeIn(0.3), FadeOut(0.3)]
-        )
-    )
+    slides = [_compose_slide(dil_clip, labels, dur)]
 
     # Slide 2: ASPP module step by step
-    def make_aspp_frame(t: float) -> np.ndarray:
-        frame = np.zeros((H, W, 3), dtype=np.uint8)
-        frame[:] = BG_COLOR
-        progress = min(t / (STEP_DUR * 0.7), 1.0)
-
-        # Input feature map on left
-        frame[250:330, 50:130] = (70, 130, 200)
-        frame[250:252, 50:130] = (120, 180, 255)
-        frame[328:330, 50:130] = (120, 180, 255)
-
-        # ASPP parallel branches
-        branches = [
-            ("1x1 conv", 250, (200, 170), (100, 40), (80, 200, 120)),
-            ("rate=6", 310, (200, 250), (100, 40), (200, 160, 80)),
-            ("rate=12", 370, (200, 330), (100, 40), (200, 120, 60)),
-            ("rate=18", 430, (200, 410), (100, 40), (180, 100, 80)),
-            ("GAP", 490, (200, 490), (100, 40), (160, 80, 160)),
-        ]
-        n_branches = min(int(progress * 5) + 1, 5)
-        for i, (_lbl, _h, (bx, by), (bw, bh), color) in enumerate(branches):
-            if i < n_branches:
-                frame[by : by + bh, bx : bx + bw] = color
-                frame[by : by + 2, bx : bx + bw] = tuple(
-                    min(c + 50, 255) for c in color
-                )
-                # Arrow from input
-                ay = by + bh // 2
-                frame[ay - 1 : ay + 2, 133:197] = (150, 150, 170)
-
-        # Concatenation box
-        if progress > 0.6:
-            frame[250:530, 380:420] = (50, 60, 80)
-            frame[250:252, 380:420] = (200, 200, 100)
-            frame[528:530, 380:420] = (200, 200, 100)
-            # Arrows from branches to concat
-            for i, (_lbl, _h, (bx, by), (bw, bh), _c) in enumerate(branches):
-                if i < n_branches:
-                    ay = by + bh // 2
-                    frame[ay - 1 : ay + 2, bx + bw + 3 : 378] = (150, 150, 170)
-
-        # Final conv after concat
-        if progress > 0.8:
-            frame[350:420, 450:550] = (100, 200, 100)
-            frame[350:352, 450:550] = (150, 230, 150)
-            frame[418:420, 450:550] = (150, 230, 150)
-            # Arrow from concat
-            frame[388:391, 423:448] = (150, 150, 170)
-
-        return frame
-
-    aspp_clip = VideoClip(make_aspp_frame, duration=STEP_DUR + 1).with_fps(FPS)
+    aspp_clip = VideoClip(_make_aspp_frame, duration=dur).with_fps(FPS)
     labels2 = [
         (
             "DeepLab: ASPP (Atrous Spatial Pyramid Pooling)",
@@ -1163,112 +1159,122 @@ def _deeplab_demo() -> list[CompositeVideoClip]:
             (80, 645),
         ),
     ]
-    text_clips2: list[VideoClip] = [aspp_clip]
-    for text, fs, color, font, pos in labels2:
-        tc = (
-            _tc(text=text, font_size=fs, color=color, font=font)
-            .with_duration(dur)
-            .with_position(pos)
-        )
-        text_clips2.append(tc)
-    slides.append(
-        CompositeVideoClip(text_clips2, size=(W, H)).with_effects(
-            [FadeIn(0.3), FadeOut(0.3)]
-        )
-    )
+    slides.append(_compose_slide(aspp_clip, labels2, dur))
 
     return slides
 
 
 # ── Transformer Segmentation ────────────────────────────────────
+def _draw_base_grid(
+    frame: np.ndarray, gx: int, gy: int, grid_n: int, cell: int,
+) -> None:
+    """Draw an empty grid of cells."""
+    for r in range(grid_n):
+        for c in range(grid_n):
+            x = gx + c * cell
+            y = gy + r * cell
+            frame[y : y + cell - 2, x : x + cell - 2] = (35, 40, 55)
+
+
+def _draw_cnn_kernel(
+    frame: np.ndarray, lx: int, ly: int, cell: int, progress: float,
+) -> None:
+    """Highlight a 3x3 CNN kernel on the grid."""
+    cnn_phase = 0.2
+    if progress <= cnn_phase:
+        return
+    cx, cy = 2, 2
+    for dr in range(-1, 2):
+        for dc in range(-1, 2):
+            r, c = cy + dr, cx + dc
+            x = lx + c * cell
+            y = ly + r * cell
+            frame[y : y + cell - 2, x : x + cell - 2] = (70, 130, 200)
+    x = lx + cx * cell
+    y = ly + cy * cell
+    frame[y : y + cell - 2, x : x + cell - 2] = (120, 180, 255)
+
+
+def _draw_conn_line(
+    frame: np.ndarray, x0: int, y0: int, x1: int, y1: int,
+) -> None:
+    """Draw a dashed connection line between two points."""
+    steps = max(abs(x1 - x0), abs(y1 - y0))
+    if steps <= 0:
+        return
+    for s in range(0, steps, 3):
+        px = x0 + int((x1 - x0) * s / steps)
+        py = y0 + int((y1 - y0) * s / steps)
+        if 0 <= px < W - 1 and 0 <= py < H - 1:
+            frame[py : py + 1, px : px + 1] = (200, 180, 50)
+
+
+def _draw_attention_connections(
+    frame: np.ndarray,
+    origin: tuple[int, int],
+    grid_n: int,
+    cell: int,
+    progress: float,
+) -> None:
+    """Draw transformer self-attention connections on the grid."""
+    rx, ry = origin
+    transformer_phase = 0.4
+    if progress <= transformer_phase:
+        return
+    cx_t, cy_t = 2, 2
+    x0 = rx + cx_t * cell + cell // 2
+    y0 = ry + cy_t * cell + cell // 2
+    n_connections = int(progress * 36)
+    conn_idx = 0
+    for r in range(grid_n):
+        for c in range(grid_n):
+            conn_idx += 1
+            if conn_idx > n_connections:
+                break
+            x = rx + c * cell
+            y = ry + r * cell
+            dist = abs(r - cy_t) + abs(c - cx_t)
+            strength = max(30, 200 - dist * 30)
+            frame[y : y + cell - 2, x : x + cell - 2] = (
+                strength // 3,
+                strength // 2,
+                strength,
+            )
+            _draw_conn_line(frame, x0, y0, x + cell // 2, y + cell // 2)
+        else:
+            continue
+        break
+    x = rx + cx_t * cell
+    y = ry + cy_t * cell
+    frame[y : y + cell - 2, x : x + cell - 2] = (255, 200, 50)
+
+
+def _make_attention_frame(t: float) -> np.ndarray:
+    """Render a CNN-vs-Transformer attention comparison frame."""
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    frame[:] = BG_COLOR
+    progress = min(t / (STEP_DUR * 0.7), 1.0)
+
+    cell = 40
+    grid_n = 6
+
+    lx, ly = 60, 200
+    _draw_base_grid(frame, lx, ly, grid_n, cell)
+    _draw_cnn_kernel(frame, lx, ly, cell, progress)
+
+    rx, ry = 680, 200
+    _draw_base_grid(frame, rx, ry, grid_n, cell)
+    _draw_attention_connections(frame, (rx, ry), grid_n, cell, progress)
+
+    return frame
+
+
 def _transformer_seg_demo() -> list[CompositeVideoClip]:
     """Animate transformer-based segmentation: self-attention concept."""
-    slides = []
+    dur = STEP_DUR + 1
 
     # Slide 1: CNN local vs Transformer global
-    def make_attention_frame(t: float) -> np.ndarray:
-        frame = np.zeros((H, W, 3), dtype=np.uint8)
-        frame[:] = BG_COLOR
-        progress = min(t / (STEP_DUR * 0.7), 1.0)
-
-        cell = 40
-        grid_n = 6
-
-        # LEFT: CNN — local receptive field
-        lx, ly = 60, 200
-        for r in range(grid_n):
-            for c in range(grid_n):
-                x = lx + c * cell
-                y = ly + r * cell
-                frame[y : y + cell - 2, x : x + cell - 2] = (35, 40, 55)
-
-        # Highlight 3x3 kernel in CNN
-        if progress > 0.2:
-            cx, cy = 2, 2  # center cell
-            for dr in range(-1, 2):
-                for dc in range(-1, 2):
-                    r, c = cy + dr, cx + dc
-                    x = lx + c * cell
-                    y = ly + r * cell
-                    frame[y : y + cell - 2, x : x + cell - 2] = (70, 130, 200)
-            # Center highlighted more
-            x = lx + cx * cell
-            y = ly + cy * cell
-            frame[y : y + cell - 2, x : x + cell - 2] = (120, 180, 255)
-
-        # RIGHT: Transformer — global attention
-        rx, ry = 680, 200
-        for r in range(grid_n):
-            for c in range(grid_n):
-                x = rx + c * cell
-                y = ry + r * cell
-                frame[y : y + cell - 2, x : x + cell - 2] = (35, 40, 55)
-
-        # All cells connected to center
-        if progress > 0.4:
-            cx_t, cy_t = 2, 2
-            # Center cell
-            x0 = rx + cx_t * cell + cell // 2
-            y0 = ry + cy_t * cell + cell // 2
-            n_connections = int(progress * 36)
-            conn_idx = 0
-            for r in range(grid_n):
-                for c in range(grid_n):
-                    conn_idx += 1
-                    if conn_idx > n_connections:
-                        break
-                    x = rx + c * cell
-                    y = ry + r * cell
-                    # Color by "attention strength" — closer = stronger
-                    dist = abs(r - cy_t) + abs(c - cx_t)
-                    strength = max(30, 200 - dist * 30)
-                    frame[y : y + cell - 2, x : x + cell - 2] = (
-                        strength // 3,
-                        strength // 2,
-                        strength,
-                    )
-                    # Draw connection line
-                    x1 = x + cell // 2
-                    y1 = y + cell // 2
-                    steps = max(abs(x1 - x0), abs(y1 - y0))
-                    if steps > 0:
-                        for s in range(0, steps, 3):
-                            px = x0 + int((x1 - x0) * s / steps)
-                            py = y0 + int((y1 - y0) * s / steps)
-                            if 0 <= px < W - 1 and 0 <= py < H - 1:
-                                frame[py : py + 1, px : px + 1] = (200, 180, 50)
-                else:
-                    continue
-                break
-            # Center highlighted strongly
-            x = rx + cx_t * cell
-            y = ry + cy_t * cell
-            frame[y : y + cell - 2, x : x + cell - 2] = (255, 200, 50)
-
-        return frame
-
-    att_clip = VideoClip(make_attention_frame, duration=STEP_DUR + 1).with_fps(FPS)
-    dur = STEP_DUR + 1
+    att_clip = VideoClip(_make_attention_frame, duration=dur).with_fps(FPS)
     labels = [
         ("Transformer: Self-Attention w segmentacji", 26, "#FFE082", FONT_B, (80, 20)),
         ("CNN = LOKALNY kontekst", 18, "#64B5F6", FONT_B, (60, 160)),
@@ -1279,19 +1285,7 @@ def _transformer_seg_demo() -> list[CompositeVideoClip]:
         ("piksel widzi WSZYSTKIE!", 14, "#FFE082", FONT_R, (680, 485)),
         ("vs", 28, "#B0BEC5", FONT_B, (450, 300)),
     ]
-    text_clips: list[VideoClip] = [att_clip]
-    for text, fs, color, font, pos in labels:
-        tc = (
-            _tc(text=text, font_size=fs, color=color, font=font)
-            .with_duration(dur)
-            .with_position(pos)
-        )
-        text_clips.append(tc)
-    slides.append(
-        CompositeVideoClip(text_clips, size=(W, H)).with_effects(
-            [FadeIn(0.3), FadeOut(0.3)]
-        )
-    )
+    slides = [_compose_slide(att_clip, labels, dur)]
 
     # Slide 2: Self-attention Q/K/V step by step
     qkv_lines = [
@@ -1376,7 +1370,8 @@ def _transformer_seg_demo() -> list[CompositeVideoClip]:
             (100, 610),
         ),
         (
-            "Mask2Former (2022): masked attention + unified (semantic+instance+panoptic)",
+            "Mask2Former (2022): masked attention + "
+            "unified (semantic+instance+panoptic)",
             16,
             "#CE93D8",
             FONT_R,
@@ -1520,12 +1515,16 @@ def _methods_comparison() -> CompositeVideoClip:
     ]
 
     clips: list[VideoClip] = [bg, title]
+    mnemonic_col = 3
     for i, row in enumerate(rows):
         y_pos = 75 + i * 72
         col_x = [40, 210, 340, 660]
         for j, cell in enumerate(row):
             fs = 16 if i > 0 else 18
-            color = "#64B5F6" if i == 0 else ("#E0E0E0" if j < 3 else "#FFE082")
+            color = (
+                "#64B5F6" if i == 0
+                else ("#E0E0E0" if j < mnemonic_col else "#FFE082")
+            )
             tc = (
                 _tc(
                     text=cell,
@@ -1620,7 +1619,7 @@ def main() -> None:
     final.write_videofile(
         OUTPUT, fps=FPS, codec="libx264", audio=False, preset="medium", threads=4
     )
-    print(f"Video saved to: {OUTPUT}")
+    _logger.info("Video saved to: %s", OUTPUT)
 
 
 if __name__ == "__main__":
