@@ -11,6 +11,11 @@ Diagrams:
 All: A4-compatible, B&W, 300 DPI, laser-printer-friendly.
 """
 
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
 import matplotlib as mpl
 
 mpl.use("Agg")
@@ -19,6 +24,11 @@ from pathlib import Path
 import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+_logger = logging.getLogger(__name__)
 
 DPI = 300
 BG = "white"
@@ -34,21 +44,25 @@ GRAY3 = "#B8B8B8"
 GRAY4 = "#F5F5F5"
 GRAY5 = "#C0C0C0"
 
+MIN_COLUMN_INDEX = 3
+FONTWEIGHT_THRESHOLD = 3
+
 
 def draw_box(
-    ax,
-    x,
-    y,
-    w,
-    h,
-    text,
-    fill="white",
-    lw=1.2,
-    fontsize=FS,
-    fontweight="normal",
-    ha="center",
-    va="center",
-    rounded=True,
+    ax: Axes,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    text: str,
+    fill: str = "white",
+    lw: float = 1.2,
+    fontsize: float = FS,
+    fontweight: str = "normal",
+    ha: str = "center",
+    va: str = "center",
+    *,
+    rounded: bool = True,
 ) -> None:
     """Draw box."""
     if rounded:
@@ -70,7 +84,16 @@ def draw_box(
     )
 
 
-def draw_arrow(ax, x1, y1, x2, y2, lw=1.2, style="->", color=LN) -> None:
+def draw_arrow(
+    ax: Axes,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    lw: float = 1.2,
+    style: str = "->",
+    color: str = LN,
+) -> None:
     """Draw arrow."""
     ax.annotate(
         "",
@@ -97,8 +120,23 @@ def draw_graham_notation() -> None:
         pad=12,
     )
 
-    # === TOP: The three fields ===
-    # Big formula bar
+    _draw_graham_formula_bar(ax)
+    _draw_graham_alpha_beta(ax)
+    _draw_graham_lower(ax)
+
+    plt.tight_layout()
+    plt.savefig(
+        str(Path(OUTPUT_DIR) / "scheduling_graham_notation.png"),
+        dpi=DPI,
+        bbox_inches="tight",
+        facecolor=BG,
+    )
+    plt.close()
+    _logger.info("  ✓ scheduling_graham_notation.png")
+
+
+def _draw_graham_formula_bar(ax: Axes) -> None:
+    """Draw the top alpha|beta|gamma formula bar."""
     bar_y = 12.5
     bar_h = 1.0
     # alpha box
@@ -215,6 +253,12 @@ def draw_graham_notation() -> None:
         va="top",
         color="#444444",
     )
+
+
+def _draw_graham_alpha_beta(ax: Axes) -> None:
+    """Draw alpha (machines) and beta (constraints) sections."""
+    start_x = 0.3
+    col_w = 1.28
 
     # === SECTION alpha: MACHINES ===
     sec_y = 11.5
@@ -351,6 +395,11 @@ def draw_graham_notation() -> None:
             va="center",
             fontsize=5,
         )
+
+
+def _draw_graham_lower(ax: Axes) -> None:
+    """Draw gamma criteria, examples, and footer sections."""
+    start_x = 0.3
 
     # === SECTION gamma: CRITERIA ===
     sec_y3 = 6.5
@@ -504,21 +553,13 @@ def draw_graham_notation() -> None:
     ax.text(
         5.0,
         0.2,
-        "\u03b1: ILE maszyn i JAKIE?    β: JAKIE ograniczenia zadań?    \u03b3: CO minimalizujemy?",
+        "\u03b1: ILE maszyn i JAKIE?    "
+        "β: JAKIE ograniczenia zadań?    "
+        "\u03b3: CO minimalizujemy?",
         ha="center",
         fontsize=7,
         color="#555555",
     )
-
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "scheduling_graham_notation.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor=BG,
-    )
-    plt.close()
-    print("  ✓ scheduling_graham_notation.png")
 
 
 # ============================================================
@@ -530,8 +571,22 @@ def draw_johnson_gantt() -> None:
         2, 1, figsize=(8.27, 7), gridspec_kw={"height_ratios": [1, 1.8]}
     )
 
-    # --- Top: The decision process ---
-    ax = axes[0]
+    _draw_johnson_decision_table(axes[0])
+    _draw_johnson_gantt_chart(axes[1])
+
+    plt.tight_layout()
+    plt.savefig(
+        str(Path(OUTPUT_DIR) / "scheduling_johnson_gantt.png"),
+        dpi=DPI,
+        bbox_inches="tight",
+        facecolor=BG,
+    )
+    plt.close()
+    _logger.info("  ✓ scheduling_johnson_gantt.png")
+
+
+def _draw_johnson_decision_table(ax: Axes) -> None:
+    """Draw the Johnson algorithm decision table."""
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 5)
     ax.set_aspect("equal")
@@ -587,13 +642,13 @@ def draw_johnson_gantt() -> None:
             x = table_x + j * col_w_t
             y = table_y - (i + 1) * row_h
             fill_c = GRAY1 if min_on[i] == "M1" else GRAY4
-            if j == 3:  # min column - highlight
+            if j == MIN_COLUMN_INDEX:  # min column - highlight
                 fill_c = GRAY3
             rect = mpatches.Rectangle(
                 (x, y), col_w_t, row_h, lw=0.8, edgecolor=LN, facecolor=fill_c
             )
             ax.add_patch(rect)
-            fw = "bold" if j >= 3 else "normal"
+            fw = "bold" if j >= FONTWEIGHT_THRESHOLD else "normal"
             ax.text(
                 x + col_w_t / 2,
                 y + row_h / 2,
@@ -629,8 +684,9 @@ def draw_johnson_gantt() -> None:
         },
     )
 
-    # --- Bottom: Gantt chart ---
-    ax2 = axes[1]
+
+def _draw_johnson_gantt_chart(ax2: Axes) -> None:
+    """Draw the Johnson algorithm Gantt chart."""
     ax2.set_xlim(-1, 24)
     ax2.set_ylim(-1, 4)
     ax2.axis("off")
@@ -781,7 +837,9 @@ def draw_johnson_gantt() -> None:
     ax2.text(
         11,
         -0.7,
-        '„Krótki na M1 → START (szybko karmi M2)      Krótki na M2 → KONIEC (szybko kończy)"',
+        '„Krótki na M1 → START (szybko karmi M2)'
+        '      Krótki na M2 → KONIEC'
+        ' (szybko kończy)"',
         ha="center",
         fontsize=7.5,
         fontweight="bold",
@@ -793,16 +851,6 @@ def draw_johnson_gantt() -> None:
             "lw": 0.8,
         },
     )
-
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "scheduling_johnson_gantt.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor=BG,
-    )
-    plt.close()
-    print("  ✓ scheduling_johnson_gantt.png")
 
 
 # ============================================================
@@ -907,7 +955,9 @@ def draw_spt_comparison() -> None:
     fig.text(
         0.5,
         0.02,
-        '„Short People To the front" — krótkie najpierw, jak niskie osoby w zdjęciu klasowym',
+        '„Short People To the front"'
+        ' — krótkie najpierw,'
+        ' jak niskie osoby w zdjęciu klasowym',
         ha="center",
         fontsize=8,
         fontweight="bold",
@@ -923,7 +973,7 @@ def draw_spt_comparison() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ scheduling_spt_comparison.png")
+    _logger.info("  ✓ scheduling_spt_comparison.png")
 
 
 # ============================================================
@@ -933,8 +983,22 @@ def draw_flow_vs_job() -> None:
     """Draw flow vs job."""
     _fig, axes = plt.subplots(1, 2, figsize=(8.27, 4.5))
 
-    # --- LEFT: Flow Shop ---
-    ax = axes[0]
+    _draw_flow_shop(axes[0])
+    _draw_job_shop(axes[1])
+
+    plt.tight_layout()
+    plt.savefig(
+        str(Path(OUTPUT_DIR) / "scheduling_flow_vs_job.png"),
+        dpi=DPI,
+        bbox_inches="tight",
+        facecolor=BG,
+    )
+    plt.close()
+    _logger.info("  ✓ scheduling_flow_vs_job.png")
+
+
+def _draw_flow_shop(ax: Axes) -> None:
+    """Draw the Flow Shop diagram."""
     ax.set_xlim(0, 6)
     ax.set_ylim(0, 6)
     ax.set_aspect("equal")
@@ -1018,8 +1082,10 @@ def draw_flow_vs_job() -> None:
         color="#666666",
     )
 
-    # --- RIGHT: Job Shop ---
-    ax = axes[1]
+
+def _draw_job_shop(ax: Axes) -> None:
+    """Draw the Job Shop diagram."""
+    mach_r = 0.4
     ax.set_xlim(0, 6)
     ax.set_ylim(0, 6)
     ax.set_aspect("equal")
@@ -1109,16 +1175,6 @@ def draw_flow_vs_job() -> None:
         style="italic",
         color="#666666",
     )
-
-    plt.tight_layout()
-    plt.savefig(
-        str(Path(OUTPUT_DIR) / "scheduling_flow_vs_job.png"),
-        dpi=DPI,
-        bbox_inches="tight",
-        facecolor=BG,
-    )
-    plt.close()
-    print("  ✓ scheduling_flow_vs_job.png")
 
 
 # ============================================================
@@ -1288,7 +1344,7 @@ def draw_complexity_map() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ scheduling_complexity_map.png")
+    _logger.info("  ✓ scheduling_complexity_map.png")
 
 
 # ============================================================
@@ -1333,8 +1389,8 @@ def draw_edd_example() -> None:
             fontweight="bold",
         )
         t += p
-        L = t - d
-        lateness_vals.append(L)
+        lateness = t - d
+        lateness_vals.append(lateness)
 
         # Due date marker
         ax.plot(
@@ -1355,7 +1411,7 @@ def draw_edd_example() -> None:
         ax.text(
             t,
             bar_y + bar_h + 0.2,
-            f"C={t}\nL={L}",
+            f"C={t}\nL={lateness}",
             ha="center",
             va="bottom",
             fontsize=5.5,
@@ -1364,11 +1420,11 @@ def draw_edd_example() -> None:
     # Time axis
     ax.plot([0, 22], [bar_y - 0.05, bar_y - 0.05], color=LN, lw=0.5)
 
-    Lmax = max(lateness_vals)
+    lmax = max(lateness_vals)
     ax.text(
         22,
         bar_y + bar_h / 2,
-        f"Lmax = {Lmax}",
+        f"Lmax = {lmax}",
         ha="left",
         va="center",
         fontsize=10,
@@ -1401,18 +1457,18 @@ def draw_edd_example() -> None:
         facecolor=BG,
     )
     plt.close()
-    print("  ✓ scheduling_edd_example.png")
+    _logger.info("  ✓ scheduling_edd_example.png")
 
 
 # ============================================================
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    print("Generating scheduling diagrams for PYTANIE 17...")
+    _logger.info("Generating scheduling diagrams for PYTANIE 17...")
     draw_graham_notation()
     draw_johnson_gantt()
     draw_spt_comparison()
     draw_flow_vs_job()
     draw_complexity_map()
     draw_edd_example()
-    print("Done! All diagrams saved to:", OUTPUT_DIR)
+    _logger.info("Done! All diagrams saved to: %s", OUTPUT_DIR)
