@@ -64,7 +64,7 @@ unfixable = []
     "SLF001",  # Allow private member access in tests
 ]
 # Files using urlopen with validated URL schemes
-"python_pkg/geo_data.py" = ["S310"]
+"python_pkg/geo_data/_common.py" = ["S310"]
 "python_pkg/steam_backlog_enforcer/library_hider.py" = ["S310"]
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
@@ -76,8 +76,11 @@ unfixable = []
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
 # Brother printer - optional usb.core/usb.util imports
-"python_pkg/brother_printer/check_brother_printer.py" = [
+"python_pkg/brother_printer/cups_service.py" = [
     "PLC0415", # Late imports for optional pyusb dependency
+]
+"python_pkg/brother_printer/usb_query.py" = [
+    "PLC0415", # Late import of cups_service fallback
 ]
 # Music generator - CLI script with intentional patterns
 "python_pkg/music_gen/music_generator.py" = [
@@ -182,6 +185,8 @@ disable = []
 [tool.pylint.design]
 # A class with just run() as public API is valid for games/apps
 min-public-methods = 1
+# Enforce maximum file length of 500 lines
+max-module-lines = 500
 
 [tool.pylint.spelling]
 # No spelling dictionary to avoid false positives
