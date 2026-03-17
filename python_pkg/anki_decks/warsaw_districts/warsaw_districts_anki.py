@@ -184,9 +184,7 @@ def generate_anki_package(
         genanki.Package object ready to be written to file.
     """
     # Create a unique model ID based on deck name
-    model_id_hash = hashlib.sha256(
-        f"warsaw_districts_{deck_name}".encode()
-    )
+    model_id_hash = hashlib.sha256(f"warsaw_districts_{deck_name}".encode())
     model_id = int(model_id_hash.hexdigest()[:8], 16)
 
     # Define the note model (card template) with centered styling

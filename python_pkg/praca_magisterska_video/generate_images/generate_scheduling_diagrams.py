@@ -21,7 +21,7 @@ import matplotlib as mpl
 mpl.use("Agg")
 
 # Re-export common utilities for backward compatibility
-from python_pkg.praca_magisterska_video.generate_images._sched_common import (  # noqa: F401
+from python_pkg.praca_magisterska_video.generate_images._sched_common import (
     BG,
     DPI,
     FONTWEIGHT_THRESHOLD,
@@ -38,6 +38,24 @@ from python_pkg.praca_magisterska_video.generate_images._sched_common import (  
     draw_arrow,
     draw_box,
 )
+
+__all__ = [
+    "BG",
+    "DPI",
+    "FONTWEIGHT_THRESHOLD",
+    "FS",
+    "FS_TITLE",
+    "GRAY1",
+    "GRAY2",
+    "GRAY3",
+    "GRAY4",
+    "GRAY5",
+    "LN",
+    "MIN_COLUMN_INDEX",
+    "OUTPUT_DIR",
+    "draw_arrow",
+    "draw_box",
+]
 from python_pkg.praca_magisterska_video.generate_images._sched_complexity_edd import (
     draw_complexity_map,
     draw_edd_example,

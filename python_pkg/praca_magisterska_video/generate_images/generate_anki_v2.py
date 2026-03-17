@@ -192,15 +192,9 @@ def main() -> None:
     logger.info("2. Select: anki_egzamin_magisterski.txt")
     logger.info("3. Set 'Fields separated by: Tab'")
     logger.info("4. Check 'Allow HTML in fields'")
-    logger.info(
-        "5. Map: Field 1 -> Front, Field 2 -> Back,"
-        " Field 3 -> Tags"
-    )
+    logger.info("5. Map: Field 1 -> Front, Field 2 -> Back," " Field 3 -> Tags")
     logger.info("6. Click Import")
-    logger.info(
-        "For AnkiWeb/AnkiDroid:"
-        " Sync after importing on desktop"
-    )
+    logger.info("For AnkiWeb/AnkiDroid:" " Sync after importing on desktop")
 
 
 if __name__ == "__main__":

@@ -141,9 +141,7 @@ def generate_anki_package(
     zoom: bool = True,
 ) -> genanki.Package:
     """Generate Anki package for Polish mountain peaks."""
-    model_id_hash = hashlib.sha256(
-        f"polish_mountain_peaks_{deck_name}".encode()
-    )
+    model_id_hash = hashlib.sha256(f"polish_mountain_peaks_{deck_name}".encode())
     model_id = int(model_id_hash.hexdigest()[:8], 16)
 
     card_css = """

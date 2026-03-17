@@ -47,8 +47,7 @@ def check_diarization_deps() -> bool:
     _torch = _try_import("torch")
     if _sf is None or _sb is None or _torch is None:
         logger.warning(
-            "Diarization deps missing offline; "
-            "speaker labels will be skipped.",
+            "Diarization deps missing offline; " "speaker labels will be skipped.",
         )
         return False
     return True
@@ -61,9 +60,7 @@ def check_ctranslate2() -> bool:
 
 def print_deps_installed() -> None:
     """Print confirmation that Python dependencies are installed."""
-    logger.info(
-        "Python %s dependencies installed.", sys.version.split()[0]
-    )
+    logger.info("Python %s dependencies installed.", sys.version.split()[0])
 
 
 def generate_sine_wav(
@@ -96,12 +93,7 @@ def generate_sine_wav(
                         min(
                             1.0,
                             amplitude
-                            * math.sin(
-                                2
-                                * math.pi
-                                * frequency
-                                * (i / sample_rate)
-                            ),
+                            * math.sin(2 * math.pi * frequency * (i / sample_rate)),
                         ),
                     )
                     * 32767
@@ -145,12 +137,9 @@ def prepare_model(model_name: str, model_dir: str) -> bool:
             hh.constants.HF_HUB_DISABLE_PROGRESS_BARS = False
             os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
 
+        logger.info("Preparing model '%s' into %s", model_name, model_dir)
         logger.info(
-            "Preparing model '%s' into %s", model_name, model_dir
-        )
-        logger.info(
-            "Downloading model files "
-            "(progress bar should appear below)...",
+            "Downloading model files " "(progress bar should appear below)...",
         )
         fw.WhisperModel(
             model_name,
@@ -178,9 +167,7 @@ def test_cuda() -> bool:
         return False
 
     try:
-        fw.WhisperModel(
-            "tiny", device="cuda", compute_type="float16"
-        )
+        fw.WhisperModel("tiny", device="cuda", compute_type="float16")
         logger.info("CUDA test init succeeded.")
     except (OSError, RuntimeError):
         logger.exception("CUDA test failed")
@@ -279,15 +266,9 @@ Commands:
         ],
         help="Command to run",
     )
-    parser.add_argument(
-        "--file", help="Output file path (for generate-wav)"
-    )
-    parser.add_argument(
-        "--model", help="Model name (for prepare-model)"
-    )
-    parser.add_argument(
-        "--model-dir", help="Model directory (for prepare-model)"
-    )
+    parser.add_argument("--file", help="Output file path (for generate-wav)")
+    parser.add_argument("--model", help="Model name (for prepare-model)")
+    parser.add_argument("--model-dir", help="Model directory (for prepare-model)")
 
     args = parser.parse_args()
 

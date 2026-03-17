@@ -118,9 +118,7 @@ def generate_anki_package(
     deck_name: str = "Polish Coastal Features",
 ) -> genanki.Package:
     """Generate Anki package for Polish coastal features."""
-    model_id_hash = hashlib.sha256(
-        f"polish_coastal_features_{deck_name}".encode()
-    )
+    model_id_hash = hashlib.sha256(f"polish_coastal_features_{deck_name}".encode())
     model_id = int(model_id_hash.hexdigest()[:8], 16)
 
     card_css = """

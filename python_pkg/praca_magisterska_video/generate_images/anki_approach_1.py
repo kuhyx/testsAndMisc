@@ -109,9 +109,7 @@ def main() -> None:
         all_cards.extend(extract_cards(md_file))
 
     # APPROACH 1: Strict filtering - only cards with answer > threshold
-    filtered_cards = [
-        c for c in all_cards if len(c["back"]) > MIN_ANSWER_LENGTH
-    ]
+    filtered_cards = [c for c in all_cards if len(c["back"]) > MIN_ANSWER_LENGTH]
 
     # Remove duplicates
     seen = set()

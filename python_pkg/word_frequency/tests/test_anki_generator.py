@@ -164,7 +164,7 @@ class TestGenerateAnkiDeck:
     def test_generates_valid_header(self) -> None:
         """Test that output contains valid Anki headers."""
         with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            "python_pkg.word_frequency._deck_builder.translate_words_batch"
         ) as mock_translate:
             mock_translate.return_value = [
                 MagicMock(success=True, source_word="hello", translated_word="hola")
@@ -185,7 +185,7 @@ class TestGenerateAnkiDeck:
     def test_generates_flashcard_content(self) -> None:
         """Test that output contains flashcard data."""
         with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            "python_pkg.word_frequency._deck_builder.translate_words_batch"
         ) as mock_translate:
             mock_translate.return_value = [
                 MagicMock(success=True, source_word="hello", translated_word="hola"),
@@ -208,7 +208,7 @@ class TestGenerateAnkiDeck:
     def test_includes_rank(self) -> None:
         """Test that rank is included in output."""
         with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            "python_pkg.word_frequency._deck_builder.translate_words_batch"
         ) as mock_translate:
             mock_translate.return_value = [
                 MagicMock(success=True, source_word="test", translated_word="prueba")
@@ -226,7 +226,7 @@ class TestGenerateAnkiDeck:
     def test_escapes_semicolons(self) -> None:
         """Test that semicolons in words are escaped."""
         with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            "python_pkg.word_frequency._deck_builder.translate_words_batch"
         ) as mock_translate:
             mock_translate.return_value = [
                 MagicMock(
@@ -247,7 +247,7 @@ class TestGenerateAnkiDeck:
     def test_includes_context_when_requested(self) -> None:
         """Test that context is included when requested."""
         with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            "python_pkg.word_frequency._deck_builder.translate_words_batch"
         ) as mock_translate:
             mock_translate.return_value = [
                 MagicMock(success=True, source_word="hello", translated_word="hola")
@@ -319,7 +319,7 @@ class TestIntegration:
         output_file = tmp_path / "output.txt"
 
         with patch(
-            "python_pkg.word_frequency.anki_generator.translate_words_batch"
+            "python_pkg.word_frequency._deck_builder.translate_words_batch"
         ) as mock_translate:
             # Mock translation to avoid network calls
             def mock_translate_fn(
@@ -368,7 +368,7 @@ class TestIntegration:
         with (
             caplog.at_level(logging.INFO),
             patch(
-                "python_pkg.word_frequency.anki_generator.translate_words_batch"
+                "python_pkg.word_frequency._deck_builder.translate_words_batch"
             ) as mock_translate,
         ):
             mock_translate.return_value = [
