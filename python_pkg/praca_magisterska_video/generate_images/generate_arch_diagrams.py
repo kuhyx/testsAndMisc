@@ -27,6 +27,12 @@ import numpy as np
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
+from python_pkg.praca_magisterska_video.generate_images._arch_c4 import generate_c4
+from python_pkg.praca_magisterska_video.generate_images._arch_layers import (
+    generate_archimate,
+    generate_zachman,
+)
+
 _logger = logging.getLogger(__name__)
 
 DPI = 300
@@ -127,8 +133,12 @@ def _draw_class(
     h_total = h_name + h_attr + h_meth
     ax.add_patch(
         plt.Rectangle(
-            (x, y), w, h_total, lw=1.5,
-            edgecolor=LN, facecolor=fill,
+            (x, y),
+            w,
+            h_total,
+            lw=1.5,
+            edgecolor=LN,
+            facecolor=fill,
         )
     )
     ax.plot(
@@ -147,8 +157,10 @@ def _draw_class(
         fontweight="bold",
     )
     ax.plot(
-        [x, x + w], [y + h_meth, y + h_meth],
-        color=LN, lw=1,
+        [x, x + w],
+        [y + h_meth, y + h_meth],
+        color=LN,
+        lw=1,
     )
     for i, a in enumerate(attrs):
         ax.text(
@@ -344,8 +356,7 @@ def generate_4plus1() -> None:
             "Programista",
         ),
         (
-            "Process View\n(Współbieżność,"
-            "\nprzepływ danych)",
+            "Process View\n(Współbieżność," "\nprzepływ danych)",
             cx + 28,
             cy,
             "Integrator",
@@ -456,609 +467,6 @@ def generate_4plus1() -> None:
 
 
 # =========================================================================
-# 3. C4 Model — 4 Zoom Levels
-# =========================================================================
-def _draw_c4_system_context(ax1: Axes) -> None:
-    """Draw C4 Level 1: System Context."""
-    # Person
-    ax1.add_patch(
-        plt.Circle(
-            (20, 55), 4, lw=1.5,
-            edgecolor=LN, facecolor=GRAY1,
-        )
-    )
-    # Head
-    ax1.add_patch(
-        plt.Circle(
-            (20, 57.5), 1.5, lw=1.2,
-            edgecolor=LN, facecolor="white",
-        )
-    )
-    # Body
-    draw_line(ax1, 20, 56, 20, 52.5, lw=1.2)
-    draw_line(ax1, 17, 55, 23, 55, lw=1.2)
-    ax1.text(
-        20, 48, "Klient",
-        ha="center", fontsize=8, fontweight="bold",
-    )
-
-    draw_box(
-        ax1, 38, 43, 24, 18,
-        "System\nE-commerce",
-        fill=GRAY2, lw=2, fontsize=9,
-        fontweight="bold", rounded=True,
-    )
-
-    draw_box(
-        ax1, 72, 48, 20, 12,
-        "System\nP\u0142atno\u015bci\n(zewn.)",
-        fill=GRAY4, lw=1.5, fontsize=7,
-        rounded=True,
-    )
-    ax1.add_patch(
-        plt.Rectangle(
-            (72, 48), 20, 12, lw=1.5,
-            edgecolor=LN, facecolor="none",
-            linestyle="--",
-        )
-    )
-
-    draw_arrow(ax1, 24, 54, 38, 54)
-    ax1.text(
-        31, 56, "sk\u0142ada\nzam\u00f3wienia",
-        fontsize=6, ha="center",
-    )
-    draw_arrow(ax1, 62, 54, 72, 54)
-    ax1.text(67, 56, "API", fontsize=6, ha="center")
-
-    ax1.text(
-        50, 20,
-        "Kto u\u017cywa systemu?\nZ czym si\u0119 integruje?",
-        ha="center", fontsize=7, fontstyle="italic",
-        bbox={
-            "boxstyle": "round",
-            "facecolor": GRAY4,
-            "edgecolor": LN,
-            "lw": 0.5,
-        },
-    )
-
-
-def _draw_c4_container(ax2: Axes) -> None:
-    """Draw C4 Level 2: Container."""
-    ax2.add_patch(
-        plt.Rectangle(
-            (5, 15), 90, 58, lw=1.5,
-            edgecolor=LN, facecolor="none",
-            linestyle="--",
-        )
-    )
-    ax2.text(
-        50, 75, "System E-commerce",
-        ha="center", fontsize=8,
-        fontweight="bold", fontstyle="italic",
-    )
-
-    containers = [
-        ("SPA\n(React)", 15, 50, 18, 12, GRAY1),
-        ("API\nServer\n(Node.js)", 42, 50, 18, 12, GRAY2),
-        ("Database\n(PostgreSQL)", 70, 50, 18, 12, GRAY3),
-        ("Worker\n(Python)", 42, 25, 18, 12, GRAY1),
-    ]
-    for label, x, y, w, h, fill in containers:
-        draw_box(
-            ax2, x, y, w, h, label,
-            fill=fill, lw=1.5, fontsize=7,
-            fontweight="bold", rounded=True,
-        )
-
-    draw_arrow(ax2, 33, 56, 42, 56)
-    ax2.text(37.5, 58, "REST", fontsize=6, ha="center")
-    draw_arrow(ax2, 60, 56, 70, 56)
-    ax2.text(65, 58, "SQL", fontsize=6, ha="center")
-    draw_arrow(ax2, 51, 50, 51, 37)
-    ax2.text(53, 44, "async", fontsize=6)
-
-    ax2.text(
-        50, 8,
-        "Jakie kontenery techniczne\n"
-        "sk\u0142adaj\u0105 si\u0119 na system?",
-        ha="center", fontsize=7, fontstyle="italic",
-        bbox={
-            "boxstyle": "round",
-            "facecolor": GRAY4,
-            "edgecolor": LN,
-            "lw": 0.5,
-        },
-    )
-
-
-def _draw_c4_component(ax3: Axes) -> None:
-    """Draw C4 Level 3: Component."""
-    ax3.add_patch(
-        plt.Rectangle(
-            (5, 15), 90, 58, lw=1.5,
-            edgecolor=LN, facecolor="none",
-            linestyle="--",
-        )
-    )
-    ax3.text(
-        50, 75, "API Server (Node.js)",
-        ha="center", fontsize=8,
-        fontweight="bold", fontstyle="italic",
-    )
-
-    components = [
-        ("OrderController", 10, 50, 22, 10, GRAY1),
-        ("AuthService", 40, 50, 22, 10, GRAY2),
-        ("PaymentGateway\n(adapter)", 70, 50, 22, 10, GRAY1),
-        ("OrderRepository", 25, 25, 22, 10, GRAY2),
-        ("NotificationService", 57, 25, 22, 10, GRAY1),
-    ]
-    for label, x, y, w, h, fill in components:
-        draw_box(
-            ax3, x, y, w, h, label,
-            fill=fill, lw=1.5, fontsize=6.5,
-            fontweight="bold", rounded=True,
-        )
-
-    draw_arrow(ax3, 32, 55, 40, 55)
-    draw_arrow(ax3, 62, 55, 70, 55)
-    draw_arrow(ax3, 21, 50, 30, 35)
-    draw_arrow(ax3, 51, 50, 62, 35)
-
-    ax3.text(
-        50, 8,
-        "Jakie modu\u0142y/komponenty\n"
-        "wewn\u0105trz kontenera?",
-        ha="center", fontsize=7, fontstyle="italic",
-        bbox={
-            "boxstyle": "round",
-            "facecolor": GRAY4,
-            "edgecolor": LN,
-            "lw": 0.5,
-        },
-    )
-
-
-def _draw_c4_code(ax4: Axes) -> None:
-    """Draw C4 Level 4: Code (UML)."""
-    _draw_class(
-        ax4, 5, 40,
-        "\u00abinterface\u00bb\nIOrderRepository",
-        [],
-        ["+save(order)", "+findById(id)"],
-        w=32, fill=GRAY4,
-    )
-    _draw_class(
-        ax4, 55, 40,
-        "OrderRepository",
-        ["-db: Database"],
-        ["+save(order)", "+findById(id)"],
-        w=32, fill=GRAY1,
-    )
-    _draw_class(
-        ax4, 30, 10,
-        "Order",
-        ["-id: UUID", "-items: List", "-total: Money"],
-        ["+addItem(item)", "+calculateTotal()"],
-        w=32, fill=GRAY2,
-    )
-
-    ax4.annotate(
-        "",
-        xy=(37, 46),
-        xytext=(55, 50),
-        arrowprops={
-            "arrowstyle": "-|>",
-            "color": LN,
-            "lw": 1.2,
-            "linestyle": "--",
-        },
-    )
-    ax4.text(
-        46, 52, "\u00abimplements\u00bb",
-        fontsize=6, ha="center", fontstyle="italic",
-    )
-
-    draw_arrow(ax4, 71, 40, 50, 24)
-    ax4.text(64, 32, "uses", fontsize=6, fontstyle="italic")
-
-    ax4.text(
-        50, 3,
-        "Diagramy klas UML\n"
-        "(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
-        ha="center", fontsize=7, fontstyle="italic",
-        bbox={
-            "boxstyle": "round",
-            "facecolor": GRAY4,
-            "edgecolor": LN,
-            "lw": 0.5,
-        },
-    )
-
-
-def generate_c4() -> None:
-    """Generate c4."""
-    fig, axes = plt.subplots(2, 2, figsize=(8.27, 10))
-    fig.patch.set_facecolor(BG)
-    fig.suptitle(
-        "C4 Model (Simon Brown) \u2014 4 poziomy zoomu",
-        fontsize=FS_TITLE,
-        fontweight="bold",
-        y=0.98,
-    )
-
-    titles = [
-        "Level 1: System Context",
-        "Level 2: Container",
-        "Level 3: Component",
-        "Level 4: Code (UML)",
-    ]
-
-    for idx, ax_item in enumerate(axes.flat):
-        ax_item.set_xlim(0, 100)
-        ax_item.set_ylim(0, 80)
-        ax_item.set_aspect("equal")
-        ax_item.axis("off")
-        ax_item.set_title(
-            titles[idx], fontsize=10,
-            fontweight="bold", pad=8,
-        )
-
-    _draw_c4_system_context(axes[0, 0])
-    _draw_c4_container(axes[0, 1])
-    _draw_c4_component(axes[1, 0])
-    _draw_c4_code(axes[1, 1])
-
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-    fig.savefig(
-        str(Path(OUTPUT_DIR) / "c4_model.png"),
-        dpi=DPI,
-        facecolor="white",
-        bbox_inches="tight",
-    )
-    plt.close(fig)
-    _logger.info("  OK C4 Model")
-
-
-# =========================================================================
-# 4. Zachman Framework Grid
-# =========================================================================
-def generate_zachman() -> None:
-    """Generate zachman."""
-    fig, ax = plt.subplots(figsize=(8.27, 6))
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 65)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    fig.patch.set_facecolor(BG)
-    ax.set_title(
-        "Zachman Framework \u2014 taksonomia architektury",
-        fontsize=FS_TITLE,
-        fontweight="bold",
-        pad=12,
-    )
-
-    rows = [
-        "Kontekst\n(Planner)",
-        "Konceptualny\n(Owner)",
-        "Logiczny\n(Designer)",
-        "Fizyczny\n(Builder)",
-        "Szczeg\u00f3\u0142owy\n(Subcontractor)",
-    ]
-    cols = [
-        "Co?\n(dane)",
-        "Jak?\n(funkcje)",
-        "Gdzie?\n(sie\u0107)",
-        "Kto?\n(ludzie)",
-        "Kiedy?\n(czas)",
-        "Dlaczego?\n(cel)",
-    ]
-
-    n_rows = len(rows)
-    n_cols = len(cols)
-
-    x0 = 18
-    y0 = 5
-    cw = 12.5  # cell width
-    ch = 9  # cell height
-    rh_label = 14  # row label width
-
-    # Column headers
-    for j, col in enumerate(cols):
-        x = x0 + j * cw
-        draw_box(
-            ax,
-            x,
-            y0 + n_rows * ch,
-            cw,
-            7,
-            col,
-            fill=GRAY2,
-            lw=1.5,
-            fontsize=6.5,
-            fontweight="bold",
-        )
-
-    # Row headers
-    for i, row in enumerate(rows):
-        y = y0 + (n_rows - 1 - i) * ch
-        draw_box(
-            ax,
-            x0 - rh_label,
-            y,
-            rh_label,
-            ch,
-            row,
-            fill=GRAY2,
-            lw=1.5,
-            fontsize=6.5,
-            fontweight="bold",
-        )
-
-    # Cells
-    fills = [GRAY4, "white"]
-    for i in range(n_rows):
-        for j in range(n_cols):
-            x = x0 + j * cw
-            y = y0 + (n_rows - 1 - i) * ch
-            fill = fills[(i + j) % 2]
-            ax.add_patch(
-                plt.Rectangle((x, y), cw, ch, lw=0.8, edgecolor=LN, facecolor=fill)
-            )
-
-    # Sample content in a few cells
-    examples = {
-        (0, 0): "Lista\nencji",
-        (0, 1): "Lista\nproces\u00f3w",
-        (0, 2): "Lokalizacje",
-        (1, 0): "Model\npoj\u0119ciowy",
-        (1, 1): "Model\nproces\u00f3w",
-        (2, 0): "ERD",
-        (2, 1): "Data Flow",
-        (3, 0): "Schemat\nDB",
-        (3, 1): "Kod\nprogramu",
-        (0, 3): "Role",
-        (1, 3): "Org chart",
-        (0, 4): "Harmonogram",
-        (0, 5): "Cele\nbiznesowe",
-    }
-    for (i, j), text in examples.items():
-        x = x0 + j * cw
-        y = y0 + (n_rows - 1 - i) * ch
-        ax.text(
-            x + cw / 2,
-            y + ch / 2,
-            text,
-            ha="center",
-            va="center",
-            fontsize=5.5,
-            fontstyle="italic",
-            color="#444444",
-        )
-
-    # Note
-    ax.text(
-        50,
-        1,
-        "Każda komórka = artefakt opisujący system"
-        " z danej perspektywy i aspektu.\n"
-        "Zachman nie mówi JAK modelować"
-        " — mówi CO należy udokumentować.",
-        ha="center",
-        fontsize=7,
-        fontstyle="italic",
-    )
-
-    fig.tight_layout()
-    fig.savefig(
-        str(Path(OUTPUT_DIR) / "zachman_framework.png"),
-        dpi=DPI,
-        facecolor="white",
-        bbox_inches="tight",
-    )
-    plt.close(fig)
-    _logger.info("  OK Zachman Framework")
-
-
-# =========================================================================
-# 5. ArchiMate Layers
-# =========================================================================
-def generate_archimate() -> None:
-    """Generate archimate."""
-    fig, ax = plt.subplots(figsize=(8.27, 9))
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 100)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    fig.patch.set_facecolor(BG)
-    ax.set_title(
-        "ArchiMate \u2014 3 warstwy \u00d7 3 aspekty",
-        fontsize=FS_TITLE,
-        fontweight="bold",
-        pad=12,
-    )
-
-    # Column headers (aspects)
-    headers = [
-        ("Active Structure\n(KTO?)", 0),
-        ("Behavior\n(CO robi?)", 1),
-        ("Passive Structure\n(NA CZYM?)", 2),
-    ]
-
-    x0 = 10
-    y0 = 10
-    cw = 26
-    ch = 20
-    gap = 1
-    header_h = 8
-    row_label_w = 14
-
-    # Column headers
-    for label, j in headers:
-        x = x0 + row_label_w + j * (cw + gap)
-        draw_box(
-            ax,
-            x,
-            y0 + 3 * (ch + gap),
-            cw,
-            header_h,
-            label,
-            fill=GRAY3,
-            lw=1.5,
-            fontsize=8,
-            fontweight="bold",
-        )
-
-    # Layer rows
-    layers = [
-        (
-            "Business\nLayer",
-            GRAY1,
-            [
-                ("Business\nActor", "Business\nProcess", "Business\nObject"),
-                ("(Kto wykonuje?)", "(Co si\u0119 dzieje?)", "(Na czym dzia\u0142a?)"),
-                (
-                    "np. Klient,\nHandlowiec",
-                    "np. Obs\u0142uga\nzam\u00f3wienia",
-                    "np. Zam\u00f3wienie,\nFaktura",
-                ),
-            ],
-        ),
-        (
-            "Application\nLayer",
-            GRAY4,
-            [
-                ("Application\nComponent", "Application\nService", "Data\nObject"),
-                ("(Jaki modu\u0142?)", "(Jaka us\u0142uga?)", "(Jakie dane?)"),
-                ("np. CRM,\nERP", "np. API\nzam\u00f3wie\u0144", "np. tabela\nOrders"),
-            ],
-        ),
-        (
-            "Technology\nLayer",
-            "white",
-            [
-                ("Node /\nDevice", "Infrastructure\nService", "Artifact"),
-                ("(Jaki sprz\u0119t?)", "(Jaka infra?)", "(Jaki plik?)"),
-                (
-                    "np. Serwer\nLinux, K8s",
-                    "np. Load\nBalancer",
-                    "np. .jar,\n.war, image",
-                ),
-            ],
-        ),
-    ]
-
-    for i, (layer_name, fill, cells) in enumerate(layers):
-        y = y0 + (2 - i) * (ch + gap)
-
-        # Row label
-        draw_box(
-            ax,
-            x0,
-            y,
-            row_label_w,
-            ch,
-            layer_name,
-            fill=GRAY2,
-            lw=1.5,
-            fontsize=8,
-            fontweight="bold",
-        )
-
-        for j in range(3):
-            x = x0 + row_label_w + j * (cw + gap)
-            ax.add_patch(
-                plt.Rectangle((x, y), cw, ch, lw=1.5, edgecolor=LN, facecolor=fill)
-            )
-            # Element name (bold)
-            ax.text(
-                x + cw / 2,
-                y + ch - 3,
-                cells[0][j],
-                ha="center",
-                va="top",
-                fontsize=7,
-                fontweight="bold",
-            )
-            # Role description
-            ax.text(
-                x + cw / 2,
-                y + ch / 2,
-                cells[1][j],
-                ha="center",
-                va="center",
-                fontsize=6,
-                fontstyle="italic",
-                color="#555555",
-            )
-            # Example
-            ax.text(
-                x + cw / 2,
-                y + 3,
-                cells[2][j],
-                ha="center",
-                va="bottom",
-                fontsize=6,
-                color="#333333",
-            )
-
-    # Vertical arrows between layers
-    for j in range(3):
-        x = x0 + row_label_w + j * (cw + gap) + cw / 2
-        for i in range(2):
-            y_top = y0 + (2 - i) * (ch + gap)
-            y_bot = y0 + (2 - i - 1) * (ch + gap) + ch
-            draw_arrow(ax, x, y_top, x, y_bot + 0.3, lw=1)
-
-    # Arrow labels
-    mid_x = x0 + row_label_w - 3
-    ax.text(
-        mid_x,
-        y0 + 2 * (ch + gap) - gap / 2,
-        "realizacja \u2193",
-        fontsize=6,
-        ha="right",
-        va="center",
-        fontstyle="italic",
-        rotation=90,
-    )
-    ax.text(
-        mid_x,
-        y0 + 1 * (ch + gap) - gap / 2,
-        "realizacja \u2193",
-        fontsize=6,
-        ha="right",
-        va="center",
-        fontstyle="italic",
-        rotation=90,
-    )
-
-    # Note
-    ax.text(
-        50,
-        4,
-        "Warstwy czytamy z g\u00f3ry (biznes) na d\u00f3\u0142 (technologia).\n"
-        "Ni\u017csze warstwy REALIZUJ\u0104 wy\u017csze. "
-        "ArchiMate jest komplementarny z TOGAF.",
-        ha="center",
-        fontsize=7,
-        fontstyle="italic",
-    )
-
-    fig.tight_layout()
-    fig.savefig(
-        str(Path(OUTPUT_DIR) / "archimate_layers.png"),
-        dpi=DPI,
-        facecolor="white",
-        bbox_inches="tight",
-    )
-    plt.close(fig)
-    _logger.info("  OK ArchiMate")
-
-
-# =========================================================================
 if __name__ == "__main__":
     _logger.info(
         "Generating architecture diagrams to %s/...",
@@ -1070,9 +478,7 @@ if __name__ == "__main__":
     generate_zachman()
     generate_archimate()
     _logger.info("All diagrams saved to %s/", OUTPUT_DIR)
-    for diagram_file in sorted(
-        p.name for p in Path(OUTPUT_DIR).iterdir()
-    ):
+    for diagram_file in sorted(p.name for p in Path(OUTPUT_DIR).iterdir()):
         if (
             "togaf" in diagram_file
             or "4plus1" in diagram_file
@@ -1080,15 +486,9 @@ if __name__ == "__main__":
             or "zachman" in diagram_file
             or "archimate" in diagram_file
         ):
-            size_kb = (
-                Path(
-                    str(
-                        Path(OUTPUT_DIR).stat().st_size
-                        / diagram_file
-                    )
-                )
-                / 1024
-            )
+            size_kb = Path(str(Path(OUTPUT_DIR).stat().st_size / diagram_file)) / 1024
             _logger.info(
-                "  %s (%.0f KB)", diagram_file, size_kb,
+                "  %s (%.0f KB)",
+                diagram_file,
+                size_kb,
             )

@@ -132,9 +132,7 @@ def generate_anki_package(
     deck_name: str = "Polish UNESCO World Heritage Sites",
 ) -> genanki.Package:
     """Generate Anki package for Polish UNESCO sites."""
-    model_id_hash = hashlib.sha256(
-        f"polish_unesco_sites_{deck_name}".encode()
-    )
+    model_id_hash = hashlib.sha256(f"polish_unesco_sites_{deck_name}".encode())
     model_id = int(model_id_hash.hexdigest()[:8], 16)
 
     card_css = """

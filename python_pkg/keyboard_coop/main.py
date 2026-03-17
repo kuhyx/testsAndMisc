@@ -4,13 +4,14 @@ Players take turns selecting adjacent keys to form valid English words.
 """
 
 from dataclasses import dataclass, field
-import json
 import logging
 from pathlib import Path
 import secrets
 import sys
 
 import pygame
+
+from python_pkg.keyboard_coop._dictionary import load_dictionary
 
 _logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class KeyboardCoopGame:
         )
 
         # Load dictionary
-        self.dictionary = self._load_dictionary()
+        self.dictionary = load_dictionary(Path(__file__).parent)
 
         # Initialize game state
         self.state = GameState()
@@ -126,106 +127,6 @@ class KeyboardCoopGame:
 
         # Generate random keyboard layout and adjacency
         self._generate_random_keyboard()
-
-    def _load_dictionary(self) -> set[str]:
-        """Load dictionary from words_dictionary.json file."""
-        try:
-            dictionary_path = Path(__file__).parent / "words_dictionary.json"
-            with dictionary_path.open(encoding="utf-8") as f:
-                dictionary_data = json.load(f)
-            # Convert to set for faster lookup (we only need the keys)
-            return set(dictionary_data.keys())
-        except FileNotFoundError:
-            _logger.warning(
-                "words_dictionary.json not found, using fallback dictionary"
-            )
-            # Fallback to a smaller dictionary if file not found
-            return {
-                "cat",
-                "dog",
-                "car",
-                "bat",
-                "rat",
-                "hat",
-                "mat",
-                "sat",
-                "fat",
-                "pat",
-                "the",
-                "and",
-                "for",
-                "are",
-                "but",
-                "not",
-                "you",
-                "all",
-                "can",
-                "had",
-                "her",
-                "was",
-                "one",
-                "our",
-                "out",
-                "day",
-                "get",
-                "has",
-                "him",
-                "his",
-                "how",
-                "man",
-                "new",
-                "now",
-                "old",
-                "see",
-                "two",
-                "way",
-                "who",
-                "boy",
-                "work",
-                "know",
-                "place",
-                "year",
-                "live",
-                "me",
-                "back",
-                "give",
-                "good",
-            }
-        except json.JSONDecodeError:
-            _logger.warning(
-                "Error reading words_dictionary.json, using fallback dictionary"
-            )
-            return {
-                "cat",
-                "dog",
-                "car",
-                "bat",
-                "rat",
-                "hat",
-                "mat",
-                "sat",
-                "fat",
-                "pat",
-                "the",
-                "and",
-                "for",
-                "are",
-                "but",
-                "not",
-                "you",
-                "all",
-                "can",
-                "had",
-                "work",
-                "know",
-                "place",
-                "year",
-                "live",
-                "me",
-                "back",
-                "give",
-                "good",
-            }
 
     def _generate_random_keyboard(self) -> None:
         """Generate a random keyboard layout and calculate adjacencies."""

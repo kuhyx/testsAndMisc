@@ -23,11 +23,7 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-try:
-    from python_pkg.word_frequency.analyzer import analyze_text, read_file
-except ImportError:
-    from analyzer import analyze_text, read_file
-
+from python_pkg.word_frequency.analyzer import analyze_text, read_file
 
 logger = logging.getLogger(__name__)
 

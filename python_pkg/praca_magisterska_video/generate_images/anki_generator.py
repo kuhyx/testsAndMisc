@@ -256,9 +256,7 @@ def extract_cards_basic(filepath: str) -> list[dict[str, str]]:
 def _extract_key_point(body: str) -> str | None:
     """Extract a key point from a section body."""
     # Try to get a definition or first bullet
-    def_match = re.search(
-        r"Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*", body
-    )
+    def_match = re.search(r"Rozpoznawana klasa języków\s*\n\s*\*\*([^*]+)\*\*", body)
     if def_match:
         return def_match.group(1).strip()
 
@@ -304,11 +302,7 @@ def extract_main_only(filepath: str) -> list[dict[str, str]]:
 
         for raw_header, body in headers[:5]:
             header = raw_header.strip()
-            if (
-                "Przykład" in header
-                or "Mnemonic" in header
-                or '"' in header
-            ):
+            if "Przykład" in header or "Mnemonic" in header or '"' in header:
                 continue
 
             key_point = _extract_key_point(body)
@@ -351,13 +345,9 @@ def _log_statistics(unique: list[dict[str, str]], output_file: Path) -> None:
     lengths = [len(c["back"]) for c in unique]
     short = sum(1 for length in lengths if length < SHORT_THRESHOLD)
     medium = sum(
-        1
-        for length in lengths
-        if SHORT_THRESHOLD <= length < MEDIUM_THRESHOLD
+        1 for length in lengths if SHORT_THRESHOLD <= length < MEDIUM_THRESHOLD
     )
-    good = sum(
-        1 for length in lengths if length >= MEDIUM_THRESHOLD
-    )
+    good = sum(1 for length in lengths if length >= MEDIUM_THRESHOLD)
 
     logger.info("Generated: %s", output_file.name)
     logger.info("   Cards: %d", len(unique))
@@ -376,9 +366,7 @@ def generate_anki(
     main_only: bool = False,
 ) -> Path:
     """Generate Anki deck with specified approaches."""
-    odpowiedzi_dir = Path(
-        "/home/kuchy/praca_magisterska/pytania/odpowiedzi"
-    )
+    odpowiedzi_dir = Path("/home/kuchy/praca_magisterska/pytania/odpowiedzi")
 
     # Determine output filename based on options
     suffix_parts = []
@@ -390,9 +378,7 @@ def generate_anki(
         suffix_parts.append("main")
     suffix = "_".join(suffix_parts) if suffix_parts else "basic"
 
-    output_file = Path(
-        f"/home/kuchy/praca_magisterska/pytania/anki_{suffix}.txt"
-    )
+    output_file = Path(f"/home/kuchy/praca_magisterska/pytania/anki_{suffix}.txt")
     deck_name = f"Egzamin_{suffix.replace('_', '+')}"
 
     all_cards = _collect_cards(
@@ -403,9 +389,7 @@ def generate_anki(
 
     # Approach 1: Apply filtering if requested
     if use_filter:
-        all_cards = apply_strict_filter(
-            all_cards, min_length=DEFAULT_MIN_ANSWER_LENGTH
-        )
+        all_cards = apply_strict_filter(all_cards, min_length=DEFAULT_MIN_ANSWER_LENGTH)
 
     # Remove duplicates
     seen: set[str] = set()
@@ -419,8 +403,7 @@ def generate_anki(
     # Write output
     with Path(output_file).open("w", encoding="utf-8") as f:
         f.write(
-            "#separator:Tab\n#html:true\n"
-            f"#notetype:Basic\n#deck:{deck_name}\n\n"
+            "#separator:Tab\n#html:true\n" f"#notetype:Basic\n#deck:{deck_name}\n\n"
         )
         for c in unique:
             f.write(f"{c['front']}\t{c['back']}\t{c['tags']}\n")
@@ -468,12 +451,9 @@ def main() -> None:
             (True, True, True),  # 7: All three
         ]
 
-        for i, (f_flag, e_flag, m_flag) in enumerate(
-            combinations, 1
-        ):
+        for i, (f_flag, e_flag, m_flag) in enumerate(combinations, 1):
             logger.info(
-                "--- Combination %d (filter=%s, extract=%s,"
-                " main=%s) ---",
+                "--- Combination %d (filter=%s, extract=%s," " main=%s) ---",
                 i,
                 f_flag,
                 e_flag,

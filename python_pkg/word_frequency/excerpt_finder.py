@@ -32,10 +32,7 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, NamedTuple
 
-try:
-    from python_pkg.word_frequency.analyzer import extract_words, read_file
-except ModuleNotFoundError:
-    from analyzer import extract_words, read_file  # type: ignore[import-not-found]
+from python_pkg.word_frequency.analyzer import extract_words, read_file
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

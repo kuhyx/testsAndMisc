@@ -60,7 +60,8 @@ def extract_real_answer(content: str, section_name: str) -> str | None:
             if p.strip() and not p.startswith("```") and not p.startswith("|")
         ]
         lines.extend(
-            p for p in paras[:2]
+            p
+            for p in paras[:2]
             if len(p) > MIN_PARA_LENGTH and len(p) < MAX_PARA_LENGTH
         )
 
@@ -87,9 +88,7 @@ def _read_file_metadata(
         content,
         re.DOTALL,
     )
-    main_question = (
-        re.sub(r"\s+", " ", q_match.group(1).strip()) if q_match else None
-    )
+    main_question = re.sub(r"\s+", " ", q_match.group(1).strip()) if q_match else None
 
     return content, base_tags, main_question
 
@@ -103,16 +102,10 @@ def _extract_automata_facts(content: str) -> list[str]:
         ("Maszyna Turinga", "TM"),
     ]
     for name, abbrev in automata:
-        pattern = (
-            rf"{name}.*?Rozpoznawana klasa języków"
-            r"\s*\n\s*\*\*([^*]+)\*\*"
-        )
+        pattern = rf"{name}.*?Rozpoznawana klasa języków" r"\s*\n\s*\*\*([^*]+)\*\*"
         match = re.search(pattern, content, re.DOTALL)
         if match:
-            parts.append(
-                f"<b>{name} ({abbrev})</b>: "
-                f"{match.group(1).strip()}"
-            )
+            parts.append(f"<b>{name} ({abbrev})</b>: " f"{match.group(1).strip()}")
     return parts
 
 
@@ -157,10 +150,7 @@ def _build_main_card(
         return None
 
     answer_parts: list[str] = []
-    if (
-        "automat" in main_question.lower()
-        or "maszyn" in main_question.lower()
-    ):
+    if "automat" in main_question.lower() or "maszyn" in main_question.lower():
         answer_parts = _extract_automata_facts(content)
 
     if not answer_parts:
@@ -172,9 +162,7 @@ def _build_main_card(
     if not answer_parts:
         return None
 
-    answer = "<br><br>".join(
-        clean_text(p) for p in answer_parts
-    )
+    answer = "<br><br>".join(clean_text(p) for p in answer_parts)
     return {
         "front": clean_text(main_question),
         "back": answer,
@@ -187,13 +175,15 @@ def _extract_section_content(body: str) -> list[str]:
     answer_lines: list[str] = []
 
     def_match = re.search(
-        r"#### Definicja[^\n]*\n([^\n#]+(?:\n[^\n#]+)?)", body,
+        r"#### Definicja[^\n]*\n([^\n#]+(?:\n[^\n#]+)?)",
+        body,
     )
     if def_match:
         answer_lines.append(def_match.group(1).strip())
 
     char_match = re.search(
-        r"#### Charakterystyka\s*\n((?:[-•][^\n]+\n?)+)", body,
+        r"#### Charakterystyka\s*\n((?:[-•][^\n]+\n?)+)",
+        body,
     )
     if char_match:
         bullets = re.findall(
@@ -202,25 +192,24 @@ def _extract_section_content(body: str) -> list[str]:
         )
         for term, desc in bullets[:4]:
             answer_lines.append(
-                f"• <b>{term}</b>: {desc.strip()}"
-                if desc
-                else f"• <b>{term}</b>"
+                f"• <b>{term}</b>: {desc.strip()}" if desc else f"• <b>{term}</b>"
             )
 
     if not answer_lines:
         bullets = re.findall(
-            r"[-•]\s*\*\*([^*]+)\*\*[:\s]*([^\n]*)", body,
+            r"[-•]\s*\*\*([^*]+)\*\*[:\s]*([^\n]*)",
+            body,
         )
         for term, desc in bullets[:5]:
             answer_lines.append(
-                f"• <b>{term}</b>: {desc.strip()}"
-                if desc
-                else f"• <b>{term}</b>"
+                f"• <b>{term}</b>: {desc.strip()}" if desc else f"• <b>{term}</b>"
             )
 
     if not answer_lines:
         first_para = re.search(
-            r"^([^#\n\-•|`][^\n]{30,250})", body, re.MULTILINE,
+            r"^([^#\n\-•|`][^\n]{30,250})",
+            body,
+            re.MULTILINE,
         )
         if first_para:
             answer_lines.append(first_para.group(1))
@@ -229,7 +218,8 @@ def _extract_section_content(body: str) -> list[str]:
 
 
 def _build_concept_cards(
-    content: str, base_tags: str,
+    content: str,
+    base_tags: str,
 ) -> list[dict[str, str]]:
     """Build concept cards from ### sections."""
     cards: list[dict[str, str]] = []
@@ -255,12 +245,8 @@ def _build_concept_cards(
         if not answer_lines:
             continue
 
-        question = (
-            header if header.endswith("?") else f"Wyjaśnij: {header}"
-        )
-        answer = "<br>".join(
-            clean_text(line) for line in answer_lines
-        )
+        question = header if header.endswith("?") else f"Wyjaśnij: {header}"
+        answer = "<br>".join(clean_text(line) for line in answer_lines)
         cards.append(
             {
                 "front": clean_text(question),
@@ -273,7 +259,8 @@ def _build_concept_cards(
 
 
 def _build_qa_cards(
-    content: str, base_tags: str,
+    content: str,
+    base_tags: str,
 ) -> list[dict[str, str]]:
     """Build Q&A practice cards."""
     cards: list[dict[str, str]] = []
@@ -301,9 +288,7 @@ def _build_qa_cards(
             cards.append(
                 {
                     "front": clean_text(question + "?"),
-                    "back": "<br>".join(
-                        clean_text(line) for line in clean_answer
-                    ),
+                    "back": "<br>".join(clean_text(line) for line in clean_answer),
                     "tags": f"{base_tags} qa",
                 }
             )

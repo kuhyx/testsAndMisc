@@ -18,15 +18,15 @@ Utility scripts for development workflows — C/C++ build file validation, secre
 
 ## Other Projects
 
-| Directory | Description |
-|---|---|
+| Directory             | Description                                 |
+| --------------------- | ------------------------------------------- |
 | `poker_modifier_app/` | Browser-based poker hand modifier (HTML/JS) |
-| `pomodoro_app/` | Pomodoro timer (Flutter) |
-| `Bash/` | FFmpeg build scripts |
-| `C/`, `CPP/`, `TS/` | Language-specific experiments |
-| `sonic_pi/` | Music programming experiments |
-| `robotgo_demo/` | Go desktop automation demo |
-| `python_pkg/` | Python package structure example |
+| `pomodoro_app/`       | Pomodoro timer (Flutter)                    |
+| `Bash/`               | FFmpeg build scripts                        |
+| `C/`, `CPP/`, `TS/`   | Language-specific experiments               |
+| `sonic_pi/`           | Music programming experiments               |
+| `robotgo_demo/`       | Go desktop automation demo                  |
+| `python_pkg/`         | Python package structure example            |
 
 ## Tooling
 

@@ -38,336 +38,29 @@ Usage::
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 from dataclasses import replace as _replace_dc
 import logging
 from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
-try:
-    from python_pkg.word_frequency.analyzer import analyze_text, read_file
-    from python_pkg.word_frequency.excerpt_finder import find_best_excerpt
-    from python_pkg.word_frequency.translator import (
-        detect_language,
-        translate_words_batch,
-    )
-except ModuleNotFoundError:
-    from analyzer import analyze_text, read_file  # type: ignore[import-not-found]
-    from excerpt_finder import find_best_excerpt  # type: ignore[import-not-found]
-    from translator import (  # type: ignore[import-not-found]
-        detect_language,
-        translate_words_batch,
-    )
+from python_pkg.word_frequency._learning_batch import (
+    _detect_translation_language,
+    _generate_batch_section,
+    _LessonContext,
+)
+from python_pkg.word_frequency._learning_constants import (
+    DEFAULT_STOPWORDS_EN,
+    LessonConfig,
+    _resolve_stopwords,
+    load_stopwords,
+)
+from python_pkg.word_frequency.analyzer import analyze_text, read_file
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
-
-
-# Common stopwords for various languages (can be overridden with --stopwords)
-DEFAULT_STOPWORDS_EN = frozenset(
-    {
-        "the",
-        "a",
-        "an",
-        "and",
-        "or",
-        "but",
-        "in",
-        "on",
-        "at",
-        "to",
-        "for",
-        "of",
-        "with",
-        "by",
-        "from",
-        "is",
-        "are",
-        "was",
-        "were",
-        "be",
-        "been",
-        "being",
-        "have",
-        "has",
-        "had",
-        "do",
-        "does",
-        "did",
-        "will",
-        "would",
-        "could",
-        "should",
-        "may",
-        "might",
-        "must",
-        "shall",
-        "can",
-        "this",
-        "that",
-        "these",
-        "those",
-        "i",
-        "you",
-        "he",
-        "she",
-        "it",
-        "we",
-        "they",
-        "me",
-        "him",
-        "her",
-        "us",
-        "them",
-        "my",
-        "your",
-        "his",
-        "its",
-        "our",
-        "their",
-        "what",
-        "which",
-        "who",
-        "whom",
-        "whose",
-        "where",
-        "when",
-        "why",
-        "how",
-        "all",
-        "each",
-        "every",
-        "both",
-        "few",
-        "more",
-        "most",
-        "other",
-        "some",
-        "such",
-        "no",
-        "nor",
-        "not",
-        "only",
-        "own",
-        "same",
-        "so",
-        "than",
-        "too",
-        "very",
-        "just",
-        "as",
-        "if",
-        "then",
-        "because",
-        "while",
-        "although",
-        "though",
-        "after",
-        "before",
-    }
-)
-
-
-def load_stopwords(filepath: str | Path | None) -> frozenset[str]:
-    """Load stopwords from a file (one word per line).
-
-    Args:
-        filepath: Path to stopwords file, or None to use defaults.
-
-    Returns:
-        Frozenset of stopwords.
-    """
-    if filepath is None:
-        return frozenset()
-
-    path = Path(filepath)
-    if not path.exists():
-        return frozenset()
-
-    content = path.read_text(encoding="utf-8")
-    return frozenset(
-        word.strip().lower() for word in content.splitlines() if word.strip()
-    )
-
-
-@dataclass(frozen=True)
-class LessonConfig:
-    """Configuration for learning lesson generation."""
-
-    batch_size: int = 20
-    num_batches: int = 1
-    excerpt_length: int = 30
-    excerpts_per_batch: int = 3
-    stopwords: frozenset[str] | None = None
-    skip_default_stopwords: bool = False
-    skip_numbers: bool = True
-    case_sensitive: bool = False
-    translate_from: str | None = None
-    translate_to: str | None = None
-
-
-def _resolve_stopwords(config: LessonConfig) -> frozenset[str]:
-    """Resolve combined stopwords from config."""
-    if config.skip_default_stopwords:
-        return config.stopwords or frozenset()
-    return DEFAULT_STOPWORDS_EN | (config.stopwords or frozenset())
-
-
-def _detect_translation_language(
-    text: str,
-    config: LessonConfig,
-    lines: list[str],
-) -> tuple[str | None, str | None]:
-    """Detect translation settings and return (from, to) pair."""
-    actual_from = config.translate_from
-    actual_to = config.translate_to or "en"
-
-    if actual_from == "auto" or (
-        config.translate_to and not config.translate_from
-    ):
-        detected = detect_language(text)
-        if detected:
-            actual_from = detected
-            lines.append(f"Detected language: {detected}")
-        else:
-            lines.append(
-                "Warning: Could not detect language "
-                "(install langdetect: "
-                "pip install langdetect)"
-            )
-            actual_from = None
-
-    return actual_from, actual_to
-
-
-def _format_word_list(
-    batch_words: list[tuple[str, int]],
-    start_idx: int,
-    total_words: int,
-    translations: dict[str, str],
-) -> list[str]:
-    """Format the vocabulary word list for a batch."""
-    lines: list[str] = []
-    for i, (word, count) in enumerate(
-        batch_words, start=start_idx + 1,
-    ):
-        percentage = (count / total_words) * 100
-        if translations:
-            trans = translations.get(word, "?")
-            lines.append(
-                f"  {i:3}. {word:<20} -> {trans:<20}"
-                f" ({count:,} occurrences, "
-                f"{percentage:.2f}%)"
-            )
-        else:
-            lines.append(
-                f"  {i:3}. {word:<20}"
-                f" ({count:,} occurrences, "
-                f"{percentage:.2f}%)"
-            )
-    return lines
-
-
-@dataclass(frozen=True)
-class _LessonContext:
-    """Shared context for batch generation."""
-
-    text: str
-    word_counts: dict[str, int]
-    config: LessonConfig
-
-
-def _generate_batch_section(
-    ctx: _LessonContext,
-    batch_num: int,
-    batch_words: list[tuple[str, int]],
-    cumulative_words: list[str],
-) -> list[str]:
-    """Generate lines for a single batch section."""
-    config = ctx.config
-    total_words = sum(ctx.word_counts.values())
-    start_idx = batch_num * config.batch_size
-    end_idx = start_idx + config.batch_size
-
-    lines: list[str] = []
-    lines.append("-" * 70)
-    lines.append(
-        f"BATCH {batch_num + 1}: Words "
-        f"{start_idx + 1} - "
-        f"{min(end_idx, start_idx + len(batch_words))}"
-    )
-    lines.append("-" * 70)
-    lines.append("")
-
-    # Get translations if requested
-    translations: dict[str, str] = {}
-    do_translate = (
-        config.translate_from is not None
-        and config.translate_to is not None
-    )
-    if do_translate:
-        words_to_translate = [word for word, _ in batch_words]
-        translation_results = translate_words_batch(
-            words_to_translate,
-            config.translate_from,  # type: ignore[arg-type]
-            config.translate_to,  # type: ignore[arg-type]
-        )
-        translations = {
-            r.source_word: r.translated_word
-            for r in translation_results
-            if r.success
-        }
-
-    lines.append("VOCABULARY TO LEARN:")
-    lines.append("")
-    lines.extend(
-        _format_word_list(
-            batch_words, start_idx, total_words, translations,
-        )
-    )
-    lines.append("")
-
-    # Cumulative coverage
-    cumulative_count = sum(
-        ctx.word_counts[w]
-        for w in cumulative_words
-        if w in ctx.word_counts
-    )
-    coverage = (cumulative_count / total_words) * 100
-    lines.append(
-        "After learning these words, "
-        f"you'll recognize ~{coverage:.1f}% of the text"
-    )
-    lines.append("")
-
-    # Excerpts
-    lines.append("PRACTICE EXCERPTS:")
-    lines.append(
-        "(Excerpts where your learned vocabulary "
-        "is most concentrated)"
-    )
-    lines.append("")
-
-    excerpts = find_best_excerpt(
-        ctx.text,
-        cumulative_words,
-        config.excerpt_length,
-        case_sensitive=config.case_sensitive,
-        top_n=config.excerpts_per_batch,
-    )
-
-    for j, excerpt in enumerate(excerpts, 1):
-        lines.append(
-            f"  Excerpt {j} "
-            f"({excerpt.match_percentage:.1f}% known words):"
-        )
-        lines.append(f'  "{excerpt.excerpt}"')
-        lines.append("")
-
-    return lines
 
 
 def generate_learning_lesson(
@@ -388,7 +81,8 @@ def generate_learning_lesson(
 
     all_stopwords = _resolve_stopwords(config)
     word_counts = analyze_text(
-        text, case_sensitive=config.case_sensitive,
+        text,
+        case_sensitive=config.case_sensitive,
     )
 
     filtered_words = [
@@ -421,11 +115,11 @@ def generate_learning_lesson(
         )
 
     actual_from, actual_to = _detect_translation_language(
-        text, config, lines,
+        text,
+        config,
+        lines,
     )
-    do_translate = (
-        actual_from is not None and actual_to is not None
-    )
+    do_translate = actual_from is not None and actual_to is not None
     if do_translate:
         lines.append(
             f"Translation: {actual_from} -> {actual_to}",
@@ -470,25 +164,14 @@ def generate_learning_lesson(
 
     if cumulative_words:
         final_coverage = sum(
-            word_counts[w]
-            for w in cumulative_words
-            if w in word_counts
+            word_counts[w] for w in cumulative_words if w in word_counts
         )
         final_pct = (final_coverage / total_words) * 100
-        lines.append(
-            "Total vocabulary words learned: "
-            f"{len(cumulative_words)}"
-        )
+        lines.append("Total vocabulary words learned: " f"{len(cumulative_words)}")
         lines.append(f"Text coverage: {final_pct:.1f}%")
         lines.append("")
-        lines.append(
-            "TIP: Focus on understanding the excerpts "
-            "first, then read"
-        )
-        lines.append(
-            "more of the original text as your "
-            "vocabulary grows!"
-        )
+        lines.append("TIP: Focus on understanding the excerpts " "first, then read")
+        lines.append("more of the original text as your " "vocabulary grows!")
 
     return "\n".join(lines)
 
@@ -588,10 +271,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--translate-from",
         type=str,
         metavar="LANG",
-        help=(
-            "Source language code (e.g., 'la', 'pl'). "
-            "If omitted, auto-detected."
-        ),
+        help=("Source language code (e.g., 'la', 'pl'). " "If omitted, auto-detected."),
     )
     parser.add_argument(
         "--translate-to",
@@ -622,9 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         translate_to: str | None = None
 
         if not args.no_translate:
-            translate_from = (
-                args.translate_from or "auto"
-            )
+            translate_from = args.translate_from or "auto"
             translate_to = args.translate_to
 
         config = LessonConfig(
@@ -644,10 +322,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         # Output
         if args.output:
             Path(args.output).write_text(
-                lesson, encoding="utf-8",
+                lesson,
+                encoding="utf-8",
             )
             logger.info(
-                "Lesson written to %s", args.output,
+                "Lesson written to %s",
+                args.output,
             )
         else:
             logger.info(lesson)

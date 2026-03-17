@@ -12,7 +12,6 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-import python_pkg.word_frequency.learning_pipe as learning_pipe_module
 from python_pkg.word_frequency.learning_pipe import (
     DEFAULT_STOPWORDS_EN,
     LessonConfig,
@@ -20,6 +19,7 @@ from python_pkg.word_frequency.learning_pipe import (
     load_stopwords,
     main,
 )
+import python_pkg.word_frequency.translator as _translator_module
 from python_pkg.word_frequency.translator import TranslationResult
 
 if TYPE_CHECKING:
@@ -49,9 +49,9 @@ def _mock_translation() -> Generator[MagicMock, None, None]:
             for word in words
         ]
 
-    # Need to patch in learning_pipe module since it imports the function directly
+    # Need to patch in translator module since _learning_batch looks it up there
     with patch.object(
-        learning_pipe_module, "translate_words_batch", side_effect=fake_batch_translate
+        _translator_module, "translate_words_batch", side_effect=fake_batch_translate
     ):
         yield
 
@@ -267,9 +267,7 @@ class TestMain:
         content = output_file.read_text(encoding="utf-8")
         assert "LANGUAGE LEARNING LESSON" in content
 
-    def test_custom_stopwords(
-        self, tmp_path: Path, _mock_translation: None
-    ) -> None:
+    def test_custom_stopwords(self, tmp_path: Path, _mock_translation: None) -> None:
         """Test with custom stopwords file."""
         stopwords_file = tmp_path / "stop.txt"
         stopwords_file.write_text("hello\n", encoding="utf-8")
@@ -422,16 +420,12 @@ class TestTranslationIntegration:
 
         assert result == 0
 
-    def test_translate_to_defaults_to_english(
-        self, _mock_translation: None
-    ) -> None:
+    def test_translate_to_defaults_to_english(self, _mock_translation: None) -> None:
         """Test that translate_to defaults to 'en' when using auto-detection."""
         text = "hello world"
         # When using --translate flag (translate_from="auto"),
         # translate_to defaults to "en"
-        with patch.object(
-            learning_pipe_module, "detect_language", return_value="es"
-        ):
+        with patch.object(_translator_module, "detect_language", return_value="es"):
             result = generate_learning_lesson(
                 text,
                 LessonConfig(

@@ -151,7 +151,9 @@ class TestFindBestExcerptWithContext:
         """Test with zero context (should behave like find_best_excerpt)."""
         text = "a b c d e f g"
         result = find_best_excerpt_with_context(
-            text, ["c"], excerpt_length=1,
+            text,
+            ["c"],
+            excerpt_length=1,
             options=ExcerptSearchOptions(context_words=0),
         )
 
@@ -161,7 +163,9 @@ class TestFindBestExcerptWithContext:
         """Test with context words."""
         text = "a b c d e f g"
         result = find_best_excerpt_with_context(
-            text, ["d"], excerpt_length=1,
+            text,
+            ["d"],
+            excerpt_length=1,
             options=ExcerptSearchOptions(context_words=2),
         )
 
@@ -174,7 +178,9 @@ class TestFindBestExcerptWithContext:
         """Test context doesn't go before start of text."""
         text = "a b c d e"
         result = find_best_excerpt_with_context(
-            text, ["a"], excerpt_length=1,
+            text,
+            ["a"],
+            excerpt_length=1,
             options=ExcerptSearchOptions(context_words=3),
         )
 
@@ -186,7 +192,9 @@ class TestFindBestExcerptWithContext:
         """Test context doesn't go beyond end of text."""
         text = "a b c d e"
         result = find_best_excerpt_with_context(
-            text, ["e"], excerpt_length=1,
+            text,
+            ["e"],
+            excerpt_length=1,
             options=ExcerptSearchOptions(context_words=3),
         )
 
@@ -259,9 +267,7 @@ class TestMain:
         assert exit_code == 0
         assert "hello" in caplog.text
 
-    def test_file_input(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_file_input(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Test --file input option."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("hello world hello world", encoding="utf-8")

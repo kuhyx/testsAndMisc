@@ -72,7 +72,8 @@ def _get_file_metadata(
 
 
 def _extract_main_question_card(
-    content: str, base_tags: str,
+    content: str,
+    base_tags: str,
 ) -> list[dict[str, str]]:
     """Extract the main exam question card."""
     q_match = re.search(
@@ -85,8 +86,7 @@ def _extract_main_question_card(
 
     main_q = re.sub(r"\s+", " ", q_match.group(1).strip())
     answer_match = re.search(
-        r"## 📚 Odpowiedź główna\s*\n(.+?)"
-        r"(?=\n## [📚🎯]|\n---\s*\n## |\Z)",
+        r"## 📚 Odpowiedź główna\s*\n(.+?)" r"(?=\n## [📚🎯]|\n---\s*\n## |\Z)",
         content,
         re.DOTALL,
     )
@@ -99,18 +99,12 @@ def _extract_main_question_card(
         answer_section,
         re.MULTILINE,
     )
-    headers = [
-        h.strip()
-        for h in headers
-        if len(h.strip()) > MIN_HEADER_LENGTH
-    ][:6]
+    headers = [h.strip() for h in headers if len(h.strip()) > MIN_HEADER_LENGTH][:6]
 
     if not headers:
         return []
 
-    answer_html = (
-        "<b>Kluczowe zagadnienia:</b>" + format_list(headers)
-    )
+    answer_html = "<b>Kluczowe zagadnienia:</b>" + format_list(headers)
     return [
         {
             "front": clean_text(main_q),
@@ -123,10 +117,7 @@ def _extract_main_question_card(
 def _make_question_text(header: str) -> str:
     """Generate a question from a section header."""
     if "Definicja" in header or "Co to" in header:
-        return (
-            f"Co to jest:"
-            f" {header.replace('Definicja', '').strip()}?"
-        )
+        return f"Co to jest:" f" {header.replace('Definicja', '').strip()}?"
     if "Charakterystyka" in header:
         stripped = header.replace("Charakterystyka", "").strip()
         return f"Scharakteryzuj: {stripped}"
@@ -143,14 +134,10 @@ def _extract_body_parts(body: str) -> list[str]:
     if subheaders:
         answer_parts.extend(subheaders[:4])
 
-    bullets = re.findall(
-        r"[-•]\s*\*\*([^*]+)\*\*[:\s-]*([^\n]+)?", body
-    )
+    bullets = re.findall(r"[-•]\s*\*\*([^*]+)\*\*[:\s-]*([^\n]+)?", body)
     for term, desc in bullets[:5]:
         if desc:
-            answer_parts.append(
-                f"<b>{term}</b>: {desc.strip()}"
-            )
+            answer_parts.append(f"<b>{term}</b>: {desc.strip()}")
         else:
             answer_parts.append(f"<b>{term}</b>")
 
@@ -172,7 +159,8 @@ def _extract_body_parts(body: str) -> list[str]:
 
 
 def _extract_subsection_cards(
-    content: str, base_tags: str,
+    content: str,
+    base_tags: str,
 ) -> list[dict[str, str]]:
     """Extract subsection detail cards."""
     cards: list[dict[str, str]] = []
@@ -186,10 +174,7 @@ def _extract_subsection_cards(
         header = raw_header.strip()
         body = raw_body.strip()
 
-        if (
-            len(body) < MIN_BODY_LENGTH
-            or header.lower().startswith("przykład")
-        ):
+        if len(body) < MIN_BODY_LENGTH or header.lower().startswith("przykład"):
             continue
 
         answer_parts = _extract_body_parts(body)
@@ -213,7 +198,8 @@ def _extract_subsection_cards(
 
 
 def _extract_algo_cards(
-    content: str, base_tags: str,
+    content: str,
+    base_tags: str,
 ) -> list[dict[str, str]]:
     """Extract algorithm/formula cards."""
     cards: list[dict[str, str]] = []
@@ -235,12 +221,9 @@ def _extract_algo_cards(
                     cards.append(
                         {
                             "front": (
-                                "Jaka jest złożoność"
-                                f" algorytmu/metody: {algo_name}?"
+                                "Jaka jest złożoność" f" algorytmu/metody: {algo_name}?"
                             ),
-                            "back": clean_text(
-                                algo_match.strip()[:200]
-                            ),
+                            "back": clean_text(algo_match.strip()[:200]),
                             "tags": f"{base_tags} zlozonosc",
                         }
                     )
@@ -250,7 +233,9 @@ def _extract_algo_cards(
 
 
 def _extract_comparison_cards(
-    content: str, base_tags: str, num: str,
+    content: str,
+    base_tags: str,
+    num: str,
 ) -> list[dict[str, str]]:
     """Extract comparison cards."""
     compare_match = re.search(
@@ -269,19 +254,15 @@ def _extract_comparison_cards(
     if not items:
         return []
 
-    comparison_html = (
-        "<table><tr><th>Aspekt</th><th>Wartość</th></tr>"
-    )
+    comparison_html = "<table><tr><th>Aspekt</th><th>Wartość</th></tr>"
     for aspect, value in items[:MAX_COMPARISON_ITEMS]:
         comparison_html += (
-            f"<tr><td>{clean_text(aspect)}</td>"
-            f"<td>{clean_text(value)}</td></tr>"
+            f"<tr><td>{clean_text(aspect)}</td>" f"<td>{clean_text(value)}</td></tr>"
         )
     comparison_html += "</table>"
 
     title_match = re.search(
-        r"## .*(Porównanie|Zestawienie)"
-        r".*?(\w+.*?(?:vs|i|oraz).*?\w+)",
+        r"## .*(Porównanie|Zestawienie)" r".*?(\w+.*?(?:vs|i|oraz).*?\w+)",
         compare_match.group(0),
         re.IGNORECASE,
     )
@@ -290,10 +271,7 @@ def _extract_comparison_cards(
 
     return [
         {
-            "front": (
-                "Porównaj kluczowe różnice"
-                f" w temacie: pytanie {num}"
-            ),
+            "front": ("Porównaj kluczowe różnice" f" w temacie: pytanie {num}"),
             "back": comparison_html,
             "tags": f"{base_tags} porownanie",
         }
@@ -301,7 +279,8 @@ def _extract_comparison_cards(
 
 
 def _extract_qa_cards(
-    content: str, base_tags: str,
+    content: str,
+    base_tags: str,
 ) -> list[dict[str, str]]:
     """Extract Q&A practice cards."""
     cards: list[dict[str, str]] = []
@@ -315,8 +294,7 @@ def _extract_qa_cards(
 
     qa_content = qa_section.group(1)
     qas = re.findall(
-        r"### Q\d+:?\s*[\"']?(.+?)[\"']?\s*\n"
-        r".*?Odpowiedź:\s*\n?(.+?)(?=\n### |\Z)",
+        r"### Q\d+:?\s*[\"']?(.+?)[\"']?\s*\n" r".*?Odpowiedź:\s*\n?(.+?)(?=\n### |\Z)",
         qa_content,
         re.DOTALL,
     )
@@ -332,9 +310,7 @@ def _extract_qa_cards(
             cards.append(
                 {
                     "front": clean_text(question),
-                    "back": clean_text(a_short).replace(
-                        "\n", "<br>"
-                    ),
+                    "back": clean_text(a_short).replace("\n", "<br>"),
                     "tags": f"{base_tags} egzamin_praktyka",
                 }
             )
@@ -351,9 +327,7 @@ def extract_from_file(filepath: str) -> list[dict[str, str]]:
     cards.extend(_extract_main_question_card(content, base_tags))
     cards.extend(_extract_subsection_cards(content, base_tags))
     cards.extend(_extract_algo_cards(content, base_tags))
-    cards.extend(
-        _extract_comparison_cards(content, base_tags, num)
-    )
+    cards.extend(_extract_comparison_cards(content, base_tags, num))
     cards.extend(_extract_qa_cards(content, base_tags))
 
     return cards
@@ -404,9 +378,7 @@ def main() -> None:
             f.write(f"{front}\t{back}\t{tags}\n")
 
     logger.info("=" * 50)
-    logger.info(
-        "Generated %d unique flashcards", len(unique_cards)
-    )
+    logger.info("Generated %d unique flashcards", len(unique_cards))
     logger.info("Saved to: %s", output_file)
     logger.info("=" * 50)
     logger.info("IMPORT INSTRUCTIONS:")

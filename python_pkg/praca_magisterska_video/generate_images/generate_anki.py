@@ -64,8 +64,7 @@ def _extract_main_card(
     answer_parts: list[str] = []
 
     main_answer = re.search(
-        r"## 📚 Odpowiedź główna\s*\n(.+?)"
-        r"(?=\n## |\n---\s*\n## |\Z)",
+        r"## 📚 Odpowiedź główna\s*\n(.+?)" r"(?=\n## |\n---\s*\n## |\Z)",
         content,
         re.DOTALL,
     )
@@ -74,17 +73,13 @@ def _extract_main_card(
         headers = re.findall(r"### (.+)", answer_text)
         answer_parts.extend(f"• {h}" for h in headers[:5])
 
-    definitions = re.findall(
-        r"\*\*([^*]+)\*\*\s*[--:]\s*([^*\n]+)", content
-    )
+    definitions = re.findall(r"\*\*([^*]+)\*\*\s*[--:]\s*([^*\n]+)", content)
     for term, definition in definitions[:3]:
         if (
             len(definition) > MIN_DEFINITION_LENGTH
             and len(definition) < MAX_DEFINITION_LENGTH
         ):
-            answer_parts.append(
-                f"• {term}: {definition.strip()}"
-            )
+            answer_parts.append(f"• {term}: {definition.strip()}")
 
     if not answer_parts:
         return []
@@ -94,19 +89,14 @@ def _extract_main_card(
         {
             "question": main_question,
             "answer": answer_html,
-            "tags": (
-                f"egzamin_magisterski pytanie_{num}"
-                f" {subject} {topic}"
-            ),
+            "tags": (f"egzamin_magisterski pytanie_{num}" f" {subject} {topic}"),
         }
     ]
 
 
 def _extract_subsection_answer(body_clean: str) -> str | None:
     """Extract answer text from a subsection body."""
-    bullets = re.findall(
-        r"[-•]\s*\*\*(.+?)\*\*[:\s]*([^\n]+)?", body_clean
-    )
+    bullets = re.findall(r"[-•]\s*\*\*(.+?)\*\*[:\s]*([^\n]+)?", body_clean)
     if bullets:
         return "<br>".join(
             f"• {b[0]}: {b[1].strip()}" if b[1] else f"• {b[0]}"
@@ -116,9 +106,7 @@ def _extract_subsection_answer(body_clean: str) -> str | None:
     paragraphs = [
         p.strip()
         for p in body_clean.split("\n\n")
-        if p.strip()
-        and not p.startswith("```")
-        and not p.startswith("|")
+        if p.strip() and not p.startswith("```") and not p.startswith("|")
     ]
     if paragraphs:
         first_para = paragraphs[0]
@@ -139,17 +127,13 @@ def _extract_sub_cards(
     """Extract sub-concept cards."""
     cards: list[dict[str, str]] = []
     subsections = re.findall(
-        r"### (\d+\.\s+)?(.+?)\n\n(.+?)"
-        r"(?=\n### |\n## |\n---|\Z)",
+        r"### (\d+\.\s+)?(.+?)\n\n(.+?)" r"(?=\n### |\n## |\n---|\Z)",
         content,
         re.DOTALL,
     )
 
     for _, header, body in subsections:
-        if (
-            len(header) < MIN_SUBSECTION_LENGTH
-            or header.startswith("Przykład")
-        ):
+        if len(header) < MIN_SUBSECTION_LENGTH or header.startswith("Przykład"):
             continue
 
         body_clean = body.strip()
@@ -160,19 +144,10 @@ def _extract_sub_cards(
         if not answer_text:
             continue
 
-        sub_question = (
-            f"Co to jest {header}?"
-            if not header.endswith("?")
-            else header
-        )
+        sub_question = f"Co to jest {header}?" if not header.endswith("?") else header
 
-        if any(
-            kw in header
-            for kw in ("Charakterystyka", "Definicja", "Właściwości")
-        ):
-            parent = title.replace("Pytanie", "").strip(
-                ": 0123456789"
-            )
+        if any(kw in header for kw in ("Charakterystyka", "Definicja", "Właściwości")):
+            parent = title.replace("Pytanie", "").strip(": 0123456789")
             sub_question = f"{header} - {parent}"
 
         cards.append(
@@ -180,8 +155,7 @@ def _extract_sub_cards(
                 "question": sub_question,
                 "answer": answer_text,
                 "tags": (
-                    f"egzamin_magisterski pytanie_{num}"
-                    f" {subject} {topic} szczegoly"
+                    f"egzamin_magisterski pytanie_{num}" f" {subject} {topic} szczegoly"
                 ),
             }
         )
@@ -210,8 +184,7 @@ def _extract_formula_cards(
                     "question": f"Podaj {formula_name.strip()}",
                     "answer": formula_content.strip()[:300],
                     "tags": (
-                        f"egzamin_magisterski pytanie_{num}"
-                        f" {subject} formuly"
+                        f"egzamin_magisterski pytanie_{num}" f" {subject} formuly"
                     ),
                 }
             )
@@ -223,29 +196,15 @@ def extract_question_and_answer(
     filepath: str,
 ) -> list[dict[str, str]]:
     """Extract main question and key answer points from a markdown file."""
-    num, topic, title, main_question, content = _get_metadata(
-        filepath
-    )
+    num, topic, title, main_question, content = _get_metadata(filepath)
 
     subject_match = re.search(r"Przedmiot:\s*(\w+)", content)
-    subject = (
-        subject_match.group(1) if subject_match else "Ogólne"
-    )
+    subject = subject_match.group(1) if subject_match else "Ogólne"
 
     cards: list[dict[str, str]] = []
-    cards.extend(
-        _extract_main_card(
-            content, main_question, subject, num, topic
-        )
-    )
-    cards.extend(
-        _extract_sub_cards(
-            content, title, subject, num, topic
-        )
-    )
-    cards.extend(
-        _extract_formula_cards(content, subject, num)
-    )
+    cards.extend(_extract_main_card(content, main_question, subject, num, topic))
+    cards.extend(_extract_sub_cards(content, title, subject, num, topic))
+    cards.extend(_extract_formula_cards(content, subject, num))
 
     return cards
 

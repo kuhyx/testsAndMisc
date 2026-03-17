@@ -254,9 +254,7 @@ class TestMain:
         assert exit_code == 0
         assert "Unique words: 3" in captured.out
 
-    def test_file_not_found_error(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_file_not_found_error(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test error handling for missing file."""
         exit_code = main(["--file", "/nonexistent/file.txt"])
         assert exit_code == 1
