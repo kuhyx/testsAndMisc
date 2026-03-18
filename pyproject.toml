@@ -66,10 +66,10 @@ unfixable = []
 # Files using urlopen with validated URL schemes
 "python_pkg/geo_data/_common.py" = ["S310"]
 "python_pkg/steam_backlog_enforcer/library_hider.py" = ["S310"]
-"poker_modifier_app/poker_modifier_app.py" = [
+"python_pkg/poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
-"poker_modifier_app/_poker_gui.py" = [
+"python_pkg/poker_modifier_app/_poker_gui.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
 "python_pkg/keyboard_coop/main.py" = [
@@ -102,12 +102,11 @@ unfixable = []
     "PLC0415", # Lazy imports of split helper modules
 ]
 # Moviepy showcase - lazy imports of split helpers
-"moviepy_showcase.py" = [
-    "INP001",
+"python_pkg/moviepy_showcase/moviepy_showcase.py" = [
     "PLC0415", # Lazy imports of split helper modules
 ]
 # Puzzle solver - late imports for CLI entry point
-"puzzle_solver/main.py" = [
+"python_pkg/puzzle_solver/main.py" = [
     "PLC0415", # Late imports in __main__ guard
 ]
 # Geo data admin helper
@@ -125,9 +124,7 @@ unfixable = []
 "python_pkg/praca_magisterska_video/visualize_q02.py" = [
     "PLC0415", # Late import for conditional dependency
 ]
-# Root-level helper scripts and test files outside packages
-"_moviepy_*.py" = ["INP001"]
-"tests/test_file_length.py" = ["INP001"]
+# Removed: root-level moviepy helper scripts and test files are now inside python_pkg
 "python_pkg/word_frequency/_translator_cli.py" = [
     "SLF001",  # Legitimately accesses translator module internals
 ]
@@ -251,7 +248,7 @@ exclude_dirs = ["tests", ".venv", "Bash/ffmpeg-build", "python_pkg/lichess_bot/.
 # PYTEST - Testing framework configuration
 # ============================================================================
 [tool.pytest.ini_options]
-testpaths = ["tests", "python_pkg", "articles"]
+testpaths = ["python_pkg"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

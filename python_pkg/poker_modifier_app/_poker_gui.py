@@ -7,7 +7,7 @@ from tkinter import ttk
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from poker_modifier_app.poker_modifier_app import PokerModifierApp
+    from python_pkg.poker_modifier_app.poker_modifier_app import PokerModifierApp
 
 
 class PokerGuiMixin:

@@ -45,7 +45,7 @@ from moviepy.video.fx import (
 from moviepy.video.tools.drawing import circle
 import numpy as np
 
-from moviepy_showcase import (
+from python_pkg.moviepy_showcase.moviepy_showcase import (
     CLIP_DUR,
     H,
     W,

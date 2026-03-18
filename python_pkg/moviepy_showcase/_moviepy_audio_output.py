@@ -31,7 +31,7 @@ from moviepy.video.tools.drawing import (
 )
 import numpy as np
 
-from moviepy_showcase import (
+from python_pkg.moviepy_showcase.moviepy_showcase import (
     CLIP_DUR,
     FONT_B,
     FONT_R,

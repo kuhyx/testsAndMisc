@@ -22,8 +22,8 @@ import json
 from pathlib import Path
 import sys
 
-from puzzle_solver.parse_image import draw_debug, parse_image, save_puzzle
-from puzzle_solver.solver import Puzzle, print_puzzle, print_solution, solve
+from python_pkg.puzzle_solver.parse_image import draw_debug, parse_image, save_puzzle
+from python_pkg.puzzle_solver.solver import Puzzle, print_puzzle, print_solution, solve
 
 
 def cmd_parse(args: argparse.Namespace) -> None:
