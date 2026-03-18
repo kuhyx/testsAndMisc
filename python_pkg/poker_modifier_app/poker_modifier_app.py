@@ -4,8 +4,11 @@ import logging
 import secrets
 import tkinter as tk
 
-from poker_modifier_app._poker_gui import PokerGuiMixin
-from poker_modifier_app._poker_modifiers import ENDGAME_MODIFIERS, REGULAR_MODIFIERS
+from python_pkg.poker_modifier_app._poker_gui import PokerGuiMixin
+from python_pkg.poker_modifier_app._poker_modifiers import (
+    ENDGAME_MODIFIERS,
+    REGULAR_MODIFIERS,
+)
 
 _logger = logging.getLogger(__name__)
 

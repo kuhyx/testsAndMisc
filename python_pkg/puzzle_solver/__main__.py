@@ -1,5 +1,5 @@
 """Allow ``python -m puzzle_solver …`` invocation."""
 
-from puzzle_solver.main import main
+from python_pkg.puzzle_solver.main import main
 
 main()

@@ -358,6 +358,17 @@ repos:
         exclude: ^CPP/mini_browser/
 
   # ===========================================================================
+  # CHECK PYTHON LOCATION - All Python files must be under python_pkg/
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: check-python-location
+        name: check Python files are under python_pkg/
+        entry: scripts/check_python_location.sh
+        language: script
+        types: [python]
+
+  # ===========================================================================
   # REMOVE EMPTY DIRECTORIES - Clean up empty folders in the repo
   # ===========================================================================
   - repo: local

@@ -197,18 +197,18 @@ def _build(tmpdir: str) -> None:
     # ── Lazy imports of moved part builders ───────────────────────
     from moviepy.audio.fx import MultiplyVolume
 
-    from _moviepy_audio_output import (
+    from python_pkg.moviepy_showcase._moviepy_audio_output import (
         _make_sine,
         part4_audio,
         part5_composition,
         part6_drawing_tools,
         part7_output,
     )
-    from _moviepy_clip_types import (
+    from python_pkg.moviepy_showcase._moviepy_clip_types import (
         part1_clip_types,
         part2_clip_methods,
     )
-    from _moviepy_video_effects import part3_video_effects
+    from python_pkg.moviepy_showcase._moviepy_video_effects import part3_video_effects
 
     # ── Render each part to its own temp file ─────────────────────
     # Title card
