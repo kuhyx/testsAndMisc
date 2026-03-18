@@ -7,10 +7,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from python_pkg.word_frequency import translator
-from python_pkg.word_frequency.tests._translator_helpers import ArgosAvailableMock
-from python_pkg.word_frequency.translator import (
+from python_pkg.word_frequency._translator_helpers import (
     TranslationResult,
     format_translations,
+)
+from python_pkg.word_frequency.tests._translator_helpers import ArgosAvailableMock
+from python_pkg.word_frequency.translator import (
     translate_word,
     translate_words,
     translate_words_batch,

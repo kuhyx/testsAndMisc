@@ -31,7 +31,7 @@ class ArgosAvailableMock:
     def __enter__(self) -> MagicMock:
         """Set up the mocks."""
         # Set up translate return value
-        if isinstance(self.translate_returns, (Exception, list)):
+        if isinstance(self.translate_returns, Exception | list):
             self.mock_translate_fn.side_effect = self.translate_returns
         elif self.translate_returns is not None:
             self.mock_translate_fn.return_value = self.translate_returns
@@ -70,11 +70,11 @@ class ArgosAvailableMock:
             translator, "_check_argos", return_value=True
         )
 
-        self._sys_modules_patcher.start()  # type: ignore[union-attr]
-        self._argos_module_patcher.start()  # type: ignore[union-attr]
-        self._ensure_patcher.start()  # type: ignore[union-attr]
-        self._lang_patcher.start()  # type: ignore[union-attr]
-        self._check_argos_patcher.start()  # type: ignore[union-attr]
+        self._sys_modules_patcher.start()
+        self._argos_module_patcher.start()
+        self._ensure_patcher.start()
+        self._lang_patcher.start()
+        self._check_argos_patcher.start()
 
         return self.mock_translate_fn
 

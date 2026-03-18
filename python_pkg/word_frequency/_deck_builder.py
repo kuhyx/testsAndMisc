@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
-from python_pkg.word_frequency._types import DeckInput
 from python_pkg.word_frequency.translator import translate_words_batch
+
+if TYPE_CHECKING:
+    from python_pkg.word_frequency._types import DeckInput
 
 
 def find_word_contexts(
@@ -61,27 +64,19 @@ def _format_excerpt_card(
         most_frequent = min(excerpt_words, key=lambda x: x[1])[0]
         rarest = max(excerpt_words, key=lambda x: x[1])[0]
         if most_frequent != rarest:
-            pattern_rare = re.compile(
-                rf"\b({re.escape(rarest)})\b", re.IGNORECASE
-            )
-            excerpt_escaped = pattern_rare.sub(
-                r"<b>\1</b>", excerpt_escaped
-            )
+            pattern_rare = re.compile(rf"\b({re.escape(rarest)})\b", re.IGNORECASE)
+            excerpt_escaped = pattern_rare.sub(r"<b>\1</b>", excerpt_escaped)
             pattern_freq = re.compile(
                 rf"\b({re.escape(most_frequent)})\b",
                 re.IGNORECASE,
             )
-            excerpt_escaped = pattern_freq.sub(
-                r"<i>\1</i>", excerpt_escaped
-            )
+            excerpt_escaped = pattern_freq.sub(r"<i>\1</i>", excerpt_escaped)
         else:
             pattern = re.compile(
                 rf"\b({re.escape(most_frequent)})\b",
                 re.IGNORECASE,
             )
-            excerpt_escaped = pattern.sub(
-                r"<b><i>\1</i></b>", excerpt_escaped
-            )
+            excerpt_escaped = pattern.sub(r"<b><i>\1</i></b>", excerpt_escaped)
     return f"\U0001f4d6 TARGET EXCERPT;{excerpt_escaped};#0"
 
 
@@ -110,13 +105,9 @@ def _build_translation_lookup(
     trans_lookup: dict[str, str] = {}
     for result in translations:
         if result.success:
-            trans_lookup[result.source_word.lower()] = (
-                result.translated_word
-            )
+            trans_lookup[result.source_word.lower()] = result.translated_word
         else:
-            trans_lookup[result.source_word.lower()] = (
-                f"[{result.source_word}]"
-            )
+            trans_lookup[result.source_word.lower()] = f"[{result.source_word}]"
     return trans_lookup
 
 
@@ -176,14 +167,11 @@ def generate_anki_deck(
             if context:
                 context_escaped = context.replace(";", ",")
                 pattern = re.compile(re.escape(word), re.IGNORECASE)
-                context_escaped = pattern.sub(
-                    f"<b>{word}</b>", context_escaped
-                )
+                context_escaped = pattern.sub(f"<b>{word}</b>", context_escaped)
             else:
                 context_escaped = ""
             lines.append(
-                f"{word_escaped};{translation_escaped}"
-                f";#{rank};{context_escaped}"
+                f"{word_escaped};{translation_escaped}" f";#{rank};{context_escaped}"
             )
         else:
             lines.append(f"{word_escaped};{translation_escaped};#{rank}")

@@ -135,6 +135,8 @@ if __name__ == "__main__":
     )
     from python_pkg.praca_magisterska_video.generate_images._process_epc_fc import (
         generate_epc,
+    )
+    from python_pkg.praca_magisterska_video.generate_images._process_fc import (
         generate_flowchart,
     )
 

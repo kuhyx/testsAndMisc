@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
@@ -77,9 +80,7 @@ def load_dictionary(dictionary_dir: Path) -> set[str]:
         # Convert to set for faster lookup (we only need the keys)
         return set(dictionary_data.keys())
     except FileNotFoundError:
-        _logger.warning(
-            "words_dictionary.json not found, using fallback dictionary"
-        )
+        _logger.warning("words_dictionary.json not found, using fallback dictionary")
         return set(_FALLBACK_DICTIONARY)
     except json.JSONDecodeError:
         _logger.warning(

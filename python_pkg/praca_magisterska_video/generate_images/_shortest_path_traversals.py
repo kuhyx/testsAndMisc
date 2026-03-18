@@ -27,6 +27,7 @@ from python_pkg.praca_magisterska_video.generate_images.generate_shortest_path_d
 
 _logger = logging.getLogger(__name__)
 
+
 # ============================================================
 # 1. Graph structure diagram
 # ============================================================
@@ -139,9 +140,7 @@ def draw_dijkstra_traversal() -> None:
         },
         {
             "title": (
-                "Krok 4: WYNIK"
-                " — wszystkie przetworzone\n"
-                "d = {A:0, B:2, C:4, D:5}"
+                "Krok 4: WYNIK" " — wszystkie przetworzone\n" "d = {A:0, B:2, C:4, D:5}"
             ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "5"},
             "current": None,
@@ -153,8 +152,7 @@ def draw_dijkstra_traversal() -> None:
 
     fig, axes = plt.subplots(1, 5, figsize=(14, 3.5))
     fig.suptitle(
-        "Dijkstra — przejście grafu krok po kroku"
-        " (zachłannie: zawsze bierz min d)",
+        "Dijkstra — przejście grafu krok po kroku" " (zachłannie: zawsze bierz min d)",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=1.02,

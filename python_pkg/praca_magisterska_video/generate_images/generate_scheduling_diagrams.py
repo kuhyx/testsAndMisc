@@ -2,7 +2,7 @@
 """Generate diagrams for PYTANIE 17: Szeregowanie zadań (Scheduling).
 
 Diagrams:
-  1. Graham notation α|β|γ visual mnemonic map
+  1. Graham notation a|b|y visual mnemonic map
   2. Johnson's algorithm Gantt chart (F2||Cmax example)
   3. SPT vs LPT comparison Gantt (1||ΣCⱼ)
   4. Flow shop vs Job shop visual comparison

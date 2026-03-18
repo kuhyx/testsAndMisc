@@ -83,9 +83,7 @@ def draw_tm_recognition() -> None:
                 linestyle=ls,
             )
             ax.add_patch(rect)
-            bold = (
-                "bold" if sym in ("X", "Y") else "normal"
-            )
+            bold = "bold" if sym in ("X", "Y") else "normal"
             clr = GRAY3 if sym == "⊔" else LN
             ax.text(
                 x + cell_w / 2,
@@ -109,11 +107,7 @@ def draw_tm_recognition() -> None:
             color=GRAY3,
         )
         if head_pos is not None:
-            hx = (
-                tape_x0
-                + head_pos * cell_w
-                + cell_w / 2
-            )
+            hx = tape_x0 + head_pos * cell_w + cell_w / 2
             ax.annotate(
                 "▼",
                 xy=(hx, tape_y + cell_h),
@@ -144,25 +138,96 @@ def draw_tm_recognition() -> None:
     bl = "#F0F0F0"  # blank cell
 
     tape_rows = [
-        (9.0, [("0", white), ("0", white), ("1", white),
-               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
-         0, "Początek", "taśma = [0,0,1,1,⊔,⊔,...∞]"),
-        (7.8, [("X", mk), ("0", white), ("1", white),
-               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
-         1, "R1, krok 1", "zaznacz 0→X, idź w prawo"),
-        (6.6, [("X", mk), ("0", white), ("Y", mk),
-               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
-         0, "R1, krok 2", "zaznacz 1→Y, wróć na początek"),
-        (4.8, [("X", mk), ("X", mk), ("Y", mk),
-               ("1", white), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
-         2, "R2, krok 1", "pomiń X, zaznacz 0→X"),
-        (3.6, [("X", mk), ("X", mk), ("Y", mk),
-               ("Y", mk), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
-         0, "R2, krok 2", "pomiń Y, zaznacz 1→Y, wróć"),
-        (2.4, [("X", mk), ("X", mk), ("Y", mk),
-               ("Y", mk), ("⊔", bl), ("⊔", bl), ("⊔", bl)],
-         None, "Sprawdzenie",
-         "brak niezaznaczonych → q_acc"),
+        (
+            9.0,
+            [
+                ("0", white),
+                ("0", white),
+                ("1", white),
+                ("1", white),
+                ("⊔", bl),
+                ("⊔", bl),
+                ("⊔", bl),
+            ],
+            0,
+            "Początek",
+            "taśma = [0,0,1,1,⊔,⊔,...∞]",
+        ),
+        (
+            7.8,
+            [
+                ("X", mk),
+                ("0", white),
+                ("1", white),
+                ("1", white),
+                ("⊔", bl),
+                ("⊔", bl),
+                ("⊔", bl),
+            ],
+            1,
+            "R1, krok 1",
+            "zaznacz 0→X, idź w prawo",
+        ),
+        (
+            6.6,
+            [
+                ("X", mk),
+                ("0", white),
+                ("Y", mk),
+                ("1", white),
+                ("⊔", bl),
+                ("⊔", bl),
+                ("⊔", bl),
+            ],
+            0,
+            "R1, krok 2",
+            "zaznacz 1→Y, wróć na początek",
+        ),
+        (
+            4.8,
+            [
+                ("X", mk),
+                ("X", mk),
+                ("Y", mk),
+                ("1", white),
+                ("⊔", bl),
+                ("⊔", bl),
+                ("⊔", bl),
+            ],
+            2,
+            "R2, krok 1",
+            "pomiń X, zaznacz 0→X",
+        ),
+        (
+            3.6,
+            [
+                ("X", mk),
+                ("X", mk),
+                ("Y", mk),
+                ("Y", mk),
+                ("⊔", bl),
+                ("⊔", bl),
+                ("⊔", bl),
+            ],
+            0,
+            "R2, krok 2",
+            "pomiń Y, zaznacz 1→Y, wróć",
+        ),
+        (
+            2.4,
+            [
+                ("X", mk),
+                ("X", mk),
+                ("Y", mk),
+                ("Y", mk),
+                ("⊔", bl),
+                ("⊔", bl),
+                ("⊔", bl),
+            ],
+            None,
+            "Sprawdzenie",
+            "brak niezaznaczonych → q_acc",
+        ),
     ]
 
     # Runda 2 header
@@ -178,9 +243,7 @@ def draw_tm_recognition() -> None:
     )
 
     for row_y, cells, head, lbl, step in tape_rows:
-        draw_tape(
-            row_y, cells, head, lbl, step_label=step
-        )
+        draw_tape(row_y, cells, head, lbl, step_label=step)
 
     # Result + TM vs LBA comparison
     tape_y = 0.8

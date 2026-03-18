@@ -74,9 +74,7 @@ def draw_pda_recognition() -> None:
         states["q₂"],
         state_r,
         "q₂",
-        StateStyle(
-            accepting=True, fillcolor=LIGHT_GREEN
-        ),
+        StateStyle(accepting=True, fillcolor=LIGHT_GREEN),
     )
 
     # q₀ --b,A/ε--> q₁
@@ -140,8 +138,7 @@ def draw_pda_recognition() -> None:
     ax2 = axes[1]
     ax2.axis("off")
     ax2.set_title(
-        "Ślad wykonania z wizualizacją stosu"
-        ' — wejście: "aabb"',
+        "Ślad wykonania z wizualizacją stosu" ' — wejście: "aabb"',
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,

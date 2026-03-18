@@ -21,6 +21,7 @@ from python_pkg.praca_magisterska_video.generate_images.generate_pattern_diagram
 
 _logger = logging.getLogger(__name__)
 
+
 # ============================================================
 # 5. Pattern Language Navigation Graph
 # ============================================================
@@ -45,24 +46,32 @@ def generate_pattern_language_navigation() -> None:
     nodes = [
         (1.5, 10.5, "Monolith\nnie skaluje się", False, "white"),
         (
-            1.5, 8.2,
+            1.5,
+            8.2,
             "Jak routować\nżądania do\nserwisów?",
-            False, "white",
+            False,
+            "white",
         ),
         (
-            1.5, 5.9,
+            1.5,
+            5.9,
             "Co gdy serwis\nnie odpowiada?",
-            False, "white",
+            False,
+            "white",
         ),
         (
-            1.5, 3.6,
+            1.5,
+            3.6,
             "Jak zachować\nspójność\ntransakcji?",
-            False, "white",
+            False,
+            "white",
         ),
         (
-            1.5, 1.3,
+            1.5,
+            1.3,
             "Jak odnaleźć\nadres serwisu?",
-            False, "white",
+            False,
+            "white",
         ),
         (7.0, 9.3, "Microservices", True, GRAY2),
         (7.0, 7.0, "API Gateway", True, GRAY2),
@@ -179,8 +188,12 @@ def generate_pattern_language_navigation() -> None:
     )
     ax.add_patch(r1)
     ax.text(
-        1.75, legend_y, "Problem",
-        ha="center", va="center", fontsize=7,
+        1.75,
+        legend_y,
+        "Problem",
+        ha="center",
+        va="center",
+        fontsize=7,
     )
     r2 = FancyBboxPatch(
         (3.5, legend_y - 0.2),
@@ -213,9 +226,7 @@ def generate_pattern_language_navigation() -> None:
     )
 
     fig.tight_layout()
-    out = str(
-        Path(OUTPUT_DIR) / "q14_pattern_language_navigation.png"
-    )
+    out = str(Path(OUTPUT_DIR) / "q14_pattern_language_navigation.png")
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     _logger.info("  Saved: %s", out)

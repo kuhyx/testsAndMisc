@@ -13,6 +13,7 @@ from python_pkg.word_frequency._parsing import (
     parse_inverse_mode_output,
     parse_vocabulary_curve_output,
 )
+from python_pkg.word_frequency._translator_helpers import detect_language
 from python_pkg.word_frequency._types import (
     C_EXECUTABLE,
     DeckInput,
@@ -24,7 +25,6 @@ from python_pkg.word_frequency.cache import (
     get_anki_deck_cache,
     get_vocab_curve_cache,
 )
-from python_pkg.word_frequency.translator import detect_language
 
 
 def run_vocabulary_curve(
@@ -252,9 +252,7 @@ def generate_flashcards(
         source_lang = _detect_source_language(filepath, text)
 
     # Run vocabulary curve analysis with vocab dump for all words
-    output = run_vocabulary_curve(
-        filepath, excerpt_length, dump_vocab=all_vocab
-    )
+    output = run_vocabulary_curve(filepath, excerpt_length, dump_vocab=all_vocab)
     excerpt, excerpt_words, all_vocab_words = parse_vocabulary_curve_output(
         output, excerpt_length
     )
@@ -332,11 +330,9 @@ def generate_flashcards_inverse(
     if source_lang is None:
         source_lang = _detect_source_language(filepath, text)
 
-    output = run_vocabulary_curve_inverse(
-        filepath, max_vocab, dump_vocab=True
-    )
-    excerpt, excerpt_length, max_rank_used, all_vocab_words = (
-        parse_inverse_mode_output(output)
+    output = run_vocabulary_curve_inverse(filepath, max_vocab, dump_vocab=True)
+    excerpt, excerpt_length, max_rank_used, all_vocab_words = parse_inverse_mode_output(
+        output
     )
 
     if excerpt_length == 0:
@@ -354,9 +350,7 @@ def generate_flashcards_inverse(
 
     excerpt_word_set = set(excerpt.lower().split())
     excerpt_words = [
-        (w, r)
-        for w, r in all_vocab_words
-        if w.lower() in excerpt_word_set
+        (w, r) for w, r in all_vocab_words if w.lower() in excerpt_word_set
     ]
 
     contexts = None

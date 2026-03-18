@@ -69,6 +69,9 @@ unfixable = []
 "poker_modifier_app/poker_modifier_app.py" = [
     "FBT003",  # Boolean positional values in tkinter API calls
 ]
+"poker_modifier_app/_poker_gui.py" = [
+    "FBT003",  # Boolean positional values in tkinter API calls
+]
 "python_pkg/keyboard_coop/main.py" = [
     "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)
 ]
@@ -91,7 +94,42 @@ unfixable = []
 ]
 # Thesis diagram generation scripts - matplotlib plotting helpers need many params
 "python_pkg/praca_magisterska_video/**/*.py" = [
+    "E501",    # Long import lines for deeply nested module paths
     "PLR0913", # Matplotlib drawing functions inherently require many parameters
+]
+# Transcribe framework - lazy imports for large optional dependencies
+"linux_configuration/scripts/misc/testsAndMisc-bash/tools/transcribe_fw.py" = [
+    "PLC0415", # Lazy imports of split helper modules
+]
+# Moviepy showcase - lazy imports of split helpers
+"moviepy_showcase.py" = [
+    "INP001",
+    "PLC0415", # Lazy imports of split helper modules
+]
+# Puzzle solver - late imports for CLI entry point
+"puzzle_solver/main.py" = [
+    "PLC0415", # Late imports in __main__ guard
+]
+# Geo data admin helper
+"python_pkg/geo_data/_poland_admin.py" = [
+    "PLC0415", # Late imports for optional geo dependency
+]
+# Music generation helpers - lazy imports for large optional deps
+"python_pkg/music_gen/_music_generation.py" = [
+    "PLC0415", # Lazy imports of torch/torchaudio
+]
+"python_pkg/music_gen/_music_speech.py" = [
+    "PLC0415", # Lazy imports of TTS/torch
+]
+# Thesis visualization script
+"python_pkg/praca_magisterska_video/visualize_q02.py" = [
+    "PLC0415", # Late import for conditional dependency
+]
+# Root-level helper scripts and test files outside packages
+"_moviepy_*.py" = ["INP001"]
+"tests/test_file_length.py" = ["INP001"]
+"python_pkg/word_frequency/_translator_cli.py" = [
+    "SLF001",  # Legitimately accesses translator module internals
 ]
 
 
@@ -155,6 +193,8 @@ exclude = [
     ".venv/",
     "python_pkg/music_gen/",  # Uses dynamic imports from transformers
     "python_pkg/praca_magisterska_video/",  # Thesis plotting scripts
+    "pomodoro_app/tools/",  # Avoid duplicate module named 'tools'
+    "linux_configuration/scripts/misc/testsAndMisc-bash/tools/",  # Avoid duplicate module named 'tools'
 ]
 
 # ============================================================================

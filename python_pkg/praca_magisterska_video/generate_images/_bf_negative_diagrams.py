@@ -32,7 +32,6 @@ from python_pkg.praca_magisterska_video.generate_images.generate_bf_negative_dia
 _logger = logging.getLogger(__name__)
 
 
-
 def _add_annotation_box(
     ax: Axes,
     x: float,
@@ -83,10 +82,7 @@ def generate_bf_negative_weights() -> None:
     draw_neg_graph(
         ax1,
         NEG_EDGES,
-        title=(
-            "Graf z ujemną wagą\n"
-            "(B→A = -4, zaznaczona na czerwono)"
-        ),
+        title=("Graf z ujemną wagą\n" "(B→A = -4, zaznaczona na czerwono)"),
         dist={"S": "0", "A": "?", "B": "?", "C": "?"},
     )
     ax1.annotate(
@@ -110,8 +106,7 @@ def generate_bf_negative_weights() -> None:
         ax2,
         NEG_EDGES,
         title=(
-            "Dijkstra \u2014 BŁĘDNY wynik\n"
-            "A zamknięty z d=2, nie poprawia przy B→A"
+            "Dijkstra \u2014 BŁĘDNY wynik\n" "A zamknięty z d=2, nie poprawia przy B→A"
         ),
         dist={"S": "0", "A": "2", "B": "5", "C": "5"},
         visited={"S", "A", "B", "C"},
@@ -167,16 +162,18 @@ def generate_bf_negative_weights() -> None:
     # Row 2: B-F iterations step by step
     iterations = [
         {
-            "title": (
-                "B-F Iteracja 1\n"
-                "Relaksuj WSZYSTKIE krawędzie"
-            ),
+            "title": ("B-F Iteracja 1\n" "Relaksuj WSZYSTKIE krawędzie"),
             "dist": {
-                "S": "0", "A": "1", "B": "5", "C": "5",
+                "S": "0",
+                "A": "1",
+                "B": "5",
+                "C": "5",
             },
             "relaxed": {
-                ("S", "A"), ("A", "C"),
-                ("S", "B"), ("B", "A"),
+                ("S", "A"),
+                ("A", "C"),
+                ("S", "B"),
+                ("B", "A"),
             },
             "detail": (
                 "S→A: 0+2=2<∞ → A=2\n"
@@ -186,12 +183,12 @@ def generate_bf_negative_weights() -> None:
             ),
         },
         {
-            "title": (
-                "B-F Iteracja 2\n"
-                "Propagacja poprawionego A"
-            ),
+            "title": ("B-F Iteracja 2\n" "Propagacja poprawionego A"),
             "dist": {
-                "S": "0", "A": "1", "B": "5", "C": "4",
+                "S": "0",
+                "A": "1",
+                "B": "5",
+                "C": "4",
             },
             "relaxed": {("A", "C")},
             "detail": (
@@ -202,12 +199,12 @@ def generate_bf_negative_weights() -> None:
             ),
         },
         {
-            "title": (
-                "B-F Iteracja 3\n"
-                "Brak zmian → stabilne!"
-            ),
+            "title": ("B-F Iteracja 3\n" "Brak zmian → stabilne!"),
             "dist": {
-                "S": "0", "A": "1", "B": "5", "C": "4",
+                "S": "0",
+                "A": "1",
+                "B": "5",
+                "C": "4",
             },
             "relaxed": set(),
             "detail": (
@@ -296,10 +293,7 @@ def generate_bf_negative_cycle() -> None:
     draw_neg_graph(
         ax1,
         NEG_EDGES,
-        title=(
-            "Graf z cyklem ujemnym\n"
-            "Dodana krawędź C→B(-3) \u2014 przerywana"
-        ),
+        title=("Graf z cyklem ujemnym\n" "Dodana krawędź C→B(-3) \u2014 przerywana"),
         dist={"S": "0", "A": "?", "B": "?", "C": "?"},
         extra_edges=[("C", "B", -3)],
     )
@@ -324,10 +318,7 @@ def generate_bf_negative_cycle() -> None:
     draw_neg_graph(
         ax2,
         NEG_EDGES,
-        title=(
-            "Po V-1=3 iteracjach\n"
-            "dist wciąż maleje (niestabilne!)"
-        ),
+        title=("Po V-1=3 iteracjach\n" "dist wciąż maleje (niestabilne!)"),
         dist={"S": "0", "A": "-7", "B": "-4", "C": "-4"},
         visited={"S", "A", "B", "C"},
         error_nodes={"A", "B", "C"},
@@ -336,9 +327,7 @@ def generate_bf_negative_cycle() -> None:
     ax2.text(
         3.2,
         -0.4,
-        "Każde okrążenie cyklu\n"
-        "zmniejsza dist o 4.\n"
-        "Dist → -∞ (brak minimum!)",
+        "Każde okrążenie cyklu\n" "zmniejsza dist o 4.\n" "Dist → -∞ (brak minimum!)",
         ha="center",
         va="top",
         fontsize=FS_SMALL,
@@ -423,5 +412,3 @@ def generate_bf_negative_cycle() -> None:
     )
     plt.close()
     _logger.info("  ✓ bellman_ford_negative_cycle.png")
-
-

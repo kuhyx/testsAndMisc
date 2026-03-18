@@ -62,9 +62,7 @@ def _check_cache(
     hh = _try_import("huggingface_hub")
     if hh is None:
         return None
-    cache_path = hh.try_to_load_from_cache(
-        repo_id, "model.bin"
-    )
+    cache_path = hh.try_to_load_from_cache(repo_id, "model.bin")
     if cache_path is not None:
         parent = str(Path(cache_path).parent)
         logger.info(
@@ -90,8 +88,7 @@ def _download_files(
         repo_id,
     )
     logger.info(
-        "This may take several minutes for large "
-        "models (~3GB for large-v3)",
+        "This may take several minutes for large " "models (~3GB for large-v3)",
     )
 
     _log_total_download_size(repo_id, required_files)
@@ -111,11 +108,7 @@ def _download_files(
             )
             elapsed = time.time() - file_start
             lp = Path(local_path)
-            file_size = (
-                lp.stat().st_size
-                if lp.exists()
-                else 0
-            )
+            file_size = lp.stat().st_size if lp.exists() else 0
             logger.info(
                 "done (%s, %.1fs)",
                 _format_bytes(file_size),
@@ -134,9 +127,7 @@ def _download_files(
     return model_dir
 
 
-def _log_total_download_size(
-    repo_id: str, required_files: list[str]
-) -> None:
+def _log_total_download_size(repo_id: str, required_files: list[str]) -> None:
     """Log total download size if available."""
     hh = _try_import("huggingface_hub")
     if hh is None:
@@ -147,8 +138,7 @@ def _log_total_download_size(
         total_size = sum(
             f.get("size", 0)
             for f in files_info
-            if f.get("name", "").split("/")[-1]
-            in required_files
+            if f.get("name", "").split("/")[-1] in required_files
         )
         logger.info(
             "Total download size: ~%s",
@@ -166,8 +156,7 @@ def download_model_with_progress(
     hh = _try_import("huggingface_hub")
     if hh is None:
         logger.warning(
-            "huggingface_hub not available, "
-            "falling back to default download",
+            "huggingface_hub not available, " "falling back to default download",
         )
         return model_name
 
@@ -192,8 +181,7 @@ def download_model_with_progress(
         return _download_files(repo_id, required_files)
     except (OSError, RuntimeError) as exc:
         logger.warning(
-            "Custom download failed (%s), "
-            "falling back to default",
+            "Custom download failed (%s), " "falling back to default",
             exc,
         )
         return model_name

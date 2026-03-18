@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from python_pkg.word_frequency._learning_constants import LessonConfig
 from python_pkg.word_frequency.excerpt_finder import find_best_excerpt
 import python_pkg.word_frequency.translator as _translator
+
+if TYPE_CHECKING:
+    from python_pkg.word_frequency._learning_constants import LessonConfig
 
 
 def _detect_translation_language(
@@ -18,9 +21,7 @@ def _detect_translation_language(
     actual_from = config.translate_from
     actual_to = config.translate_to or "en"
 
-    if actual_from == "auto" or (
-        config.translate_to and not config.translate_from
-    ):
+    if actual_from == "auto" or (config.translate_to and not config.translate_from):
         detected = _translator.detect_language(text)
         if detected:
             actual_from = detected
@@ -45,7 +46,8 @@ def _format_word_list(
     """Format the vocabulary word list for a batch."""
     lines: list[str] = []
     for i, (word, count) in enumerate(
-        batch_words, start=start_idx + 1,
+        batch_words,
+        start=start_idx + 1,
     ):
         percentage = (count / total_words) * 100
         if translations:
@@ -97,51 +99,43 @@ def _generate_batch_section(
 
     # Get translations if requested
     translations: dict[str, str] = {}
-    do_translate = (
-        config.translate_from is not None
-        and config.translate_to is not None
-    )
+    do_translate = config.translate_from is not None and config.translate_to is not None
     if do_translate:
         words_to_translate = [word for word, _ in batch_words]
         translation_results = _translator.translate_words_batch(
             words_to_translate,
-            config.translate_from,  # type: ignore[arg-type]
-            config.translate_to,  # type: ignore[arg-type]
+            config.translate_from,
+            config.translate_to,
         )
         translations = {
-            r.source_word: r.translated_word
-            for r in translation_results
-            if r.success
+            r.source_word: r.translated_word for r in translation_results if r.success
         }
 
     lines.append("VOCABULARY TO LEARN:")
     lines.append("")
     lines.extend(
         _format_word_list(
-            batch_words, start_idx, total_words, translations,
+            batch_words,
+            start_idx,
+            total_words,
+            translations,
         )
     )
     lines.append("")
 
     # Cumulative coverage
     cumulative_count = sum(
-        ctx.word_counts[w]
-        for w in cumulative_words
-        if w in ctx.word_counts
+        ctx.word_counts[w] for w in cumulative_words if w in ctx.word_counts
     )
     coverage = (cumulative_count / total_words) * 100
     lines.append(
-        "After learning these words, "
-        f"you'll recognize ~{coverage:.1f}% of the text"
+        "After learning these words, " f"you'll recognize ~{coverage:.1f}% of the text"
     )
     lines.append("")
 
     # Excerpts
     lines.append("PRACTICE EXCERPTS:")
-    lines.append(
-        "(Excerpts where your learned vocabulary "
-        "is most concentrated)"
-    )
+    lines.append("(Excerpts where your learned vocabulary " "is most concentrated)")
     lines.append("")
 
     excerpts = find_best_excerpt(
@@ -154,8 +148,7 @@ def _generate_batch_section(
 
     for j, excerpt in enumerate(excerpts, 1):
         lines.append(
-            f"  Excerpt {j} "
-            f"({excerpt.match_percentage:.1f}% known words):"
+            f"  Excerpt {j} " f"({excerpt.match_percentage:.1f}% known words):"
         )
         lines.append(f'  "{excerpt.excerpt}"')
         lines.append("")

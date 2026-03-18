@@ -47,7 +47,7 @@ class LichessAPI:
         t0 = time.monotonic()
         _logger.info("HTTP %s %s -> sending", method, url)
         try:
-            r = self.session.request(method, url, **kwargs)  # type: ignore[arg-type]
+            r = self.session.request(method, url, **kwargs)
         except Exception:
             _logger.exception("HTTP %s %s -> exception", method, url)
             raise

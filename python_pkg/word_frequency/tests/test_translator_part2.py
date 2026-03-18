@@ -2,22 +2,27 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from python_pkg.word_frequency import translator
+from python_pkg.word_frequency._translator_helpers import (
+    format_translations,
+    read_file,
+)
 from python_pkg.word_frequency.tests._translator_helpers import ArgosAvailableMock
 from python_pkg.word_frequency.translator import (
     download_languages,
-    format_translations,
     get_available_packages,
     get_installed_languages,
     main,
-    read_file,
     translate_words,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # get_installed_languages tests
 
@@ -52,9 +57,7 @@ class TestGetInstalledLanguages:
 
         with (
             patch.object(translator, "_check_argos", return_value=True),
-            patch.object(
-                translator, "argostranslate", mock_parent, create=True
-            ),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
                 {
@@ -137,9 +140,7 @@ class TestMain:
 
         with (
             patch.object(translator, "_check_argos", return_value=True),
-            patch.object(
-                translator, "argostranslate", mock_parent, create=True
-            ),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
                 {
@@ -172,9 +173,7 @@ class TestMain:
 
         with (
             patch.object(translator, "_check_argos", return_value=True),
-            patch.object(
-                translator, "argostranslate", mock_parent, create=True
-            ),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
                 {

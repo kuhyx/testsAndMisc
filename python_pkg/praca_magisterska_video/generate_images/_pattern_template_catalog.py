@@ -26,6 +26,7 @@ from python_pkg.praca_magisterska_video.generate_images.generate_pattern_diagram
 
 _logger = logging.getLogger(__name__)
 
+
 def generate_pattern_template() -> None:
     """Generate pattern template diagram with NaPSiRoKo mnemonic."""
     fig, ax = plt.subplots(figsize=(8.27, 6))
@@ -77,8 +78,7 @@ def generate_pattern_template() -> None:
         (
             "Si",
             "SIŁY (forces)",
-            "Konkurencyjne wymagania do pogodzenia\n"
-            "(np. testowalność vs wydajność)",
+            "Konkurencyjne wymagania do pogodzenia\n" "(np. testowalność vs wydajność)",
             GRAY1,
         ),
         ("Ro", "ROZWIĄZANIE", "Struktura, diagram, zachowanie", "white"),
@@ -245,9 +245,7 @@ def generate_catalog_map() -> None:
             va="center",
             fontstyle="italic",
         )
-        ax.plot(
-            [0.15, 0.45], [sy, sy], color=GRAY3, lw=0.8, ls="--"
-        )
+        ax.plot([0.15, 0.45], [sy, sy], color=GRAY3, lw=0.8, ls="--")
 
     # X-axis: Domain
     ax.text(
@@ -274,8 +272,7 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "POSA",
-            "1996 • Buschmann\nLayers, Broker,\n"
-            "Pipes & Filters, MVC",
+            "1996 • Buschmann\nLayers, Broker,\n" "Pipes & Filters, MVC",
             GRAY1,
             "P",
         ),
@@ -285,8 +282,7 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "GoF",
-            "1994 • Gamma et al.\n23 wzorce:\n"
-            "5 kreac. / 7 strukt. / 11 behaw.",
+            "1994 • Gamma et al.\n23 wzorce:\n" "5 kreac. / 7 strukt. / 11 behaw.",
             GRAY2,
             "G",
         ),
@@ -296,8 +292,7 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "EIP",
-            "2003 • Hohpe & Woolf\nMessage Channel,\n"
-            "Router, Aggregator",
+            "2003 • Hohpe & Woolf\nMessage Channel,\n" "Router, Aggregator",
             GRAY1,
             "E",
         ),
@@ -307,8 +302,7 @@ def generate_catalog_map() -> None:
             2.5,
             1.4,
             "PoEAA",
-            "2002 • M. Fowler\nRepository,"
-            " Unit of Work,\nDomain Model",
+            "2002 • M. Fowler\nRepository," " Unit of Work,\nDomain Model",
             "white",
             "P",
         ),
@@ -318,8 +312,7 @@ def generate_catalog_map() -> None:
             2.8,
             1.4,
             "Cloud\nPatterns",
-            "~2015 • Azure/AWS\nCircuit Breaker,\n"
-            "Saga, Sidecar",
+            "~2015 • Azure/AWS\nCircuit Breaker,\n" "Saga, Sidecar",
             GRAY1,
             "C",
         ),

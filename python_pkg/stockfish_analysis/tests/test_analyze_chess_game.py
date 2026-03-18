@@ -9,15 +9,17 @@ import chess
 import chess.engine
 import pytest
 
+from python_pkg.stockfish_analysis._move_analysis import (
+    classify_cp_loss,
+    fmt_eval,
+    score_to_cp,
+)
 from python_pkg.stockfish_analysis.analyze_chess_game import (
     _auto_hash_mb,
     _detect_total_mem_mb,
     _parse_hash_mb,
     _parse_threads,
-    classify_cp_loss,
     extract_pgn_text,
-    fmt_eval,
-    score_to_cp,
 )
 
 

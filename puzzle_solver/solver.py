@@ -327,4 +327,4 @@ def print_solution(puzzle: Puzzle, moves: list[str]) -> None:
         result = _simulate_move(puzzle, state, dr, dc)
         if result is None:
             return
-        state, goal = result
+        state, _goal = result

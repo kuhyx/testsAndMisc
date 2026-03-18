@@ -25,7 +25,7 @@ try:
     import argostranslate.package
     import argostranslate.translate
 except ImportError:
-    argostranslate = None  # type: ignore[assignment]
+    argostranslate = None
 
 try:
     from python_pkg.word_frequency.cache import (
@@ -45,6 +45,20 @@ from python_pkg.word_frequency._translator_helpers import (
     format_translations,
     read_file,
 )
+
+__all__ = [
+    "TranslationResult",
+    "detect_language",
+    "download_languages",
+    "format_translations",
+    "get_available_packages",
+    "get_installed_languages",
+    "main",
+    "read_file",
+    "translate_word",
+    "translate_words",
+    "translate_words_batch",
+]
 
 logger = logging.getLogger(__name__)
 

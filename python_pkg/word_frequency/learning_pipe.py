@@ -50,7 +50,6 @@ from python_pkg.word_frequency._learning_batch import (
     _LessonContext,
 )
 from python_pkg.word_frequency._learning_constants import (
-    DEFAULT_STOPWORDS_EN,
     LessonConfig,
     _resolve_stopwords,
     load_stopwords,

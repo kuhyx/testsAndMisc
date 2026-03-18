@@ -75,8 +75,7 @@ def _dijkstra_steps() -> list[CompositeVideoClip]:
                 visited={"S", "A"},
                 active_edge=("B", "A"),
                 step_text=(
-                    "Zamknij A. Min=B(5). B→A: 5+1=6>2, "
-                    "nie zmieniaj. B→C: 5+6=11>5."
+                    "Zamknij A. Min=B(5). B→A: 5+1=6>2, " "nie zmieniaj. B→C: 5+6=11>5."
                 ),
                 algo_name="Algorytm Dijkstry",
             ),
@@ -89,8 +88,7 @@ def _dijkstra_steps() -> list[CompositeVideoClip]:
                 current="C",
                 visited={"S", "A", "B"},
                 step_text=(
-                    "Zamknij B. Min=C(5). Koniec! "
-                    "Wynik: d={S:0, A:2, B:5, C:5}."
+                    "Zamknij B. Min=C(5). Koniec! " "Wynik: d={S:0, A:2, B:5, C:5}."
                 ),
                 algo_name="Dijkstra -- WYNIK",
             ),
@@ -121,8 +119,7 @@ def _bellman_ford_steps() -> list[CompositeVideoClip]:
                 {"S": "0", "A": "2", "B": "5", "C": "5"},
                 active_edge=("S", "A"),
                 step_text=(
-                    "Iteracja 1: S→A:2, A→C:5, S→B:5. "
-                    "Potem B→A: 5+(-4)=1 < 2 → A=1!"
+                    "Iteracja 1: S→A:2, A→C:5, S→B:5. " "Potem B→A: 5+(-4)=1 < 2 → A=1!"
                 ),
                 algo_name="Bellman-Ford -- iteracja 1",
             ),
@@ -147,8 +144,7 @@ def _bellman_ford_steps() -> list[CompositeVideoClip]:
                 {"S": "0", "A": "1", "B": "5", "C": "4"},
                 active_edge=("A", "C"),
                 step_text=(
-                    "Iteracja 2: A→C: 1+3=4 < 5 → C=4. "
-                    "Propagacja poprawionego A."
+                    "Iteracja 2: A→C: 1+3=4 < 5 → C=4. " "Propagacja poprawionego A."
                 ),
                 algo_name="Bellman-Ford -- iteracja 2",
             ),
@@ -193,8 +189,7 @@ def _astar_steps() -> list[CompositeVideoClip]:
                 current="S",
                 active_edge=("S", "A"),
                 step_text=(
-                    "Relaksuj S: A(g=2,f=2+3=5), "
-                    "B(g=5,f=5+4=9). Min f → A(5)."
+                    "Relaksuj S: A(g=2,f=2+3=5), " "B(g=5,f=5+4=9). Min f → A(5)."
                 ),
                 algo_name="A* -- rozwijanie S",
             ),
@@ -208,8 +203,7 @@ def _astar_steps() -> list[CompositeVideoClip]:
                 visited={"S"},
                 active_edge=("A", "C"),
                 step_text=(
-                    "Rozwiń A(f=5): A→C: g=2+3=5, "
-                    "f=5+0=5. Min f → C(5) = CEL!"
+                    "Rozwiń A(f=5): A→C: g=2+3=5, " "f=5+0=5. Min f → C(5) = CEL!"
                 ),
                 algo_name="A* -- rozwijanie A",
             ),

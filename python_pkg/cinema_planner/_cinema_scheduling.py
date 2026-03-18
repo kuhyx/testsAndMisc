@@ -66,10 +66,7 @@ def find_best_schedule(
             if len(current_schedule) > best_count:
                 best_count = len(current_schedule)
                 all_best_schedules = [current_schedule.copy()]
-            elif (
-                len(current_schedule) == best_count
-                and best_count > 0
-            ):
+            elif len(current_schedule) == best_count and best_count > 0:
                 all_best_schedules.append(current_schedule.copy())
             return
 
@@ -80,10 +77,7 @@ def find_best_schedule(
 
         # Try each screening of current movie
         for screening in movie_screenings[movie_idx]:
-            conflicts = any(
-                screening.overlaps(s, buffer)
-                for s in current_schedule
-            )
+            conflicts = any(screening.overlaps(s, buffer) for s in current_schedule)
             if not conflicts:
                 current_schedule.append(screening)
                 _backtrack(movie_idx + 1, current_schedule)
@@ -95,10 +89,7 @@ def find_best_schedule(
     _backtrack(0, [])
 
     # Sort each schedule by start time and return
-    return [
-        sorted(schedule, key=lambda s: s.start)
-        for schedule in all_best_schedules
-    ]
+    return [sorted(schedule, key=lambda s: s.start) for schedule in all_best_schedules]
 
 
 def _format_single_schedule(
@@ -110,16 +101,13 @@ def _format_single_schedule(
         duration = screening.end - screening.start
         hours, mins = divmod(duration, 60)
         actual_start = screening.start + ADS_DURATION
-        actual_start_str = (
-            f"{actual_start // 60:02d}:{actual_start % 60:02d}"
-        )
+        actual_start_str = f"{actual_start // 60:02d}:{actual_start % 60:02d}"
         output.write(
             f"  {i}. {screening.start_str()} - "
             f"{screening.end_str()}  {screening.movie}\n"
         )
         output.write(
-            f"     Duration: {hours}h {mins}m "
-            f"(movie starts ~{actual_start_str})\n"
+            f"     Duration: {hours}h {mins}m " f"(movie starts ~{actual_start_str})\n"
         )
         if i < len(schedule):
             gap = schedule[i].start - screening.end
@@ -156,8 +144,7 @@ def _format_schedules(
     else:
         output.write("  OPTIMAL CINEMA SCHEDULES\n")
     output.write(
-        f"  {num_movies} movies, "
-        f"{num_schedules} possible combination(s)\n"
+        f"  {num_movies} movies, " f"{num_schedules} possible combination(s)\n"
     )
     output.write(f"{sep}\n\n")
 
@@ -172,8 +159,7 @@ def _format_schedules(
     if num_schedules > display_count:
         output.write(f"{thin_sep}\n")
         output.write(
-            f"  ... and {num_schedules - display_count} "
-            "more combinations\n"
+            f"  ... and {num_schedules - display_count} " "more combinations\n"
         )
         output.write("  (use -n to show more, e.g., -n 10)\n")
         output.write("\n")
@@ -209,14 +195,9 @@ def _format_all_movies(
     output.write(f"{thin_sep}\n")
     for movie in movies:
         times_str = ", ".join(
-            f"{t // 60:02d}:{t % 60:02d}"
-            for t in sorted(movie.start_times)
+            f"{t // 60:02d}:{t % 60:02d}" for t in sorted(movie.start_times)
         )
-        genre_str = (
-            f" [{', '.join(movie.genres)}]" if movie.genres else ""
-        )
-        output.write(
-            f"  {movie.name} ({movie.duration} min){genre_str}\n"
-        )
+        genre_str = f" [{', '.join(movie.genres)}]" if movie.genres else ""
+        output.write(f"  {movie.name} ({movie.duration} min){genre_str}\n")
         output.write(f"    Times: {times_str}\n")
     output.write("\n")

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from python_pkg.keyboard_coop._dictionary import load_dictionary
 
 if TYPE_CHECKING:
     from python_pkg.keyboard_coop.main import KeyboardCoopGame
@@ -187,18 +190,8 @@ class TestLoadDictionary:
 
     def test_fallback_dictionary_used(self) -> None:
         """Test fallback dictionary when file not found."""
-        mock_pg = MagicMock()
-        mock_pg.font.Font.return_value = MagicMock()
-        mock_pg.display.set_mode.return_value = MagicMock()
-
-        with (
-            patch.dict("sys.modules", {"pygame": mock_pg}),
-            patch("pathlib.Path.open", side_effect=FileNotFoundError),
-        ):
-            from python_pkg.keyboard_coop.main import KeyboardCoopGame
-
-            game = object.__new__(KeyboardCoopGame)
-            dictionary = game._load_dictionary()
+        with patch("pathlib.Path.open", side_effect=FileNotFoundError):
+            dictionary = load_dictionary(Path())
 
         # Should have fallback words
         assert "cat" in dictionary
@@ -208,23 +201,15 @@ class TestLoadDictionary:
         """Test fallback dictionary when JSON is invalid."""
         import json
 
-        mock_pg = MagicMock()
-        mock_pg.font.Font.return_value = MagicMock()
-        mock_pg.display.set_mode.return_value = MagicMock()
-
         mock_file = MagicMock()
         mock_file.__enter__ = MagicMock(return_value=mock_file)
         mock_file.__exit__ = MagicMock(return_value=False)
 
         with (
-            patch.dict("sys.modules", {"pygame": mock_pg}),
             patch("pathlib.Path.open", return_value=mock_file),
             patch("json.load", side_effect=json.JSONDecodeError("err", "doc", 0)),
         ):
-            from python_pkg.keyboard_coop.main import KeyboardCoopGame
-
-            game = object.__new__(KeyboardCoopGame)
-            dictionary = game._load_dictionary()
+            dictionary = load_dictionary(Path())
 
         # Should have fallback words from JSONDecodeError handler
         assert "cat" in dictionary

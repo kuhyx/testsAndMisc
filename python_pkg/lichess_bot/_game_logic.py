@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import datetime
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import chess
@@ -13,6 +12,8 @@ import chess.pgn
 import requests
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from python_pkg.lichess_bot.lichess_api import LichessAPI
     from python_pkg.lichess_bot.main import BotContext, GameMeta, GameState
 
@@ -99,13 +100,13 @@ def _extract_game_state_data(
 
     # Update clocks based on color
     if state.color == "white":
-        state.my_ms = event.get("wtime", state.my_ms)  # type: ignore[assignment]
-        state.opp_ms = event.get("btime", state.opp_ms)  # type: ignore[assignment]
-        state.inc_ms = event.get("winc", state.inc_ms)  # type: ignore[assignment]
+        state.my_ms = event.get("wtime", state.my_ms)
+        state.opp_ms = event.get("btime", state.opp_ms)
+        state.inc_ms = event.get("winc", state.inc_ms)
     elif state.color == "black":
-        state.my_ms = event.get("btime", state.my_ms)  # type: ignore[assignment]
-        state.opp_ms = event.get("wtime", state.opp_ms)  # type: ignore[assignment]
-        state.inc_ms = event.get("binc", state.inc_ms)  # type: ignore[assignment]
+        state.my_ms = event.get("btime", state.my_ms)
+        state.opp_ms = event.get("wtime", state.opp_ms)
+        state.inc_ms = event.get("binc", state.inc_ms)
 
     return moves, str(status) if status else None
 

@@ -82,8 +82,7 @@ REGULAR_MODIFIERS: list[Modifier] = [
     {
         "name": "Deck Shuffle",
         "description": (
-            "After dealing hole cards, shuffle deck "
-            "and redeal all community cards."
+            "After dealing hole cards, shuffle deck " "and redeal all community cards."
         ),
     },
     {
@@ -102,8 +101,7 @@ REGULAR_MODIFIERS: list[Modifier] = [
     {
         "name": "Escalation",
         "description": (
-            "Each raise must be at least 2x the previous raise "
-            "(not just matching)."
+            "Each raise must be at least 2x the previous raise " "(not just matching)."
         ),
     },
     # Position and Action Modifiers
@@ -206,15 +204,11 @@ REGULAR_MODIFIERS: list[Modifier] = [
     },
     {
         "name": "Speed Fine",
-        "description": (
-            "Take longer than 10 seconds to act = pay 1 chip to pot."
-        ),
+        "description": ("Take longer than 10 seconds to act = pay 1 chip to pot."),
     },
     {
         "name": "Talk Tax",
-        "description": (
-            "Every word spoken during betting costs 1 chip to the pot."
-        ),
+        "description": ("Every word spoken during betting costs 1 chip to the pot."),
     },
     # Skill Challenges (With Clear Rewards/Penalties)
     {
@@ -287,9 +281,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     # Classic Endgame Modifiers
     {
         "name": "Final Boss",
-        "description": (
-            "This is the last hand. Winner takes all remaining chips."
-        ),
+        "description": ("This is the last hand. Winner takes all remaining chips."),
     },
     {
         "name": "Sudden Death",
@@ -331,9 +323,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     # Dramatic Reversals
     {
         "name": "Underdog Victory",
-        "description": (
-            "Worst hand wins the pot instead of best hand this round."
-        ),
+        "description": ("Worst hand wins the pot instead of best hand this round."),
     },
     # Winner Takes All Variants
     {
@@ -365,9 +355,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     # Time Pressure Endgame
     {
         "name": "Speed Round",
-        "description": (
-            "3 seconds to act or auto-fold. No exceptions, no delays."
-        ),
+        "description": ("3 seconds to act or auto-fold. No exceptions, no delays."),
     },
     {
         "name": "Auction House",
@@ -386,8 +374,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Confession Booth",
         "description": (
-            "Each player must truthfully state "
-            "their biggest bluff this session."
+            "Each player must truthfully state " "their biggest bluff this session."
         ),
     },
     {
@@ -412,8 +399,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Emergency Fund",
         "description": (
-            "All players with less than 5 chips "
-            "get emergency funding from the pot."
+            "All players with less than 5 chips " "get emergency funding from the pot."
         ),
     },
     {
@@ -427,15 +413,12 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Nuclear Option",
         "description": (
-            "Dealer burns the top 3 cards. "
-            "Play with whatever's left in the deck."
+            "Dealer burns the top 3 cards. " "Play with whatever's left in the deck."
         ),
     },
     {
         "name": "Meteor Strike",
-        "description": (
-            "Remove all face cards from the deck for this hand only."
-        ),
+        "description": ("Remove all face cards from the deck for this hand only."),
     },
     {
         "name": "Solar Flare",
@@ -450,15 +433,12 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     },
     {
         "name": "Legendary Hand",
-        "description": (
-            "This hand will be retold as a story. Play like legends."
-        ),
+        "description": ("This hand will be retold as a story. Play like legends."),
     },
     {
         "name": "Photo Finish",
         "description": (
-            "Take a photo of the winning hand - "
-            "it goes in the poker hall of fame."
+            "Take a photo of the winning hand - " "it goes in the poker hall of fame."
         ),
     },
     # Chaos Theory

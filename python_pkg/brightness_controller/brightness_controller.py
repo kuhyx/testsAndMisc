@@ -312,7 +312,7 @@ class BrightnessController:
         self.current_device = default.name
         self._refresh_brightness()
 
-    def _on_device_change(self, _event: tk.Event) -> None:  # type: ignore[type-arg]
+    def _on_device_change(self, _event: tk.Event) -> None:
         """Handle device selection change."""
         self.current_device = self.device_var.get()
         self._refresh_brightness()
