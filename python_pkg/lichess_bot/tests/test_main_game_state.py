@@ -8,22 +8,24 @@ from unittest.mock import MagicMock, patch
 import chess
 import requests
 
+from python_pkg.lichess_bot._game_logic import (
+    _attempt_move,
+    _calculate_time_budget,
+    _extract_player_info,
+    _is_my_turn,
+    _log_move_to_file,
+    _update_clocks_from_state,
+)
 from python_pkg.lichess_bot.main import (
     BotContext,
     GameMeta,
     GameState,
     _apply_move_to_board,
-    _attempt_move,
-    _calculate_time_budget,
     _extract_game_full_data,
     _extract_game_state_data,
-    _extract_player_info,
     _handle_move_if_needed,
     _init_game_log,
-    _is_my_turn,
-    _log_move_to_file,
     _rebuild_board_from_moves,
-    _update_clocks_from_state,
 )
 
 if TYPE_CHECKING:

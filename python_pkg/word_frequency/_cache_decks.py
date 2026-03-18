@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import python_pkg.word_frequency.cache as _cache_mod
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # =============================================================================
 # Vocabulary Curve Cache
@@ -65,7 +67,7 @@ class VocabCurveCache:
             if data.get("file_hash") != file_hash:
                 return None
             excerpt = data["excerpt"]
-            words = [(w, r) for w, r in data["words"]]
+            words = list(data["words"])
             return excerpt, words
 
     def set(

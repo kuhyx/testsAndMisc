@@ -77,11 +77,7 @@ def draw_lba_recognition() -> None:
                 facecolor=fc,
             )
             ax.add_patch(rect)
-            bold = (
-                "bold"
-                if sym in ("X", "Y", "Z")
-                else "normal"
-            )
+            bold = "bold" if sym in ("X", "Y", "Z") else "normal"
             ax.text(
                 x + cell_w / 2,
                 tape_y + cell_h / 2,
@@ -93,11 +89,7 @@ def draw_lba_recognition() -> None:
                 family="monospace",
             )
         if head_pos is not None:
-            hx = (
-                tape_x0
-                + head_pos * cell_w
-                + cell_w / 2
-            )
+            hx = tape_x0 + head_pos * cell_w + cell_w / 2
             ax.annotate(
                 "▼",
                 xy=(hx, tape_y + cell_h),
@@ -140,9 +132,7 @@ def draw_lba_recognition() -> None:
         ],
         0,
         "Początek",
-        step_label=(
-            "taśma = [a, a, b, b, c, c], głowica na 0"
-        ),
+        step_label=("taśma = [a, a, b, b, c, c], głowica na 0"),
     )
 
     # Row 2: After marking first 'a'
@@ -265,8 +255,7 @@ def draw_lba_recognition() -> None:
     ax.text(
         tape_x0 + 3 * cell_w,
         tape_y + 0.3,
-        "Wszystko zaznaczone → q_acc"
-        ' → "aabbcc" AKCEPTOWANE ✓',
+        "Wszystko zaznaczone → q_acc" ' → "aabbcc" AKCEPTOWANE ✓',
         ha="center",
         va="center",
         fontsize=FS + 1,
@@ -282,9 +271,7 @@ def draw_lba_recognition() -> None:
     ax.text(
         tape_x0 + 6 * cell_w + 0.5,
         tape_y + 0.3,
-        "Ograniczenie LBA:\n"
-        "głowica ≤ 6 komórek\n"
-        '(= |w| = |"aabbcc"|)',
+        "Ograniczenie LBA:\n" "głowica ≤ 6 komórek\n" '(= |w| = |"aabbcc"|)',
         ha="left",
         va="center",
         fontsize=FS_SMALL,

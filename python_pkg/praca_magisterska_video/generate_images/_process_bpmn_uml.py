@@ -130,11 +130,19 @@ def _draw_bpmn_elements(
     sx = content_left + 4
     ax.add_patch(
         plt.Circle(
-            (sx, y_bok), 2, lw=2, edgecolor=LINE_COLOR, facecolor="white",
+            (sx, y_bok),
+            2,
+            lw=2,
+            edgecolor=LINE_COLOR,
+            facecolor="white",
         )
     )
     ax.text(
-        sx, y_bok - 3.5, "Reklamacja\nwp\u0142ywa", fontsize=6, ha="center",
+        sx,
+        y_bok - 3.5,
+        "Reklamacja\nwp\u0142ywa",
+        fontsize=6,
+        ha="center",
     )
 
     t1x = sx + 14
@@ -143,7 +151,12 @@ def _draw_bpmn_elements(
 
     t2x = t1x + 18
     draw_rounded_rect(
-        ax, t2x, y_jak, 14, 6, "Zweryfikuj\nzasadno\u015b\u0107",
+        ax,
+        t2x,
+        y_jak,
+        14,
+        6,
+        "Zweryfikuj\nzasadno\u015b\u0107",
     )
     elbow_x = t1x + 10
     draw_line(ax, t1x + 7, y_bok, elbow_x, y_bok)
@@ -156,7 +169,12 @@ def _draw_bpmn_elements(
 
     t3x = gx + 14
     draw_rounded_rect(
-        ax, t3x, y_mag, 14, 6, "Przygotuj\nwymian\u0119/zwrot",
+        ax,
+        t3x,
+        y_mag,
+        14,
+        6,
+        "Przygotuj\nwymian\u0119/zwrot",
     )
     draw_line(ax, gx, y_jak - 3.5, gx, y_mag)
     draw_arrow(ax, gx, y_mag, t3x - 7, y_mag)
@@ -164,7 +182,12 @@ def _draw_bpmn_elements(
 
     t4x = gx + 14
     draw_rounded_rect(
-        ax, t4x, y_jak, 14, 6, "Odrzu\u0107\nreklamacj\u0119",
+        ax,
+        t4x,
+        y_jak,
+        14,
+        6,
+        "Odrzu\u0107\nreklamacj\u0119",
     )
     draw_arrow(ax, gx + 3.5, y_jak, t4x - 7, y_jak)
     ax.text(gx + 4, y_jak + 2, "Nie", fontsize=7, ha="left")
@@ -184,7 +207,11 @@ def _draw_bpmn_elements(
     ex = t5x + 12
     ax.add_patch(
         plt.Circle(
-            (ex, y_bok), 2, lw=3, edgecolor=LINE_COLOR, facecolor="white",
+            (ex, y_bok),
+            2,
+            lw=3,
+            edgecolor=LINE_COLOR,
+            facecolor="white",
         )
     )
     draw_arrow(ax, t5x + 7, y_bok, ex - 2, y_bok)
@@ -195,17 +222,30 @@ def _draw_bpmn_legend(ax: Axes) -> None:
     """Draw BPMN legend."""
     ly = 1
     ax.text(
-        12, ly, "Legenda:", fontsize=7, fontweight="bold", va="center",
+        12,
+        ly,
+        "Legenda:",
+        fontsize=7,
+        fontweight="bold",
+        va="center",
     )
     ax.add_patch(
         plt.Circle(
-            (22, ly), 1, lw=2, edgecolor=LINE_COLOR, facecolor="white",
+            (22, ly),
+            1,
+            lw=2,
+            edgecolor=LINE_COLOR,
+            facecolor="white",
         )
     )
     ax.text(24, ly, "Start", fontsize=6, va="center")
     ax.add_patch(
         plt.Circle(
-            (30, ly), 1, lw=3, edgecolor=LINE_COLOR, facecolor="white",
+            (30, ly),
+            1,
+            lw=3,
+            edgecolor=LINE_COLOR,
+            facecolor="white",
         )
     )
     ax.text(32, ly, "Koniec", fontsize=6, va="center")
@@ -262,13 +302,23 @@ def _draw_uml_elements(ax: Axes) -> None:
 
     y -= step
     draw_rounded_rect(
-        ax, cx, y, 28, 6, "Przyjmij zg\u0142oszenie reklamacji",
+        ax,
+        cx,
+        y,
+        28,
+        6,
+        "Przyjmij zg\u0142oszenie reklamacji",
     )
     draw_arrow(ax, cx, y + step - 1.8, cx, y + 3)
 
     y -= step
     draw_rounded_rect(
-        ax, cx, y, 28, 6, "Zweryfikuj zasadno\u015b\u0107",
+        ax,
+        cx,
+        y,
+        28,
+        6,
+        "Zweryfikuj zasadno\u015b\u0107",
     )
     draw_arrow(ax, cx, y + step - 3, cx, y + 3)
 
@@ -276,7 +326,11 @@ def _draw_uml_elements(ax: Axes) -> None:
     draw_diamond(ax, cx, y, 4)
     draw_arrow(ax, cx, y + step - 3, cx, y + 4)
     ax.text(
-        cx + 6, y + 5, "[zasadna?]", fontsize=8, fontstyle="italic",
+        cx + 6,
+        y + 5,
+        "[zasadna?]",
+        fontsize=8,
+        fontstyle="italic",
     )
 
     dec_y = y
@@ -284,24 +338,40 @@ def _draw_uml_elements(ax: Axes) -> None:
 
     left_x = cx - 24
     draw_rounded_rect(
-        ax, left_x, branch_y, 22, 6, "Przygotuj\nwymian\u0119/zwrot",
+        ax,
+        left_x,
+        branch_y,
+        22,
+        6,
+        "Przygotuj\nwymian\u0119/zwrot",
     )
     draw_line(ax, cx - 4, dec_y, left_x, dec_y)
     draw_arrow(ax, left_x, dec_y, left_x, branch_y + 3)
     ax.text(
-        left_x + 2, dec_y + 1.5, "[tak]",
-        fontsize=8, fontstyle="italic",
+        left_x + 2,
+        dec_y + 1.5,
+        "[tak]",
+        fontsize=8,
+        fontstyle="italic",
     )
 
     right_x = cx + 24
     draw_rounded_rect(
-        ax, right_x, branch_y, 22, 6, "Odrzu\u0107\nreklamacj\u0119",
+        ax,
+        right_x,
+        branch_y,
+        22,
+        6,
+        "Odrzu\u0107\nreklamacj\u0119",
     )
     draw_line(ax, cx + 4, dec_y, right_x, dec_y)
     draw_arrow(ax, right_x, dec_y, right_x, branch_y + 3)
     ax.text(
-        right_x - 12, dec_y + 1.5, "[nie]",
-        fontsize=8, fontstyle="italic",
+        right_x - 12,
+        dec_y + 1.5,
+        "[nie]",
+        fontsize=8,
+        fontstyle="italic",
     )
 
     merge_y = branch_y - step
@@ -318,7 +388,11 @@ def _draw_uml_elements(ax: Axes) -> None:
     ey = y - step
     ax.add_patch(
         plt.Circle(
-            (cx, ey), 2.5, lw=2, facecolor="white", edgecolor="black",
+            (cx, ey),
+            2.5,
+            lw=2,
+            facecolor="white",
+            edgecolor="black",
         )
     )
     ax.add_patch(
@@ -336,7 +410,11 @@ def _draw_uml_legend(ax: Axes) -> None:
     ax.text(15, ly, "= Pocz\u0105tek", fontsize=7, va="center")
     ax.add_patch(
         plt.Circle(
-            (32, ly), 1.3, lw=2, facecolor="white", edgecolor="black",
+            (32, ly),
+            1.3,
+            lw=2,
+            facecolor="white",
+            edgecolor="black",
         )
     )
     ax.add_patch(

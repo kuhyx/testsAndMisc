@@ -1,4 +1,4 @@
-"""Graham notation α|β|γ visual mnemonic map diagram."""
+"""Graham notation a|b|y visual mnemonic map diagram."""
 
 from __future__ import annotations
 

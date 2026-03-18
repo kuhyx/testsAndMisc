@@ -75,7 +75,7 @@ def analyze_excerpt(
             ranks.append((rank, word))
         else:
             # Word not in vocabulary - would need infinite learning
-            return float("inf"), []  # type: ignore[return-value]
+            return float("inf"), []
 
     if not ranks:
         return 0, []

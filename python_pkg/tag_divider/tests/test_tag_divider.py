@@ -18,6 +18,7 @@ class TestImageExtensionConstant:
         """Test IMAGE_EXTENSION includes common image formats."""
         # Import in test to avoid triggering the interactive code
         with (
+            patch.dict("sys.modules", {"cv2": MagicMock()}),
             patch("builtins.input", side_effect=["folder_a", "folder_d"]),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("pathlib.Path.iterdir", return_value=[]),
@@ -33,6 +34,7 @@ class TestImageExtensionConstant:
     def test_is_tuple(self) -> None:
         """Test IMAGE_EXTENSION is a tuple."""
         with (
+            patch.dict("sys.modules", {"cv2": MagicMock()}),
             patch("builtins.input", side_effect=["folder_a", "folder_d"]),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("pathlib.Path.iterdir", return_value=[]),
@@ -48,6 +50,7 @@ class TestKeyCodeConstants:
     def test_left_folder_code_is_d(self) -> None:
         """Test LEFT_FOLDER_CODE is 'd' (100)."""
         with (
+            patch.dict("sys.modules", {"cv2": MagicMock()}),
             patch("builtins.input", side_effect=["folder_a", "folder_d"]),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("pathlib.Path.iterdir", return_value=[]),
@@ -60,6 +63,7 @@ class TestKeyCodeConstants:
     def test_right_folder_code_is_a(self) -> None:
         """Test RIGHT_FOLDER_CODE is 'a' (97)."""
         with (
+            patch.dict("sys.modules", {"cv2": MagicMock()}),
             patch("builtins.input", side_effect=["folder_a", "folder_d"]),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("pathlib.Path.iterdir", return_value=[]),
@@ -83,6 +87,7 @@ class TestModuleExecution:
         is_dir_results = [False, False]  # Both folders don't exist
 
         with (
+            patch.dict("sys.modules", {"cv2": MagicMock()}),
             patch("builtins.input", side_effect=["new_folder_a", "new_folder_d"]),
             patch("pathlib.Path.is_dir", side_effect=is_dir_results),
             patch("pathlib.Path.mkdir", mock_mkdir),
@@ -103,6 +108,7 @@ class TestModuleExecution:
         mock_mkdir = MagicMock()
 
         with (
+            patch.dict("sys.modules", {"cv2": MagicMock()}),
             patch("builtins.input", side_effect=["existing_a", "existing_d"]),
             patch("pathlib.Path.is_dir", return_value=True),  # Both exist
             patch("pathlib.Path.mkdir", mock_mkdir),

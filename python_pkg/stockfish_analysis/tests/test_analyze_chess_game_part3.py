@@ -9,15 +9,17 @@ import chess
 import chess.engine
 import chess.pgn
 
-from python_pkg.stockfish_analysis.analyze_chess_game import (
+from python_pkg.stockfish_analysis._move_analysis import (
     AnalysisContext,
     MoveAnalysis,
-    _analyze_all_moves,
-    _analyze_last_move,
     _analyze_single_move,
     _classify_mate_move,
     _evaluate_position,
     _get_best_move,
+)
+from python_pkg.stockfish_analysis.analyze_chess_game import (
+    _analyze_all_moves,
+    _analyze_last_move,
     _log_move_analysis,
     _run_analysis,
     main,

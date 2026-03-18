@@ -75,6 +75,8 @@ pre-commit run --files <file1> <file2>  # Specific files
 
 **Hook order**: ruff (lint+fix) → ruff-format → mypy → pylint → bandit
 
+**CRITICAL: NEVER use `--no-verify`** on `git commit` or `git push`, even when pre-commit failures are pre-existing and unrelated to your changes. Fix the failures or ask the user how to proceed — never bypass hooks.
+
 ### Linting Tools Configured in `pyproject.toml`
 
 - **ruff**: `select = ["ALL"]` - all rules enabled, Google docstrings

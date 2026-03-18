@@ -30,12 +30,19 @@ from pathlib import Path
 import re
 import sys
 
+from python_pkg.stockfish_analysis._move_analysis import (
+    AnalysisContext,
+    MoveAnalysis,
+    _analyze_single_move,
+    fmt_eval,
+)
+
 _logger = logging.getLogger(__name__)
 
 try:
-    import psutil  # type: ignore[import-untyped]
+    import psutil
 except ImportError:  # pragma: no cover
-    psutil = None  # type: ignore[assignment]
+    psutil = None
 
 try:
     import chess
@@ -45,18 +52,6 @@ except ImportError:  # pragma: no cover
     _logger.exception("Missing dependency. Please install python-chess:")
     _logger.exception("  pip install -r python_pkg/stockfish_analysis/requirements.txt")
     raise
-
-from python_pkg.stockfish_analysis._move_analysis import (
-    AnalysisContext,
-    MoveAnalysis,
-    _analyze_single_move,
-    _classify_mate_move,
-    _evaluate_position,
-    _get_best_move,
-    classify_cp_loss,
-    fmt_eval,
-    score_to_cp,
-)
 
 # Memory configuration constants
 MEMINFO_PARTS_MIN = 2
@@ -152,7 +147,7 @@ def _auto_hash_mb(threads_wanted: int, engine_options: dict[str, object]) -> int
     opt = engine_options.get("Hash")
     max_allowed = None
     try:
-        max_allowed = opt.max if opt is not None else None  # type: ignore[attr-defined]
+        max_allowed = opt.max if opt is not None else None
     except AttributeError:
         max_allowed = None
     if isinstance(max_allowed, int):
@@ -328,7 +323,7 @@ def _setup_engine(
         sys.exit(4)
 
     try:
-        options = engine.options  # type: ignore[attr-defined]
+        options = engine.options
     except AttributeError:
         options = {}
 

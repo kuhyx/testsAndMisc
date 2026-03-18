@@ -105,9 +105,7 @@ def test_get_version_handles_write_failure(
     ) -> TextIO | BinaryIO:
         if "w" in mode and str(self).endswith((".tmp", "version.txt")):
             raise OSError(write_error_msg)
-        return original_open(  # type: ignore[call-overload,return-value]
-            self, mode, *args, **kwargs
-        )
+        return original_open(self, mode, *args, **kwargs)
 
     with patch.object(Path, "open", failing_open):
         # Should still return incremented version even if write fails

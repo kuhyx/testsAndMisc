@@ -27,19 +27,15 @@ from python_pkg.praca_magisterska_video.generate_images.generate_agent_diagrams 
 _logger = logging.getLogger(__name__)
 
 
-
 # --- DIAGRAM 3: Behavior Tree Example ---
 def draw_behavior_tree() -> None:
     """Draw behavior tree."""
-    fig, ax = plt.subplots(
-        1, 1, figsize=(7.5, 4.5), facecolor=BG
-    )
+    fig, ax = plt.subplots(1, 1, figsize=(7.5, 4.5), facecolor=BG)
     ax.set_xlim(0, 7.5)
     ax.set_ylim(0, 4.5)
     ax.axis("off")
     ax.set_title(
-        "Behavior Tree: robot przenosz\u0105cy"
-        " obiekt (pick-and-place)",
+        "Behavior Tree: robot przenosz\u0105cy" " obiekt (pick-and-place)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -138,21 +134,29 @@ def draw_behavior_tree() -> None:
 
     # Root: Sequence "Przenies obiekt"
     root = draw_bt_node(
-        (3.75, 3.8), "Przenie\u015b obiekt", "seq",
+        (3.75, 3.8),
+        "Przenie\u015b obiekt",
+        "seq",
         (1.6, 0.45),
     )
 
     # Level 2 children
     find = draw_bt_node(
-        (1.2, 2.8), "Znajd\u017a obiekt", "sel",
+        (1.2, 2.8),
+        "Znajd\u017a obiekt",
+        "sel",
         (1.3, 0.45),
     )
     nav = draw_bt_node(
-        (3.75, 2.8), "Jed\u017a do obiektu", "act",
+        (3.75, 2.8),
+        "Jed\u017a do obiektu",
+        "act",
         (1.3, 0.45),
     )
     pick = draw_bt_node(
-        (6.3, 2.8), "Chwy\u0107 i dostarcz", "seq",
+        (6.3, 2.8),
+        "Chwy\u0107 i dostarcz",
+        "seq",
         (1.4, 0.45),
     )
 
@@ -169,11 +173,15 @@ def draw_behavior_tree() -> None:
     # Level 3: children of "Znajdz obiekt"
     arrow_08 = ArrowCfg(lw=0.8)
     vis = draw_bt_node(
-        (0.55, 1.7), "Widz\u0119\nobiekt?", "cond",
+        (0.55, 1.7),
+        "Widz\u0119\nobiekt?",
+        "cond",
         (0.85, 0.5),
     )
     scan = draw_bt_node(
-        (1.85, 1.7), "Skanuj\notoczenie", "act",
+        (1.85, 1.7),
+        "Skanuj\notoczenie",
+        "act",
         (0.85, 0.5),
     )
     for child in (vis, scan):
@@ -187,15 +195,21 @@ def draw_behavior_tree() -> None:
     # Level 3: children of "Chwyt i dostarcz"
     pick_children = [
         draw_bt_node(
-            (5.4, 1.7), "Chwy\u0107\nobject", "act",
+            (5.4, 1.7),
+            "Chwy\u0107\nobject",
+            "act",
             (0.85, 0.5),
         ),
         draw_bt_node(
-            (6.5, 1.7), "Jed\u017a do\ncelu", "act",
+            (6.5, 1.7),
+            "Jed\u017a do\ncelu",
+            "act",
             (0.85, 0.5),
         ),
         draw_bt_node(
-            (7.2, 1.7), "Pu\u015b\u0107", "act",
+            (7.2, 1.7),
+            "Pu\u015b\u0107",
+            "act",
             (0.55, 0.5),
         ),
     ]
@@ -210,19 +224,19 @@ def draw_behavior_tree() -> None:
     # Legend
     leg_y = 0.5
     draw_bt_node(
-        (0.8, leg_y), "\u2192 Sequence", "seq",
+        (0.8, leg_y),
+        "\u2192 Sequence",
+        "seq",
         (1.1, 0.35),
     )
     draw_bt_node(
-        (2.3, leg_y), "? Selector", "sel",
+        (2.3, leg_y),
+        "? Selector",
+        "sel",
         (1.0, 0.35),
     )
-    draw_bt_node(
-        (3.6, leg_y), "Akcja", "act", (0.8, 0.35)
-    )
-    draw_bt_node(
-        (4.8, leg_y), "Warunek", "cond", (0.8, 0.35)
-    )
+    draw_bt_node((3.6, leg_y), "Akcja", "act", (0.8, 0.35))
+    draw_bt_node((4.8, leg_y), "Warunek", "cond", (0.8, 0.35))
 
     ax.text(
         0.3,
@@ -249,12 +263,8 @@ def draw_behavior_tree() -> None:
     )
 
     fig.tight_layout()
-    path = str(
-        Path(OUTPUT_DIR) / "agent_behavior_tree.png"
-    )
-    fig.savefig(
-        path, dpi=DPI, bbox_inches="tight", facecolor=BG
-    )
+    path = str(Path(OUTPUT_DIR) / "agent_behavior_tree.png")
+    fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     _logger.info("  \u2713 %s", path)
 
@@ -262,15 +272,12 @@ def draw_behavior_tree() -> None:
 # --- DIAGRAM 4: BDI Model ---
 def draw_bdi_model() -> None:
     """Draw bdi model."""
-    fig, ax = plt.subplots(
-        1, 1, figsize=(7, 4), facecolor=BG
-    )
+    fig, ax = plt.subplots(1, 1, figsize=(7, 4), facecolor=BG)
     ax.set_xlim(0, 7)
     ax.set_ylim(0, 4)
     ax.axis("off")
     ax.set_title(
-        "Model BDI agenta"
-        " (Beliefs-Desires-Intentions)",
+        "Model BDI agenta" " (Beliefs-Desires-Intentions)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -278,9 +285,7 @@ def draw_bdi_model() -> None:
 
     bw = 1.6
     bh = 1.4
-    bold8 = BoxStyle(
-        fill=GRAY1, fontsize=8, fontweight="bold"
-    )
+    bold8 = BoxStyle(fill=GRAY1, fontsize=8, fontweight="bold")
 
     # BELIEFS box
     draw_box(ax, (0.3, 1.3), (bw, bh), "", bold8)
@@ -312,9 +317,7 @@ def draw_bdi_model() -> None:
         (2.7, 1.3),
         (bw, bh),
         "",
-        BoxStyle(
-            fill=GRAY2, fontsize=8, fontweight="bold"
-        ),
+        BoxStyle(fill=GRAY2, fontsize=8, fontweight="bold"),
     )
     ax.text(
         2.7 + bw / 2,
@@ -344,9 +347,7 @@ def draw_bdi_model() -> None:
         (5.1, 1.3),
         (bw, bh),
         "",
-        BoxStyle(
-            fill=GRAY3, fontsize=8, fontweight="bold"
-        ),
+        BoxStyle(fill=GRAY3, fontsize=8, fontweight="bold"),
     )
     ax.text(
         5.1 + bw / 2,
@@ -472,9 +473,7 @@ def draw_bdi_model() -> None:
 
     fig.tight_layout()
     path = str(Path(OUTPUT_DIR) / "agent_bdi_model.png")
-    fig.savefig(
-        path, dpi=DPI, bbox_inches="tight", facecolor=BG
-    )
+    fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     _logger.info("  \u2713 %s", path)
 

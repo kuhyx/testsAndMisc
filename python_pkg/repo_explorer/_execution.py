@@ -10,6 +10,7 @@ import select
 import subprocess
 import threading
 import tkinter as tk
+from tkinter import ttk
 from typing import TYPE_CHECKING
 
 from python_pkg.repo_explorer._discovery import REPO_ROOT, _strip_ansi
@@ -34,8 +35,8 @@ class ExecutionMixin:
     _args_var: tk.StringVar
     _stdin_var: tk.StringVar
     _status_var: tk.StringVar
-    _run_btn: ttk.Button  # type: ignore[name-defined]
-    _stop_btn: ttk.Button  # type: ignore[name-defined]
+    _run_btn: ttk.Button
+    _stop_btn: ttk.Button
     _output: tk.Text
     _IDLE_FLUSH_TICKS: int
 
@@ -52,9 +53,7 @@ class ExecutionMixin:
             return
         args_str = self._args_var.get().strip()
         extra = args_str.split() if args_str else []
-        subprocess.Popen(
-            [*self._terminal_args, "bash", "run.sh", *extra], cwd=path
-        )
+        subprocess.Popen([*self._terminal_args, "bash", "run.sh", *extra], cwd=path)
         self._write_output(
             f"$ Launched in {self._terminal_args[0]}: "
             f"{path.relative_to(REPO_ROOT)}\n",

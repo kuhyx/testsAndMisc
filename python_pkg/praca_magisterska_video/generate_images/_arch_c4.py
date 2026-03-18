@@ -35,58 +35,91 @@ def _draw_c4_system_context(ax1: Axes) -> None:
     # Person
     ax1.add_patch(
         plt.Circle(
-            (20, 55), 4, lw=1.5,
-            edgecolor=LN, facecolor=GRAY1,
+            (20, 55),
+            4,
+            lw=1.5,
+            edgecolor=LN,
+            facecolor=GRAY1,
         )
     )
     # Head
     ax1.add_patch(
         plt.Circle(
-            (20, 57.5), 1.5, lw=1.2,
-            edgecolor=LN, facecolor="white",
+            (20, 57.5),
+            1.5,
+            lw=1.2,
+            edgecolor=LN,
+            facecolor="white",
         )
     )
     # Body
     draw_line(ax1, 20, 56, 20, 52.5, lw=1.2)
     draw_line(ax1, 17, 55, 23, 55, lw=1.2)
     ax1.text(
-        20, 48, "Klient",
-        ha="center", fontsize=8, fontweight="bold",
+        20,
+        48,
+        "Klient",
+        ha="center",
+        fontsize=8,
+        fontweight="bold",
     )
 
     draw_box(
-        ax1, 38, 43, 24, 18,
+        ax1,
+        38,
+        43,
+        24,
+        18,
         "System\nE-commerce",
-        fill=GRAY2, lw=2, fontsize=9,
-        fontweight="bold", rounded=True,
+        fill=GRAY2,
+        lw=2,
+        fontsize=9,
+        fontweight="bold",
+        rounded=True,
     )
 
     draw_box(
-        ax1, 72, 48, 20, 12,
+        ax1,
+        72,
+        48,
+        20,
+        12,
         "System\nP\u0142atno\u015bci\n(zewn.)",
-        fill=GRAY4, lw=1.5, fontsize=7,
+        fill=GRAY4,
+        lw=1.5,
+        fontsize=7,
         rounded=True,
     )
     ax1.add_patch(
         plt.Rectangle(
-            (72, 48), 20, 12, lw=1.5,
-            edgecolor=LN, facecolor="none",
+            (72, 48),
+            20,
+            12,
+            lw=1.5,
+            edgecolor=LN,
+            facecolor="none",
             linestyle="--",
         )
     )
 
     draw_arrow(ax1, 24, 54, 38, 54)
     ax1.text(
-        31, 56, "sk\u0142ada\nzam\u00f3wienia",
-        fontsize=6, ha="center",
+        31,
+        56,
+        "sk\u0142ada\nzam\u00f3wienia",
+        fontsize=6,
+        ha="center",
     )
     draw_arrow(ax1, 62, 54, 72, 54)
     ax1.text(67, 56, "API", fontsize=6, ha="center")
 
     ax1.text(
-        50, 20,
+        50,
+        20,
         "Kto u\u017cywa systemu?\nZ czym si\u0119 integruje?",
-        ha="center", fontsize=7, fontstyle="italic",
+        ha="center",
+        fontsize=7,
+        fontstyle="italic",
         bbox={
             "boxstyle": "round",
             "facecolor": GRAY4,
@@ -100,15 +133,23 @@ def _draw_c4_container(ax2: Axes) -> None:
     """Draw C4 Level 2: Container."""
     ax2.add_patch(
         plt.Rectangle(
-            (5, 15), 90, 58, lw=1.5,
-            edgecolor=LN, facecolor="none",
+            (5, 15),
+            90,
+            58,
+            lw=1.5,
+            edgecolor=LN,
+            facecolor="none",
             linestyle="--",
         )
     )
     ax2.text(
-        50, 75, "System E-commerce",
-        ha="center", fontsize=8,
-        fontweight="bold", fontstyle="italic",
+        50,
+        75,
+        "System E-commerce",
+        ha="center",
+        fontsize=8,
+        fontweight="bold",
+        fontstyle="italic",
     )
 
     containers = [
@@ -119,9 +160,17 @@ def _draw_c4_container(ax2: Axes) -> None:
     ]
     for label, x, y, w, h, fill in containers:
         draw_box(
-            ax2, x, y, w, h, label,
-            fill=fill, lw=1.5, fontsize=7,
-            fontweight="bold", rounded=True,
+            ax2,
+            x,
+            y,
+            w,
+            h,
+            label,
+            fill=fill,
+            lw=1.5,
+            fontsize=7,
+            fontweight="bold",
+            rounded=True,
         )
 
     draw_arrow(ax2, 33, 56, 42, 56)
@@ -132,10 +181,12 @@ def _draw_c4_container(ax2: Axes) -> None:
     ax2.text(53, 44, "async", fontsize=6)
 
     ax2.text(
-        50, 8,
-        "Jakie kontenery techniczne\n"
-        "sk\u0142adaj\u0105 si\u0119 na system?",
-        ha="center", fontsize=7, fontstyle="italic",
+        50,
+        8,
+        "Jakie kontenery techniczne\n" "sk\u0142adaj\u0105 si\u0119 na system?",
+        ha="center",
+        fontsize=7,
+        fontstyle="italic",
         bbox={
             "boxstyle": "round",
             "facecolor": GRAY4,
@@ -149,15 +200,23 @@ def _draw_c4_component(ax3: Axes) -> None:
     """Draw C4 Level 3: Component."""
     ax3.add_patch(
         plt.Rectangle(
-            (5, 15), 90, 58, lw=1.5,
-            edgecolor=LN, facecolor="none",
+            (5, 15),
+            90,
+            58,
+            lw=1.5,
+            edgecolor=LN,
+            facecolor="none",
             linestyle="--",
         )
     )
     ax3.text(
-        50, 75, "API Server (Node.js)",
-        ha="center", fontsize=8,
-        fontweight="bold", fontstyle="italic",
+        50,
+        75,
+        "API Server (Node.js)",
+        ha="center",
+        fontsize=8,
+        fontweight="bold",
+        fontstyle="italic",
     )
 
     components = [
@@ -169,9 +228,17 @@ def _draw_c4_component(ax3: Axes) -> None:
     ]
     for label, x, y, w, h, fill in components:
         draw_box(
-            ax3, x, y, w, h, label,
-            fill=fill, lw=1.5, fontsize=6.5,
-            fontweight="bold", rounded=True,
+            ax3,
+            x,
+            y,
+            w,
+            h,
+            label,
+            fill=fill,
+            lw=1.5,
+            fontsize=6.5,
+            fontweight="bold",
+            rounded=True,
         )
 
     draw_arrow(ax3, 32, 55, 40, 55)
@@ -180,10 +247,12 @@ def _draw_c4_component(ax3: Axes) -> None:
     draw_arrow(ax3, 51, 50, 62, 35)
 
     ax3.text(
-        50, 8,
-        "Jakie modu\u0142y/komponenty\n"
-        "wewn\u0105trz kontenera?",
-        ha="center", fontsize=7, fontstyle="italic",
+        50,
+        8,
+        "Jakie modu\u0142y/komponenty\n" "wewn\u0105trz kontenera?",
+        ha="center",
+        fontsize=7,
+        fontstyle="italic",
         bbox={
             "boxstyle": "round",
             "facecolor": GRAY4,
@@ -196,25 +265,34 @@ def _draw_c4_component(ax3: Axes) -> None:
 def _draw_c4_code(ax4: Axes) -> None:
     """Draw C4 Level 4: Code (UML)."""
     _draw_class(
-        ax4, 5, 40,
+        ax4,
+        5,
+        40,
         "\u00abinterface\u00bb\nIOrderRepository",
         [],
         ["+save(order)", "+findById(id)"],
-        w=32, fill=GRAY4,
+        w=32,
+        fill=GRAY4,
     )
     _draw_class(
-        ax4, 55, 40,
+        ax4,
+        55,
+        40,
         "OrderRepository",
         ["-db: Database"],
         ["+save(order)", "+findById(id)"],
-        w=32, fill=GRAY1,
+        w=32,
+        fill=GRAY1,
     )
     _draw_class(
-        ax4, 30, 10,
+        ax4,
+        30,
+        10,
         "Order",
         ["-id: UUID", "-items: List", "-total: Money"],
         ["+addItem(item)", "+calculateTotal()"],
-        w=32, fill=GRAY2,
+        w=32,
+        fill=GRAY2,
     )
 
     ax4.annotate(
@@ -229,18 +307,24 @@ def _draw_c4_code(ax4: Axes) -> None:
         },
     )
     ax4.text(
-        46, 52, "\u00abimplements\u00bb",
-        fontsize=6, ha="center", fontstyle="italic",
+        46,
+        52,
+        "\u00abimplements\u00bb",
+        fontsize=6,
+        ha="center",
+        fontstyle="italic",
     )
 
     draw_arrow(ax4, 71, 40, 50, 24)
     ax4.text(64, 32, "uses", fontsize=6, fontstyle="italic")
 
     ax4.text(
-        50, 3,
-        "Diagramy klas UML\n"
-        "(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
-        ha="center", fontsize=7, fontstyle="italic",
+        50,
+        3,
+        "Diagramy klas UML\n" "(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
+        ha="center",
+        fontsize=7,
+        fontstyle="italic",
         bbox={
             "boxstyle": "round",
             "facecolor": GRAY4,
@@ -274,8 +358,10 @@ def generate_c4() -> None:
         ax_item.set_aspect("equal")
         ax_item.axis("off")
         ax_item.set_title(
-            titles[idx], fontsize=10,
-            fontweight="bold", pad=8,
+            titles[idx],
+            fontsize=10,
+            fontweight="bold",
+            pad=8,
         )
 
     _draw_c4_system_context(axes[0, 0])

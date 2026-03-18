@@ -16,13 +16,13 @@ Usage:
 This module re-exports public symbols from sub-modules for backwards
 compatibility.  The implementation lives in:
 
-- constants.py      – colours, PJL status codes, lookup tables
-- data_classes.py   – dataclasses (CUPSJob, USBResult, NetworkResult …)
-- usb_query.py      – USB discovery and PJL query
-- cups_service.py   – CUPS service control, consumable state, USB fallback
-- network_query.py  – SNMP network query
-- cups_queue.py     – CUPS queue inspection and interactive fixes
-- display.py        – formatted output for USB / network results
+- constants.py      - colours, PJL status codes, lookup tables
+- data_classes.py   - dataclasses (CUPSJob, USBResult, NetworkResult ...)
+- usb_query.py      - USB discovery and PJL query
+- cups_service.py   - CUPS service control, consumable state, USB fallback
+- network_query.py  - SNMP network query
+- cups_queue.py     - CUPS queue inspection and interactive fixes
+- display.py        - formatted output for USB / network results
 """
 
 from __future__ import annotations

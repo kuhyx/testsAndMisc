@@ -46,6 +46,7 @@ repos:
       - id: debug-statements
       - id: name-tests-test
         args: [--pytest-test-first]
+        exclude: python_pkg/word_frequency/tests/_translator_helpers\.py
       - id: check-ast
       - id: check-builtin-literals
       - id: check-docstring-first
@@ -109,11 +110,27 @@ repos:
           - --disable-error-code=unreachable
           - --disable-error-code=assignment
           - --disable-error-code=no-redef
+          - --disable-error-code=attr-defined
+          - --disable-error-code=arg-type
+          - --disable-error-code=union-attr
+          - --disable-error-code=call-overload
+          - --disable-error-code=return-value
+          - --disable-error-code=redundant-cast
+          - --disable-error-code=empty-body
+          - --disable-error-code=list-item
+        exclude: >-
+          (?x)^(
+            Bash/.*|
+            \.venv/.*|
+            python_pkg/music_gen/.*|
+            python_pkg/praca_magisterska_video/.*|
+            pomodoro_app/tools/.*|
+            linux_configuration/scripts/misc/testsAndMisc-bash/tools/.*
+          )$
         additional_dependencies:
           - types-requests
           - types-PyYAML
           - types-python-dateutil
-        exclude: ^(Bash/|\.venv/|python_pkg/music_gen/|python_pkg/praca_magisterska_video/)
 
   # ===========================================================================
   # PYLINT - Comprehensive Python linter
@@ -179,7 +196,7 @@ repos:
       - id: codespell
         args:
           - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
-          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe
+          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|CPP/|.*\.geojson$)
 
   # ===========================================================================

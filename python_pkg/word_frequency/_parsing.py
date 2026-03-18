@@ -118,9 +118,7 @@ def _parse_target_length_block(
         if lines[i].strip().startswith(f"[Length {target_length}]"):
             i += 1
             # Find excerpt line
-            while i < len(lines) and not lines[i].strip().startswith(
-                "Excerpt:"
-            ):
+            while i < len(lines) and not lines[i].strip().startswith("Excerpt:"):
                 i += 1
             if i < len(lines):
                 excerpt_line = lines[i].strip()
@@ -130,9 +128,7 @@ def _parse_target_length_block(
                     excerpt = excerpt_line[start:end]
             # Find words line
             i += 1
-            while i < len(lines) and not lines[i].strip().startswith(
-                "Words:"
-            ):
+            while i < len(lines) and not lines[i].strip().startswith("Words:"):
                 i += 1
             if i < len(lines):
                 words_line = lines[i].strip()
@@ -140,9 +136,7 @@ def _parse_target_length_block(
                     words_part = words_line[6:].strip()
                     pattern = r"(\S+)\(#(\d+)\)"
                     matches = re.findall(pattern, words_part)
-                    excerpt_words = [
-                        (w, int(r)) for w, r in matches
-                    ]
+                    excerpt_words = [(w, int(r)) for w, r in matches]
             break
         i += 1
     return excerpt, excerpt_words
@@ -165,9 +159,7 @@ def parse_vocabulary_curve_output(
     """
     lines = output.split("\n")
 
-    excerpt, excerpt_words = _parse_target_length_block(
-        lines, target_length
-    )
+    excerpt, excerpt_words = _parse_target_length_block(lines, target_length)
     all_vocab = _parse_vocab_dump(lines)
 
     return excerpt, excerpt_words, all_vocab

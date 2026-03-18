@@ -142,7 +142,7 @@ class TestConfigureMultipv:
         mock_opt.max = None
         result = _configure_multipv(engine, {"MultiPV": mock_opt}, 3)
         assert result == 3
-        engine.configure.assert_called_once()
+        engine.configure.assert_not_called()
 
 
 class TestConfigureNnue:

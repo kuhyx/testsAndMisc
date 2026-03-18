@@ -12,15 +12,17 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-from python_pkg.word_frequency.learning_pipe import (
+from python_pkg.word_frequency._learning_constants import (
     DEFAULT_STOPWORDS_EN,
     LessonConfig,
-    generate_learning_lesson,
     load_stopwords,
+)
+from python_pkg.word_frequency._translator_helpers import TranslationResult
+from python_pkg.word_frequency.learning_pipe import (
+    generate_learning_lesson,
     main,
 )
 import python_pkg.word_frequency.translator as _translator_module
-from python_pkg.word_frequency.translator import TranslationResult
 
 if TYPE_CHECKING:
     from collections.abc import Generator

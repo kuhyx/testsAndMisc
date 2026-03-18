@@ -185,15 +185,11 @@ def parse_cinema_city_html(
         movie_name = name_match.group(1).strip()
 
         # Get genres
-        genre_match = re.search(
-            r'class="mr-sm"[^>]*>([^<]+)<\s*span', section
-        )
+        genre_match = re.search(r'class="mr-sm"[^>]*>([^<]+)<\s*span', section)
         genres: list[str] = []
         if genre_match:
             genre_text = genre_match.group(1).strip()
-            genres = [
-                g.strip() for g in genre_text.split(",") if g.strip()
-            ]
+            genres = [g.strip() for g in genre_text.split(",") if g.strip()]
 
         # Get duration
         duration_match = re.search(r"(\d+)\s*min", section)
@@ -202,19 +198,13 @@ def parse_cinema_city_html(
         duration = int(duration_match.group(1))
 
         # Get screening times - look for time buttons
-        times = re.findall(
-            r'btn btn-primary btn-lg">\s*(\d{2}:\d{2})\s*<', section
-        )
+        times = re.findall(r'btn btn-primary btn-lg">\s*(\d{2}:\d{2})\s*<', section)
         if not times:
             # Try alternate pattern
-            times = re.findall(
-                r">\s*(\d{2}:\d{2})\s*\(HTTPS://", section
-            )
+            times = re.findall(r">\s*(\d{2}:\d{2})\s*\(HTTPS://", section)
 
         if times:
-            start_times = list(dict.fromkeys(
-                parse_time(t) for t in times
-            ))
+            start_times = list(dict.fromkeys(parse_time(t) for t in times))
             movies.append(
                 Movie(movie_name, start_times, duration, genres),
             )
@@ -273,9 +263,7 @@ def _parse_cinema_city_pdf_basic(filepath: str) -> list[Movie]:
 
 def _exit_no_pdf_support() -> None:
     """Log PDF support error and exit."""
-    logger.error(
-        "Install pdfplumber, PyMuPDF, or poppler-utils for PDF support"
-    )
+    logger.error("Install pdfplumber, PyMuPDF, or poppler-utils for PDF support")
     logger.error("  pip install pdfplumber")
     logger.error("  pip install pymupdf")
     logger.error("  pacman -S poppler")
@@ -301,16 +289,15 @@ def parse_cinema_city_text(text: str) -> list[Movie]:
     for i, raw_line in enumerate(lines):
         line = raw_line.strip()
 
-        if (
-            movie_title_pattern.match(line)
-            and len(line) > _MIN_TITLE_LENGTH
-        ):
+        if movie_title_pattern.match(line) and len(line) > _MIN_TITLE_LENGTH:
             if current_movie and current_times:
-                movies.append(Movie(
-                    current_movie,
-                    list(dict.fromkeys(current_times)),
-                    current_duration or _DEFAULT_MOVIE_DURATION,
-                ))
+                movies.append(
+                    Movie(
+                        current_movie,
+                        list(dict.fromkeys(current_times)),
+                        current_duration or _DEFAULT_MOVIE_DURATION,
+                    )
+                )
 
             current_movie = line.title()
             current_times = []
@@ -333,10 +320,12 @@ def parse_cinema_city_text(text: str) -> list[Movie]:
 
     # Save last movie
     if current_movie and current_times:
-        movies.append(Movie(
-            current_movie,
-            list(dict.fromkeys(current_times)),
-            current_duration or _DEFAULT_MOVIE_DURATION,
-        ))
+        movies.append(
+            Movie(
+                current_movie,
+                list(dict.fromkeys(current_times)),
+                current_duration or _DEFAULT_MOVIE_DURATION,
+            )
+        )
 
     return movies

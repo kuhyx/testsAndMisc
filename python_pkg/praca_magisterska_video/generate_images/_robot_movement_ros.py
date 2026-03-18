@@ -28,7 +28,6 @@ from python_pkg.praca_magisterska_video.generate_images.generate_robot_lang_diag
 _logger = logging.getLogger(__name__)
 
 
-
 # ============================================================
 # 3. Robot Movement Types (PTP, LIN, CIRC)
 # ============================================================

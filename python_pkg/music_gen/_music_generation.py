@@ -51,15 +51,12 @@ def get_device() -> str:
             )
             raise RuntimeError(msg)
         device = "cuda"
-        gpu_name = torch.cuda.get_device_name(0)
-        vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
-        print(f"Using CUDA GPU: {gpu_name} ({vram:.1f}GB VRAM)")
+        torch.cuda.get_device_name(0)
+        torch.cuda.get_device_properties(0).total_memory / 1024**3
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         device = "mps"
-        print("Using Apple Silicon (MPS)")
     else:
         device = "cpu"
-        print("Using CPU (this will be slow)")
     return device
 
 
@@ -88,7 +85,6 @@ def select_model_size(user_choice: str | None = None) -> str:
 
     if vram is None:
         # No GPU, use medium as a safe default
-        print("No CUDA GPU detected, defaulting to medium model")
         return "medium"
 
     # Select based on VRAM:
@@ -102,7 +98,6 @@ def select_model_size(user_choice: str | None = None) -> str:
     else:
         selected = "small"
 
-    print(f"Auto-selected '{selected}' model based on {vram:.1f}GB VRAM")
     return selected
 
 
@@ -123,8 +118,6 @@ def load_model(
     from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
     model_name = f"facebook/musicgen-{model_size}"
-    print(f"\nLoading MusicGen {model_size} model...")
-    print("(First run will download the model, this may take a while)")
 
     device = get_device()
 
@@ -136,7 +129,6 @@ def load_model(
     )
     model = model.to(device)
 
-    print(f"Model loaded successfully on {device}!")
     return model, processor
 
 
@@ -276,8 +268,6 @@ def _generate_long_audio(
     total = duration_seconds + effective_segment - 1
     num_segments = max(1, total // effective_segment)
 
-    print(f"Generating {num_segments} segments of ~{SEGMENT_DURATION}s each...")
-
     audio_data = np.array([], dtype=np.float32)
 
     for i in range(num_segments):
@@ -289,9 +279,7 @@ def _generate_long_audio(
             duration_seconds,
         )
 
-        seg_num = i + 1
-        msg = f"  Segment {seg_num}/{num_segments} ({segment_duration}s)..."
-        print(msg, end=" ", flush=True)
+        i + 1
 
         segment = generate_segment(
             prompt,
@@ -305,8 +293,6 @@ def _generate_long_audio(
             audio_data = segment
         else:
             audio_data = crossfade_audio(audio_data, segment, crossfade_samples)
-
-        print(f"done (total: {len(audio_data) / sample_rate:.1f}s)")
 
     # Trim to exact duration if needed
     target_samples = int(duration_seconds * sample_rate)
@@ -347,8 +333,6 @@ def generate_music(
 
     # For short durations, generate directly
     if duration_seconds <= SEGMENT_DURATION:
-        print(f"\nGenerating {duration_seconds}s of music...")
-        print(f"Prompt: {prompt!r}")
         device = str(next(model.parameters()).device)
         audio_data = generate_segment(
             prompt,
@@ -359,8 +343,6 @@ def generate_music(
         )
     else:
         # Long duration: generate in segments with crossfading
-        print(f"\nGenerating {duration_seconds}s of music in segments...")
-        print(f"Prompt: {prompt!r}")
         audio_data = _generate_long_audio(prompt, model, processor, duration_seconds)
 
     # Create filename with timestamp and sanitized prompt
@@ -371,8 +353,5 @@ def generate_music(
     output_path = output_dir / filename
 
     scipy.io.wavfile.write(output_path, sample_rate, audio_data)
-
-    print(f"\nSaved to: {output_path}")
-    print(f"Duration: {len(audio_data) / sample_rate:.1f}s")
 
     return output_path

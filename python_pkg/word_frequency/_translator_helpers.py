@@ -17,13 +17,13 @@ from typing import NamedTuple
 try:
     import torch
 except ImportError:
-    torch = None  # type: ignore[assignment]
+    torch = None
 
 try:
     import argostranslate.package
     import argostranslate.translate
 except ImportError:
-    argostranslate = None  # type: ignore[assignment]
+    argostranslate = None
 
 try:
     from deep_translator import GoogleTranslator
@@ -33,7 +33,7 @@ except ImportError:
 try:
     import langdetect
 except ImportError:
-    langdetect = None  # type: ignore[assignment]
+    langdetect = None
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +77,7 @@ def _init_gpu_if_available() -> None:
         _TranslatorState.gpu_initialized = True
         return
 
-    logger.info(
-        "CUDA detected, initializing GPU acceleration..."
-    )
+    logger.info("CUDA detected, initializing GPU acceleration...")
 
     try:
         device_name = _validate_gpu_device()
@@ -130,8 +128,8 @@ def detect_language(text: str) -> str | None:
             if len(text) > _LANG_DETECT_SAMPLE_SIZE
             else text
         )
-        return langdetect.detect(sample)  # type: ignore[no-any-return,union-attr]
-    except langdetect.LangDetectException:  # type: ignore[attr-defined,union-attr]
+        return langdetect.detect(sample)
+    except langdetect.LangDetectException:
         return None
 
 
@@ -235,10 +233,7 @@ def _ensure_argos_installed() -> None:
         )
         raise ImportError(msg) from e
     except ImportError:
-        msg = (
-            "argostranslate installation succeeded but "
-            "import failed"
-        )
+        msg = "argostranslate installation succeeded but " "import failed"
         raise ImportError(msg) from None
 
 
@@ -252,9 +247,7 @@ def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
     Raises:
         ValueError: If language pair cannot be obtained.
     """
-    installed_languages = (
-        argostranslate.translate.get_installed_languages()
-    )
+    installed_languages = argostranslate.translate.get_installed_languages()
     from_lang_obj = None
     to_lang_obj = None
 
@@ -281,11 +274,7 @@ def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
     available = argostranslate.package.get_available_packages()
 
     pkg = next(
-        (
-            p
-            for p in available
-            if p.from_code == from_lang and p.to_code == to_lang
-        ),
+        (p for p in available if p.from_code == from_lang and p.to_code == to_lang),
         None,
     )
 
@@ -299,8 +288,7 @@ def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
         raise ValueError(msg)
 
     logger.info(
-        "  Downloading package (~50-100MB, "
-        "this may take a minute)...",
+        "  Downloading package (~50-100MB, " "this may take a minute)...",
     )
     download_path = pkg.download()
     logger.info("  Installing language pack...")

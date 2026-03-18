@@ -28,19 +28,15 @@ from python_pkg.praca_magisterska_video.generate_images.generate_agent_diagrams 
 _logger = logging.getLogger(__name__)
 
 
-
 # --- DIAGRAM 1: See-Think-Act Cycle ---
 def draw_see_think_act() -> None:
     """Draw see think act."""
-    fig, ax = plt.subplots(
-        1, 1, figsize=(7, 4.5), facecolor=BG
-    )
+    fig, ax = plt.subplots(1, 1, figsize=(7, 4.5), facecolor=BG)
     ax.set_xlim(0, 7)
     ax.set_ylim(0, 4.5)
     ax.axis("off")
     ax.set_title(
-        "Cykl agenta upostaciowionego:"
-        " Percepcja \u2192 Deliberacja \u2192 Akcja",
+        "Cykl agenta upostaciowionego:" " Percepcja \u2192 Deliberacja \u2192 Akcja",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -61,8 +57,7 @@ def draw_see_think_act() -> None:
     ax.text(
         3.5,
         0.7,
-        "\u015aRODOWISKO FIZYCZNE\n"
-        "(przeszkody, obiekty, ludzie)",
+        "\u015aRODOWISKO FIZYCZNE\n" "(przeszkody, obiekty, ludzie)",
         ha="center",
         va="center",
         fontsize=FS,
@@ -94,9 +89,7 @@ def draw_see_think_act() -> None:
     bw = 1.4
     bh = 0.7
     by = 2.2
-    bold_fs8 = BoxStyle(
-        fill=GRAY2, fontsize=8, fontweight="bold"
-    )
+    bold_fs8 = BoxStyle(fill=GRAY2, fontsize=8, fontweight="bold")
 
     # SEE
     draw_box(
@@ -122,9 +115,7 @@ def draw_see_think_act() -> None:
         (2.8, by),
         (bw, bh),
         "THINK\n(Deliberacja)",
-        BoxStyle(
-            fill=GRAY3, fontsize=8, fontweight="bold"
-        ),
+        BoxStyle(fill=GRAY3, fontsize=8, fontweight="bold"),
     )
     ax.text(
         3.5,
@@ -165,9 +156,7 @@ def draw_see_think_act() -> None:
         ax,
         (2.8 + bw, by + bh / 2),
         (4.8, by + bh / 2),
-        ArrowCfg(
-            lw=1.5, label="komendy steruj\u0105ce"
-        ),
+        ArrowCfg(lw=1.5, label="komendy steruj\u0105ce"),
     )
 
     # Arrows to/from environment
@@ -217,12 +206,8 @@ def draw_see_think_act() -> None:
     )
 
     fig.tight_layout()
-    path = str(
-        Path(OUTPUT_DIR) / "agent_see_think_act.png"
-    )
-    fig.savefig(
-        path, dpi=DPI, bbox_inches="tight", facecolor=BG
-    )
+    path = str(Path(OUTPUT_DIR) / "agent_see_think_act.png")
+    fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     _logger.info("  \u2713 %s", path)
 
@@ -230,15 +215,12 @@ def draw_see_think_act() -> None:
 # --- DIAGRAM 2: 3T Architecture ---
 def draw_3t_architecture() -> None:
     """Draw 3t architecture."""
-    fig, ax = plt.subplots(
-        1, 1, figsize=(7, 5.5), facecolor=BG
-    )
+    fig, ax = plt.subplots(1, 1, figsize=(7, 5.5), facecolor=BG)
     ax.set_xlim(0, 7)
     ax.set_ylim(0, 5.5)
     ax.axis("off")
     ax.set_title(
-        "Architektura 3T sterownika robota"
-        " (3-Layer Architecture)",
+        "Architektura 3T sterownika robota" " (3-Layer Architecture)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -369,9 +351,7 @@ def draw_3t_architecture() -> None:
         fontstyle="italic",
     )
 
-    draw_arrow(
-        ax, (2.3, 1.2), (2.3, 0.9), ArrowCfg(lw=1.3)
-    )
+    draw_arrow(ax, (2.3, 1.2), (2.3, 0.9), ArrowCfg(lw=1.3))
 
     # Abstraction label on the right
     ax.annotate(
@@ -396,11 +376,7 @@ def draw_3t_architecture() -> None:
     )
 
     fig.tight_layout()
-    path = str(
-        Path(OUTPUT_DIR) / "agent_3t_architecture.png"
-    )
-    fig.savefig(
-        path, dpi=DPI, bbox_inches="tight", facecolor=BG
-    )
+    path = str(Path(OUTPUT_DIR) / "agent_3t_architecture.png")
+    fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     _logger.info("  \u2713 %s", path)

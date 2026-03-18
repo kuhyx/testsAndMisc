@@ -74,12 +74,7 @@ def generate_speech(
             output_dir = Path(__file__).parent / "output"
         output_dir.mkdir(exist_ok=True)
 
-        print("\nLoading Bark model...")
-        print("(First run will download models, ~5GB total)")
         preload_models()
-
-        print(f"\nGenerating speech with voice: {voice}")
-        print(f"Text: {text!r}")
 
         # Bark can only generate ~13s at a time
         # For longer text, we need to split into sentences
@@ -88,9 +83,9 @@ def generate_speech(
         # Split on sentence boundaries for longer texts
         sentences = _split_into_sentences(text)
 
-        for i, sentence in enumerate(sentences):
+        for _i, sentence in enumerate(sentences):
             if len(sentences) > 1:
-                print(f"  Generating segment {i + 1}/{len(sentences)}...")
+                pass
 
             audio = generate_audio(
                 sentence.strip(),
@@ -112,9 +107,6 @@ def generate_speech(
         output_path = output_dir / filename
 
         scipy.io.wavfile.write(output_path, SAMPLE_RATE, audio_data)
-
-        print(f"\nSaved to: {output_path}")
-        print(f"Duration: {len(audio_data) / SAMPLE_RATE:.1f}s")
 
         return output_path
     finally:
@@ -247,18 +239,14 @@ def _generate_vocals_for_song(lyrics: str, voice: str) -> tuple[object, int]:
         from bark import SAMPLE_RATE as BARK_SR
         from bark import generate_audio, preload_models
 
-        print("Loading Bark model...")
         preload_models()
-
-        print(f"Generating vocals with voice: {voice}")
-        print(f"Lyrics: {lyrics!r}")
 
         sentences = _split_into_sentences(lyrics)
         vocal_segments = []
 
-        for i, sentence in enumerate(sentences):
+        for _i, sentence in enumerate(sentences):
             if len(sentences) > 1:
-                print(f"  Vocal segment {i + 1}/{len(sentences)}...")
+                pass
             audio = generate_audio(sentence.strip(), history_prompt=voice)
             vocal_segments.append(audio)
 
@@ -288,9 +276,6 @@ def _generate_instrumental_for_song(
     """
     model_size = select_model_size(None)
     model, processor = load_model(model_size)
-
-    print(f"Music prompt: {music_prompt!r}")
-    print(f"Duration: {duration}s")
 
     device = str(next(model.parameters()).device)
     sample_rate = model.config.audio_encoder.sampling_rate
@@ -339,27 +324,18 @@ def generate_song(
         output_dir = Path(__file__).parent / "output"
     output_dir.mkdir(exist_ok=True)
 
-    print("=" * 60)
-    print("GENERATING SONG WITH VOCALS")
-    print("=" * 60)
-
     # Step 1: Generate vocals
-    print("\n[1/3] Generating vocals...")
     vocals, bark_sr = _generate_vocals_for_song(lyrics, voice)
     vocal_duration = len(vocals) / bark_sr
-    print(f"Vocals generated: {vocal_duration:.1f}s")
 
     # Step 2: Generate instrumental (match vocal duration + buffer)
-    print("\n[2/3] Generating instrumental music...")
     music_duration = int(vocal_duration) + 2
     instrumental, musicgen_sr = _generate_instrumental_for_song(
         music_prompt,
         music_duration,
     )
-    print(f"Instrumental generated: {len(instrumental) / musicgen_sr:.1f}s")
 
     # Step 3: Mix vocals and instrumental
-    print("\n[3/3] Mixing vocals and instrumental...")
     vocals_resampled = _resample_audio(vocals, bark_sr, musicgen_sr)
     mixed = _mix_audio(instrumental, vocals_resampled)
 
@@ -371,10 +347,5 @@ def generate_song(
     output_path = output_dir / filename
 
     scipy.io.wavfile.write(output_path, musicgen_sr, mixed)
-
-    print("\n" + "=" * 60)
-    print(f"Song saved to: {output_path}")
-    print(f"Duration: {len(mixed) / musicgen_sr:.1f}s")
-    print("=" * 60)
 
     return output_path

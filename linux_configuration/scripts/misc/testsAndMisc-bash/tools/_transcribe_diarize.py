@@ -63,8 +63,7 @@ def _probe_with_ffprobe(path: str) -> float | None:
                 "-show_entries",
                 "format=duration",
                 "-of",
-                "default="
-                "noprint_wrappers=1:nokey=1",
+                "default=" "noprint_wrappers=1:nokey=1",
                 path,
             ],
             stderr=subprocess.DEVNULL,
@@ -104,15 +103,9 @@ def _resample_linear(
         return x
     ratio = float(tgt_sr) / float(src_sr)
     n_out = max(1, round(x.shape[-1] * ratio))
-    xp = np_mod.linspace(
-        0.0, 1.0, num=x.shape[-1], endpoint=False
-    )
-    xq = np_mod.linspace(
-        0.0, 1.0, num=n_out, endpoint=False
-    )
-    y = np_mod.interp(
-        xq, xp, x.astype(np_mod.float32)
-    )
+    xp = np_mod.linspace(0.0, 1.0, num=x.shape[-1], endpoint=False)
+    xq = np_mod.linspace(0.0, 1.0, num=n_out, endpoint=False)
+    y = np_mod.interp(xq, xp, x.astype(np_mod.float32))
     return y.astype(np_mod.float32)
 
 
@@ -130,17 +123,9 @@ def _kmeans_cosine(
 
     rng = np_mod.random.default_rng(seed)
     features = np_mod.asarray(embs, dtype=np_mod.float32)
-    if (
-        features.ndim != _NDIM_2D
-        or features.shape[0] == 0
-    ):
+    if features.ndim != _NDIM_2D or features.shape[0] == 0:
         return np_mod.zeros((0,), dtype=np_mod.int64)
-    features = features / (
-        np_mod.linalg.norm(
-            features, axis=1, keepdims=True
-        )
-        + 1e-8
-    )
+    features = features / (np_mod.linalg.norm(features, axis=1, keepdims=True) + 1e-8)
     idxs = rng.choice(
         features.shape[0],
         size=min(k, features.shape[0]),
@@ -154,18 +139,9 @@ def _kmeans_cosine(
                 features.shape[1],
             )
         ).astype(np_mod.float32)
-        pad /= (
-            np_mod.linalg.norm(
-                pad, axis=1, keepdims=True
-            )
-            + 1e-8
-        )
-        centroids = np_mod.concatenate(
-            [centroids, pad], axis=0
-        )
-    return _run_kmeans_iterations(
-        np_mod, features, centroids, k, iters
-    )
+        pad /= np_mod.linalg.norm(pad, axis=1, keepdims=True) + 1e-8
+        centroids = np_mod.concatenate([centroids, pad], axis=0)
+    return _run_kmeans_iterations(np_mod, features, centroids, k, iters)
 
 
 def _run_kmeans_iterations(
@@ -189,9 +165,7 @@ def _run_kmeans_iterations(
                 v = sel.mean(axis=0)
                 v /= np_mod.linalg.norm(v) + 1e-8
                 new_c[j] = v
-        if np_mod.allclose(
-            new_c, centroids, atol=1e-4
-        ):
+        if np_mod.allclose(new_c, centroids, atol=1e-4):
             break
         centroids = new_c
     return labels
@@ -269,13 +243,10 @@ def _load_audio(
             always_2d=False,
         )
     except OSError as exc:
-        alt = _ffmpeg_transcode_to_wav16_mono(
-            audio_path
-        )
+        alt = _ffmpeg_transcode_to_wav16_mono(audio_path)
         if alt is None:
             logger.warning(
-                "Could not read audio for diarization "
-                "and no ffmpeg fallback: %s",
+                "Could not read audio for diarization " "and no ffmpeg fallback: %s",
                 exc,
             )
             return None
@@ -306,9 +277,7 @@ def _load_speaker_classifier(
     if sb_inf is None:
         return None
     try:
-        cache_dir = (
-            Path.home() / ".cache" / "speechbrain_ecapa"
-        )
+        cache_dir = Path.home() / ".cache" / "speechbrain_ecapa"
         classifier = sb_inf.EncoderClassifier.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb",
             run_opts={"device": "cpu"},
@@ -344,20 +313,10 @@ def _extract_embeddings(
         i0 = max(0, i0 - pad)
         i1 = min(len(wav16), i1 + pad)
         if i1 - i0 < _MIN_SAMPLES_DIAR:
-            i1 = min(
-                len(wav16), i0 + _MIN_SAMPLES_DIAR
-            )
-        seg_wav = torch_mod.tensor(
-            wav16[i0:i1]
-        ).unsqueeze(0)
+            i1 = min(len(wav16), i0 + _MIN_SAMPLES_DIAR)
+        seg_wav = torch_mod.tensor(wav16[i0:i1]).unsqueeze(0)
         with torch_mod.no_grad():
-            emb = (
-                classifier.encode_batch(seg_wav)
-                .squeeze(0)
-                .squeeze(0)
-                .cpu()
-                .numpy()
-            )
+            emb = classifier.encode_batch(seg_wav).squeeze(0).squeeze(0).cpu().numpy()
         embs.append(emb.astype("float32"))
     return embs
 
@@ -375,8 +334,7 @@ def diarize_segments(
     torch_mod = _try_import("torch")
     if torch_mod is None:
         logger.warning(
-            "Diarization dependencies missing; "
-            "skipping speaker labels.",
+            "Diarization dependencies missing; " "skipping speaker labels.",
         )
         return None
 
@@ -387,24 +345,16 @@ def diarize_segments(
 
     if wav.ndim == _NDIM_2D:
         wav = wav.mean(axis=1)
-    wav16 = _resample_linear(
-        wav, sr, _SAMPLE_RATE_16K
-    )
+    wav16 = _resample_linear(wav, sr, _SAMPLE_RATE_16K)
 
-    classifier = _load_speaker_classifier(
-        temp_to_cleanup
-    )
+    classifier = _load_speaker_classifier(temp_to_cleanup)
     if classifier is None:
         return None
 
-    embs = _extract_embeddings(
-        segments, wav16, classifier, torch_mod
-    )
+    embs = _extract_embeddings(segments, wav16, classifier, torch_mod)
 
     if len(embs) == 0:
         return None
-    labels = _kmeans_cosine(
-        embs, k=max(1, int(num_speakers))
-    )
+    labels = _kmeans_cosine(embs, k=max(1, int(num_speakers)))
     _cleanup_temp(temp_to_cleanup)
     return labels.tolist()

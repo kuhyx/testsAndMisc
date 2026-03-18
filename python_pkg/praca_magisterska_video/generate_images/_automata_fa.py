@@ -46,8 +46,7 @@ def draw_fa_recognition() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "DFA — diagram stanów\n"
-        'L = {słowa nad {a,b} kończące się na "ab"}',
+        "DFA — diagram stanów\n" 'L = {słowa nad {a,b} kończące się na "ab"}',
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -73,9 +72,7 @@ def draw_fa_recognition() -> None:
         states["q₂"],
         state_r,
         "q₂",
-        StateStyle(
-            accepting=True, fillcolor=LIGHT_GREEN
-        ),
+        StateStyle(accepting=True, fillcolor=LIGHT_GREEN),
     )
 
     # Transitions

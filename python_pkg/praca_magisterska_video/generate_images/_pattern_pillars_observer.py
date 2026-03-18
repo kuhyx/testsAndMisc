@@ -27,6 +27,7 @@ from python_pkg.praca_magisterska_video.generate_images.generate_pattern_diagram
 
 _logger = logging.getLogger(__name__)
 
+
 # ============================================================
 # 3. Three Pillars of Cataloguing
 # ============================================================
@@ -91,8 +92,7 @@ def generate_three_pillars() -> None:
             "Wzorce referują się\nwzajemnie tworząc\n"
             "sieć/graf:\nA → wymaga → B\n"
             "B → wariant → C",
-            "Analogia:\n\u201ezobacz te\u017c\u201d\n"
-            "w encyklopedii",
+            "Analogia:\n\u201ezobacz te\u017c\u201d\n" "w encyklopedii",
         ),
     ]
 
@@ -258,14 +258,10 @@ def generate_observer_card_filled() -> None:
     band_w = card_w - 0.6
     start_y = card_y + card_h - 0.65
 
-    for i, (abbr, title, content, fill, is_title_field) in enumerate(
-        fields
-    ):
+    for i, (abbr, title, content, fill, is_title_field) in enumerate(fields):
         band_h = _get_observer_band_height(i)
 
-        by = start_y - sum(
-            _get_observer_band_height(j) + 0.15 for j in range(i)
-        )
+        by = start_y - sum(_get_observer_band_height(j) + 0.15 for j in range(i))
 
         # Abbreviation circle
         circle = plt.Circle(
