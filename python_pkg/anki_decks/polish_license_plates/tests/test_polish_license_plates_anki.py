@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -225,6 +226,16 @@ class TestMain:
         with pytest.raises(SystemExit) as exc_info:
             main(["--help"])
         assert exc_info.value.code == 0
+
+    def test_main_error_returns_1(self, tmp_path: Path) -> None:
+        """Test that main returns 1 on error."""
+        with patch(
+            "python_pkg.anki_decks.polish_license_plates"
+            ".polish_license_plates_anki.generate_anki_package",
+            side_effect=OSError("disk full"),
+        ):
+            result = main(["--output", str(tmp_path / "out.apkg")])
+        assert result == 1
 
 
 if __name__ == "__main__":

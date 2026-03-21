@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import pytest
@@ -13,6 +14,7 @@ try:
         create_district_map,
         generate_anki_package,
         generate_district_image_bytes,
+        load_district_data,
         main,
     )
 except ImportError:
@@ -24,6 +26,7 @@ except ImportError:
         create_district_map,
         generate_anki_package,
         generate_district_image_bytes,
+        load_district_data,
         main,
     )
 
@@ -169,6 +172,41 @@ class TestMain:
         with pytest.raises(SystemExit) as exc_info:
             main(["--help"])
         assert exc_info.value.code == 0
+
+    def test_main_error_returns_1(self, tmp_path: Path) -> None:
+        """Test that main returns 1 on error."""
+        with patch(
+            "python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki"
+            ".generate_anki_package",
+            side_effect=OSError("disk full"),
+        ):
+            result = main(["--output", str(tmp_path / "out.apkg")])
+        assert result == 1
+
+
+class TestLoadDistrictData:
+    """Tests for load_district_data."""
+
+    def test_missing_geojson_raises_file_not_found(self, tmp_path: Path) -> None:
+        """Test FileNotFoundError when GeoJSON file is missing."""
+        with (
+            patch(
+                "python_pkg.anki_decks.warsaw_districts.warsaw_districts_anki"
+                ".GEOJSON_PATH",
+                tmp_path / "nonexistent.geojson",
+            ),
+            pytest.raises(FileNotFoundError, match="GeoJSON file not found"),
+        ):
+            load_district_data()
+
+
+class TestCreateDistrictMapErrors:
+    """Tests for create_district_map error paths."""
+
+    def test_unknown_district_raises_value_error(self) -> None:
+        """Test ValueError when district name is not found."""
+        with pytest.raises(ValueError, match="not found in data"):
+            create_district_map("NonexistentDistrict123")
 
 
 if __name__ == "__main__":

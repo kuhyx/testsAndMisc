@@ -92,7 +92,7 @@ def generate_three_pillars() -> None:
             "Wzorce referują się\nwzajemnie tworząc\n"
             "sieć/graf:\nA → wymaga → B\n"
             "B → wariant → C",
-            "Analogia:\n\u201ezobacz te\u017c\u201d\n" "w encyklopedii",
+            "Analogia:\n\u201ezobacz te\u017c\u201d\nw encyklopedii",
         ),
     ]
 

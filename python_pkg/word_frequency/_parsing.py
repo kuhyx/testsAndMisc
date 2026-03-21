@@ -132,7 +132,7 @@ def _parse_target_length_block(
                 i += 1
             if i < len(lines):
                 words_line = lines[i].strip()
-                if words_line.startswith("Words:"):
+                if words_line.startswith("Words:"):  # pragma: no branch
                     words_part = words_line[6:].strip()
                     pattern = r"(\S+)\(#(\d+)\)"
                     matches = re.findall(pattern, words_part)

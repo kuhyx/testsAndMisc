@@ -29,7 +29,7 @@ def draw_sub_type() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Subskrypcja type-based" " \u2014 routing po typie (klasie) obiektu",
+        "Subskrypcja type-based \u2014 routing po typie (klasie) obiektu",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=12,
@@ -154,7 +154,7 @@ def draw_sub_type() -> None:
     ax.text(
         9.5,
         0.5,
-        "Sub C subskrybuje bazowy Event\n" "\u2192 otrzymuje WSZYSTKIE podtypy",
+        "Sub C subskrybuje bazowy Event\n\u2192 otrzymuje WSZYSTKIE podtypy",
         ha="center",
         va="center",
         fontsize=8.5,
@@ -180,7 +180,7 @@ def draw_sub_hierarchical() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Subskrypcja hierarchiczna (wildcards)" " \u2014 wzorce temat\u00f3w",
+        "Subskrypcja hierarchiczna (wildcards) \u2014 wzorce temat\u00f3w",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=12,

@@ -3,31 +3,26 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import logging
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-try:
-    from python_pkg.word_frequency.anki_generator import (
-        DeckInput,
-        find_word_contexts,
-        generate_anki_deck,
-        main,
-        parse_vocabulary_curve_output,
-    )
-except ImportError:
-    import sys
+from python_pkg.word_frequency.anki_generator import (
+    DeckInput,
+    _clear_caches,
+    _format_cache_size,
+    _handle_normal_mode,
+    _print_cache_stats,
+    find_word_contexts,
+    generate_anki_deck,
+    main,
+    parse_vocabulary_curve_output,
+)
 
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-    from python_pkg.word_frequency.anki_generator import (
-        DeckInput,
-        find_word_contexts,
-        generate_anki_deck,
-        main,
-        parse_vocabulary_curve_output,
-    )
-
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Test fixtures
 
@@ -392,5 +387,105 @@ class TestIntegration:
         assert "FLASHCARD GENERATION COMPLETE" in caplog.text
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+class TestFormatCacheSize:
+    """Tests for _format_cache_size."""
+
+    def test_bytes(self) -> None:
+        assert _format_cache_size(500) == "500 B"
+
+    def test_kilobytes(self) -> None:
+        assert _format_cache_size(2048) == "2.0 KB"
+
+    def test_megabytes(self) -> None:
+        assert _format_cache_size(2 * 1024 * 1024) == "2.0 MB"
+
+
+class TestPrintCacheStats:
+    """Tests for _print_cache_stats."""
+
+    def test_prints_stats(self, caplog: pytest.LogCaptureFixture) -> None:
+        with (
+            caplog.at_level(logging.INFO),
+            patch(
+                "python_pkg.word_frequency.anki_generator.get_all_cache_stats",
+                return_value={
+                    "translations": {
+                        "total_entries": 5,
+                        "cache_size_bytes": 1024,
+                    },
+                },
+            ),
+        ):
+            result = _print_cache_stats()
+        assert result == 0
+        assert "Cache Statistics" in caplog.text
+        assert "1.0 KB" in caplog.text
+
+
+class TestClearCaches:
+    """Tests for _clear_caches."""
+
+    def test_clears(self, caplog: pytest.LogCaptureFixture) -> None:
+        with (
+            caplog.at_level(logging.INFO),
+            patch("python_pkg.word_frequency.anki_generator.clear_all_caches"),
+        ):
+            result = _clear_caches()
+        assert result == 0
+        assert "cleared" in caplog.text
+
+
+class TestHandleNormalModeQuiet:
+    """Tests for _handle_normal_mode quiet flag."""
+
+    def test_quiet_mode(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        text_file = tmp_path / "source.txt"
+        text_file.write_text("hello world", encoding="utf-8")
+        args = MagicMock()
+        args.quiet = True
+        args.length = 2
+        args.output = str(tmp_path / "out.txt")
+        args.source_lang = "en"
+        args.target_lang = "es"
+        args.deck_name = None
+        args.include_context = False
+        args.no_translate = True
+        args.force = False
+        args.excerpt_words_only = False
+        with (
+            caplog.at_level(logging.INFO),
+            patch(
+                "python_pkg.word_frequency.anki_generator.generate_flashcards",
+                return_value=("content", "hello world", 2, 2),
+            ),
+        ):
+            result = _handle_normal_mode(args, text_file)
+        assert result == 0
+        assert "FLASHCARD GENERATION COMPLETE" not in caplog.text
+
+    def test_verbose_excerpt_words_only(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        text_file = tmp_path / "source.txt"
+        text_file.write_text("hello world", encoding="utf-8")
+        args = MagicMock()
+        args.quiet = False
+        args.length = 2
+        args.output = str(tmp_path / "out.txt")
+        args.source_lang = "en"
+        args.target_lang = "es"
+        args.deck_name = None
+        args.include_context = False
+        args.no_translate = True
+        args.force = False
+        args.excerpt_words_only = True
+        with (
+            caplog.at_level(logging.INFO),
+            patch(
+                "python_pkg.word_frequency.anki_generator.generate_flashcards",
+                return_value=("content", "hello world", 2, 2),
+            ),
+        ):
+            result = _handle_normal_mode(args, text_file)
+        assert result == 0
+        assert "excerpt words only" in caplog.text

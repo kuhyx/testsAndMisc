@@ -27,12 +27,6 @@ import numpy as np
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
-from python_pkg.praca_magisterska_video.generate_images._arch_c4 import generate_c4
-from python_pkg.praca_magisterska_video.generate_images._arch_layers import (
-    generate_archimate,
-    generate_zachman,
-)
-
 _logger = logging.getLogger(__name__)
 
 DPI = 300
@@ -180,6 +174,15 @@ def _draw_class(
             va="top",
             family="monospace",
         )
+
+
+from python_pkg.praca_magisterska_video.generate_images._arch_c4 import (
+    generate_c4,
+)
+from python_pkg.praca_magisterska_video.generate_images._arch_layers import (
+    generate_archimate,
+    generate_zachman,
+)
 
 
 # =========================================================================
@@ -356,7 +359,7 @@ def generate_4plus1() -> None:
             "Programista",
         ),
         (
-            "Process View\n(Współbieżność," "\nprzepływ danych)",
+            "Process View\n(Współbieżność,\nprzepływ danych)",
             cx + 28,
             cy,
             "Integrator",

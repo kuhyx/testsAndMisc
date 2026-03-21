@@ -47,7 +47,7 @@ def check_diarization_deps() -> bool:
     _torch = _try_import("torch")
     if _sf is None or _sb is None or _torch is None:
         logger.warning(
-            "Diarization deps missing offline; " "speaker labels will be skipped.",
+            "Diarization deps missing offline; speaker labels will be skipped.",
         )
         return False
     return True
@@ -139,7 +139,7 @@ def prepare_model(model_name: str, model_dir: str) -> bool:
 
         logger.info("Preparing model '%s' into %s", model_name, model_dir)
         logger.info(
-            "Downloading model files " "(progress bar should appear below)...",
+            "Downloading model files (progress bar should appear below)...",
         )
         fw.WhisperModel(
             model_name,

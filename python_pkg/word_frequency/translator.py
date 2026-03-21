@@ -343,7 +343,7 @@ def _run_batch_translation(
             pct = int(words_done / num_to_translate * 100)
 
             logger.info(
-                "  [%3d%%] Translating batch %d/%d " "(%d/%d words)...",
+                "  [%3d%%] Translating batch %d/%d (%d/%d words)...",
                 pct,
                 batch_idx + 1,
                 total_batches,
@@ -361,7 +361,7 @@ def _run_batch_translation(
 
         logger.info("  Translation complete.")
     except Exception as e:
-        msg = f"Translation failed for " f"{from_lang} -> {to_lang}: {e}"
+        msg = f"Translation failed for {from_lang} -> {to_lang}: {e}"
         raise RuntimeError(msg) from e
 
     return new_translations

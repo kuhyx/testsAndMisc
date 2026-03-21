@@ -396,6 +396,52 @@ class TestMain:
         assert exit_code == 1
         assert "No target words" in caplog.text
 
+    def test_output_to_file(self, tmp_path: Path) -> None:
+        """Test --output option writes to file."""
+        out = tmp_path / "result.txt"
+        exit_code = main(
+            [
+                "--text",
+                "hello world hello",
+                "--words",
+                "hello",
+                "--length",
+                "2",
+                "--output",
+                str(out),
+            ]
+        )
+        assert exit_code == 0
+        assert out.exists()
+        assert "hello" in out.read_text(encoding="utf-8")
+
+    def test_unicode_decode_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test UnicodeDecodeError handling."""
+        from unittest.mock import patch
+
+        f = tmp_path / "bad.txt"
+        f.write_bytes(b"\x80\x81")
+        with (
+            caplog.at_level(logging.ERROR),
+            patch(
+                "python_pkg.word_frequency.excerpt_finder.read_file",
+                side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "bad"),
+            ),
+        ):
+            exit_code = main(["--file", str(f), "--words", "hello", "--length", "2"])
+        assert exit_code == 1
+
+    def test_duplicate_excerpt_skipped(self) -> None:
+        """Test that duplicate excerpts at the same position are skipped."""
+        # All windows are the same content "a a"
+        text = "a a a a a"
+        result = find_best_excerpt(text, ["a"], excerpt_length=2, top_n=10)
+        # All excerpts are "a a" but only first unique should be kept
+        excerpts = [r.excerpt for r in result]
+        assert len(excerpts) == len(set(excerpts))
+
 
 class TestPerformance:
     """Performance tests for excerpt finder."""

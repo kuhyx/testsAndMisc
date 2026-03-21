@@ -110,7 +110,10 @@ def _filter_streets_by_length(
     # Sort by length (longest first)
     result_rows.sort(key=lambda x: x["length_m"], reverse=True)
 
-    return gpd.GeoDataFrame(result_rows, crs="EPSG:4326")
+    return gpd.GeoDataFrame(
+        result_rows,
+        crs="EPSG:4326" if result_rows else None,
+    )
 
 
 def get_warsaw_landmarks() -> gpd.GeoDataFrame:

@@ -179,10 +179,7 @@ def _cups_restart_service() -> bool:
                 proc.kill()
                 proc.wait()
                 sys.stdout.write("\n")
-                _out(
-                    f"  {RED}CUPS restart timed out"
-                    f" (stuck backend process?).{RESET}"
-                )
+                _out(f"  {RED}CUPS restart timed out (stuck backend process?).{RESET}")
                 _out(
                     f"  {DIM}Try: sudo kill -9 $(pgrep -f 'cups/backend/usb')"
                     f" && sudo systemctl restart cups{RESET}"
@@ -193,9 +190,7 @@ def _cups_restart_service() -> bool:
             time.sleep(1)
         sys.stdout.write("\n")
         if proc.returncode != 0:
-            _out(
-                f"  {RED}CUPS restart failed" f" (exit code {proc.returncode}).{RESET}"
-            )
+            _out(f"  {RED}CUPS restart failed (exit code {proc.returncode}).{RESET}")
             return False
     except OSError as e:
         sys.stdout.write("\n")

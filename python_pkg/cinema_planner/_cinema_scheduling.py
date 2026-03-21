@@ -107,7 +107,7 @@ def _format_single_schedule(
             f"{screening.end_str()}  {screening.movie}\n"
         )
         output.write(
-            f"     Duration: {hours}h {mins}m " f"(movie starts ~{actual_start_str})\n"
+            f"     Duration: {hours}h {mins}m (movie starts ~{actual_start_str})\n"
         )
         if i < len(schedule):
             gap = schedule[i].start - screening.end
@@ -143,9 +143,7 @@ def _format_schedules(
         output.write(f"  OPTIMAL CINEMA SCHEDULES - {date}\n")
     else:
         output.write("  OPTIMAL CINEMA SCHEDULES\n")
-    output.write(
-        f"  {num_movies} movies, " f"{num_schedules} possible combination(s)\n"
-    )
+    output.write(f"  {num_movies} movies, {num_schedules} possible combination(s)\n")
     output.write(f"{sep}\n\n")
 
     display_count = min(num_schedules, max_display)
@@ -158,9 +156,7 @@ def _format_schedules(
 
     if num_schedules > display_count:
         output.write(f"{thin_sep}\n")
-        output.write(
-            f"  ... and {num_schedules - display_count} " "more combinations\n"
-        )
+        output.write(f"  ... and {num_schedules - display_count} more combinations\n")
         output.write("  (use -n to show more, e.g., -n 10)\n")
         output.write("\n")
 

@@ -87,10 +87,7 @@ def _display_page_count_estimate() -> None:
     else:
         drum_color = GREEN
         drum_note = ""
-    _out(
-        f"  {BOLD}Drum:{RESET}  {drum_color}{drum_bar} ~{drum_pct}%"
-        f"{drum_note}{RESET}"
-    )
+    _out(f"  {BOLD}Drum:{RESET}  {drum_color}{drum_bar} ~{drum_pct}%{drum_note}{RESET}")
     _out(
         f"  {DIM}Based on pages since last replacement"
         f" vs rated capacity (toner ~{TONER_RATED_PAGES},"
@@ -158,7 +155,7 @@ _SEVERITY_COLORS: dict[str, str] = {
 _SEVERITY_SUMMARIES: dict[str, str] = {
     "ok": f"{GREEN}{BOLD}✓  Printer is healthy. No replacements needed.{RESET}",
     "info": (
-        f"{CYAN}{BOLD}i  Printer is busy/processing." f" No replacements needed.{RESET}"
+        f"{CYAN}{BOLD}i  Printer is busy/processing. No replacements needed.{RESET}"
     ),
     "warn": (
         f"{YELLOW}{BOLD}⚡ WARNING: Maintenance will be needed"
@@ -166,7 +163,7 @@ _SEVERITY_SUMMARIES: dict[str, str] = {
         f" now to avoid interruption.{RESET}"
     ),
     "critical": (
-        f"{RED}{BOLD}⚠  ACTION REQUIRED:" f" Replacement or fix needed now!{RESET}"
+        f"{RED}{BOLD}⚠  ACTION REQUIRED: Replacement or fix needed now!{RESET}"
     ),
 }
 

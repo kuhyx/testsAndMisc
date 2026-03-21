@@ -59,9 +59,7 @@ def _format_word_list(
             )
         else:
             lines.append(
-                f"  {i:3}. {word:<20}"
-                f" ({count:,} occurrences, "
-                f"{percentage:.2f}%)"
+                f"  {i:3}. {word:<20} ({count:,} occurrences, {percentage:.2f}%)"
             )
     return lines
 
@@ -129,13 +127,13 @@ def _generate_batch_section(
     )
     coverage = (cumulative_count / total_words) * 100
     lines.append(
-        "After learning these words, " f"you'll recognize ~{coverage:.1f}% of the text"
+        f"After learning these words, you'll recognize ~{coverage:.1f}% of the text"
     )
     lines.append("")
 
     # Excerpts
     lines.append("PRACTICE EXCERPTS:")
-    lines.append("(Excerpts where your learned vocabulary " "is most concentrated)")
+    lines.append("(Excerpts where your learned vocabulary is most concentrated)")
     lines.append("")
 
     excerpts = find_best_excerpt(
@@ -147,9 +145,7 @@ def _generate_batch_section(
     )
 
     for j, excerpt in enumerate(excerpts, 1):
-        lines.append(
-            f"  Excerpt {j} " f"({excerpt.match_percentage:.1f}% known words):"
-        )
+        lines.append(f"  Excerpt {j} ({excerpt.match_percentage:.1f}% known words):")
         lines.append(f'  "{excerpt.excerpt}"')
         lines.append("")
 

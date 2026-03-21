@@ -183,7 +183,7 @@ def _draw_c4_container(ax2: Axes) -> None:
     ax2.text(
         50,
         8,
-        "Jakie kontenery techniczne\n" "sk\u0142adaj\u0105 si\u0119 na system?",
+        "Jakie kontenery techniczne\nsk\u0142adaj\u0105 si\u0119 na system?",
         ha="center",
         fontsize=7,
         fontstyle="italic",
@@ -249,7 +249,7 @@ def _draw_c4_component(ax3: Axes) -> None:
     ax3.text(
         50,
         8,
-        "Jakie modu\u0142y/komponenty\n" "wewn\u0105trz kontenera?",
+        "Jakie modu\u0142y/komponenty\nwewn\u0105trz kontenera?",
         ha="center",
         fontsize=7,
         fontstyle="italic",
@@ -321,7 +321,7 @@ def _draw_c4_code(ax4: Axes) -> None:
     ax4.text(
         50,
         3,
-        "Diagramy klas UML\n" "(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
+        "Diagramy klas UML\n(opcjonalny poziom szczeg\u00f3\u0142owo\u015bci)",
         ha="center",
         fontsize=7,
         fontstyle="italic",

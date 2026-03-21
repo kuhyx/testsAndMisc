@@ -44,7 +44,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-d",
         nargs="+",
         metavar="LANG",
-        help=("Download language packs " "(e.g., --download en es pl)"),
+        help=("Download language packs (e.g., --download en es pl)"),
     )
 
     input_group = parser.add_mutually_exclusive_group()
@@ -113,7 +113,7 @@ def _handle_list_available() -> int:
     packages = _trans.get_available_packages()
     if not packages:
         sys.stdout.write(
-            "No packages available " "(check internet connection).\n",
+            "No packages available (check internet connection).\n",
         )
     else:
         sys.stdout.write("Available language packages:\n")
@@ -121,7 +121,7 @@ def _handle_list_available() -> int:
             packages,
         ):
             sys.stdout.write(
-                f"  {from_code} ({from_name})" f" -> {to_code} ({to_name})\n",
+                f"  {from_code} ({from_name}) -> {to_code} ({to_name})\n",
             )
     return 0
 
@@ -131,7 +131,7 @@ def _handle_download(lang_codes: list[str]) -> int:
     download_results = _trans.download_languages(lang_codes)
     success_count = sum(1 for v in download_results.values() if v)
     sys.stdout.write(
-        f"\nDownloaded {success_count}/" f"{len(download_results)} language pairs.\n",
+        f"\nDownloaded {success_count}/{len(download_results)} language pairs.\n",
     )
     return 0 if success_count > 0 else 1
 

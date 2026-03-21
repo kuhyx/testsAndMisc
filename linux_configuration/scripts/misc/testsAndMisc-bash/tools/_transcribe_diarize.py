@@ -63,7 +63,7 @@ def _probe_with_ffprobe(path: str) -> float | None:
                 "-show_entries",
                 "format=duration",
                 "-of",
-                "default=" "noprint_wrappers=1:nokey=1",
+                "default=noprint_wrappers=1:nokey=1",
                 path,
             ],
             stderr=subprocess.DEVNULL,
@@ -246,7 +246,7 @@ def _load_audio(
         alt = _ffmpeg_transcode_to_wav16_mono(audio_path)
         if alt is None:
             logger.warning(
-                "Could not read audio for diarization " "and no ffmpeg fallback: %s",
+                "Could not read audio for diarization and no ffmpeg fallback: %s",
                 exc,
             )
             return None
@@ -334,7 +334,7 @@ def diarize_segments(
     torch_mod = _try_import("torch")
     if torch_mod is None:
         logger.warning(
-            "Diarization dependencies missing; " "skipping speaker labels.",
+            "Diarization dependencies missing; skipping speaker labels.",
         )
         return None
 

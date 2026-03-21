@@ -206,7 +206,9 @@ class TestRunAnalysisSubprocess:
 
         with (
             patch("python_pkg.lichess_bot.main.Path") as mock_path,
-            patch("subprocess.Popen", return_value=mock_proc),
+            patch(
+                "python_pkg.lichess_bot.main.subprocess.Popen", return_value=mock_proc
+            ),
         ):
             mock_script = MagicMock()
             mock_script.is_file.return_value = True

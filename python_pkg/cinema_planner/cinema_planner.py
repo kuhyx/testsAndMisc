@@ -44,7 +44,7 @@ DEFAULT_EXCLUDED_GENRES = {"horror"}
 def _build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the cinema planner."""
     parser = argparse.ArgumentParser(
-        description=("Plan your cinema day to watch " "as many movies as possible."),
+        description=("Plan your cinema day to watch as many movies as possible."),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Supports Cinema City HTML/PDF schedules (auto-detected).
@@ -270,7 +270,7 @@ def _output_schedules(
             f.write(f"Movies considered: {len(all_movie_names)}\n")
             f.write(f"Buffer time: {args.buffer} minutes\n")
             if excluded_genres:
-                f.write("Excluded genres: " f"{', '.join(sorted(excluded_genres))}\n")
+                f.write(f"Excluded genres: {', '.join(sorted(excluded_genres))}\n")
             f.write(schedule_output)
         logger.info("Schedule saved to: %s", output_file)
 

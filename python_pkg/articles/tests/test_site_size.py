@@ -5,7 +5,7 @@ from pathlib import Path
 # Budget for the entire website (single file) in bytes
 BUDGET = 14 * 1024  # 14 KiB
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 SITE_FILE = HERE / "index.html"
 
 

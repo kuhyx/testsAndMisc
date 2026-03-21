@@ -233,9 +233,7 @@ def reset_consumable(name: str) -> None:
     key = f"{name}_replaced_at"
     state[key] = total
     _save_consumable_state(state)
-    _out(
-        f"{GREEN}✓ {name.capitalize()} counter reset at page count" f" {total}.{RESET}"
-    )
+    _out(f"{GREEN}✓ {name.capitalize()} counter reset at page count {total}.{RESET}")
     _out(f"  State saved to {CONSUMABLE_STATE_FILE}")
 
 

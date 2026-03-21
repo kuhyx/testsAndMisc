@@ -89,7 +89,7 @@ def _extract_main_card(
         {
             "question": main_question,
             "answer": answer_html,
-            "tags": (f"egzamin_magisterski pytanie_{num}" f" {subject} {topic}"),
+            "tags": (f"egzamin_magisterski pytanie_{num} {subject} {topic}"),
         }
     ]
 
@@ -155,7 +155,7 @@ def _extract_sub_cards(
                 "question": sub_question,
                 "answer": answer_text,
                 "tags": (
-                    f"egzamin_magisterski pytanie_{num}" f" {subject} {topic} szczegoly"
+                    f"egzamin_magisterski pytanie_{num} {subject} {topic} szczegoly"
                 ),
             }
         )
@@ -183,9 +183,7 @@ def _extract_formula_cards(
                 {
                     "question": f"Podaj {formula_name.strip()}",
                     "answer": formula_content.strip()[:300],
-                    "tags": (
-                        f"egzamin_magisterski pytanie_{num}" f" {subject} formuly"
-                    ),
+                    "tags": (f"egzamin_magisterski pytanie_{num} {subject} formuly"),
                 }
             )
 

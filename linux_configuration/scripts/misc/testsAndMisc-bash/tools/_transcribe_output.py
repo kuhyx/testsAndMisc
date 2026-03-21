@@ -15,7 +15,7 @@ def format_timestamp(seconds: float) -> str:
     minutes = (total_seconds % 3600) // 60
     secs = total_seconds % 60
     millis = int((seconds - int(seconds)) * 1000)
-    return f"{hours:02d}:{minutes:02d}:" f"{secs:02d},{millis:03d}"
+    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
 
 def write_srt(segments: list[Any], srt_path: str) -> None:
@@ -56,7 +56,7 @@ def write_srt_with_speakers(
             spk = f"SPK{lab + 1}"
             start_ts = format_timestamp(seg.start)
             end_ts = format_timestamp(seg.end)
-            f.write(f"{i}\n{start_ts} --> {end_ts}\n" f"[{spk}] {text}\n\n")
+            f.write(f"{i}\n{start_ts} --> {end_ts}\n[{spk}] {text}\n\n")
 
 
 def write_txt_with_speakers(
@@ -87,9 +87,7 @@ def write_rttm(
             dur = max(0.0, end - start)
             name = f"SPK{lab + 1}"
             f.write(
-                f"SPEAKER {file_id} 1 "
-                f"{start:.3f} {dur:.3f} "
-                f"<NA> <NA> {name} <NA>\n"
+                f"SPEAKER {file_id} 1 {start:.3f} {dur:.3f} <NA> <NA> {name} <NA>\n"
             )
 
 

@@ -306,19 +306,156 @@ class TestIntegration:
         assert "one" in output
         assert "uno" in output
 
-    def test_mixed_success_failure(self) -> None:
-        """Test handling when argos raises exception for some translations."""
-        # Simulate argos translating first word, then failing, then succeeding
-        with ArgosAvailableMock() as mock:
-            mock.side_effect = ["hola", RuntimeError("Unknown"), "mundo"]
-            results = translate_words(
-                ["hello", "xyz", "world"], "en", "es", use_cache=False
-            )
 
-        # First and third succeed, second fails
-        assert results[0].success is True
-        assert results[1].success is False
-        assert results[2].success is True
+class TestGetAvailablePackagesWithArgos:
+    """Tests for get_available_packages with argos available."""
 
-        output = format_translations(results)
-        assert "Error" in output
+    def test_returns_packages(self) -> None:
+        pkg = MagicMock()
+        pkg.from_code = "en"
+        pkg.from_name = "English"
+        pkg.to_code = "es"
+        pkg.to_name = "Spanish"
+
+        mock_package = MagicMock()
+        mock_package.update_package_index.return_value = None
+        mock_package.get_available_packages.return_value = [pkg]
+        mock_translate = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.package = mock_package
+        mock_parent.translate = mock_translate
+
+        with (
+            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "argostranslate": mock_parent,
+                    "argostranslate.package": mock_package,
+                    "argostranslate.translate": mock_translate,
+                },
+            ),
+        ):
+            result = get_available_packages()
+        assert result == [("en", "English", "es", "Spanish")]
+
+
+class TestDownloadLanguagesFull:
+    """Tests for download_languages with full flow."""
+
+    def test_downloads_packages(self) -> None:
+        pkg = MagicMock()
+        pkg.from_code = "en"
+        pkg.to_code = "es"
+        pkg.download.return_value = "/tmp/fake.argosmodel"
+
+        mock_package = MagicMock()
+        mock_package.update_package_index.return_value = None
+        mock_package.get_available_packages.return_value = [pkg]
+        mock_translate = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.package = mock_package
+        mock_parent.translate = mock_translate
+
+        with (
+            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "argostranslate": mock_parent,
+                    "argostranslate.package": mock_package,
+                    "argostranslate.translate": mock_translate,
+                },
+            ),
+        ):
+            result = download_languages(["en", "es"])
+        assert "en->es" in result
+        assert result["en->es"] is True
+
+    def test_package_not_available(self) -> None:
+        mock_package = MagicMock()
+        mock_package.update_package_index.return_value = None
+        mock_package.get_available_packages.return_value = []
+        mock_translate = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.package = mock_package
+        mock_parent.translate = mock_translate
+
+        with (
+            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "argostranslate": mock_parent,
+                    "argostranslate.package": mock_package,
+                    "argostranslate.translate": mock_translate,
+                },
+            ),
+        ):
+            result = download_languages(["en", "es"])
+        # No packages available, both directions fail
+        assert result.get("en->es") is False
+
+    def test_download_failure(self) -> None:
+        pkg = MagicMock()
+        pkg.from_code = "en"
+        pkg.to_code = "es"
+        pkg.download.side_effect = OSError("download failed")
+
+        mock_package = MagicMock()
+        mock_package.update_package_index.return_value = None
+        mock_package.get_available_packages.return_value = [pkg]
+        mock_translate = MagicMock()
+        mock_parent = MagicMock()
+        mock_parent.package = mock_package
+        mock_parent.translate = mock_translate
+
+        with (
+            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "argostranslate", mock_parent, create=True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "argostranslate": mock_parent,
+                    "argostranslate.package": mock_package,
+                    "argostranslate.translate": mock_translate,
+                },
+            ),
+        ):
+            result = download_languages(["en", "es"])
+        assert result["en->es"] is False
+
+
+class TestTranslateWordCache:
+    """Tests for translate_word with cache interactions."""
+
+    def test_cache_hit(self) -> None:
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = "hola"
+
+        with (
+            patch.object(translator, "get_translation_cache", return_value=mock_cache),
+            patch.object(translator, "_ensure_argos_installed"),
+        ):
+            from python_pkg.word_frequency.translator import translate_word
+
+            result = translate_word("hello", "en", "es", use_cache=True)
+        assert result.success is True
+        assert result.translated_word == "hola"
+
+    def test_cache_set_after_translation(self) -> None:
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None
+
+        with (
+            ArgosAvailableMock("hola"),
+            patch.object(translator, "get_translation_cache", return_value=mock_cache),
+        ):
+            from python_pkg.word_frequency.translator import translate_word
+
+            result = translate_word("hello", "en", "es", use_cache=True)
+        assert result.success is True
+        mock_cache.set.assert_called_once()

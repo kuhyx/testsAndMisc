@@ -304,8 +304,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preview_dir.mkdir(parents=True, exist_ok=True)
             preview_parks = list(parks.iterrows())[: args.preview_count]
             sys.stdout.write(
-                f"Exporting {len(preview_parks)} preview images "
-                f"to {preview_dir}...\n"
+                f"Exporting {len(preview_parks)} preview images to {preview_dir}...\n"
             )
             for _, row in preview_parks:
                 park_name = row["name"]

@@ -67,7 +67,9 @@ class VocabCurveCache:
             if data.get("file_hash") != file_hash:
                 return None
             excerpt = data["excerpt"]
-            words = list(data["words"])
+            words: list[tuple[str, int]] = [
+                (str(w[0]), int(w[1])) for w in data["words"]
+            ]
             return excerpt, words
 
     def set(

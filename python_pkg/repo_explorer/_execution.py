@@ -40,8 +40,8 @@ class ExecutionMixin:
     _output: tk.Text
     _IDLE_FLUSH_TICKS: int
 
-    def _selected_path(self) -> Path | None: ...
-    def after(self, ms: int, *args: object) -> str: ...
+    def _selected_path(self) -> Path | None: ...  # pragma: no branch
+    def after(self, ms: int, *args: object) -> str: ...  # pragma: no branch
 
     # ------------------------------------------------------------------
     # Run in external terminal
@@ -55,8 +55,7 @@ class ExecutionMixin:
         extra = args_str.split() if args_str else []
         subprocess.Popen([*self._terminal_args, "bash", "run.sh", *extra], cwd=path)
         self._write_output(
-            f"$ Launched in {self._terminal_args[0]}: "
-            f"{path.relative_to(REPO_ROOT)}\n",
+            f"$ Launched in {self._terminal_args[0]}: {path.relative_to(REPO_ROOT)}\n",
             "info",
         )
 

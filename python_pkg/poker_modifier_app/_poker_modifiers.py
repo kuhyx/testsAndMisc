@@ -11,8 +11,7 @@ REGULAR_MODIFIERS: list[Modifier] = [
     {
         "name": "Pair Bonus",
         "description": (
-            "Any pocket pair: everyone else pays you 1 chip, "
-            "even if you lose the hand."
+            "Any pocket pair: everyone else pays you 1 chip, even if you lose the hand."
         ),
     },
     {
@@ -82,7 +81,7 @@ REGULAR_MODIFIERS: list[Modifier] = [
     {
         "name": "Deck Shuffle",
         "description": (
-            "After dealing hole cards, shuffle deck " "and redeal all community cards."
+            "After dealing hole cards, shuffle deck and redeal all community cards."
         ),
     },
     {
@@ -101,7 +100,7 @@ REGULAR_MODIFIERS: list[Modifier] = [
     {
         "name": "Escalation",
         "description": (
-            "Each raise must be at least 2x the previous raise " "(not just matching)."
+            "Each raise must be at least 2x the previous raise (not just matching)."
         ),
     },
     # Position and Action Modifiers
@@ -236,8 +235,7 @@ REGULAR_MODIFIERS: list[Modifier] = [
     {
         "name": "Prediction Pool",
         "description": (
-            "Everyone puts 1 chip in pool. "
-            "Guess the river card exactly = win the pool."
+            "Everyone puts 1 chip in pool. Guess the river card exactly = win the pool."
         ),
     },
     # Partnership Modifiers
@@ -374,7 +372,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Confession Booth",
         "description": (
-            "Each player must truthfully state " "their biggest bluff this session."
+            "Each player must truthfully state their biggest bluff this session."
         ),
     },
     {
@@ -399,7 +397,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Emergency Fund",
         "description": (
-            "All players with less than 5 chips " "get emergency funding from the pot."
+            "All players with less than 5 chips get emergency funding from the pot."
         ),
     },
     {
@@ -413,7 +411,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Nuclear Option",
         "description": (
-            "Dealer burns the top 3 cards. " "Play with whatever's left in the deck."
+            "Dealer burns the top 3 cards. Play with whatever's left in the deck."
         ),
     },
     {
@@ -438,7 +436,7 @@ ENDGAME_MODIFIERS: list[Modifier] = [
     {
         "name": "Photo Finish",
         "description": (
-            "Take a photo of the winning hand - " "it goes in the poker hall of fame."
+            "Take a photo of the winning hand - it goes in the poker hall of fame."
         ),
     },
     # Chaos Theory

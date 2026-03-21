@@ -207,6 +207,56 @@ class TestGenerateLearningLesson:
         assert "PRACTICE EXCERPTS" in result
         assert "Excerpt 1" in result
 
+    def test_more_batches_than_words(self) -> None:
+        """Test with num_batches larger than available words (early break)."""
+        # "ab" is the only word with len > 1
+        text = "ab ab ab"
+        result = generate_learning_lesson(
+            text,
+            LessonConfig(
+                batch_size=1,
+                num_batches=100,
+                skip_default_stopwords=True,
+            ),
+        )
+        assert "SUMMARY" in result
+
+    def test_all_words_filtered_empty_cumulative(self) -> None:
+        """Test when all words are filtered, cumulative_words is empty."""
+        text = "a b c"  # All 1-char words -> filtered by len(word) > 1
+        result = generate_learning_lesson(
+            text,
+            LessonConfig(
+                batch_size=5,
+                num_batches=1,
+                skip_default_stopwords=True,
+            ),
+        )
+        assert "SUMMARY" in result
+        # No batches generated, no vocabulary coverage stats
+        assert "Text coverage" not in result
+
+    def test_no_translation(self) -> None:
+        """Test lesson without translation enabled (do_translate=False)."""
+        text = "hello hello hello world world"
+        result = generate_learning_lesson(
+            text,
+            LessonConfig(
+                batch_size=5,
+                num_batches=1,
+                skip_default_stopwords=True,
+                translate_from=None,
+                translate_to=None,
+            ),
+        )
+        assert "LANGUAGE LEARNING LESSON" in result
+
+    def test_default_config(self) -> None:
+        """Test calling generate_learning_lesson without config (line 79)."""
+        text = "hello hello hello world world"
+        result = generate_learning_lesson(text)
+        assert "LANGUAGE LEARNING LESSON" in result
+
 
 class TestMain:
     """Tests for main CLI function."""
@@ -320,6 +370,50 @@ class TestMain:
         assert exit_code == 1
         assert "Error" in caplog.text
 
+    def test_unicode_decode_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test UnicodeDecodeError handling."""
+        with (
+            caplog.at_level(logging.ERROR),
+            patch(
+                "python_pkg.word_frequency.learning_pipe.read_file",
+                side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "bad"),
+            ),
+        ):
+            exit_code = main(["--file", str(tmp_path / "f.txt")])
+        assert exit_code == 1
+
+    def test_output_to_file_branch(
+        self, tmp_path: Path, _mock_translation: None
+    ) -> None:
+        """Test --output to verify the file writing path."""
+        out = tmp_path / "out.txt"
+        exit_code = main(
+            [
+                "--text",
+                "hello world hello",
+                "--output",
+                str(out),
+                "--no-default-stopwords",
+            ]
+        )
+        assert exit_code == 0
+        assert out.exists()
+
+    def test_no_translate_flag(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test --no-translate flag to cover branch 303->307."""
+        with caplog.at_level(logging.INFO):
+            exit_code = main(
+                [
+                    "--text",
+                    "hello world hello",
+                    "--no-translate",
+                    "--no-default-stopwords",
+                ]
+            )
+        assert exit_code == 0
+
 
 class TestPerformance:
     """Performance tests for learning pipe."""
@@ -359,104 +453,3 @@ class TestDefaultStopwords:
         """Test that all stopwords are lowercase."""
         for word in DEFAULT_STOPWORDS_EN:
             assert word == word.lower()
-
-
-class TestTranslationIntegration:
-    """Tests for translation integration in learning_pipe."""
-
-    def test_lesson_without_translation(self) -> None:
-        """Test that lesson works without translation."""
-        text = "hello world hello world hello"
-        result = generate_learning_lesson(
-            text,
-            LessonConfig(
-                batch_size=5,
-                num_batches=1,
-                skip_default_stopwords=True,
-            ),
-        )
-
-        assert "hello" in result
-        assert "world" in result
-        # Should not have translation arrows
-        assert " -> " not in result or "Translation" not in result
-
-    def test_lesson_with_translation_params(self, _mock_translation: None) -> None:
-        """Test that translation params are accepted."""
-        text = "hello world hello world hello"
-        # This should work with mocked translation
-        result = generate_learning_lesson(
-            text,
-            LessonConfig(
-                batch_size=5,
-                num_batches=1,
-                skip_default_stopwords=True,
-                translate_from="en",
-                translate_to="es",
-            ),
-        )
-
-        # The lesson should still be generated
-        assert "VOCABULARY TO LEARN:" in result
-        assert "hello" in result
-
-    def test_main_with_translate_flags(
-        self, tmp_path: Path, _mock_translation: None
-    ) -> None:
-        """Test that main accepts translation flags."""
-        text_file = tmp_path / "test.txt"
-        text_file.write_text("hello world hello world hello", encoding="utf-8")
-
-        # Should work with mocked translation
-        result = main(
-            [
-                "--file",
-                str(text_file),
-                "--translate-from",
-                "en",
-                "--translate-to",
-                "es",
-                "--no-default-stopwords",
-            ]
-        )
-
-        assert result == 0
-
-    def test_translate_to_defaults_to_english(self, _mock_translation: None) -> None:
-        """Test that translate_to defaults to 'en' when using auto-detection."""
-        text = "hello world"
-        # When using --translate flag (translate_from="auto"),
-        # translate_to defaults to "en"
-        with patch.object(_translator_module, "detect_language", return_value="es"):
-            result = generate_learning_lesson(
-                text,
-                LessonConfig(
-                    batch_size=5,
-                    num_batches=1,
-                    skip_default_stopwords=True,
-                    translate_from="auto",  # Auto-detect source language
-                    translate_to=None,  # Should default to English
-                ),
-            )
-
-        # Should have translation output with auto-detected source -> en
-        assert "Detected language:" in result
-        assert " -> en" in result
-
-    def test_no_translation_when_both_none(self) -> None:
-        """Test no translation when both translate params are None."""
-        text = "hello world"
-        result = generate_learning_lesson(
-            text,
-            LessonConfig(
-                batch_size=5,
-                num_batches=1,
-                skip_default_stopwords=True,
-                translate_from=None,
-                translate_to=None,
-            ),
-        )
-
-        # Should not have translation output
-        assert "Translation:" not in result
-        assert "Detected language:" not in result

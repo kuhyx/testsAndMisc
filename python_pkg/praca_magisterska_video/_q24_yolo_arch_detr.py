@@ -446,8 +446,7 @@ def _detr_demo() -> list[CompositeVideoClip]:
             (80, 580),
         ),
         (
-            "Metryki: mAP@0.5 (standard), mAP@0.5:0.95 (surowsza), "
-            "IoU do dopasowania",
+            "Metryki: mAP@0.5 (standard), mAP@0.5:0.95 (surowsza), IoU do dopasowania",
             15,
             "#78909C",
             FONT_R,

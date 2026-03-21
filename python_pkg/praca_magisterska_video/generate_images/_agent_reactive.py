@@ -36,7 +36,7 @@ def draw_see_think_act() -> None:
     ax.set_ylim(0, 4.5)
     ax.axis("off")
     ax.set_title(
-        "Cykl agenta upostaciowionego:" " Percepcja \u2192 Deliberacja \u2192 Akcja",
+        "Cykl agenta upostaciowionego: Percepcja \u2192 Deliberacja \u2192 Akcja",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -57,7 +57,7 @@ def draw_see_think_act() -> None:
     ax.text(
         3.5,
         0.7,
-        "\u015aRODOWISKO FIZYCZNE\n" "(przeszkody, obiekty, ludzie)",
+        "\u015aRODOWISKO FIZYCZNE\n(przeszkody, obiekty, ludzie)",
         ha="center",
         va="center",
         fontsize=FS,
@@ -220,7 +220,7 @@ def draw_3t_architecture() -> None:
     ax.set_ylim(0, 5.5)
     ax.axis("off")
     ax.set_title(
-        "Architektura 3T sterownika robota" " (3-Layer Architecture)",
+        "Architektura 3T sterownika robota (3-Layer Architecture)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,

@@ -30,7 +30,7 @@ def _req(
 def test_crud_roundtrip(tmp_path: Path) -> None:
     """Test full CRUD lifecycle for articles API."""
     # Build C server
-    here = Path(__file__).resolve().parent
+    here = Path(__file__).resolve().parent.parent
     subprocess.run(["make", "-s", "server_c"], check=True, cwd=str(here))
 
     # Find a free port
@@ -100,6 +100,7 @@ def test_crud_roundtrip(tmp_path: Path) -> None:
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             _req(base + f"/api/articles/{art_id}")
         assert exc_info.value.code == HTTPStatus.NOT_FOUND
+        exc_info.value.close()
 
     finally:
         srv.terminate()

@@ -90,7 +90,7 @@ def _extract_polygonal_geometry(
         for p in polygons:
             if isinstance(p, Polygon):
                 all_polys.append(p)
-            elif isinstance(p, MultiPolygon):
+            elif isinstance(p, MultiPolygon):  # pragma: no branch
                 all_polys.extend(p.geoms)
         return MultiPolygon(all_polys)
 

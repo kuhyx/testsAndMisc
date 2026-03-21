@@ -105,7 +105,7 @@ def _extract_automata_facts(content: str) -> list[str]:
         pattern = rf"{name}.*?Rozpoznawana klasa języków" r"\s*\n\s*\*\*([^*]+)\*\*"
         match = re.search(pattern, content, re.DOTALL)
         if match:
-            parts.append(f"<b>{name} ({abbrev})</b>: " f"{match.group(1).strip()}")
+            parts.append(f"<b>{name} ({abbrev})</b>: {match.group(1).strip()}")
     return parts
 
 

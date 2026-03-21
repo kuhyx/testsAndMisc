@@ -117,7 +117,7 @@ def _extract_main_question_card(
 def _make_question_text(header: str) -> str:
     """Generate a question from a section header."""
     if "Definicja" in header or "Co to" in header:
-        return f"Co to jest:" f" {header.replace('Definicja', '').strip()}?"
+        return f"Co to jest: {header.replace('Definicja', '').strip()}?"
     if "Charakterystyka" in header:
         stripped = header.replace("Charakterystyka", "").strip()
         return f"Scharakteryzuj: {stripped}"
@@ -221,7 +221,7 @@ def _extract_algo_cards(
                     cards.append(
                         {
                             "front": (
-                                "Jaka jest złożoność" f" algorytmu/metody: {algo_name}?"
+                                f"Jaka jest złożoność algorytmu/metody: {algo_name}?"
                             ),
                             "back": clean_text(algo_match.strip()[:200]),
                             "tags": f"{base_tags} zlozonosc",
@@ -257,7 +257,7 @@ def _extract_comparison_cards(
     comparison_html = "<table><tr><th>Aspekt</th><th>Wartość</th></tr>"
     for aspect, value in items[:MAX_COMPARISON_ITEMS]:
         comparison_html += (
-            f"<tr><td>{clean_text(aspect)}</td>" f"<td>{clean_text(value)}</td></tr>"
+            f"<tr><td>{clean_text(aspect)}</td><td>{clean_text(value)}</td></tr>"
         )
     comparison_html += "</table>"
 
@@ -271,7 +271,7 @@ def _extract_comparison_cards(
 
     return [
         {
-            "front": ("Porównaj kluczowe różnice" f" w temacie: pytanie {num}"),
+            "front": (f"Porównaj kluczowe różnice w temacie: pytanie {num}"),
             "back": comparison_html,
             "tags": f"{base_tags} porownanie",
         }

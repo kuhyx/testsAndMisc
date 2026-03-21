@@ -262,7 +262,7 @@ def draw_regret_matrix() -> None:
     ax.text(
         5.0,
         2.8,
-        "Krok 3: Wybierz min z max żalu" " → A₂ (max żal = 120)",
+        "Krok 3: Wybierz min z max żalu → A₂ (max żal = 120)",
         fontsize=10,
         ha="center",
         va="center",
