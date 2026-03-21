@@ -26,7 +26,7 @@ def draw_expected_value() -> None:
     """Draw expected value criterion with probability-weighted bars."""
     fig, axes = plt.subplots(1, 3, figsize=(8.27, 3.5), sharey=True)
     fig.suptitle(
-        "Kryterium wartości oczekiwanej E[X]" " \u2014 rozkład wyników per alternatywa",
+        "Kryterium wartości oczekiwanej E[X] \u2014 rozkład wyników per alternatywa",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=1.02,
@@ -132,7 +132,7 @@ def draw_conditions_spectrum() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Warunki decyzyjne" " \u2014 spektrum wiedzy decydenta",
+        "Warunki decyzyjne \u2014 spektrum wiedzy decydenta",
         fontsize=FS_TITLE + 1,
         fontweight="bold",
         pad=10,

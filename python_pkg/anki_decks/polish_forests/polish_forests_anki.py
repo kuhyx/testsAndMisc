@@ -292,8 +292,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preview_dir.mkdir(parents=True, exist_ok=True)
             preview_forests = list(forests.iterrows())[: args.preview_count]
             sys.stdout.write(
-                f"Exporting {len(preview_forests)} preview images "
-                f"to {preview_dir}...\n"
+                f"Exporting {len(preview_forests)} preview images to {preview_dir}...\n"
             )
             for _, row in preview_forests:
                 forest_name = row["name"]

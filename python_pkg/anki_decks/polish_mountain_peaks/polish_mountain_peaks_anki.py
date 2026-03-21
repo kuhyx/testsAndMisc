@@ -345,8 +345,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preview_dir.mkdir(parents=True, exist_ok=True)
             preview_peaks = list(peaks.iterrows())[: args.preview_count]
             sys.stdout.write(
-                f"Exporting {len(preview_peaks)} preview images "
-                f"to {preview_dir}...\n"
+                f"Exporting {len(preview_peaks)} preview images to {preview_dir}...\n"
             )
             for _, row in preview_peaks:
                 peak_name = row["name"]

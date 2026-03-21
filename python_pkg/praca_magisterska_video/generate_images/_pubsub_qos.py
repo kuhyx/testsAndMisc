@@ -121,9 +121,7 @@ def draw_qos_at_most_once() -> None:
     ax.text(
         6.0,
         0.5,
-        "Brak ACK, brak retransmisji."
-        " Najszybszy. Use case:"
-        " logi, metryki, telemetria.",
+        "Brak ACK, brak retransmisji. Najszybszy. Use case: logi, metryki, telemetria.",
         ha="center",
         va="center",
         fontsize=9,
@@ -307,8 +305,7 @@ def draw_qos_exactly_once() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "QoS: Exactly-once \u2014 4-krokowy"
-        " handshake (dok\u0142adnie 1 dostarczenie)",
+        "QoS: Exactly-once \u2014 4-krokowy handshake (dok\u0142adnie 1 dostarczenie)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=12,
@@ -352,7 +349,7 @@ def draw_qos_exactly_once() -> None:
             4.2,
             "left",
             "PUBREC  (otrzyma\u0142em id=42)",
-            "Sub potwierdza odbi\u00f3r," " zapisuje id",
+            "Sub potwierdza odbi\u00f3r, zapisuje id",
         ),
         (
             3.2,

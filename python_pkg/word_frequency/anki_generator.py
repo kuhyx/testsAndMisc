@@ -286,7 +286,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-l",
         type=int,
         default=None,
-        help=("Target excerpt length " "(how many words you want to understand)"),
+        help=("Target excerpt length (how many words you want to understand)"),
     )
     parser.add_argument(
         "--max-vocab",
@@ -294,8 +294,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help=(
-            "INVERSE MODE: Learn top N words, "
-            "find longest excerpt you can understand"
+            "INVERSE MODE: Learn top N words, find longest excerpt you can understand"
         ),
     )
     parser.add_argument(

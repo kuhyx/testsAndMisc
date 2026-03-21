@@ -217,7 +217,7 @@ def generate_epc() -> None:
     ax.axis("off")
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_title(
-        "EPC (Event-driven Process Chain)" " \u2014 Obs\u0142uga reklamacji",
+        "EPC (Event-driven Process Chain) \u2014 Obs\u0142uga reklamacji",
         fontsize=TITLE_SIZE,
         fontweight="bold",
         pad=12,

@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # Main
 # ============================================================
 if __name__ == "__main__":
-    logger.info("Generating Pub/Sub diagrams" " (7 separate images)...")
+    logger.info("Generating Pub/Sub diagrams (7 separate images)...")
     draw_sub_topic()
     draw_sub_content()
     draw_sub_type()

@@ -144,6 +144,14 @@ class TestConfigureMultipv:
         assert result == 3
         engine.configure.assert_not_called()
 
+    def test_configure_multipv_getattr_raises_type_error(self) -> None:
+        """Test MultiPV config when getattr on option raises TypeError."""
+        engine = MagicMock()
+        mock_opt = MagicMock()
+        type(mock_opt).max = PropertyMock(side_effect=TypeError("bad"))
+        result = _configure_multipv(engine, {"MultiPV": mock_opt}, 3)
+        assert result == 3
+
 
 class TestConfigureNnue:
     """Tests for _configure_nnue function."""

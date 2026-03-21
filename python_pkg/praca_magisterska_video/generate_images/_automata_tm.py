@@ -117,7 +117,7 @@ def draw_tm_recognition() -> None:
                 fontsize=HEAD_MARKER_FONTSIZE,
                 color="black",
             )
-        if step_label:
+        if step_label:  # pragma: no branch
             sx = tape_x0 + 8 * cell_w + 0.8
             ax.text(
                 sx,

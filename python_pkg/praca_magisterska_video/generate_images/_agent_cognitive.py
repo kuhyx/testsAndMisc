@@ -35,7 +35,7 @@ def draw_behavior_tree() -> None:
     ax.set_ylim(0, 4.5)
     ax.axis("off")
     ax.set_title(
-        "Behavior Tree: robot przenosz\u0105cy" " obiekt (pick-and-place)",
+        "Behavior Tree: robot przenosz\u0105cy obiekt (pick-and-place)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,
@@ -277,7 +277,7 @@ def draw_bdi_model() -> None:
     ax.set_ylim(0, 4)
     ax.axis("off")
     ax.set_title(
-        "Model BDI agenta" " (Beliefs-Desires-Intentions)",
+        "Model BDI agenta (Beliefs-Desires-Intentions)",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=10,

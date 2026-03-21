@@ -49,19 +49,43 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 # Test files - allow test-specific patterns (assert, magic values)
 "**/tests/**/*.py" = [
-    "S101",    # Allow assert in tests
+    "ANN",     # Allow missing type annotations in tests
+    "ARG",     # Allow unused arguments (fixtures, mocks)
+    "D",       # Allow missing docstrings in tests
+    "E402",    # Allow imports not at top (after sys.modules setup)
+    "FBT",     # Allow boolean positional args/values
+    "PERF203", # Allow try-except in loop
+    "PLC0415", # Allow late imports for test isolation
+    "PLR0913", # Allow many arguments (mock patches)
     "PLR2004", # Allow magic values in tests
     "PT019",   # Allow underscore-prefixed fixture params
+    "RUF059",  # Allow unused passed args (patched fixtures)
+    "S101",    # Allow assert in tests
+    "S108",    # Allow hardcoded tmp paths in tests
+    "SIM117",  # Allow non-combined with statements
     "SLF001",  # Allow private member access in tests
 ]
 "**/test_*.py" = [
-    "S101",    # Allow assert in tests
-    "S310",    # Allow URL open in tests
-    "S607",    # Allow partial executable path in tests
+    "ANN",     # Allow missing type annotations in tests
+    "ARG",     # Allow unused arguments (fixtures, mocks)
+    "D",       # Allow missing docstrings in tests
+    "E402",    # Allow imports not at top (after sys.modules setup)
+    "FBT",     # Allow boolean positional args/values
     "PLC0415", # Allow late imports for test isolation
+    "PLR0913", # Allow many arguments (mock patches)
     "PLR2004", # Allow magic values in tests
     "PT019",   # Allow underscore-prefixed fixture params
+    "RUF059",  # Allow unused passed args (patched fixtures)
+    "S101",    # Allow assert in tests
+    "S108",    # Allow hardcoded tmp paths in tests
+    "S310",    # Allow URL open in tests
+    "S607",    # Allow partial executable path in tests
+    "SIM117",  # Allow non-combined with statements
     "SLF001",  # Allow private member access in tests
+]
+# Non-test files with late imports by design
+"python_pkg/praca_magisterska_video/generate_images/generate_arch_diagrams.py" = [
+    "E402",    # Imports after helper function definitions
 ]
 # Files using urlopen with validated URL schemes
 "python_pkg/geo_data/_common.py" = ["S310"]
@@ -257,23 +281,26 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "-ra",
+    "--cov=python_pkg",
+    "--cov-branch",
+    "--cov-report=term-missing",
 ]
 filterwarnings = [
     "error",
     "ignore::DeprecationWarning",
+    "default::pytest.PytestUnraisableExceptionWarning",
 ]
 
 # ============================================================================
 # COVERAGE - Code coverage configuration
 # ============================================================================
 [tool.coverage.run]
-source = ["."]
+source = ["python_pkg"]
 branch = true
 omit = [
     "*/__pycache__/*",
     "*/tests/*",
     "*/.venv/*",
-    "Bash/*",
 ]
 
 [tool.coverage.report]

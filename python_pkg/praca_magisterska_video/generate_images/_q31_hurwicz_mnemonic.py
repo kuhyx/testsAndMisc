@@ -30,7 +30,7 @@ def draw_hurwicz_interpolation() -> None:
     """Draw Hurwicz alpha interpolation diagram."""
     fig, ax = plt.subplots(1, 1, figsize=(8.27, 4))
     ax.set_title(
-        "Kryterium Hurwicza" " \u2014 wpływ \u03b1 na wybór alternatywy",
+        "Kryterium Hurwicza \u2014 wpływ \u03b1 na wybór alternatywy",
         fontsize=FS_TITLE + 1,
         fontweight="bold",
         pad=10,

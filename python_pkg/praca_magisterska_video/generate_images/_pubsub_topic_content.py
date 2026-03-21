@@ -31,7 +31,7 @@ def draw_sub_topic() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Subskrypcja topic-based" " \u2014 routing po nazwie tematu",
+        "Subskrypcja topic-based \u2014 routing po nazwie tematu",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=12,
@@ -141,8 +141,7 @@ def draw_sub_content() -> None:
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(
-        "Subskrypcja content-based"
-        " \u2014 filtrowanie po tre\u015bci wiadomo\u015bci",
+        "Subskrypcja content-based \u2014 filtrowanie po tre\u015bci wiadomo\u015bci",
         fontsize=FS_TITLE,
         fontweight="bold",
         pad=12,
@@ -162,7 +161,7 @@ def draw_sub_content() -> None:
         ax,
         (4.0, 2.0),
         (3.0, 2.5),
-        "BROKER\n\newaluuje filtry\n" "ka\u017cdego subscribera",
+        "BROKER\n\newaluuje filtry\nka\u017cdego subscribera",
         BoxStyle(fill=GRAY2, fontsize=9, fontweight="bold"),
     )
 
@@ -204,7 +203,7 @@ def draw_sub_content() -> None:
         (7.0, 3.2),
         (8.5, 3.1),
         DashedCfg(
-            label='"book" \u2260 "food"' "  \u2717  odrzucono",
+            label='"book" \u2260 "food"  \u2717  odrzucono',
             label_fs=8,
         ),
     )

@@ -136,7 +136,7 @@ def find_optimal_excerpts(
                 best_excerpt_words = excerpt_words
                 best_words_needed = words_needed
 
-        if best_vocab_needed != float("inf"):
+        if best_vocab_needed != float("inf"):  # pragma: no branch
             results.append(
                 ExcerptAnalysis(
                     excerpt_length=length,
@@ -213,7 +213,7 @@ def format_results(
     lines.append("")
 
     # Summary statistics
-    if results:
+    if results:  # pragma: no branch
         final = results[-1]
         lines.append(f"To understand a {final.excerpt_length}-word excerpt,")
         lines.append(

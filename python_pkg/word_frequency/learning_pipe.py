@@ -99,8 +99,7 @@ def generate_learning_lesson(
     lines.append("LANGUAGE LEARNING LESSON")
     lines.append("=" * 70)
     lines.append(
-        f"Source text: {total_words:,} total words, "
-        f"{len(word_counts):,} unique words"
+        f"Source text: {total_words:,} total words, {len(word_counts):,} unique words"
     )
     if all_stopwords:
         lines.append(
@@ -166,11 +165,11 @@ def generate_learning_lesson(
             word_counts[w] for w in cumulative_words if w in word_counts
         )
         final_pct = (final_coverage / total_words) * 100
-        lines.append("Total vocabulary words learned: " f"{len(cumulative_words)}")
+        lines.append(f"Total vocabulary words learned: {len(cumulative_words)}")
         lines.append(f"Text coverage: {final_pct:.1f}%")
         lines.append("")
-        lines.append("TIP: Focus on understanding the excerpts " "first, then read")
-        lines.append("more of the original text as your " "vocabulary grows!")
+        lines.append("TIP: Focus on understanding the excerpts first, then read")
+        lines.append("more of the original text as your vocabulary grows!")
 
     return "\n".join(lines)
 
@@ -270,7 +269,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--translate-from",
         type=str,
         metavar="LANG",
-        help=("Source language code (e.g., 'la', 'pl'). " "If omitted, auto-detected."),
+        help=("Source language code (e.g., 'la', 'pl'). If omitted, auto-detected."),
     )
     parser.add_argument(
         "--translate-to",

@@ -373,8 +373,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             # Pre-compute color mapping for previews
             color_map = _build_color_map(gminy["name"].tolist())
             sys.stdout.write(
-                f"Exporting {len(preview_gminy)} preview images "
-                f"to {preview_dir}...\n"
+                f"Exporting {len(preview_gminy)} preview images to {preview_dir}...\n"
             )
             for _, row in preview_gminy:
                 gmina_name = row["name"]

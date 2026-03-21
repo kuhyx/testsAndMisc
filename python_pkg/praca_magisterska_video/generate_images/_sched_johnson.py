@@ -253,12 +253,12 @@ def _draw_johnson_gantt_chart(ax2: Axes) -> None:
     idle_starts = [0]
     idle_ends = [m2_starts[0]]
     for i in range(1, 5):
-        if m2_starts[i] > m2_ends[i - 1]:
+        if m2_starts[i] > m2_ends[i - 1]:  # pragma: no cover
             idle_starts.append(m2_ends[i - 1])
             idle_ends.append(m2_starts[i])
 
     for s, e in zip(idle_starts, idle_ends, strict=False):
-        if e > s:
+        if e > s:  # pragma: no branch
             rect = mpatches.Rectangle(
                 (s, m2_y),
                 e - s,

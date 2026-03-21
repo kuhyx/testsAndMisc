@@ -171,7 +171,7 @@ def generate_anki_deck(
             else:
                 context_escaped = ""
             lines.append(
-                f"{word_escaped};{translation_escaped}" f";#{rank};{context_escaped}"
+                f"{word_escaped};{translation_escaped};#{rank};{context_escaped}"
             )
         else:
             lines.append(f"{word_escaped};{translation_escaped};#{rank}")

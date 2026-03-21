@@ -99,7 +99,7 @@ def draw_lba_recognition() -> None:
                 fontsize=HEAD_MARKER_FONTSIZE,
                 color="black",
             )
-        if step_label:
+        if step_label:  # pragma: no branch
             sx = tape_x0 + 6 * cell_w + 0.5
             ax.text(
                 sx,
@@ -255,7 +255,7 @@ def draw_lba_recognition() -> None:
     ax.text(
         tape_x0 + 3 * cell_w,
         tape_y + 0.3,
-        "Wszystko zaznaczone → q_acc" ' → "aabbcc" AKCEPTOWANE ✓',
+        'Wszystko zaznaczone → q_acc → "aabbcc" AKCEPTOWANE ✓',
         ha="center",
         va="center",
         fontsize=FS + 1,
@@ -271,7 +271,7 @@ def draw_lba_recognition() -> None:
     ax.text(
         tape_x0 + 6 * cell_w + 0.5,
         tape_y + 0.3,
-        "Ograniczenie LBA:\n" "głowica ≤ 6 komórek\n" '(= |w| = |"aabbcc"|)',
+        'Ograniczenie LBA:\ngłowica ≤ 6 komórek\n(= |w| = |"aabbcc"|)',
         ha="left",
         va="center",
         fontsize=FS_SMALL,

@@ -286,8 +286,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preview_dir.mkdir(parents=True, exist_ok=True)
             preview_bridges = list(bridges.iterrows())[: args.preview_count]
             sys.stdout.write(
-                f"Exporting {len(preview_bridges)} preview images "
-                f"to {preview_dir}...\n"
+                f"Exporting {len(preview_bridges)} preview images to {preview_dir}...\n"
             )
             for _, row in preview_bridges:
                 bridge_name = row["name"]

@@ -80,9 +80,9 @@ def get_unique_streets(
     return result
 
 
-def load_street_data() -> (
-    tuple[list[tuple[str, gpd.GeoDataFrame, float]], gpd.GeoDataFrame]
-):
+def load_street_data() -> tuple[
+    list[tuple[str, gpd.GeoDataFrame, float]], gpd.GeoDataFrame
+]:
     """Load Warsaw streets and boundary.
 
     Returns:

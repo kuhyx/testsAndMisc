@@ -360,8 +360,7 @@ def main() -> int:
         sys.stdout.write("\n")
         sys.stdout.write("Data source: Wikipedia\n")
         sys.stdout.write(
-            "URL: https://en.wikipedia.org/wiki/"
-            "Vehicle_registration_plates_of_Poland\n"
+            "URL: https://en.wikipedia.org/wiki/Vehicle_registration_plates_of_Poland\n"
         )
         sys.stdout.write(f"Cache location: {get_cache_path()}\n")
         sys.stdout.write(f"Cache expiry: {CACHE_EXPIRY_DAYS} days\n")

@@ -75,7 +75,7 @@ repos:
   # RUFF - Fast Python linter and formatter (replaces black, isort, flake8, etc.)
   # ===========================================================================
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+    rev: v0.15.2
     hooks:
       # Linter - run first to catch issues
       - id: ruff
@@ -166,6 +166,18 @@ repos:
         exclude: ^(Bash/|\.venv/|tests/|.*test.*\.py$)
 
   # ===========================================================================
+  # PYTEST + COVERAGE - Run tests and enforce 100% code coverage
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: pytest-coverage
+        name: pytest with coverage enforcement
+        entry: python -m pytest --cov=python_pkg --cov-branch --cov-report=term-missing --cov-fail-under=100 -q
+        language: system
+        types: [python]
+        pass_filenames: false
+
+  # ===========================================================================
   # VULTURE - Dead code detection (disabled - doesn't work well with pre-commit)
   # ===========================================================================
   # - repo: https://github.com/jendrikseipp/vulture
@@ -196,7 +208,7 @@ repos:
       - id: codespell
         args:
           - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
-          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre
+          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|CPP/|.*\.geojson$)
 
   # ===========================================================================

@@ -402,9 +402,7 @@ def generate_anki(
 
     # Write output
     with Path(output_file).open("w", encoding="utf-8") as f:
-        f.write(
-            "#separator:Tab\n#html:true\n" f"#notetype:Basic\n#deck:{deck_name}\n\n"
-        )
+        f.write(f"#separator:Tab\n#html:true\n#notetype:Basic\n#deck:{deck_name}\n\n")
         for c in unique:
             f.write(f"{c['front']}\t{c['back']}\t{c['tags']}\n")
 
@@ -453,7 +451,7 @@ def main() -> None:
 
         for i, (f_flag, e_flag, m_flag) in enumerate(combinations, 1):
             logger.info(
-                "--- Combination %d (filter=%s, extract=%s," " main=%s) ---",
+                "--- Combination %d (filter=%s, extract=%s, main=%s) ---",
                 i,
                 f_flag,
                 e_flag,

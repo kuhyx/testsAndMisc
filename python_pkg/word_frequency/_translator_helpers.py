@@ -233,7 +233,7 @@ def _ensure_argos_installed() -> None:
         )
         raise ImportError(msg) from e
     except ImportError:
-        msg = "argostranslate installation succeeded but " "import failed"
+        msg = "argostranslate installation succeeded but import failed"
         raise ImportError(msg) from None
 
 
@@ -288,7 +288,7 @@ def _ensure_language_pair(from_lang: str, to_lang: str) -> None:
         raise ValueError(msg)
 
     logger.info(
-        "  Downloading package (~50-100MB, " "this may take a minute)...",
+        "  Downloading package (~50-100MB, this may take a minute)...",
     )
     download_path = pkg.download()
     logger.info("  Installing language pack...")

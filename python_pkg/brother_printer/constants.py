@@ -78,26 +78,23 @@ BROTHER_STATUS_CODES: dict[int, tuple[str, str, str]] = {
     40309: (
         "critical",
         "Replace Toner",
-        "The toner cartridge needs immediate replacement"
-        " (TN-1050/TN-1030 compatible).",
+        "The toner cartridge needs immediate replacement (TN-1050/TN-1030 compatible).",
     ),
     40310: (
         "critical",
         "Toner End",
-        "The toner cartridge is empty." " Replace now (TN-1050/TN-1030 compatible).",
+        "The toner cartridge is empty. Replace now (TN-1050/TN-1030 compatible).",
     ),
     # Drum
     30201: (
         "warn",
         "Drum End Soon",
-        "The drum unit is nearing end of life."
-        " Order replacement (DR-1050 compatible).",
+        "The drum unit is nearing end of life. Order replacement (DR-1050 compatible).",
     ),
     40201: (
         "warn",
         "Drum End Soon",
-        "The drum unit is nearing end of life."
-        " Order replacement (DR-1050 compatible).",
+        "The drum unit is nearing end of life. Order replacement (DR-1050 compatible).",
     ),
     40019: (
         "critical",

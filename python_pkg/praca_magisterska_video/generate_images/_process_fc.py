@@ -288,7 +288,7 @@ def generate_flowchart() -> None:
     ax.axis("off")
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_title(
-        "Schemat blokowy (Flowchart)" " \u2014 Obs\u0142uga reklamacji",
+        "Schemat blokowy (Flowchart) \u2014 Obs\u0142uga reklamacji",
         fontsize=TITLE_SIZE,
         fontweight="bold",
         pad=12,

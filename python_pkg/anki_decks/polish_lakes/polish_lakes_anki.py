@@ -331,8 +331,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preview_dir.mkdir(parents=True, exist_ok=True)
             preview_lakes = list(lakes.iterrows())[: args.preview_count]
             sys.stdout.write(
-                f"Exporting {len(preview_lakes)} preview images "
-                f"to {preview_dir}...\n"
+                f"Exporting {len(preview_lakes)} preview images to {preview_dir}...\n"
             )
             for _, row in preview_lakes:
                 lake_name = row["name"]

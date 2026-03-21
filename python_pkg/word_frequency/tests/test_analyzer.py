@@ -260,6 +260,30 @@ class TestMain:
         assert exit_code == 1
         assert "File not found" in caplog.text
 
+    def test_output_to_file(self, tmp_path: Path) -> None:
+        """Test --output option writes to file."""
+        out = tmp_path / "result.txt"
+        exit_code = main(["--text", "hello world hello", "--output", str(out)])
+        assert exit_code == 0
+        content = out.read_text(encoding="utf-8")
+        assert "hello" in content
+
+    def test_unicode_decode_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test UnicodeDecodeError handling."""
+        from unittest.mock import patch
+
+        f = tmp_path / "bad.txt"
+        f.write_bytes(b"\x80\x81")
+        with patch(
+            "python_pkg.word_frequency.analyzer.read_file",
+            side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "bad"),
+        ):
+            exit_code = main(["--file", str(f)])
+        assert exit_code == 1
+        assert "decode" in caplog.text.lower()
+
 
 class TestPerformance:
     """Performance tests for word frequency analyzer."""

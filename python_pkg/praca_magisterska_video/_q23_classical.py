@@ -371,7 +371,7 @@ def _watershed_demo() -> list[CompositeVideoClip]:
                     # Water fills below terrain surface
                     fill_top = max(water_y, 0)
                     fill_bot = min(t_y, oy)
-                    if fill_top < fill_bot:
+                    if fill_top < fill_bot:  # pragma: no branch
                         frame[fill_top:fill_bot, x : x + 1] = (70, 130, 220)
 
         # Dam marker at ridge

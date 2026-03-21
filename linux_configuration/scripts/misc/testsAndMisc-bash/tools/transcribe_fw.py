@@ -33,7 +33,7 @@ def _try_import(name: str) -> types.ModuleType | None:
 def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description=("Transcribe audio with faster-whisper " "and write .txt and .srt"),
+        description=("Transcribe audio with faster-whisper and write .txt and .srt"),
     )
     parser.add_argument("input", help="Path to audio/video file")
     parser.add_argument(
@@ -152,9 +152,7 @@ def _format_progress_line(
         )
         elapsed = now - start_ts
         line = (
-            f"[PROGRESS] {hhmmss(processed)} / "
-            f"{hhmmss(total_duration)} "
-            f"({pct:5.1f}%)"
+            f"[PROGRESS] {hhmmss(processed)} / {hhmmss(total_duration)} ({pct:5.1f}%)"
         )
         if processed > 0:
             rate = processed / max(1e-6, elapsed)
@@ -206,7 +204,7 @@ def _write_diarized_outputs(
         logger.info("Wrote: %s", rttm_path)
     else:
         logger.warning(
-            "Diarization failed or returned " "mismatched labels; writing plain.",
+            "Diarization failed or returned mismatched labels; writing plain.",
         )
 
 
@@ -222,7 +220,7 @@ def main() -> int:
     fw = _try_import("faster_whisper")
     if fw is None:
         logger.error(
-            "faster-whisper is not installed " "in this environment.",
+            "faster-whisper is not installed in this environment.",
         )
         return 2
 
@@ -241,7 +239,7 @@ def main() -> int:
     device, compute_type = _resolve_device_and_compute(args)
 
     logger.info(
-        "Loading model='%s', device='%s', " "compute_type='%s'",
+        "Loading model='%s', device='%s', compute_type='%s'",
         args.model,
         device,
         compute_type,

@@ -88,7 +88,7 @@ def _download_files(
         repo_id,
     )
     logger.info(
-        "This may take several minutes for large " "models (~3GB for large-v3)",
+        "This may take several minutes for large models (~3GB for large-v3)",
     )
 
     _log_total_download_size(repo_id, required_files)
@@ -156,7 +156,7 @@ def download_model_with_progress(
     hh = _try_import("huggingface_hub")
     if hh is None:
         logger.warning(
-            "huggingface_hub not available, " "falling back to default download",
+            "huggingface_hub not available, falling back to default download",
         )
         return model_name
 
@@ -181,7 +181,7 @@ def download_model_with_progress(
         return _download_files(repo_id, required_files)
     except (OSError, RuntimeError) as exc:
         logger.warning(
-            "Custom download failed (%s), " "falling back to default",
+            "Custom download failed (%s), falling back to default",
             exc,
         )
         return model_name

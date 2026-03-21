@@ -116,9 +116,7 @@ def draw_dijkstra_traversal() -> None:
         },
         {
             "title": (
-                "Krok 2: Przetwarzam B (d=2)"
-                " — minimum\n"
-                "Relaksacja: B→D: 2+3=5<∞ ✓"
+                "Krok 2: Przetwarzam B (d=2) — minimum\nRelaksacja: B→D: 2+3=5<∞ ✓"
             ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "5"},
             "current": "B",
@@ -140,7 +138,7 @@ def draw_dijkstra_traversal() -> None:
         },
         {
             "title": (
-                "Krok 4: WYNIK" " — wszystkie przetworzone\n" "d = {A:0, B:2, C:4, D:5}"
+                "Krok 4: WYNIK — wszystkie przetworzone\nd = {A:0, B:2, C:4, D:5}"
             ),
             "dist": {"A": "0", "B": "2", "C": "4", "D": "5"},
             "current": None,
@@ -152,7 +150,7 @@ def draw_dijkstra_traversal() -> None:
 
     fig, axes = plt.subplots(1, 5, figsize=(14, 3.5))
     fig.suptitle(
-        "Dijkstra — przejście grafu krok po kroku" " (zachłannie: zawsze bierz min d)",
+        "Dijkstra — przejście grafu krok po kroku (zachłannie: zawsze bierz min d)",
         fontsize=FS_TITLE,
         fontweight="bold",
         y=1.02,
