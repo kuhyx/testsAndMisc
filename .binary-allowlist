@@ -1,0 +1,12 @@
+# Binary files allowed in the repository.
+# One glob pattern per line. These are essential for builds and cannot be external.
+# Lines starting with # are comments.
+
+# Flutter app launcher icons (required for Android builds)
+pomodoro_app/android/app/src/main/res/mipmap-*/ic_launcher.png
+
+# Pomodoro app packaging icon
+pomodoro_app/packaging/arch/*.svg
+
+# Battery status favicon
+TS/battery-status/public/favicon.svg

@@ -1,5 +1,8 @@
+# ===========================================================================
 # Binary / image files (** prefix for recursive matching)
-**/*.apkg
+# Mirrors .gitignore binary block — defense-in-depth for Copilot context
+# ===========================================================================
+# Images
 **/*.png
 **/*.jpg
 **/*.jpeg
@@ -8,28 +11,64 @@
 **/*.svg
 **/*.ico
 **/*.bmp
-**/*.pdf
+**/*.tiff
+**/*.tif
+**/*.psd
+# Audio / Video
+**/*.mp3
+**/*.mp4
+**/*.wav
+**/*.avi
+**/*.mkv
+**/*.flac
+**/*.ogg
+**/*.wma
+**/*.aac
+**/*.m4a
+**/*.mov
+# Archives
 **/*.zip
 **/*.tar.gz
 **/*.tgz
-**/*.bin
-**/*.exe
-**/*.so
-**/*.o
-**/*.a
-**/*.pyc
-**/*.pyo
-**/*.class
-**/*.wav
-**/*.mp3
-**/*.mp4
-**/*.avi
+**/*.bz2
+**/*.xz
+**/*.7z
+**/*.rar
+# Documents
+**/*.pdf
+**/*.doc
+**/*.docx
+**/*.xls
+**/*.xlsx
+**/*.ppt
+**/*.pptx
+# Fonts
 **/*.ttf
 **/*.woff
 **/*.woff2
 **/*.eot
+**/*.otf
+# Compiled / binary
+**/*.o
+**/*.a
+**/*.so
+**/*.exe
+**/*.dll
+**/*.dylib
+**/*.pyc
+**/*.pyo
+**/*.class
+# Data
+**/*.apkg
+**/*.bin
 **/*.flat
+**/*.db
+**/*.sqlite
+**/*.sqlite3
 
+# ===========================================================================
+# Large directories
+# ===========================================================================
 # Virtual environments
 .venv/
 **/.venv/
@@ -49,28 +88,22 @@ pomodoro_app/build/
 sonic_pi/build/
 CPP/mini_browser/build/
 
-# C random JPG images (46k+ files)
-C/misc/randomJPG/
-
 # Generated / preview images
 **/generated_images_*/
 **/preview_images/
 
-# Anki decks (2GB+ with images and .venvs)
+# Anki decks
 python_pkg/anki_decks/
 
-# Image-heavy directories
-python_pkg/articles/uploads/
+# Image-heavy directories (moved to ../testsAndMisc_binaries/)
 python_pkg/praca_magisterska_video/images/
+python_pkg/praca_magisterska_video/
+python_pkg/articles/uploads/
 python_pkg/download_cats/http_cat_cache/
-python_pkg/praca_magisterska_video/
+C/misc/randomJPG/
 
-# Files/dirs with many embedded image references
-python_pkg/praca_magisterska_video/
+# Files with many embedded image references
 python_pkg/cinema_planner/pasted_content.txt
-
-# Downloaded image caches
-python_pkg/download_cats/http_cat_cache/
 
 # C build artifacts
 **/*.out

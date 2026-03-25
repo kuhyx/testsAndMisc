@@ -40,18 +40,85 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
-*.mkv
+
+# ===========================================================================
+# BINARY / IMAGE FILES - Move to ../testsAndMisc_binaries/ instead
+# See .binary-allowlist for exceptions required by builds
+# ===========================================================================
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.ico
+*.tiff
+*.tif
+*.psd
+# SVG is text but often used as image asset
+*.svg
+# Audio / Video
+*.mp3
 *.mp4
-imageviewer
-title_test.png
+*.wav
+*.avi
+*.mkv
+*.flac
+*.ogg
+*.wma
+*.aac
+*.m4a
+*.mov
+*.wmv
+*.flv
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+# Documents
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+# Fonts
+*.ttf
+*.woff
+*.woff2
+*.eot
+*.otf
+# Data / binary
+*.apkg
+*.bin
+*.flat
+*.db
+*.sqlite
+*.sqlite3
+# Compiled
+*.exe
+*.dll
+*.dylib
+
+# Explicitly allowed binary files (override above with !)
+!pomodoro_app/android/app/src/main/res/mipmap-*/ic_launcher.png
+!pomodoro_app/packaging/arch/pomodoro-app.svg
+!TS/battery-status/public/favicon.svg
+
+# ===========================================================================
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
 *$py.class
 
-# C extensions
-*.so
+# C extensions (*.so covered in binary block above)
 
 # Distribution / packaging
 .Python
@@ -293,8 +360,7 @@ python_pkg/music_gen/output/
 python_pkg/screen_locker/sick_day_state.json
 python_pkg/screen_locker/workout_log.json.bak
 preview_images
-# Anki generated packages (large binary files)
-*.apkg
+# Anki generated packages (*.apkg covered in binary block above)
 
 # Geographic data cache (can be regenerated)
 python_pkg/geo_cache/
@@ -326,4 +392,3 @@ cinema_plan_*.txt
 
 # Binary images moved to external storage (testsAndMisc_binaries/)
 python_pkg/praca_magisterska_video/images/
-*.apkg
