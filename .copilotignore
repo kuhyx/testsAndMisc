@@ -1,29 +1,34 @@
-# Binary / image files
-*.apkg
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.svg
-*.ico
-*.bmp
-*.pdf
-*.zip
-*.tar.gz
-*.tgz
-*.bin
-*.exe
-*.so
-*.o
-*.a
-
-# Build outputs
-pomodoro_app/build/
-
-# Generated images
-**/generated_images_*/
-**/preview_images/
+# Binary / image files (** prefix for recursive matching)
+**/*.apkg
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.svg
+**/*.ico
+**/*.bmp
+**/*.pdf
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.bin
+**/*.exe
+**/*.so
+**/*.o
+**/*.a
+**/*.pyc
+**/*.pyo
+**/*.class
+**/*.wav
+**/*.mp3
+**/*.mp4
+**/*.avi
+**/*.ttf
+**/*.woff
+**/*.woff2
+**/*.eot
+**/*.flat
 
 # Virtual environments
 .venv/
@@ -31,6 +36,41 @@ pomodoro_app/build/
 
 # Node modules
 node_modules/
+**/node_modules/
+
+# Caches
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+**/__pycache__/
+
+# Build outputs
+pomodoro_app/build/
+sonic_pi/build/
+CPP/mini_browser/build/
+
+# C random JPG images (46k+ files)
+C/misc/randomJPG/
+
+# Generated / preview images
+**/generated_images_*/
+**/preview_images/
+
+# Anki decks (2GB+ with images and .venvs)
+python_pkg/anki_decks/
+
+# Image-heavy directories
+python_pkg/articles/uploads/
+python_pkg/praca_magisterska_video/images/
+python_pkg/download_cats/http_cat_cache/
+python_pkg/praca_magisterska_video/
+
+# Files/dirs with many embedded image references
+python_pkg/praca_magisterska_video/
+python_pkg/cinema_planner/pasted_content.txt
+
+# Downloaded image caches
+python_pkg/download_cats/http_cat_cache/
 
 # C build artifacts
 **/*.out

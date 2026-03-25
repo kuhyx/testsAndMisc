@@ -323,3 +323,7 @@ phone_focus_mode/config_secrets.sh
 # Generated output files
 out.txt
 cinema_plan_*.txt
+
+# Binary images moved to external storage (testsAndMisc_binaries/)
+python_pkg/praca_magisterska_video/images/
+*.apkg

@@ -3,5 +3,46 @@
     "*.py": "python",
     "stdio.h": "c"
   },
-  "dart.flutterSdkPath": ".fvm/versions/stable"
+  "dart.flutterSdkPath": ".fvm/versions/stable",
+  "files.exclude": {
+    "**/*.png": true,
+    "**/*.jpg": true,
+    "**/*.jpeg": true,
+    "**/*.gif": true,
+    "**/*.webp": true,
+    "**/*.svg": true,
+    "**/*.ico": true,
+    "**/*.bmp": true,
+    "**/*.apkg": true,
+    "**/*.pdf": true,
+    "**/*.pyc": true,
+    "**/__pycache__": true,
+    ".venv": true,
+    "**/.venv": true,
+    ".ruff_cache": true,
+    ".mypy_cache": true,
+    "C/misc/randomJPG": true,
+    "pomodoro_app/build": true,
+    "sonic_pi/build": true,
+    "CPP/mini_browser/build": true,
+    "python_pkg/anki_decks/**/preview_images": true,
+    "python_pkg/download_cats/http_cat_cache": true,
+    "python_pkg/articles/uploads": true,
+    "python_pkg/praca_magisterska_video/images": true,
+    "**/generated_images_*": true
+  },
+  "search.exclude": {
+    "**/*.zip": true,
+    "**/*.so": true,
+    "**/*.o": true,
+    "**/*.flat": true,
+    "**/*.wav": true,
+    "**/*.ttf": true,
+    "**/*.class": true,
+    "**/node_modules": true,
+    "python_pkg/anki_decks": true,
+    "python_pkg/praca_magisterska_video": true,
+    "python_pkg/articles/uploads": true,
+    "python_pkg/download_cats/http_cat_cache": true
+  }
 }
