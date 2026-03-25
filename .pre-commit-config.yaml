@@ -178,15 +178,16 @@ repos:
 
   # ===========================================================================
   # PYTEST + COVERAGE - Run tests and enforce 100% code coverage
+  # Only tests for subpackages with changed files are run (see script).
   # ===========================================================================
   - repo: local
     hooks:
       - id: pytest-coverage
         name: pytest with coverage enforcement
-        entry: python -m pytest --cov=python_pkg --cov-branch --cov-report=term-missing --cov-fail-under=100 -q
+        entry: python scripts/pytest_changed_packages.py
         language: system
         types: [python]
-        pass_filenames: false
+        pass_filenames: true
 
   # ===========================================================================
   # VULTURE - Dead code detection (disabled - doesn't work well with pre-commit)

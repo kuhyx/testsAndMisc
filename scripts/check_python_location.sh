@@ -7,7 +7,7 @@
 set -uo pipefail
 
 # Directories allowed to contain Python files outside python_pkg/
-ALLOWED_DIRS="linux_configuration/|pomodoro_app/|sonic_pi/"
+ALLOWED_DIRS="linux_configuration/|pomodoro_app/|sonic_pi/|scripts/"
 
 errors=()
 
