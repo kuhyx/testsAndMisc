@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import geopandas as gpd
@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import pytest
 from shapely.geometry import Point, Polygon
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 try:
     from python_pkg.anki_decks.polish_unesco_sites.polish_unesco_sites_anki import (
@@ -79,18 +82,18 @@ def _site_polygon() -> gpd.GeoDataFrame:
 class _FakePool:
     def __init__(
         self,
-        processes: int | None = None,
-        initializer: Any = None,
-        initargs: tuple[Any, ...] = (),
+        _processes: int | None = None,
+        initializer: Callable[..., object] | None = None,
+        initargs: tuple[object, ...] = (),
     ) -> None:
         if initializer:
             initializer(*initargs)
 
     def imap_unordered(
         self,
-        func: Any,
-        items: Any,
-    ) -> list[Any]:
+        func: Callable[[object], object],
+        items: Iterable[object],
+    ) -> list[object]:
         return [func(item) for item in items]
 
     def __enter__(self) -> Self:

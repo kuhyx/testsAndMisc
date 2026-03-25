@@ -15,9 +15,9 @@ from python_pkg.word_frequency import translator
 
 
 @pytest.fixture
-def _mock_argos_unavailable() -> Generator[None, None, None]:
+def mock_argos_unavailable() -> Generator[None, None, None]:
     """Mock argostranslate being unavailable (for legacy tests)."""
-    with patch.object(translator, "_check_argos", return_value=False):
+    with patch.object(translator, "check_argos", return_value=False):
         yield
 
 

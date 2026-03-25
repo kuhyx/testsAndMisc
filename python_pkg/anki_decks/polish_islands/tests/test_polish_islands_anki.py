@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pytest
 from shapely.geometry import Polygon
+from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 try:
     from python_pkg.anki_decks.polish_islands.polish_islands_anki import (
@@ -73,17 +78,26 @@ def _island_outside() -> gpd.GeoDataFrame:
 
 
 class _FakePool:
-    def __init__(self, processes=None, initializer=None, initargs=()) -> None:
+    def __init__(
+        self,
+        _processes: int | None = None,
+        initializer: Callable[..., object] | None = None,
+        initargs: tuple[object, ...] = (),
+    ) -> None:
         if initializer:
             initializer(*initargs)
 
-    def imap_unordered(self, func, items):
+    def imap_unordered(
+        self,
+        func: Callable[[object], object],
+        items: Iterable[object],
+    ) -> list[object]:
         return [func(item) for item in items]
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *a):
+    def __exit__(self, *_args: object) -> None:
         pass
 
 

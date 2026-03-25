@@ -88,68 +88,68 @@ class TestGetPyusbDeviceInfo:
 
 class TestStopCups:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_systemctl(self, _m: MagicMock) -> None:
+    def test_no_systemctl(self, m: MagicMock) -> None:
         assert _stop_cups() is False
 
     @patch(f"{MOD}.time.sleep")
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_success(self, _w: MagicMock, mock_run: MagicMock, _s: MagicMock) -> None:
+    def test_success(self, w: MagicMock, mock_run: MagicMock, s: MagicMock) -> None:
         mock_run.return_value = MagicMock()
         assert _stop_cups() is True
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("systemctl", 15)
         assert _stop_cups() is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_called_process_error(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_called_process_error(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.CalledProcessError(1, "systemctl")
         assert _stop_cups() is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_oserror(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         assert _stop_cups() is False
 
 
 class TestIsCupsSchedulerRunning:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_lpstat(self, _m: MagicMock) -> None:
+    def test_no_lpstat(self, m: MagicMock) -> None:
         assert is_cups_scheduler_running() is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_running(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_running(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="scheduler is running")
         assert is_cups_scheduler_running() is True
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_not_running(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_not_running(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="scheduler is not running")
         assert is_cups_scheduler_running() is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("lpstat", 3)
         assert is_cups_scheduler_running() is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_oserror(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         assert is_cups_scheduler_running() is False
 
 
 class TestStartCups:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_systemctl(self, _m: MagicMock) -> None:
+    def test_no_systemctl(self, m: MagicMock) -> None:
         assert start_cups() is False
 
     @patch(f"{MOD}.time.sleep")
@@ -158,10 +158,10 @@ class TestStartCups:
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
     def test_success(
         self,
-        _w: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
         mock_is_running: MagicMock,
-        _s: MagicMock,
+        s: MagicMock,
     ) -> None:
         mock_run.return_value = MagicMock()
         mock_is_running.return_value = True
@@ -169,13 +169,13 @@ class TestStartCups:
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("systemctl", 15)
         assert start_cups() is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_called_process_error(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_called_process_error(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.CalledProcessError(1, "systemctl")
         assert start_cups() is False
 
@@ -185,10 +185,10 @@ class TestStartCups:
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
     def test_never_starts(
         self,
-        _w: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
-        _is: MagicMock,
-        _s: MagicMock,
+        is_running: MagicMock,
+        s: MagicMock,
     ) -> None:
         mock_run.return_value = MagicMock()
         assert start_cups() is False
@@ -196,33 +196,35 @@ class TestStartCups:
 
 class TestEnsureCupsRunning:
     @patch(f"{MOD}.is_cups_scheduler_running", return_value=True)
-    def test_already_running(self, _m: MagicMock) -> None:
+    def test_already_running(self, m: MagicMock) -> None:
         assert _ensure_cups_running() is True
 
     @patch(f"{MOD}.start_cups", return_value=True)
     @patch(f"{MOD}.is_cups_scheduler_running", return_value=False)
-    def test_needs_start(self, _is: MagicMock, _st: MagicMock) -> None:
+    def test_needs_start(self, is_running: MagicMock, st: MagicMock) -> None:
         assert _ensure_cups_running() is True
 
     @patch(f"{MOD}.start_cups", return_value=False)
     @patch(f"{MOD}.is_cups_scheduler_running", return_value=False)
-    def test_start_fails(self, _is: MagicMock, _st: MagicMock) -> None:
+    def test_start_fails(self, is_running: MagicMock, st: MagicMock) -> None:
         assert _ensure_cups_running() is False
 
 
 class TestQueryUsbPortStatusRaw:
     def test_import_error(self) -> None:
-        with patch(f"{MOD}._stop_cups"):
+        with (
+            patch(f"{MOD}._stop_cups"),
             # Simulate ImportError for usb.core
-            with patch.dict(
+            patch.dict(
                 "sys.modules", {"usb": None, "usb.core": None, "usb.util": None}
-            ):
-                result = _query_usb_port_status_raw()
-                assert result is None
+            ),
+        ):
+            result = _query_usb_port_status_raw()
+            assert result is None
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=False)
-    def test_stop_cups_fails(self, _st: MagicMock, _s: MagicMock) -> None:
+    def test_stop_cups_fails(self, st: MagicMock, s: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -236,7 +238,7 @@ class TestQueryUsbPortStatusRaw:
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_dev_none_after_reset(self, _st: MagicMock, _s: MagicMock) -> None:
+    def test_dev_none_after_reset(self, st: MagicMock, s: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -254,7 +256,7 @@ class TestQueryUsbPortStatusRaw:
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_success(self, _stop: MagicMock, _start: MagicMock) -> None:
+    def test_success(self, stop: MagicMock, start: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -276,9 +278,7 @@ class TestQueryUsbPortStatusRaw:
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_kernel_driver_not_active(
-        self, _stop: MagicMock, _start: MagicMock
-    ) -> None:
+    def test_kernel_driver_not_active(self, stop: MagicMock, start: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -299,7 +299,7 @@ class TestQueryUsbPortStatusRaw:
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_kernel_driver_usberror(self, _stop: MagicMock, _start: MagicMock) -> None:
+    def test_kernel_driver_usberror(self, stop: MagicMock, start: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -321,7 +321,7 @@ class TestQueryUsbPortStatusRaw:
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_oserror_during_transfer(self, _stop: MagicMock, _start: MagicMock) -> None:
+    def test_oserror_during_transfer(self, stop: MagicMock, start: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -342,7 +342,7 @@ class TestQueryUsbPortStatusRaw:
 
     @patch(f"{MOD}.start_cups")
     @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_dev_none_initial(self, _stop: MagicMock, _start: MagicMock) -> None:
+    def test_dev_none_initial(self, stop: MagicMock, start: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -443,12 +443,12 @@ class TestResetConsumable:
     @patch(f"{MOD}._get_cups_total_pages", return_value=500)
     def test_reset_toner(
         self,
-        _pages: MagicMock,
-        _load: MagicMock,
+        pages: MagicMock,
+        load: MagicMock,
         mock_save: MagicMock,
-        _out: MagicMock,
+        out: MagicMock,
     ) -> None:
-        _load.return_value = {"toner_replaced_at": 0, "drum_replaced_at": 0}
+        load.return_value = {"toner_replaced_at": 0, "drum_replaced_at": 0}
         reset_consumable("toner")
         saved_state = mock_save.call_args[0][0]
         assert saved_state["toner_replaced_at"] == 500

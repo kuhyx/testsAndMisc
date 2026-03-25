@@ -72,9 +72,9 @@ class TestDisplayNetworkResults:
     @patch(f"{MOD}._display_report_header")
     def test_normal(
         self,
-        _h: MagicMock,
-        _d: MagicMock,
-        _s: MagicMock,
+        h: MagicMock,
+        d: MagicMock,
+        s: MagicMock,
     ) -> None:
         r = NetworkResult(ip="1.2.3.4")
         with patch("sys.stdout", new_callable=StringIO) as out:

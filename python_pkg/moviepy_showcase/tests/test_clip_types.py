@@ -25,7 +25,7 @@ def test_part1_data_to_frame() -> None:
     """Extract and test the inner data_to_frame function."""
     import moviepy as mp
 
-    mp.DataVideoClip.side_effect = lambda *a, **kw: create_mock_clip()
+    mp.DataVideoClip.side_effect = lambda *_a, **_kw: create_mock_clip()
     result = part1_clip_types()
     assert len(result) > 0
 

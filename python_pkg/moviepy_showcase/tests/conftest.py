@@ -16,7 +16,7 @@ import pytest
 _H, _W = 1080, 1920
 
 
-def create_mock_clip(**overrides: Any) -> MagicMock:
+def create_mock_clip(**overrides: float | tuple[int, int]) -> MagicMock:
     """Return a MagicMock that behaves enough like a moviepy clip."""
     clip = MagicMock()
     clip.duration = overrides.get("duration", 2.0)
@@ -71,12 +71,12 @@ _clip_classes = [
     "CompositeAudioClip",
 ]
 for _cls in _clip_classes:
-    getattr(mock_moviepy, _cls).side_effect = lambda *a, **kw: create_mock_clip()
+    getattr(mock_moviepy, _cls).side_effect = lambda *_a, **_kw: create_mock_clip()
 
-mock_moviepy.concatenate_videoclips.side_effect = lambda *a, **kw: create_mock_clip()
-mock_moviepy.concatenate_audioclips.side_effect = lambda *a, **kw: create_mock_clip()
+mock_moviepy.concatenate_videoclips.side_effect = lambda *_a, **_kw: create_mock_clip()
+mock_moviepy.concatenate_audioclips.side_effect = lambda *_a, **_kw: create_mock_clip()
 mock_moviepy.video.compositing.CompositeVideoClip.clips_array.side_effect = (
-    lambda *a, **kw: create_mock_clip()
+    lambda *_a, **_kw: create_mock_clip()
 )
 
 # Drawing tools must return real numpy arrays (used in numpy ops)

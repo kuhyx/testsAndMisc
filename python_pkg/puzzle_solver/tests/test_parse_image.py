@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-
-# Install mock modules before any parse_image imports
-_cv2_mock = MagicMock()
-_np_mock = MagicMock()
-sys.modules.setdefault("cv2", _cv2_mock)
-sys.modules.setdefault("numpy", _np_mock)
 
 from python_pkg.puzzle_solver.parse_image import (
     _classify_by_fill,

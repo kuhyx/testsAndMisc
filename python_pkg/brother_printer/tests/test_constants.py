@@ -96,7 +96,7 @@ class TestGetStatusInfo:
         assert action == ""
 
     def test_toner_low(self) -> None:
-        severity, text, action = get_status_info("30010")
+        severity, text, _ = get_status_info("30010")
         assert severity == "warn"
         assert "Toner Low" in text
 
@@ -107,7 +107,7 @@ class TestGetStatusInfo:
         assert action != ""
 
     def test_invalid_code(self) -> None:
-        severity, text, action = get_status_info("not_a_number")
+        severity, text, _ = get_status_info("not_a_number")
         assert severity == "info"
         assert "Unknown" in text
 

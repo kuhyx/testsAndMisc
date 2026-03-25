@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
+import tempfile
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -102,17 +103,18 @@ def test_resize_to_canvas() -> None:
 def test_render_part() -> None:
     s1 = create_mock_clip()
     s2 = create_mock_clip()
-    _render_part([s1, s2], "/tmp/test_part.mp4", "test")
+    _render_part([s1, s2], tempfile.gettempdir() + "/test_part.mp4", "test")
     s1.close.assert_called_once()
     s2.close.assert_called_once()
 
 
 # ── main ─────────────────────────────────────────────────────────
 def test_main_success() -> None:
+    mock_dir = tempfile.gettempdir() + "/mock_dir"
     with (
         patch(
             "python_pkg.moviepy_showcase.moviepy_showcase.tempfile.mkdtemp",
-            return_value="/tmp/mock_dir",
+            return_value=mock_dir,
         ),
         patch(
             "python_pkg.moviepy_showcase.moviepy_showcase._build",
@@ -122,15 +124,16 @@ def test_main_success() -> None:
         ) as mock_rmtree,
     ):
         main()
-        mock_build.assert_called_once_with("/tmp/mock_dir")
-        mock_rmtree.assert_called_once_with("/tmp/mock_dir", ignore_errors=True)
+        mock_build.assert_called_once_with(mock_dir)
+        mock_rmtree.assert_called_once_with(mock_dir, ignore_errors=True)
 
 
 def test_main_build_raises() -> None:
+    mock_dir = tempfile.gettempdir() + "/mock_dir"
     with (
         patch(
             "python_pkg.moviepy_showcase.moviepy_showcase.tempfile.mkdtemp",
-            return_value="/tmp/mock_dir",
+            return_value=mock_dir,
         ),
         patch(
             "python_pkg.moviepy_showcase.moviepy_showcase._build",
@@ -142,7 +145,7 @@ def test_main_build_raises() -> None:
     ):
         with contextlib.suppress(RuntimeError):
             main()
-        mock_rmtree.assert_called_once_with("/tmp/mock_dir", ignore_errors=True)
+        mock_rmtree.assert_called_once_with(mock_dir, ignore_errors=True)
 
 
 # ── _build ───────────────────────────────────────────────────────
@@ -155,4 +158,4 @@ def test_build() -> None:
         ),
         patch.object(Path, "stat", return_value=mock_stat),
     ):
-        _build("/tmp/test_build")
+        _build(tempfile.gettempdir() + "/test_build")

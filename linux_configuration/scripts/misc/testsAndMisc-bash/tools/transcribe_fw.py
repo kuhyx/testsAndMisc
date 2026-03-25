@@ -12,6 +12,17 @@ import sys
 import time
 from typing import TYPE_CHECKING, Any
 
+from _transcribe_diarize import diarize_segments, get_media_duration
+from _transcribe_model import download_model_with_progress
+from _transcribe_output import (
+    hhmmss,
+    write_rttm,
+    write_srt,
+    write_srt_with_speakers,
+    write_txt,
+    write_txt_with_speakers,
+)
+
 if TYPE_CHECKING:
     import types
 
@@ -140,8 +151,6 @@ def _format_progress_line(
     start_ts: float,
 ) -> str:
     """Format a progress line string."""
-    from _transcribe_output import hhmmss
-
     if total_duration and total_duration > 0:
         pct = max(
             0.0,
@@ -174,13 +183,6 @@ def _write_diarized_outputs(
     """Optionally diarize and write speaker outputs."""
     if not args.diarize:
         return
-
-    from _transcribe_diarize import diarize_segments
-    from _transcribe_output import (
-        write_rttm,
-        write_srt_with_speakers,
-        write_txt_with_speakers,
-    )
 
     labels = diarize_segments(
         inp,
@@ -247,10 +249,6 @@ def main() -> int:
 
     model_path: str = args.model
     if not Path(args.model).is_dir():
-        from _transcribe_model import (
-            download_model_with_progress,
-        )
-
         model_path = download_model_with_progress(args.model)
 
     ct2_logger = logging.getLogger("faster_whisper")
@@ -263,9 +261,6 @@ def main() -> int:
         compute_type=compute_type,
     )
     logger.info("Model loaded successfully.")
-
-    from _transcribe_diarize import get_media_duration
-    from _transcribe_output import hhmmss
 
     total_duration = get_media_duration(inp)
     if total_duration:
@@ -284,8 +279,6 @@ def main() -> int:
     logger.info("Segments: %d", len(collected))
 
     _write_diarized_outputs(args, inp, outdir, base, collected)
-
-    from _transcribe_output import write_srt, write_txt
 
     write_txt(collected, txt_path)
     write_srt(collected, srt_path)

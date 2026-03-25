@@ -73,119 +73,115 @@ class TestGetPolishForests:
         result = get_polish_forests()
         assert len(result) == 1
 
-    @patch("python_pkg.geo_data._poland_nature._add_area_column")
-    @patch("python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_nature._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_nature._overpass_query")
-    @patch("python_pkg.geo_data._poland_nature.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_nature.sys.stdout")
-    def test_downloads_forests(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads_forests(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_nature.sys.stdout"),
+            patch("python_pkg.geo_data._poland_nature.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_nature._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_nature._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_nature._add_area_column"
+            ) as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                # Valid forest with keyword
-                {
-                    "type": "way",
-                    "tags": {"name": "Puszcza Białowieska"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # Bory keyword
-                {
-                    "type": "way",
-                    "tags": {"name": "Bory Tucholskie"},
-                    "geometry": [
-                        {"lon": 2, "lat": 2},
-                        {"lon": 3, "lat": 2},
-                        {"lon": 3, "lat": 3},
-                        {"lon": 2, "lat": 3},
-                    ],
-                },
-                # No forest keyword -> skip
-                {
-                    "type": "way",
-                    "tags": {"name": "Random Wood"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # Duplicate
-                {
-                    "type": "way",
-                    "tags": {"name": "Puszcza Białowieska"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # No name
-                {"type": "way", "tags": {}, "geometry": []},
-                # Geometry extraction fails (too few coords)
-                {
-                    "type": "way",
-                    "tags": {"name": "Las Mały"},
-                    "geometry": [{"lon": 0, "lat": 0}],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    # Valid forest with keyword
+                    {
+                        "type": "way",
+                        "tags": {"name": "Puszcza Białowieska"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # Bory keyword
+                    {
+                        "type": "way",
+                        "tags": {"name": "Bory Tucholskie"},
+                        "geometry": [
+                            {"lon": 2, "lat": 2},
+                            {"lon": 3, "lat": 2},
+                            {"lon": 3, "lat": 3},
+                            {"lon": 2, "lat": 3},
+                        ],
+                    },
+                    # No forest keyword -> skip
+                    {
+                        "type": "way",
+                        "tags": {"name": "Random Wood"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # Duplicate
+                    {
+                        "type": "way",
+                        "tags": {"name": "Puszcza Białowieska"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # No name
+                    {"type": "way", "tags": {}, "geometry": []},
+                    # Geometry extraction fails (too few coords)
+                    {
+                        "type": "way",
+                        "tags": {"name": "Las Mały"},
+                        "geometry": [{"lon": 0, "lat": 0}],
+                    },
+                ]
+            }
 
-        mock_gdf = gpd.GeoDataFrame(
-            {"name": ["Puszcza Białowieska", "Bory Tucholskie"]},
-            geometry=[_POLY, _POLY],
-            crs="EPSG:4326",
-        )
-        mock_from_features.return_value = mock_gdf
-        gdf_with_area = mock_gdf.copy()
-        gdf_with_area["area_km2"] = [600.0, 300.0]
-        mock_add_area.return_value = gdf_with_area
+            mock_gdf = gpd.GeoDataFrame(
+                {"name": ["Puszcza Białowieska", "Bory Tucholskie"]},
+                geometry=[_POLY, _POLY],
+                crs="EPSG:4326",
+            )
+            mock_from_features.return_value = mock_gdf
+            gdf_with_area = mock_gdf.copy()
+            gdf_with_area["area_km2"] = [600.0, 300.0]
+            mock_add_area.return_value = gdf_with_area
 
-        result = get_polish_forests()
-        assert len(result) == 2
+            result = get_polish_forests()
+            assert len(result) == 2
 
-    @patch("python_pkg.geo_data._poland_nature._add_area_column")
-    @patch("python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_nature._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_nature._overpass_query")
-    @patch("python_pkg.geo_data._poland_nature.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_nature.sys.stdout")
-    def test_downloads_forests_empty(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
-        mock_query.return_value = {"elements": []}
-        empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
-        mock_from_features.return_value = empty_gdf
-        mock_add_area.return_value = empty_gdf
-        result = get_polish_forests()
-        assert len(result) == 0
+    def test_downloads_forests_empty(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_nature.sys.stdout"),
+            patch("python_pkg.geo_data._poland_nature.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_nature._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_nature._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_nature._add_area_column"
+            ) as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
+            mock_query.return_value = {"elements": []}
+            empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
+            mock_from_features.return_value = empty_gdf
+            mock_add_area.return_value = empty_gdf
+            result = get_polish_forests()
+            assert len(result) == 0
 
 
 class TestGetPolishNatureReserves:
@@ -225,96 +221,92 @@ class TestGetPolishNatureReserves:
         result = get_polish_nature_reserves()
         assert len(result) == 1
 
-    @patch("python_pkg.geo_data._poland_nature._add_area_column")
-    @patch("python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_nature._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_nature._overpass_query")
-    @patch("python_pkg.geo_data._poland_nature.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_nature.sys.stdout")
-    def test_downloads_reserves(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads_reserves(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_nature.sys.stdout"),
+            patch("python_pkg.geo_data._poland_nature.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_nature._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_nature._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_nature._add_area_column"
+            ) as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                {
-                    "type": "way",
-                    "tags": {"name": "Rezerwat A"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # Duplicate
-                {
-                    "type": "way",
-                    "tags": {"name": "Rezerwat A"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # No name
-                {"type": "way", "tags": {}, "geometry": []},
-                # Geometry fails
-                {
-                    "type": "way",
-                    "tags": {"name": "Tiny"},
-                    "geometry": [{"lon": 0, "lat": 0}],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    {
+                        "type": "way",
+                        "tags": {"name": "Rezerwat A"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # Duplicate
+                    {
+                        "type": "way",
+                        "tags": {"name": "Rezerwat A"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # No name
+                    {"type": "way", "tags": {}, "geometry": []},
+                    # Geometry fails
+                    {
+                        "type": "way",
+                        "tags": {"name": "Tiny"},
+                        "geometry": [{"lon": 0, "lat": 0}],
+                    },
+                ]
+            }
 
-        mock_gdf = gpd.GeoDataFrame(
-            {"name": ["Rezerwat A"]},
-            geometry=[_POLY],
-            crs="EPSG:4326",
-        )
-        mock_from_features.return_value = mock_gdf
-        gdf_with_area = mock_gdf.copy()
-        gdf_with_area["area_km2"] = [50.0]
-        mock_add_area.return_value = gdf_with_area
+            mock_gdf = gpd.GeoDataFrame(
+                {"name": ["Rezerwat A"]},
+                geometry=[_POLY],
+                crs="EPSG:4326",
+            )
+            mock_from_features.return_value = mock_gdf
+            gdf_with_area = mock_gdf.copy()
+            gdf_with_area["area_km2"] = [50.0]
+            mock_add_area.return_value = gdf_with_area
 
-        result = get_polish_nature_reserves()
-        assert len(result) == 1
+            result = get_polish_nature_reserves()
+            assert len(result) == 1
 
-    @patch("python_pkg.geo_data._poland_nature._add_area_column")
-    @patch("python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_nature._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_nature._overpass_query")
-    @patch("python_pkg.geo_data._poland_nature.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_nature.sys.stdout")
-    def test_downloads_reserves_empty(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
-        mock_query.return_value = {"elements": []}
-        empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
-        mock_from_features.return_value = empty_gdf
-        mock_add_area.return_value = empty_gdf
-        result = get_polish_nature_reserves()
-        assert len(result) == 0
+    def test_downloads_reserves_empty(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_nature.sys.stdout"),
+            patch("python_pkg.geo_data._poland_nature.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_nature._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_nature._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_nature.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_nature._add_area_column"
+            ) as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
+            mock_query.return_value = {"elements": []}
+            empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
+            mock_from_features.return_value = empty_gdf
+            mock_add_area.return_value = empty_gdf
+            result = get_polish_nature_reserves()
+            assert len(result) == 0
 
 
 class TestGetPolishLandscapeParks:

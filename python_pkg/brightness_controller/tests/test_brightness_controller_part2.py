@@ -91,7 +91,7 @@ class TestPollAls:
     """Tests for _poll_als."""
 
     @patch(f"{MOD}._read_lux", return_value=42.5)
-    def test_updates_lux_display(self, _mock_lux: MagicMock) -> None:
+    def test_updates_lux_display(self, mock_lux: MagicMock) -> None:
         ctrl = _make_controller(als_path=Path("/fake"))
         ctrl.lux_var = MagicMock()
         ctrl.root = MagicMock()
@@ -105,7 +105,7 @@ class TestPollAls:
         ctrl.root.after.assert_called_once()
 
     @patch(f"{MOD}._read_lux", side_effect=OSError("sensor fail"))
-    def test_sensor_error(self, _mock_lux: MagicMock) -> None:
+    def test_sensor_error(self, mock_lux: MagicMock) -> None:
         ctrl = _make_controller(als_path=Path("/fake"))
         ctrl.lux_var = MagicMock()
         ctrl.root = MagicMock()
@@ -118,7 +118,7 @@ class TestPollAls:
         ctrl.lux_var.set.assert_called_with("sensor error")
 
     @patch(f"{MOD}._read_lux", side_effect=ValueError("bad value"))
-    def test_sensor_value_error(self, _mock_lux: MagicMock) -> None:
+    def test_sensor_value_error(self, mock_lux: MagicMock) -> None:
         ctrl = _make_controller(als_path=Path("/fake"))
         ctrl.lux_var = MagicMock()
         ctrl.root = MagicMock()
@@ -131,7 +131,7 @@ class TestPollAls:
         ctrl.lux_var.set.assert_called_with("sensor error")
 
     @patch(f"{MOD}._read_lux", return_value=10.0)
-    def test_syncs_daemon_state_change(self, _mock_lux: MagicMock) -> None:
+    def test_syncs_daemon_state_change(self, mock_lux: MagicMock) -> None:
         """When daemon state differs from auto_mode, syncs it."""
         ctrl = _make_controller(als_path=Path("/fake"))
         ctrl.auto_mode = False
@@ -148,7 +148,7 @@ class TestPollAls:
         assert ctrl.auto_mode is True
 
     @patch(f"{MOD}._read_lux", return_value=10.0)
-    def test_no_sync_when_same(self, _mock_lux: MagicMock) -> None:
+    def test_no_sync_when_same(self, mock_lux: MagicMock) -> None:
         """When daemon state matches auto_mode, no sync needed."""
         ctrl = _make_controller(als_path=Path("/fake"))
         ctrl.auto_mode = False
@@ -177,7 +177,7 @@ class TestPollBrightness:
     """Tests for _poll_brightness."""
 
     @patch(f"{MOD}._get_brightness", return_value=60)
-    def test_refreshes_when_not_auto(self, _mock_get: MagicMock) -> None:
+    def test_refreshes_when_not_auto(self, mock_get: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.auto_mode = False
         ctrl.pct_var = MagicMock()

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def _mock_translation() -> Generator[MagicMock, None, None]:
+def mock_translation() -> Generator[MagicMock, None, None]:
     """Mock translation to avoid requiring argostranslate."""
 
     def fake_batch_translate(
@@ -262,7 +262,7 @@ class TestMain:
     """Tests for main CLI function."""
 
     def test_basic_text_input(
-        self, caplog: pytest.LogCaptureFixture, _mock_translation: None
+        self, caplog: pytest.LogCaptureFixture, mock_translation: None
     ) -> None:
         """Test with text input."""
         with caplog.at_level(logging.INFO):
@@ -280,7 +280,7 @@ class TestMain:
         assert "LANGUAGE LEARNING LESSON" in caplog.text
 
     def test_file_input(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, _mock_translation: None
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, mock_translation: None
     ) -> None:
         """Test with file input."""
         test_file = tmp_path / "test.txt"
@@ -300,7 +300,7 @@ class TestMain:
         assert exit_code == 0
         assert "hello" in caplog.text.lower()
 
-    def test_output_to_file(self, tmp_path: Path, _mock_translation: None) -> None:
+    def test_output_to_file(self, tmp_path: Path, mock_translation: None) -> None:
         """Test outputting to file."""
         output_file = tmp_path / "lesson.txt"
 
@@ -319,7 +319,7 @@ class TestMain:
         content = output_file.read_text(encoding="utf-8")
         assert "LANGUAGE LEARNING LESSON" in content
 
-    def test_custom_stopwords(self, tmp_path: Path, _mock_translation: None) -> None:
+    def test_custom_stopwords(self, tmp_path: Path, mock_translation: None) -> None:
         """Test with custom stopwords file."""
         stopwords_file = tmp_path / "stop.txt"
         stopwords_file.write_text("hello\n", encoding="utf-8")
@@ -340,7 +340,7 @@ class TestMain:
         # "hello" should be filtered by custom stopwords
 
     def test_multiple_batches_option(
-        self, caplog: pytest.LogCaptureFixture, _mock_translation: None
+        self, caplog: pytest.LogCaptureFixture, mock_translation: None
     ) -> None:
         """Test --batches option."""
         text = " ".join(f"word{i}" * (50 - i) for i in range(30))
@@ -385,7 +385,7 @@ class TestMain:
         assert exit_code == 1
 
     def test_output_to_file_branch(
-        self, tmp_path: Path, _mock_translation: None
+        self, tmp_path: Path, mock_translation: None
     ) -> None:
         """Test --output to verify the file writing path."""
         out = tmp_path / "out.txt"

@@ -11,7 +11,6 @@ from pathlib import Path
 import sys
 import time
 from typing import TYPE_CHECKING
-from urllib.request import urlopen
 
 import geopandas as gpd
 import requests
@@ -172,8 +171,8 @@ def _download_github_geojson(url: str, cache_path: Path) -> gpd.GeoDataFrame:
     if not url.startswith(("http://", "https://")):
         msg = f"Unsupported URL scheme: {url}"
         raise ValueError(msg)
-    with urlopen(url, timeout=REQUEST_TIMEOUT) as response:
-        data = json.loads(response.read().decode())
+    response = requests.get(url, timeout=REQUEST_TIMEOUT)
+    data = response.json()
 
     _ensure_cache_dir()
     cache_path.write_text(json.dumps(data))

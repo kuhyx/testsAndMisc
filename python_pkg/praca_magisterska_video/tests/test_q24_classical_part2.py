@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _spy_vc() -> tuple[object, list[tuple[object, float]]]:
     """VideoClip spy capturing make_frame closures."""
     captured: list[tuple[object, float]] = []
 
-    def spy(make_frame=None, duration=None, **_kw: object) -> MagicMock:
+    def spy(
+        make_frame: Callable[[float], np.ndarray] | None = None,
+        duration: float | None = None,
+        **_kw: object,
+    ) -> MagicMock:
         if callable(make_frame):
             captured.append((make_frame, duration or 1.0))
         clip = MagicMock()

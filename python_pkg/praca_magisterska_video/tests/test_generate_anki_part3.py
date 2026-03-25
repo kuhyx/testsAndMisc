@@ -115,7 +115,7 @@ def test_main_card_def_outside_length(def_length_file: Path) -> None:
         _get_metadata,
     )
 
-    num, topic, title, main_q, content = _get_metadata(str(def_length_file))
+    num, topic, _, main_q, content = _get_metadata(str(def_length_file))
     cards = _extract_main_card(content, main_q, "Informatyka", num, topic)
     assert isinstance(cards, list)
 
@@ -135,7 +135,7 @@ def test_sub_cards_short_body(subsection_file: Path) -> None:
     assert isinstance(cards, list)
 
 
-def test_sub_cards_no_answer_text(tmp_path: Path) -> None:
+def test_sub_cards_no_answer_text() -> None:
     """Subsection where _extract_subsection_answer returns None (line 145)."""
     from python_pkg.praca_magisterska_video.generate_images.generate_anki import (
         _extract_sub_cards,
@@ -221,7 +221,7 @@ def test_main_function(tmp_path: Path) -> None:
 
     call_count = 0
 
-    def fake_extract(filepath: object) -> list[dict[str, str]]:
+    def fake_extract(_filepath: object) -> list[dict[str, str]]:
         nonlocal call_count
         call_count += 1
         if call_count == 1:

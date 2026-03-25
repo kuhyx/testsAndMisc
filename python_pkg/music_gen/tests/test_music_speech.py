@@ -426,7 +426,7 @@ class TestGenerateVocalsForSong:
                 return_value=["Hello."],
             ),
         ):
-            vocals, sr = _generate_vocals_for_song("Hello.", "v2/en_speaker_6")
+            _, sr = _generate_vocals_for_song("Hello.", "v2/en_speaker_6")
 
         assert sr == 24000
         # The original_load should have been called via patched_load
@@ -487,6 +487,6 @@ class TestGenerateInstrumentalForSong:
                 return_value=audio,
             ),
         ):
-            instrumental, sr = _generate_instrumental_for_song("test", 60)
+            _, sr = _generate_instrumental_for_song("test", 60)
 
         assert sr == 100

@@ -196,7 +196,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    if not _trans._check_argos():
+    if not _trans.check_argos():
         sys.stderr.write(
             "Error: argostranslate is not installed.\n"
             "Install it with: pip install argostranslate\n",

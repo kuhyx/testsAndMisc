@@ -19,6 +19,7 @@ from python_pkg.geo_data._common import (
     CACHE_DIR,
     POLSKA_GEOJSON_BASE,
     WIKIDATA_SPARQL,
+    _add_area_column,
     _build_osiedla_geometry,
     _download_github_geojson,
     _ensure_cache_dir,
@@ -196,8 +197,6 @@ def get_polish_gminy() -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
 
     # Add area column
-    from python_pkg.geo_data._common import _add_area_column
-
     gdf = _add_area_column(gdf)
 
     return gdf.sort_values("area_km2", ascending=False).reset_index(drop=True)

@@ -57,9 +57,9 @@ class TestGetDevice:
             patch.dict("sys.modules", {"torch": mock_torch}),
             patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
             patch("subprocess.run", return_value=mock_result),
+            pytest.raises(RuntimeError, match="NVIDIA GPU detected"),
         ):
-            with pytest.raises(RuntimeError, match="NVIDIA GPU detected"):
-                get_device()
+            get_device()
 
     def test_nvidia_smi_not_found(self) -> None:
         mock_torch = MagicMock()

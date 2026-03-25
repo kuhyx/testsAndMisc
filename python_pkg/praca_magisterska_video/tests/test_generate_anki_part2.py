@@ -79,7 +79,7 @@ def test_get_metadata(sample_file: Path) -> None:
         _get_metadata,
     )
 
-    num, topic, title, main_q, content = _get_metadata(str(sample_file))
+    num, topic, _, main_q, content = _get_metadata(str(sample_file))
     assert num == "01"
     assert "test" in topic
     assert "main concept" in main_q
@@ -92,7 +92,7 @@ def test_get_metadata_no_match(minimal_file: Path) -> None:
         _get_metadata,
     )
 
-    num, topic, title, main_q, content = _get_metadata(str(minimal_file))
+    num, topic, _, _, _ = _get_metadata(str(minimal_file))
     assert num == "00"
     assert topic == "unknown"
 
@@ -104,7 +104,7 @@ def test_extract_main_card(sample_file: Path) -> None:
         _get_metadata,
     )
 
-    num, topic, title, main_q, content = _get_metadata(str(sample_file))
+    num, topic, _, main_q, content = _get_metadata(str(sample_file))
     cards = _extract_main_card(content, main_q, "Informatyka", num, topic)
     assert len(cards) == 1
     assert "main concept" in cards[0]["question"]

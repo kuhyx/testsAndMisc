@@ -158,7 +158,7 @@ class TestHandleTranslation:
                 _cli._trans,
                 "translate_words_batch",
                 return_value=[
-                    TranslationResult("hello", "hola", "en", "es", True),
+                    TranslationResult("hello", "hola", "en", "es", success=True),
                 ],
             ),
             patch.object(
@@ -195,7 +195,7 @@ class TestHandleTranslation:
                 _cli._trans,
                 "translate_words_batch",
                 return_value=[
-                    TranslationResult("hello", "hola", "en", "es", True),
+                    TranslationResult("hello", "hola", "en", "es", success=True),
                 ],
             ),
             patch.object(
@@ -219,8 +219,15 @@ class TestHandleTranslation:
                 _cli._trans,
                 "translate_words_batch",
                 return_value=[
-                    TranslationResult("hello", "hola", "en", "es", True),
-                    TranslationResult("xyz", "", "en", "es", False, "error"),
+                    TranslationResult("hello", "hola", "en", "es", success=True),
+                    TranslationResult(
+                        "xyz",
+                        "",
+                        "en",
+                        "es",
+                        success=False,
+                        error="error",
+                    ),
                 ],
             ),
             patch.object(
@@ -237,7 +244,7 @@ class TestMain:
     """Tests for main entry point."""
 
     def test_argos_not_available(self, capsys: pytest.CaptureFixture[str]) -> None:
-        with patch.object(_cli._trans, "_check_argos", return_value=False):
+        with patch.object(_cli._trans, "check_argos", return_value=False):
             result = main(["--text", "hello", "--from", "en", "--to", "es"])
         assert result == 1
         captured = capsys.readouterr()
@@ -245,7 +252,7 @@ class TestMain:
 
     def test_list_languages(self) -> None:
         with (
-            patch.object(_cli._trans, "_check_argos", return_value=True),
+            patch.object(_cli._trans, "check_argos", return_value=True),
             patch.object(
                 _cli._trans,
                 "get_installed_languages",
@@ -257,7 +264,7 @@ class TestMain:
 
     def test_list_available(self) -> None:
         with (
-            patch.object(_cli._trans, "_check_argos", return_value=True),
+            patch.object(_cli._trans, "check_argos", return_value=True),
             patch.object(_cli._trans, "get_available_packages", return_value=[]),
         ):
             result = main(["--list-available"])
@@ -265,7 +272,7 @@ class TestMain:
 
     def test_download(self, capsys: pytest.CaptureFixture[str]) -> None:
         with (
-            patch.object(_cli._trans, "_check_argos", return_value=True),
+            patch.object(_cli._trans, "check_argos", return_value=True),
             patch.object(
                 _cli._trans,
                 "download_languages",
@@ -276,7 +283,7 @@ class TestMain:
         assert result == 0
 
     def test_no_input_shows_help(self) -> None:
-        with patch.object(_cli._trans, "_check_argos", return_value=True):
+        with patch.object(_cli._trans, "check_argos", return_value=True):
             result = main([])
         assert result == 1
 
@@ -284,7 +291,7 @@ class TestMain:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         with (
-            patch.object(_cli._trans, "_check_argos", return_value=True),
+            patch.object(_cli._trans, "check_argos", return_value=True),
             patch.object(
                 _cli._trans,
                 "read_file",

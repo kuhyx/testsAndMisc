@@ -122,7 +122,7 @@ class TestAnkiApproach1:
             patch.object(
                 Path,
                 "open",
-                side_effect=lambda *a, **kw: StringIO(fake_md),
+                side_effect=lambda *_a, **_kw: StringIO(fake_md),
             ),
         ):
             main()
@@ -187,7 +187,7 @@ class TestAnkiApproach1:
             patch.object(
                 Path,
                 "open",
-                side_effect=lambda *a, **kw: StringIO(fake_md),
+                side_effect=lambda *_a, **_kw: StringIO(fake_md),
             ),
         ):
             main()
@@ -324,7 +324,7 @@ class TestAnkiApproach2:
             patch.object(
                 Path,
                 "open",
-                side_effect=lambda *a, **kw: StringIO(fake_md),
+                side_effect=lambda *_a, **_kw: StringIO(fake_md),
             ),
         ):
             main()
@@ -387,7 +387,7 @@ class TestAnkiApproach2:
             patch.object(
                 Path,
                 "open",
-                side_effect=lambda *a, **kw: StringIO(fake_md),
+                side_effect=lambda *_a, **_kw: StringIO(fake_md),
             ),
         ):
             main()

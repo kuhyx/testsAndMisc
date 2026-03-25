@@ -65,14 +65,14 @@ class TestParseLpstatJobs:
 
 class TestGetCupsQueueStatus:
     @patch(f"{MOD}.find_cups_printer_name", return_value="")
-    def test_no_printer(self, _f: MagicMock) -> None:
+    def test_no_printer(self, f: MagicMock) -> None:
         result = get_cups_queue_status()
         assert result.printer_name == ""
 
     @patch(f"{MOD}._check_cups_backend_errors", return_value=(False, ""))
     @patch(f"{MOD}.shutil.which", return_value=None)
     @patch(f"{MOD}.find_cups_printer_name", return_value="BrotherHL1110")
-    def test_no_lpstat(self, _f: MagicMock, _w: MagicMock, _c: MagicMock) -> None:
+    def test_no_lpstat(self, f: MagicMock, w: MagicMock, c: MagicMock) -> None:
         result = get_cups_queue_status()
         assert result.printer_name == "BrotherHL1110"
 
@@ -82,10 +82,10 @@ class TestGetCupsQueueStatus:
     @patch(f"{MOD}.find_cups_printer_name", return_value="BrotherHL1110")
     def test_full_status(
         self,
-        _f: MagicMock,
-        _w: MagicMock,
+        f: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
-        _c: MagicMock,
+        c: MagicMock,
     ) -> None:
         # First call for printer status, second for jobs
         mock_run.side_effect = [
@@ -108,10 +108,10 @@ class TestGetCupsQueueStatus:
     @patch(f"{MOD}.find_cups_printer_name", return_value="BrotherHL1110")
     def test_with_backend_errors(
         self,
-        _f: MagicMock,
-        _w: MagicMock,
+        f: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
-        _c: MagicMock,
+        c: MagicMock,
     ) -> None:
         mock_run.side_effect = [
             MagicMock(stdout="printer BrotherHL1110 disabled\n"),
@@ -126,10 +126,10 @@ class TestGetCupsQueueStatus:
     @patch(f"{MOD}.find_cups_printer_name", return_value="BrotherHL1110")
     def test_printer_status_timeout(
         self,
-        _f: MagicMock,
-        _w: MagicMock,
+        f: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
-        _c: MagicMock,
+        c: MagicMock,
     ) -> None:
         mock_run.side_effect = [
             subprocess.TimeoutExpired("lpstat", 5),
@@ -144,10 +144,10 @@ class TestGetCupsQueueStatus:
     @patch(f"{MOD}.find_cups_printer_name", return_value="BrotherHL1110")
     def test_job_status_timeout(
         self,
-        _f: MagicMock,
-        _w: MagicMock,
+        f: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
-        _c: MagicMock,
+        c: MagicMock,
     ) -> None:
         mock_run.side_effect = [
             MagicMock(stdout=""),
@@ -162,10 +162,10 @@ class TestGetCupsQueueStatus:
     @patch(f"{MOD}.find_cups_printer_name", return_value="BrotherHL1110")
     def test_no_matching_printer_line(
         self,
-        _f: MagicMock,
-        _w: MagicMock,
+        f: MagicMock,
+        w: MagicMock,
         mock_run: MagicMock,
-        _c: MagicMock,
+        c: MagicMock,
     ) -> None:
         mock_run.side_effect = [
             MagicMock(stdout="printer HP is idle.\n"),
@@ -177,26 +177,26 @@ class TestGetCupsQueueStatus:
 
 class TestCupsEnablePrinter:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_cupsenable(self, _m: MagicMock) -> None:
+    def test_no_cupsenable(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_enable_printer("B") is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cupsenable")
-    def test_success(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_success(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock()
         assert _cups_enable_printer("B") is True
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cupsenable")
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("cupsenable", 5)
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_enable_printer("B") is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cupsenable")
-    def test_oserror(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_enable_printer("B") is False
@@ -204,19 +204,19 @@ class TestCupsEnablePrinter:
 
 class TestCupsCancelAllJobs:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_cancel(self, _m: MagicMock) -> None:
+    def test_no_cancel(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_cancel_all_jobs("B") is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cancel")
-    def test_success(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_success(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock()
         assert _cups_cancel_all_jobs("B") is True
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cancel")
-    def test_error(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_error(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.CalledProcessError(1, "cancel")
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_cancel_all_jobs("B") is False
@@ -224,25 +224,25 @@ class TestCupsCancelAllJobs:
 
 class TestCupsCancelJob:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_cancel(self, _m: MagicMock) -> None:
+    def test_no_cancel(self, m: MagicMock) -> None:
         assert _cups_cancel_job("job-1") is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cancel")
-    def test_success(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_success(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock()
         assert _cups_cancel_job("job-1") is True
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/cancel")
-    def test_error(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_error(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.CalledProcessError(1, "cancel")
         assert _cups_cancel_job("job-1") is False
 
 
 class TestCupsRestartService:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_systemctl(self, _m: MagicMock) -> None:
+    def test_no_systemctl(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_restart_service() is False
 
@@ -252,10 +252,10 @@ class TestCupsRestartService:
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
     def test_success(
         self,
-        _w: MagicMock,
+        w: MagicMock,
         mock_popen: MagicMock,
         mock_time: MagicMock,
-        _s: MagicMock,
+        s: MagicMock,
     ) -> None:
         proc = MagicMock()
         proc.poll.side_effect = [None, 0]
@@ -271,10 +271,10 @@ class TestCupsRestartService:
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
     def test_timeout(
         self,
-        _w: MagicMock,
+        w: MagicMock,
         mock_popen: MagicMock,
         mock_time: MagicMock,
-        _s: MagicMock,
+        s: MagicMock,
     ) -> None:
         proc = MagicMock()
         proc.poll.return_value = None
@@ -290,10 +290,10 @@ class TestCupsRestartService:
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
     def test_nonzero_exit(
         self,
-        _w: MagicMock,
+        w: MagicMock,
         mock_popen: MagicMock,
         mock_time: MagicMock,
-        _s: MagicMock,
+        s: MagicMock,
     ) -> None:
         proc = MagicMock()
         proc.poll.side_effect = [None, 1]
@@ -305,7 +305,7 @@ class TestCupsRestartService:
 
     @patch(f"{MOD}.subprocess.Popen")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_oserror(self, _w: MagicMock, mock_popen: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_popen: MagicMock) -> None:
         mock_popen.side_effect = OSError("fail")
         with patch("sys.stdout", new_callable=StringIO):
             assert _cups_restart_service() is False
@@ -313,12 +313,12 @@ class TestCupsRestartService:
 
 class TestIsCupsPrinterHealthy:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_lpstat(self, _m: MagicMock) -> None:
+    def test_no_lpstat(self, m: MagicMock) -> None:
         assert _is_cups_printer_healthy("B") is False
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_healthy(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_healthy(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
             stdout="printer BrotherHL1110 is idle.  enabled since Mon\n",
         )
@@ -326,7 +326,7 @@ class TestIsCupsPrinterHealthy:
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_not_healthy(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_not_healthy(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
             stdout="printer BrotherHL1110 disabled\n",
         )
@@ -334,7 +334,7 @@ class TestIsCupsPrinterHealthy:
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("lpstat", 5)
         assert _is_cups_printer_healthy("B") is False
 
@@ -342,7 +342,7 @@ class TestIsCupsPrinterHealthy:
 class TestFindBackendErrorInLog:
     def test_no_errors(self) -> None:
         lines = ["[2025-01-01] Completed job\n"]
-        err, ts, success_ts = _find_backend_error_in_log(lines)
+        err, _, _ = _find_backend_error_in_log(lines)
         assert err == ""
 
     def test_backend_error(self) -> None:
@@ -359,13 +359,13 @@ class TestFindBackendErrorInLog:
         lines = [
             "[2025-01-02] stopped with status 1",
         ]
-        err, ts, success_ts = _find_backend_error_in_log(lines)
+        err, ts, _ = _find_backend_error_in_log(lines)
         assert "stopped with status" in err
         assert ts == "2025-01-02"
 
     def test_error_no_timestamp(self) -> None:
         lines = ["backend errors no timestamp here"]
-        err, ts, success_ts = _find_backend_error_in_log(lines)
+        err, ts, _ = _find_backend_error_in_log(lines)
         assert "backend errors" in err
         assert ts == ""
 
@@ -374,14 +374,14 @@ class TestFindBackendErrorInLog:
             "[2025-01-01] page total 10",
             "[2025-01-02] backend errors",
         ]
-        err, ts, success_ts = _find_backend_error_in_log(lines)
+        _, _, success_ts = _find_backend_error_in_log(lines)
         assert success_ts == "2025-01-01"
 
     def test_no_success_after_error(self) -> None:
         lines = [
             "[2025-01-02] backend errors",
         ]
-        err, ts, success_ts = _find_backend_error_in_log(lines)
+        _, _, success_ts = _find_backend_error_in_log(lines)
         assert success_ts == ""
 
     def test_completed_no_timestamp(self) -> None:
@@ -389,37 +389,37 @@ class TestFindBackendErrorInLog:
             "Completed job",
             "[2025-01-02] backend errors",
         ]
-        err, ts, success_ts = _find_backend_error_in_log(lines)
+        _, _, success_ts = _find_backend_error_in_log(lines)
         assert success_ts == ""
 
 
 class TestCheckCupsBackendErrors:
     @patch(f"{MOD}._is_cups_printer_healthy", return_value=True)
-    def test_healthy_printer(self, _m: MagicMock) -> None:
-        has_errors, msg = _check_cups_backend_errors("B")
+    def test_healthy_printer(self, m: MagicMock) -> None:
+        has_errors, _ = _check_cups_backend_errors("B")
         assert has_errors is False
 
     @patch(f"{MOD}._find_backend_error_in_log", return_value=("", "", ""))
     @patch(f"{MOD}._is_cups_printer_healthy", return_value=False)
-    def test_no_log_file(self, _h: MagicMock, _f: MagicMock) -> None:
+    def test_no_log_file(self, h: MagicMock, f: MagicMock) -> None:
         with patch(f"{MOD}.Path") as mock_path:
             mock_log = MagicMock()
             mock_log.exists.return_value = False
             mock_path.return_value = mock_log
-            has_errors, msg = _check_cups_backend_errors("B")
+            has_errors, _ = _check_cups_backend_errors("B")
             assert has_errors is False
 
     @patch(
         f"{MOD}._find_backend_error_in_log", return_value=("error", "2025-01-02", "")
     )
     @patch(f"{MOD}._is_cups_printer_healthy", return_value=False)
-    def test_has_errors(self, _h: MagicMock, _f: MagicMock) -> None:
+    def test_has_errors(self, h: MagicMock, f: MagicMock) -> None:
         with patch(f"{MOD}.Path") as mock_path:
             mock_log = MagicMock()
             mock_log.exists.return_value = True
             mock_log.read_text.return_value = "log content"
             mock_path.return_value = mock_log
-            has_errors, msg = _check_cups_backend_errors("B")
+            has_errors, _ = _check_cups_backend_errors("B")
             assert has_errors is True
 
     @patch(
@@ -427,32 +427,32 @@ class TestCheckCupsBackendErrors:
         return_value=("error", "2025-01-01", "2025-01-02"),
     )
     @patch(f"{MOD}._is_cups_printer_healthy", return_value=False)
-    def test_success_after_error(self, _h: MagicMock, _f: MagicMock) -> None:
+    def test_success_after_error(self, h: MagicMock, f: MagicMock) -> None:
         with patch(f"{MOD}.Path") as mock_path:
             mock_log = MagicMock()
             mock_log.exists.return_value = True
             mock_log.read_text.return_value = "log content"
             mock_path.return_value = mock_log
-            has_errors, msg = _check_cups_backend_errors("B")
+            has_errors, _ = _check_cups_backend_errors("B")
             assert has_errors is False
 
     @patch(f"{MOD}._is_cups_printer_healthy", return_value=False)
-    def test_oserror_reading_log(self, _h: MagicMock) -> None:
+    def test_oserror_reading_log(self, h: MagicMock) -> None:
         with patch(f"{MOD}.Path") as mock_path:
             mock_log = MagicMock()
             mock_log.exists.return_value = True
             mock_log.read_text.side_effect = OSError("fail")
             mock_path.return_value = mock_log
-            has_errors, msg = _check_cups_backend_errors("B")
+            has_errors, _ = _check_cups_backend_errors("B")
             assert has_errors is False
 
     @patch(f"{MOD}._find_backend_error_in_log", return_value=("", "", ""))
     @patch(f"{MOD}._is_cups_printer_healthy", return_value=False)
-    def test_no_backend_error_in_log(self, _h: MagicMock, _f: MagicMock) -> None:
+    def test_no_backend_error_in_log(self, h: MagicMock, f: MagicMock) -> None:
         with patch(f"{MOD}.Path") as mock_path:
             mock_log = MagicMock()
             mock_log.exists.return_value = True
             mock_log.read_text.return_value = "clean log"
             mock_path.return_value = mock_log
-            has_errors, msg = _check_cups_backend_errors("B")
+            has_errors, _ = _check_cups_backend_errors("B")
             assert has_errors is False

@@ -207,7 +207,7 @@ def test_body_parts_long_para_truncation() -> None:
 # --- _extract_subsection_cards: empty parts / multiple parts ---
 
 
-def test_subsection_empty_answer_parts(tmp_path: Path) -> None:
+def test_subsection_empty_answer_parts() -> None:
     """Subsection where _extract_body_parts returns [] (182->173)."""
     from python_pkg.praca_magisterska_video.generate_images.generate_anki_final import (
         _extract_subsection_cards,
@@ -403,7 +403,7 @@ def test_main_function(tmp_path: Path) -> None:
 
     call_count = 0
 
-    def fake_extract(filepath: object) -> list[dict[str, str]]:
+    def fake_extract(_filepath: object) -> list[dict[str, str]]:
         nonlocal call_count
         call_count += 1
         if call_count == 1:

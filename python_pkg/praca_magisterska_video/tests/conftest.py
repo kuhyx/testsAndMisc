@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
+import importlib.util as _ilu
 from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
@@ -12,6 +14,7 @@ import numpy as np
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from types import ModuleType
 
 # Add the source directory to sys.path so bare imports like
@@ -35,7 +38,11 @@ def _make_moviepy_mocks() -> dict[str, ModuleType | MagicMock]:
     moviepy_mod = MagicMock()
 
     # VideoClip: needs to accept make_frame callable -> return mock with methods
-    def _video_clip_factory(make_frame=None, duration=None, **kw):
+    def _video_clip_factory(
+        make_frame: Callable[[float], np.ndarray] | None = None,
+        duration: float | None = None,
+        **_kw: object,
+    ) -> MagicMock:
         clip = MagicMock()
         clip.make_frame = make_frame
         clip.duration = duration
@@ -57,14 +64,18 @@ def _make_moviepy_mocks() -> dict[str, ModuleType | MagicMock]:
 
     moviepy_mod.VideoClip = _video_clip_factory
 
-    def _color_clip_factory(size=None, color=None, **kw):
+    def _color_clip_factory(
+        _size: tuple[int, int] | None = None,
+        _color: tuple[int, ...] | None = None,
+        **_kw: object,
+    ) -> MagicMock:
         clip = MagicMock()
         clip.with_duration.return_value = clip
         return clip
 
     moviepy_mod.ColorClip = _color_clip_factory
 
-    def _text_clip_factory(**kw):
+    def _text_clip_factory(**_kw: object) -> MagicMock:
         clip = MagicMock()
         clip.with_duration.return_value = clip
         clip.with_position.return_value = clip
@@ -72,7 +83,11 @@ def _make_moviepy_mocks() -> dict[str, ModuleType | MagicMock]:
 
     moviepy_mod.TextClip = _text_clip_factory
 
-    def _composite_factory(clips=None, size=None, **kw):
+    def _composite_factory(
+        _clips: list[MagicMock] | None = None,
+        _size: tuple[int, int] | None = None,
+        **_kw: object,
+    ) -> MagicMock:
         clip = MagicMock()
         clip.with_effects.return_value = clip
         clip.with_duration.return_value = clip
@@ -81,7 +96,11 @@ def _make_moviepy_mocks() -> dict[str, ModuleType | MagicMock]:
 
     moviepy_mod.CompositeVideoClip = _composite_factory
 
-    def _concat_factory(clips=None, method=None, **kw):
+    def _concat_factory(
+        _clips: list[MagicMock] | None = None,
+        _method: str | None = None,
+        **_kw: object,
+    ) -> MagicMock:
         clip = MagicMock()
         clip.write_videofile = MagicMock()
         return clip
@@ -117,7 +136,6 @@ for _name, _mock in _MOVIEPY_MOCKS.items():
 #     modules (``_q24_classical.py``, etc.) find ``BG_COLOR`` etc.
 #  3. Register both under their full package paths for coverage.
 # ---------------------------------------------------------------------------
-import importlib.util as _ilu
 
 # Load generate_images _q24_common first.
 _gen_q24_spec = _ilu.spec_from_file_location(
@@ -127,9 +145,9 @@ _gen_q24_spec = _ilu.spec_from_file_location(
 assert _gen_q24_spec is not None
 assert _gen_q24_spec.loader is not None
 _q24_common_gen = _ilu.module_from_spec(_gen_q24_spec)
-_gen_q24_spec.loader.exec_module(_q24_common_gen)
-# Cache as bare name so generate_images imports work during _BARE_MODULES.
+# Register BEFORE exec so @dataclass can resolve __module__ in Python 3.14+.
 sys.modules["_q24_common"] = _q24_common_gen
+_gen_q24_spec.loader.exec_module(_q24_common_gen)
 
 # Load top-level _q24_common.
 _top_q24_spec = _ilu.spec_from_file_location(
@@ -139,6 +157,8 @@ _top_q24_spec = _ilu.spec_from_file_location(
 assert _top_q24_spec is not None
 assert _top_q24_spec.loader is not None
 _q24_common_top = _ilu.module_from_spec(_top_q24_spec)
+# Register BEFORE exec so @dataclass can resolve __module__ in Python 3.14+.
+sys.modules["_q24_common_top"] = _q24_common_top
 _top_q24_spec.loader.exec_module(_q24_common_top)
 
 
@@ -205,11 +225,9 @@ _BARE_MODULES = [
     "generate_scheduling_diagrams",
 ]
 for _bare in _BARE_MODULES:
-    try:
+    with contextlib.suppress(ImportError):
         _mod = importlib.import_module(_bare)
         sys.modules.setdefault(f"{_GEN_PKG}.{_bare}", _mod)
-    except ImportError:
-        pass
 
 # Now swap _q24_common to the top-level version so that top-level source
 # modules (``_q24_classical.py`` etc.) find BG_COLOR, W, H, etc.
@@ -242,6 +260,7 @@ def _no_savefig(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def _compat_auto_set_font_size(
         self: matplotlib.table.Table,
+        *,
         value: bool = True,
         **_kw: object,
     ) -> None:

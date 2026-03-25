@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import tempfile
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -235,7 +236,7 @@ class TestEnsureLanguagePair:
         mock_pkg = MagicMock()
         mock_pkg.from_code = "en"
         mock_pkg.to_code = "es"
-        mock_pkg.download.return_value = "/tmp/pkg.argosmodel"
+        mock_pkg.download.return_value = tempfile.gettempdir() + "/pkg.argosmodel"
         mock_argos = MagicMock()
         mock_argos.translate.get_installed_languages.return_value = [
             mock_from,
@@ -262,7 +263,7 @@ class TestEnsureLanguagePair:
         mock_pkg = MagicMock()
         mock_pkg.from_code = "en"
         mock_pkg.to_code = "es"
-        mock_pkg.download.return_value = "/tmp/pkg"
+        mock_pkg.download.return_value = tempfile.gettempdir() + "/pkg"
         mock_argos = MagicMock()
         mock_argos.translate.get_installed_languages.return_value = [mock_to]
         mock_argos.package.get_available_packages.return_value = [mock_pkg]
@@ -275,14 +276,14 @@ class TestFormatTranslations:
 
     def test_failed_with_no_error(self) -> None:
         results = [
-            TranslationResult("xyz", "", "en", "es", False),
+            TranslationResult("xyz", "", "en", "es", success=False),
         ]
         output = format_translations(results)
         assert "[Failed]" in output
 
     def test_all_failed_max_trans(self) -> None:
         results = [
-            TranslationResult("xyz", "", "en", "es", False, "err"),
+            TranslationResult("xyz", "", "en", "es", success=False, error="err"),
         ]
         output = format_translations(results)
         assert "Translation" in output

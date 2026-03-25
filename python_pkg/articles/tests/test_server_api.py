@@ -1,17 +1,26 @@
 """Integration tests for the articles C server API."""
 
 from http import HTTPStatus
+import http.client
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import time
 from typing import Any
-import urllib.error
-import urllib.request
+import urllib.parse
 
 import pytest
+
+
+class _HTTPError(Exception):
+    """HTTP error with status code."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__(f"HTTP {code}")
+        self.code = code
 
 
 def _req(
@@ -20,18 +29,50 @@ def _req(
     """Send an HTTP request and return status code and body."""
     if data is not None and not isinstance(data, bytes | bytearray):
         data = json.dumps(data).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=5) as resp:
+    parsed = urllib.parse.urlparse(url)
+    conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    try:
+        headers = {"Content-Type": "application/json"}
+        conn.request(method, parsed.path or "/", body=data, headers=headers)
+        resp = conn.getresponse()
         body = resp.read()
-        return resp.getcode(), body
+        status = resp.status
+    finally:
+        conn.close()
+    if status >= 400:
+        raise _HTTPError(status)
+    return status, body
+
+
+def _probe_server(host: str, port: int) -> bool:
+    """Try a single GET to the server. Return True if it responded."""
+    try:
+        conn = http.client.HTTPConnection(host, port, timeout=0.2)
+        try:
+            conn.request("GET", "/api/articles")
+            conn.getresponse().read()
+            return True
+        finally:
+            conn.close()
+    except OSError:
+        return False
+
+
+def _wait_for_server(host: str, port: int, attempts: int = 30) -> None:
+    """Poll the server until it responds or attempts are exhausted."""
+    for _ in range(attempts):
+        if _probe_server(host, port):
+            return
+        time.sleep(0.05)
 
 
 def test_crud_roundtrip(tmp_path: Path) -> None:
     """Test full CRUD lifecycle for articles API."""
     # Build C server
     here = Path(__file__).resolve().parent.parent
-    subprocess.run(["make", "-s", "server_c"], check=True, cwd=str(here))
+    make_path = shutil.which("make")
+    assert make_path is not None, "make not found in PATH"
+    subprocess.run([make_path, "-s", "server_c"], check=True, cwd=str(here))
 
     # Find a free port
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -47,16 +88,7 @@ def test_crud_roundtrip(tmp_path: Path) -> None:
     env["PORT"] = str(port)
     srv = subprocess.Popen(["./server_c"], cwd=str(here), env=env)
     try:
-        # wait briefly for server to be ready
-        for _ in range(30):
-            try:
-                with urllib.request.urlopen(
-                    base + "/api/articles", timeout=0.2
-                ) as resp:
-                    resp.read()
-                    break
-            except (OSError, urllib.error.URLError):
-                time.sleep(0.05)
+        _wait_for_server(host, port)
 
         # Create
         code, body = _req(
@@ -97,10 +129,9 @@ def test_crud_roundtrip(tmp_path: Path) -> None:
         assert code == HTTPStatus.NO_CONTENT
 
         # Ensure gone
-        with pytest.raises(urllib.error.HTTPError) as exc_info:
+        with pytest.raises(_HTTPError) as exc_info:
             _req(base + f"/api/articles/{art_id}")
         assert exc_info.value.code == HTTPStatus.NOT_FOUND
-        exc_info.value.close()
 
     finally:
         srv.terminate()

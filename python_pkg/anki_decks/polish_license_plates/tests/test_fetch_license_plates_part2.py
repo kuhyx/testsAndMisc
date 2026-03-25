@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from io import StringIO
 from pathlib import Path
+import tempfile
 from unittest.mock import MagicMock, patch
 
 from python_pkg.anki_decks.polish_license_plates.fetch_license_plates import (
@@ -34,7 +35,7 @@ class TestFetchWikipediaLicensePlates:
     @patch(f"{MOD}.parse_license_plates_from_html", return_value={"KR": "Kraków"})
     @patch(f"{MOD}.fetch_wikipedia_html", return_value="<html></html>")
     def test_force_refresh_passed(
-        self, mock_fetch: MagicMock, _mock_parse: MagicMock
+        self, mock_fetch: MagicMock, mock_parse: MagicMock
     ) -> None:
         fetch_wikipedia_license_plates(force_refresh=True)
         mock_fetch.assert_called_once_with(force_refresh=True)
@@ -99,7 +100,7 @@ class TestGenerateLicensePlateDataFile:
 class TestMain:
     """Tests for main entry point."""
 
-    @patch(f"{MOD}.get_cache_path", return_value=Path("/tmp/cache"))
+    @patch(f"{MOD}.get_cache_path", return_value=Path(tempfile.gettempdir(), "cache"))
     @patch(f"{MOD}.generate_license_plate_data_file")
     @patch(
         f"{MOD}.fetch_wikipedia_license_plates",
@@ -109,9 +110,9 @@ class TestMain:
     def test_success(
         self,
         mock_args: MagicMock,
-        _mock_fetch: MagicMock,
+        mock_fetch: MagicMock,
         mock_gen: MagicMock,
-        _mock_cache: MagicMock,
+        mock_cache: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(force=False)
         with patch("sys.stdout", new_callable=StringIO):
@@ -127,14 +128,14 @@ class TestMain:
     def test_runtime_error(
         self,
         mock_args: MagicMock,
-        _mock_fetch: MagicMock,
+        mock_fetch: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(force=False)
         with patch("sys.stderr", new_callable=StringIO):
             result = main()
         assert result == 1
 
-    @patch(f"{MOD}.get_cache_path", return_value=Path("/tmp/cache"))
+    @patch(f"{MOD}.get_cache_path", return_value=Path(tempfile.gettempdir(), "cache"))
     @patch(f"{MOD}.generate_license_plate_data_file")
     @patch(
         f"{MOD}.fetch_wikipedia_license_plates",
@@ -145,8 +146,8 @@ class TestMain:
         self,
         mock_args: MagicMock,
         mock_fetch: MagicMock,
-        _mock_gen: MagicMock,
-        _mock_cache: MagicMock,
+        mock_gen: MagicMock,
+        mock_cache: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(force=True)
         with patch("sys.stdout", new_callable=StringIO):
@@ -154,7 +155,7 @@ class TestMain:
         assert result == 0
         mock_fetch.assert_called_once_with(force_refresh=True)
 
-    @patch(f"{MOD}.get_cache_path", return_value=Path("/tmp/cache"))
+    @patch(f"{MOD}.get_cache_path", return_value=Path(tempfile.gettempdir(), "cache"))
     @patch(f"{MOD}.generate_license_plate_data_file")
     @patch(
         f"{MOD}.fetch_wikipedia_license_plates",
@@ -164,9 +165,9 @@ class TestMain:
     def test_prints_summary(
         self,
         mock_args: MagicMock,
-        _mock_fetch: MagicMock,
-        _mock_gen: MagicMock,
-        _mock_cache: MagicMock,
+        mock_fetch: MagicMock,
+        mock_gen: MagicMock,
+        mock_cache: MagicMock,
     ) -> None:
         mock_args.return_value = MagicMock(force=False)
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:

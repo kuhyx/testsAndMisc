@@ -195,81 +195,77 @@ class TestGetPolishGminy:
         result = get_polish_gminy()
         assert len(result) == 1
 
-    @patch("python_pkg.geo_data._common._add_area_column")
-    @patch("python_pkg.geo_data._poland_admin.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_admin._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_admin._overpass_query")
-    @patch("python_pkg.geo_data._poland_admin.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_admin.sys.stdout")
-    def test_downloads_from_osm(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads_from_osm(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_admin.sys.stdout"),
+            patch("python_pkg.geo_data._poland_admin.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_admin._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_admin._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_admin.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch("python_pkg.geo_data._common._add_area_column") as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                {
-                    "type": "relation",
-                    "tags": {"name": "Gmina A"},
-                    "members": [
-                        {
-                            "role": "outer",
-                            "geometry": [
-                                {"lon": 0, "lat": 0},
-                                {"lon": 1, "lat": 0},
-                                {"lon": 1, "lat": 1},
-                                {"lon": 0, "lat": 1},
-                            ],
-                        }
-                    ],
-                },
-                # Duplicate name - should be skipped
-                {
-                    "type": "relation",
-                    "tags": {"name": "Gmina A"},
-                    "members": [
-                        {
-                            "role": "outer",
-                            "geometry": [
-                                {"lon": 2, "lat": 2},
-                                {"lon": 3, "lat": 2},
-                                {"lon": 3, "lat": 3},
-                                {"lon": 2, "lat": 3},
-                            ],
-                        }
-                    ],
-                },
-                # Not a relation - should be skipped
-                {"type": "way", "tags": {"name": "Way"}},
-                # No name
-                {"type": "relation", "tags": {}},
-                # No outer rings
-                {
-                    "type": "relation",
-                    "tags": {"name": "Empty"},
-                    "members": [],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    {
+                        "type": "relation",
+                        "tags": {"name": "Gmina A"},
+                        "members": [
+                            {
+                                "role": "outer",
+                                "geometry": [
+                                    {"lon": 0, "lat": 0},
+                                    {"lon": 1, "lat": 0},
+                                    {"lon": 1, "lat": 1},
+                                    {"lon": 0, "lat": 1},
+                                ],
+                            }
+                        ],
+                    },
+                    # Duplicate name - should be skipped
+                    {
+                        "type": "relation",
+                        "tags": {"name": "Gmina A"},
+                        "members": [
+                            {
+                                "role": "outer",
+                                "geometry": [
+                                    {"lon": 2, "lat": 2},
+                                    {"lon": 3, "lat": 2},
+                                    {"lon": 3, "lat": 3},
+                                    {"lon": 2, "lat": 3},
+                                ],
+                            }
+                        ],
+                    },
+                    # Not a relation - should be skipped
+                    {"type": "way", "tags": {"name": "Way"}},
+                    # No name
+                    {"type": "relation", "tags": {}},
+                    # No outer rings
+                    {
+                        "type": "relation",
+                        "tags": {"name": "Empty"},
+                        "members": [],
+                    },
+                ]
+            }
 
-        mock_gdf = gpd.GeoDataFrame(
-            {"name": ["Gmina A"], "area_km2": [100.0]},
-            geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
-            crs="EPSG:4326",
-        )
-        mock_from_features.return_value = mock_gdf
-        mock_add_area.return_value = mock_gdf
+            mock_gdf = gpd.GeoDataFrame(
+                {"name": ["Gmina A"], "area_km2": [100.0]},
+                geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
+                crs="EPSG:4326",
+            )
+            mock_from_features.return_value = mock_gdf
+            mock_add_area.return_value = mock_gdf
 
-        result = get_polish_gminy()
-        assert len(result) == 1
+            result = get_polish_gminy()
+            assert len(result) == 1
 
 
 class TestGetPolandBoundary:

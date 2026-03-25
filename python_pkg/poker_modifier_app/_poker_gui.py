@@ -31,7 +31,7 @@ class PokerGuiMixin:
         self.root.title("🃏 Texas Hold'em Modifier")
         self.root.geometry("650x750")
         self.root.configure(bg="#0f4c3a")
-        self.root.resizable(True, True)
+        self.root.resizable(width=True, height=True)
         style = ttk.Style()
         style.theme_use("clam")
 
@@ -188,7 +188,7 @@ class PokerGuiMixin:
             parent, bg="#2d2d2d", relief=tk.RIDGE, bd=3, height=150
         )
         self.result_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20), padx=10)
-        self.result_frame.pack_propagate(False)
+        self.result_frame.pack_propagate(flag=False)
 
         self.result_label = tk.Label(
             self.result_frame,

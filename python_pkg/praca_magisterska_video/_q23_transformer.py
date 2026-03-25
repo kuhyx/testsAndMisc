@@ -221,14 +221,16 @@ def _transformer_seg_demo() -> list[CompositeVideoClip]:
             (100, 480),
         ),
         (
-            "Z\u0142o\u017cono\u015b\u0107: O(n\u00b2) pami\u0119ci \u2014 n = liczba pikseli/token\u00f3w",
+            "Z\u0142o\u017cono\u015b\u0107: O(n\u00b2) pami\u0119ci \u2014 n = liczba "
+            "pikseli/token\u00f3w",
             16,
             "#EF9A9A",
             FONT_R,
             (100, 535),
         ),
         (
-            "Dlatego SegFormer u\u017cywa efficient attention (liniowa z\u0142o\u017cono\u015b\u0107)",
+            "Dlatego SegFormer u\u017cywa efficient attention (liniowa "
+            "z\u0142o\u017cono\u015b\u0107)",
             15,
             "#78909C",
             FONT_R,
@@ -269,14 +271,16 @@ def _transformer_seg_demo() -> list[CompositeVideoClip]:
             (80, 90),
         ),
         (
-            "Encoder:  obraz \u2192 cechy (zmniejsza rozdzielczo\u015b\u0107, wyci\u0105ga CO)",
+            "Encoder:  obraz \u2192 cechy (zmniejsza rozdzielczo\u015b\u0107, "
+            "wyci\u0105ga CO)",
             16,
             "#64B5F6",
             FONT_R,
             (100, 140),
         ),
         (
-            "Decoder:  cechy \u2192 mapa (zwi\u0119ksza rozdzielczo\u015b\u0107, odtwarza GDZIE)",
+            "Decoder:  cechy \u2192 mapa (zwi\u0119ksza rozdzielczo\u015b\u0107, "
+            "odtwarza GDZIE)",
             16,
             "#A5D6A7",
             FONT_R,
@@ -334,7 +338,8 @@ def _transformer_seg_demo() -> list[CompositeVideoClip]:
             (80, 465),
         ),
         (
-            "  CNN lokal. \u2192 dilated (szersze RF) \u2192 transformer (global) \u2192 masked att.",
+            "  CNN lokal. \u2192 dilated (szersze RF) \u2192 transformer (global) "
+            "\u2192 masked att.",
             16,
             "#B0BEC5",
             FONT_R,

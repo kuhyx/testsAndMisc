@@ -49,7 +49,7 @@ class TestSnmpgetCmd:
 
 class TestSnmpWalk:
     @patch("python_pkg.brother_printer.network_query.shutil.which", return_value=None)
-    def test_no_snmpwalk(self, _mock: MagicMock) -> None:
+    def test_no_snmpwalk(self, mock: MagicMock) -> None:
         assert snmp_walk("1.2.3.4", "1.3.6", "public", 5) == []
 
     @patch("python_pkg.brother_printer.network_query.subprocess.run")
@@ -57,7 +57,7 @@ class TestSnmpWalk:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpwalk",
     )
-    def test_success(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_success(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
             stdout='  "Brother HL-1110"  \n  "SN123"  \n',
         )
@@ -69,7 +69,7 @@ class TestSnmpWalk:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpwalk",
     )
-    def test_empty_lines_stripped(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_empty_lines_stripped(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="   \n  value  \n   \n")
         result = snmp_walk("1.2.3.4", "1.3.6", "public", 5)
         assert result == ["value"]
@@ -79,7 +79,7 @@ class TestSnmpWalk:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpwalk",
     )
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         import subprocess
 
         mock_run.side_effect = subprocess.TimeoutExpired("snmpwalk", 15)
@@ -90,7 +90,7 @@ class TestSnmpWalk:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpwalk",
     )
-    def test_oserror(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         assert snmp_walk("1.2.3.4", "1.3.6", "public", 5) == []
 
@@ -100,7 +100,7 @@ class TestCheckSnmpConnectivity:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value=None,
     )
-    def test_no_snmpget(self, _mock: MagicMock) -> None:
+    def test_no_snmpget(self, mock: MagicMock) -> None:
         result = _check_snmp_connectivity("1.2.3.4", "public", 5)
         assert result is not None
         assert "snmpget not found" in result
@@ -110,7 +110,7 @@ class TestCheckSnmpConnectivity:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpget",
     )
-    def test_success(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_success(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock()
         assert _check_snmp_connectivity("1.2.3.4", "public", 5) is None
 
@@ -119,7 +119,7 @@ class TestCheckSnmpConnectivity:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpget",
     )
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         import subprocess
 
         mock_run.side_effect = subprocess.TimeoutExpired("snmpget", 10)
@@ -132,7 +132,7 @@ class TestCheckSnmpConnectivity:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpget",
     )
-    def test_called_process_error(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_called_process_error(self, w: MagicMock, mock_run: MagicMock) -> None:
         import subprocess
 
         mock_run.side_effect = subprocess.CalledProcessError(1, "snmpget")
@@ -144,7 +144,7 @@ class TestCheckSnmpConnectivity:
         "python_pkg.brother_printer.network_query.shutil.which",
         return_value="/usr/bin/snmpget",
     )
-    def test_oserror(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         result = _check_snmp_connectivity("1.2.3.4", "public", 5)
         assert result is not None
@@ -172,7 +172,7 @@ class TestQueryNetworkSnmp:
         "python_pkg.brother_printer.network_query._check_snmp_connectivity",
         return_value=None,
     )
-    def test_success(self, _c: MagicMock, mock_build: MagicMock) -> None:
+    def test_success(self, c: MagicMock, mock_build: MagicMock) -> None:
         from python_pkg.brother_printer.data_classes import NetworkResult
 
         mock_build.return_value = NetworkResult(ip="1.2.3.4")
@@ -184,6 +184,6 @@ class TestQueryNetworkSnmp:
         "python_pkg.brother_printer.network_query._check_snmp_connectivity",
         return_value="Error msg",
     )
-    def test_connectivity_error(self, _c: MagicMock) -> None:
+    def test_connectivity_error(self, c: MagicMock) -> None:
         result = query_network_snmp("1.2.3.4")
         assert result.error == "Error msg"

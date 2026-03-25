@@ -114,74 +114,71 @@ class TestGetWarsawBoundary:
         result = get_warsaw_boundary()
         assert len(result) == 1
 
-    @patch("python_pkg.geo_data._warsaw.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._warsaw._ensure_cache_dir")
-    @patch("python_pkg.geo_data._warsaw._overpass_query")
-    @patch("python_pkg.geo_data._warsaw._PKG_DIR")
-    @patch("python_pkg.geo_data._warsaw.CACHE_DIR")
-    @patch("python_pkg.geo_data._warsaw.sys.stdout")
-    def test_fallback_overpass(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_pkg_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-    ) -> None:
-        mock_cache_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_cache_path)
-        mock_cache_path.exists.return_value = False
+    def test_fallback_overpass(self) -> None:
+        with (
+            patch("python_pkg.geo_data._warsaw.sys.stdout"),
+            patch("python_pkg.geo_data._warsaw.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._warsaw._PKG_DIR") as mock_pkg_dir,
+            patch("python_pkg.geo_data._warsaw._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._warsaw._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._warsaw.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+        ):
+            mock_cache_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_cache_path)
+            mock_cache_path.exists.return_value = False
 
-        mock_districts_path = MagicMock()
-        mock_pkg_dir.__truediv__ = MagicMock(return_value=MagicMock())
-        mock_pkg_dir.__truediv__.return_value.__truediv__ = MagicMock(
-            return_value=MagicMock()
-        )
-        mock_pkg_dir.__truediv__.return_value.__truediv__.return_value.__truediv__ = (
-            MagicMock(return_value=mock_districts_path)
-        )
-        mock_districts_path.exists.return_value = False
+            mock_districts_path = MagicMock()
+            mock_pkg_dir.__truediv__ = MagicMock(return_value=MagicMock())
+            mock_pkg_dir.__truediv__.return_value.__truediv__ = MagicMock(
+                return_value=MagicMock()
+            )
+            nested = mock_pkg_dir.__truediv__.return_value.__truediv__
+            nested.return_value.__truediv__ = MagicMock(
+                return_value=mock_districts_path
+            )
+            mock_districts_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                {
-                    "type": "relation",
-                    "members": [
-                        {
-                            "role": "outer",
-                            "geometry": [
-                                {"lon": 20, "lat": 52},
-                                {"lon": 21, "lat": 52},
-                                {"lon": 21, "lat": 53},
-                            ],
-                        },
-                        # non-outer member
-                        {
-                            "role": "inner",
-                            "geometry": [
-                                {"lon": 20.5, "lat": 52.5},
-                            ],
-                        },
-                    ],
-                },
-                # Not a relation
-                {"type": "way"},
-                # Relation with no outer geometry (empty coords)
-                {
-                    "type": "relation",
-                    "members": [
-                        {"role": "inner", "geometry": [{"lon": 20, "lat": 52}]},
-                    ],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    {
+                        "type": "relation",
+                        "members": [
+                            {
+                                "role": "outer",
+                                "geometry": [
+                                    {"lon": 20, "lat": 52},
+                                    {"lon": 21, "lat": 52},
+                                    {"lon": 21, "lat": 53},
+                                ],
+                            },
+                            # non-outer member
+                            {
+                                "role": "inner",
+                                "geometry": [
+                                    {"lon": 20.5, "lat": 52.5},
+                                ],
+                            },
+                        ],
+                    },
+                    # Not a relation
+                    {"type": "way"},
+                    # Relation with no outer geometry (empty coords)
+                    {
+                        "type": "relation",
+                        "members": [
+                            {"role": "inner", "geometry": [{"lon": 20, "lat": 52}]},
+                        ],
+                    },
+                ]
+            }
 
-        mock_gdf = MagicMock(spec=gpd.GeoDataFrame)
-        mock_from_features.return_value = mock_gdf
+            mock_gdf = MagicMock(spec=gpd.GeoDataFrame)
+            mock_from_features.return_value = mock_gdf
 
-        result = get_warsaw_boundary()
-        assert result is mock_gdf
+            result = get_warsaw_boundary()
+            assert result is mock_gdf
 
 
 class TestGetWarsawDistricts:
@@ -311,94 +308,90 @@ class TestGetWarsawBridges:
         result = get_warsaw_bridges()
         assert result is mock_gdf
 
-    @patch("python_pkg.geo_data._warsaw.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._warsaw._ensure_cache_dir")
-    @patch("python_pkg.geo_data._warsaw._overpass_query")
-    @patch("python_pkg.geo_data._warsaw.get_vistula_river")
-    @patch("python_pkg.geo_data._warsaw.CACHE_DIR")
-    @patch("python_pkg.geo_data._warsaw.sys.stdout")
-    def test_downloads(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_vistula: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads(self) -> None:
+        with (
+            patch("python_pkg.geo_data._warsaw.sys.stdout"),
+            patch("python_pkg.geo_data._warsaw.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._warsaw.get_vistula_river") as mock_vistula,
+            patch("python_pkg.geo_data._warsaw._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._warsaw._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._warsaw.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        # Create a real Vistula geometry for intersection tests
-        vistula_gdf = gpd.GeoDataFrame(
-            {"name": ["Wisła"]},
-            geometry=[LineString([(20.0, 52.2), (21.0, 52.2)])],
-            crs="EPSG:4326",
-        )
-        mock_vistula.return_value = vistula_gdf
+            # Create a real Vistula geometry for intersection tests
+            vistula_gdf = gpd.GeoDataFrame(
+                {"name": ["Wisła"]},
+                geometry=[LineString([(20.0, 52.2), (21.0, 52.2)])],
+                crs="EPSG:4326",
+            )
+            mock_vistula.return_value = vistula_gdf
 
-        mock_query.return_value = {
-            "elements": [
-                # Bridge that intersects vistula buffer
-                {
-                    "type": "way",
-                    "id": 1,
-                    "tags": {"name": "Most Łazienkowski"},
-                    "geometry": [
-                        {"lon": 20.5, "lat": 52.19},
-                        {"lon": 20.5, "lat": 52.21},
-                    ],
-                },
-                # Bridge far from vistula
-                {
-                    "type": "way",
-                    "id": 2,
-                    "tags": {"name": "Most Daleki"},
-                    "geometry": [
-                        {"lon": 20.5, "lat": 55.0},
-                        {"lon": 20.5, "lat": 55.1},
-                    ],
-                },
-                # Not a way
-                {"type": "node", "tags": {"name": "Most X"}},
-                # Way without geometry
-                {"type": "way", "tags": {"name": "Most Y"}},
-                # No name
-                {
-                    "type": "way",
-                    "id": 3,
-                    "tags": {},
-                    "geometry": [
-                        {"lon": 20.5, "lat": 52.19},
-                        {"lon": 20.5, "lat": 52.21},
-                    ],
-                },
-                # Duplicate
-                {
-                    "type": "way",
-                    "id": 4,
-                    "tags": {"name": "Most Łazienkowski"},
-                    "geometry": [
-                        {"lon": 20.5, "lat": 52.19},
-                        {"lon": 20.5, "lat": 52.21},
-                    ],
-                },
-                # Too few coords
-                {
-                    "type": "way",
-                    "id": 5,
-                    "tags": {"name": "Most Short"},
-                    "geometry": [{"lon": 20.5, "lat": 52.19}],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    # Bridge that intersects vistula buffer
+                    {
+                        "type": "way",
+                        "id": 1,
+                        "tags": {"name": "Most Łazienkowski"},
+                        "geometry": [
+                            {"lon": 20.5, "lat": 52.19},
+                            {"lon": 20.5, "lat": 52.21},
+                        ],
+                    },
+                    # Bridge far from vistula
+                    {
+                        "type": "way",
+                        "id": 2,
+                        "tags": {"name": "Most Daleki"},
+                        "geometry": [
+                            {"lon": 20.5, "lat": 55.0},
+                            {"lon": 20.5, "lat": 55.1},
+                        ],
+                    },
+                    # Not a way
+                    {"type": "node", "tags": {"name": "Most X"}},
+                    # Way without geometry
+                    {"type": "way", "tags": {"name": "Most Y"}},
+                    # No name
+                    {
+                        "type": "way",
+                        "id": 3,
+                        "tags": {},
+                        "geometry": [
+                            {"lon": 20.5, "lat": 52.19},
+                            {"lon": 20.5, "lat": 52.21},
+                        ],
+                    },
+                    # Duplicate
+                    {
+                        "type": "way",
+                        "id": 4,
+                        "tags": {"name": "Most Łazienkowski"},
+                        "geometry": [
+                            {"lon": 20.5, "lat": 52.19},
+                            {"lon": 20.5, "lat": 52.21},
+                        ],
+                    },
+                    # Too few coords
+                    {
+                        "type": "way",
+                        "id": 5,
+                        "tags": {"name": "Most Short"},
+                        "geometry": [{"lon": 20.5, "lat": 52.19}],
+                    },
+                ]
+            }
 
-        mock_gdf = MagicMock(spec=gpd.GeoDataFrame)
-        mock_from_features.return_value = mock_gdf
+            mock_gdf = MagicMock(spec=gpd.GeoDataFrame)
+            mock_from_features.return_value = mock_gdf
 
-        result = get_warsaw_bridges()
-        assert result is mock_gdf
+            result = get_warsaw_bridges()
+            assert result is mock_gdf
 
 
 class TestMergeBridgeSegments:

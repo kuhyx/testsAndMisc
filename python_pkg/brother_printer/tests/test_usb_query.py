@@ -27,12 +27,12 @@ MOD = "python_pkg.brother_printer.usb_query"
 
 class TestFindBrotherUsb:
     @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_lsusb(self, _m: MagicMock) -> None:
+    def test_no_lsusb(self, m: MagicMock) -> None:
         assert find_brother_usb() == ""
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
-    def test_found(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_found(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
             stdout="Bus 001 Device 005: ID 04f9:0042 Brother Industries\n",
         )
@@ -41,13 +41,13 @@ class TestFindBrotherUsb:
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
-    def test_not_found(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_not_found(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="Bus 001 Device 001: Hub\n")
         assert find_brother_usb() == ""
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
-    def test_line_with_colon_sep(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_line_with_colon_sep(self, w: MagicMock, mock_run: MagicMock) -> None:
         """Line contains 04f9: but no ': ' separator → returns full line."""
         mock_run.return_value = MagicMock(stdout="ID 04f9:0042\n")
         result = find_brother_usb()
@@ -55,14 +55,14 @@ class TestFindBrotherUsb:
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
-    def test_no_match(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_no_match(self, w: MagicMock, mock_run: MagicMock) -> None:
         """Line without 04f9: vendor id is ignored."""
         mock_run.return_value = MagicMock(stdout="04f9 brother no colon\n")
         assert find_brother_usb() == ""
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
-    def test_timeout(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         import subprocess
 
         mock_run.side_effect = subprocess.TimeoutExpired("lsusb", 5)
@@ -70,7 +70,7 @@ class TestFindBrotherUsb:
 
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
-    def test_oserror(self, _w: MagicMock, mock_run: MagicMock) -> None:
+    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         assert find_brother_usb() == ""
 
@@ -79,9 +79,9 @@ class TestFindUsbPrinterDev:
     @patch(f"{MOD}.Path")
     def test_found(self, mock_path_cls: MagicMock) -> None:
         mock_path_cls.return_value = mock_path_cls
-        mock_path_cls.__truediv__ = lambda self, x: mock_path_cls
+        mock_path_cls.__truediv__ = lambda _self, _x: mock_path_cls
         lp0 = MagicMock()
-        lp0.__str__ = lambda s: "/dev/usb/lp0"
+        lp0.__str__ = lambda _s: "/dev/usb/lp0"
         lp0.__lt__ = lambda s, o: str(s) < str(o)
         mock_usb = MagicMock()
         mock_usb.glob.return_value = [lp0]
@@ -295,7 +295,7 @@ class TestPjlQuery:
     @patch(f"{MOD}.time.time", return_value=100.0)
     def test_query(
         self,
-        _t: MagicMock,
+        t: MagicMock,
         mock_fcntl: MagicMock,
         mock_write: MagicMock,
         mock_wait: MagicMock,
@@ -345,8 +345,8 @@ class TestRetryPjlQuery:
     def test_success_first_attempt(
         self,
         mock_pjl: MagicMock,
-        _d: MagicMock,
-        _s: MagicMock,
+        d: MagicMock,
+        s: MagicMock,
     ) -> None:
         result = USBResult()
         mock_pjl.return_value = "CODE=10001\n"
@@ -360,8 +360,8 @@ class TestRetryPjlQuery:
     def test_retry_then_success(
         self,
         mock_pjl: MagicMock,
-        _d: MagicMock,
-        _s: MagicMock,
+        d: MagicMock,
+        s: MagicMock,
     ) -> None:
         result = USBResult()
         mock_pjl.side_effect = ["garbage\n", "CODE=10001\n"]
@@ -375,8 +375,8 @@ class TestRetryPjlQuery:
     def test_all_retries_fail(
         self,
         mock_pjl: MagicMock,
-        _d: MagicMock,
-        _s: MagicMock,
+        d: MagicMock,
+        s: MagicMock,
     ) -> None:
         result = USBResult()
         mock_pjl.return_value = "garbage\n"
@@ -393,8 +393,8 @@ class TestRunPjlQueries:
     def test_runs_both_queries(
         self,
         mock_write: MagicMock,
-        _d: MagicMock,
-        _s: MagicMock,
+        d: MagicMock,
+        s: MagicMock,
         mock_retry: MagicMock,
     ) -> None:
         result = USBResult()
@@ -419,29 +419,22 @@ class TestInitUsbResult:
 
 
 class TestQueryUsbPjl:
-    @patch(f"{MOD}.os.close")
-    @patch(f"{MOD}._run_pjl_queries")
-    @patch(f"{MOD}.fcntl.fcntl", return_value=0)
-    @patch(f"{MOD}.os.open", return_value=10)
-    @patch(f"{MOD}.os.access", return_value=True)
-    @patch(f"{MOD}._init_usb_result")
-    @patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0")
-    def test_success(
-        self,
-        _f: MagicMock,
-        mock_init: MagicMock,
-        _a: MagicMock,
-        _o: MagicMock,
-        _fc: MagicMock,
-        _r: MagicMock,
-        _c: MagicMock,
-    ) -> None:
-        mock_init.return_value = USBResult(device="/dev/usb/lp0")
-        result = query_usb_pjl()
-        assert result.device == "/dev/usb/lp0"
+    def test_success(self) -> None:
+        with (
+            patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0"),
+            patch(f"{MOD}._init_usb_result") as mock_init,
+            patch(f"{MOD}.os.access", return_value=True),
+            patch(f"{MOD}.os.open", return_value=10),
+            patch(f"{MOD}.fcntl.fcntl", return_value=0),
+            patch(f"{MOD}._run_pjl_queries"),
+            patch(f"{MOD}.os.close"),
+        ):
+            mock_init.return_value = USBResult(device="/dev/usb/lp0")
+            result = query_usb_pjl()
+            assert result.device == "/dev/usb/lp0"
 
     @patch(f"{MOD}.find_usb_printer_dev", return_value=None)
-    def test_no_dev_falls_back_to_cups(self, _f: MagicMock) -> None:
+    def test_no_dev_falls_back_to_cups(self, f: MagicMock) -> None:
         with patch(
             "python_pkg.brother_printer.cups_service.query_usb_via_cups",
         ) as mock_cups:
@@ -454,32 +447,26 @@ class TestQueryUsbPjl:
     @patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0")
     def test_permission_denied(
         self,
-        _f: MagicMock,
+        f: MagicMock,
         mock_init: MagicMock,
-        _a: MagicMock,
+        a: MagicMock,
     ) -> None:
         mock_init.return_value = USBResult(device="/dev/usb/lp0")
         result = query_usb_pjl()
         assert "Permission denied" in result.error
 
-    @patch(f"{MOD}.os.close")
-    @patch(f"{MOD}.fcntl.fcntl", side_effect=OSError("bad fd"))
-    @patch(f"{MOD}.os.open", return_value=10)
-    @patch(f"{MOD}.os.access", return_value=True)
-    @patch(f"{MOD}._init_usb_result")
-    @patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0")
-    def test_oserror_on_open(
-        self,
-        _f: MagicMock,
-        mock_init: MagicMock,
-        _a: MagicMock,
-        _o: MagicMock,
-        _fc: MagicMock,
-        _c: MagicMock,
-    ) -> None:
-        mock_init.return_value = USBResult(device="/dev/usb/lp0")
-        result = query_usb_pjl()
-        assert result.error != ""
+    def test_oserror_on_open(self) -> None:
+        with (
+            patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0"),
+            patch(f"{MOD}._init_usb_result") as mock_init,
+            patch(f"{MOD}.os.access", return_value=True),
+            patch(f"{MOD}.os.open", return_value=10),
+            patch(f"{MOD}.fcntl.fcntl", side_effect=OSError("bad fd")),
+            patch(f"{MOD}.os.close"),
+        ):
+            mock_init.return_value = USBResult(device="/dev/usb/lp0")
+            result = query_usb_pjl()
+            assert result.error != ""
 
     @patch(f"{MOD}.os.open", side_effect=OSError("no device"))
     @patch(f"{MOD}.os.access", return_value=True)
@@ -487,10 +474,10 @@ class TestQueryUsbPjl:
     @patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0")
     def test_oserror_fd_none(
         self,
-        _f: MagicMock,
+        f: MagicMock,
         mock_init: MagicMock,
-        _a: MagicMock,
-        _o: MagicMock,
+        a: MagicMock,
+        o: MagicMock,
     ) -> None:
         """os.open raises OSError before fd is set → fd stays None."""
         mock_init.return_value = USBResult(device="/dev/usb/lp0")

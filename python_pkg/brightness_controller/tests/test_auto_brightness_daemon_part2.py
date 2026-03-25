@@ -17,7 +17,7 @@ class TestMainNoAls:
     """Tests for main() when no ALS device is found."""
 
     @patch(f"{MOD}._find_als_device", return_value=None)
-    def test_exits_when_no_als(self, _mock_find: MagicMock) -> None:
+    def test_exits_when_no_als(self, mock_find: MagicMock) -> None:
         with pytest.raises(SystemExit, match="1"):
             auto_brightness_daemon.main()
 
@@ -62,10 +62,10 @@ class TestMainDaemonLoop:
             patch(f"{MOD}._lux_to_brightness", return_value=75),
             patch(f"{MOD}._get_brightness", return_value=current_brightness),
             patch(f"{MOD}._set_brightness", mock_set_brightness),
+            contextlib.suppress(KeyboardInterrupt),
         ):
             # Simulate SIGINT by raising KeyboardInterrupt in sleep
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
 
         return mock_set_brightness, mock_lux
 
@@ -96,9 +96,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}._lux_to_brightness", return_value=74),
             patch(f"{MOD}._get_brightness", return_value=74),
             patch(f"{MOD}._set_brightness") as mock_set,
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
         mock_set.assert_not_called()
 
     def test_skips_when_brightness_negative(self) -> None:
@@ -116,9 +116,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}._lux_to_brightness", return_value=75),
             patch(f"{MOD}._get_brightness", return_value=-1),
             patch(f"{MOD}._set_brightness") as mock_set,
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
         mock_set.assert_not_called()
 
     def test_creates_control_file_when_missing(self) -> None:
@@ -133,9 +133,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}.signal.signal"),
             patch(f"{MOD}.time.sleep", side_effect=KeyboardInterrupt),
             patch(f"{MOD}._is_enabled", return_value=False),
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
         mock_set_enabled.assert_called_once_with(enabled=True)
 
     def test_does_not_create_file_when_exists(self) -> None:
@@ -150,9 +150,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}.signal.signal"),
             patch(f"{MOD}.time.sleep", side_effect=KeyboardInterrupt),
             patch(f"{MOD}._is_enabled", return_value=False),
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
         mock_set_enabled.assert_not_called()
 
     def test_handles_exception_in_loop_gracefully(self) -> None:
@@ -166,9 +166,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}.signal.signal"),
             patch(f"{MOD}.time.sleep", side_effect=[None, KeyboardInterrupt]),
             patch(f"{MOD}._is_enabled", side_effect=OSError("disk fail")),
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
             # No crash = exception was handled
 
     def test_signal_handler_stops_loop(self) -> None:
@@ -189,9 +189,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}.signal.signal", side_effect=capture_signal),
             patch(f"{MOD}.time.sleep", side_effect=KeyboardInterrupt),
             patch(f"{MOD}._is_enabled", return_value=False),
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
 
         # Verify we captured a SIGTERM handler
         assert signal.SIGTERM in captured_handler
@@ -217,9 +217,9 @@ class TestMainDaemonLoop:
             patch(f"{MOD}._lux_to_brightness", return_value=10),
             patch(f"{MOD}._get_brightness", return_value=90),
             patch(f"{MOD}._set_brightness") as mock_set,
+            contextlib.suppress(KeyboardInterrupt),
         ):
-            with contextlib.suppress(KeyboardInterrupt):
-                auto_brightness_daemon.main()
+            auto_brightness_daemon.main()
         # delta=-80, step=-5, new_val=85
         mock_set.assert_called_with(85)
 

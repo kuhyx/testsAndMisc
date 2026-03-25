@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import sys
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
+
+if TYPE_CHECKING:
+    from python_pkg.poker_modifier_app._poker_gui import PokerGuiMixin
 
 
 def _install_tk_mocks() -> dict[str, MagicMock]:
@@ -26,19 +29,19 @@ def _install_tk_mocks() -> dict[str, MagicMock]:
 
     # Make constructors return fresh mocks each time
     mock_tk.Tk.return_value = MagicMock(name="root")
-    mock_tk.Frame.side_effect = lambda *a, **kw: MagicMock(name="Frame")
-    mock_tk.Label.side_effect = lambda *a, **kw: MagicMock(name="Label")
-    mock_tk.LabelFrame.side_effect = lambda *a, **kw: MagicMock(name="LabelFrame")
-    mock_tk.Scale.side_effect = lambda *a, **kw: MagicMock(name="Scale")
-    mock_tk.IntVar.side_effect = lambda *a, **kw: MagicMock(name="IntVar")
-    mock_tk.BooleanVar.side_effect = lambda *a, **kw: MagicMock(name="BooleanVar")
-    mock_tk.Checkbutton.side_effect = lambda *a, **kw: MagicMock(name="Checkbutton")
-    mock_tk.Button.side_effect = lambda *a, **kw: MagicMock(name="Button")
+    mock_tk.Frame.side_effect = lambda *_a, **_kw: MagicMock(name="Frame")
+    mock_tk.Label.side_effect = lambda *_a, **_kw: MagicMock(name="Label")
+    mock_tk.LabelFrame.side_effect = lambda *_a, **_kw: MagicMock(name="LabelFrame")
+    mock_tk.Scale.side_effect = lambda *_a, **_kw: MagicMock(name="Scale")
+    mock_tk.IntVar.side_effect = lambda *_a, **_kw: MagicMock(name="IntVar")
+    mock_tk.BooleanVar.side_effect = lambda *_a, **_kw: MagicMock(name="BooleanVar")
+    mock_tk.Checkbutton.side_effect = lambda *_a, **_kw: MagicMock(name="Checkbutton")
+    mock_tk.Button.side_effect = lambda *_a, **_kw: MagicMock(name="Button")
 
     return {"tk": mock_tk, "ttk": mock_ttk}
 
 
-def _make_mixin() -> Any:
+def _make_mixin() -> tuple[PokerGuiMixin, MagicMock, MagicMock]:
     """Create a PokerGuiMixin instance with mocked tkinter."""
     tk_mocks = _install_tk_mocks()
 
@@ -99,7 +102,7 @@ class TestSetupMainWindow:
         root.title.assert_called_once_with("🃏 Texas Hold'em Modifier")
         root.geometry.assert_called_once_with("650x750")
         root.configure.assert_called_once_with(bg="#0f4c3a")
-        root.resizable.assert_called_once_with(True, True)
+        root.resizable.assert_called_once_with(width=True, height=True)
         mock_ttk.Style.assert_called_once()
         mock_ttk.Style.return_value.theme_use.assert_called_once_with("clam")
 
@@ -239,7 +242,7 @@ class TestCreateResultDisplay:
         frame_calls = mock_tk.Frame.call_args_list
         assert any(c[1].get("height") == 150 for c in frame_calls)
         assert hasattr(mixin, "result_frame")
-        mixin.result_frame.pack_propagate.assert_called_once_with(False)
+        mixin.result_frame.pack_propagate.assert_called_once_with(flag=False)
 
         # Result label
         label_calls = mock_tk.Label.call_args_list

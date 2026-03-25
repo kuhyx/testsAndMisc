@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import importlib
 import os
 from pathlib import Path
 import select
@@ -211,9 +212,10 @@ def query_usb_pjl(max_retries: int = 2) -> USBResult:
     """Query a Brother printer via PJL over /dev/usb/lp*."""
     dev_path = find_usb_printer_dev()
     if not dev_path:
-        from python_pkg.brother_printer.cups_service import query_usb_via_cups
-
-        return query_usb_via_cups()
+        cups_service = importlib.import_module(
+            "python_pkg.brother_printer.cups_service",
+        )
+        return cups_service.query_usb_via_cups()
 
     result = _init_usb_result(dev_path)
     if not os.access(dev_path, os.R_OK | os.W_OK):

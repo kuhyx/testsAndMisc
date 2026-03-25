@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-
-# Install mock modules before any parse_image imports
-sys.modules.setdefault("cv2", MagicMock())
-sys.modules.setdefault("numpy", MagicMock())
 
 from python_pkg.puzzle_solver.parse_image import (
     _assign_teleporter_and_kl_groups,

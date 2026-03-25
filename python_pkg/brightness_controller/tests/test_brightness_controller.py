@@ -20,12 +20,12 @@ class TestFindAlsDevice:
         "glob",
         return_value=[Path("/sys/bus/iio/devices/iio0/in_illuminance_raw")],
     )
-    def test_found(self, _mock_glob: MagicMock) -> None:
+    def test_found(self, mock_glob: MagicMock) -> None:
         result = brightness_controller._find_als_device()
         assert result == Path("/sys/bus/iio/devices/iio0")
 
     @patch.object(Path, "glob", return_value=[])
-    def test_not_found(self, _mock_glob: MagicMock) -> None:
+    def test_not_found(self, mock_glob: MagicMock) -> None:
         assert brightness_controller._find_als_device() is None
 
 
@@ -327,7 +327,7 @@ class TestRefreshBrightness:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=75,
     )
-    def test_updates_ui(self, _mock_get: MagicMock) -> None:
+    def test_updates_ui(self, mock_get: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl.slider_var = MagicMock()
@@ -339,7 +339,7 @@ class TestRefreshBrightness:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=-1,
     )
-    def test_error(self, _mock_get: MagicMock) -> None:
+    def test_error(self, mock_get: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl._refresh_brightness()
@@ -378,7 +378,7 @@ class TestOnSliderMove:
         ctrl.pct_var.set.assert_not_called()
 
     @patch("python_pkg.brightness_controller.brightness_controller._set_brightness")
-    def test_disables_auto_mode(self, _mock_set: MagicMock) -> None:
+    def test_disables_auto_mode(self, mock_set: MagicMock) -> None:
         ctrl = _make_controller(daemon_state=True)
         ctrl.auto_mode = True
         ctrl.pct_var = MagicMock()
@@ -396,7 +396,7 @@ class TestSetPct:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=25,
     )
-    def test_sets_brightness(self, _mock_get: MagicMock, mock_set: MagicMock) -> None:
+    def test_sets_brightness(self, mock_get: MagicMock, mock_set: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl.slider_var = MagicMock()
@@ -417,7 +417,7 @@ class TestDecrease:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=50,
     )
-    def test_decrease(self, _mock_get: MagicMock, mock_set: MagicMock) -> None:
+    def test_decrease(self, mock_get: MagicMock, mock_set: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl.slider_var = MagicMock()
@@ -429,7 +429,7 @@ class TestDecrease:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=2,
     )
-    def test_clamps_to_zero(self, _mock_get: MagicMock, mock_set: MagicMock) -> None:
+    def test_clamps_to_zero(self, mock_get: MagicMock, mock_set: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl.slider_var = MagicMock()
@@ -449,7 +449,7 @@ class TestIncrease:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=50,
     )
-    def test_increase(self, _mock_get: MagicMock, mock_set: MagicMock) -> None:
+    def test_increase(self, mock_get: MagicMock, mock_set: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl.slider_var = MagicMock()
@@ -461,7 +461,7 @@ class TestIncrease:
         "python_pkg.brightness_controller.brightness_controller._get_brightness",
         return_value=98,
     )
-    def test_clamps_to_100(self, _mock_get: MagicMock, mock_set: MagicMock) -> None:
+    def test_clamps_to_100(self, mock_get: MagicMock, mock_set: MagicMock) -> None:
         ctrl = _make_controller()
         ctrl.pct_var = MagicMock()
         ctrl.slider_var = MagicMock()
