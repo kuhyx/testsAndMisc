@@ -222,99 +222,95 @@ class TestGetPolishLakes:
         result = get_polish_lakes()
         assert len(result) == 1
 
-    @patch("python_pkg.geo_data._poland_water._add_area_column")
-    @patch("python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_water._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_water._overpass_query")
-    @patch("python_pkg.geo_data._poland_water.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_water.sys.stdout")
-    def test_downloads_lakes(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads_lakes(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_water.sys.stdout"),
+            patch("python_pkg.geo_data._poland_water.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_water._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_water._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_water._add_area_column"
+            ) as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                {
-                    "type": "way",
-                    "tags": {"name": "Śniardwy"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # Duplicate
-                {
-                    "type": "way",
-                    "tags": {"name": "Śniardwy"},
-                    "geometry": [
-                        {"lon": 0, "lat": 0},
-                        {"lon": 1, "lat": 0},
-                        {"lon": 1, "lat": 1},
-                        {"lon": 0, "lat": 1},
-                    ],
-                },
-                # No name
-                {"type": "way", "tags": {}, "geometry": []},
-                # Geometry extraction fails
-                {
-                    "type": "way",
-                    "tags": {"name": "Tiny"},
-                    "geometry": [{"lon": 0, "lat": 0}],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    {
+                        "type": "way",
+                        "tags": {"name": "Śniardwy"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # Duplicate
+                    {
+                        "type": "way",
+                        "tags": {"name": "Śniardwy"},
+                        "geometry": [
+                            {"lon": 0, "lat": 0},
+                            {"lon": 1, "lat": 0},
+                            {"lon": 1, "lat": 1},
+                            {"lon": 0, "lat": 1},
+                        ],
+                    },
+                    # No name
+                    {"type": "way", "tags": {}, "geometry": []},
+                    # Geometry extraction fails
+                    {
+                        "type": "way",
+                        "tags": {"name": "Tiny"},
+                        "geometry": [{"lon": 0, "lat": 0}],
+                    },
+                ]
+            }
 
-        poly = Polygon([(20, 50), (21, 50), (21, 51), (20, 51)])
-        mock_gdf = gpd.GeoDataFrame(
-            {"name": ["Śniardwy"]},
-            geometry=[poly],
-            crs="EPSG:4326",
-        )
-        mock_from_features.return_value = mock_gdf
-        gdf_with_area = mock_gdf.copy()
-        gdf_with_area["area_km2"] = [113.0]
-        mock_add_area.return_value = gdf_with_area
+            poly = Polygon([(20, 50), (21, 50), (21, 51), (20, 51)])
+            mock_gdf = gpd.GeoDataFrame(
+                {"name": ["Śniardwy"]},
+                geometry=[poly],
+                crs="EPSG:4326",
+            )
+            mock_from_features.return_value = mock_gdf
+            gdf_with_area = mock_gdf.copy()
+            gdf_with_area["area_km2"] = [113.0]
+            mock_add_area.return_value = gdf_with_area
 
-        result = get_polish_lakes()
-        assert len(result) >= 0
+            result = get_polish_lakes()
+            assert len(result) >= 0
 
-    @patch("python_pkg.geo_data._poland_water._add_area_column")
-    @patch("python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_water._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_water._overpass_query")
-    @patch("python_pkg.geo_data._poland_water.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_water.sys.stdout")
-    def test_empty_result(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_area: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
-        mock_query.return_value = {"elements": []}
+    def test_empty_result(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_water.sys.stdout"),
+            patch("python_pkg.geo_data._poland_water.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_water._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_water._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_water._add_area_column"
+            ) as mock_add_area,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
+            mock_query.return_value = {"elements": []}
 
-        empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
-        mock_from_features.return_value = empty_gdf
-        mock_add_area.return_value = empty_gdf
+            empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
+            mock_from_features.return_value = empty_gdf
+            mock_add_area.return_value = empty_gdf
 
-        result = get_polish_lakes()
-        assert len(result) == 0
+            result = get_polish_lakes()
+            assert len(result) == 0
 
 
 class TestGetPolishRivers:
@@ -358,117 +354,113 @@ class TestGetPolishRivers:
         result = get_polish_rivers()
         assert len(result) == 1
 
-    @patch("python_pkg.geo_data._poland_water._add_length_column")
-    @patch("python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_water._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_water._overpass_query")
-    @patch("python_pkg.geo_data._poland_water.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_water.sys.stdout")
-    def test_downloads_rivers(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_length: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads_rivers(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_water.sys.stdout"),
+            patch("python_pkg.geo_data._poland_water.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_water._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_water._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_water._add_length_column"
+            ) as mock_add_length,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                # Way with wikidata
-                {
-                    "type": "way",
-                    "id": 1,
-                    "tags": {"name": "Wisła", "wikidata": "Q54"},
-                    "geometry": [{"lon": 0, "lat": 0}, {"lon": 1, "lat": 1}],
-                },
-                # Way without wikidata
-                {
-                    "type": "way",
-                    "id": 2,
-                    "tags": {"name": "Odra"},
-                    "geometry": [{"lon": 0, "lat": 0}, {"lon": 1, "lat": 1}],
-                },
-                # Relation
-                {
-                    "type": "relation",
-                    "id": 3,
-                    "tags": {"name": "Bug", "wikidata": "Q55"},
-                    "members": [
-                        {
-                            "type": "way",
-                            "geometry": [
-                                {"lon": 0, "lat": 0},
-                                {"lon": 1, "lat": 1},
-                            ],
-                        },
-                        {
-                            "type": "way",
-                            "geometry": [
-                                {"lon": 1, "lat": 1},
-                                {"lon": 2, "lat": 2},
-                            ],
-                        },
-                    ],
-                },
-                # No name
-                {
-                    "type": "way",
-                    "id": 4,
-                    "tags": {},
-                    "geometry": [{"lon": 0, "lat": 0}, {"lon": 1, "lat": 1}],
-                },
-                # Way with no coords
-                {
-                    "type": "way",
-                    "id": 5,
-                    "tags": {"name": "Short"},
-                    "geometry": [{"lon": 0, "lat": 0}],
-                },
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    # Way with wikidata
+                    {
+                        "type": "way",
+                        "id": 1,
+                        "tags": {"name": "Wisła", "wikidata": "Q54"},
+                        "geometry": [{"lon": 0, "lat": 0}, {"lon": 1, "lat": 1}],
+                    },
+                    # Way without wikidata
+                    {
+                        "type": "way",
+                        "id": 2,
+                        "tags": {"name": "Odra"},
+                        "geometry": [{"lon": 0, "lat": 0}, {"lon": 1, "lat": 1}],
+                    },
+                    # Relation
+                    {
+                        "type": "relation",
+                        "id": 3,
+                        "tags": {"name": "Bug", "wikidata": "Q55"},
+                        "members": [
+                            {
+                                "type": "way",
+                                "geometry": [
+                                    {"lon": 0, "lat": 0},
+                                    {"lon": 1, "lat": 1},
+                                ],
+                            },
+                            {
+                                "type": "way",
+                                "geometry": [
+                                    {"lon": 1, "lat": 1},
+                                    {"lon": 2, "lat": 2},
+                                ],
+                            },
+                        ],
+                    },
+                    # No name
+                    {
+                        "type": "way",
+                        "id": 4,
+                        "tags": {},
+                        "geometry": [{"lon": 0, "lat": 0}, {"lon": 1, "lat": 1}],
+                    },
+                    # Way with no coords
+                    {
+                        "type": "way",
+                        "id": 5,
+                        "tags": {"name": "Short"},
+                        "geometry": [{"lon": 0, "lat": 0}],
+                    },
+                ]
+            }
 
-        poly = Polygon([(20, 50), (21, 50), (21, 51), (20, 51)])
-        mock_gdf = gpd.GeoDataFrame(
-            {"name": ["Wisła", "Odra", "Bug"]},
-            geometry=[poly, poly, poly],
-            crs="EPSG:4326",
-        )
-        mock_from_features.return_value = mock_gdf
-        gdf_with_length = mock_gdf.copy()
-        gdf_with_length["length_km"] = [1047.0, 854.0, 772.0]
-        mock_add_length.return_value = gdf_with_length
+            poly = Polygon([(20, 50), (21, 50), (21, 51), (20, 51)])
+            mock_gdf = gpd.GeoDataFrame(
+                {"name": ["Wisła", "Odra", "Bug"]},
+                geometry=[poly, poly, poly],
+                crs="EPSG:4326",
+            )
+            mock_from_features.return_value = mock_gdf
+            gdf_with_length = mock_gdf.copy()
+            gdf_with_length["length_km"] = [1047.0, 854.0, 772.0]
+            mock_add_length.return_value = gdf_with_length
 
-        result = get_polish_rivers()
-        assert len(result) >= 0
+            result = get_polish_rivers()
+            assert len(result) >= 0
 
-    @patch("python_pkg.geo_data._poland_water._add_length_column")
-    @patch("python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._poland_water._ensure_cache_dir")
-    @patch("python_pkg.geo_data._poland_water._overpass_query")
-    @patch("python_pkg.geo_data._poland_water.CACHE_DIR")
-    @patch("python_pkg.geo_data._poland_water.sys.stdout")
-    def test_empty_result(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_add_length: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
-        mock_query.return_value = {"elements": []}
+    def test_empty_result(self) -> None:
+        with (
+            patch("python_pkg.geo_data._poland_water.sys.stdout"),
+            patch("python_pkg.geo_data._poland_water.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._poland_water._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._poland_water._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._poland_water.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._poland_water._add_length_column"
+            ) as mock_add_length,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
+            mock_query.return_value = {"elements": []}
 
-        empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
-        mock_from_features.return_value = empty_gdf
-        mock_add_length.return_value = empty_gdf
+            empty_gdf = gpd.GeoDataFrame({"name": [], "geometry": []})
+            mock_from_features.return_value = empty_gdf
+            mock_add_length.return_value = empty_gdf
 
-        result = get_polish_rivers()
-        assert len(result) == 0
+            result = get_polish_rivers()
+            assert len(result) == 0

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import patch
 
 from python_pkg.word_frequency._learning_constants import LessonConfig
@@ -19,8 +18,8 @@ class TestDoTranslateBranch:
 
         def fake_batch(
             words: list[str],
-            from_lang: Any,
-            to_lang: Any,
+            _from_lang: str | None,
+            _to_lang: str | None,
         ) -> list[TranslationResult]:
             return [
                 TranslationResult(
@@ -56,8 +55,8 @@ class TestDoTranslateBranch:
 
         def fake_batch(
             words: list[str],
-            from_lang: Any,
-            to_lang: Any,
+            from_lang: str | None,
+            to_lang: str | None,
         ) -> list[TranslationResult]:
             return [
                 TranslationResult(

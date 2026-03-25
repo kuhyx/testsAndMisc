@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from io import StringIO
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -94,7 +93,7 @@ class TestLoadMoviesInteractive:
     """Tests for _load_movies_interactive."""
 
     @patch("builtins.input", side_effect=["Movie A, 10:00, 90min", ""])
-    def test_single_movie(self, _mock: MagicMock) -> None:
+    def test_single_movie(self, mock: MagicMock) -> None:
         result = _load_movies_interactive()
         assert len(result) == 1
         assert result[0].name == "Movie A"
@@ -107,17 +106,17 @@ class TestLoadMoviesInteractive:
             "",
         ],
     )
-    def test_multiple_movies(self, _mock: MagicMock) -> None:
+    def test_multiple_movies(self, mock: MagicMock) -> None:
         result = _load_movies_interactive()
         assert len(result) == 2
 
     @patch("builtins.input", side_effect=EOFError)
-    def test_eof(self, _mock: MagicMock) -> None:
+    def test_eof(self, mock: MagicMock) -> None:
         result = _load_movies_interactive()
         assert result == []
 
     @patch("builtins.input", side_effect=["bad line", ""])
-    def test_invalid_input(self, _mock: MagicMock) -> None:
+    def test_invalid_input(self, mock: MagicMock) -> None:
         result = _load_movies_interactive()
         assert result == []
 
@@ -125,7 +124,7 @@ class TestLoadMoviesInteractive:
         "builtins.input",
         side_effect=["bad line", "Movie A, 10:00, 90min", ""],
     )
-    def test_mixed_valid_invalid(self, _mock: MagicMock) -> None:
+    def test_mixed_valid_invalid(self, mock: MagicMock) -> None:
         result = _load_movies_interactive()
         assert len(result) == 1
 
@@ -147,7 +146,7 @@ class TestLoadMoviesFromFile:
     )
     def test_htm_file(self, mock_parse: MagicMock) -> None:
         mock_parse.return_value = ([Movie("A", [600], 120)], None)
-        movies, date = _load_movies_from_file(Path("test.htm"))
+        _, _ = _load_movies_from_file(Path("test.htm"))
         mock_parse.assert_called_once()
 
     @patch(
@@ -161,17 +160,21 @@ class TestLoadMoviesFromFile:
 
     def test_text_file(self) -> None:
         content = "Movie A, 10:00, 90min\n# comment\nMovie B, 14:00, 120min\n"
-        with patch.object(Path, "open", mock_open(read_data=content)):
-            with patch.object(Path, "suffix", new=".txt"):
-                movies, date = _load_movies_from_file(Path("test.txt"))
+        with (
+            patch.object(Path, "open", mock_open(read_data=content)),
+            patch.object(Path, "suffix", new=".txt"),
+        ):
+            movies, date = _load_movies_from_file(Path("test.txt"))
         assert len(movies) == 2
         assert date is None
 
     def test_text_file_with_bad_line(self) -> None:
         content = "Movie A, 10:00, 90min\nbad line\n"
-        with patch.object(Path, "open", mock_open(read_data=content)):
-            with patch.object(Path, "suffix", new=".txt"):
-                movies, date = _load_movies_from_file(Path("test.txt"))
+        with (
+            patch.object(Path, "open", mock_open(read_data=content)),
+            patch.object(Path, "suffix", new=".txt"),
+        ):
+            movies, _ = _load_movies_from_file(Path("test.txt"))
         assert len(movies) == 1
 
 
@@ -192,7 +195,7 @@ class TestLoadMoviesFromStdin:
 class TestFilterMovies:
     """Tests for _filter_movies."""
 
-    def _make_args(self, **kwargs: Any) -> argparse.Namespace:
+    def _make_args(self, **kwargs: str | bool | None) -> argparse.Namespace:
         defaults = {
             "select": None,
             "exclude": None,
@@ -204,7 +207,7 @@ class TestFilterMovies:
 
     def test_no_filters(self) -> None:
         movies = [Movie("A", [600], 120)]
-        result, excluded = _filter_movies(movies, self._make_args())
+        result, _ = _filter_movies(movies, self._make_args())
         # Default horror exclusion but no genre matches
         assert len(result) == 1
 
@@ -259,7 +262,7 @@ class TestFilterMovies:
             Movie("Action Movie", [600], 120, ["Action"]),
             Movie("Drama Movie", [600], 120, ["Drama"]),
         ]
-        result, excluded = _filter_movies(
+        result, _ = _filter_movies(
             movies,
             self._make_args(all_genres=True, exclude_genre="action"),
         )
@@ -268,7 +271,7 @@ class TestFilterMovies:
 
     def test_no_genre_filtered(self) -> None:
         movies = [Movie("Movie", [600], 120, ["Comedy"])]
-        result, excluded = _filter_movies(movies, self._make_args())
+        result, _ = _filter_movies(movies, self._make_args())
         assert len(result) == 1
 
 
@@ -301,7 +304,7 @@ class TestApplyMustWatchFilter:
 class TestOutputSchedules:
     """Tests for _output_schedules."""
 
-    def _make_args(self, **kwargs: Any) -> argparse.Namespace:
+    def _make_args(self, **kwargs: str | int | None) -> argparse.Namespace:
         defaults = {
             "buffer": 0,
             "max_schedules": 5,

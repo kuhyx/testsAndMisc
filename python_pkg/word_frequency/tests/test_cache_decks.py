@@ -142,14 +142,14 @@ class TestAnkiDeckCache:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         assert cache.get(dk) is None
 
     def test_get_hash_mismatch(self, tmp_path: Path) -> None:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         cache.set(dk, "content", "hello", 1, 1)
         # Modify file to change hash
         fp.write_text("changed content", encoding="utf-8")
@@ -160,7 +160,7 @@ class TestAnkiDeckCache:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         cache.set(dk, "content", "hello", 1, 1)
         # Tamper with stored hash in metadata
         m = cache._load_metadata()
@@ -174,7 +174,7 @@ class TestAnkiDeckCache:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         cache.set(dk, "content", "hello", 1, 1)
         # Remove all .txt files in cache dir
         for f in cache.cache_dir.glob("*.txt"):
@@ -185,7 +185,7 @@ class TestAnkiDeckCache:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         cache.set(dk, "content", "hello", 1, 1)
         # Mock read_text to raise OSError
         with patch("pathlib.Path.read_text", side_effect=OSError("read error")):
@@ -212,7 +212,7 @@ class TestAnkiDeckCache:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         cache.set(dk, "content", "hello", 1, 1)
         cache.clear()
         assert cache.get(dk) is None
@@ -226,7 +226,7 @@ class TestAnkiDeckCache:
         cache = AnkiDeckCache(cache_dir=tmp_path)
         fp = tmp_path / "text.txt"
         fp.write_text("hello", encoding="utf-8")
-        dk = AnkiDeckKey(fp, 10, "es", False, True)
+        dk = AnkiDeckKey(fp, 10, "es", include_context=False, all_vocab=True)
         cache.set(dk, "content", "hello", 1, 1)
         stats = cache.stats()
         assert stats["total_entries"] == 1

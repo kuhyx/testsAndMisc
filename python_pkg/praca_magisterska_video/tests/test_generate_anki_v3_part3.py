@@ -224,7 +224,7 @@ def test_main_error_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             return real_path(out_file)
         return real_path(s)
 
-    def failing_extract(filepath: object) -> list[dict[str, str]]:
+    def failing_extract(_filepath: object) -> list[dict[str, str]]:
         msg = "test error"
         raise ValueError(msg)
 

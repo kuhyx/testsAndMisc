@@ -67,7 +67,7 @@ class ArgosAvailableMock:
             translator, "_ensure_language_pair", lambda _f, _t: None
         )
         self._check_argos_patcher = patch.object(
-            translator, "_check_argos", return_value=True
+            translator, "check_argos", return_value=True
         )
 
         self._sys_modules_patcher.start()

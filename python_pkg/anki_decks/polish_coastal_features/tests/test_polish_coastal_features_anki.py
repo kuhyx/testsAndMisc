@@ -9,12 +9,14 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pytest
 from shapely.geometry import LineString, Point, Polygon
+from typing_extensions import Self
 
 from python_pkg.anki_decks.polish_coastal_features import (
     polish_coastal_features_anki as _mod,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
     from pathlib import Path
 
 _init_worker = _mod._init_worker
@@ -62,17 +64,26 @@ def _line_feature() -> gpd.GeoDataFrame:
 
 
 class _FakePool:
-    def __init__(self, processes=None, initializer=None, initargs=()) -> None:
+    def __init__(
+        self,
+        _processes: int | None = None,
+        initializer: Callable[..., object] | None = None,
+        initargs: tuple[object, ...] = (),
+    ) -> None:
         if initializer:
             initializer(*initargs)
 
-    def imap_unordered(self, func, items):
+    def imap_unordered(
+        self,
+        func: Callable[[object], object],
+        items: Iterable[object],
+    ) -> list[object]:
         return [func(item) for item in items]
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *a):
+    def __exit__(self, *_args: object) -> None:
         pass
 
 

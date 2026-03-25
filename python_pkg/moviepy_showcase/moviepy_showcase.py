@@ -194,7 +194,9 @@ def main() -> None:
 
 
 def _build(tmpdir: str) -> None:
-    # ── Lazy imports of moved part builders ───────────────────────
+    # ── Lazy imports to avoid circular dependency ────────────────
+    # These submodules import constants from this module, so they
+    # cannot be imported at the top level.
     from moviepy.audio.fx import MultiplyVolume
 
     from python_pkg.moviepy_showcase._moviepy_audio_output import (
@@ -208,7 +210,9 @@ def _build(tmpdir: str) -> None:
         part1_clip_types,
         part2_clip_methods,
     )
-    from python_pkg.moviepy_showcase._moviepy_video_effects import part3_video_effects
+    from python_pkg.moviepy_showcase._moviepy_video_effects import (
+        part3_video_effects,
+    )
 
     # ── Render each part to its own temp file ─────────────────────
     # Title card

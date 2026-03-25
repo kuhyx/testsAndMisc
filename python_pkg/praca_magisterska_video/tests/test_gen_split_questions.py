@@ -48,7 +48,7 @@ class TestSplitQuestions:
         source_file = FakeFile(source_content)
         written_files: dict[str, FakeFile] = {}
 
-        def fake_open(self_path: Path, *args: object, **kwargs: object) -> FakeFile:
+        def fake_open(self_path: Path, *_args: object, **_kwargs: object) -> FakeFile:
             path_str = str(self_path)
             if "OBRONA_MAGISTERSKA_ODPOWIEDZI" in path_str:
                 return source_file
@@ -59,7 +59,7 @@ class TestSplitQuestions:
 
         with (
             patch.object(Path, "open", fake_open),
-            patch.object(Path, "mkdir", lambda *a, **kw: None),
+            patch.object(Path, "mkdir", lambda *_a, **_kw: None),
         ):
             importlib.import_module(mod_name)
 

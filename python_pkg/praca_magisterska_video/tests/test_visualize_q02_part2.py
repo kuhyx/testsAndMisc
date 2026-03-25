@@ -60,7 +60,7 @@ def test_make_frame_closure_returns_ndarray() -> None:
 
     captured: list[object] = []
 
-    def capturing_video_clip(make_frame: object = None, **kw: object) -> MagicMock:
+    def capturing_video_clip(make_frame: object = None, **_kw: object) -> MagicMock:
         captured.append(make_frame)
         clip = MagicMock()
         clip.with_fps.return_value = clip

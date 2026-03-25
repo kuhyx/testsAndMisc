@@ -20,12 +20,12 @@ class TestFindAlsDevice:
         "glob",
         return_value=[Path("/sys/bus/iio/devices/iio0/in_illuminance_raw")],
     )
-    def test_found(self, _mock_glob: MagicMock) -> None:
+    def test_found(self, mock_glob: MagicMock) -> None:
         result = auto_brightness_daemon._find_als_device()
         assert result == Path("/sys/bus/iio/devices/iio0")
 
     @patch.object(Path, "glob", return_value=[])
-    def test_not_found(self, _mock_glob: MagicMock) -> None:
+    def test_not_found(self, mock_glob: MagicMock) -> None:
         assert auto_brightness_daemon._find_als_device() is None
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from python_pkg.poker_modifier_app._poker_modifiers import (
@@ -11,8 +11,11 @@ from python_pkg.poker_modifier_app._poker_modifiers import (
     Modifier,
 )
 
+if TYPE_CHECKING:
+    from python_pkg.poker_modifier_app.poker_modifier_app import PokerModifierApp
 
-def _make_app() -> Any:
+
+def _make_app() -> PokerModifierApp:
     """Create a PokerModifierApp with setup_gui mocked out."""
     with patch(
         "python_pkg.poker_modifier_app.poker_modifier_app.PokerGuiMixin.setup_gui"
@@ -422,7 +425,7 @@ class TestMainBlock:
     """Test the if __name__ == '__main__' block."""
 
     @patch("python_pkg.poker_modifier_app.poker_modifier_app.PokerGuiMixin.setup_gui")
-    def test_main_block(self, _mock_setup: MagicMock) -> None:
+    def test_main_block(self, mock_setup: MagicMock) -> None:
         with patch(
             "python_pkg.poker_modifier_app.poker_modifier_app.PokerModifierApp.run"
         ):

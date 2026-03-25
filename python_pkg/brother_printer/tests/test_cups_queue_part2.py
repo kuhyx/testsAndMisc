@@ -30,7 +30,7 @@ class TestOfferQueueFix:
 
     @patch(f"{MOD}._handle_disabled_with_jobs")
     @patch(f"{MOD}._prompt", return_value="1")
-    def test_disabled_with_jobs(self, _p: MagicMock, mock_handler: MagicMock) -> None:
+    def test_disabled_with_jobs(self, p: MagicMock, mock_handler: MagicMock) -> None:
         queue = CUPSQueueStatus(
             printer_name="B",
             enabled=False,
@@ -42,7 +42,7 @@ class TestOfferQueueFix:
 
     @patch(f"{MOD}._handle_disabled_no_jobs")
     @patch(f"{MOD}._prompt", return_value="2")
-    def test_disabled_no_jobs(self, _p: MagicMock, mock_handler: MagicMock) -> None:
+    def test_disabled_no_jobs(self, p: MagicMock, mock_handler: MagicMock) -> None:
         queue = CUPSQueueStatus(printer_name="B", enabled=False)
         with patch("sys.stdout", new_callable=StringIO):
             _offer_queue_fix(queue)
@@ -50,7 +50,7 @@ class TestOfferQueueFix:
 
     @patch(f"{MOD}._handle_enabled_with_jobs")
     @patch(f"{MOD}._prompt", return_value="1")
-    def test_enabled_with_jobs(self, _p: MagicMock, mock_handler: MagicMock) -> None:
+    def test_enabled_with_jobs(self, p: MagicMock, mock_handler: MagicMock) -> None:
         queue = CUPSQueueStatus(
             printer_name="B",
             enabled=True,
@@ -62,7 +62,7 @@ class TestOfferQueueFix:
 
     @patch(f"{MOD}._handle_backend_errors_only")
     @patch(f"{MOD}._prompt", return_value="1")
-    def test_backend_errors_only(self, _p: MagicMock, mock_handler: MagicMock) -> None:
+    def test_backend_errors_only(self, p: MagicMock, mock_handler: MagicMock) -> None:
         queue = CUPSQueueStatus(printer_name="B", enabled=True)
         with patch("sys.stdout", new_callable=StringIO):
             _offer_queue_fix(queue)
@@ -74,12 +74,12 @@ class TestOfferQueueFix:
 
 class TestDwjEnableOnly:
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
-    def test_success(self, _m: MagicMock) -> None:
+    def test_success(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_enable_only("B")
 
     @patch(f"{MOD}._cups_enable_printer", return_value=False)
-    def test_failure(self, _m: MagicMock) -> None:
+    def test_failure(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_enable_only("B")
 
@@ -87,37 +87,37 @@ class TestDwjEnableOnly:
 class TestDwjCancelAndEnable:
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=True)
-    def test_success(self, _c: MagicMock, _e: MagicMock) -> None:
+    def test_success(self, c: MagicMock, e: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_cancel_and_enable("B")
 
     @patch(f"{MOD}._cups_enable_printer", return_value=False)
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=True)
-    def test_enable_fails(self, _c: MagicMock, _e: MagicMock) -> None:
+    def test_enable_fails(self, c: MagicMock, e: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_cancel_and_enable("B")
 
 
 class TestDwjCancelOnly:
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=True)
-    def test_success(self, _m: MagicMock) -> None:
+    def test_success(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_cancel_only("B")
 
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=False)
-    def test_failure(self, _m: MagicMock) -> None:
+    def test_failure(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_cancel_only("B")
 
 
 class TestDwjRestartOnly:
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_success(self, _m: MagicMock) -> None:
+    def test_success(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_restart_only("B")
 
     @patch(f"{MOD}._cups_restart_service", return_value=False)
-    def test_failure(self, _m: MagicMock) -> None:
+    def test_failure(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_restart_only("B")
 
@@ -125,12 +125,12 @@ class TestDwjRestartOnly:
 class TestDwjRestartAndEnable:
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_success(self, _r: MagicMock, _e: MagicMock) -> None:
+    def test_success(self, r: MagicMock, e: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_restart_and_enable("B")
 
     @patch(f"{MOD}._cups_restart_service", return_value=False)
-    def test_restart_fails(self, _r: MagicMock) -> None:
+    def test_restart_fails(self, r: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _dwj_restart_and_enable("B")
 
@@ -149,29 +149,29 @@ class TestHandleDisabledWithJobs:
         )
 
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
-    def test_choice_1(self, _m: MagicMock) -> None:
+    def test_choice_1(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_with_jobs(self._make_queue(), "1")
 
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=True)
-    def test_choice_2(self, _c: MagicMock, _e: MagicMock) -> None:
+    def test_choice_2(self, c: MagicMock, e: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_with_jobs(self._make_queue(), "2")
 
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=True)
-    def test_choice_3(self, _m: MagicMock) -> None:
+    def test_choice_3(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_with_jobs(self._make_queue(), "3")
 
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_choice_4(self, _m: MagicMock) -> None:
+    def test_choice_4(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_with_jobs(self._make_queue(), "4")
 
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_choice_5(self, _r: MagicMock, _e: MagicMock) -> None:
+    def test_choice_5(self, r: MagicMock, e: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_with_jobs(self._make_queue(), "5")
 
@@ -194,23 +194,23 @@ class TestHandleDisabledNoJobs:
         return CUPSQueueStatus(printer_name="B", enabled=False)
 
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
-    def test_choice_1_enable(self, _m: MagicMock) -> None:
+    def test_choice_1_enable(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_no_jobs(self._make_queue(), "1")
 
     @patch(f"{MOD}._cups_enable_printer", return_value=False)
-    def test_choice_1_enable_fails(self, _m: MagicMock) -> None:
+    def test_choice_1_enable_fails(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_no_jobs(self._make_queue(), "1")
 
     @patch(f"{MOD}._cups_enable_printer", return_value=True)
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_choice_2_restart(self, _r: MagicMock, _e: MagicMock) -> None:
+    def test_choice_2_restart(self, r: MagicMock, e: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_no_jobs(self._make_queue(), "2")
 
     @patch(f"{MOD}._cups_restart_service", return_value=False)
-    def test_choice_2_restart_fails(self, _r: MagicMock) -> None:
+    def test_choice_2_restart_fails(self, r: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_disabled_no_jobs(self._make_queue(), "2")
 
@@ -233,22 +233,22 @@ class TestHandleEnabledWithJobs:
         )
 
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=True)
-    def test_choice_1_cancel(self, _m: MagicMock) -> None:
+    def test_choice_1_cancel(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_enabled_with_jobs(self._make_queue(), "1")
 
     @patch(f"{MOD}._cups_cancel_all_jobs", return_value=False)
-    def test_choice_1_cancel_fails(self, _m: MagicMock) -> None:
+    def test_choice_1_cancel_fails(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_enabled_with_jobs(self._make_queue(), "1")
 
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_choice_2_restart(self, _m: MagicMock) -> None:
+    def test_choice_2_restart(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_enabled_with_jobs(self._make_queue(), "2")
 
     @patch(f"{MOD}._cups_restart_service", return_value=False)
-    def test_choice_2_restart_fails(self, _m: MagicMock) -> None:
+    def test_choice_2_restart_fails(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_enabled_with_jobs(self._make_queue(), "2")
 
@@ -264,12 +264,12 @@ class TestHandleBackendErrorsOnly:
     """Tests for _handle_backend_errors_only."""
 
     @patch(f"{MOD}._cups_restart_service", return_value=True)
-    def test_choice_1_restart(self, _m: MagicMock) -> None:
+    def test_choice_1_restart(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_backend_errors_only("1")
 
     @patch(f"{MOD}._cups_restart_service", return_value=False)
-    def test_choice_1_restart_fails(self, _m: MagicMock) -> None:
+    def test_choice_1_restart_fails(self, m: MagicMock) -> None:
         with patch("sys.stdout", new_callable=StringIO):
             _handle_backend_errors_only("1")
 

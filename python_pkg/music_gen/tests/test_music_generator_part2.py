@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -227,7 +228,7 @@ class TestMain:
         with (
             patch(
                 "sys.argv",
-                ["music_generator", "--output", "/tmp/out", "test"],
+                ["music_generator", "--output", tempfile.gettempdir() + "/out", "test"],
             ),
             patch(
                 "python_pkg.music_gen.music_generator.check_dependencies",

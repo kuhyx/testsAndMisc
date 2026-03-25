@@ -113,9 +113,11 @@ Some introductory text that is ignored completely.
 - **Gamma**
 """
 
-_PLAIN_BODY = """\
-This is a plain first paragraph without any structured content and it is long enough to be captured by regex.
-"""
+_PLAIN_BODY = (
+    "This is a plain first paragraph without any"
+    " structured content and it is long enough"
+    " to be captured by regex.\n"
+)
 
 _PARA_ONLY_MD = """\
 # Pytanie 03: Para Only
@@ -251,7 +253,7 @@ def test_read_file_metadata_matching(sample_file: Path) -> None:
         _read_file_metadata,
     )
 
-    content, base_tags, main_question = _read_file_metadata(sample_file)
+    _, base_tags, main_question = _read_file_metadata(sample_file)
     assert "pyt01" in base_tags
     assert "Informatyka" in base_tags
     assert main_question is not None
@@ -266,7 +268,7 @@ def test_read_file_metadata_no_match(tmp_path: Path) -> None:
 
     p = tmp_path / "readme.txt"
     p.write_text(_MINIMAL_MD, encoding="utf-8")
-    content, base_tags, main_question = _read_file_metadata(p)
+    _, base_tags, main_question = _read_file_metadata(p)
     assert "pyt00" in base_tags
     assert "Og\u00f3lne" in base_tags
     assert main_question is None

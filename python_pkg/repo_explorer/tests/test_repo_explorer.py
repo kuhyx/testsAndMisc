@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 import tkinter as tk
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 # ── Helper to create a RepoExplorer without a real display ───────────
 
 
-def _make_explorer(**overrides: Any) -> Any:
+def _make_explorer(**overrides: object) -> object:
     """Build a RepoExplorer instance without a real Tk display.
 
     Mocks tk.Tk.__init__ and all GUI construction so no X server is needed.
@@ -108,83 +107,73 @@ class TestBuildStyle:
 
 
 class TestBuildUI:
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Scrollbar")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Treeview")
-    @patch("python_pkg.repo_explorer.repo_explorer.font.Font")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Button")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Entry")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Separator")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Label")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Frame")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.PanedWindow")
-    @patch("python_pkg.repo_explorer.repo_explorer.tk.Text")
-    @patch("python_pkg.repo_explorer.repo_explorer.tk.StringVar")
-    def test_build_ui_with_terminal(
-        self,
-        mock_stringvar: MagicMock,
-        mock_text: MagicMock,
-        mock_paned: MagicMock,
-        mock_frame: MagicMock,
-        mock_label: MagicMock,
-        mock_sep: MagicMock,
-        mock_entry: MagicMock,
-        mock_button: MagicMock,
-        mock_font: MagicMock,
-        mock_treeview: MagicMock,
-        mock_scrollbar: MagicMock,
-    ) -> None:
-        app = _make_explorer()
-        mock_sv = MagicMock()
-        mock_stringvar.return_value = mock_sv
-        paned = MagicMock()
-        mock_paned.return_value = paned
+    def test_build_ui_with_terminal(self) -> None:
+        with (
+            patch(
+                "python_pkg.repo_explorer.repo_explorer.tk.StringVar"
+            ) as mock_stringvar,
+            patch("python_pkg.repo_explorer.repo_explorer.tk.Text") as mock_text,
+            patch(
+                "python_pkg.repo_explorer.repo_explorer.ttk.PanedWindow"
+            ) as mock_paned,
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Frame"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Label"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Separator"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Entry"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Button"),
+            patch("python_pkg.repo_explorer.repo_explorer.font.Font"),
+            patch(
+                "python_pkg.repo_explorer.repo_explorer.ttk.Treeview"
+            ) as mock_treeview,
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Scrollbar"),
+        ):
+            app = _make_explorer()
+            mock_sv = MagicMock()
+            mock_stringvar.return_value = mock_sv
+            paned = MagicMock()
+            mock_paned.return_value = paned
 
-        tree = MagicMock()
-        mock_treeview.return_value = tree
-        text = MagicMock()
-        mock_text.return_value = text
+            tree = MagicMock()
+            mock_treeview.return_value = tree
+            text = MagicMock()
+            mock_text.return_value = text
 
-        app.pack = MagicMock()
-        app._build_ui()
+            app.pack = MagicMock()
+            app._build_ui()
 
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Scrollbar")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Treeview")
-    @patch("python_pkg.repo_explorer.repo_explorer.font.Font")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Button")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Entry")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Separator")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Label")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.Frame")
-    @patch("python_pkg.repo_explorer.repo_explorer.ttk.PanedWindow")
-    @patch("python_pkg.repo_explorer.repo_explorer.tk.Text")
-    @patch("python_pkg.repo_explorer.repo_explorer.tk.StringVar")
-    def test_build_ui_no_terminal(
-        self,
-        mock_stringvar: MagicMock,
-        mock_text: MagicMock,
-        mock_paned: MagicMock,
-        mock_frame: MagicMock,
-        mock_label: MagicMock,
-        mock_sep: MagicMock,
-        mock_entry: MagicMock,
-        mock_button: MagicMock,
-        mock_font: MagicMock,
-        mock_treeview: MagicMock,
-        mock_scrollbar: MagicMock,
-    ) -> None:
-        app = _make_explorer(terminal_args=[])
-        mock_sv = MagicMock()
-        mock_stringvar.return_value = mock_sv
-        paned = MagicMock()
-        mock_paned.return_value = paned
+    def test_build_ui_no_terminal(self) -> None:
+        with (
+            patch(
+                "python_pkg.repo_explorer.repo_explorer.tk.StringVar"
+            ) as mock_stringvar,
+            patch("python_pkg.repo_explorer.repo_explorer.tk.Text") as mock_text,
+            patch(
+                "python_pkg.repo_explorer.repo_explorer.ttk.PanedWindow"
+            ) as mock_paned,
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Frame"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Label"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Separator"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Entry"),
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Button"),
+            patch("python_pkg.repo_explorer.repo_explorer.font.Font"),
+            patch(
+                "python_pkg.repo_explorer.repo_explorer.ttk.Treeview"
+            ) as mock_treeview,
+            patch("python_pkg.repo_explorer.repo_explorer.ttk.Scrollbar"),
+        ):
+            app = _make_explorer(terminal_args=[])
+            mock_sv = MagicMock()
+            mock_stringvar.return_value = mock_sv
+            paned = MagicMock()
+            mock_paned.return_value = paned
 
-        tree = MagicMock()
-        mock_treeview.return_value = tree
-        text = MagicMock()
-        mock_text.return_value = text
+            tree = MagicMock()
+            mock_treeview.return_value = tree
+            text = MagicMock()
+            mock_text.return_value = text
 
-        app.pack = MagicMock()
-        app._build_ui()
+            app.pack = MagicMock()
+            app._build_ui()
 
 
 # ── _load_projects ───────────────────────────────────────────────────

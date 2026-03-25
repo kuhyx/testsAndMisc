@@ -45,113 +45,49 @@ ignore = [
 fixable = ["ALL"]
 unfixable = []
 
-# Per-file ignores
+# Per-file ignores — only rules that FUNDAMENTALLY conflict with test code remain.
+# Every other rule was fixed in source. See justifications below.
 [tool.ruff.lint.per-file-ignores]
-# Test files - allow test-specific patterns (assert, magic values)
 "**/tests/**/*.py" = [
-    "ANN",     # Allow missing type annotations in tests
-    "ARG",     # Allow unused arguments (fixtures, mocks)
-    "D",       # Allow missing docstrings in tests
-    "E402",    # Allow imports not at top (after sys.modules setup)
-    "FBT",     # Allow boolean positional args/values
-    "PERF203", # Allow try-except in loop
-    "PLC0415", # Allow late imports for test isolation
-    "PLR0913", # Allow many arguments (mock patches)
-    "PLR2004", # Allow magic values in tests
-    "PT019",   # Allow underscore-prefixed fixture params
-    "RUF059",  # Allow unused passed args (patched fixtures)
-    "S101",    # Allow assert in tests
-    "S108",    # Allow hardcoded tmp paths in tests
-    "SIM117",  # Allow non-combined with statements
-    "SLF001",  # Allow private member access in tests
+    "ARG",     # @patch decorators inject mock params that aren't always referenced;
+               #   the patch side-effect is needed, not the mock object itself.
+    "D",       # Test names like test_sub_cards_no_answer_text are self-documenting;
+               #   docstrings would be redundant noise on every test method.
+    "PLC0415", # Test isolation requires importing AFTER mocking sys.modules;
+               #   top-level imports would bypass the mocks entirely.
+    "PLR2004", # assert count == 5 is clearer than assert count == EXPECTED_COUNT;
+               #   named constants for test expectations add indirection without value.
+    "S101",    # assert IS what tests do — every Python test suite suppresses this.
+    "SLF001",  # Unit tests must exercise private internals (_method, _attr) to reach
+               #   100% branch coverage; only integration tests can avoid this.
 ]
 "**/test_*.py" = [
-    "ANN",     # Allow missing type annotations in tests
-    "ARG",     # Allow unused arguments (fixtures, mocks)
-    "D",       # Allow missing docstrings in tests
-    "E402",    # Allow imports not at top (after sys.modules setup)
-    "FBT",     # Allow boolean positional args/values
-    "PLC0415", # Allow late imports for test isolation
-    "PLR0913", # Allow many arguments (mock patches)
-    "PLR2004", # Allow magic values in tests
-    "PT019",   # Allow underscore-prefixed fixture params
-    "RUF059",  # Allow unused passed args (patched fixtures)
-    "S101",    # Allow assert in tests
-    "S108",    # Allow hardcoded tmp paths in tests
-    "S310",    # Allow URL open in tests
-    "S607",    # Allow partial executable path in tests
-    "SIM117",  # Allow non-combined with statements
-    "SLF001",  # Allow private member access in tests
+    "ARG",
+    "D",
+    "PLC0415",
+    "PLR2004",
+    "S101",
+    "SLF001",
 ]
-# Non-test files with late imports by design
+# Heavy ML libraries (torch, transformers, scipy, bark) must be lazily imported
+# inside functions — they take seconds to load and aren't needed at module level.
+"python_pkg/music_gen/_music_generation.py" = ["PLC0415"]
+"python_pkg/music_gen/_music_speech.py" = ["PLC0415"]
+# Circular dependency: submodules import constants (W, H, CLIP_DUR, etc.)
+# from this module, so they must be imported lazily inside _build().
+"python_pkg/moviepy_showcase/moviepy_showcase.py" = ["PLC0415"]
+# Matplotlib drawing helpers inherently require many parameters (x, y, w, h,
+# fill, lw, fontsize, etc.) — refactoring to config dataclasses would break
+# 57+ callers spread across the diagram generation pipeline.
+"python_pkg/praca_magisterska_video/generate_images/*.py" = ["PLR0913"]
+# generate_arch_diagrams.py: matplotlib imports must follow mpl.use("Agg").
 "python_pkg/praca_magisterska_video/generate_images/generate_arch_diagrams.py" = [
-    "E402",    # Imports after helper function definitions
+    "E402", "PLR0913",
 ]
-# Files using urlopen with validated URL schemes
-"python_pkg/geo_data/_common.py" = ["S310"]
-"python_pkg/steam_backlog_enforcer/library_hider.py" = ["S310"]
-"python_pkg/poker_modifier_app/poker_modifier_app.py" = [
-    "FBT003",  # Boolean positional values in tkinter API calls
-]
-"python_pkg/poker_modifier_app/_poker_gui.py" = [
-    "FBT003",  # Boolean positional values in tkinter API calls
-]
-"python_pkg/keyboard_coop/main.py" = [
-    "FBT003",  # Boolean positional values in pygame API calls (e.g., font.render)
-]
-"python_pkg/screen_locker/screen_lock.py" = [
-    "FBT003",  # Boolean positional values in tkinter API calls
-]
-# Brother printer - optional usb.core/usb.util imports
-"python_pkg/brother_printer/cups_service.py" = [
-    "PLC0415", # Late imports for optional pyusb dependency
-]
-"python_pkg/brother_printer/usb_query.py" = [
-    "PLC0415", # Late import of cups_service fallback
-]
-# Music generator - CLI script with intentional patterns
-"python_pkg/music_gen/music_generator.py" = [
-    "T201",    # print() is intentional for CLI feedback
-    "PLC0415", # Late imports for dependency checking
-    "C901",    # Complex interactive mode is acceptable
-    "PLR0912", # Too many branches in interactive mode
-]
-# Thesis diagram generation scripts - matplotlib plotting helpers need many params
-"python_pkg/praca_magisterska_video/**/*.py" = [
-    "E501",    # Long import lines for deeply nested module paths
-    "PLR0913", # Matplotlib drawing functions inherently require many parameters
-]
-# Transcribe framework - lazy imports for large optional dependencies
-"linux_configuration/scripts/misc/testsAndMisc-bash/tools/transcribe_fw.py" = [
-    "PLC0415", # Lazy imports of split helper modules
-]
-# Moviepy showcase - lazy imports of split helpers
-"python_pkg/moviepy_showcase/moviepy_showcase.py" = [
-    "PLC0415", # Lazy imports of split helper modules
-]
-# Puzzle solver - late imports for CLI entry point
-"python_pkg/puzzle_solver/main.py" = [
-    "PLC0415", # Late imports in __main__ guard
-]
-# Geo data admin helper
-"python_pkg/geo_data/_poland_admin.py" = [
-    "PLC0415", # Late imports for optional geo dependency
-]
-# Music generation helpers - lazy imports for large optional deps
-"python_pkg/music_gen/_music_generation.py" = [
-    "PLC0415", # Lazy imports of torch/torchaudio
-]
-"python_pkg/music_gen/_music_speech.py" = [
-    "PLC0415", # Lazy imports of TTS/torch
-]
-# Thesis visualization script
-"python_pkg/praca_magisterska_video/visualize_q02.py" = [
-    "PLC0415", # Late import for conditional dependency
-]
-# Removed: root-level moviepy helper scripts and test files are now inside python_pkg
-"python_pkg/word_frequency/_translator_cli.py" = [
-    "SLF001",  # Legitimately accesses translator module internals
-]
+# Long deeply-nested import paths and matplotlib text strings can't be shortened.
+"python_pkg/praca_magisterska_video/**/*.py" = ["E501"]
+# Circular dependency: _q02_algorithm_steps imports constants from this module.
+"python_pkg/praca_magisterska_video/visualize_q02.py" = ["E501", "PLC0415"]
 
 
 [tool.ruff.lint.pydocstyle]

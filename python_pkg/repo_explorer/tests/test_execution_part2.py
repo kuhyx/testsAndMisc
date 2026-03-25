@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 from python_pkg.repo_explorer._execution import ExecutionMixin
 
 if TYPE_CHECKING:
+    from pathlib import Path
     import subprocess
 
 
@@ -31,7 +32,7 @@ class StubExecution(ExecutionMixin):
         self._path: Any = None
         self._after_calls: list[tuple[Any, ...]] = []
 
-    def _selected_path(self) -> Any:
+    def _selected_path(self) -> Path | None:
         return self._path
 
     def after(self, ms: int, *args: object) -> str:

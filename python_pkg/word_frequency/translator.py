@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 _BATCH_SIZE = 100
 
 
-def _check_argos() -> bool:
+def check_argos() -> bool:
     """Check if argostranslate is available."""
     return argostranslate is not None
 
@@ -76,7 +76,7 @@ def get_installed_languages() -> list[tuple[str, str]]:
     Returns:
         List of (code, name) tuples for installed languages.
     """
-    if not _check_argos():
+    if not check_argos():
         return []
 
     languages = argostranslate.translate.get_installed_languages()
@@ -89,7 +89,7 @@ def get_available_packages() -> list[tuple[str, str, str, str]]:
     Returns:
         List of (from_code, from_name, to_code, to_name) tuples.
     """
-    if not _check_argos():
+    if not check_argos():
         return []
 
     argostranslate.package.update_package_index()
@@ -111,7 +111,7 @@ def download_languages(lang_codes: Sequence[str]) -> dict[str, bool]:
     Returns:
         Dict mapping "from->to" to success boolean.
     """
-    if not _check_argos():
+    if not check_argos():
         return {}
 
     results: dict[str, bool] = {}

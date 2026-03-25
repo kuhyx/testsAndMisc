@@ -18,6 +18,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 import sys
@@ -70,8 +71,6 @@ def cmd_debug(args: argparse.Namespace) -> None:
     data = parse_image(args.image, threshold=args.threshold)
     out = args.output or args.image.rsplit(".", 1)[0] + "_debug.png"
     draw_debug(args.image, data, out)
-    from collections import Counter
-
     counts = Counter(sq["type"] for sq in data["squares"])
     for _t, _n in counts.most_common():
         pass

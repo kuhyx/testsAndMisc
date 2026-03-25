@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -220,12 +219,12 @@ class TestDownloadGithubGeojson:
 
     @patch("python_pkg.geo_data._common.gpd.GeoDataFrame.from_features")
     @patch("python_pkg.geo_data._common._ensure_cache_dir")
-    @patch("python_pkg.geo_data._common.urlopen")
+    @patch("python_pkg.geo_data._common.requests.get")
     @patch("python_pkg.geo_data._common.sys.stdout")
     def test_downloads_and_caches(
         self,
         mock_stdout: MagicMock,
-        mock_urlopen: MagicMock,
+        mock_get: MagicMock,
         mock_ensure: MagicMock,
         mock_from_features: MagicMock,
     ) -> None:
@@ -239,10 +238,8 @@ class TestDownloadGithubGeojson:
             ]
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(features_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+        mock_response.json.return_value = features_data
+        mock_get.return_value = mock_response
 
         mock_gdf = MagicMock()
         mock_from_features.return_value = mock_gdf
@@ -325,7 +322,7 @@ class TestExtractOsiedlaRings:
                 }
             ]
         }
-        outer, inner = _extract_osiedla_rings(element, 4)
+        outer, _ = _extract_osiedla_rings(element, 4)
         assert len(outer) == 1
         # Already closed, so no extra point
         assert outer[0][0] == outer[0][-1]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -23,6 +23,9 @@ from python_pkg.cinema_planner._cinema_parsing import (
     parse_manual_line,
     parse_time,
 )
+
+if TYPE_CHECKING:
+    import contextlib
 
 
 class TestParseTime:
@@ -208,13 +211,13 @@ class TestParseCinemaCityHtml:
             f"{times_html}"
         )
 
-    def _patch_open(self, html: str) -> Any:
+    def _patch_open(self, html: str) -> contextlib.AbstractContextManager[MagicMock]:
         return patch.object(Path, "open", mock_open(read_data=html))
 
     def test_parse_single_movie(self) -> None:
         html = "header" + self._make_html_section("Movie A", 120, ["10:00", "14:00"])
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            movies, _ = parse_cinema_city_html("test.html")
         assert len(movies) == 1
         assert movies[0].name == "Movie A"
         assert movies[0].duration == 120
@@ -223,7 +226,7 @@ class TestParseCinemaCityHtml:
     def test_parse_with_date(self) -> None:
         html = "2025-01-25 stuff" + self._make_html_section("Movie A", 90, ["18:00"])
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            _, date = parse_cinema_city_html("test.html")
         assert date == "2025-01-25"
 
     def test_parse_with_genres(self) -> None:
@@ -231,7 +234,7 @@ class TestParseCinemaCityHtml:
             "Horror Film", 100, ["20:00"], genre="Horror, Thriller"
         )
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            movies, _ = parse_cinema_city_html("test.html")
         assert len(movies) == 1
         assert "Horror" in movies[0].genres
         assert "Thriller" in movies[0].genres
@@ -239,7 +242,7 @@ class TestParseCinemaCityHtml:
     def test_no_name_match(self) -> None:
         html = 'header class="row movie-row"> no name here'
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            movies, _ = parse_cinema_city_html("test.html")
         assert len(movies) == 0
 
     def test_no_duration_match(self) -> None:
@@ -250,7 +253,7 @@ class TestParseCinemaCityHtml:
             '<button class="btn btn-primary btn-lg">10:00</button>'
         )
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            movies, _ = parse_cinema_city_html("test.html")
         assert len(movies) == 0
 
     def test_no_times_match(self) -> None:
@@ -260,7 +263,7 @@ class TestParseCinemaCityHtml:
             "<span>100 min</span>"
         )
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            movies, _ = parse_cinema_city_html("test.html")
         assert len(movies) == 0
 
     def test_alternate_time_pattern(self) -> None:
@@ -271,7 +274,7 @@ class TestParseCinemaCityHtml:
             "> 10:00 (HTTPS://something"
         )
         with self._patch_open(html):
-            movies, date = parse_cinema_city_html("test.html")
+            movies, _ = parse_cinema_city_html("test.html")
         assert len(movies) == 1
 
     def test_deduplicate_movies(self) -> None:
@@ -467,7 +470,7 @@ class TestParseCinemaCityText:
         text = "MOVIE TITLE\n110 min\n10:00\n"
         with patch(
             "python_pkg.cinema_planner._cinema_parsing._try_parse_time",
-            side_effect=lambda t: None,
+            side_effect=lambda _t: None,
         ):
             result = parse_cinema_city_text(text)
         assert len(result) == 0

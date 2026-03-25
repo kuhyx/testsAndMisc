@@ -3,15 +3,10 @@
 from __future__ import annotations
 
 import json
-import sys
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-
-# Ensure cv2 and numpy are available as mocks before importing main
-sys.modules.setdefault("cv2", MagicMock())
-sys.modules.setdefault("numpy", MagicMock())
 
 from python_pkg.puzzle_solver.main import (
     cmd_debug,

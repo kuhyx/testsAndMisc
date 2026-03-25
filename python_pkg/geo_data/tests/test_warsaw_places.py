@@ -37,54 +37,52 @@ class TestGetWarsawStreets:
         result = get_warsaw_streets()
         assert result is mock_gdf
 
-    @patch("python_pkg.geo_data._warsaw_places._filter_streets_by_length")
-    @patch("python_pkg.geo_data._warsaw_places.gpd.GeoDataFrame.from_features")
-    @patch("python_pkg.geo_data._warsaw_places._ensure_cache_dir")
-    @patch("python_pkg.geo_data._warsaw_places._overpass_query")
-    @patch("python_pkg.geo_data._warsaw_places.CACHE_DIR")
-    @patch("python_pkg.geo_data._warsaw_places.sys.stdout")
-    def test_downloads(
-        self,
-        mock_stdout: MagicMock,
-        mock_cache_dir: MagicMock,
-        mock_query: MagicMock,
-        mock_ensure: MagicMock,
-        mock_from_features: MagicMock,
-        mock_filter: MagicMock,
-    ) -> None:
-        mock_path = MagicMock()
-        mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
-        mock_path.exists.return_value = False
+    def test_downloads(self) -> None:
+        with (
+            patch("python_pkg.geo_data._warsaw_places.sys.stdout"),
+            patch("python_pkg.geo_data._warsaw_places.CACHE_DIR") as mock_cache_dir,
+            patch("python_pkg.geo_data._warsaw_places._overpass_query") as mock_query,
+            patch("python_pkg.geo_data._warsaw_places._ensure_cache_dir"),
+            patch(
+                "python_pkg.geo_data._warsaw_places.gpd.GeoDataFrame.from_features"
+            ) as mock_from_features,
+            patch(
+                "python_pkg.geo_data._warsaw_places._filter_streets_by_length"
+            ) as mock_filter,
+        ):
+            mock_path = MagicMock()
+            mock_cache_dir.__truediv__ = MagicMock(return_value=mock_path)
+            mock_path.exists.return_value = False
 
-        mock_query.return_value = {
-            "elements": [
-                {
-                    "type": "way",
-                    "tags": {"name": "Marszałkowska", "highway": "primary"},
-                    "geometry": [
-                        {"lon": 21.0, "lat": 52.2},
-                        {"lon": 21.0, "lat": 52.3},
-                    ],
-                },
-                # Too few coords
-                {
-                    "type": "way",
-                    "tags": {"name": "Short"},
-                    "geometry": [{"lon": 21.0, "lat": 52.2}],
-                },
-                # Not a way
-                {"type": "node", "tags": {"name": "Node"}},
-                # Way without geometry
-                {"type": "way", "tags": {"name": "NoGeom"}},
-            ]
-        }
+            mock_query.return_value = {
+                "elements": [
+                    {
+                        "type": "way",
+                        "tags": {"name": "Marszałkowska", "highway": "primary"},
+                        "geometry": [
+                            {"lon": 21.0, "lat": 52.2},
+                            {"lon": 21.0, "lat": 52.3},
+                        ],
+                    },
+                    # Too few coords
+                    {
+                        "type": "way",
+                        "tags": {"name": "Short"},
+                        "geometry": [{"lon": 21.0, "lat": 52.2}],
+                    },
+                    # Not a way
+                    {"type": "node", "tags": {"name": "Node"}},
+                    # Way without geometry
+                    {"type": "way", "tags": {"name": "NoGeom"}},
+                ]
+            }
 
-        mock_gdf = MagicMock(spec=gpd.GeoDataFrame)
-        mock_from_features.return_value = mock_gdf
-        mock_filter.return_value = mock_gdf
+            mock_gdf = MagicMock(spec=gpd.GeoDataFrame)
+            mock_from_features.return_value = mock_gdf
+            mock_filter.return_value = mock_gdf
 
-        result = get_warsaw_streets()
-        assert result is mock_gdf
+            result = get_warsaw_streets()
+            assert result is mock_gdf
 
 
 class TestFilterStreetsByLength:

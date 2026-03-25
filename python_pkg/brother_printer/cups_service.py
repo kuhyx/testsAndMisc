@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 from pathlib import Path
@@ -9,6 +10,7 @@ import re
 import shutil
 import subprocess
 import time
+from typing import TYPE_CHECKING
 import urllib.parse
 
 from python_pkg.brother_printer.constants import (
@@ -30,10 +32,22 @@ from python_pkg.brother_printer.data_classes import (
     USBResult,
 )
 
+if TYPE_CHECKING:
+    import types
+
 logger = logging.getLogger(__name__)
 
 CUPS_PAGE_LOG = Path(CUPS_PAGE_LOG_PATH)
 CONSUMABLE_STATE_FILE = Path.home() / CONSUMABLE_STATE_DIR / "state.json"
+
+
+def _import_or_raise(name: str) -> types.ModuleType:
+    """Import a module or raise ImportError with a helpful message."""
+    try:
+        return importlib.import_module(name)
+    except ImportError as e:
+        msg = f"{name} is required but not installed"
+        raise ImportError(msg) from e
 
 
 # ── pyusb device info ────────────────────────────────────────────────
@@ -42,9 +56,9 @@ CONSUMABLE_STATE_FILE = Path.home() / CONSUMABLE_STATE_DIR / "state.json"
 def _get_pyusb_device_info() -> dict[str, str]:
     """Get Brother USB printer info via pyusb (no interface claim needed)."""
     try:
-        import usb.core
+        usb_core = _import_or_raise("usb.core")
 
-        dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
+        dev = usb_core.find(idVendor=BROTHER_USB_VENDOR_ID)
         if dev is None:
             return {}
     except (ImportError, OSError, ValueError):
@@ -133,12 +147,12 @@ def _query_usb_port_status_raw() -> USBPortStatus | None:
     Returns None if the query fails.
     """
     try:
-        import usb.core
-        import usb.util
+        usb_core = _import_or_raise("usb.core")
+        usb_util = _import_or_raise("usb.util")
     except ImportError:
         return None
 
-    dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
+    dev = usb_core.find(idVendor=BROTHER_USB_VENDOR_ID)
     if dev is None:
         return None
 
@@ -148,17 +162,17 @@ def _query_usb_port_status_raw() -> USBPortStatus | None:
     try:
         dev.reset()
         time.sleep(2)
-        dev = usb.core.find(idVendor=BROTHER_USB_VENDOR_ID)
+        dev = usb_core.find(idVendor=BROTHER_USB_VENDOR_ID)
         if dev is None:
             return None
 
         try:
             if dev.is_kernel_driver_active(0):
                 dev.detach_kernel_driver(0)
-        except (usb.core.USBError, NotImplementedError):
+        except (usb_core.USBError, NotImplementedError):
             pass
 
-        usb.util.claim_interface(dev, 0)
+        usb_util.claim_interface(dev, 0)
         try:
             # USB Printer Class GET_PORT_STATUS (bRequest=0x01)
             raw = dev.ctrl_transfer(0xA1, 0x01, 0, 0, 1, timeout=5000)
@@ -170,8 +184,8 @@ def _query_usb_port_status_raw() -> USBPortStatus | None:
                 raw_byte=port_byte,
             )
         finally:
-            usb.util.release_interface(dev, 0)
-            usb.util.dispose_resources(dev)
+            usb_util.release_interface(dev, 0)
+            usb_util.dispose_resources(dev)
     except (OSError, ValueError):
         logger.debug("USB port status query failed", exc_info=True)
         return None

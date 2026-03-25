@@ -109,7 +109,7 @@ VOCAB_DUMP_END
 Excerpt:
 "hello world foo"
 """
-        excerpt, length, max_rank, vocab = parse_inverse_mode_output(output)
+        _, length, max_rank, _ = parse_inverse_mode_output(output)
         assert length == 3
         assert max_rank == 0
 
@@ -122,17 +122,17 @@ Excerpt:
 
     def test_short_longest_excerpt_line(self) -> None:
         output = "LONGEST EXCERPT: 0"
-        excerpt, length, max_rank, vocab = parse_inverse_mode_output(output)
+        _, length, _, _ = parse_inverse_mode_output(output)
         assert length == 0
 
     def test_too_few_parts_in_longest_excerpt(self) -> None:
         output = "LONGEST EXCERPT:"
-        excerpt, length, max_rank, vocab = parse_inverse_mode_output(output)
+        _, length, _, _ = parse_inverse_mode_output(output)
         assert length == 0
 
     def test_rarest_word_without_hash_number(self) -> None:
         output = "Rarest word used: unknown"
-        excerpt, length, max_rank, vocab = parse_inverse_mode_output(output)
+        _, _, max_rank, _ = parse_inverse_mode_output(output)
         assert max_rank == 0
 
 
@@ -165,7 +165,7 @@ class TestParseTargetLengthBlock:
             "[Length 3] Vocab needed: 2",
             "  Words: hello(#1)",
         ]
-        excerpt, words = _parse_target_length_block(lines, 3)
+        excerpt, _ = _parse_target_length_block(lines, 3)
         assert excerpt == ""
 
     def test_no_words_line(self) -> None:

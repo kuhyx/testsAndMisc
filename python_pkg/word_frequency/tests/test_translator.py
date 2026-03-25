@@ -195,7 +195,7 @@ class TestTranslateWordsBatch:
         mock_parent.package = mock_package_module
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",

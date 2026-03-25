@@ -297,7 +297,9 @@ class KeyboardCoopGame:
             pygame.draw.rect(self.screen, TEXT_COLOR, rect, 2)
 
             # Draw letter
-            text = self.fonts.small.render(letter.upper(), True, TEXT_COLOR)
+            text = self.fonts.small.render(
+                letter.upper(), antialias=True, color=TEXT_COLOR
+            )
             text_rect = text.get_rect(center=rect.center)
             self.screen.blit(text, text_rect)
 
@@ -305,14 +307,14 @@ class KeyboardCoopGame:
         self, text: str, pos: tuple[int, int], font: pygame.font.Font
     ) -> None:
         """Draw a single line of text at the given position."""
-        rendered = font.render(text, True, TEXT_COLOR)
+        rendered = font.render(text, antialias=True, color=TEXT_COLOR)
         self.screen.blit(rendered, pos)
 
     def _draw_button(self, rect: pygame.Rect, label: str) -> None:
         """Draw a button with the given label."""
         pygame.draw.rect(self.screen, KEY_COLOR, rect)
         pygame.draw.rect(self.screen, TEXT_COLOR, rect, 2)
-        text = self.fonts.small.render(label, True, TEXT_COLOR)
+        text = self.fonts.small.render(label, antialias=True, color=TEXT_COLOR)
         self.screen.blit(text, text.get_rect(center=rect.center))
 
     def _draw_ui(self) -> tuple[pygame.Rect, pygame.Rect]:
@@ -329,7 +331,9 @@ class KeyboardCoopGame:
         # Current player with color
         player_color = PLAYER_COLORS[self.state.current_player]
         player_text = self.fonts.normal.render(
-            f"Current Player: {self.state.current_player + 1}", True, player_color
+            f"Current Player: {self.state.current_player + 1}",
+            antialias=True,
+            color=player_color,
         )
         self.screen.blit(player_text, (30, 100))
 

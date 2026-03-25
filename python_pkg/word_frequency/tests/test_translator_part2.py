@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 class TestGetInstalledLanguages:
     """Tests for get_installed_languages function."""
 
-    def test_argos_unavailable(self, _mock_argos_unavailable: None) -> None:
+    def test_argos_unavailable(self, mock_argos_unavailable: None) -> None:
         """Test when argos is unavailable."""
         result = get_installed_languages()
         assert result == []
@@ -56,7 +57,7 @@ class TestGetInstalledLanguages:
         mock_parent.package = mock_package_module
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
@@ -79,7 +80,7 @@ class TestGetInstalledLanguages:
 class TestGetAvailablePackages:
     """Tests for get_available_packages function."""
 
-    def test_argos_unavailable(self, _mock_argos_unavailable: None) -> None:
+    def test_argos_unavailable(self, mock_argos_unavailable: None) -> None:
         """Test when argos is unavailable."""
         result = get_available_packages()
         assert result == []
@@ -91,7 +92,7 @@ class TestGetAvailablePackages:
 class TestDownloadLanguages:
     """Tests for download_languages function."""
 
-    def test_argos_unavailable(self, _mock_argos_unavailable: None) -> None:
+    def test_argos_unavailable(self, mock_argos_unavailable: None) -> None:
         """Test when argos is unavailable."""
         result = download_languages(["en", "es"])
         assert result == {}
@@ -124,7 +125,7 @@ class TestReadFile:
 class TestMain:
     """Tests for main CLI function."""
 
-    def test_argos_unavailable_error(self, _mock_argos_unavailable: None) -> None:
+    def test_argos_unavailable_error(self, mock_argos_unavailable: None) -> None:
         """Test error when argos not installed."""
         result = main(["--text", "hello", "--from", "en", "--to", "es"])
         assert result == 1
@@ -139,7 +140,7 @@ class TestMain:
         mock_parent.package = mock_package_module
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
@@ -172,7 +173,7 @@ class TestMain:
         mock_parent.package = mock_package_module
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
@@ -326,7 +327,7 @@ class TestGetAvailablePackagesWithArgos:
         mock_parent.translate = mock_translate
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
@@ -348,7 +349,7 @@ class TestDownloadLanguagesFull:
         pkg = MagicMock()
         pkg.from_code = "en"
         pkg.to_code = "es"
-        pkg.download.return_value = "/tmp/fake.argosmodel"
+        pkg.download.return_value = tempfile.gettempdir() + "/fake.argosmodel"
 
         mock_package = MagicMock()
         mock_package.update_package_index.return_value = None
@@ -359,7 +360,7 @@ class TestDownloadLanguagesFull:
         mock_parent.translate = mock_translate
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
@@ -384,7 +385,7 @@ class TestDownloadLanguagesFull:
         mock_parent.translate = mock_translate
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",
@@ -414,7 +415,7 @@ class TestDownloadLanguagesFull:
         mock_parent.translate = mock_translate
 
         with (
-            patch.object(translator, "_check_argos", return_value=True),
+            patch.object(translator, "check_argos", return_value=True),
             patch.object(translator, "argostranslate", mock_parent, create=True),
             patch.dict(
                 "sys.modules",

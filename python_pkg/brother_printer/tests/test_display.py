@@ -227,7 +227,7 @@ class TestDisplayPjlStatus:
 
     @patch(f"{MOD}._format_status_detail")
     @patch(f"{MOD}.get_status_info", return_value=("ok", "Ready", ""))
-    def test_with_code(self, _g: MagicMock, mock_fmt: MagicMock) -> None:
+    def test_with_code(self, g: MagicMock, mock_fmt: MagicMock) -> None:
         r = USBResult(status_code="10001")
         with patch("sys.stdout", new_callable=StringIO):
             _display_pjl_status(r)
@@ -249,50 +249,35 @@ class TestDisplayCupsFallbackNote:
 
 
 class TestDisplayUsbResults:
-    @patch(f"{MOD}.display_cups_queue_status")
-    @patch(f"{MOD}.get_cups_queue_status")
-    @patch(f"{MOD}._display_consumables_reference")
-    @patch(f"{MOD}._display_page_count_estimate")
-    @patch(f"{MOD}._display_pjl_status")
-    @patch(f"{MOD}._display_usb_device_info")
-    @patch(f"{MOD}._display_report_header")
-    def test_normal(
-        self,
-        _h: MagicMock,
-        _d: MagicMock,
-        _p: MagicMock,
-        _pe: MagicMock,
-        _c: MagicMock,
-        _gq: MagicMock,
-        _dq: MagicMock,
-    ) -> None:
+    def test_normal(self) -> None:
         r = USBResult(device="/dev/usb/lp0")
-        with patch("sys.stdout", new_callable=StringIO):
+        with (
+            patch(f"{MOD}._display_report_header"),
+            patch(f"{MOD}._display_usb_device_info"),
+            patch(f"{MOD}._display_pjl_status"),
+            patch(f"{MOD}._display_page_count_estimate"),
+            patch(f"{MOD}._display_consumables_reference"),
+            patch(f"{MOD}.get_cups_queue_status"),
+            patch(f"{MOD}.display_cups_queue_status"),
+            patch("sys.stdout", new_callable=StringIO),
+        ):
             display_usb_results(r)
 
-    @patch(f"{MOD}._display_cups_fallback_note")
-    @patch(f"{MOD}.display_cups_queue_status")
-    @patch(f"{MOD}.get_cups_queue_status")
-    @patch(f"{MOD}._display_consumables_reference")
-    @patch(f"{MOD}._display_page_count_estimate")
-    @patch(f"{MOD}._display_pjl_status")
-    @patch(f"{MOD}._display_usb_device_info")
-    @patch(f"{MOD}._display_report_header")
-    def test_cups_device(
-        self,
-        _h: MagicMock,
-        _d: MagicMock,
-        _p: MagicMock,
-        _pe: MagicMock,
-        _c: MagicMock,
-        _gq: MagicMock,
-        _dq: MagicMock,
-        mock_fallback: MagicMock,
-    ) -> None:
+    def test_cups_device(self) -> None:
         r = USBResult(device="cups")
-        with patch("sys.stdout", new_callable=StringIO):
+        with (
+            patch(f"{MOD}._display_report_header"),
+            patch(f"{MOD}._display_usb_device_info"),
+            patch(f"{MOD}._display_pjl_status"),
+            patch(f"{MOD}._display_page_count_estimate"),
+            patch(f"{MOD}._display_consumables_reference"),
+            patch(f"{MOD}.get_cups_queue_status"),
+            patch(f"{MOD}.display_cups_queue_status"),
+            patch(f"{MOD}._display_cups_fallback_note") as mock_fallback,
+            patch("sys.stdout", new_callable=StringIO),
+        ):
             display_usb_results(r)
-        mock_fallback.assert_called_once()
+            mock_fallback.assert_called_once()
 
     def test_error(self) -> None:
         r = USBResult(error="fail")
@@ -305,49 +290,49 @@ class TestDisplayUsbResults:
 
 class TestClassifyPercentageLevel:
     def test_low(self) -> None:
-        pct, text, color, warn, replace = _classify_percentage_level("Toner", 5)
+        pct, _, _, _, replace = _classify_percentage_level("Toner", 5)
         assert pct == 5
         assert replace is True
 
     def test_warn(self) -> None:
-        pct, text, color, warn, replace = _classify_percentage_level("Toner", 20)
+        _, _, _, warn, replace = _classify_percentage_level("Toner", 20)
         assert replace is False
         assert "order soon" in warn
 
     def test_ok(self) -> None:
-        pct, text, color, warn, replace = _classify_percentage_level("Toner", 80)
+        _, _, _, warn, replace = _classify_percentage_level("Toner", 80)
         assert replace is False
         assert warn == ""
 
 
 class TestClassifySupplyLevel:
     def test_snmp_ok(self) -> None:
-        pct, text, color, warn, replace = _classify_supply_level("Toner", 100, -3)
+        _, text, _, _, replace = _classify_supply_level("Toner", 100, -3)
         assert text == "OK"
         assert replace is False
 
     def test_snmp_low(self) -> None:
-        pct, text, color, warn, replace = _classify_supply_level("Toner", 100, -2)
+        _, text, _, _, replace = _classify_supply_level("Toner", 100, -2)
         assert text == "LOW"
         assert replace is True
 
     def test_empty(self) -> None:
-        pct, text, color, warn, replace = _classify_supply_level("Toner", 100, 0)
+        _, text, _, _, replace = _classify_supply_level("Toner", 100, 0)
         assert text == "EMPTY"
         assert replace is True
 
     def test_normal_percentage(self) -> None:
-        pct, text, color, warn, replace = _classify_supply_level("Toner", 100, 80)
+        pct, _, _, _, replace = _classify_supply_level("Toner", 100, 80)
         assert pct == 80
         assert replace is False
 
     def test_no_max_val(self) -> None:
-        pct, text, color, warn, replace = _classify_supply_level("Toner", 0, 50)
+        pct, text, _, _, _ = _classify_supply_level("Toner", 0, 50)
         assert pct == -1
         assert text == ""
 
     def test_over_100_capped(self) -> None:
-        pct, text, color, warn, replace = _classify_supply_level("Toner", 50, 100)
+        pct, _, _, _, _ = _classify_supply_level("Toner", 50, 100)
         assert pct == 100
 
 

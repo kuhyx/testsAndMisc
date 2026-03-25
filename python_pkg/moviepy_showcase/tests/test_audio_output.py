@@ -25,7 +25,7 @@ def test_make_sine_maker_scalar() -> None:
     """maker() with scalar t → t_arr.ndim == 0 → returns 1-D."""
     import moviepy as mp
 
-    mp.AudioClip.side_effect = lambda *a, **kw: MagicMock()
+    mp.AudioClip.side_effect = lambda *_a, **_kw: MagicMock()
     _make_sine(440.0, 1.0)
     maker = mp.AudioClip.call_args[0][0]
 
@@ -39,7 +39,7 @@ def test_make_sine_maker_array() -> None:
     """maker() with array t → t_arr.ndim > 0 → returns 2-D."""
     import moviepy as mp
 
-    mp.AudioClip.side_effect = lambda *a, **kw: MagicMock()
+    mp.AudioClip.side_effect = lambda *_a, **_kw: MagicMock()
     _make_sine(440.0, 1.0)
     maker = mp.AudioClip.call_args[0][0]
 

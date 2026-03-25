@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 from python_pkg.repo_explorer._discovery import (
@@ -173,7 +172,7 @@ class TestGetDescription:
         readme.exists.return_value = True
         readme.read_text.return_value = "# My Project\nDetails here"
 
-        def truediv(_self: Any, name: str) -> MagicMock:
+        def truediv(_self: object, name: str) -> MagicMock:
             if name == "README.md":
                 return readme
             m = MagicMock(spec=Path)
@@ -187,7 +186,7 @@ class TestGetDescription:
     def test_readme_txt(self) -> None:
         mock_path = MagicMock(spec=Path)
 
-        def truediv(_self: Any, name: str) -> MagicMock:
+        def truediv(_self: object, name: str) -> MagicMock:
             m = MagicMock(spec=Path)
             if name == "README.txt":
                 m.exists.return_value = True
@@ -203,7 +202,7 @@ class TestGetDescription:
     def test_readme_lower(self) -> None:
         mock_path = MagicMock(spec=Path)
 
-        def truediv(_self: Any, name: str) -> MagicMock:
+        def truediv(_self: object, name: str) -> MagicMock:
             m = MagicMock(spec=Path)
             if name == "readme.md":
                 m.exists.return_value = True
@@ -220,7 +219,7 @@ class TestGetDescription:
         """README exists but all lines strip to empty."""
         mock_path = MagicMock(spec=Path)
 
-        def truediv(_self: Any, name: str) -> MagicMock:
+        def truediv(_self: object, name: str) -> MagicMock:
             m = MagicMock(spec=Path)
             if name == "README.md":
                 m.exists.return_value = True
@@ -243,7 +242,7 @@ class TestGetDescription:
         run_sh = MagicMock(spec=Path)
         run_sh.exists.return_value = True
 
-        def truediv(_self: Any, name: str) -> MagicMock:
+        def truediv(_self: object, name: str) -> MagicMock:
             if name == "run.sh":
                 return run_sh
             m = MagicMock(spec=Path)
@@ -261,7 +260,7 @@ class TestGetDescription:
         run_sh = MagicMock(spec=Path)
         run_sh.exists.return_value = True
 
-        def truediv(_self: Any, name: str) -> MagicMock:
+        def truediv(_self: object, name: str) -> MagicMock:
             if name == "run.sh":
                 return run_sh
             m = MagicMock(spec=Path)
@@ -275,7 +274,7 @@ class TestGetDescription:
     def test_no_readme_no_run_sh(self) -> None:
         mock_path = MagicMock(spec=Path)
 
-        def truediv(_self: Any, _name: str) -> MagicMock:
+        def truediv(_self: object, _name: str) -> MagicMock:
             m = MagicMock(spec=Path)
             m.exists.return_value = False
             return m

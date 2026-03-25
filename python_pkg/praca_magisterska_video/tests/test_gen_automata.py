@@ -17,6 +17,47 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import pytest
 
+from python_pkg.praca_magisterska_video.generate_images import (
+    generate_automata_diagrams as _auto_diags,
+)
+from python_pkg.praca_magisterska_video.generate_images._automata_common import (
+    BG,
+    DPI,
+    FS,
+    FS_SMALL,
+    FS_TITLE,
+    GRAY1,
+    GRAY2,
+    GRAY3,
+    GRAY4,
+    GRAY5,
+    INNER_RATIO,
+    LIGHT_BLUE,
+    LIGHT_GREEN,
+    LIGHT_RED,
+    LIGHT_YELLOW,
+    LN,
+    OUTPUT_DIR,
+    ArrowStyle,
+    LoopStyle,
+    StateStyle,
+    draw_curved_arrow,
+    draw_self_loop,
+    draw_state_circle,
+)
+from python_pkg.praca_magisterska_video.generate_images._automata_fa import (
+    draw_fa_recognition,
+)
+from python_pkg.praca_magisterska_video.generate_images._automata_lba import (
+    draw_lba_recognition,
+)
+from python_pkg.praca_magisterska_video.generate_images._automata_pda import (
+    draw_pda_recognition,
+)
+from python_pkg.praca_magisterska_video.generate_images._automata_tm import (
+    draw_tm_recognition,
+)
+
 pytestmark = pytest.mark.usefixtures("_no_savefig")
 
 
@@ -27,10 +68,6 @@ class TestAutomataCommon:
     """Test draw_state_circle, draw_curved_arrow, draw_self_loop."""
 
     def test_state_circle_basic(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            draw_state_circle,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -38,11 +75,6 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_state_circle_accepting(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            StateStyle,
-            draw_state_circle,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -50,11 +82,6 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_state_circle_initial(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            StateStyle,
-            draw_state_circle,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -62,11 +89,6 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_state_circle_both(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            StateStyle,
-            draw_state_circle,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -76,20 +98,11 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_curved_arrow(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            draw_curved_arrow,
-        )
-
         fig, ax = plt.subplots()
         draw_curved_arrow(ax, (0, 0), (1, 1), "a")
         plt.close(fig)
 
     def test_self_loop_top(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            LoopStyle,
-            draw_self_loop,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -97,11 +110,6 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_self_loop_bottom(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            LoopStyle,
-            draw_self_loop,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -109,10 +117,6 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_self_loop_default(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            draw_self_loop,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -121,11 +125,6 @@ class TestAutomataCommon:
 
     def test_self_loop_unknown_direction(self) -> None:
         """Cover implicit else when direction is not top/bottom."""
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            LoopStyle,
-            draw_self_loop,
-        )
-
         fig, ax = plt.subplots()
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 2)
@@ -133,12 +132,6 @@ class TestAutomataCommon:
         plt.close(fig)
 
     def test_dataclass_defaults(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            ArrowStyle,
-            LoopStyle,
-            StateStyle,
-        )
-
         ss = StateStyle()
         assert ss.accepting is False
         assert ss.initial is False
@@ -148,26 +141,6 @@ class TestAutomataCommon:
         assert ls.direction == "top"
 
     def test_module_constants(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_common import (
-            BG,
-            DPI,
-            FS,
-            FS_SMALL,
-            FS_TITLE,
-            GRAY1,
-            GRAY2,
-            GRAY3,
-            GRAY4,
-            GRAY5,
-            INNER_RATIO,
-            LIGHT_BLUE,
-            LIGHT_GREEN,
-            LIGHT_RED,
-            LIGHT_YELLOW,
-            LN,
-            OUTPUT_DIR,
-        )
-
         assert DPI == 300
         assert BG == "white"
         assert isinstance(FS, int | float)
@@ -194,31 +167,15 @@ class TestAutomataDiagrams:
     """Test all recognition diagram functions."""
 
     def test_fa_recognition(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_fa import (
-            draw_fa_recognition,
-        )
-
         draw_fa_recognition()
 
     def test_pda_recognition(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_pda import (
-            draw_pda_recognition,
-        )
-
         draw_pda_recognition()
 
     def test_lba_recognition(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_lba import (
-            draw_lba_recognition,
-        )
-
         draw_lba_recognition()
 
     def test_tm_recognition(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images._automata_tm import (
-            draw_tm_recognition,
-        )
-
         draw_tm_recognition()
 
 
@@ -229,15 +186,9 @@ class TestAutomataEntry:
     """Verify generate_automata_diagrams exports are accessible."""
 
     def test_all_exports(self) -> None:
-        import python_pkg.praca_magisterska_video.generate_images.generate_automata_diagrams as mod
-
-        assert hasattr(mod, "__all__")
-        for name in mod.__all__:
-            assert hasattr(mod, name)
+        assert hasattr(_auto_diags, "__all__")
+        for name in _auto_diags.__all__:
+            assert hasattr(_auto_diags, name)
 
     def test_output_dir(self) -> None:
-        from python_pkg.praca_magisterska_video.generate_images.generate_automata_diagrams import (
-            OUTPUT_DIR,
-        )
-
-        assert isinstance(OUTPUT_DIR, str)
+        assert isinstance(_auto_diags.OUTPUT_DIR, str)

@@ -28,9 +28,11 @@ class TestGetCacheDir:
     """Tests for get_cache_dir."""
 
     def test_returns_default(self, tmp_path: Path) -> None:
-        with patch("python_pkg.word_frequency.cache.DEFAULT_CACHE_DIR", tmp_path):
-            with patch.dict("os.environ", {}, clear=False):
-                d = get_cache_dir()
+        with (
+            patch("python_pkg.word_frequency.cache.DEFAULT_CACHE_DIR", tmp_path),
+            patch.dict("os.environ", {}, clear=False),
+        ):
+            d = get_cache_dir()
         assert d == tmp_path
 
     def test_respects_env_var(self, tmp_path: Path) -> None:

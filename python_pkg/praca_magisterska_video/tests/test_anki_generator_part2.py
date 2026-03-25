@@ -117,7 +117,7 @@ def test_get_file_metadata_no_match(tmp_path: Path) -> None:
 
     p = tmp_path / "readme.txt"
     p.write_text("No Przedmiot here", encoding="utf-8")
-    num, subject, content = get_file_metadata(str(p))
+    num, subject, _ = get_file_metadata(str(p))
     assert num == "00"
     assert subject == "Ogólne"
 
@@ -386,7 +386,7 @@ def test_generate_anki_basic(tmp_path: Path) -> None:
     out_dir.mkdir()
 
     with (
-        patch(f"{_PKG}.Path.__truediv__", side_effect=lambda self, x: tmp_path / x),
+        patch(f"{_PKG}.Path.__truediv__", side_effect=lambda _self, x: tmp_path / x),
         patch(
             f"{_PKG}.generate_anki.__defaults__",
             (False, False, False),

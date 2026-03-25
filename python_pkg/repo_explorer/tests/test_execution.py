@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from python_pkg.repo_explorer._execution import ExecutionMixin
 
 if TYPE_CHECKING:
+    from pathlib import Path
     import subprocess
 
 # ── Protocol stub coverage ───────────────────────────────────────────
@@ -45,7 +46,7 @@ class StubExecution(ExecutionMixin):
         self._path: Any = None
         self._after_calls: list[tuple[Any, ...]] = []
 
-    def _selected_path(self) -> Any:
+    def _selected_path(self) -> Path | None:
         return self._path
 
     def after(self, ms: int, *args: object) -> str:
@@ -338,7 +339,11 @@ class TestReadPty:
 
         read_calls = [0]
 
-        def fake_select(rlist: list[int], *_a: Any, **_kw: Any) -> Any:
+        def fake_select(
+            _rlist: list[int],
+            *_a: object,
+            **_kw: object,
+        ) -> tuple[list[int], list[object], list[object]]:
             read_calls[0] += 1
             if read_calls[0] == 1:
                 # First call: return data (no newline → stays in buf)
@@ -393,7 +398,11 @@ class TestReadPty:
 
         call_count = [0]
 
-        def fake_select(rlist: list[int], *_a: Any, **_kw: Any) -> Any:
+        def fake_select(
+            _rlist: list[int],
+            *_a: object,
+            **_kw: object,
+        ) -> tuple[list[int], list[object], list[object]]:
             call_count[0] += 1
             if call_count[0] == 1:
                 return ([10], [], [])

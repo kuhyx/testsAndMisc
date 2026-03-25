@@ -118,19 +118,19 @@ class TestCaching:
         mock.return_value.set.assert_called_once()
 
     def test_get_cached_deck_force(self) -> None:
-        key = AnkiDeckKey(Path("x"), 10, "es", False, True)
+        key = AnkiDeckKey(Path("x"), 10, "es", include_context=False, all_vocab=True)
         result = get_cached_deck(key, force=True)
         assert result is None
 
     def test_get_cached_deck_delegates(self) -> None:
-        key = AnkiDeckKey(Path("x"), 10, "es", False, True)
+        key = AnkiDeckKey(Path("x"), 10, "es", include_context=False, all_vocab=True)
         with patch("python_pkg.word_frequency._generation.get_anki_deck_cache") as mock:
             mock.return_value.get.return_value = ("c", "e", 2, 5)
             result = get_cached_deck(key)
         assert result == ("c", "e", 2, 5)
 
     def test_cache_deck_delegates(self) -> None:
-        key = AnkiDeckKey(Path("x"), 10, "es", False, True)
+        key = AnkiDeckKey(Path("x"), 10, "es", include_context=False, all_vocab=True)
         with patch("python_pkg.word_frequency._generation.get_anki_deck_cache") as mock:
             cache_deck(key, "content", "excerpt", 2, 5)
         mock.return_value.set.assert_called_once()
@@ -215,7 +215,7 @@ VOCAB_DUMP_END
                 "python_pkg.word_frequency._generation.get_anki_deck_cache"
             ) as mock_cache,
         ):
-            content, excerpt, num_words, max_rank = generate_flashcards(
+            content, excerpt, _, _ = generate_flashcards(
                 fp,
                 5,
                 FlashcardOptions(source_lang="en"),
@@ -331,7 +331,7 @@ VOCAB_DUMP_END
             ),
             patch("python_pkg.word_frequency._generation.get_anki_deck_cache"),
         ):
-            content, excerpt, num_words, max_rank = generate_flashcards(
+            content, _, _, _ = generate_flashcards(
                 fp, 5, FlashcardOptions(source_lang=None, no_translate=True)
             )
         assert content == "deck"

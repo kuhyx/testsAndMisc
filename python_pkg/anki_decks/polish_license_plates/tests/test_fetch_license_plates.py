@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 import sys
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,7 +33,7 @@ class TestImportError:
 
         original_import = builtins.__import__
 
-        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        def mock_import(name: str, *args: object, **kwargs: object) -> object:
             if name in ("bs4", "requests"):
                 msg = f"No module named '{name}'"
                 raise ImportError(msg)
@@ -119,7 +118,7 @@ class TestFetchWikipediaHtml:
     )
     def test_returns_cached_data_when_valid(
         self,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -144,7 +143,7 @@ class TestFetchWikipediaHtml:
     def test_fetches_fresh_when_cache_read_fails(
         self,
         mock_get: MagicMock,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -181,7 +180,7 @@ class TestFetchWikipediaHtml:
     def test_fetches_from_wikipedia_when_cache_invalid(
         self,
         mock_get: MagicMock,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -211,7 +210,7 @@ class TestFetchWikipediaHtml:
     def test_force_refresh_ignores_cache(
         self,
         mock_get: MagicMock,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -239,7 +238,7 @@ class TestFetchWikipediaHtml:
     def test_force_refresh_skips_valid_cache(
         self,
         mock_get: MagicMock,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -268,7 +267,7 @@ class TestFetchWikipediaHtml:
     def test_raises_runtime_error_on_request_exception(
         self,
         mock_get: MagicMock,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -295,7 +294,7 @@ class TestFetchWikipediaHtml:
     def test_continues_when_cache_write_fails(
         self,
         mock_get: MagicMock,
-        _mock_valid: MagicMock,
+        mock_valid: MagicMock,
         mock_cache_path: MagicMock,
     ) -> None:
         """Should return data even when cache write fails."""

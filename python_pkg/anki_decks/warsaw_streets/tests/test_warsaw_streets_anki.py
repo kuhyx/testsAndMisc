@@ -167,7 +167,7 @@ class TestLoadStreetData:
             patch.object(_mod_ref, "__file__", str(fake_file)),
             patch(f"{_MOD}.get_warsaw_streets", return_value=_street_segments_gdf()),
         ):
-            streets, boundary = load_street_data()
+            _, boundary = load_street_data()
         assert len(boundary) == 1
 
     def test_file_not_found(self, tmp_path: Path) -> None:

@@ -14,6 +14,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
+import logging
 from pathlib import Path
 import sys
 import warnings
@@ -48,6 +50,8 @@ from python_pkg.music_gen._music_speech import (
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
+
+logger = logging.getLogger(__name__)
 
 # Re-export all public symbols for backwards compatibility
 __all__ = [
@@ -85,8 +89,6 @@ def check_dependencies(*, include_bark: bool = False) -> bool:
     Args:
         include_bark: Whether to check for Bark dependencies as well.
     """
-    import importlib.util
-
     missing = []
 
     if importlib.util.find_spec("torch") is None:
@@ -102,87 +104,128 @@ def check_dependencies(*, include_bark: bool = False) -> bool:
         missing.append("git+https://github.com/suno-ai/bark.git")
 
     if missing:
-        print("Missing dependencies. Install with:")
-        print(f"  pip install {' '.join(missing)}")
-        print("\nFor CUDA support:")
-        print("  pip install torch --index-url https://download.pytorch.org/whl/cu121")
-        print("  pip install transformers scipy")
+        logger.error("Missing dependencies. Install with:")
+        logger.error("  pip install %s", " ".join(missing))
+        logger.error("For CUDA support:")
+        logger.error(
+            "  pip install torch --index-url https://download.pytorch.org/whl/cu121",
+        )
+        logger.error("  pip install transformers scipy")
         if include_bark:
-            print("\nFor Bark vocals:")
-            print("  pip install git+https://github.com/suno-ai/bark.git")
+            logger.error("For Bark vocals:")
+            logger.error(
+                "  pip install git+https://github.com/suno-ai/bark.git",
+            )
         return False
     return True
 
 
+EXAMPLE_PROMPTS = [
+    "upbeat electronic dance music with heavy bass",
+    "calm acoustic guitar melody with soft percussion",
+    "epic orchestral soundtrack with dramatic strings",
+    "lo-fi hip hop beats for studying",
+    "80s synthwave with retro vibes",
+    "jazz piano trio with upright bass",
+    "ambient electronic music for relaxation",
+    "rock guitar riff with drums",
+    "classical piano sonata in minor key",
+    "tropical house with steel drums",
+]
+
+
+def _show_help() -> None:
+    """Display example prompts."""
+    logger.info("Example prompts:")
+    for i, ex in enumerate(EXAMPLE_PROMPTS, 1):
+        logger.info("  %d. %s", i, ex)
+
+
+def _handle_duration(raw: str) -> int | None:
+    """Parse and return a new duration, or None on failure."""
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        logger.warning(
+            "Invalid duration. Use ':d <number>' e.g., ':d 15'",
+        )
+        return None
+    else:
+        clamped = max(1, min(30, value))
+        logger.info("Duration set to %ds", clamped)
+        return clamped
+
+
+def _resolve_prompt(prompt: str) -> str | None:
+    """Resolve a numeric prompt to an example, or return as-is.
+
+    Returns None if the number is out of range.
+    """
+    if prompt.isdigit():
+        idx = int(prompt) - 1
+        if 0 <= idx < len(EXAMPLE_PROMPTS):
+            resolved = EXAMPLE_PROMPTS[idx]
+            logger.info("Using: %s", resolved)
+            return resolved
+        logger.warning(
+            "Invalid number. Enter 1-%d",
+            len(EXAMPLE_PROMPTS),
+        )
+        return None
+    return prompt
+
+
 def interactive_mode(model: object, processor: object) -> None:
     """Run interactive prompt mode."""
-    print("\n" + "=" * 60)
-    print("INTERACTIVE MODE")
-    print("=" * 60)
-    print("Enter prompts to generate music. Commands:")
-    print("  :q or :quit  - Exit")
-    print("  :d <seconds> - Set duration (e.g., ':d 15')")
-    print("  :h or :help  - Show example prompts")
-    print("=" * 60)
+    banner = "=" * 60
+    logger.info("\n%s", banner)
+    logger.info("INTERACTIVE MODE")
+    logger.info("%s", banner)
+    logger.info("Enter prompts to generate music. Commands:")
+    logger.info("  :q or :quit  - Exit")
+    logger.info("  :d <seconds> - Set duration (e.g., ':d 15')")
+    logger.info("  :h or :help  - Show example prompts")
+    logger.info("%s", banner)
 
     duration = 10
-
-    example_prompts = [
-        "upbeat electronic dance music with heavy bass",
-        "calm acoustic guitar melody with soft percussion",
-        "epic orchestral soundtrack with dramatic strings",
-        "lo-fi hip hop beats for studying",
-        "80s synthwave with retro vibes",
-        "jazz piano trio with upright bass",
-        "ambient electronic music for relaxation",
-        "rock guitar riff with drums",
-        "classical piano sonata in minor key",
-        "tropical house with steel drums",
-    ]
 
     while True:
         try:
             prompt = input(f"\n[{duration}s] Enter prompt: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nExiting...")
+            logger.info("Exiting...")
             break
 
         if not prompt:
             continue
 
         if prompt.lower() in (":q", ":quit", "quit", "exit"):
-            print("Exiting...")
+            logger.info("Exiting...")
             break
 
         if prompt.lower() in (":h", ":help", "help"):
-            print("\nExample prompts:")
-            for i, ex in enumerate(example_prompts, 1):
-                print(f"  {i}. {ex}")
+            _show_help()
             continue
 
         if prompt.startswith(":d "):
-            try:
-                duration = int(prompt[3:].strip())
-                duration = max(1, min(30, duration))  # Clamp to 1-30
-                print(f"Duration set to {duration}s")
-            except ValueError:
-                print("Invalid duration. Use ':d <number>' e.g., ':d 15'")
+            new_dur = _handle_duration(prompt[3:])
+            if new_dur is not None:
+                duration = new_dur
             continue
 
-        # Check if user entered a number to use example prompt
-        if prompt.isdigit():
-            idx = int(prompt) - 1
-            if 0 <= idx < len(example_prompts):
-                prompt = example_prompts[idx]
-                print(f"Using: {prompt}")
-            else:
-                print(f"Invalid number. Enter 1-{len(example_prompts)}")
-                continue
+        resolved = _resolve_prompt(prompt)
+        if resolved is None:
+            continue
 
         try:
-            generate_music(prompt, model, processor, duration_seconds=duration)
-        except (RuntimeError, ValueError, OSError) as e:
-            print(f"Error generating music: {e}")
+            generate_music(
+                resolved,
+                model,
+                processor,
+                duration_seconds=duration,
+            )
+        except (RuntimeError, ValueError, OSError):
+            logger.exception("Error generating music")
 
 
 def main() -> None:
@@ -275,7 +318,9 @@ Bark tokens: [laughter] [laughs] [sighs] [music] [gasps] ♪ (singing)
 
     if not args.prompt and not args.interactive:
         parser.print_help()
-        print("\nError: Either provide a prompt or use --interactive mode")
+        logger.error(
+            "Either provide a prompt or use --interactive mode",
+        )
         sys.exit(1)
 
     # Check dependencies

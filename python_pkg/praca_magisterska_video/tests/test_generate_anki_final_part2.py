@@ -144,7 +144,7 @@ def test_get_file_metadata(sample_file: Path) -> None:
         _get_file_metadata,
     )
 
-    num, subject, content = _get_file_metadata(str(sample_file))
+    num, subject, _ = _get_file_metadata(str(sample_file))
     assert num == "01"
     assert subject == "Informatyka"
 
@@ -157,7 +157,7 @@ def test_get_file_metadata_no_match(tmp_path: Path) -> None:
 
     p = tmp_path / "readme.txt"
     p.write_text("No Przedmiot", encoding="utf-8")
-    num, subject, content = _get_file_metadata(str(p))
+    num, subject, _ = _get_file_metadata(str(p))
     assert num == "00"
     assert subject == "Ogólne"
 

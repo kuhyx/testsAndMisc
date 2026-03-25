@@ -14,33 +14,25 @@ from python_pkg.geo_data import (
 class TestDownloadAllWarsawData:
     """Tests for download_all_warsaw_data."""
 
-    @patch("python_pkg.geo_data.get_warsaw_osiedla")
-    @patch("python_pkg.geo_data.get_warsaw_landmarks")
-    @patch("python_pkg.geo_data.get_warsaw_streets")
-    @patch("python_pkg.geo_data.get_warsaw_metro_stations")
-    @patch("python_pkg.geo_data.get_warsaw_bridges")
-    @patch("python_pkg.geo_data.get_vistula_river")
-    @patch("python_pkg.geo_data.get_warsaw_boundary")
-    @patch("python_pkg.geo_data.sys.stdout")
-    def test_calls_all_warsaw_functions(
-        self,
-        mock_stdout: MagicMock,
-        mock_boundary: MagicMock,
-        mock_vistula: MagicMock,
-        mock_bridges: MagicMock,
-        mock_metro: MagicMock,
-        mock_streets: MagicMock,
-        mock_landmarks: MagicMock,
-        mock_osiedla: MagicMock,
-    ) -> None:
-        download_all_warsaw_data()
-        mock_boundary.assert_called_once()
-        mock_vistula.assert_called_once()
-        mock_bridges.assert_called_once()
-        mock_metro.assert_called_once()
-        mock_streets.assert_called_once()
-        mock_landmarks.assert_called_once()
-        mock_osiedla.assert_called_once()
+    def test_calls_all_warsaw_functions(self) -> None:
+        with (
+            patch("python_pkg.geo_data.sys.stdout"),
+            patch("python_pkg.geo_data.get_warsaw_boundary") as mock_boundary,
+            patch("python_pkg.geo_data.get_vistula_river") as mock_vistula,
+            patch("python_pkg.geo_data.get_warsaw_bridges") as mock_bridges,
+            patch("python_pkg.geo_data.get_warsaw_metro_stations") as mock_metro,
+            patch("python_pkg.geo_data.get_warsaw_streets") as mock_streets,
+            patch("python_pkg.geo_data.get_warsaw_landmarks") as mock_landmarks,
+            patch("python_pkg.geo_data.get_warsaw_osiedla") as mock_osiedla,
+        ):
+            download_all_warsaw_data()
+            mock_boundary.assert_called_once()
+            mock_vistula.assert_called_once()
+            mock_bridges.assert_called_once()
+            mock_metro.assert_called_once()
+            mock_streets.assert_called_once()
+            mock_landmarks.assert_called_once()
+            mock_osiedla.assert_called_once()
 
 
 class TestDownloadAllPolandData:
