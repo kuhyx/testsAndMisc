@@ -1,1 +1,39 @@
+# Binary / image files
 *.apkg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.ico
+*.bmp
+*.pdf
+*.zip
+*.tar.gz
+*.tgz
+*.bin
+*.exe
+*.so
+*.o
+*.a
+
+# Build outputs
+pomodoro_app/build/
+
+# Generated images
+**/generated_images_*/
+**/preview_images/
+
+# Virtual environments
+.venv/
+**/.venv/
+
+# Node modules
+node_modules/
+
+# C build artifacts
+**/*.out
+**/random_engine
+**/fps_demo
+**/1dvelocitysimulator
