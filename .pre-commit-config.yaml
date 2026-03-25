@@ -56,6 +56,17 @@ repos:
       - id: requirements-txt-fixer
 
   # ===========================================================================
+  # BINARY BLOCKER - Prevent binary/image files from being committed
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: no-binaries
+        name: Block binary/image files
+        entry: scripts/check_no_binaries.sh
+        language: script
+        always_run: false
+
+  # ===========================================================================
   # NOQA BLOCKER - Zero tolerance for noqa/type:ignore suppression comments
   # ===========================================================================
   - repo: local
