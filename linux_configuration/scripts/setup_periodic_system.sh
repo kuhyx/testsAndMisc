@@ -41,6 +41,9 @@ TEMPLATE_SVC_MAINT="$SYSTEMD_TEMPLATES/periodic-system-maintenance.service"
 TEMPLATE_TIMER="$SYSTEMD_TEMPLATES/periodic-system-maintenance.timer"
 TEMPLATE_STARTUP="$SYSTEMD_TEMPLATES/periodic-system-startup.service"
 TEMPLATE_HOSTS_SVC="$SYSTEMD_TEMPLATES/hosts-file-monitor.service"
+TEMPLATE_AUTO_UPDATE="$BIN_TEMPLATES/auto-system-update.sh"
+TEMPLATE_AUTO_UPDATE_SVC="$SYSTEMD_TEMPLATES/auto-system-update.service"
+TEMPLATE_AUTO_UPDATE_TIMER="$SYSTEMD_TEMPLATES/auto-system-update.timer"
 TEMPLATE_LOGROTATE="$LOGROTATE_TEMPLATES/periodic-system-maintenance"
 
 # Function to verify required files exist
@@ -72,6 +75,9 @@ verify_files() {
     "$TEMPLATE_TIMER" \
     "$TEMPLATE_STARTUP" \
     "$TEMPLATE_HOSTS_SVC" \
+    "$TEMPLATE_AUTO_UPDATE" \
+    "$TEMPLATE_AUTO_UPDATE_SVC" \
+    "$TEMPLATE_AUTO_UPDATE_TIMER" \
     "$TEMPLATE_LOGROTATE"; do
     if [[ ! -f $tmpl ]]; then
       missing_files+=("$tmpl")
@@ -194,6 +200,31 @@ install_browser_preexec_wrapper() {
   echo "✓ Symlinked wrapper for common browsers in /usr/local/bin"
 }
 
+# Function to install automatic system update service
+install_auto_update() {
+  echo ""
+  echo "6.2 Installing Automatic System Update..."
+  echo "========================================="
+
+  local update_script="/usr/local/bin/auto-system-update.sh"
+  local update_service="/etc/systemd/system/auto-system-update.service"
+  local update_timer="/etc/systemd/system/auto-system-update.timer"
+
+  # Install script from template with user substitution
+  local actual_user="${SUDO_USER:-$USER}"
+  sed -e "s|__ACTUAL_USER__|$actual_user|g" \
+    "$TEMPLATE_AUTO_UPDATE" > "$update_script"
+  chmod +x "$update_script"
+  echo "✓ Installed auto-update script: $update_script (user: $actual_user)"
+
+  # Install systemd service and timer from templates
+  install -m 0644 "$TEMPLATE_AUTO_UPDATE_SVC" "$update_service"
+  echo "✓ Installed auto-update service: $update_service"
+
+  install -m 0644 "$TEMPLATE_AUTO_UPDATE_TIMER" "$update_timer"
+  echo "✓ Installed auto-update timer: $update_timer"
+}
+
 # Function to enable and start services
 enable_services() {
   echo ""
@@ -218,10 +249,19 @@ enable_services() {
   systemctl start hosts-file-monitor.service
   echo "✓ Hosts file monitor service enabled and started"
 
+  # Enable and start auto-update timer
+  systemctl enable auto-system-update.timer
+  systemctl start auto-system-update.timer
+  echo "✓ Auto-update timer enabled and started"
+
   # Show timer status
   echo ""
   echo "Timer Status:"
   systemctl status periodic-system-maintenance.timer --no-pager -l
+
+  echo ""
+  echo "Auto-Update Timer Status:"
+  systemctl status auto-system-update.timer --no-pager -l
 
   echo ""
   echo "Hosts Monitor Status:"
@@ -229,7 +269,7 @@ enable_services() {
 
   echo ""
   echo "Next scheduled runs:"
-  systemctl list-timers periodic-system-maintenance.timer --no-pager
+  systemctl list-timers periodic-system-maintenance.timer auto-system-update.timer --no-pager
 }
 
 # Function to create log rotation configuration
@@ -280,6 +320,7 @@ create_systemd_timer
 create_startup_service
 create_hosts_monitor_service
 install_browser_preexec_wrapper
+install_auto_update
 enable_services
 create_log_rotation
 run_initial_execution
@@ -294,26 +335,32 @@ echo "✓ Systemd service created and enabled: periodic-system-maintenance.servi
 echo "✓ Systemd timer created and enabled: periodic-system-maintenance.timer"
 echo "✓ Startup service created and enabled: periodic-system-startup.service"
 echo "✓ Hosts file monitor script and service created and enabled"
+echo "✓ Auto-update service created and enabled: auto-system-update.timer"
 echo "✓ Log rotation configured: /etc/logrotate.d/periodic-system-maintenance"
 echo ""
 echo "The system will now:"
 echo "• Run maintenance every hour"
 echo "• Run maintenance 5 minutes after system startup"
 echo "• Monitor hosts file for changes and restore if needed"
-echo "• Log all activities to /var/log/periodic-system-maintenance.log and /var/log/hosts-file-monitor.log"
+echo "• Run pacman -Syuu and yay -Sua daily at 04:00 (±30min)"
+echo "• Log all activities to /var/log/periodic-system-maintenance.log, /var/log/auto-system-update.log, and /var/log/hosts-file-monitor.log"
 echo ""
 echo "To check status:"
 echo "  systemctl status periodic-system-maintenance.timer"
-echo "  systemctl list-timers periodic-system-maintenance.timer"
+echo "  systemctl status auto-system-update.timer"
+echo "  systemctl list-timers periodic-system-maintenance.timer auto-system-update.timer"
 echo "  systemctl status hosts-file-monitor.service"
 echo ""
 echo "To view logs:"
 echo "  tail -f /var/log/periodic-system-maintenance.log"
 echo "  journalctl -u periodic-system-maintenance.service -f"
+echo "  tail -f /var/log/auto-system-update.log"
+echo "  journalctl -u auto-system-update.service -f"
 echo "  tail -f /var/log/hosts-file-monitor.log"
 echo "  journalctl -u hosts-file-monitor.service -f"
 echo ""
 echo "To disable (if needed):"
 echo "  sudo systemctl disable periodic-system-maintenance.timer"
 echo "  sudo systemctl disable periodic-system-startup.service"
+echo "  sudo systemctl disable auto-system-update.timer"
 echo "  sudo systemctl disable hosts-file-monitor.service"
