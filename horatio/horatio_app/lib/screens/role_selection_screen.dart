@@ -99,6 +99,15 @@ class RoleSelectionScreen extends StatelessWidget {
                   );
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.edit_note),
+                title: const Text('Annotate Script'),
+                subtitle: const Text('Add delivery marks and notes'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(RoutePaths.annotations, extra: script);
+                },
+              ),
             ],
           ),
         ),

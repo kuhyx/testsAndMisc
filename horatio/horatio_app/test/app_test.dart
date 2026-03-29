@@ -5,26 +5,56 @@ import 'package:horatio_app/app.dart';
 import 'package:horatio_app/router.dart';
 import 'package:horatio_core/horatio_core.dart';
 
+import 'helpers/test_database.dart';
+
 void main() {
   testWidgets('HoratioApp builds without crashing', (tester) async {
-    await tester.pumpWidget(const HoratioApp());
+    await tester.pumpWidget(HoratioApp(database: createTestDatabase()));
     await tester.pumpAndSettle();
-
-    // The app should render the home screen.
     expect(find.text('Horatio'), findsOneWidget);
   });
 
   testWidgets('SrsReviewCubit is created when srs-review route is visited',
       (tester) async {
-    await tester.pumpWidget(const HoratioApp());
+    await tester.pumpWidget(HoratioApp(database: createTestDatabase()));
     await tester.pumpAndSettle();
 
     unawaited(appRouter.push(RoutePaths.srsReview, extra: <SrsCard>[
       SrsCard(id: 'c1', cueText: 'Cue', answerText: 'Ans'),
     ]));
     await tester.pumpAndSettle();
-
-    // SrsReviewScreen renders — the BlocProvider.create ran.
     expect(find.text('No review session active.'), findsOneWidget);
+  });
+
+  testWidgets('AnnotationDao is provided when annotation route is visited',
+      (tester) async {
+    final db = createTestDatabase();
+    await tester.pumpWidget(HoratioApp(database: db));
+    await tester.pumpAndSettle();
+
+    const role = Role(name: 'Hero');
+    const script = Script(
+      id: 'app-ann-id',
+      title: 'Ann Test',
+      roles: [role],
+      scenes: [
+        Scene(
+          lines: [
+            ScriptLine(
+              text: 'Hello.',
+              role: role,
+              sceneIndex: 0,
+              lineIndex: 0,
+            ),
+          ],
+        ),
+      ],
+    );
+    unawaited(appRouter.push(RoutePaths.annotations, extra: script));
+    await tester.pumpAndSettle();
+    expect(find.text('Annotate: Ann Test'), findsOneWidget);
+
+    // Close the database before teardown to cancel Drift stream timers.
+    await db.close();
   });
 }

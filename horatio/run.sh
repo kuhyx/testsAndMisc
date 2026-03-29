@@ -241,6 +241,19 @@ app_get() {
     cache_step app_get "$h"
 }
 
+app_codegen() {
+    local h
+    h=$(files_hash "$APP_DIR/lib/database" -name '*.dart' ! -name '*.g.dart')
+    if step_cached app_codegen "$h"; then
+        echo "  [cached] app_codegen — skipping"
+        return
+    fi
+    heading "Running drift codegen"
+    cd "$APP_DIR"
+    dart run build_runner build --delete-conflicting-outputs
+    cache_step app_codegen "$h"
+}
+
 app_analyze() {
     local h
     h=$(files_hash "$APP_DIR" -name '*.dart' -o -name 'analysis_options.yaml')
@@ -264,7 +277,13 @@ app_test() {
     heading "Testing horatio_app (with coverage)"
     cd "$APP_DIR"
     flutter test --coverage
-    check_coverage "$APP_DIR/coverage/lcov.info" "horatio_app" 100
+
+    # Filter generated files from coverage (drift codegen + table schemas).
+    local lcov="$APP_DIR/coverage/lcov.info"
+    awk '/^SF:.*(\.g\.dart|tables\/)/{skip=1} /^end_of_record/{if(skip){skip=0;next}} !skip' \
+        "$lcov" > "${lcov}.tmp" && mv "${lcov}.tmp" "$lcov"
+
+    check_coverage "$lcov" "horatio_app" 100
     cache_step app_test "$h"
 }
 
@@ -314,6 +333,7 @@ do_analyze() {
     core_analyze
     ensure_flutter
     app_get
+    app_codegen
     do_dead_code
 }
 
@@ -323,6 +343,7 @@ do_test() {
     core_test
     ensure_flutter
     app_get
+    app_codegen
     app_test
 }
 
@@ -340,6 +361,7 @@ do_run() {
     ensure_whisper
     core_get
     app_get
+    app_codegen
     app_analyze
     app_build
     app_run
@@ -351,6 +373,7 @@ do_web() {
     ensure_whisper
     core_get
     app_get
+    app_codegen
     app_analyze
     app_web
 }

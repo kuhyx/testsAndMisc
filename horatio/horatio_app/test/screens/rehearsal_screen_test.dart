@@ -14,6 +14,7 @@ Script _twoLineScript() {
   const hamlet = Role(name: 'Hamlet');
   const horatio = Role(name: 'Horatio');
   return const Script(
+    id: 'rehearsal-test-id',
     title: 'Test',
     roles: [hamlet, horatio],
     scenes: [

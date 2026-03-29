@@ -32,6 +32,7 @@ Script _testScript() {
   const hamlet = Role(name: 'Hamlet');
   const horatio = Role(name: 'Horatio');
   return const Script(
+    id: 'schedule-test-id',
     title: 'Test',
     roles: [hamlet, horatio],
     scenes: [
@@ -91,6 +92,7 @@ void main() {
       const hamlet = Role(name: 'Hamlet');
       const horatio = Role(name: 'Horatio');
       const script = Script(
+        id: 'one-sided-id',
         title: 'One-sided',
         roles: [hamlet, horatio],
         scenes: [

@@ -117,6 +117,7 @@ void main() {
       const horatio = Role(name: 'Horatio');
 
       return const Script(
+        id: 'test-planner-id',
         title: 'Test Script',
         roles: [hamlet, horatio],
         scenes: [
@@ -180,6 +181,7 @@ void main() {
       const horatio = Role(name: 'Horatio');
 
       const script = Script(
+        id: 'monologue-test-id',
         title: 'Monologue Test',
         roles: [hamlet, horatio],
         scenes: [

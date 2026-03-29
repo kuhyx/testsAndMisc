@@ -5,15 +5,27 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:horatio_app/bloc/script_import/script_import_cubit.dart';
 import 'package:horatio_app/bloc/srs_review/srs_review_cubit.dart';
+import 'package:horatio_app/database/daos/annotation_dao.dart';
 import 'package:horatio_app/router.dart';
 import 'package:horatio_app/services/script_repository.dart';
 import 'package:horatio_core/horatio_core.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockAnnotationDao extends Mock implements AnnotationDao {}
 
 Widget _wrapRouter() {
   final repository = ScriptRepository();
+  final mockDao = _MockAnnotationDao();
+  when(() => mockDao.watchMarksForScript(any()))
+      .thenAnswer((_) => Stream.value([]));
+  when(() => mockDao.watchNotesForScript(any()))
+      .thenAnswer((_) => Stream.value([]));
+  when(() => mockDao.watchSnapshotsForScript(any()))
+      .thenAnswer((_) => Stream.value([]));
   return MultiRepositoryProvider(
     providers: [
       RepositoryProvider<ScriptRepository>(create: (_) => repository),
+      RepositoryProvider<AnnotationDao>.value(value: mockDao),
     ],
     child: MultiBlocProvider(
       providers: [
@@ -45,6 +57,7 @@ void main() {
 
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'router-valid-id',
         title: 'Valid',
         roles: [role],
         scenes: [
@@ -73,6 +86,7 @@ void main() {
 
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'router-play-id',
         title: 'Play',
         roles: [role],
         scenes: [
@@ -104,6 +118,7 @@ void main() {
 
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'router-rehearse-id',
         title: 'Rehearse',
         roles: [role],
         scenes: [
@@ -165,6 +180,96 @@ void main() {
 
       // Should not crash — shows SizedBox.shrink or redirects.
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('annotations route with Script extra shows editor',
+        (tester) async {
+      await tester.pumpWidget(_wrapRouter());
+      await tester.pumpAndSettle();
+
+      // Reset to home to clear any stale navigation stack.
+      appRouter.go(RoutePaths.home);
+      await tester.pumpAndSettle();
+
+      const role = Role(name: 'Hero');
+      const script = Script(
+        id: 'router-annotate-id',
+        title: 'Annotate Play',
+        roles: [role],
+        scenes: [
+          Scene(
+            lines: [
+              ScriptLine(
+                text: 'Line.',
+                role: role,
+                sceneIndex: 0,
+                lineIndex: 0,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      unawaited(appRouter.push(RoutePaths.annotations, extra: script));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Annotate: Annotate Play'), findsOneWidget);
+    });
+
+    testWidgets('annotations route with null extra redirects home',
+        (tester) async {
+      await tester.pumpWidget(_wrapRouter());
+      await tester.pumpAndSettle();
+
+      appRouter.go(RoutePaths.annotations);
+      await tester.pumpAndSettle();
+
+      // Redirected to home.
+      expect(find.text('Horatio'), findsOneWidget);
+    });
+
+    testWidgets('annotation-history route with Script extra shows history',
+        (tester) async {
+      await tester.pumpWidget(_wrapRouter());
+      await tester.pumpAndSettle();
+
+      const role = Role(name: 'Hero');
+      const script = Script(
+        id: 'router-history-id',
+        title: 'History Play',
+        roles: [role],
+        scenes: [
+          Scene(
+            lines: [
+              ScriptLine(
+                text: 'Line.',
+                role: role,
+                sceneIndex: 0,
+                lineIndex: 0,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      unawaited(
+        appRouter.push(RoutePaths.annotationHistory, extra: script),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('History: History Play'), findsOneWidget);
+    });
+
+    testWidgets('annotation-history route with null extra redirects home',
+        (tester) async {
+      await tester.pumpWidget(_wrapRouter());
+      await tester.pumpAndSettle();
+
+      appRouter.go(RoutePaths.annotationHistory);
+      await tester.pumpAndSettle();
+
+      // Redirected to home.
+      expect(find.text('Horatio'), findsOneWidget);
     });
   });
 }
