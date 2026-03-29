@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:horatio_core/horatio_core.dart';
 import 'package:horatio_app/widgets/grade_stars.dart';
+import 'package:horatio_core/horatio_core.dart';
 import 'package:intl/intl.dart';
 
 /// Bottom sheet listing all recordings for a line.

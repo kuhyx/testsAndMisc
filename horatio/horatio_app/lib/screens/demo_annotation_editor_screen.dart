@@ -74,7 +74,19 @@ const _demoScript = Script(
 /// exploring the screen.
 class DemoAnnotationEditorScreen extends StatefulWidget {
   /// Creates a [DemoAnnotationEditorScreen].
-  const DemoAnnotationEditorScreen({super.key});
+  const DemoAnnotationEditorScreen({super.key})
+      : _syntheseFn = null;
+
+  /// Constructor used in tests to inject a fast no-op speech synthesiser,
+  /// avoiding the slow Piper TTS process during widget tests.
+  @visibleForTesting
+  const DemoAnnotationEditorScreen.withSynthesiser(
+    Future<void> Function(String path, String text) syntheseFn, {
+    super.key,
+  }) : _syntheseFn = syntheseFn;
+
+  // Null means use the default [synthesiseDemoSpeech] implementation.
+  final Future<void> Function(String path, String text)? _syntheseFn;
 
   @override
   State<DemoAnnotationEditorScreen> createState() =>
@@ -87,9 +99,10 @@ class _DemoAnnotationEditorScreenState
   late final RecordingService _recordingService;
   late final AudioPlaybackService _playbackService;
   final String _recordingsDir =
-      '${Directory.systemTemp.path}/horatio_demo_recordings';
+      '${Platform.environment['HOME']}/.local/share/horatio/demo_recordings';
 
   bool _ready = false;
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -101,12 +114,19 @@ class _DemoAnnotationEditorScreenState
   }
 
   Future<void> _seedAndMarkReady() async {
-    await _seed(_db.annotationDao, _db.recordingDao);
+    await _seed(
+      _db.annotationDao,
+      _db.recordingDao,
+      _recordingsDir,
+      () => _disposed,
+      speechSynthesiser: widget._syntheseFn,
+    );
     if (mounted) setState(() => _ready = true);
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _db.close();
     _recordingService.dispose();
     _playbackService.dispose();
@@ -131,8 +151,71 @@ class _DemoAnnotationEditorScreenState
   }
 }
 
+/// Synthesises [text] to a WAV file at [path] and returns [path].
+///
+/// Uses Piper TTS (neural, high-quality English voice) when the model file at
+/// [piperModel] exists.  Falls back to `espeak-ng` otherwise (always available
+/// on the dev machine).
+///
+/// Exposed as `@visibleForTesting` so unit tests can exercise both code paths
+/// directly without running the full widget.
+@visibleForTesting
+Future<String> synthesiseDemoSpeech(
+  String path,
+  String text, {
+  String? piperModel,
+}) async {
+  final model =
+      piperModel ??
+          '${Platform.environment['HOME']}/.local/share/horatio/piper/en_US-lessac-high.onnx';
+  if (File(model).existsSync()) {
+    final process = await Process.start(
+      'python3',
+      ['-m', 'piper', '--model', model, '--output_file', path],
+    );
+    process.stdin.write(text);
+    await process.stdin.close();
+    await process.exitCode;
+  } else {
+    await Process.run('espeak-ng', ['--punct', '-w', path, text]);
+  }
+  return path;
+}
+
+/// Synthesises [text] to a WAV file at [path], skipping synthesis if the
+/// file already exists on disk.
+///
+/// Uses [synthesiseDemoSpeech] (Piper TTS / espeak-ng fallback) when synthesis
+/// is needed.  Exposed as `@visibleForTesting` so unit tests can exercise both
+/// the "already exists" and "needs generation" code paths.
+@visibleForTesting
+Future<String> synthesiseDemoSpeechCached(
+  String path,
+  String text, {
+  Future<void> Function(String, String)? synth,
+}) async {
+  if (!File(path).existsSync()) {
+    await (synth ?? synthesiseDemoSpeech)(path, text);
+  }
+  return path;
+}
+
+
 /// Seeds the in-memory DAOs with a realistic demo dataset.
-Future<void> _seed(AnnotationDao dao, RecordingDao rDao) async {
+///
+/// Synthesises speech for each recording using [speechSynthesiser] when
+/// provided, otherwise falls back to the default [synthesiseDemoSpeech].
+///
+/// [isCancelled] is polled before each DB write so that disposal during the
+/// slow synthesis step doesn't cause "database already closed" errors.
+Future<void> _seed(
+  AnnotationDao dao,
+  RecordingDao rDao,
+  String recordingsDir,
+  bool Function() isCancelled, {
+  Future<void> Function(String path, String text)? speechSynthesiser,
+}) async {
+  await Directory(recordingsDir).create(recursive: true);
   const scriptId = _scriptId;
   final week1 = DateTime.utc(2026, 1, 15, 19);
   final week2 = DateTime.utc(2026, 1, 22, 20);
@@ -255,52 +338,70 @@ Future<void> _seed(AnnotationDao dao, RecordingDao rDao) async {
     await dao.insertNote(scriptId, n);
   }
 
-  // ── Recordings (metadata only — paths are illustrative) ─────────────────
-  // Line 0: three recordings showing progression.
+  // ── Recordings — Piper TTS speech (falls back to espeak-ng) ─────────────
+  final synthFn = speechSynthesiser ?? synthesiseDemoSpeech;
+
+  Future<String> writeSpeech(String name, String text) async {
+    final path = '$recordingsDir/$name';
+    return synthesiseDemoSpeechCached(path, text, synth: synthFn);
+  }
+
+  const line0 = 'To be, or not to be, that is the question:';
+  const line1 = "Whether 'tis nobler in the mind to suffer";
+
+  // Line 0: three takes showing progression (same text, recurring practice).
+  final take1path = await writeSpeech('hamlet_line0_take1.wav', line0);
+  if (isCancelled()) return;
   await rDao.insertRecording(
     scriptId,
     LineRecording(
       id: _uuid.v4(),
       scriptId: scriptId,
       lineIndex: 0,
-      filePath: '/demo/hamlet_line0_take1.m4a',
+      filePath: take1path,
       durationMs: 9800,
       createdAt: week1,
       grade: 2,
     ),
   );
+  final take2path = await writeSpeech('hamlet_line0_take2.wav', line0);
+  if (isCancelled()) return;
   await rDao.insertRecording(
     scriptId,
     LineRecording(
       id: _uuid.v4(),
       scriptId: scriptId,
       lineIndex: 0,
-      filePath: '/demo/hamlet_line0_take2.m4a',
+      filePath: take2path,
       durationMs: 8400,
       createdAt: week2,
       grade: 4,
     ),
   );
+  final take3path = await writeSpeech('hamlet_line0_take3.wav', line0);
+  if (isCancelled()) return;
   await rDao.insertRecording(
     scriptId,
     LineRecording(
       id: _uuid.v4(),
       scriptId: scriptId,
       lineIndex: 0,
-      filePath: '/demo/hamlet_line0_take3.m4a',
+      filePath: take3path,
       durationMs: 7600,
       createdAt: week3,
       grade: 5,
     ),
   );
-  // Line 1: one recording.
+  // Line 1: one take.
+  final take4path = await writeSpeech('hamlet_line1_take1.wav', line1);
+  if (isCancelled()) return;
   await rDao.insertRecording(
     scriptId,
     LineRecording(
       id: _uuid.v4(),
       scriptId: scriptId,
       lineIndex: 1,
-      filePath: '/demo/hamlet_line1_take1.m4a',
+      filePath: take4path,
       durationMs: 6200,
       createdAt: week2,
       grade: 3,

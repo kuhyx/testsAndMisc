@@ -125,7 +125,7 @@ class _AnnotationEditorBody extends StatelessWidget {
                       recordingState is RecordingInProgress &&
                       recordingState.lineIndex == lineIndex;
                   final elapsed = isRecording
-                      ? (recordingState as RecordingInProgress).elapsed
+                      ? recordingState.elapsed
                       : Duration.zero;
 
                   return RecordingActionBar(

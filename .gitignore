@@ -402,3 +402,10 @@ CPP/mini_browser/build
 pomodoro_app/.dart_tool
 horatio/horatio_app/.dart_tool
 horatio/horatio_core/.dart_tool
+
+# Web icon symlinks (point to ../testsAndMisc_binaries/horatio_app_web_icons/)
+horatio/horatio_app/web/favicon.png
+horatio/horatio_app/web/icons/Icon-192.png
+horatio/horatio_app/web/icons/Icon-512.png
+horatio/horatio_app/web/icons/Icon-maskable-192.png
+horatio/horatio_app/web/icons/Icon-maskable-512.png
