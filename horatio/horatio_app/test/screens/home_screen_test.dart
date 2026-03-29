@@ -8,13 +8,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:horatio_app/bloc/script_import/script_import_cubit.dart';
 import 'package:horatio_app/bloc/script_import/script_import_state.dart';
+import 'package:horatio_app/bloc/text_scale/text_scale_cubit.dart';
 import 'package:horatio_app/screens/home_screen.dart';
 import 'package:horatio_app/services/script_repository.dart';
+import 'package:horatio_app/widgets/text_scale_settings_sheet.dart';
 import 'package:horatio_core/horatio_core.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockScriptImportCubit extends MockCubit<ScriptImportState>
     implements ScriptImportCubit {}
+
+late TextScaleCubit _textScaleCubit;
 
 Widget _wrap(ScriptImportCubit cubit) {
   final router = GoRouter(
@@ -30,14 +35,17 @@ Widget _wrap(ScriptImportCubit cubit) {
       ),
     ],
   );
-  return MultiRepositoryProvider(
+  return MultiBlocProvider(
     providers: [
-      RepositoryProvider<ScriptRepository>(
-        create: (_) => ScriptRepository(),
-      ),
+      BlocProvider<ScriptImportCubit>.value(value: cubit),
+      BlocProvider<TextScaleCubit>.value(value: _textScaleCubit),
     ],
-    child: BlocProvider<ScriptImportCubit>.value(
-      value: cubit,
+    child: MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<ScriptRepository>(
+          create: (_) => ScriptRepository(),
+        ),
+      ],
       child: MaterialApp.router(routerConfig: router),
     ),
   );
@@ -46,7 +54,10 @@ Widget _wrap(ScriptImportCubit cubit) {
 void main() {
   late MockScriptImportCubit cubit;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    _textScaleCubit = TextScaleCubit(prefs: prefs);
     cubit = MockScriptImportCubit();
     when(() => cubit.loadScripts()).thenReturn(null);
     when(() => cubit.importFromFile()).thenAnswer((_) async {});
@@ -56,6 +67,8 @@ void main() {
           fileName: any(named: 'fileName'),
         )).thenAnswer((_) async {});
   });
+
+  tearDown(() => _textScaleCubit.close());
 
   setUpAll(() {
     registerFallbackValue(Uint8List(0));
@@ -398,6 +411,20 @@ void main() {
       // of the || chain executes, covering lines that would otherwise
       // short-circuit.
       expect(painter.shouldRepaint(painter), isFalse);
+    });
+  });
+
+  group('HomeScreen text scale', () {
+    testWidgets('text size button opens settings sheet', (tester) async {
+      when(() => cubit.state).thenReturn(const ScriptImportInitial());
+
+      await tester.pumpWidget(_wrap(cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.text_fields));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextScaleSettingsSheet), findsOneWidget);
     });
   });
 }

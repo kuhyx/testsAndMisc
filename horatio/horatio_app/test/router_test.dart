@@ -6,26 +6,66 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:horatio_app/bloc/script_import/script_import_cubit.dart';
 import 'package:horatio_app/bloc/srs_review/srs_review_cubit.dart';
 import 'package:horatio_app/database/daos/annotation_dao.dart';
+import 'package:horatio_app/database/daos/recording_dao.dart';
 import 'package:horatio_app/router.dart';
+import 'package:horatio_app/services/audio_playback_service.dart';
+import 'package:horatio_app/services/recording_service.dart';
 import 'package:horatio_app/services/script_repository.dart';
 import 'package:horatio_core/horatio_core.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockAnnotationDao extends Mock implements AnnotationDao {}
 
+class _MockRecordingDao extends Mock implements RecordingDao {}
+
+class _MockRecordingService extends Mock implements RecordingService {}
+
+class _MockAudioPlaybackService extends Mock implements AudioPlaybackService {}
+
 Widget _wrapRouter() {
   final repository = ScriptRepository();
   final mockDao = _MockAnnotationDao();
-  when(() => mockDao.watchMarksForScript(any()))
-      .thenAnswer((_) => Stream.value([]));
-  when(() => mockDao.watchNotesForScript(any()))
-      .thenAnswer((_) => Stream.value([]));
-  when(() => mockDao.watchSnapshotsForScript(any()))
-      .thenAnswer((_) => Stream.value([]));
+  final mockRecordingDao = _MockRecordingDao();
+  final mockRecordingService = _MockRecordingService();
+  final mockPlaybackService = _MockAudioPlaybackService();
+  when(
+    () => mockDao.watchMarksForScript(any()),
+  ).thenAnswer((_) => Stream.value([]));
+  when(
+    () => mockDao.watchNotesForScript(any()),
+  ).thenAnswer((_) => Stream.value([]));
+  when(
+    () => mockDao.watchSnapshotsForScript(any()),
+  ).thenAnswer((_) => Stream.value([]));
+  when(
+    () => mockRecordingDao.watchRecordingsForScript(any()),
+  ).thenAnswer((_) => Stream.value([]));
+
+  when(
+    () => mockRecordingService.hasPermission(),
+  ).thenAnswer((_) async => true);
+  when(
+    () => mockRecordingService.startRecording(any()),
+  ).thenAnswer((_) async {});
+  when(
+    () => mockRecordingService.stopRecording(),
+  ).thenAnswer((_) async => null);
+
+  when(() => mockPlaybackService.play(any())).thenAnswer((_) async {});
+  when(() => mockPlaybackService.stop()).thenAnswer((_) async {});
+  when(() => mockPlaybackService.status).thenAnswer((_) => Stream.empty());
+  when(() => mockPlaybackService.position).thenAnswer((_) => Stream.empty());
+
   return MultiRepositoryProvider(
     providers: [
       RepositoryProvider<ScriptRepository>(create: (_) => repository),
       RepositoryProvider<AnnotationDao>.value(value: mockDao),
+      RepositoryProvider<RecordingDao>.value(value: mockRecordingDao),
+      RepositoryProvider<RecordingService>.value(value: mockRecordingService),
+      RepositoryProvider<AudioPlaybackService>.value(
+        value: mockPlaybackService,
+      ),
+      RepositoryProvider<String>.value(value: '/tmp/test_recordings'),
     ],
     child: MultiBlocProvider(
       providers: [
@@ -92,21 +132,18 @@ void main() {
         scenes: [
           Scene(
             lines: [
-              ScriptLine(
-                text: 'Hi.',
-                role: role,
-                sceneIndex: 0,
-                lineIndex: 0,
-              ),
+              ScriptLine(text: 'Hi.', role: role, sceneIndex: 0, lineIndex: 0),
             ],
           ),
         ],
       );
 
-      unawaited(appRouter.push(
-        RoutePaths.schedule,
-        extra: {'script': script, 'role': role},
-      ));
+      unawaited(
+        appRouter.push(
+          RoutePaths.schedule,
+          extra: {'script': script, 'role': role},
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Memorization Schedule'), findsOneWidget);
@@ -124,21 +161,18 @@ void main() {
         scenes: [
           Scene(
             lines: [
-              ScriptLine(
-                text: 'A.',
-                role: role,
-                sceneIndex: 0,
-                lineIndex: 0,
-              ),
+              ScriptLine(text: 'A.', role: role, sceneIndex: 0, lineIndex: 0),
             ],
           ),
         ],
       );
 
-      unawaited(appRouter.push(
-        RoutePaths.rehearsal,
-        extra: {'script': script, 'role': role},
-      ));
+      unawaited(
+        appRouter.push(
+          RoutePaths.rehearsal,
+          extra: {'script': script, 'role': role},
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Rehearsing: Hero'), findsOneWidget);
@@ -148,9 +182,7 @@ void main() {
       await tester.pumpWidget(_wrapRouter());
       await tester.pumpAndSettle();
 
-      final cards = [
-        SrsCard(id: 'c1', cueText: 'Cue', answerText: 'Ans'),
-      ];
+      final cards = [SrsCard(id: 'c1', cueText: 'Cue', answerText: 'Ans')];
 
       unawaited(appRouter.push(RoutePaths.srsReview, extra: cards));
       await tester.pumpAndSettle();
@@ -169,8 +201,9 @@ void main() {
       expect(find.text('Not Found'), findsOneWidget);
     });
 
-    testWidgets('schedule route with wrong extra type falls back',
-        (tester) async {
+    testWidgets('schedule route with wrong extra type falls back', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrapRouter());
       await tester.pumpAndSettle();
 
@@ -182,8 +215,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('annotations route with Script extra shows editor',
-        (tester) async {
+    testWidgets('annotations route with Script extra shows editor', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrapRouter());
       await tester.pumpAndSettle();
 
@@ -216,8 +250,9 @@ void main() {
       expect(find.text('Annotate: Annotate Play'), findsOneWidget);
     });
 
-    testWidgets('annotations route with null extra redirects home',
-        (tester) async {
+    testWidgets('annotations route with null extra redirects home', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrapRouter());
       await tester.pumpAndSettle();
 
@@ -228,8 +263,9 @@ void main() {
       expect(find.text('Horatio'), findsOneWidget);
     });
 
-    testWidgets('annotation-history route with Script extra shows history',
-        (tester) async {
+    testWidgets('annotation-history route with Script extra shows history', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrapRouter());
       await tester.pumpAndSettle();
 
@@ -252,16 +288,15 @@ void main() {
         ],
       );
 
-      unawaited(
-        appRouter.push(RoutePaths.annotationHistory, extra: script),
-      );
+      unawaited(appRouter.push(RoutePaths.annotationHistory, extra: script));
       await tester.pumpAndSettle();
 
       expect(find.text('History: History Play'), findsOneWidget);
     });
 
-    testWidgets('annotation-history route with null extra redirects home',
-        (tester) async {
+    testWidgets('annotation-history route with null extra redirects home', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrapRouter());
       await tester.pumpAndSettle();
 

@@ -1,5 +1,6 @@
 export 'annotation_snapshot.dart';
 export 'line_note.dart';
+export 'line_recording.dart';
 export 'mark_type.dart';
 export 'note_category.dart';
 export 'role.dart';

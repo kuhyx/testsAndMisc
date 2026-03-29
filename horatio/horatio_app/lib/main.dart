@@ -7,6 +7,7 @@ import 'package:horatio_app/app.dart';
 import 'package:horatio_app/database/app_database.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,10 +15,16 @@ void main() async {
   final dbFolder = await getApplicationDocumentsDirectory();
   final dbFile = File(p.join(dbFolder.path, 'horatio.sqlite'));
   final database = AppDatabase(NativeDatabase(dbFile));
+  final recordingsDir = p.join(dbFolder.path, 'horatio_recordings');
+  final prefs = await SharedPreferences.getInstance();
 
   runApp(
     DevicePreview(
-      builder: (_) => HoratioApp(database: database),
+      builder: (_) => HoratioApp(
+        database: database,
+        recordingsDir: recordingsDir,
+        prefs: prefs,
+      ),
     ),
   );
 }

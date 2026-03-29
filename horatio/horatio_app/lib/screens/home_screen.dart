@@ -6,9 +6,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:horatio_app/bloc/script_import/script_import_cubit.dart';
 import 'package:horatio_app/bloc/script_import/script_import_state.dart';
+import 'package:horatio_app/bloc/text_scale/text_scale_cubit.dart';
 import 'package:horatio_app/router.dart';
 import 'package:horatio_app/services/file_import_service.dart';
 import 'package:horatio_app/widgets/script_card_widget.dart';
+import 'package:horatio_app/widgets/text_scale_settings_sheet.dart';
 
 /// Main screen — shows the script library with drag-and-drop import.
 class HomeScreen extends StatefulWidget {
@@ -50,7 +52,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Horatio')),
+        appBar: AppBar(
+          title: const Text('Horatio'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.text_fields),
+              tooltip: 'Text Size',
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                builder: (_) => BlocProvider.value(
+                  value: context.read<TextScaleCubit>(),
+                  child: const TextScaleSettingsSheet(),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: DropTarget(
           onDragDone: _handleDrop,
           onDragEntered: (_) => setState(() => _isDragging = true),

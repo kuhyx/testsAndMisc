@@ -426,6 +426,18 @@ repos:
   #       stages: [push]
 
   # ===========================================================================
+  # POMODORO APP - Flutter analyze + test
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: pomodoro-app-flutter
+        name: pomodoro_app flutter analyze & test
+        entry: bash -c 'cd pomodoro_app && flutter pub get --enforce-lockfile && flutter analyze && flutter test'
+        language: system
+        files: ^pomodoro_app/
+        pass_filenames: false
+
+  # ===========================================================================
   # HORATIO - Dart/Flutter tests with coverage enforcement
   # ===========================================================================
   - repo: local

@@ -38,10 +38,12 @@ void main() {
     marksController = StreamController<List<TextMark>>.broadcast();
     notesController = StreamController<List<LineNote>>.broadcast();
 
-    when(() => dao.watchMarksForScript(scriptId))
-        .thenAnswer((_) => marksController.stream);
-    when(() => dao.watchNotesForScript(scriptId))
-        .thenAnswer((_) => notesController.stream);
+    when(
+      () => dao.watchMarksForScript(scriptId),
+    ).thenAnswer((_) => marksController.stream);
+    when(
+      () => dao.watchNotesForScript(scriptId),
+    ).thenAnswer((_) => notesController.stream);
   });
 
   tearDown(() {
@@ -52,6 +54,7 @@ void main() {
   setUpAll(() {
     registerFallbackValue(testMark);
     registerFallbackValue(testNote);
+    registerFallbackValue(NoteCategory.intention);
   });
 
   group('AnnotationCubit', () {
@@ -102,8 +105,8 @@ void main() {
     });
 
     test('selectLine is no-op when state is AnnotationInitial', () {
-      final cubit = AnnotationCubit(dao: dao);
-      cubit.selectLine(3); // Should not throw
+      final cubit = AnnotationCubit(dao: dao)
+        ..selectLine(3); // Should not throw
       expect(cubit.state, isA<AnnotationInitial>());
       cubit.close();
     });
@@ -133,15 +136,14 @@ void main() {
     });
 
     test('startEditing is no-op when state is AnnotationInitial', () {
-      final cubit = AnnotationCubit(dao: dao);
-      cubit.startEditing(lineIndex: 0, isAddingMark: true);
+      final cubit = AnnotationCubit(dao: dao)
+        ..startEditing(lineIndex: 0, isAddingMark: true);
       expect(cubit.state, isA<AnnotationInitial>());
       cubit.close();
     });
 
     test('cancelEditing is no-op when state is AnnotationInitial', () {
-      final cubit = AnnotationCubit(dao: dao);
-      cubit.cancelEditing();
+      final cubit = AnnotationCubit(dao: dao)..cancelEditing();
       expect(cubit.state, isA<AnnotationInitial>());
       cubit.close();
     });
@@ -220,11 +222,48 @@ void main() {
     });
 
     test('updateNote calls dao.updateNoteText', () async {
-      when(() => dao.updateNoteText('n1', 'new'))
-          .thenAnswer((_) async {});
+      when(() => dao.updateNoteText('n1', 'new')).thenAnswer((_) async {});
       final cubit = AnnotationCubit(dao: dao);
-      await cubit.updateNote('n1', 'new');
+      await cubit.updateNote('n1', text: 'new');
       verify(() => dao.updateNoteText('n1', 'new')).called(1);
+      await cubit.close();
+    });
+
+    test('updateNote calls dao.updateNoteCategory', () async {
+      when(
+        () => dao.updateNoteCategory('n1', NoteCategory.emotion),
+      ).thenAnswer((_) async {});
+      final cubit = AnnotationCubit(dao: dao);
+      await cubit.updateNote('n1', category: NoteCategory.emotion);
+      verify(
+        () => dao.updateNoteCategory('n1', NoteCategory.emotion),
+      ).called(1);
+      await cubit.close();
+    });
+
+    test('updateNote with both text and category', () async {
+      when(() => dao.updateNoteText('n1', 'new')).thenAnswer((_) async {});
+      when(
+        () => dao.updateNoteCategory('n1', NoteCategory.blocking),
+      ).thenAnswer((_) async {});
+      final cubit = AnnotationCubit(dao: dao);
+      await cubit.updateNote(
+        'n1',
+        text: 'new',
+        category: NoteCategory.blocking,
+      );
+      verify(() => dao.updateNoteText('n1', 'new')).called(1);
+      verify(
+        () => dao.updateNoteCategory('n1', NoteCategory.blocking),
+      ).called(1);
+      await cubit.close();
+    });
+
+    test('updateNote with no arguments is no-op', () async {
+      final cubit = AnnotationCubit(dao: dao);
+      await cubit.updateNote('n1');
+      verifyNever(() => dao.updateNoteText(any(), any()));
+      verifyNever(() => dao.updateNoteCategory(any(), any()));
       await cubit.close();
     });
 
@@ -236,33 +275,37 @@ void main() {
       await cubit.close();
     });
 
-    test('loadAnnotations with new scriptId cancels previous streams',
-        () async {
-      final cubit = AnnotationCubit(dao: dao)..loadAnnotations(scriptId);
-      marksController.add([testMark]);
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'loadAnnotations with new scriptId cancels previous streams',
+      () async {
+        final cubit = AnnotationCubit(dao: dao)..loadAnnotations(scriptId);
+        marksController.add([testMark]);
+        await Future<void>.delayed(Duration.zero);
 
-      final marks2 = StreamController<List<TextMark>>.broadcast();
-      final notes2 = StreamController<List<LineNote>>.broadcast();
-      when(() => dao.watchMarksForScript('script-2'))
-          .thenAnswer((_) => marks2.stream);
-      when(() => dao.watchNotesForScript('script-2'))
-          .thenAnswer((_) => notes2.stream);
+        final marks2 = StreamController<List<TextMark>>.broadcast();
+        final notes2 = StreamController<List<LineNote>>.broadcast();
+        when(
+          () => dao.watchMarksForScript('script-2'),
+        ).thenAnswer((_) => marks2.stream);
+        when(
+          () => dao.watchNotesForScript('script-2'),
+        ).thenAnswer((_) => notes2.stream);
 
-      cubit.loadAnnotations('script-2');
-      marks2.add([]);
-      notes2.add([]);
-      await Future<void>.delayed(Duration.zero);
+        cubit.loadAnnotations('script-2');
+        marks2.add([]);
+        notes2.add([]);
+        await Future<void>.delayed(Duration.zero);
 
-      final state = cubit.state;
-      expect(state, isA<AnnotationLoaded>());
-      expect((state as AnnotationLoaded).scriptId, 'script-2');
-      expect(state.marks, isEmpty);
+        final state = cubit.state;
+        expect(state, isA<AnnotationLoaded>());
+        expect((state as AnnotationLoaded).scriptId, 'script-2');
+        expect(state.marks, isEmpty);
 
-      await cubit.close();
-      await marks2.close();
-      await notes2.close();
-    });
+        await cubit.close();
+        await marks2.close();
+        await notes2.close();
+      },
+    );
 
     test('close cancels stream subscriptions', () async {
       final cubit = AnnotationCubit(dao: dao)..loadAnnotations(scriptId);
