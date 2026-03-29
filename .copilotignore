@@ -58,6 +58,8 @@
 **/*.pyc
 **/*.pyo
 **/*.class
+**/*.jar
+**/*.dex
 # Data
 **/*.apkg
 **/*.bin
@@ -83,10 +85,20 @@ node_modules/
 __pycache__/
 **/__pycache__/
 
-# Build outputs
+# Build outputs (symlinked to ../testsAndMisc_builds/)
 pomodoro_app/build/
+horatio/horatio_app/build/
 sonic_pi/build/
 CPP/mini_browser/build/
+**/build/
+
+# Dart / Flutter caches (symlinked to ../testsAndMisc_builds/)
+**/.dart_tool/
+**/ephemeral/
+
+# Packaging build artifacts
+**/packaging/**/pkg/
+**/packaging/**/src/
 
 # Generated / preview images
 **/generated_images_*/
