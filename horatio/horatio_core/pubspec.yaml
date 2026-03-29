@@ -1,0 +1,19 @@
+name: horatio_core
+description: >-
+  Core library for Horatio — script parsing, SM-2 spaced repetition,
+  and memorization planning for actors.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  collection: ^1.18.0
+  xml: ^6.5.0
+  archive: ^4.0.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
+  coverage: ^1.11.0

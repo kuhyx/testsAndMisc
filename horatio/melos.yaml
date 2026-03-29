@@ -1,0 +1,44 @@
+name: horatio
+description: Monorepo for Horatio — the actor's script memorization companion.
+
+packages:
+  - horatio_core
+  - horatio_app
+
+command:
+  bootstrap:
+    usePubspecOverrides: true
+
+scripts:
+  analyze:
+    run: dart analyze --fatal-infos
+    exec:
+      concurrency: 1
+    packageFilters:
+      scope: "*"
+
+  format:
+    run: dart format --set-exit-if-changed .
+    exec:
+      concurrency: 1
+
+  test:
+    run: dart test
+    exec:
+      concurrency: 1
+    packageFilters:
+      scope: "*"
+
+  test:coverage:
+    run: dart test --coverage=coverage
+    exec:
+      concurrency: 1
+    packageFilters:
+      scope: "*"
+
+  check:
+    description: Run all checks (format, analyze, test)
+    steps:
+      - format
+      - analyze
+      - test
