@@ -25,13 +25,14 @@ Widget _wrap(ScriptImportCubit cubit) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const HomeScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
       GoRoute(
         path: '/role-selection',
         builder: (context, state) => const Scaffold(),
+      ),
+      GoRoute(
+        path: '/demo',
+        builder: (context, state) => const Scaffold(body: Text('Demo Screen')),
       ),
     ],
   );
@@ -42,9 +43,7 @@ Widget _wrap(ScriptImportCubit cubit) {
     ],
     child: MultiRepositoryProvider(
       providers: [
-        RepositoryProvider<ScriptRepository>(
-          create: (_) => ScriptRepository(),
-        ),
+        RepositoryProvider<ScriptRepository>(create: (_) => ScriptRepository()),
       ],
       child: MaterialApp.router(routerConfig: router),
     ),
@@ -62,10 +61,12 @@ void main() {
     when(() => cubit.loadScripts()).thenReturn(null);
     when(() => cubit.importFromFile()).thenAnswer((_) async {});
     when(() => cubit.importFromAsset(any())).thenAnswer((_) async {});
-    when(() => cubit.importFromBytes(
-          bytes: any(named: 'bytes'),
-          fileName: any(named: 'fileName'),
-        )).thenAnswer((_) async {});
+    when(
+      () => cubit.importFromBytes(
+        bytes: any(named: 'bytes'),
+        fileName: any(named: 'fileName'),
+      ),
+    ).thenAnswer((_) async {});
   });
 
   tearDown(() => _textScaleCubit.close());
@@ -75,8 +76,9 @@ void main() {
   });
 
   group('HomeScreen states', () {
-    testWidgets('shows loading indicator for ScriptImportLoading',
-        (tester) async {
+    testWidgets('shows loading indicator for ScriptImportLoading', (
+      tester,
+    ) async {
       when(() => cubit.state).thenReturn(const ScriptImportLoading());
 
       await tester.pumpWidget(_wrap(cubit));
@@ -86,8 +88,9 @@ void main() {
     });
 
     testWidgets('shows error view for ScriptImportError', (tester) async {
-      when(() => cubit.state)
-          .thenReturn(const ScriptImportError(message: 'Disk full'));
+      when(
+        () => cubit.state,
+      ).thenReturn(const ScriptImportError(message: 'Disk full'));
 
       await tester.pumpWidget(_wrap(cubit));
       await tester.pump();
@@ -98,8 +101,9 @@ void main() {
     });
 
     testWidgets('Retry button calls loadScripts', (tester) async {
-      when(() => cubit.state)
-          .thenReturn(const ScriptImportError(message: 'Fail'));
+      when(
+        () => cubit.state,
+      ).thenReturn(const ScriptImportError(message: 'Fail'));
 
       await tester.pumpWidget(_wrap(cubit));
       await tester.pump();
@@ -113,8 +117,9 @@ void main() {
       verify(() => cubit.loadScripts()).called(1);
     });
 
-    testWidgets('shows script list for loaded state with scripts',
-        (tester) async {
+    testWidgets('shows script list for loaded state with scripts', (
+      tester,
+    ) async {
       const role = Role(name: 'Hero');
       const script = Script(
         id: 'home-my-play-id',
@@ -133,8 +138,9 @@ void main() {
           ),
         ],
       );
-      when(() => cubit.state)
-          .thenReturn(const ScriptImportLoaded(scripts: [script]));
+      when(
+        () => cubit.state,
+      ).thenReturn(const ScriptImportLoaded(scripts: [script]));
       when(() => cubit.removeScript(any())).thenReturn(null);
 
       await tester.pumpWidget(_wrap(cubit));
@@ -144,8 +150,9 @@ void main() {
       expect(find.text('Horatio'), findsOneWidget); // App bar.
     });
 
-    testWidgets('delete button on script card calls removeScript',
-        (tester) async {
+    testWidgets('delete button on script card calls removeScript', (
+      tester,
+    ) async {
       const role = Role(name: 'Hero');
       const script = Script(
         id: 'home-play-id',
@@ -154,18 +161,14 @@ void main() {
         scenes: [
           Scene(
             lines: [
-              ScriptLine(
-                text: 'Hi.',
-                role: role,
-                sceneIndex: 0,
-                lineIndex: 0,
-              ),
+              ScriptLine(text: 'Hi.', role: role, sceneIndex: 0, lineIndex: 0),
             ],
           ),
         ],
       );
-      when(() => cubit.state)
-          .thenReturn(const ScriptImportLoaded(scripts: [script]));
+      when(
+        () => cubit.state,
+      ).thenReturn(const ScriptImportLoaded(scripts: [script]));
       when(() => cubit.removeScript(any())).thenReturn(null);
 
       await tester.pumpWidget(_wrap(cubit));
@@ -175,6 +178,30 @@ void main() {
       await tester.pump();
 
       verify(() => cubit.removeScript(0)).called(1);
+    });
+
+    testWidgets('shows See a demo button in empty library state', (
+      tester,
+    ) async {
+      when(() => cubit.state).thenReturn(const ScriptImportInitial());
+
+      await tester.pumpWidget(_wrap(cubit));
+      await tester.pumpAndSettle();
+
+      expect(find.text('See a demo'), findsOneWidget);
+      expect(find.byIcon(Icons.play_circle_outline), findsOneWidget);
+    });
+
+    testWidgets('tapping See a demo navigates to /demo', (tester) async {
+      when(() => cubit.state).thenReturn(const ScriptImportInitial());
+
+      await tester.pumpWidget(_wrap(cubit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('See a demo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Demo Screen'), findsOneWidget);
     });
 
     testWidgets('tapping import zone calls importFromFile', (tester) async {
@@ -193,8 +220,9 @@ void main() {
       verify(() => cubit.importFromFile()).called(1);
     });
 
-    testWidgets('tapping public domain script calls importFromAsset',
-        (tester) async {
+    testWidgets('tapping public domain script calls importFromAsset', (
+      tester,
+    ) async {
       when(() => cubit.state).thenReturn(const ScriptImportInitial());
 
       await tester.pumpWidget(_wrap(cubit));
@@ -214,8 +242,9 @@ void main() {
     DropTarget findDropTarget(WidgetTester tester) =>
         tester.widget<DropTarget>(find.byType(DropTarget));
 
-    testWidgets('onDragEntered sets isDragging true in empty library',
-        (tester) async {
+    testWidgets('onDragEntered sets isDragging true in empty library', (
+      tester,
+    ) async {
       when(() => cubit.state).thenReturn(const ScriptImportInitial());
 
       await tester.pumpWidget(_wrap(cubit));
@@ -287,14 +316,17 @@ void main() {
       });
       await tester.pump();
 
-      verify(() => cubit.importFromBytes(
-            bytes: any(named: 'bytes'),
-            fileName: 'script.txt',
-          )).called(1);
+      verify(
+        () => cubit.importFromBytes(
+          bytes: any(named: 'bytes'),
+          fileName: 'script.txt',
+        ),
+      ).called(1);
     });
 
-    testWidgets('onDragDone shows snackbar for unsupported file type',
-        (tester) async {
+    testWidgets('onDragDone shows snackbar for unsupported file type', (
+      tester,
+    ) async {
       when(() => cubit.state).thenReturn(const ScriptImportInitial());
 
       await tester.pumpWidget(_wrap(cubit));
@@ -319,8 +351,9 @@ void main() {
       expect(find.text('Unsupported file type: .xyz'), findsOneWidget);
     });
 
-    testWidgets('drag overlay appears in loaded-with-scripts state',
-        (tester) async {
+    testWidgets('drag overlay appears in loaded-with-scripts state', (
+      tester,
+    ) async {
       const role = Role(name: 'Hero');
       const script = Script(
         id: 'home-drag-id',
@@ -329,18 +362,14 @@ void main() {
         scenes: [
           Scene(
             lines: [
-              ScriptLine(
-                text: 'Hi.',
-                role: role,
-                sceneIndex: 0,
-                lineIndex: 0,
-              ),
+              ScriptLine(text: 'Hi.', role: role, sceneIndex: 0, lineIndex: 0),
             ],
           ),
         ],
       );
-      when(() => cubit.state)
-          .thenReturn(const ScriptImportLoaded(scripts: [script]));
+      when(
+        () => cubit.state,
+      ).thenReturn(const ScriptImportLoaded(scripts: [script]));
       when(() => cubit.removeScript(any())).thenReturn(null);
 
       await tester.pumpWidget(_wrap(cubit));
@@ -359,8 +388,9 @@ void main() {
       expect(find.text('.txt  .docx  .pdf'), findsOneWidget);
     });
 
-    testWidgets('tapping script card navigates to role-selection',
-        (tester) async {
+    testWidgets('tapping script card navigates to role-selection', (
+      tester,
+    ) async {
       const role = Role(name: 'Hero');
       const script = Script(
         id: 'home-nav-id',
@@ -379,8 +409,9 @@ void main() {
           ),
         ],
       );
-      when(() => cubit.state)
-          .thenReturn(const ScriptImportLoaded(scripts: [script]));
+      when(
+        () => cubit.state,
+      ).thenReturn(const ScriptImportLoaded(scripts: [script]));
       when(() => cubit.removeScript(any())).thenReturn(null);
 
       await tester.pumpWidget(_wrap(cubit));
@@ -401,10 +432,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the CustomPaint that uses _DashedBorderPainter.
-      final customPaints =
-          tester.widgetList<CustomPaint>(find.byType(CustomPaint));
-      final dashedWidget =
-          customPaints.firstWhere((cp) => cp.painter != null);
+      final customPaints = tester.widgetList<CustomPaint>(
+        find.byType(CustomPaint),
+      );
+      final dashedWidget = customPaints.firstWhere((cp) => cp.painter != null);
       final painter = dashedWidget.painter!;
 
       // Same instance → all comparisons evaluate to false → every branch

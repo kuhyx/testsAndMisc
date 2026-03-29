@@ -52,135 +52,116 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Horatio'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.text_fields),
-              tooltip: 'Text Size',
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                builder: (_) => BlocProvider.value(
-                  value: context.read<TextScaleCubit>(),
-                  child: const TextScaleSettingsSheet(),
-                ),
-              ),
+    appBar: AppBar(
+      title: const Text('Horatio'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.text_fields),
+          tooltip: 'Text Size',
+          onPressed: () => showModalBottomSheet<void>(
+            context: context,
+            builder: (_) => BlocProvider.value(
+              value: context.read<TextScaleCubit>(),
+              child: const TextScaleSettingsSheet(),
             ),
-          ],
-        ),
-        body: DropTarget(
-          onDragDone: _handleDrop,
-          onDragEntered: (_) => setState(() => _isDragging = true),
-          onDragExited: (_) => setState(() => _isDragging = false),
-          child: BlocBuilder<ScriptImportCubit, ScriptImportState>(
-            builder: (context, state) => switch (state) {
-              ScriptImportLoading() => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ScriptImportError(:final message) => Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 48,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(message, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => context
-                            .read<ScriptImportCubit>()
-                            .loadScripts(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              ScriptImportLoaded(:final scripts)
-                  when scripts.isEmpty =>
-                _EmptyLibrary(isDragging: _isDragging),
-              ScriptImportLoaded(:final scripts) => Stack(
-                  children: [
-                    ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: scripts.length,
-                      itemBuilder: (context, index) => ScriptCardWidget(
-                        script: scripts[index],
-                        onTap: () => context.push(
-                          RoutePaths.roleSelection,
-                          extra: scripts[index],
-                        ),
-                        onDelete: () => context
-                            .read<ScriptImportCubit>()
-                            .removeScript(index),
-                      ),
-                    ),
-                    if (_isDragging)
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.1),
-                            border: Border.all(
-                              color:
-                                  Theme.of(context).colorScheme.primary,
-                              width: 3,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.file_download,
-                                  size: 64,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Drop script file here',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '.txt  .docx  .pdf',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.7),
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ScriptImportInitial() =>
-                _EmptyLibrary(isDragging: _isDragging),
-            },
           ),
         ),
-      );
+      ],
+    ),
+    body: DropTarget(
+      onDragDone: _handleDrop,
+      onDragEntered: (_) => setState(() => _isDragging = true),
+      onDragExited: (_) => setState(() => _isDragging = false),
+      child: BlocBuilder<ScriptImportCubit, ScriptImportState>(
+        builder: (context, state) => switch (state) {
+          ScriptImportLoading() => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          ScriptImportError(:final message) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(message, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () =>
+                      context.read<ScriptImportCubit>().loadScripts(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+          ScriptImportLoaded(:final scripts) when scripts.isEmpty =>
+            _EmptyLibrary(isDragging: _isDragging),
+          ScriptImportLoaded(:final scripts) => Stack(
+            children: [
+              ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: scripts.length,
+                itemBuilder: (context, index) => ScriptCardWidget(
+                  script: scripts[index],
+                  onTap: () => context.push(
+                    RoutePaths.roleSelection,
+                    extra: scripts[index],
+                  ),
+                  onDelete: () =>
+                      context.read<ScriptImportCubit>().removeScript(index),
+                ),
+              ),
+              if (_isDragging)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.1),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.file_download,
+                            size: 64,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Drop script file here',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '.txt  .docx  .pdf',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.7),
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          ScriptImportInitial() => _EmptyLibrary(isDragging: _isDragging),
+        },
+      ),
+    ),
+  );
 }
 
 /// Bundled public domain script metadata for the suggestion cards.
@@ -245,8 +226,7 @@ class _EmptyLibrary extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () =>
-                context.read<ScriptImportCubit>().importFromFile(),
+            onTap: () => context.read<ScriptImportCubit>().importFromFile(),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: CustomPaint(
@@ -272,23 +252,18 @@ class _EmptyLibrary extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isDragging
-                            ? Icons.file_download
-                            : Icons.upload_file,
+                        isDragging ? Icons.file_download : Icons.upload_file,
                         size: 72,
                         color: isDragging
                             ? colorScheme.primary
-                            : colorScheme.primary
-                                .withValues(alpha: 0.6),
+                            : colorScheme.primary.withValues(alpha: 0.6),
                       ),
                       const SizedBox(height: 20),
                       Text(
                         isDragging
                             ? 'Drop to import'
                             : 'Drop or click to import file',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
+                        style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               color: isDragging
                                   ? colorScheme.primary
@@ -299,12 +274,9 @@ class _EmptyLibrary extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         'Supports .txt  .docx  .pdf',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -313,11 +285,20 @@ class _EmptyLibrary extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.play_circle_outline),
+            label: const Text('See a demo'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            onPressed: () => context.push(RoutePaths.demo),
+          ),
+          const SizedBox(height: 24),
           Text(
             'or try a classic',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -332,9 +313,9 @@ class _EmptyLibrary extends StatelessWidget {
                 title: Text(entry.title),
                 subtitle: Text(entry.author),
                 trailing: const Icon(Icons.download),
-                onTap: () => context
-                    .read<ScriptImportCubit>()
-                    .importFromAsset(entry.assetPath),
+                onTap: () => context.read<ScriptImportCubit>().importFromAsset(
+                  entry.assetPath,
+                ),
               ),
             ),
           ),
@@ -379,10 +360,7 @@ class _DashedBorderPainter extends CustomPainter {
       var distance = 0.0;
       while (distance < metric.length) {
         final end = (distance + dashWidth).clamp(0.0, metric.length);
-        dashedPath.addPath(
-          metric.extractPath(distance, end),
-          Offset.zero,
-        );
+        dashedPath.addPath(metric.extractPath(distance, end), Offset.zero);
         distance += dashWidth + dashSpace;
       }
     }

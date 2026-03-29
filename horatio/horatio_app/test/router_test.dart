@@ -41,20 +41,20 @@ Widget _wrapRouter() {
     () => mockRecordingDao.watchRecordingsForScript(any()),
   ).thenAnswer((_) => Stream.value([]));
 
-  when(
-    () => mockRecordingService.hasPermission(),
-  ).thenAnswer((_) async => true);
+  when(mockRecordingService.hasPermission).thenAnswer((_) async => true);
   when(
     () => mockRecordingService.startRecording(any()),
   ).thenAnswer((_) async {});
-  when(
-    () => mockRecordingService.stopRecording(),
-  ).thenAnswer((_) async => null);
+  when(mockRecordingService.stopRecording).thenAnswer((_) async => null);
 
   when(() => mockPlaybackService.play(any())).thenAnswer((_) async {});
-  when(() => mockPlaybackService.stop()).thenAnswer((_) async {});
-  when(() => mockPlaybackService.status).thenAnswer((_) => Stream.empty());
-  when(() => mockPlaybackService.position).thenAnswer((_) => Stream.empty());
+  when(mockPlaybackService.stop).thenAnswer((_) async {});
+  when(
+    () => mockPlaybackService.status,
+  ).thenAnswer((_) => const Stream.empty());
+  when(
+    () => mockPlaybackService.position,
+  ).thenAnswer((_) => const Stream.empty());
 
   return MultiRepositoryProvider(
     providers: [
@@ -305,6 +305,36 @@ void main() {
 
       // Redirected to home.
       expect(find.text('Horatio'), findsOneWidget);
+    });
+
+    testWidgets('demo route shows DemoAnnotationEditorScreen', (tester) async {
+      // DemoAnnotationEditorScreen creates a real in-memory Drift DB.
+      // All Drift async timers (seeding, stream delivery, disposal cleanup)
+      // must fire in real time via runAsync to avoid pending fake-async timers.
+      await tester.runAsync(() async {
+        await tester.pumpWidget(_wrapRouter());
+        await tester.pump();
+
+        appRouter.go(RoutePaths.demo);
+        // Process the navigation frame.
+        await tester.pump();
+        await tester.pump();
+
+        // Wait for seeding to complete in real time.
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await tester.pump();
+        // Allow Drift initial stream deliveries.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await tester.pump();
+
+        expect(find.textContaining('Hamlet', findRichText: true), findsWidgets);
+
+        // Replace entire widget tree to force DemoAnnotationEditorScreen
+        // disposal inside runAsync so Drift's markAsClosed timers fire in
+        // real time rather than as pending fake-async timers.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      });
     });
   });
 }
