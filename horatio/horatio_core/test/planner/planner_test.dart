@@ -58,7 +58,7 @@ void main() {
         expect(
           comparator.grade(
             'To be or not to be that is the question',
-                        "To be or not to be that's the question",
+            "To be or not to be that's the question",
           ),
           LineMatchGrade.minor,
         );
