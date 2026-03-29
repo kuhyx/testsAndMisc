@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:horatio_app/screens/annotation_editor_screen.dart';
 import 'package:horatio_app/screens/annotation_history_screen.dart';
+import 'package:horatio_app/screens/demo_annotation_editor_screen.dart';
 import 'package:horatio_app/screens/home_screen.dart';
 import 'package:horatio_app/screens/import_screen.dart';
 import 'package:horatio_app/screens/rehearsal_screen.dart';
@@ -35,6 +36,9 @@ abstract final class RoutePaths {
 
   /// Annotation history.
   static const String annotationHistory = '/annotation-history';
+
+  /// Interactive demo — ephemeral in-memory Hamlet excerpt.
+  static const String demo = '/demo';
 }
 
 /// Application router configuration.
@@ -120,11 +124,13 @@ final GoRouter appRouter = GoRouter(
         return const SizedBox.shrink();
       },
     ),
+    GoRoute(
+      path: RoutePaths.demo,
+      builder: (context, state) => const DemoAnnotationEditorScreen(),
+    ),
   ],
   errorBuilder: (context, state) => Scaffold(
     appBar: AppBar(title: const Text('Not Found')),
-    body: Center(
-      child: Text('Page not found: ${state.uri}'),
-    ),
+    body: Center(child: Text('Page not found: ${state.uri}')),
   ),
 );

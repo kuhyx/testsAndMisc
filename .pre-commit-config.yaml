@@ -152,7 +152,7 @@ repos:
       - id: pylint
         args:
           - --rcfile=pyproject.toml
-          - --fail-under=5.0
+          - --fail-under=10.0
           - --jobs=0
         additional_dependencies:
           - python-chess
