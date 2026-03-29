@@ -10,8 +10,8 @@ import 'package:uuid/uuid.dart';
 class AnnotationCubit extends Cubit<AnnotationState> {
   /// Creates an [AnnotationCubit].
   AnnotationCubit({required AnnotationDao dao})
-      : _dao = dao,
-        super(const AnnotationInitial());
+    : _dao = dao,
+      super(const AnnotationInitial());
 
   final AnnotationDao _dao;
   StreamSubscription<List<TextMark>>? _marksSub;
@@ -46,14 +46,17 @@ class AnnotationCubit extends Cubit<AnnotationState> {
     List<LineNote> notes,
   ) {
     final current = state;
-    emit(AnnotationLoaded(
-      scriptId: scriptId,
-      marks: marks,
-      notes: notes,
-      selectedLineIndex:
-          current is AnnotationLoaded ? current.selectedLineIndex : null,
-      editing: current is AnnotationLoaded ? current.editing : null,
-    ));
+    emit(
+      AnnotationLoaded(
+        scriptId: scriptId,
+        marks: marks,
+        notes: notes,
+        selectedLineIndex: current is AnnotationLoaded
+            ? current.selectedLineIndex
+            : null,
+        editing: current is AnnotationLoaded ? current.editing : null,
+      ),
+    );
   }
 
   /// Focuses a line for annotation.
@@ -68,13 +71,13 @@ class AnnotationCubit extends Cubit<AnnotationState> {
   void startEditing({required int lineIndex, required bool isAddingMark}) {
     final current = state;
     if (current is AnnotationLoaded) {
-      emit(current.copyWith(
-        selectedLineIndex: () => lineIndex,
-        editing: () => EditingContext(
-          lineIndex: lineIndex,
-          isAddingMark: isAddingMark,
+      emit(
+        current.copyWith(
+          selectedLineIndex: () => lineIndex,
+          editing: () =>
+              EditingContext(lineIndex: lineIndex, isAddingMark: isAddingMark),
         ),
-      ));
+      );
     }
   }
 
@@ -127,9 +130,19 @@ class AnnotationCubit extends Cubit<AnnotationState> {
     await _dao.insertNote(scriptId, note);
   }
 
-  /// Updates a note's text.
-  Future<void> updateNote(String id, String text) =>
-      _dao.updateNoteText(id, text);
+  /// Updates a note's text and/or category.
+  Future<void> updateNote(
+    String id, {
+    String? text,
+    NoteCategory? category,
+  }) async {
+    if (text != null) {
+      await _dao.updateNoteText(id, text);
+    }
+    if (category != null) {
+      await _dao.updateNoteCategory(id, category);
+    }
+  }
 
   /// Removes a note.
   Future<void> removeNote(String id) => _dao.deleteNote(id);

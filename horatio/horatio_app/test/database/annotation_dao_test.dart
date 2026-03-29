@@ -23,29 +23,27 @@ void main() {
     int startOffset = 0,
     int endOffset = 5,
     MarkType type = MarkType.stress,
-  }) =>
-      TextMark(
-        id: id,
-        lineIndex: lineIndex,
-        startOffset: startOffset,
-        endOffset: endOffset,
-        type: type,
-        createdAt: DateTime.utc(2026, 3, 29),
-      );
+  }) => TextMark(
+    id: id,
+    lineIndex: lineIndex,
+    startOffset: startOffset,
+    endOffset: endOffset,
+    type: type,
+    createdAt: DateTime.utc(2026, 3, 29),
+  );
 
   LineNote makeNote({
     String id = 'n1',
     int lineIndex = 0,
     NoteCategory category = NoteCategory.intention,
     String text = 'test note',
-  }) =>
-      LineNote(
-        id: id,
-        lineIndex: lineIndex,
-        category: category,
-        text: text,
-        createdAt: DateTime.utc(2026, 3, 29),
-      );
+  }) => LineNote(
+    id: id,
+    lineIndex: lineIndex,
+    category: category,
+    text: text,
+    createdAt: DateTime.utc(2026, 3, 29),
+  );
 
   group('TextMark CRUD', () {
     test('insertMark and getMarksForLine', () async {
@@ -65,13 +63,7 @@ void main() {
 
     test('watchMarksForScript emits on insert', () async {
       final stream = dao.watchMarksForScript(scriptId);
-      final future = expectLater(
-        stream,
-        emitsInOrder([
-          isEmpty,
-          hasLength(1),
-        ]),
-      );
+      final future = expectLater(stream, emitsInOrder([isEmpty, hasLength(1)]));
       await Future<void>.delayed(Duration.zero);
       await dao.insertMark(scriptId, makeMark());
       await future;
@@ -101,6 +93,13 @@ void main() {
       expect(notes.first.text, 'updated text');
     });
 
+    test('updateNoteCategory modifies category', () async {
+      await dao.insertNote(scriptId, makeNote());
+      await dao.updateNoteCategory('n1', NoteCategory.emotion);
+      final notes = await dao.getNotesForLine(scriptId, 0);
+      expect(notes.first.category, NoteCategory.emotion);
+    });
+
     test('deleteNote removes note', () async {
       await dao.insertNote(scriptId, makeNote());
       await dao.deleteNote('n1');
@@ -110,10 +109,7 @@ void main() {
 
     test('watchNotesForScript emits on insert', () async {
       final stream = dao.watchNotesForScript(scriptId);
-      final future = expectLater(
-        stream,
-        emitsInOrder([isEmpty, hasLength(1)]),
-      );
+      final future = expectLater(stream, emitsInOrder([isEmpty, hasLength(1)]));
       await Future<void>.delayed(Duration.zero);
       await dao.insertNote(scriptId, makeNote());
       await future;
@@ -130,10 +126,7 @@ void main() {
         notes: [makeNote()],
       );
       final stream = dao.watchSnapshotsForScript(scriptId);
-      final future = expectLater(
-        stream,
-        emitsInOrder([isEmpty, hasLength(1)]),
-      );
+      final future = expectLater(stream, emitsInOrder([isEmpty, hasLength(1)]));
       await Future<void>.delayed(Duration.zero);
       await dao.insertSnapshot(snapshot);
       await future;
@@ -162,11 +155,7 @@ void main() {
 
     test('does not affect other scripts', () async {
       await dao.insertMark('other-script', makeMark(id: 'keep-m'));
-      await dao.replaceAllAnnotations(
-        scriptId: scriptId,
-        marks: [],
-        notes: [],
-      );
+      await dao.replaceAllAnnotations(scriptId: scriptId, marks: [], notes: []);
       final marks = await dao.getMarksForLine('other-script', 0);
       expect(marks.length, 1);
       expect(marks.first.id, 'keep-m');

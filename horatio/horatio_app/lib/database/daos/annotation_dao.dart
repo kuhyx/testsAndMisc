@@ -32,24 +32,19 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
           .map((rows) => rows.map(_rowToMark).toList());
 
   /// Gets marks for a specific line.
-  Future<List<TextMark>> getMarksForLine(
-    String scriptId,
-    int lineIndex,
-  ) async {
-    final rows = await (select(textMarksTable)
-          ..where(
-            (t) =>
-                t.scriptId.equals(scriptId) &
-                t.lineIndex.equals(lineIndex),
-          ))
-        .get();
+  Future<List<TextMark>> getMarksForLine(String scriptId, int lineIndex) async {
+    final rows =
+        await (select(textMarksTable)..where(
+              (t) =>
+                  t.scriptId.equals(scriptId) & t.lineIndex.equals(lineIndex),
+            ))
+            .get();
     return rows.map(_rowToMark).toList();
   }
 
   /// Inserts a text mark.
-  Future<void> insertMark(String scriptId, TextMark mark) => into(
-        textMarksTable,
-      ).insert(
+  Future<void> insertMark(String scriptId, TextMark mark) =>
+      into(textMarksTable).insert(
         TextMarksTableCompanion.insert(
           id: mark.id,
           scriptId: scriptId,
@@ -66,13 +61,13 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
       (delete(textMarksTable)..where((t) => t.id.equals(id))).go();
 
   TextMark _rowToMark(TextMarksTableData row) => TextMark(
-        id: row.id,
-        lineIndex: row.lineIndex,
-        startOffset: row.startOffset,
-        endOffset: row.endOffset,
-        type: MarkType.values.byName(row.markType),
-        createdAt: row.createdAt,
-      );
+    id: row.id,
+    lineIndex: row.lineIndex,
+    startOffset: row.startOffset,
+    endOffset: row.endOffset,
+    type: MarkType.values.byName(row.markType),
+    createdAt: row.createdAt,
+  );
 
   // -- LineNote CRUD --------------------------------------------------------
 
@@ -85,24 +80,19 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
           .map((rows) => rows.map(_rowToNote).toList());
 
   /// Gets notes for a specific line.
-  Future<List<LineNote>> getNotesForLine(
-    String scriptId,
-    int lineIndex,
-  ) async {
-    final rows = await (select(lineNotesTable)
-          ..where(
-            (t) =>
-                t.scriptId.equals(scriptId) &
-                t.lineIndex.equals(lineIndex),
-          ))
-        .get();
+  Future<List<LineNote>> getNotesForLine(String scriptId, int lineIndex) async {
+    final rows =
+        await (select(lineNotesTable)..where(
+              (t) =>
+                  t.scriptId.equals(scriptId) & t.lineIndex.equals(lineIndex),
+            ))
+            .get();
     return rows.map(_rowToNote).toList();
   }
 
   /// Inserts a line note.
-  Future<void> insertNote(String scriptId, LineNote note) => into(
-        lineNotesTable,
-      ).insert(
+  Future<void> insertNote(String scriptId, LineNote note) =>
+      into(lineNotesTable).insert(
         LineNotesTableCompanion.insert(
           id: note.id,
           scriptId: scriptId,
@@ -115,27 +105,32 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
 
   /// Updates the text of a note.
   Future<void> updateNoteText(String id, String text) =>
-      (update(lineNotesTable)..where((t) => t.id.equals(id)))
-          .write(LineNotesTableCompanion(noteText: Value(text)));
+      (update(lineNotesTable)..where((t) => t.id.equals(id))).write(
+        LineNotesTableCompanion(noteText: Value(text)),
+      );
+
+  /// Updates the category of a note.
+  Future<void> updateNoteCategory(String id, NoteCategory category) =>
+      (update(lineNotesTable)..where((t) => t.id.equals(id))).write(
+        LineNotesTableCompanion(category: Value(category.name)),
+      );
 
   /// Deletes a note by ID.
   Future<void> deleteNote(String id) =>
       (delete(lineNotesTable)..where((t) => t.id.equals(id))).go();
 
   LineNote _rowToNote(LineNotesTableData row) => LineNote(
-        id: row.id,
-        lineIndex: row.lineIndex,
-        category: NoteCategory.values.byName(row.category),
-        text: row.noteText,
-        createdAt: row.createdAt,
-      );
+    id: row.id,
+    lineIndex: row.lineIndex,
+    category: NoteCategory.values.byName(row.category),
+    text: row.noteText,
+    createdAt: row.createdAt,
+  );
 
   // -- Snapshot management --------------------------------------------------
 
   /// Watches all snapshots for a script, newest first.
-  Stream<List<AnnotationSnapshot>> watchSnapshotsForScript(
-    String scriptId,
-  ) =>
+  Stream<List<AnnotationSnapshot>> watchSnapshotsForScript(String scriptId) =>
       (select(annotationSnapshotsTable)
             ..where((t) => t.scriptId.equals(scriptId))
             ..orderBy([(t) => OrderingTerm.desc(t.timestamp)]))
@@ -143,9 +138,8 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
           .map((rows) => rows.map(_rowToSnapshot).toList());
 
   /// Inserts a snapshot.
-  Future<void> insertSnapshot(AnnotationSnapshot snapshot) => into(
-        annotationSnapshotsTable,
-      ).insert(
+  Future<void> insertSnapshot(AnnotationSnapshot snapshot) =>
+      into(annotationSnapshotsTable).insert(
         AnnotationSnapshotsTableCompanion.insert(
           id: snapshot.id,
           scriptId: snapshot.scriptId,
@@ -158,10 +152,10 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
       AnnotationSnapshot.fromJson(
         json.decode(row.snapshotJson) as Map<String, dynamic>,
       );
-      // Note: scriptId and timestamp exist in both the table columns (for
-      // efficient WHERE/ORDER BY filtering) AND in the JSON blob (for complete
-      // deserialization). The columns are the source of truth for queries;
-      // the JSON is the source of truth for the full snapshot data.
+  // Note: scriptId and timestamp exist in both the table columns (for
+  // efficient WHERE/ORDER BY filtering) AND in the JSON blob (for complete
+  // deserialization). The columns are the source of truth for queries;
+  // the JSON is the source of truth for the full snapshot data.
 
   // -- Bulk operations (for snapshot restore) -------------------------------
 
@@ -172,12 +166,12 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
     required List<TextMark> marks,
     required List<LineNote> notes,
   }) => transaction(() async {
-    await (delete(textMarksTable)
-          ..where((t) => t.scriptId.equals(scriptId)))
-        .go();
-    await (delete(lineNotesTable)
-          ..where((t) => t.scriptId.equals(scriptId)))
-        .go();
+    await (delete(
+      textMarksTable,
+    )..where((t) => t.scriptId.equals(scriptId))).go();
+    await (delete(
+      lineNotesTable,
+    )..where((t) => t.scriptId.equals(scriptId))).go();
     for (final mark in marks) {
       await insertMark(scriptId, mark);
     }

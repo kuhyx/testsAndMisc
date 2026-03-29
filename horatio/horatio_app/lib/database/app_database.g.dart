@@ -1210,6 +1210,476 @@ class AnnotationSnapshotsTableCompanion
   }
 }
 
+class $LineRecordingsTableTable extends LineRecordingsTable
+    with TableInfo<$LineRecordingsTableTable, LineRecordingsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LineRecordingsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scriptIdMeta = const VerificationMeta(
+    'scriptId',
+  );
+  @override
+  late final GeneratedColumn<String> scriptId = GeneratedColumn<String>(
+    'script_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lineIndexMeta = const VerificationMeta(
+    'lineIndex',
+  );
+  @override
+  late final GeneratedColumn<int> lineIndex = GeneratedColumn<int>(
+    'line_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _gradeMeta = const VerificationMeta('grade');
+  @override
+  late final GeneratedColumn<int> grade = GeneratedColumn<int>(
+    'grade',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    scriptId,
+    lineIndex,
+    filePath,
+    durationMs,
+    createdAt,
+    grade,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'line_recordings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LineRecordingsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('script_id')) {
+      context.handle(
+        _scriptIdMeta,
+        scriptId.isAcceptableOrUnknown(data['script_id']!, _scriptIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scriptIdMeta);
+    }
+    if (data.containsKey('line_index')) {
+      context.handle(
+        _lineIndexMeta,
+        lineIndex.isAcceptableOrUnknown(data['line_index']!, _lineIndexMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lineIndexMeta);
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_durationMsMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('grade')) {
+      context.handle(
+        _gradeMeta,
+        grade.isAcceptableOrUnknown(data['grade']!, _gradeMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LineRecordingsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LineRecordingsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      scriptId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}script_id'],
+      )!,
+      lineIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}line_index'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      grade: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}grade'],
+      ),
+    );
+  }
+
+  @override
+  $LineRecordingsTableTable createAlias(String alias) {
+    return $LineRecordingsTableTable(attachedDatabase, alias);
+  }
+}
+
+class LineRecordingsTableData extends DataClass
+    implements Insertable<LineRecordingsTableData> {
+  final String id;
+  final String scriptId;
+  final int lineIndex;
+  final String filePath;
+  final int durationMs;
+  final DateTime createdAt;
+  final int? grade;
+  const LineRecordingsTableData({
+    required this.id,
+    required this.scriptId,
+    required this.lineIndex,
+    required this.filePath,
+    required this.durationMs,
+    required this.createdAt,
+    this.grade,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['script_id'] = Variable<String>(scriptId);
+    map['line_index'] = Variable<int>(lineIndex);
+    map['file_path'] = Variable<String>(filePath);
+    map['duration_ms'] = Variable<int>(durationMs);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || grade != null) {
+      map['grade'] = Variable<int>(grade);
+    }
+    return map;
+  }
+
+  LineRecordingsTableCompanion toCompanion(bool nullToAbsent) {
+    return LineRecordingsTableCompanion(
+      id: Value(id),
+      scriptId: Value(scriptId),
+      lineIndex: Value(lineIndex),
+      filePath: Value(filePath),
+      durationMs: Value(durationMs),
+      createdAt: Value(createdAt),
+      grade: grade == null && nullToAbsent
+          ? const Value.absent()
+          : Value(grade),
+    );
+  }
+
+  factory LineRecordingsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LineRecordingsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      scriptId: serializer.fromJson<String>(json['scriptId']),
+      lineIndex: serializer.fromJson<int>(json['lineIndex']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      durationMs: serializer.fromJson<int>(json['durationMs']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      grade: serializer.fromJson<int?>(json['grade']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'scriptId': serializer.toJson<String>(scriptId),
+      'lineIndex': serializer.toJson<int>(lineIndex),
+      'filePath': serializer.toJson<String>(filePath),
+      'durationMs': serializer.toJson<int>(durationMs),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'grade': serializer.toJson<int?>(grade),
+    };
+  }
+
+  LineRecordingsTableData copyWith({
+    String? id,
+    String? scriptId,
+    int? lineIndex,
+    String? filePath,
+    int? durationMs,
+    DateTime? createdAt,
+    Value<int?> grade = const Value.absent(),
+  }) => LineRecordingsTableData(
+    id: id ?? this.id,
+    scriptId: scriptId ?? this.scriptId,
+    lineIndex: lineIndex ?? this.lineIndex,
+    filePath: filePath ?? this.filePath,
+    durationMs: durationMs ?? this.durationMs,
+    createdAt: createdAt ?? this.createdAt,
+    grade: grade.present ? grade.value : this.grade,
+  );
+  LineRecordingsTableData copyWithCompanion(LineRecordingsTableCompanion data) {
+    return LineRecordingsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      scriptId: data.scriptId.present ? data.scriptId.value : this.scriptId,
+      lineIndex: data.lineIndex.present ? data.lineIndex.value : this.lineIndex,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      grade: data.grade.present ? data.grade.value : this.grade,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LineRecordingsTableData(')
+          ..write('id: $id, ')
+          ..write('scriptId: $scriptId, ')
+          ..write('lineIndex: $lineIndex, ')
+          ..write('filePath: $filePath, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('grade: $grade')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    scriptId,
+    lineIndex,
+    filePath,
+    durationMs,
+    createdAt,
+    grade,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LineRecordingsTableData &&
+          other.id == this.id &&
+          other.scriptId == this.scriptId &&
+          other.lineIndex == this.lineIndex &&
+          other.filePath == this.filePath &&
+          other.durationMs == this.durationMs &&
+          other.createdAt == this.createdAt &&
+          other.grade == this.grade);
+}
+
+class LineRecordingsTableCompanion
+    extends UpdateCompanion<LineRecordingsTableData> {
+  final Value<String> id;
+  final Value<String> scriptId;
+  final Value<int> lineIndex;
+  final Value<String> filePath;
+  final Value<int> durationMs;
+  final Value<DateTime> createdAt;
+  final Value<int?> grade;
+  final Value<int> rowid;
+  const LineRecordingsTableCompanion({
+    this.id = const Value.absent(),
+    this.scriptId = const Value.absent(),
+    this.lineIndex = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.grade = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LineRecordingsTableCompanion.insert({
+    required String id,
+    required String scriptId,
+    required int lineIndex,
+    required String filePath,
+    required int durationMs,
+    required DateTime createdAt,
+    this.grade = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       scriptId = Value(scriptId),
+       lineIndex = Value(lineIndex),
+       filePath = Value(filePath),
+       durationMs = Value(durationMs),
+       createdAt = Value(createdAt);
+  static Insertable<LineRecordingsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? scriptId,
+    Expression<int>? lineIndex,
+    Expression<String>? filePath,
+    Expression<int>? durationMs,
+    Expression<DateTime>? createdAt,
+    Expression<int>? grade,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (scriptId != null) 'script_id': scriptId,
+      if (lineIndex != null) 'line_index': lineIndex,
+      if (filePath != null) 'file_path': filePath,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (createdAt != null) 'created_at': createdAt,
+      if (grade != null) 'grade': grade,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LineRecordingsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? scriptId,
+    Value<int>? lineIndex,
+    Value<String>? filePath,
+    Value<int>? durationMs,
+    Value<DateTime>? createdAt,
+    Value<int?>? grade,
+    Value<int>? rowid,
+  }) {
+    return LineRecordingsTableCompanion(
+      id: id ?? this.id,
+      scriptId: scriptId ?? this.scriptId,
+      lineIndex: lineIndex ?? this.lineIndex,
+      filePath: filePath ?? this.filePath,
+      durationMs: durationMs ?? this.durationMs,
+      createdAt: createdAt ?? this.createdAt,
+      grade: grade ?? this.grade,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (scriptId.present) {
+      map['script_id'] = Variable<String>(scriptId.value);
+    }
+    if (lineIndex.present) {
+      map['line_index'] = Variable<int>(lineIndex.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (grade.present) {
+      map['grade'] = Variable<int>(grade.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LineRecordingsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('scriptId: $scriptId, ')
+          ..write('lineIndex: $lineIndex, ')
+          ..write('filePath: $filePath, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('grade: $grade, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1217,7 +1687,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LineNotesTableTable lineNotesTable = $LineNotesTableTable(this);
   late final $AnnotationSnapshotsTableTable annotationSnapshotsTable =
       $AnnotationSnapshotsTableTable(this);
+  late final $LineRecordingsTableTable lineRecordingsTable =
+      $LineRecordingsTableTable(this);
   late final AnnotationDao annotationDao = AnnotationDao(this as AppDatabase);
+  late final RecordingDao recordingDao = RecordingDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1226,6 +1699,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     textMarksTable,
     lineNotesTable,
     annotationSnapshotsTable,
+    lineRecordingsTable,
   ];
 }
 
@@ -1902,6 +2376,262 @@ typedef $$AnnotationSnapshotsTableTableProcessedTableManager =
       AnnotationSnapshotsTableData,
       PrefetchHooks Function()
     >;
+typedef $$LineRecordingsTableTableCreateCompanionBuilder =
+    LineRecordingsTableCompanion Function({
+      required String id,
+      required String scriptId,
+      required int lineIndex,
+      required String filePath,
+      required int durationMs,
+      required DateTime createdAt,
+      Value<int?> grade,
+      Value<int> rowid,
+    });
+typedef $$LineRecordingsTableTableUpdateCompanionBuilder =
+    LineRecordingsTableCompanion Function({
+      Value<String> id,
+      Value<String> scriptId,
+      Value<int> lineIndex,
+      Value<String> filePath,
+      Value<int> durationMs,
+      Value<DateTime> createdAt,
+      Value<int?> grade,
+      Value<int> rowid,
+    });
+
+class $$LineRecordingsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $LineRecordingsTableTable> {
+  $$LineRecordingsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scriptId => $composableBuilder(
+    column: $table.scriptId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lineIndex => $composableBuilder(
+    column: $table.lineIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get grade => $composableBuilder(
+    column: $table.grade,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LineRecordingsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $LineRecordingsTableTable> {
+  $$LineRecordingsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scriptId => $composableBuilder(
+    column: $table.scriptId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lineIndex => $composableBuilder(
+    column: $table.lineIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get grade => $composableBuilder(
+    column: $table.grade,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LineRecordingsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LineRecordingsTableTable> {
+  $$LineRecordingsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get scriptId =>
+      $composableBuilder(column: $table.scriptId, builder: (column) => column);
+
+  GeneratedColumn<int> get lineIndex =>
+      $composableBuilder(column: $table.lineIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get grade =>
+      $composableBuilder(column: $table.grade, builder: (column) => column);
+}
+
+class $$LineRecordingsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LineRecordingsTableTable,
+          LineRecordingsTableData,
+          $$LineRecordingsTableTableFilterComposer,
+          $$LineRecordingsTableTableOrderingComposer,
+          $$LineRecordingsTableTableAnnotationComposer,
+          $$LineRecordingsTableTableCreateCompanionBuilder,
+          $$LineRecordingsTableTableUpdateCompanionBuilder,
+          (
+            LineRecordingsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $LineRecordingsTableTable,
+              LineRecordingsTableData
+            >,
+          ),
+          LineRecordingsTableData,
+          PrefetchHooks Function()
+        > {
+  $$LineRecordingsTableTableTableManager(
+    _$AppDatabase db,
+    $LineRecordingsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LineRecordingsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LineRecordingsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LineRecordingsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> scriptId = const Value.absent(),
+                Value<int> lineIndex = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<int> durationMs = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int?> grade = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LineRecordingsTableCompanion(
+                id: id,
+                scriptId: scriptId,
+                lineIndex: lineIndex,
+                filePath: filePath,
+                durationMs: durationMs,
+                createdAt: createdAt,
+                grade: grade,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String scriptId,
+                required int lineIndex,
+                required String filePath,
+                required int durationMs,
+                required DateTime createdAt,
+                Value<int?> grade = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LineRecordingsTableCompanion.insert(
+                id: id,
+                scriptId: scriptId,
+                lineIndex: lineIndex,
+                filePath: filePath,
+                durationMs: durationMs,
+                createdAt: createdAt,
+                grade: grade,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LineRecordingsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LineRecordingsTableTable,
+      LineRecordingsTableData,
+      $$LineRecordingsTableTableFilterComposer,
+      $$LineRecordingsTableTableOrderingComposer,
+      $$LineRecordingsTableTableAnnotationComposer,
+      $$LineRecordingsTableTableCreateCompanionBuilder,
+      $$LineRecordingsTableTableUpdateCompanionBuilder,
+      (
+        LineRecordingsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $LineRecordingsTableTable,
+          LineRecordingsTableData
+        >,
+      ),
+      LineRecordingsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1915,4 +2645,6 @@ class $AppDatabaseManager {
         _db,
         _db.annotationSnapshotsTable,
       );
+  $$LineRecordingsTableTableTableManager get lineRecordingsTable =>
+      $$LineRecordingsTableTableTableManager(_db, _db.lineRecordingsTable);
 }

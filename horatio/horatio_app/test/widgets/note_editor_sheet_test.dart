@@ -5,12 +5,16 @@ import 'package:horatio_core/horatio_core.dart';
 
 void main() {
   group('NoteEditorSheet', () {
-    testWidgets('displays all 6 NoteCategory values in dropdown',
-        (tester) async {
+    testWidgets('displays all 6 NoteCategory values in dropdown', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: NoteEditorSheet(onSave: (_, __) {}, onCancel: () {}),
+            body: NoteEditorSheet(
+              onSave: (_, __, {String? noteId}) {},
+              onCancel: () {},
+            ),
           ),
         ),
       );
@@ -36,7 +40,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: NoteEditorSheet(
-              onSave: (category, text) {
+              onSave: (category, text, {String? noteId}) {
                 savedCategory = category;
                 savedText = text;
               },
@@ -54,15 +58,16 @@ void main() {
       expect(savedText, 'My note');
     });
 
-    testWidgets('submit with empty text shows validation error',
-        (tester) async {
+    testWidgets('submit with empty text shows validation error', (
+      tester,
+    ) async {
       var saveCalled = false;
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: NoteEditorSheet(
-              onSave: (_, __) => saveCalled = true,
+              onSave: (_, __, {String? noteId}) => saveCalled = true,
               onCancel: () {},
             ),
           ),
@@ -83,7 +88,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: NoteEditorSheet(
-              onSave: (_, __) {},
+              onSave: (_, __, {String? noteId}) {},
               onCancel: () => cancelled = true,
             ),
           ),
@@ -102,7 +107,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: NoteEditorSheet(
-              onSave: (category, text) {
+              onSave: (category, text, {String? noteId}) {
                 savedCategory = category;
                 savedText = text;
               },
@@ -135,7 +140,8 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: NoteEditorSheet(
-              onSave: (category, _) => savedCategory = category,
+              onSave: (category, _, {String? noteId}) =>
+                  savedCategory = category,
               onCancel: () {},
             ),
           ),
@@ -153,6 +159,36 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(savedCategory, NoteCategory.intention);
+    });
+
+    testWidgets('submit passes noteId when provided', (tester) async {
+      NoteCategory? savedCategory;
+      String? savedText;
+      String? savedNoteId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NoteEditorSheet(
+              noteId: 'n42',
+              onSave: (category, text, {String? noteId}) {
+                savedCategory = category;
+                savedText = text;
+                savedNoteId = noteId;
+              },
+              onCancel: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextFormField), 'Edited note');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(savedCategory, NoteCategory.general);
+      expect(savedText, 'Edited note');
+      expect(savedNoteId, 'n42');
     });
   });
 }

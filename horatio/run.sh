@@ -208,7 +208,7 @@ core_test() {
     fi
     heading "Testing horatio_core (with coverage)"
     cd "$CORE_DIR"
-    dart run coverage:test_with_coverage
+    flutter test --coverage
     check_coverage "$CORE_DIR/coverage/lcov.info" "horatio_core" 100
     cache_step core_test "$h"
 }

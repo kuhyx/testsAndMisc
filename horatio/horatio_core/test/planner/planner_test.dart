@@ -3,6 +3,11 @@ import 'package:test/test.dart';
 
 void main() {
   group('LineComparator', () {
+    test('constructor creates instance at runtime', () {
+      const runtimeComparator = LineComparator();
+      expect(runtimeComparator.levenshteinDistance('x', 'x'), 0);
+    });
+
     const comparator = LineComparator();
 
     group('levenshteinDistance', () {
@@ -110,6 +115,11 @@ void main() {
   });
 
   group('MemorizationPlanner', () {
+    test('constructor creates instance at runtime', () {
+      const runtimePlanner = MemorizationPlanner();
+      expect(runtimePlanner, isA<MemorizationPlanner>());
+    });
+
     const planner = MemorizationPlanner();
 
     Script makeTestScript() {
