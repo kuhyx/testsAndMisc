@@ -269,9 +269,16 @@ app_test() {
 }
 
 app_build() {
+    local h
+    h=$(cat <(files_hash "$CORE_DIR" -name '*.dart') <(files_hash "$APP_DIR" -name '*.dart' -o -name 'pubspec.yaml' -o -name 'pubspec.lock' -o -name 'CMakeLists.txt') | sha256sum | awk '{ print $1 }')
+    if step_cached app_build "$h"; then
+        echo "  [cached] app_build — skipping"
+        return
+    fi
     heading "Building horatio_app (Linux desktop)"
     cd "$APP_DIR"
     flutter build linux --release
+    cache_step app_build "$h"
 }
 
 app_run() {
