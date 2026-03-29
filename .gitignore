@@ -392,3 +392,13 @@ cinema_plan_*.txt
 
 # Binary images moved to external storage (testsAndMisc_binaries/)
 python_pkg/praca_magisterska_video/images/
+
+# Build output symlinks (point to ../testsAndMisc_builds/)
+# Patterns without trailing / to match symlinks, not just directories
+pomodoro_app/build
+horatio/horatio_app/build
+sonic_pi/build
+CPP/mini_browser/build
+pomodoro_app/.dart_tool
+horatio/horatio_app/.dart_tool
+horatio/horatio_core/.dart_tool
