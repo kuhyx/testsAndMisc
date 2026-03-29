@@ -220,7 +220,7 @@ repos:
       - id: codespell
         args:
           - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
-          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph
+          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,bloc,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|CPP/|.*\.geojson$)
 
   # ===========================================================================
@@ -328,7 +328,7 @@ repos:
         entry: cppcheck
         language: system
         types_or: [c, c++]
-        exclude: ^pomodoro_app/
+        exclude: ^(pomodoro_app/|horatio/)
         args:
           - --enable=warning,portability
           - --force
@@ -379,7 +379,7 @@ repos:
         entry: scripts/check_c_cpp_build_files.sh
         language: script
         types_or: [c, c++]
-        exclude: ^CPP/mini_browser/
+        exclude: ^(CPP/mini_browser/|horatio/)
 
   # ===========================================================================
   # CHECK PYTHON LOCATION - All Python files must be under python_pkg/
@@ -424,3 +424,15 @@ repos:
   #     - id: commitizen
   #     - id: commitizen-branch
   #       stages: [push]
+
+  # ===========================================================================
+  # HORATIO - Dart/Flutter tests with coverage enforcement
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: horatio-tests
+        name: horatio test coverage
+        entry: bash -c 'cd horatio && bash run.sh test'
+        language: system
+        files: ^horatio/
+        pass_filenames: false
