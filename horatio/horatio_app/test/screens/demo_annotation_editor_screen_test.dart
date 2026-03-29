@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +25,9 @@ Widget _buildDemo() {
     routes: [
       GoRoute(
         path: '/demo',
-        builder: (context, state) => const DemoAnnotationEditorScreen(),
+        builder: (context, state) => DemoAnnotationEditorScreen.withSynthesiser(
+          (path, text) async {},
+        ),
       ),
       GoRoute(
         path: '/annotation-history',
@@ -147,6 +151,99 @@ void main() {
 
         expect(find.byType(NoteChip), findsWidgets);
       });
+    });
+  });
+
+  group('synthesiseDemoSpeech', () {
+    late Directory tmpDir;
+
+    setUp(() async {
+      tmpDir = await Directory.systemTemp.createTemp('horatio_tts_test_');
+    });
+
+    tearDown(() async {
+      await tmpDir.delete(recursive: true);
+    });
+
+    test('espeak-ng fallback: creates a WAV file when piper model is absent',
+        () async {
+      final path = '${tmpDir.path}/hello.wav';
+      // Pass a non-existent model path so the espeak-ng fallback is taken.
+      final result = await synthesiseDemoSpeech(
+        path,
+        'Hello world.',
+        piperModel: '${tmpDir.path}/nonexistent.onnx',
+      );
+      expect(result, path);
+      expect(File(path).existsSync(), isTrue);
+      expect(File(path).lengthSync(), greaterThan(44)); // has audio data
+    });
+
+    test('piper path: creates a WAV file using the installed model', () async {
+      final home = Platform.environment['HOME'] ?? '/root';
+      final model =
+          '$home/.local/share/horatio/piper/en_US-lessac-high.onnx';
+      if (!File(model).existsSync()) {
+        // Piper not installed \u2014 skip this path on machines without the model.
+        return;
+      }
+      final path = '${tmpDir.path}/hamlet.wav';
+      final result = await synthesiseDemoSpeech(
+        path,
+        'To be.',
+        piperModel: model,
+      );
+      expect(result, path);
+      expect(File(path).existsSync(), isTrue);
+      expect(File(path).lengthSync(), greaterThan(44));
+    });
+  });
+
+  group('synthesiseDemoSpeechCached', () {
+    late Directory tmpDir;
+
+    setUp(() async {
+      tmpDir = await Directory.systemTemp.createTemp('horatio_cache_test_');
+    });
+
+    tearDown(() async {
+      await tmpDir.delete(recursive: true);
+    });
+
+    test('synthesises when file does not exist', () async {
+      final path = '${tmpDir.path}/new.wav';
+      var called = false;
+      Future<String> fakeSynth(String p, String t) async {
+        called = true;
+        await File(p).writeAsBytes([0, 1, 2]); // write something
+        return p;
+      }
+
+      final result = await synthesiseDemoSpeechCached(
+        path,
+        'hello',
+        synth: fakeSynth,
+      );
+      expect(result, path);
+      expect(called, isTrue);
+    });
+
+    test('skips synthesis when file already exists', () async {
+      final path = '${tmpDir.path}/existing.wav';
+      await File(path).writeAsBytes([0, 1, 2]); // pre-create
+      var called = false;
+      Future<String> fakeSynth(String p, String t) async {
+        called = true;
+        return p;
+      }
+
+      final result = await synthesiseDemoSpeechCached(
+        path,
+        'hello',
+        synth: fakeSynth,
+      );
+      expect(result, path);
+      expect(called, isFalse); // synthesis was skipped
     });
   });
 }

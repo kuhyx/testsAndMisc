@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:horatio_app/bloc/recording/recording_state.dart';
 import 'package:horatio_app/bloc/text_scale/text_scale_cubit.dart';
 import 'package:horatio_app/database/daos/annotation_dao.dart';
 import 'package:horatio_app/database/daos/recording_dao.dart';
@@ -111,8 +110,8 @@ void _setUpDao() {
 
   when(() => _playbackService.play(any())).thenAnswer((_) async {});
   when(() => _playbackService.stop()).thenAnswer((_) async {});
-  when(() => _playbackService.status).thenAnswer((_) => Stream.empty());
-  when(() => _playbackService.position).thenAnswer((_) => Stream.empty());
+  when(() => _playbackService.status).thenAnswer((_) => const Stream.empty());
+  when(() => _playbackService.position).thenAnswer((_) => const Stream.empty());
 }
 
 Future<void> _initTextScale() async {
