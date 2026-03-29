@@ -182,6 +182,7 @@ void main() {
       // Emit a loaded state with a script.
       const role = Role(name: 'Actor');
       const script = Script(
+        id: 'import-test-id',
         title: 'Test',
         roles: [role],
         scenes: [

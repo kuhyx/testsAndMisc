@@ -30,6 +30,7 @@ class FakeAssetBundle extends Fake implements AssetBundle {
 }
 
 const _fallbackScript = Script(
+  id: 'fallback-id',
   title: '',
   roles: [],
   scenes: [Scene(lines: [])],

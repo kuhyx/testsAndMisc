@@ -1,6 +1,11 @@
+export 'annotation_snapshot.dart';
+export 'line_note.dart';
+export 'mark_type.dart';
+export 'note_category.dart';
 export 'role.dart';
 export 'scene.dart';
 export 'script.dart';
 export 'script_line.dart';
 export 'srs_card.dart';
 export 'stage_direction.dart';
+export 'text_mark.dart';

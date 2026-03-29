@@ -104,6 +104,7 @@ void main() {
         (tester) async {
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'home-my-play-id',
         title: 'My Play',
         roles: [role],
         scenes: [
@@ -134,6 +135,7 @@ void main() {
         (tester) async {
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'home-play-id',
         title: 'Play',
         roles: [role],
         scenes: [
@@ -308,6 +310,7 @@ void main() {
         (tester) async {
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'home-drag-id',
         title: 'Play',
         roles: [role],
         scenes: [
@@ -347,6 +350,7 @@ void main() {
         (tester) async {
       const role = Role(name: 'Hero');
       const script = Script(
+        id: 'home-nav-id',
         title: 'Navigation Play',
         roles: [role],
         scenes: [

@@ -8,6 +8,7 @@ Script _testScript() {
   const hamlet = Role(name: 'Hamlet');
   const horatio = Role(name: 'Horatio');
   return const Script(
+    id: 'role-select-test-id',
     title: 'Test Play',
     roles: [hamlet, horatio],
     scenes: [
@@ -55,6 +56,11 @@ Widget _wrapWithRouter(Script script) {
         path: '/schedule',
         builder: (context, state) =>
             const Scaffold(body: Text('Schedule')),
+      ),
+      GoRoute(
+        path: '/annotations',
+        builder: (context, state) =>
+            const Scaffold(body: Text('Annotations')),
       ),
     ],
   );
@@ -132,6 +138,7 @@ void main() {
     testWidgets('handles role with empty name', (tester) async {
       const emptyRole = Role(name: '');
       const script = Script(
+        id: 'edge-id',
         title: 'Edge',
         roles: [emptyRole],
         scenes: [
@@ -152,6 +159,35 @@ void main() {
       );
 
       expect(find.text('?'), findsOneWidget);
+    });
+
+    testWidgets('bottom sheet shows Annotate Script option', (tester) async {
+      final script = _testScript();
+      await tester.pumpWidget(_wrapWithRouter(script));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Hamlet'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Annotate Script'), findsOneWidget);
+      expect(
+        find.text('Add delivery marks and notes'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('bottom sheet Annotate Script navigates', (tester) async {
+      final script = _testScript();
+      await tester.pumpWidget(_wrapWithRouter(script));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Hamlet'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Annotate Script'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Annotations'), findsOneWidget);
     });
   });
 }

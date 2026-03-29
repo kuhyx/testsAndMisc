@@ -45,6 +45,7 @@ void main() {
         // A script where the only role's line has no preceding cue.
         const role = Role(name: 'Solo');
         const s = Script(
+          id: 'empty-id',
           title: 'Empty',
           roles: [role],
           scenes: [

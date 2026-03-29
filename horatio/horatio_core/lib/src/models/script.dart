@@ -5,10 +5,14 @@ import 'package:horatio_core/src/models/scene.dart';
 final class Script {
   /// Creates a [Script] from parsed data.
   const Script({
+    required this.id,
     required this.title,
     required this.roles,
     required this.scenes,
   });
+
+  /// Unique identifier (UUID) for this script.
+  final String id;
 
   /// The title of the script.
   final String title;

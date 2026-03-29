@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:horatio_app/screens/annotation_editor_screen.dart';
+import 'package:horatio_app/screens/annotation_history_screen.dart';
 import 'package:horatio_app/screens/home_screen.dart';
 import 'package:horatio_app/screens/import_screen.dart';
 import 'package:horatio_app/screens/rehearsal_screen.dart';
@@ -27,6 +29,12 @@ abstract final class RoutePaths {
 
   /// SRS flashcard review.
   static const String srsReview = '/srs-review';
+
+  /// Annotation editor.
+  static const String annotations = '/annotations';
+
+  /// Annotation history.
+  static const String annotationHistory = '/annotation-history';
 }
 
 /// Application router configuration.
@@ -86,6 +94,28 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         if (state.extra case final List<SrsCard> cards) {
           return SrsReviewScreen(cards: cards);
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+    GoRoute(
+      path: RoutePaths.annotations,
+      redirect: (context, state) =>
+          state.extra == null ? RoutePaths.home : null,
+      builder: (context, state) {
+        if (state.extra case final Script script) {
+          return AnnotationEditorScreen(script: script);
+        }
+        return const SizedBox.shrink();
+      },
+    ),
+    GoRoute(
+      path: RoutePaths.annotationHistory,
+      redirect: (context, state) =>
+          state.extra == null ? RoutePaths.home : null,
+      builder: (context, state) {
+        if (state.extra case final Script script) {
+          return AnnotationHistoryScreen(script: script);
         }
         return const SizedBox.shrink();
       },

@@ -27,6 +27,12 @@ HAMLET: I pray thee, do not mock me, fellow-student.
       expect(result.scenes.first.lines, hasLength(3));
     });
 
+    test('parse assigns a non-empty UUID id to the script', () {
+      final result = parser.parse(content: 'HAMLET: To be', title: 'Test');
+      expect(result.id, isNotEmpty);
+      expect(result.id, matches(RegExp(r'^[0-9a-f-]{36}$')));
+    });
+
     test('parses screenplay format with scene headings', () {
       const script = '''
 ACT I

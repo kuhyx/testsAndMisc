@@ -1,6 +1,7 @@
 import 'package:horatio_core/src/models/models.dart';
 import 'package:horatio_core/src/parser/role_detector.dart';
 import 'package:horatio_core/src/parser/script_parser.dart';
+import 'package:uuid/uuid.dart';
 
 /// Parses plain text scripts into structured [Script] objects.
 ///
@@ -154,6 +155,7 @@ final class TextParser implements ScriptParser {
     }
 
     return Script(
+      id: const Uuid().v4(),
       title: title,
       roles: List.unmodifiable(roles.values.toList()),
       scenes: List.unmodifiable(scenes),
