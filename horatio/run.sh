@@ -251,6 +251,16 @@ app_codegen() {
     heading "Running drift codegen"
     cd "$APP_DIR"
     dart run build_runner build --delete-conflicting-outputs
+
+    # Inject // coverage:ignore-file into generated .g.dart files so that
+    # flutter test --coverage excludes them automatically (VS Code reads
+    # the raw lcov.info without the awk filter in app_test).
+    local gfiles
+    gfiles=$(find "$APP_DIR/lib" -name '*.g.dart' -exec grep -L 'coverage:ignore-file' {} +) || true
+    if [[ -n "$gfiles" ]]; then
+        echo "$gfiles" | xargs sed -i '1a\// coverage:ignore-file'
+    fi
+
     cache_step app_codegen "$h"
 }
 
@@ -378,6 +388,16 @@ do_web() {
     app_web
 }
 
+do_deploy() {
+    check_deps
+    ensure_flutter
+    core_get
+    app_get
+    app_codegen
+    heading "Deploying to Android device (BL-9000)"
+    bash "$SCRIPT_DIR/deploy.sh" "$@"
+}
+
 # -- Main --------------------------------------------------------------------
 
 main() {
@@ -398,8 +418,9 @@ main() {
         full)       do_full ;;
         run)        do_run ;;
         web)        do_web ;;
+        deploy)     shift; do_deploy "$@" ;;
         *)
-            echo "Usage: $0 [-f|--force] {analyze|test|dead-code|full|run|web}"
+            echo "Usage: $0 [-f|--force] {analyze|test|dead-code|full|run|web|deploy}"
             exit 1
             ;;
     esac

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -179,12 +181,20 @@ void main() {
       expect(File(path).lengthSync(), greaterThan(44)); // has audio data
     });
 
+    test('default piperModel: uses HOME-based model path', () async {
+      final path = '${tmpDir.path}/default_model.wav';
+      final result = await synthesiseDemoSpeech(path, 'Hello.');
+      expect(result, path);
+      // Regardless of whether piper or espeak-ng runs, a file is created.
+      expect(File(path).existsSync(), isTrue);
+    });
+
     test('piper path: creates a WAV file using the installed model', () async {
       final home = Platform.environment['HOME'] ?? '/root';
       final model =
           '$home/.local/share/horatio/piper/en_US-lessac-high.onnx';
       if (!File(model).existsSync()) {
-        // Piper not installed \u2014 skip this path on machines without the model.
+        // Piper not installed — skip this path on machines without the model.
         return;
       }
       final path = '${tmpDir.path}/hamlet.wav';
@@ -196,6 +206,52 @@ void main() {
       expect(result, path);
       expect(File(path).existsSync(), isTrue);
       expect(File(path).lengthSync(), greaterThan(44));
+    });
+
+    test('mobile path: copies bundled asset to destination', () async {
+      final path =
+          '${tmpDir.path}/hamlet_line0_take1.wav';
+      final fakeWav = Uint8List.fromList([
+        // Minimal RIFF/WAVE header + 2 bytes of audio data.
+        ...utf8.encode('RIFF'),
+        50, 0, 0, 0, // chunk size
+        ...utf8.encode('WAVE'),
+        ...utf8.encode('fmt '),
+        16, 0, 0, 0, // sub-chunk size
+        1, 0, // PCM
+        1, 0, // mono
+        0x22, 0x56, 0, 0, // 22050 Hz
+        0x44, 0xAC, 0, 0, // byte rate
+        2, 0, // block align
+        16, 0, // bits per sample
+        ...utf8.encode('data'),
+        2, 0, 0, 0, // data size
+        0, 0, // audio sample
+      ]);
+      final result = await synthesiseDemoSpeech(
+        path,
+        'To be, or not to be, that is the question:',
+        isMobile: true,
+        loadAsset: (_) async =>
+            ByteData.sublistView(fakeWav),
+      );
+      expect(result, path);
+      expect(File(path).existsSync(), isTrue);
+      expect(File(path).readAsBytesSync(), fakeWav);
+    });
+
+    test('mobile path: early return for unknown text', () async {
+      final path = '${tmpDir.path}/unknown.wav';
+      final result = await synthesiseDemoSpeech(
+        path,
+        'Unknown line that is not in demoAssetMap',
+        isMobile: true,
+        loadAsset: (_) async =>
+            ByteData.sublistView(Uint8List(0)),
+      );
+      expect(result, path);
+      // File should NOT be created because the text doesn't match any asset.
+      expect(File(path).existsSync(), isFalse);
     });
   });
 
@@ -244,6 +300,25 @@ void main() {
       );
       expect(result, path);
       expect(called, isFalse); // synthesis was skipped
+    });
+  });
+
+  group('resolveDemoRecordingsDir', () {
+    test('mobile path uses provided getDocsDir', () async {
+      final fakeDir = await Directory.systemTemp.createTemp('horatio_docs_');
+      addTearDown(() => fakeDir.delete(recursive: true));
+
+      final result = await resolveDemoRecordingsDir(
+        isMobile: true,
+        getDocsDir: () async => fakeDir,
+      );
+      expect(result, '${fakeDir.path}/demo_recordings');
+    });
+
+    test('desktop path uses HOME environment variable', () async {
+      final result = await resolveDemoRecordingsDir(isMobile: false);
+      final home = Platform.environment['HOME'] ?? '/root';
+      expect(result, '$home/.local/share/horatio/demo_recordings');
     });
   });
 }

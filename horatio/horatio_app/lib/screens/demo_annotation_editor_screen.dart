@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show ByteData, rootBundle;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:horatio_app/database/app_database.dart';
 import 'package:horatio_app/database/daos/annotation_dao.dart';
@@ -10,6 +11,7 @@ import 'package:horatio_app/screens/annotation_editor_screen.dart';
 import 'package:horatio_app/services/audio_playback_service.dart';
 import 'package:horatio_app/services/recording_service.dart';
 import 'package:horatio_core/horatio_core.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -98,8 +100,7 @@ class _DemoAnnotationEditorScreenState
   late final AppDatabase _db;
   late final RecordingService _recordingService;
   late final AudioPlaybackService _playbackService;
-  final String _recordingsDir =
-      '${Platform.environment['HOME']}/.local/share/horatio/demo_recordings';
+  String _recordingsDir = '';
 
   bool _ready = false;
   bool _disposed = false;
@@ -114,6 +115,7 @@ class _DemoAnnotationEditorScreenState
   }
 
   Future<void> _seedAndMarkReady() async {
+    _recordingsDir = await resolveDemoRecordingsDir();
     await _seed(
       _db.annotationDao,
       _db.recordingDao,
@@ -151,11 +153,51 @@ class _DemoAnnotationEditorScreenState
   }
 }
 
+/// Resolves the demo recordings directory, using path_provider on mobile.
+@visibleForTesting
+Future<String> resolveDemoRecordingsDir({
+  bool? isMobile,
+  Future<Directory> Function()? getDocsDir,
+}) async {
+  if (isMobile ?? (Platform.isAndroid || Platform.isIOS)) {
+    final dir = await (getDocsDir ?? getApplicationDocumentsDirectory)();
+    return '${dir.path}/demo_recordings';
+  }
+  return '${Platform.environment['HOME']}/.local/share/horatio/demo_recordings';
+}
+
+/// Map from WAV filename to the demo line text it represents.
+///
+/// Used on Android/iOS to look up the correct bundled asset for a given
+/// line of text, and on desktop to decide whether to synthesise or copy.
+@visibleForTesting
+const demoAssetMap = <String, String>{
+  'hamlet_line0_take1.wav': 'To be, or not to be, that is the question:',
+  'hamlet_line0_take2.wav': 'To be, or not to be, that is the question:',
+  'hamlet_line0_take3.wav': 'To be, or not to be, that is the question:',
+  'hamlet_line1_take1.wav': "Whether 'tis nobler in the mind to suffer",
+};
+
+/// Reverse lookup: text → list of bundled asset filenames.
+Map<String, List<String>> _textToAssets() {
+  final map = <String, List<String>>{};
+  for (final entry in demoAssetMap.entries) {
+    map.putIfAbsent(entry.value, () => []).add(entry.key);
+  }
+  return map;
+}
+
+/// Counter used to pick the next bundled asset for a given line of text.
+int _assetCounter = 0;
+
 /// Synthesises [text] to a WAV file at [path] and returns [path].
 ///
-/// Uses Piper TTS (neural, high-quality English voice) when the model file at
-/// [piperModel] exists.  Falls back to `espeak-ng` otherwise (always available
-/// on the dev machine).
+/// On Android/iOS, copies a pre-generated WAV from the bundled Flutter assets
+/// so the demo works reliably regardless of TTS engine availability.
+///
+/// On desktop, uses Piper TTS (neural, high-quality English voice) when the
+/// model file at [piperModel] exists.  Falls back to `espeak-ng` otherwise
+/// (always available on the dev machine).
 ///
 /// Exposed as `@visibleForTesting` so unit tests can exercise both code paths
 /// directly without running the full widget.
@@ -164,7 +206,14 @@ Future<String> synthesiseDemoSpeech(
   String path,
   String text, {
   String? piperModel,
+  bool? isMobile,
+  Future<ByteData> Function(String key)? loadAsset,
 }) async {
+  final effectiveLoadAsset = loadAsset ?? rootBundle.load;
+  if (isMobile ?? (Platform.isAndroid || Platform.isIOS)) {
+    await _copyBundledAsset(path, text, loadAsset: effectiveLoadAsset);
+    return path;
+  }
   final model =
       piperModel ??
           '${Platform.environment['HOME']}/.local/share/horatio/piper/en_US-lessac-high.onnx';
@@ -180,6 +229,21 @@ Future<String> synthesiseDemoSpeech(
     await Process.run('espeak-ng', ['--punct', '-w', path, text]);
   }
   return path;
+}
+
+/// Copies a pre-generated WAV from Flutter assets to [path].
+Future<void> _copyBundledAsset(
+  String path,
+  String text, {
+  required Future<ByteData> Function(String key) loadAsset,
+}) async {
+  final assets = _textToAssets()[text];
+  if (assets == null || assets.isEmpty) return;
+  final asset = assets[_assetCounter++ % assets.length];
+  final data = await loadAsset('assets/demo_recordings/$asset');
+  await File(path).writeAsBytes(
+    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+  );
 }
 
 /// Synthesises [text] to a WAV file at [path], skipping synthesis if the

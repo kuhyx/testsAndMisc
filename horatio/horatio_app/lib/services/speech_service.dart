@@ -44,6 +44,7 @@ class SpeechService {
   final Future<Directory> Function() _tempDirProvider;
   bool _initialised = false;
   bool _usesWhisper = false;
+  String _whisperCommand = 'whisper';
 
   /// Whether speech recognition is available on this device.
   bool get isAvailable => _initialised;
@@ -72,16 +73,41 @@ class SpeechService {
   }
 
   Future<bool> _initLinux() async {
-    // Check that whisper CLI is available.
+    // Check that whisper CLI is available via PATH.
     try {
       final result = await _processRunner('which', ['whisper']);
-      if (result.exitCode != 0) return false;
+      if (result.exitCode == 0) {
+        _whisperCommand = (result.stdout as String).trim();
+        _usesWhisper = true;
+        return true;
+      }
     } on ProcessException {
+      // Process system itself is broken — no point trying fallback paths
+      // because _processRunner won't be able to run whisper either.
       return false;
     }
 
-    _usesWhisper = true;
-    return true;
+    // Fallback: check common pipx / system installation paths by running
+    // them directly. VS Code and other GUI launchers may not include
+    // ~/.local/bin in PATH.
+    final home = Platform.environment['HOME'] ?? '';
+    for (final candidate in [
+      '$home/.local/bin/whisper',
+      '/usr/local/bin/whisper',
+    ]) {
+      try {
+        final r = await _processRunner(candidate, ['--help']);
+        if (r.exitCode == 0) {
+          _whisperCommand = candidate;
+          _usesWhisper = true;
+          return true;
+        }
+      } on ProcessException {
+        continue;
+      }
+    }
+
+    return false;
   }
 
   /// Starts listening. Calls [onResult] with partial/final transcriptions.
@@ -129,7 +155,7 @@ class SpeechService {
 
     try {
       final result = await _processRunner(
-        'whisper',
+        _whisperCommand,
         [path, '--model', 'base', '--output_format', 'txt', '--language', 'en'],
       );
       if (result.exitCode != 0) return '';
