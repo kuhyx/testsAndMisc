@@ -122,6 +122,59 @@ void main() {
     expect(result, isFalse);
   });
 
+  // -- _initLinux fallback path ----------------------------------------------
+
+  test('initialise finds whisper via fallback path when which fails',
+      () async {
+    // Simulate `which whisper` returning non-zero (not in PATH) while the
+    // binary still exists at a fallback location.
+    final service = SpeechService(
+      processRunner: (exe, args) async {
+        if (exe == 'which') {
+          return ProcessResult(0, 1, '', 'not found');
+        }
+        // Fallback candidate runs successfully.
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+    final result = await service.initialise();
+    expect(result, isTrue);
+    expect(service.usesWhisper, isTrue);
+  });
+
+  test('initialise returns false when which and all fallback candidates fail',
+      () async {
+    final service = SpeechService(
+      processRunner: (exe, args) async {
+        if (exe == 'which') {
+          return ProcessResult(0, 1, '', 'not found');
+        }
+        // All fallback candidates fail.
+        return ProcessResult(0, 127, '', 'not found');
+      },
+    );
+    final result = await service.initialise();
+    expect(result, isFalse);
+    expect(service.usesWhisper, isFalse);
+  });
+
+  test('initialise returns false when fallback candidates throw', () async {
+    var whichCalled = false;
+    final service = SpeechService(
+      processRunner: (exe, args) async {
+        if (exe == 'which') {
+          whichCalled = true;
+          return ProcessResult(0, 1, '', 'not found');
+        }
+        // Fallback candidates throw ProcessException.
+        throw ProcessException(exe, args);
+      },
+    );
+    final result = await service.initialise();
+    expect(whichCalled, isTrue);
+    expect(result, isFalse);
+  });
+
   // -- startListening branches -----------------------------------------------
 
   group('startListening', () {

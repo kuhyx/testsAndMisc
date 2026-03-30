@@ -220,6 +220,7 @@ addopts = [
     "--cov=python_pkg",
     "--cov-branch",
     "--cov-report=term-missing",
+    "--cov-report=lcov",
 ]
 filterwarnings = [
     "error",

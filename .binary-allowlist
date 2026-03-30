@@ -10,3 +10,6 @@ pomodoro_app/packaging/arch/*.svg
 
 # Battery status favicon
 TS/battery-status/public/favicon.svg
+
+# Horatio demo recordings (symlinks to ../testsAndMisc_binaries/)
+horatio/horatio_app/assets/demo_recordings/*.wav

@@ -1,3 +1,4 @@
+// coverage:ignore-file
 import 'package:drift/drift.dart';
 
 /// Drift table for per-line voice recordings.

@@ -110,6 +110,7 @@ Thumbs.db
 !pomodoro_app/android/app/src/main/res/mipmap-*/ic_launcher.png
 !pomodoro_app/packaging/arch/pomodoro-app.svg
 !TS/battery-status/public/favicon.svg
+!horatio/horatio_app/assets/demo_recordings/*.wav
 
 # ===========================================================================
 
@@ -159,6 +160,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage.lcov
 *.cover
 *.py.cover
 .hypothesis/
