@@ -66,7 +66,8 @@ fi
 
 INPUT_GIF="$1"
 OUTPUT_GIF="${2:-}"
-BACKGROUND="${3:-${DEFAULT_BG}}"
+BACKGROUND="${3:-${DEFAULT_BG}}"  # Reserved for future padding mode
+export BACKGROUND
 
 # Validate input file exists
 if [[ ! -f ${INPUT_GIF} ]]; then

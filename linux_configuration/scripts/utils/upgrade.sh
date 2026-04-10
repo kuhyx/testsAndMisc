@@ -13,7 +13,6 @@ log() { printf '[upgrade] %s\n' "$*"; }
 # =====================================================================
 fix_duplicate_chrome_edge_repo() {
 	local edge="/etc/apt/sources.list.d/microsoft-edge.list"
-	local chrome="/etc/apt/sources.list.d/google-chrome.list"
 
 	if [[ ! -f $edge ]]; then
 		return
@@ -57,7 +56,6 @@ fix_wine_legacy_key() {
 	local legacy_keyring="/etc/apt/trusted.gpg"
 	local wine_key_id="D43F640145369C51D786DDEA76F1A20FF987672F"
 	local modern_keyring="/usr/share/keyrings/winehq-archive.gpg"
-	local wine_source="/etc/apt/sources.list.d/winehq-focal.list"
 
 	# Check if wine key is in the legacy keyring
 	if ! gpg --no-default-keyring --keyring "$legacy_keyring" --list-keys "$wine_key_id" >/dev/null 2>&1; then

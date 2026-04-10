@@ -102,6 +102,9 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 # Compiled
+*.o
+*.so
+*.a
 *.exe
 *.dll
 *.dylib
@@ -110,7 +113,16 @@ Thumbs.db
 !pomodoro_app/android/app/src/main/res/mipmap-*/ic_launcher.png
 !pomodoro_app/packaging/arch/pomodoro-app.svg
 !TS/battery-status/public/favicon.svg
-!horatio/horatio_app/assets/demo_recordings/*.wav
+
+# Binary asset symlinks (point to ../testsAndMisc_binaries/)
+pomodoro_app/assets/sounds/long_break_done.wav
+pomodoro_app/assets/sounds/long_break_start.wav
+pomodoro_app/assets/sounds/short_break_done.wav
+pomodoro_app/assets/sounds/work_done.wav
+horatio/horatio_app/assets/demo_recordings/hamlet_line0_take1.wav
+horatio/horatio_app/assets/demo_recordings/hamlet_line0_take2.wav
+horatio/horatio_app/assets/demo_recordings/hamlet_line0_take3.wav
+horatio/horatio_app/assets/demo_recordings/hamlet_line1_take1.wav
 
 # ===========================================================================
 
