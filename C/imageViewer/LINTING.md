@@ -5,26 +5,31 @@ This directory contains a comprehensive linting setup for the imageViewer C proj
 ## Tools Included
 
 ### 1. **clang-tidy** - Static Analysis
+
 - Configuration: `.clang-tidy`
 - Checks for bugs, performance issues, and style violations
 - Enforces modern C coding standards
 
-### 2. **clang-format** - Code Formatting  
+### 2. **clang-format** - Code Formatting
+
 - Configuration: `.clang-format`
 - Automatically formats code to consistent style
 - 100-character line limit, 4-space indentation
 
 ### 3. **cppcheck** - Additional Static Analysis
+
 - Detects memory leaks, null pointer dereferences
 - Checks for undefined behavior
 
 ### 4. **gcc with warnings** - Compiler Analysis
+
 - Comprehensive warning flags
 - Standards compliance checking
 
 ## Usage
 
 ### Quick Start
+
 ```bash
 # Install dependencies (Arch Linux)
 make deps-arch
@@ -43,6 +48,7 @@ make memcheck
 ```
 
 ### Individual Commands
+
 ```bash
 # Manual linting
 ./lint.sh
@@ -60,12 +66,14 @@ cppcheck --enable=all main.c
 ## VS Code Integration
 
 The `.vscode/settings.json` file provides:
+
 - Automatic formatting on save
 - C99 standard compliance
 - IntelliSense configuration for SDL2
 - Integrated linting with clang-tidy and cppcheck
 
 ## Recommended Extensions for VS Code
+
 - C/C++ (Microsoft)
 - clang-tidy (mine-cetinkaya-fianso)
 - cppcheck (unixwrapped)
@@ -73,16 +81,18 @@ The `.vscode/settings.json` file provides:
 ## Linting Rules
 
 ### Enabled Checks
-- **clang-diagnostic-***: Compiler diagnostics
-- **clang-analyzer-***: Static analysis
-- **bugprone-***: Bug-prone patterns
-- **cert-***: CERT secure coding standards
-- **misc-***: Miscellaneous checks
-- **performance-***: Performance improvements
-- **portability-***: Cross-platform issues
-- **readability-***: Code readability
+
+- **clang-diagnostic-\***: Compiler diagnostics
+- **clang-analyzer-\***: Static analysis
+- **bugprone-\***: Bug-prone patterns
+- **cert-\***: CERT secure coding standards
+- **misc-\***: Miscellaneous checks
+- **performance-\***: Performance improvements
+- **portability-\***: Cross-platform issues
+- **readability-\***: Code readability
 
 ### Disabled Checks
+
 - `readability-magic-numbers`: Allows constants like window dimensions
 - `cert-err33-c`: Allows ignoring some function return values
 - `misc-unused-parameters`: Common in callback functions
@@ -107,16 +117,19 @@ The `.vscode/settings.json` file provides:
 ## Installation on Different Systems
 
 ### Arch Linux
+
 ```bash
 sudo pacman -S clang cppcheck valgrind
 ```
 
 ### Ubuntu/Debian
+
 ```bash
 sudo apt install clang-tidy cppcheck clang-format valgrind
 ```
 
 ### Fedora/RHEL
+
 ```bash
 sudo dnf install clang-tools-extra cppcheck clang valgrind
 ```

@@ -1,9 +1,10 @@
 # ==============================================================================
 # Pre-commit Configuration - Multi-language Linting & Formatting
 # ==============================================================================
-# Install: pre-commit install
-# Run all: pre-commit run --all-files
-# Update hooks: pre-commit autoupdate
+# Install:       pre-commit install && pre-commit install --hook-type pre-push
+# Fast lint:     pre-commit run --all-files            (linters only, ~10 s)
+# Full suite:    pre-commit run --all-files --hook-stage pre-push  (+ tests)
+# Update hooks:  pre-commit autoupdate
 # ==============================================================================
 
 # Global settings
@@ -101,12 +102,13 @@ repos:
         types_or: [python, pyi]
 
   # ===========================================================================
-  # MYPY - Static type checking (minimal for scripts repository)
+  # MYPY - Static type checking (runs on push only for speed)
   # ===========================================================================
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
+        stages: [pre-push]
         args:
           - --ignore-missing-imports
           - --no-error-summary
@@ -144,12 +146,13 @@ repos:
           - types-python-dateutil
 
   # ===========================================================================
-  # PYLINT - Comprehensive Python linter
+  # PYLINT - Comprehensive Python linter (runs on push only for speed)
   # ===========================================================================
   - repo: https://github.com/pylint-dev/pylint
     rev: v3.3.2
     hooks:
       - id: pylint
+        stages: [pre-push]
         args:
           - --rcfile=pyproject.toml
           - --fail-under=8.0
@@ -162,12 +165,13 @@ repos:
         exclude: ^(Bash/|\.venv/)
 
   # ===========================================================================
-  # BANDIT - Security linter (relaxed for scripts)
+  # BANDIT - Security linter (runs on push only for speed)
   # ===========================================================================
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10
     hooks:
       - id: bandit
+        stages: [pre-push]
         args:
           - -c
           - pyproject.toml
@@ -180,6 +184,7 @@ repos:
   # ===========================================================================
   # PYTEST + COVERAGE - Run tests and enforce 100% code coverage
   # Only tests for subpackages with changed files are run (see script).
+  # Runs on push only (slow); use --hook-stage pre-push to run manually.
   # ===========================================================================
   - repo: local
     hooks:
@@ -189,6 +194,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
+        stages: [pre-push]
 
   # ===========================================================================
   # VULTURE - Dead code detection (disabled - doesn't work well with pre-commit)
@@ -259,17 +265,18 @@ repos:
 
   # ===========================================================================
   # AUTOFLAKE - Remove unused imports/variables
+  # Disabled: fully redundant with ruff (F401, F841, F811) + --fix
   # ===========================================================================
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v2.3.1
-    hooks:
-      - id: autoflake
-        args:
-          - --in-place
-          - --remove-all-unused-imports
-          - --remove-unused-variables
-          - --remove-duplicate-keys
-          - --expand-star-imports
+  # - repo: https://github.com/PyCQA/autoflake
+  #   rev: v2.3.1
+  #   hooks:
+  #     - id: autoflake
+  #       args:
+  #         - --in-place
+  #         - --remove-all-unused-imports
+  #         - --remove-unused-variables
+  #         - --remove-duplicate-keys
+  #         - --expand-star-imports
 
   # ===========================================================================
   # SAFETY - Check for security vulnerabilities in dependencies
@@ -291,7 +298,7 @@ repos:
   #     - id: pyright
 
   # ===========================================================================
-  # CHECK JSON/YAML/TOML formatting
+  # CHECK JSON/YAML/TOML formatting (runs on push only — slow Node.js startup)
   # ===========================================================================
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
@@ -299,15 +306,19 @@ repos:
       - id: prettier
         types_or: [yaml, json, markdown]
         exclude: ^(Bash/|\.venv/|.*\.lock$|C/compile_commands\.json)
+        stages: [pre-push]
 
   # ===========================================================================
   # SHELLCHECK - Shell script linting
+  # Wrapper batches files to avoid OOM on large repos.
   # ===========================================================================
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+  - repo: local
     hooks:
       - id: shellcheck
-        args: [--severity=warning]
+        name: shellcheck
+        entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 40 shellcheck --severity=warning' --
+        language: system
+        types: [shell]
         exclude: ^pomodoro_app/
 
   # ===========================================================================
@@ -427,7 +438,7 @@ repos:
   #       stages: [push]
 
   # ===========================================================================
-  # POMODORO APP - Flutter analyze + test
+  # POMODORO APP - Flutter analyze + test (push only)
   # ===========================================================================
   - repo: local
     hooks:
@@ -437,9 +448,10 @@ repos:
         language: system
         files: ^pomodoro_app/
         pass_filenames: false
+        stages: [pre-push]
 
   # ===========================================================================
-  # HORATIO - Dart/Flutter tests with coverage enforcement
+  # HORATIO - Dart/Flutter tests with coverage enforcement (push only)
   # ===========================================================================
   - repo: local
     hooks:
@@ -448,4 +460,5 @@ repos:
         entry: bash -c 'cd horatio && bash run.sh test'
         language: system
         files: ^horatio/
+        stages: [pre-push]
         pass_filenames: false

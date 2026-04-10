@@ -325,3 +325,25 @@ class TestArgosImportReload:
             importlib.reload(_helpers)
         # Restore original module state
         importlib.reload(_helpers)
+
+
+class TestTorchImportReload:
+    """Test import-time torch ImportError branch via reload."""
+
+    def test_torch_import_failure_reload(self) -> None:
+        """Cover lines 19-20 (except ImportError: torch = None) via reload."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def _block_torch(name: str, *args: object, **kwargs: object) -> object:
+            if name == "torch":
+                msg = "mocked torch unavailable"
+                raise ImportError(msg)
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", side_effect=_block_torch):
+            importlib.reload(_helpers)
+        assert _helpers.torch is None
+        # Restore original module state
+        importlib.reload(_helpers)

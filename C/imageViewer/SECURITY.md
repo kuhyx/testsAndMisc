@@ -7,6 +7,7 @@ The imageviewer project uses secure coding practices with proper bounds checking
 ### Why These Warnings Appear
 
 The static analyzer flags standard C library functions like:
+
 - `memcpy()` - suggests using `memcpy_s()`
 - `snprintf()` - suggests using `snprintf_s()`
 - `strncpy()` - suggests using `strncpy_s()`
@@ -34,9 +35,10 @@ if (ret < 0 || ret >= sizeof(full_path)) {
 }
 ```
 
-### Microsoft-Specific _s Functions
+### Microsoft-Specific \_s Functions
 
 The suggested `_s` functions (like `memcpy_s`, `snprintf_s`) are:
+
 - Microsoft-specific extensions
 - Not part of standard C
 - Not portable to Linux/Unix systems
@@ -47,6 +49,7 @@ The suggested `_s` functions (like `memcpy_s`, `snprintf_s`) are:
 **Status**: ✅ **SECURE**
 
 The current implementation is secure because:
+
 - All buffer operations are bounds-checked
 - No user input is directly copied without validation
 - File paths are validated for maximum length
@@ -63,6 +66,7 @@ For development, these specific warnings can be suppressed since the code has be
 ```
 
 Or use NOLINT comments for specific lines:
+
 ```c
 memcpy(dest, src, len); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 ```
@@ -70,6 +74,7 @@ memcpy(dest, src, len); // NOLINT(clang-analyzer-security.insecureAPI.Deprecated
 ### Verification
 
 To verify security:
+
 1. ✅ All string operations use explicit length checking
 2. ✅ Buffer overflow conditions are detected and handled
 3. ✅ No direct user input to buffer operations

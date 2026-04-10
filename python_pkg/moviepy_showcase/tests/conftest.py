@@ -6,6 +6,7 @@ so source modules can be imported without moviepy installed.
 
 from __future__ import annotations
 
+import importlib
 import sys
 from typing import Any
 from unittest.mock import MagicMock
@@ -70,25 +71,38 @@ _clip_classes = [
     "AudioArrayClip",
     "CompositeAudioClip",
 ]
-for _cls in _clip_classes:
-    getattr(mock_moviepy, _cls).side_effect = lambda *_a, **_kw: create_mock_clip()
 
-mock_moviepy.concatenate_videoclips.side_effect = lambda *_a, **_kw: create_mock_clip()
-mock_moviepy.concatenate_audioclips.side_effect = lambda *_a, **_kw: create_mock_clip()
-mock_moviepy.video.compositing.CompositeVideoClip.clips_array.side_effect = (
-    lambda *_a, **_kw: create_mock_clip()
-)
+_drawing_shape = (_H, _W)
 
-# Drawing tools must return real numpy arrays (used in numpy ops)
-mock_moviepy.video.tools.drawing.circle.return_value = np.zeros(
-    (_H, _W), dtype=np.float64
-)
-mock_moviepy.video.tools.drawing.color_gradient.return_value = np.zeros(
-    (_H, _W), dtype=np.float64
-)
-mock_moviepy.video.tools.drawing.color_split.return_value = np.zeros(
-    (_H, _W), dtype=np.float64
-)
+
+def _reset_side_effects() -> None:
+    """(Re)apply side_effect / return_value on the shared mock_moviepy."""
+    for cls_name in _clip_classes:
+        getattr(mock_moviepy, cls_name).side_effect = lambda *_a, **_kw: (
+            create_mock_clip()
+        )
+    mock_moviepy.concatenate_videoclips.side_effect = lambda *_a, **_kw: (
+        create_mock_clip()
+    )
+    mock_moviepy.concatenate_audioclips.side_effect = lambda *_a, **_kw: (
+        create_mock_clip()
+    )
+    mock_moviepy.video.compositing.CompositeVideoClip.clips_array.side_effect = (
+        lambda *_a, **_kw: create_mock_clip()
+    )
+    # Drawing tools must return real numpy arrays (used in numpy ops)
+    mock_moviepy.video.tools.drawing.circle.return_value = np.zeros(
+        _drawing_shape, dtype=np.float64
+    )
+    mock_moviepy.video.tools.drawing.color_gradient.return_value = np.zeros(
+        _drawing_shape, dtype=np.float64
+    )
+    mock_moviepy.video.tools.drawing.color_split.return_value = np.zeros(
+        _drawing_shape, dtype=np.float64
+    )
+
+
+_reset_side_effects()
 
 # ── Install into sys.modules ─────────────────────────────────────
 _module_paths = [
@@ -117,7 +131,21 @@ def _install_moviepy_mocks() -> None:
 _install_moviepy_mocks()
 
 
+_source_modules = [
+    "python_pkg.moviepy_showcase.moviepy_showcase",
+    "python_pkg.moviepy_showcase._moviepy_clip_types",
+    "python_pkg.moviepy_showcase._moviepy_video_effects",
+    "python_pkg.moviepy_showcase._moviepy_audio_output",
+]
+
+
 @pytest.fixture(autouse=True)
 def _reinstall_moviepy_mocks() -> None:
     """Ensure our moviepy mocks are active even if another conftest overwrote."""
     _install_moviepy_mocks()
+    _reset_side_effects()
+    # Re-bind cached ``from moviepy import X`` references in source modules
+    # that may point to stale MagicMock children from a prior sys.modules entry.
+    for mod_name in _source_modules:
+        if mod_name in sys.modules:
+            importlib.reload(sys.modules[mod_name])

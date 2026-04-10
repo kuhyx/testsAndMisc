@@ -59,6 +59,8 @@ is_allowed() {
 
 found=0
 for file in "$@"; do
+    # Skip files not tracked by git (deleted from index or untracked)
+    git ls-files --error-unmatch "$file" >/dev/null 2>&1 || continue
     # Check if the file matches a blocked extension
     if echo "$file" | grep -qiE "$pattern"; then
         if is_allowed "$file"; then

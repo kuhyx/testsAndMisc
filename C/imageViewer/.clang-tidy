@@ -16,7 +16,7 @@ Checks: >
   -readability-isolate-declaration,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 
-WarningsAsErrors: ''
+WarningsAsErrors: ""
 HeaderFilterRegex: '.*\.h$'
 AnalyzeTemporaryDtors: false
 FormatStyle: file
