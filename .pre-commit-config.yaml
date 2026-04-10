@@ -155,6 +155,7 @@ repos:
           - --fail-under=8.0
           - --jobs=0
         additional_dependencies:
+          - pytest
           - python-chess
           - requests
           - pygame

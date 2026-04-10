@@ -180,18 +180,31 @@ enable = "all"
 disable = []
 
 [tool.pylint.design]
-# A class with just run() as public API is valid for games/apps
-min-public-methods = 1
-# Enforce maximum file length of 500 lines
-max-module-lines = 500
+# Mixins and single-entry-point classes may have zero public methods
+min-public-methods = 0
+# Test modules can be large
+max-module-lines = 1000
+# UI/mixin classes accumulate attributes across multiple mixins
+max-attributes = 10
 
 [tool.pylint.spelling]
 # No spelling dictionary to avoid false positives
 spelling-dict = ""
 
 [tool.pylint.typecheck]
-# cv2 (OpenCV) dynamically loads members from C extension at runtime
-generated-members = ["cv2.*"]
+# cv2 (OpenCV) dynamically loads members from C extension at runtime.
+# unittest.mock.MagicMock generates assertion/introspection methods at runtime.
+generated-members = [
+    "cv2.*",
+    ".*\\.assert_called_once_with",
+    ".*\\.assert_called_once",
+    ".*\\.assert_called",
+    ".*\\.assert_not_called",
+    ".*\\.assert_any_call",
+    ".*\\.call_args",
+    ".*\\.call_args_list",
+    ".*\\.call_count",
+]
 
 # ============================================================================
 # BANDIT - Security linter
