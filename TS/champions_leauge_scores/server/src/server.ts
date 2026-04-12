@@ -5,8 +5,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const PORT = Number(process.env.PORT || 8787);
-const API_BASE = 'https://api.football-data.org/v4';
+export const API_BASE = 'https://api.football-data.org/v4';
 const API_TOKEN = process.env.FOOTBALL_DATA_API_KEY;
 
 if (!API_TOKEN) {
@@ -29,7 +28,6 @@ app.use((req, res, next) => {
   const start = process.hrtime.bigint();
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const MAX_LOG_BODY = 2000; // chars
-  const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
 
   // Attach id so downstream handlers could use it if needed
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,18 +39,18 @@ app.use((req, res, next) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (res as any).json = (body: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    try { (res as any).locals.bodyForLog = body; } catch { /* ignore */ }
+    (res as any).locals.bodyForLog = body;
     return originalJson(body);
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (res as any).send = (body: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    try { (res as any).locals.bodyForLog = body; } catch { /* ignore */ }
+    (res as any).locals.bodyForLog = body;
     return originalSend(body);
   };
 
 
-  console.log(`[#${id}] -> ${req.method} ${req.originalUrl}` + (Object.keys(req.query || {}).length ? ` query=${JSON.stringify(req.query)}` : ''));
+  console.log(`[#${id}] -> ${req.method} ${req.originalUrl}` + (Object.keys(req.query).length ? ` query=${JSON.stringify(req.query)}` : ''));
 
   res.on('finish', () => {
     const durMs = Number(process.hrtime.bigint() - start) / 1_000_000;
@@ -62,7 +60,7 @@ app.use((req, res, next) => {
       const body = (res as any).locals?.bodyForLog;
       if (body !== undefined) {
         const str = typeof body === 'string' ? body : JSON.stringify(body);
-        bodyPreview = ` body=${clip(str)}`;
+        bodyPreview = ` body=${clipStr(str, MAX_LOG_BODY)}`;
       }
     } catch { /* ignore */ }
 
@@ -73,66 +71,66 @@ app.use((req, res, next) => {
 });
 
 // Axios interceptors to log outgoing requests and incoming responses
-axios.interceptors.request.use(
-  (config) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (config as any).metadata = { start: Date.now() };
 
-    console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
-    return config;
-  },
-  (error) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function axiosRequestOnFulfilled(config: any) {
+  config.metadata = { start: Date.now() };
+  console.log(`[axios ->] ${String(config.method || 'GET').toUpperCase()} ${config.url}`);
+  return config;
+}
 
-    console.warn('[axios req error]', error?.message || error);
-    return Promise.reject(error);
-  }
-);
+export function axiosRequestOnRejected(error: { message?: string }) {
+  console.warn('[axios req error]', error?.message || error);
+  return Promise.reject(error);
+}
 
-axios.interceptors.response.use(
-  (response) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const started = (response.config as any).metadata?.start || Date.now();
-    const dur = Date.now() - started;
-    let dataStr = '';
-    try {
-      dataStr = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-    } catch { /* ignore */ }
-    const size = dataStr?.length || 0;
-    const MAX_LOG_BODY = 2000;
-    const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
+export function clipStr(s: string, max: number) {
+  return s && s.length > max ? `${s.slice(0, max)}…(+${s.length - max})` : s;
+}
 
-    console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B data=${clip(dataStr)}`);
-    return response;
-  },
-  (error) => {
-    const cfg = error?.config || {};
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const started = (cfg as any).metadata?.start || Date.now();
-    const dur = Date.now() - started;
-    const status = error?.response?.status;
-    let dataStr = '';
-    try {
-      const d = error?.response?.data;
-      dataStr = typeof d === 'string' ? d : JSON.stringify(d);
-    } catch { /* ignore */ }
-    const MAX_LOG_BODY = 2000;
-    const clip = (s: string) => (s && s.length > MAX_LOG_BODY ? `${s.slice(0, MAX_LOG_BODY)}…(+${s.length - MAX_LOG_BODY})` : s);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function axiosResponseOnFulfilled(response: any) {
+  const started = response.config?.metadata?.start || Date.now();
+  const dur = Date.now() - started;
+  let dataStr = '';
+  try {
+    dataStr = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+  } catch { /* ignore */ }
+  const size = dataStr?.length || 0;
 
-    console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms data=${dataStr ? clip(dataStr) : (error?.message || 'error')}`);
-    return Promise.reject(error);
-  }
-);
+  console.log(`[axios <-] ${response.status} ${String(response.config.method || 'GET').toUpperCase()} ${response.config.url} ${dur}ms ~${size}B data=${clipStr(dataStr, 2000)}`);
+  return response;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function axiosResponseOnRejected(error: any) {
+  const cfg = error?.config || {};
+  const started = cfg?.metadata?.start || Date.now();
+  const dur = Date.now() - started;
+  const status = error?.response?.status;
+  let dataStr = '';
+  try {
+    const d = error?.response?.data;
+    dataStr = typeof d === 'string' ? d : JSON.stringify(d);
+  } catch { /* ignore */ }
+
+  console.warn(`[axios ! ] ${status ?? 'ERR'} ${String(cfg.method || 'GET').toUpperCase()} ${cfg.url} ${dur}ms data=${dataStr ? clipStr(dataStr, 2000) : (error?.message || 'error')}`);
+  return Promise.reject(error);
+}
+
+axios.interceptors.request.use(axiosRequestOnFulfilled, axiosRequestOnRejected);
+axios.interceptors.response.use(axiosResponseOnFulfilled, axiosResponseOnRejected);
 
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true }));
 
-function buildHeaders() {
+export function buildHeaders() {
   return {
     'X-Auth-Token': API_TOKEN || '',
   } as Record<string, string>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeMatch(m: Record<string, any>) {
+export function normalizeMatch(m: Record<string, any>) {
   return {
     id: m.id,
     utcDate: m.utcDate,
@@ -210,7 +208,4 @@ app.get('/api/matches', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
-
-  console.log(`[server] Listening on http://localhost:${PORT}`);
-});
+export { app };

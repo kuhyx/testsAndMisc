@@ -31,7 +31,7 @@ void main() {
     });
 
     test('showTimer sends Notify via gdbus', () async {
-      final state = PomodoroState(
+      const state = PomodoroState(
         mode: PomodoroMode.work,
         remainingSeconds: 1500,
         totalSeconds: 1500,
@@ -53,7 +53,7 @@ void main() {
     });
 
     test('showTimer shows Start action when paused', () async {
-      final state = PomodoroState(
+      const state = PomodoroState(
         mode: PomodoroMode.shortBreak,
         remainingSeconds: 120,
         totalSeconds: 300,
@@ -68,7 +68,7 @@ void main() {
     });
 
     test('showTimer replaces previous notification', () async {
-      final state = PomodoroState(
+      const state = PomodoroState(
         mode: PomodoroMode.work,
         remainingSeconds: 1500,
         totalSeconds: 1500,
@@ -96,9 +96,8 @@ void main() {
 
     test('handles unparsable gdbus output gracefully', () async {
       final stubService = NotificationService(
-        runProcess: (exec, args) async {
-          return ProcessResult(0, 0, 'unexpected output', '');
-        },
+        runProcess: (exec, args) async =>
+          ProcessResult(0, 0, 'unexpected output', ''),
       );
 
       final state = PomodoroState.initial();
@@ -192,15 +191,38 @@ void main() {
 
       errorService.dispose();
     });
+
+    test('cancel handles CloseNotification error', () async {
+      final cancelErrorService = NotificationService(
+        runProcess: (exec, args) async {
+          if (args.contains(
+            'org.freedesktop.Notifications.CloseNotification',
+          )) {
+            throw const OSError('close failed');
+          }
+          return ProcessResult(0, 0, '(uint32 42,)', '');
+        },
+      );
+
+      final state = PomodoroState.initial();
+      await cancelErrorService.showTimer(state: state);
+      expect(cancelErrorService.currentId, 42);
+
+      // Should not throw; error is caught internally.
+      await cancelErrorService.cancel();
+      expect(cancelErrorService.currentId, 0);
+
+      cancelErrorService.dispose();
+    });
   });
 
   group('progressBar', () {
     test('returns empty bar at 0%', () {
-      expect(NotificationService.progressBar(0.0), '░' * 20);
+      expect(NotificationService.progressBar(0), '░' * 20);
     });
 
     test('returns full bar at 100%', () {
-      expect(NotificationService.progressBar(1.0), '█' * 20);
+      expect(NotificationService.progressBar(1), '█' * 20);
     });
 
     test('returns half bar at 50%', () {

@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/models/pomodoro_state.dart';
+import 'package:pomodoro_app/services/notification_service.dart';
 import 'package:pomodoro_app/services/pomodoro_timer.dart';
+import 'package:pomodoro_app/services/sound_service.dart';
 
 /// A controllable fake timer for testing.
 class FakeTimerController {
@@ -41,8 +44,8 @@ void main() {
   late FakeTimerController fakeController;
 
   Timer fakeTimerFactory(Duration duration, void Function(Timer) callback) {
-    fakeController = FakeTimerController();
-    fakeController._callback = callback;
+    fakeController = FakeTimerController()
+      .._callback = callback;
     return _FakeTimer(fakeController);
   }
 
@@ -86,24 +89,25 @@ void main() {
     });
 
     test('does nothing if already running', () {
-      timer.start();
-      final stateAfterFirstStart = timer.state;
+      final stateAfterFirstStart = (timer..start()).state;
       timer.start(); // second call
       expect(timer.state, stateAfterFirstStart);
     });
 
     test('notifies listeners', () {
       var notified = false;
-      timer.addListener(() => notified = true);
-      timer.start();
+      timer
+        ..addListener(() => notified = true)
+        ..start();
       expect(notified, true);
     });
   });
 
   group('pause()', () {
     test('sets isRunning to false', () {
-      timer.start();
-      timer.pause();
+      timer
+        ..start()
+        ..pause();
       expect(timer.state.isRunning, false);
     });
 
@@ -115,8 +119,9 @@ void main() {
 
     test('preserves remaining time', () {
       timer.start();
-      fakeController.tick(); // -1s
-      fakeController.tick(); // -1s
+      fakeController
+        ..tick() // -1s
+        ..tick(); // -1s
       timer.pause();
       expect(timer.state.remainingSeconds, 58);
     });
@@ -133,8 +138,9 @@ void main() {
       timer.start();
       var count = 0;
       timer.addListener(() => count++);
-      fakeController.tick();
-      fakeController.tick();
+      fakeController
+        ..tick()
+        ..tick();
       expect(count, 2);
     });
   });
@@ -193,8 +199,9 @@ void main() {
   group('reset()', () {
     test('resets to full duration', () {
       timer.start();
-      fakeController.tick();
-      fakeController.tick();
+      fakeController
+        ..tick()
+        ..tick();
       timer.reset();
       expect(timer.state.remainingSeconds, 60);
       expect(timer.state.isRunning, false);
@@ -219,14 +226,16 @@ void main() {
     });
 
     test('skips from break to work', () {
-      timer.skip(); // work -> short break
-      timer.skip(); // short break -> work
+      timer
+        ..skip() // work -> short break
+        ..skip(); // short break -> work
       expect(timer.state.mode, PomodoroMode.work);
     });
 
     test('stops the timer when skipping', () {
-      timer.start();
-      timer.skip();
+      timer
+        ..start()
+        ..skip();
       expect(timer.state.isRunning, false);
     });
   });
@@ -234,15 +243,15 @@ void main() {
   group('dispose()', () {
     test('cancels internal timer', () {
       // Create a separate timer so tearDown does not double-dispose.
-      final disposableTimer = PomodoroTimer(
+      PomodoroTimer(
         workMinutes: 1,
         shortBreakMinutes: 1,
         longBreakMinutes: 2,
         pomodorosPerCycle: 2,
         timerFactory: fakeTimerFactory,
-      );
-      disposableTimer.start();
-      disposableTimer.dispose();
+      )
+        ..start()
+        ..dispose();
       expect(fakeController.isActive, false);
     });
   });
@@ -259,8 +268,9 @@ void main() {
     });
 
     test('switches back to pomodoro', () {
-      timer.switchStyle(TimerStyle.ultraradian);
-      timer.switchStyle(TimerStyle.pomodoro);
+      timer
+        ..switchStyle(TimerStyle.ultraradian)
+        ..switchStyle(TimerStyle.pomodoro);
       expect(timer.timerStyle, TimerStyle.pomodoro);
       expect(timer.state.remainingSeconds, 25 * 60);
       expect(timer.state.totalSeconds, 25 * 60);
@@ -288,8 +298,9 @@ void main() {
 
     test('notifies listeners', () {
       var notified = false;
-      timer.addListener(() => notified = true);
-      timer.switchStyle(TimerStyle.ultraradian);
+      timer
+        ..addListener(() => notified = true)
+        ..switchStyle(TimerStyle.ultraradian);
       expect(notified, true);
     });
 
@@ -316,7 +327,7 @@ void main() {
       var notified = false;
       timer.addListener(() => notified = true);
 
-      final remoteState = PomodoroState(
+      const remoteState = PomodoroState(
         mode: PomodoroMode.shortBreak,
         remainingSeconds: 200,
         totalSeconds: 300,
@@ -334,7 +345,7 @@ void main() {
     });
 
     test('starts local ticking when remote state is running', () {
-      final remoteState = PomodoroState(
+      const remoteState = PomodoroState(
         mode: PomodoroMode.work,
         remainingSeconds: 500,
         totalSeconds: 600,
@@ -363,4 +374,109 @@ void main() {
       expect(timer.state.isRunning, false);
     });
   });
+
+  group('Session complete with services', () {
+    late List<String> playedSounds;
+    late List<_Call> notifyCalls;
+    late SoundService soundService;
+    late NotificationService notificationService;
+    late PomodoroTimer timerWithServices;
+
+    setUp(() {
+      playedSounds = [];
+      notifyCalls = [];
+
+      soundService = SoundService(
+        playCallback: (assetPath) async => playedSounds.add(assetPath),
+      );
+
+      notificationService = NotificationService(
+        runProcess: (exec, args) async {
+          notifyCalls.add(_Call(exec, args));
+          return ProcessResult(0, 0, '(uint32 1,)', '');
+        },
+      );
+
+      timerWithServices = PomodoroTimer(
+        workMinutes: 1,
+        shortBreakMinutes: 1,
+        longBreakMinutes: 1,
+        pomodorosPerCycle: 2,
+        timerFactory: fakeTimerFactory,
+        soundService: soundService,
+        notificationService: notificationService,
+      );
+    });
+
+    tearDown(() {
+      timerWithServices.dispose();
+    });
+
+    test('calls sound and notification services on session complete', () {
+      timerWithServices.start();
+      for (var i = 0; i < 60; i++) {
+        fakeController.tick();
+      }
+
+      expect(playedSounds, isNotEmpty);
+      // showSessionComplete was called (the Notify call after the initial
+      // showTimer from start).
+      final sessionCompleteCall = notifyCalls.where(
+        (c) => c.args.any((a) => a.contains('complete!')),
+      );
+      expect(sessionCompleteCall, isNotEmpty);
+    });
+
+    test('long break completes and transitions to work', () {
+      // Complete 2 work sessions to trigger long break.
+      timerWithServices.start();
+      for (var i = 0; i < 60; i++) {
+        fakeController.tick();
+      }
+      expect(timerWithServices.state.mode, PomodoroMode.shortBreak);
+
+      timerWithServices.skip();
+      expect(timerWithServices.state.mode, PomodoroMode.work);
+
+      timerWithServices.start();
+      for (var i = 0; i < 60; i++) {
+        fakeController.tick();
+      }
+      expect(timerWithServices.state.mode, PomodoroMode.longBreak);
+
+      // Now complete the long break.
+      timerWithServices.start();
+      for (var i = 0; i < 60; i++) {
+        fakeController.tick();
+      }
+      expect(timerWithServices.state.mode, PomodoroMode.work);
+    });
+
+    test('notification updates at 30-second intervals', () {
+      timerWithServices.start();
+      notifyCalls.clear();
+
+      // Tick 30 times so remainingSeconds goes from 60 to 30.
+      for (var i = 0; i < 30; i++) {
+        fakeController.tick();
+      }
+      expect(timerWithServices.state.remainingSeconds, 30);
+
+      // At 30 seconds remaining (divisible by 30), a notification update
+      // should have been sent.
+      final timerUpdates = notifyCalls.where(
+        (c) => c.args.any(
+          (a) => a.contains('org.freedesktop.Notifications.Notify'),
+        ),
+      );
+      expect(timerUpdates, isNotEmpty);
+    });
+  });
+}
+
+/// Captured call for the mock process runner.
+class _Call {
+  _Call(this.executable, this.args);
+  final String executable;
+  final List<String> args;
 }

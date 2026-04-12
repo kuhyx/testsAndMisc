@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/pomodoro_state.dart';
-import 'notification_service.dart';
-import 'sound_service.dart';
-import 'sync_service.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
+import 'package:pomodoro_app/services/notification_service.dart';
+import 'package:pomodoro_app/services/sound_service.dart';
+import 'package:pomodoro_app/services/sync_service.dart';
 
 /// Manages the Pomodoro timer logic, independent of UI framework.
 ///
@@ -32,8 +32,6 @@ class PomodoroTimer extends ChangeNotifier {
     _pomodorosPerCycle = pomodorosPerCycle ?? timerStyle.defaultPomodorosPerCycle;
     _state = PomodoroState.initial(
       workMinutes: _workMinutes,
-      shortBreakMinutes: _shortBreakMinutes,
-      longBreakMinutes: _longBreakMinutes,
       pomodorosPerCycle: _pomodorosPerCycle,
     );
   }
@@ -84,8 +82,6 @@ class PomodoroTimer extends ChangeNotifier {
     _pomodorosPerCycle = style.defaultPomodorosPerCycle;
     _state = PomodoroState.initial(
       workMinutes: _workMinutes,
-      shortBreakMinutes: _shortBreakMinutes,
-      longBreakMinutes: _longBreakMinutes,
       pomodorosPerCycle: _pomodorosPerCycle,
     );
     _notificationService?.cancel();

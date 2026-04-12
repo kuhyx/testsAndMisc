@@ -1,7 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
-import '../models/pomodoro_state.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
 
 /// Plays notification sounds for Pomodoro timer transitions.
 ///
@@ -16,9 +16,12 @@ class SoundService {
   /// Pass a custom [playCallback] for testing.
   SoundService({
     @visibleForTesting Future<void> Function(String assetPath)? playCallback,
-  }) : _playCallback = playCallback;
+    @visibleForTesting AudioPlayer Function()? playerFactory,
+  })  : _playCallback = playCallback,
+        _playerFactory = playerFactory ?? AudioPlayer.new;
 
   final Future<void> Function(String assetPath)? _playCallback;
+  final AudioPlayer Function() _playerFactory;
   AudioPlayer? _player;
   bool _disposed = false;
 
@@ -41,8 +44,8 @@ class SoundService {
       if (_playCallback != null) {
         await _playCallback(assetPath);
       } else {
-        _player?.dispose();
-        _player = AudioPlayer();
+        await _player?.dispose();
+        _player = _playerFactory();
         await _player!.play(AssetSource('$_assetPrefix/$assetPath'));
       }
       debugPrint('SoundService: Playing $assetPath');

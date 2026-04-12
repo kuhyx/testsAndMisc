@@ -72,13 +72,11 @@ export function useBattery() {
           battery?.removeEventListener?.('levelchange', onChange)
           battery?.removeEventListener?.('chargingtimechange', onChange)
           battery?.removeEventListener?.('dischargingtimechange', onChange)
-          if (!battery?.removeEventListener) {
-            if (battery) {
-              battery.onchargingchange = null
-              battery.onlevelchange = null
-              battery.onchargingtimechange = null
-              battery.ondischargingtimechange = null
-            }
+          if (battery && !battery.removeEventListener) {
+            battery.onchargingchange = null
+            battery.onlevelchange = null
+            battery.onchargingtimechange = null
+            battery.ondischargingtimechange = null
           }
         }
 

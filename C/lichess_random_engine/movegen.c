@@ -45,39 +45,6 @@ static Piece make_piece(char c)
     }
 }
 
-static char piece_to_char(Piece p)
-{
-    switch (p)
-    {
-    case WP:
-        return 'P';
-    case WN:
-        return 'N';
-    case WB:
-        return 'B';
-    case WR:
-        return 'R';
-    case WQ:
-        return 'Q';
-    case WK:
-        return 'K';
-    case BP:
-        return 'p';
-    case BN:
-        return 'n';
-    case BB:
-        return 'b';
-    case BR:
-        return 'r';
-    case BQ:
-        return 'q';
-    case BK:
-        return 'k';
-    default:
-        return '.';
-    }
-}
-
 void set_startpos(Position *pos)
 {
     memset(pos, 0, sizeof(*pos));
@@ -707,8 +674,6 @@ static int gen_moves_internal(const Position *pos, Move *moves, int max_moves, i
             }
         }
         break;
-        default:
-            break;
         }
     }
 

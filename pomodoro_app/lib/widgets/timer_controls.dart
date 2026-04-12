@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/pomodoro_state.dart';
-import '../theme/pomodoro_theme.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
+import 'package:pomodoro_app/theme/pomodoro_theme.dart';
 
 /// Row of control buttons for the Pomodoro timer.
 class TimerControls extends StatelessWidget {

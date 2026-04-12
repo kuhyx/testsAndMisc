@@ -43,8 +43,8 @@ void main() {
   late FakeTimerController fakeController;
 
   Timer fakeTimerFactory(Duration duration, void Function(Timer) callback) {
-    fakeController = FakeTimerController();
-    fakeController._callback = callback;
+    fakeController = FakeTimerController()
+      .._callback = callback;
     return _FakeTimer(fakeController);
   }
 
@@ -62,11 +62,9 @@ void main() {
     timer.dispose();
   });
 
-  Widget createApp() {
-    return MaterialApp(
+  Widget createApp() => MaterialApp(
       home: PomodoroScreen(timer: timer),
     );
-  }
 
   group('PomodoroScreen', () {
     testWidgets('shows initial time', (tester) async {
@@ -132,8 +130,9 @@ void main() {
       // Start and tick.
       await tester.tap(find.byIcon(Icons.play_arrow));
       await tester.pump();
-      fakeController.tick();
-      fakeController.tick();
+      fakeController
+        ..tick()
+        ..tick();
       await tester.pump();
 
       // Reset.
@@ -202,6 +201,29 @@ void main() {
       await tester.tap(find.text('Pomodoro'));
       await tester.pump();
       expect(find.text('25:00'), findsOneWidget);
+    });
+
+    testWidgets('onRemoteState delegates to timer', (tester) async {
+      await tester.pumpWidget(createApp());
+
+      final state = tester.state<PomodoroScreenState>(
+        find.byType(PomodoroScreen),
+      );
+
+      const remoteState = PomodoroState(
+        mode: PomodoroMode.shortBreak,
+        remainingSeconds: 200,
+        totalSeconds: 300,
+        isRunning: false,
+        completedPomodoros: 2,
+        pomodorosPerCycle: 4,
+      );
+
+      state.onRemoteState(remoteState, 'pause');
+      await tester.pump();
+
+      expect(timer.state.mode, PomodoroMode.shortBreak);
+      expect(timer.state.remainingSeconds, 200);
     });
   });
 }

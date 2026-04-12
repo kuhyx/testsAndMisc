@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../models/pomodoro_state.dart';
-import '../theme/pomodoro_theme.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
+import 'package:pomodoro_app/theme/pomodoro_theme.dart';
 
 /// A circular progress indicator that displays the remaining time.
 class TimerDisplay extends StatelessWidget {
@@ -32,7 +32,7 @@ class TimerDisplay extends StatelessWidget {
               // Background circle.
               SizedBox.expand(
                 child: CircularProgressIndicator(
-                  value: 1.0,
+                  value: 1,
                   strokeWidth: 8,
                   color: color.withValues(alpha: 0.2),
                 ),

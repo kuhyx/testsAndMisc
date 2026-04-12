@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../models/pomodoro_state.dart';
-import '../services/pomodoro_timer.dart';
-import '../services/notification_service.dart';
-import '../services/sound_service.dart';
-import '../services/sync_service.dart';
-import '../widgets/pomodoro_indicators.dart';
-import '../widgets/timer_controls.dart';
-import '../widgets/timer_display.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
+import 'package:pomodoro_app/services/notification_service.dart';
+import 'package:pomodoro_app/services/pomodoro_timer.dart';
+import 'package:pomodoro_app/services/sound_service.dart';
+import 'package:pomodoro_app/services/sync_service.dart';
+import 'package:pomodoro_app/widgets/pomodoro_indicators.dart';
+import 'package:pomodoro_app/widgets/timer_controls.dart';
+import 'package:pomodoro_app/widgets/timer_display.dart';
 
 /// The main screen of the Pomodoro app.
 ///
@@ -42,7 +42,7 @@ class PomodoroScreenState extends State<PomodoroScreen> {
 
     if (widget.timer != null) {
       // Test path: synchronous init, no sync service needed.
-      _timer = widget.timer!;
+      _timer = widget.timer;
       _syncService = widget.syncService;
       _timer!.addListener(_onTimerChanged);
       _initialized = true;
@@ -54,7 +54,7 @@ class PomodoroScreenState extends State<PomodoroScreen> {
 
   Future<void> _initAsync() async {
     _syncService = SyncService(
-      onStateReceived: _onRemoteState,
+      onStateReceived: onRemoteState,
     );
     _ownsSyncService = true;
     await _syncService!.start();
@@ -71,7 +71,9 @@ class PomodoroScreenState extends State<PomodoroScreen> {
     if (mounted) setState(() {});
   }
 
-  void _onRemoteState(PomodoroState state, String action) {
+  /// Handles state received from a remote device.
+  @visibleForTesting
+  void onRemoteState(PomodoroState state, String action) {
     _timer?.applyRemoteState(state, action);
   }
 

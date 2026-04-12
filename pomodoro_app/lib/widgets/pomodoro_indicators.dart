@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/pomodoro_state.dart';
-import '../theme/pomodoro_theme.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
+import 'package:pomodoro_app/theme/pomodoro_theme.dart';
 
 /// Shows completed pomodoro indicators as filled/unfilled dots.
 class PomodoroIndicators extends StatelessWidget {
@@ -15,8 +15,7 @@ class PomodoroIndicators extends StatelessWidget {
   final PomodoroState state;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
+  Widget build(BuildContext context) => Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
         state.pomodorosPerCycle,
@@ -43,5 +42,4 @@ class PomodoroIndicators extends StatelessWidget {
         },
       ),
     );
-  }
 }

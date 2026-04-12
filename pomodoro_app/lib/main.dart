@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'screens/pomodoro_screen.dart';
-import 'theme/pomodoro_theme.dart';
+import 'package:pomodoro_app/screens/pomodoro_screen.dart';
+import 'package:pomodoro_app/theme/pomodoro_theme.dart';
 
 void main() {
   runApp(const PomodoroApp());
@@ -13,12 +13,10 @@ class PomodoroApp extends StatelessWidget {
   const PomodoroApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context) => MaterialApp(
       title: 'Pomodoro',
       debugShowCheckedModeBanner: false,
       theme: PomodoroTheme.darkTheme,
       home: const PomodoroScreen(),
     );
-  }
 }

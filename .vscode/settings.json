@@ -31,7 +31,8 @@
     "python_pkg/download_cats/http_cat_cache": true,
     "python_pkg/articles/uploads": true,
     "python_pkg/praca_magisterska_video/images": true,
-    "**/generated_images_*": true
+    "**/generated_images_*": true,
+    "**/coverage": true
   },
   "search.exclude": {
     "**/*.zip": true,
@@ -65,5 +66,6 @@
     "coverage.lcov"
   ],
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["python_pkg"]
+  "python.testing.pytestArgs": ["python_pkg"],
+  "python-envs.alwaysUseUv": true
 }

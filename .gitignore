@@ -7,7 +7,7 @@
 /bazel-out
 
 # Node
-/node_modules
+**/node_modules/
 npm-debug.log
 yarn-error.log
 
@@ -32,7 +32,7 @@ yarn-error.log
 /.angular/cache
 .sass-cache/
 /connect.lock
-/coverage
+**/coverage/
 /libpeerconnection.log
 testem.log
 /typings
@@ -332,6 +332,16 @@ __marimo__/
 fps_demo
 server_c
 Bash/ffmpeg-build/FFmpeg
+
+# C/C++ coverage and test artifacts
+*.gcda
+*.gcno
+**/coverage.info
+C/1dvelocitysimulator/test_physics
+C/lichess_random_engine/test_movegen
+C/lichess_random_engine/test_search
+C/vocabulary_curve/test_vocabulary
+CPP/miscelanious/test_challenges
 
 # C/C++ compiled binaries
 C/1dvelocitysimulator/1dvelocitysimulator

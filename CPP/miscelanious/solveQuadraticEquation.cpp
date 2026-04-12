@@ -1,3 +1,4 @@
+#include "solveQuadraticEquation.h"
 #include <iostream>
 #include <math.h>
 #include <string>
@@ -18,6 +19,7 @@ float calculateSecondTerm(float a, float b, float delta) {
   return (-b + sqrt(delta)) / (2 * a);
 }
 
+#ifndef TESTING
 int main() {
   print(START);
   float a, b, c;
@@ -37,3 +39,4 @@ int main() {
   std::cout << "x_2 = " << x_2 << std::endl;
   return 0;
 }
+#endif
