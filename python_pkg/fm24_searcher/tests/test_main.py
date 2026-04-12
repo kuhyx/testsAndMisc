@@ -16,7 +16,7 @@ class TestMain:
         with (
             patch("sys.argv", ["fm24", "--dump", "--db", "/nonexistent"]),
             patch(
-                "python_pkg.fm24_searcher.cli.run_dump",
+                "python_pkg.fm24_searcher.__main__.run_dump",
                 return_value=0,
             ) as mock_dump,
         ):
@@ -29,7 +29,7 @@ class TestMain:
         with (
             patch("sys.argv", ["fm24"]),
             patch(
-                "python_pkg.fm24_searcher.gui.main",
+                "python_pkg.fm24_searcher.__main__.main",
             ) as mock_gui,
         ):
             _main()
