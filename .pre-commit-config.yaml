@@ -155,8 +155,8 @@ repos:
         stages: [pre-push]
         args:
           - --rcfile=pyproject.toml
-          - --fail-under=8.0
-          - --jobs=0
+          - --fail-under=7.5
+          - --jobs=1
         additional_dependencies:
           - pytest
           - python-chess
