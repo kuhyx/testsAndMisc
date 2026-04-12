@@ -67,5 +67,6 @@
   ],
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": ["python_pkg"],
-  "python-envs.alwaysUseUv": true
+  "python-envs.alwaysUseUv": true,
+  "cmake.sourceDirectory": "/home/kuhy/testsAndMisc/pomodoro_app/linux"
 }
