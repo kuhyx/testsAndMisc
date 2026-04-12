@@ -343,7 +343,6 @@ repos:
         exclude: ^(pomodoro_app/|horatio/)
         args:
           - --enable=warning,portability
-          - --force
           - --quiet
           - --error-exitcode=1
           - --inline-suppr
