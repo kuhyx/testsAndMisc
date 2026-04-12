@@ -1,3 +1,4 @@
+#include "quickchallenges.h"
 #include <iostream>
 #include <vector>
 
@@ -9,6 +10,7 @@ int sumStartEnd(int start, int end) {
   return sum;
 }
 
+#ifndef TESTING
 int main() {
   std::cout << "Krzysztof" << std::endl;
   for (int i = 700; i >= 200; i -= 13)
@@ -97,3 +99,4 @@ int main() {
   else
     std::cout << GRADES[3];
 }
+#endif

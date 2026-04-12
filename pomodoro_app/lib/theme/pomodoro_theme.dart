@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/pomodoro_state.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
 
 /// Provides consistent theming for the Pomodoro app across platforms.
-class PomodoroTheme {
-  PomodoroTheme._();
+abstract final class PomodoroTheme {
 
   // Brand colors per mode.
   static const Color workColor = Color(0xFFE74C3C);
@@ -29,8 +28,7 @@ class PomodoroTheme {
   }
 
   /// The app's dark theme.
-  static ThemeData get darkTheme {
-    return ThemeData(
+  static ThemeData get darkTheme => ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: _darkBackground,
@@ -69,5 +67,4 @@ class PomodoroTheme {
         ),
       ),
     );
-  }
 }

@@ -443,8 +443,13 @@ repos:
   - repo: local
     hooks:
       - id: pomodoro-app-flutter
-        name: pomodoro_app flutter analyze & test
-        entry: bash -c 'cd pomodoro_app && flutter pub get --enforce-lockfile && flutter analyze && flutter test'
+        name: pomodoro_app flutter analyze & test (100% coverage)
+        entry: >-
+          bash -c 'cd pomodoro_app &&
+          flutter pub get --enforce-lockfile &&
+          flutter analyze --fatal-infos &&
+          flutter test --coverage &&
+          awk -F"[,:]" "/^DA:/{total++;if(\$3==0)uncov++}END{if(uncov>0){printf \"ERROR: pomodoro_app coverage %.1f%% (%d uncovered lines)\\n\",((total-uncov)/total)*100,uncov;exit 1}else{printf \"pomodoro_app coverage 100.0%%\\n\"}}" coverage/lcov.info'
         language: system
         files: ^pomodoro_app/
         pass_filenames: false
@@ -462,3 +467,32 @@ repos:
         files: ^horatio/
         stages: [pre-push]
         pass_filenames: false
+
+  # ===========================================================================
+  # TYPESCRIPT - Vitest coverage enforcement (push only)
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: ts-battery-status-tests
+        name: TS battery-status vitest (100% coverage)
+        entry: bash -c 'cd TS/battery-status && npx vitest run --coverage'
+        language: system
+        files: ^TS/battery-status/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: ts-champions-leauge-scores-tests
+        name: TS champions_leauge_scores vitest (100% coverage)
+        entry: bash -c 'cd TS/champions_leauge_scores && npx vitest run --coverage'
+        language: system
+        files: ^TS/champions_leauge_scores/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: ts-two-inputs-tests
+        name: TS two-inputs vitest (100% coverage)
+        entry: bash -c 'cd TS/two-inputs && npx vitest run --coverage'
+        language: system
+        files: ^TS/two-inputs/
+        pass_filenames: false
+        stages: [pre-push]

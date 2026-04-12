@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/pomodoro_state.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
 
 /// Sends desktop notifications showing Pomodoro timer status.
 ///

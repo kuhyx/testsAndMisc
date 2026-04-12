@@ -45,8 +45,6 @@ void main() {
     test('creates state with custom durations', () {
       final state = PomodoroState.initial(
         workMinutes: 30,
-        shortBreakMinutes: 10,
-        longBreakMinutes: 20,
         pomodorosPerCycle: 3,
       );
       expect(state.remainingSeconds, 30 * 60);

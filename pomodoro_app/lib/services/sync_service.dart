@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import '../models/pomodoro_state.dart';
+import 'package:pomodoro_app/models/pomodoro_state.dart';
 
 /// Callback type for receiving a synced [PomodoroState] and action name.
 typedef SyncCallback = void Function(PomodoroState state, String action);
@@ -26,10 +26,12 @@ class SyncService {
     required this.onStateReceived,
     this.port = 41234,
     @visibleForTesting String? deviceId,
+    @visibleForTesting bool? isAndroid,
     @visibleForTesting
-    Future<RawDatagramSocket> Function(dynamic host, int port)?
+    Future<RawDatagramSocket> Function(Object host, int port)?
         socketFactory,
   })  : deviceId = deviceId ?? _generateDeviceId(),
+        _isAndroid = isAndroid ?? Platform.isAndroid,
         _socketFactory = socketFactory;
 
   /// Unique identifier for this device instance.
@@ -45,8 +47,9 @@ class SyncService {
   /// Called when a state update is received from another device.
   final SyncCallback onStateReceived;
 
-  final Future<RawDatagramSocket> Function(dynamic host, int port)?
+  final Future<RawDatagramSocket> Function(Object host, int port)?
       _socketFactory;
+  final bool _isAndroid;
 
   RawDatagramSocket? _socket;
   Timer? _heartbeat;
@@ -71,7 +74,6 @@ class SyncService {
         _socket = await RawDatagramSocket.bind(
           InternetAddress.anyIPv4,
           port,
-          reuseAddress: true,
         );
       }
 
@@ -80,7 +82,6 @@ class SyncService {
       _socket?.listen(
         _onSocketEvent,
         onError: _onError,
-        cancelOnError: false,
       );
 
       debugPrint('SyncService: Listening on port $port (device=$deviceId)');
@@ -115,10 +116,13 @@ class SyncService {
   /// Starts periodic heartbeat that broadcasts current state.
   ///
   /// This keeps devices in sync even if an individual message is lost.
-  void startHeartbeat(PomodoroState Function() stateProvider) {
+  void startHeartbeat(
+    PomodoroState Function() stateProvider, {
+    @visibleForTesting Duration interval = const Duration(seconds: 5),
+  }) {
     _heartbeat?.cancel();
     _heartbeat = Timer.periodic(
-      const Duration(seconds: 5),
+      interval,
       (_) => broadcast(stateProvider(), 'heartbeat'),
     );
   }
@@ -198,8 +202,7 @@ class SyncService {
     return utf8.encode(jsonEncode(map));
   }
 
-  static Map<String, dynamic> _encodeState(PomodoroState state) {
-    return {
+  static Map<String, dynamic> _encodeState(PomodoroState state) => {
       'mode': state.mode.name,
       'remainingSeconds': state.remainingSeconds,
       'totalSeconds': state.totalSeconds,
@@ -207,21 +210,19 @@ class SyncService {
       'completedPomodoros': state.completedPomodoros,
       'pomodorosPerCycle': state.pomodorosPerCycle,
     };
-  }
 
-  static PomodoroState _decodeState(Map<String, dynamic> map) {
-    return PomodoroState(
-      mode: PomodoroMode.values.byName(map['mode'] as String),
-      remainingSeconds: map['remainingSeconds'] as int,
-      totalSeconds: map['totalSeconds'] as int,
-      isRunning: map['isRunning'] as bool,
-      completedPomodoros: map['completedPomodoros'] as int,
-      pomodorosPerCycle: map['pomodorosPerCycle'] as int,
-    );
-  }
+  static PomodoroState _decodeState(Map<String, dynamic> map) =>
+      PomodoroState(
+        mode: PomodoroMode.values.byName(map['mode'] as String),
+        remainingSeconds: map['remainingSeconds'] as int,
+        totalSeconds: map['totalSeconds'] as int,
+        isRunning: map['isRunning'] as bool,
+        completedPomodoros: map['completedPomodoros'] as int,
+        pomodorosPerCycle: map['pomodorosPerCycle'] as int,
+      );
 
-  static Future<void> _acquireMulticastLock() async {
-    if (!Platform.isAndroid) return;
+  Future<void> _acquireMulticastLock() async {
+    if (!_isAndroid) return;
     try {
       await _methodChannel.invokeMethod<bool>('acquire');
     } on MissingPluginException {
@@ -231,8 +232,8 @@ class SyncService {
     }
   }
 
-  static Future<void> _releaseMulticastLock() async {
-    if (!Platform.isAndroid) return;
+  Future<void> _releaseMulticastLock() async {
+    if (!_isAndroid) return;
     try {
       await _methodChannel.invokeMethod<bool>('release');
     } on MissingPluginException {

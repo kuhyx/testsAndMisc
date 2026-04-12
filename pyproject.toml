@@ -73,6 +73,9 @@ unfixable = []
 # inside functions — they take seconds to load and aren't needed at module level.
 "python_pkg/music_gen/_music_generation.py" = ["PLC0415"]
 "python_pkg/music_gen/_music_speech.py" = ["PLC0415"]
+# PyQt6 requires camelCase overrides (rowCount, headerData, paintEvent, etc.)
+# and QModelIndex() default arguments in method signatures — both unfixable.
+"python_pkg/fm24_searcher/gui.py" = ["N802", "B008"]
 # Circular dependency: submodules import constants (W, H, CLIP_DUR, etc.)
 # from this module, so they must be imported lazily inside _build().
 "python_pkg/moviepy_showcase/moviepy_showcase.py" = ["PLC0415"]

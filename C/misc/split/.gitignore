@@ -1,1 +1,7 @@
 split
+test_split
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage_html/

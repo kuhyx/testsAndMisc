@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 /// Defines the timer style (technique) the user can choose.
 enum TimerStyle {
   /// Classic Pomodoro: 25 min work, 5 min short break, 15 min long break.
@@ -88,6 +90,7 @@ extension PomodoroModeLabel on PomodoroMode {
 }
 
 /// Immutable snapshot of the Pomodoro timer state.
+@immutable
 class PomodoroState {
   /// Creates a [PomodoroState].
   const PomodoroState({
@@ -102,8 +105,6 @@ class PomodoroState {
   /// Creates the default initial state.
   factory PomodoroState.initial({
     int workMinutes = 25,
-    int shortBreakMinutes = 5,
-    int longBreakMinutes = 15,
     int pomodorosPerCycle = 4,
   }) {
     final totalSeconds = workMinutes * 60;
@@ -137,8 +138,8 @@ class PomodoroState {
 
   /// Progress as a value between 0.0 and 1.0.
   double get progress {
-    if (totalSeconds == 0) return 1.0;
-    return 1.0 - (remainingSeconds / totalSeconds);
+    if (totalSeconds == 0) return 1;
+    return 1 - (remainingSeconds / totalSeconds);
   }
 
   /// Display label for the current mode, context-aware.
@@ -168,16 +169,15 @@ class PomodoroState {
     bool? isRunning,
     int? completedPomodoros,
     int? pomodorosPerCycle,
-  }) {
-    return PomodoroState(
-      mode: mode ?? this.mode,
-      remainingSeconds: remainingSeconds ?? this.remainingSeconds,
-      totalSeconds: totalSeconds ?? this.totalSeconds,
-      isRunning: isRunning ?? this.isRunning,
-      completedPomodoros: completedPomodoros ?? this.completedPomodoros,
-      pomodorosPerCycle: pomodorosPerCycle ?? this.pomodorosPerCycle,
-    );
-  }
+  }) =>
+      PomodoroState(
+        mode: mode ?? this.mode,
+        remainingSeconds: remainingSeconds ?? this.remainingSeconds,
+        totalSeconds: totalSeconds ?? this.totalSeconds,
+        isRunning: isRunning ?? this.isRunning,
+        completedPomodoros: completedPomodoros ?? this.completedPomodoros,
+        pomodorosPerCycle: pomodorosPerCycle ?? this.pomodorosPerCycle,
+      );
 
   @override
   bool operator ==(Object other) {
@@ -192,8 +192,7 @@ class PomodoroState {
   }
 
   @override
-  int get hashCode {
-    return Object.hash(
+  int get hashCode => Object.hash(
       mode,
       remainingSeconds,
       totalSeconds,
@@ -201,5 +200,4 @@ class PomodoroState {
       completedPomodoros,
       pomodorosPerCycle,
     );
-  }
 }

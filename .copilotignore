@@ -79,6 +79,10 @@
 node_modules/
 **/node_modules/
 
+# Coverage reports
+coverage/
+**/coverage/
+
 # Caches
 .ruff_cache/
 .mypy_cache/

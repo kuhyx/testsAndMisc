@@ -5,13 +5,11 @@
 
 static int piece_value(Piece p)
 {
-    if (p == WK || p == BK)
-    {
-        return 0; // king is invaluable; PST handled later if needed
-    }
-
     switch (p)
     {
+    case WK:
+    case BK:
+        return 0; /* king is invaluable; PST handled later if needed */
     case WP:
     case BP:
         return 100;
@@ -43,11 +41,7 @@ int evaluate(const Position *pos)
             continue;
         }
         Piece p = pos->board[sq];
-        if (p == EMPTY)
-        {
-            continue;
-        }
-        int v = piece_value(p);
+        int   v = piece_value(p);
         if (p >= WP && p <= WK)
         {
             score += v;

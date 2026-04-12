@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/models/pomodoro_state.dart';
 import 'package:pomodoro_app/services/sync_service.dart';
@@ -15,7 +16,7 @@ class FakeDatagramSocket implements RawDatagramSocket {
 
   @override
   int send(List<int> buffer, InternetAddress address, int port) {
-    sentMessages.add(SentDatagram(buffer, address, port));
+    sentMessages.add(SentDatagram(buffer));
     return buffer.length;
   }
 
@@ -25,11 +26,16 @@ class FakeDatagramSocket implements RawDatagramSocket {
   /// Simulates receiving a datagram.
   void injectDatagram(List<int> data, InternetAddress address, int port) {
     _pendingDatagram = Datagram(
-      data as dynamic,
+      Uint8List.fromList(data),
       address,
       port,
     );
     _controller.add(RawSocketEvent.read);
+  }
+
+  /// Simulates a socket error.
+  void injectError(Object error) {
+    _controller.addError(error);
   }
 
   @override
@@ -38,14 +44,13 @@ class FakeDatagramSocket implements RawDatagramSocket {
     Function? onError,
     void Function()? onDone,
     bool? cancelOnError,
-  }) {
-    return _controller.stream.listen(
-      onData,
-      onError: onError,
-      onDone: onDone,
-      cancelOnError: cancelOnError ?? false,
-    );
-  }
+  }) =>
+      _controller.stream.listen(
+        onData,
+        onError: onError,
+        onDone: onDone,
+        cancelOnError: cancelOnError ?? false,
+      );
 
   @override
   void joinMulticast(InternetAddress group, [NetworkInterface? interface_]) {}
@@ -62,16 +67,16 @@ class FakeDatagramSocket implements RawDatagramSocket {
 }
 
 class SentDatagram {
-  SentDatagram(this.data, this.address, this.port);
+  SentDatagram(this.data);
   final List<int> data;
-  final InternetAddress address;
-  final int port;
 
   Map<String, dynamic> get decoded =>
       jsonDecode(utf8.decode(data)) as Map<String, dynamic>;
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('SyncService', () {
     late FakeDatagramSocket fakeSocket;
     late SyncService service;
@@ -113,8 +118,9 @@ void main() {
       final decoded = fakeSocket.sentMessages.first.decoded;
       expect(decoded['deviceId'], 'test-device-1');
       expect(decoded['action'], 'start');
-      expect(decoded['state']['mode'], 'work');
-      expect(decoded['state']['remainingSeconds'], 25 * 60);
+      final stateMap = decoded['state'] as Map<String, dynamic>;
+      expect(stateMap['mode'], 'work');
+      expect(stateMap['remainingSeconds'], 25 * 60);
     });
 
     test('ignores own messages', () async {
@@ -195,12 +201,9 @@ void main() {
 
     test('heartbeat sends periodic state', () async {
       final state = PomodoroState.initial();
-      service.startHeartbeat(() => state);
-
-      // Wait for at least one heartbeat interval.
-      // Note: In tests, Timer.periodic fires based on the test framework.
-      // We just verify it doesn't crash and can be stopped.
-      service.stopHeartbeat();
+      service
+        ..startHeartbeat(() => state)
+        ..stopHeartbeat();
     });
   });
 
@@ -256,4 +259,168 @@ void main() {
       }
     });
   });
+
+  group('SyncService error paths', () {
+    test('start catches socket bind failure', () async {
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'err-device',
+        socketFactory: (host, port) async {
+          throw const SocketException('bind failed');
+        },
+      );
+
+      // Should not throw.
+      await service.start();
+      expect(service.isActive, false);
+
+      await service.dispose();
+    });
+
+    test('broadcast catches send failure', () async {
+      final throwingSocket = _ThrowingSendSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'send-err',
+        socketFactory: (host, port) async => throwingSocket,
+      );
+      await service.start();
+
+      // broadcast should not throw.
+      service.broadcast(PomodoroState.initial(), 'test');
+
+      await service.dispose();
+    });
+
+    test('heartbeat callback fires and sends broadcast', () async {
+      final fakeSocket = FakeDatagramSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'hb-device',
+        socketFactory: (host, port) async => fakeSocket,
+      );
+      await service.start();
+
+      fakeSocket.sentMessages.clear();
+      service.startHeartbeat(
+        PomodoroState.initial,
+        interval: const Duration(milliseconds: 1),
+      );
+
+      // Allow the periodic timer to fire.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      // The heartbeat should have fired at least once.
+      expect(fakeSocket.sentMessages, isNotEmpty);
+
+      service.stopHeartbeat();
+      await service.dispose();
+    });
+
+    test('wake send failure is caught', () async {
+      // _sendWake is called during start(). If socket.send throws for
+      // the wake port, it should be caught.
+      final throwOnWakeSocket = _ThrowingSendSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'wake-err',
+        socketFactory: (host, port) async => throwOnWakeSocket,
+      );
+
+      // start() calls _sendWake() which will throw — should be caught.
+      await service.start();
+
+      await service.dispose();
+    });
+
+    test('socket stream error invokes onError handler', () async {
+      final fakeSocket = FakeDatagramSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'stream-err',
+        socketFactory: (host, port) async => fakeSocket,
+      );
+      await service.start();
+
+      // Inject an error into the stream — should not crash.
+      fakeSocket.injectError(const SocketException('stream error'));
+      await Future<void>.delayed(Duration.zero);
+
+      await service.dispose();
+    });
+  });
+
+  group('SyncService multicast lock (Android paths)', () {
+    const channel = MethodChannel('pomodoro_multicast_lock');
+
+    test('acquires and releases lock when isAndroid is true', () async {
+      // No handler registered → MissingPluginException caught internally.
+      final fakeSocket = FakeDatagramSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'android-device',
+        isAndroid: true,
+        socketFactory: (host, port) async => fakeSocket,
+      );
+
+      await service.start();
+      await service.dispose();
+    });
+
+    test('handles non-MissingPluginException in acquire', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'acquire') {
+          throw PlatformException(code: 'ERROR', message: 'lock failed');
+        }
+        return null;
+      });
+
+      final fakeSocket = FakeDatagramSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'android-err-acquire',
+        isAndroid: true,
+        socketFactory: (host, port) async => fakeSocket,
+      );
+
+      await service.start();
+      await service.dispose();
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('handles non-MissingPluginException in release', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'release') {
+          throw PlatformException(code: 'ERROR', message: 'release failed');
+        }
+        return true;
+      });
+
+      final fakeSocket = FakeDatagramSocket();
+      final service = SyncService(
+        onStateReceived: (_, _) {},
+        deviceId: 'android-err-release',
+        isAndroid: true,
+        socketFactory: (host, port) async => fakeSocket,
+      );
+
+      await service.start();
+      await service.dispose();
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+  });
+}
+
+/// A fake socket that throws on every [send] call.
+class _ThrowingSendSocket extends FakeDatagramSocket {
+  @override
+  int send(List<int> buffer, InternetAddress address, int port) {
+    throw const SocketException('send failed');
+  }
 }
