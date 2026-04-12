@@ -95,6 +95,10 @@ def main() -> int:
     # instantly at the limit instead of thrashing swap/zram.
     use_cgroup = shutil.which("systemd-run") is not None
     for pkg in sorted(packages):
+        # Remove stale .coverage* files before each package run to prevent
+        # SQLite corruption when combining parallel coverage data files.
+        for stale in Path().glob(".coverage*"):
+            stale.unlink(missing_ok=True)
         cmd = _build_pytest_command({pkg})
         if use_cgroup:
             cmd = [
