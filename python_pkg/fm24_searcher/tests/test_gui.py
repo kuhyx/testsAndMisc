@@ -253,6 +253,7 @@ class TestPlayerTableModel:
         model.set_players([p])
         idx = model.index(0, 0)
         tip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert isinstance(tip, str)
         assert "TipTest" in tip
         assert "MyClub" in tip
 
@@ -261,6 +262,7 @@ class TestPlayerTableModel:
         model.set_players([_make_player()])
         idx = model.index(0, 2)
         tip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert isinstance(tip, str)
         assert "Current Ability" in tip
 
     def test_tooltip_pa(self, qapp: QApplication) -> None:
@@ -268,6 +270,7 @@ class TestPlayerTableModel:
         model.set_players([_make_player()])
         idx = model.index(0, 3)
         tip = model.data(idx, Qt.ItemDataRole.ToolTipRole)
+        assert isinstance(tip, str)
         assert "Potential Ability" in tip
 
     def test_tooltip_other(self, qapp: QApplication) -> None:
@@ -309,6 +312,7 @@ class TestPlayerTableModel:
             Qt.Orientation.Horizontal,
             Qt.ItemDataRole.ToolTipRole,
         )
+        assert isinstance(tip, str)
         assert "Current Ability" in tip
 
     def test_header_tooltip_attr(self, qapp: QApplication) -> None:
@@ -347,6 +351,8 @@ class TestPlayerTableModel:
         # Older player (1990) has higher age → first in descending.
         older_age = model.data(model.index(0, 1))
         younger_age = model.data(model.index(1, 1))
+        assert isinstance(older_age, int)
+        assert isinstance(younger_age, int)
         assert older_age > younger_age
 
     def test_sort_by_ca(self, qapp: QApplication) -> None:
