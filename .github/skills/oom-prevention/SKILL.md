@@ -100,16 +100,17 @@ isolated DB, never seeing the prior run's file.
 
 ## Quick Reference
 
-| Problem | Root Cause | Fix |
-|---|---|---|
-| Machine freezes during `git push` | zram swap absorbs cgroup-limited process | `MemorySwapMax=0` in all cgroup scopes |
-| Machine freezes during `git commit` | Same as above | `run_capped()` in `.git/hooks/pre-commit` |
+| Problem                                  | Root Cause                                 | Fix                                         |
+| ---------------------------------------- | ------------------------------------------ | ------------------------------------------- |
+| Machine freezes during `git push`        | zram swap absorbs cgroup-limited process   | `MemorySwapMax=0` in all cgroup scopes      |
+| Machine freezes during `git commit`      | Same as above                              | `run_capped()` in `.git/hooks/pre-commit`   |
 | pytest INTERNALERROR on coverage combine | Stale `.coverage` SQLite DB from prior run | `COVERAGE_FILE=<unique-tmp>` per subprocess |
-| pytest OOM during per-package run | Accumulated memory across package runs | 2 GB nested cgroup per package |
+| pytest OOM during per-package run        | Accumulated memory across package runs     | 2 GB nested cgroup per package              |
 
 ## Adding New Hooks
 
 If you add a new pre-commit or pre-push hook that runs:
+
 - `pytest` with coverage
 - `mypy` or `pylint`
 - `node` / `eslint` / TypeScript compilation
