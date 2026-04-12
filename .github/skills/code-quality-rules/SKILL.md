@@ -1,6 +1,6 @@
 ---
 name: code-quality-rules
-description: 'Mandatory code quality, linting, and test coverage rules for ALL languages in this monorepo. Use BEFORE writing or modifying ANY code. Covers Python, C/C++, TypeScript, Dart/Flutter, and shell. Enforces 100% test coverage, zero lint suppressions, and pre-commit compliance.'
+description: "Mandatory code quality, linting, and test coverage rules for ALL languages in this monorepo. Use BEFORE writing or modifying ANY code. Covers Python, C/C++, TypeScript, Dart/Flutter, and shell. Enforces 100% test coverage, zero lint suppressions, and pre-commit compliance."
 ---
 
 # Code Quality Rules — All Languages
@@ -19,13 +19,13 @@ description: 'Mandatory code quality, linting, and test coverage rules for ALL l
 
 ### Linters (ALL enabled, maximum strictness)
 
-| Tool | Config | Key Settings |
-|---|---|---|
-| **ruff** | `pyproject.toml [tool.ruff]` | `select = ["ALL"]`, Google docstrings, `ban-relative-imports = "all"` |
-| **mypy** | `pyproject.toml [tool.mypy]` | `strict = true`, all `disallow_*` and `warn_*` flags enabled |
-| **pylint** | `pyproject.toml [tool.pylint]` | `enable = "all"`, `disable = []`, `fail-under = 8.0` |
-| **bandit** | `pyproject.toml [tool.bandit]` | Security scanner, high severity, medium confidence |
-| **ruff-format** | `pyproject.toml [tool.ruff.format]` | Double quotes, spaces, auto line endings |
+| Tool            | Config                              | Key Settings                                                          |
+| --------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| **ruff**        | `pyproject.toml [tool.ruff]`        | `select = ["ALL"]`, Google docstrings, `ban-relative-imports = "all"` |
+| **mypy**        | `pyproject.toml [tool.mypy]`        | `strict = true`, all `disallow_*` and `warn_*` flags enabled          |
+| **pylint**      | `pyproject.toml [tool.pylint]`      | `enable = "all"`, `disable = []`, `fail-under = 8.0`                  |
+| **bandit**      | `pyproject.toml [tool.bandit]`      | Security scanner, high severity, medium confidence                    |
+| **ruff-format** | `pyproject.toml [tool.ruff.format]` | Double quotes, spaces, auto line endings                              |
 
 ### Ruff Rules
 
@@ -70,12 +70,12 @@ description: 'Mandatory code quality, linting, and test coverage rules for ALL l
 
 ### Linters
 
-| Tool | Trigger | Key Settings |
-|---|---|---|
-| **clang-format** | Pre-commit hook | Formatting enforced on all `.c`/`.cpp` files |
-| **cppcheck** | Pre-commit hook | `--enable=warning,portability`, `--std=c11`, `--error-exitcode=1` |
-| **flawfinder** | Pre-commit hook | `--error-level=5` — security scanner for C/C++ |
-| **clang-tidy** | `C/lint_all.sh` | Uses `compile_commands.json` when available |
+| Tool             | Trigger         | Key Settings                                                      |
+| ---------------- | --------------- | ----------------------------------------------------------------- |
+| **clang-format** | Pre-commit hook | Formatting enforced on all `.c`/`.cpp` files                      |
+| **cppcheck**     | Pre-commit hook | `--enable=warning,portability`, `--std=c11`, `--error-exitcode=1` |
+| **flawfinder**   | Pre-commit hook | `--error-level=5` — security scanner for C/C++                    |
+| **clang-tidy**   | `C/lint_all.sh` | Uses `compile_commands.json` when available                       |
 
 ### Build Requirements
 
@@ -99,10 +99,10 @@ description: 'Mandatory code quality, linting, and test coverage rules for ALL l
 
 ### Linters
 
-| Tool | Config | Key Settings |
-|---|---|---|
-| **ESLint** | `eslint.config.mjs` | `eslint.configs.recommended` + `tseslint.configs.recommended` |
-| **Prettier** | Pre-commit (push) | Formats YAML, JSON, Markdown |
+| Tool         | Config              | Key Settings                                                  |
+| ------------ | ------------------- | ------------------------------------------------------------- |
+| **ESLint**   | `eslint.config.mjs` | `eslint.configs.recommended` + `tseslint.configs.recommended` |
+| **Prettier** | Pre-commit (push)   | Formats YAML, JSON, Markdown                                  |
 
 ### ESLint Rules
 
@@ -128,15 +128,16 @@ description: 'Mandatory code quality, linting, and test coverage rules for ALL l
 
 ### Horatio (`horatio/`)
 
-| Tool | Config | Enforcement |
-|---|---|---|
+| Tool             | Config                          | Enforcement                        |
+| ---------------- | ------------------------------- | ---------------------------------- |
 | **dart analyze** | `horatio/analysis_options.yaml` | `--fatal-infos` — infos are errors |
-| **dart format** | melos `format` script | `--set-exit-if-changed` |
-| **flutter test** | `horatio/run.sh` | 100% line coverage enforced |
+| **dart format**  | melos `format` script           | `--set-exit-if-changed`            |
+| **flutter test** | `horatio/run.sh`                | 100% line coverage enforced        |
 
 #### Analysis Rules
 
 The `analysis_options.yaml` enables **strict everything**:
+
 - `strict-casts: true`, `strict-inference: true`, `strict-raw-types: true`
 - `missing_return: error`, `missing_required_param: error`
 - **100+ individual lint rules** explicitly enabled (see file for full list)
@@ -163,8 +164,8 @@ The `analysis_options.yaml` enables **strict everything**:
 
 ### Linters
 
-| Tool | Config | Key Settings |
-|---|---|---|
+| Tool           | Config          | Key Settings                                             |
+| -------------- | --------------- | -------------------------------------------------------- |
 | **ShellCheck** | Pre-commit hook | `--severity=warning` — all warnings and above are errors |
 
 - All shell scripts are checked on every commit (except `pomodoro_app/`).
@@ -174,37 +175,37 @@ The `analysis_options.yaml` enables **strict everything**:
 
 ### On Every Commit (fast, ~10s)
 
-| Hook | Scope |
-|---|---|
-| trailing-whitespace, end-of-file-fixer | All files |
-| check-yaml, check-json, check-toml, check-xml | Config files |
-| check-merge-conflict, detect-private-key | All files |
-| name-tests-test (`--pytest-test-first`) | Python tests |
-| no-binaries | All files |
-| no-noqa, no-ruff-noqa | Python — blocks ALL suppression comments |
-| **ruff** (lint + fix) | Python |
-| **ruff-format** | Python |
-| **clang-format** | C/C++ |
-| **cppcheck** | C/C++ |
-| **flawfinder** | C/C++ |
-| **eslint** | TypeScript |
-| **shellcheck** | Shell scripts |
-| **codespell** | All text files |
-| check-c-cpp-build-files | C/C++ directories |
-| check-python-location | Python must be under `python_pkg/` |
-| check-no-secrets | All files |
+| Hook                                          | Scope                                    |
+| --------------------------------------------- | ---------------------------------------- |
+| trailing-whitespace, end-of-file-fixer        | All files                                |
+| check-yaml, check-json, check-toml, check-xml | Config files                             |
+| check-merge-conflict, detect-private-key      | All files                                |
+| name-tests-test (`--pytest-test-first`)       | Python tests                             |
+| no-binaries                                   | All files                                |
+| no-noqa, no-ruff-noqa                         | Python — blocks ALL suppression comments |
+| **ruff** (lint + fix)                         | Python                                   |
+| **ruff-format**                               | Python                                   |
+| **clang-format**                              | C/C++                                    |
+| **cppcheck**                                  | C/C++                                    |
+| **flawfinder**                                | C/C++                                    |
+| **eslint**                                    | TypeScript                               |
+| **shellcheck**                                | Shell scripts                            |
+| **codespell**                                 | All text files                           |
+| check-c-cpp-build-files                       | C/C++ directories                        |
+| check-python-location                         | Python must be under `python_pkg/`       |
+| check-no-secrets                              | All files                                |
 
 ### On Push Only (slow)
 
-| Hook | Scope |
-|---|---|
-| **mypy** | Python (strict type checking) |
-| **pylint** | Python (comprehensive linting) |
-| **bandit** | Python (security scanning) |
-| **pytest + 100% coverage** | Python (changed subpackages) |
-| **prettier** | YAML, JSON, Markdown |
-| **flutter analyze + test** | `pomodoro_app/` |
-| **horatio run.sh test** | `horatio/` (100% coverage) |
+| Hook                       | Scope                          |
+| -------------------------- | ------------------------------ |
+| **mypy**                   | Python (strict type checking)  |
+| **pylint**                 | Python (comprehensive linting) |
+| **bandit**                 | Python (security scanning)     |
+| **pytest + 100% coverage** | Python (changed subpackages)   |
+| **prettier**               | YAML, JSON, Markdown           |
+| **flutter analyze + test** | `pomodoro_app/`                |
+| **horatio run.sh test**    | `horatio/` (100% coverage)     |
 
 ## Verification Checklist
 
