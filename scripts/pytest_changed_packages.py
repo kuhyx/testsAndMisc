@@ -12,10 +12,12 @@ all tests are run as a fallback.
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
+import shutil
 import subprocess
 import sys
 
 _MIN_SUBPACKAGE_DEPTH = 2
+_MEMORY_CAP = "3G"
 
 
 def _affected_packages(files: list[str]) -> set[str] | None:
@@ -88,8 +90,19 @@ def main() -> int:
         return 0
 
     # Run each package in its own subprocess so memory is freed between runs.
+    # Wrap in systemd-run cgroup to hard-cap memory per package.
+    use_cgroup = shutil.which("systemd-run") is not None
     for pkg in sorted(packages):
         cmd = _build_pytest_command({pkg})
+        if use_cgroup:
+            cmd = [
+                "systemd-run",
+                "--user",
+                "--scope",
+                "-p",
+                f"MemoryMax={_MEMORY_CAP}",
+                *cmd,
+            ]
         result = subprocess.run(cmd, check=False)
         if result.returncode != 0:
             return result.returncode
