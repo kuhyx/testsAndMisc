@@ -12,10 +12,12 @@ all tests are run as a fallback.
 from __future__ import annotations
 
 import gc
+import os
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
+import tempfile
 
 _MIN_SUBPACKAGE_DEPTH = 2
 _PER_PACKAGE_MEM = "2G"
@@ -95,23 +97,29 @@ def main() -> int:
     # instantly at the limit instead of thrashing swap/zram.
     use_cgroup = shutil.which("systemd-run") is not None
     for pkg in sorted(packages):
-        # Remove stale .coverage* files before each package run to prevent
-        # SQLite corruption when combining parallel coverage data files.
-        for stale in Path().glob(".coverage*"):
-            stale.unlink(missing_ok=True)
-        cmd = _build_pytest_command({pkg})
-        if use_cgroup:
-            cmd = [
-                "systemd-run",
-                "--user",
-                "--scope",
-                "-p",
-                f"MemoryMax={_PER_PACKAGE_MEM}",
-                "-p",
-                "MemorySwapMax=0",
-                *cmd,
-            ]
-        result = subprocess.run(cmd, check=False)
+        # Each package gets its own isolated coverage data file so parallel
+        # cgroup subprocesses never stomp on each other's SQLite DB.
+        with tempfile.NamedTemporaryFile(
+            prefix=f".coverage_{pkg}_", dir=".", delete=False
+        ) as tmp:
+            cov_file = tmp.name
+        try:
+            cmd = _build_pytest_command({pkg})
+            env = {**os.environ, "COVERAGE_FILE": cov_file}
+            if use_cgroup:
+                cmd = [
+                    "systemd-run",
+                    "--user",
+                    "--scope",
+                    "-p",
+                    f"MemoryMax={_PER_PACKAGE_MEM}",
+                    "-p",
+                    "MemorySwapMax=0",
+                    *cmd,
+                ]
+            result = subprocess.run(cmd, check=False, env=env)
+        finally:
+            Path(cov_file).unlink(missing_ok=True)
         gc.collect()
         if result.returncode != 0:
             return result.returncode
