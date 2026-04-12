@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING
 
 from python_pkg.fm24_searcher.binary_parser import (
@@ -159,25 +160,32 @@ def build_parser() -> argparse.ArgumentParser:
 def _print_stats(players: list[Player]) -> None:
     """Print summary statistics about loaded players."""
     total = len(players)
-    sum(1 for p in players if p.date_of_birth)
+    with_dob = sum(1 for p in players if p.date_of_birth)
     with_attrs = sum(1 for p in players if p.attributes)
-    sum(1 for p in players if p.current_ability)
+    with_ca = sum(1 for p in players if p.current_ability)
+    sys.stdout.write(f"Total players: {total}\n")
+    sys.stdout.write(f"With DOB: {with_dob}\n")
+    sys.stdout.write(f"With attributes: {with_attrs}\n")
+    sys.stdout.write(f"With CA/PA: {with_ca}\n")
     if with_attrs > 0:
-        sum(len(p.attributes) for p in players) / with_attrs
+        avg_attrs = sum(len(p.attributes) for p in players) / with_attrs
+        sys.stdout.write(f"Avg attributes per player: {avg_attrs:.1f}\n")
     if total == 0:
         return
-    if with_attrs > 0:
-        pass
     # Attribute coverage
     attr_counts: dict[str, int] = {}
     for p in players:
         for attr in p.attributes:
             attr_counts[attr] = attr_counts.get(attr, 0) + 1
     if attr_counts:
+        sys.stdout.write("Attribute coverage:\n")
         for attr in ALL_VISIBLE_ATTRS:
             count = attr_counts.get(attr, 0)
             pct = 100 * count / with_attrs if with_attrs else 0
-            "*" * int(pct / 5)
+            bar = "*" * int(pct / 5)
+            sys.stdout.write(
+                f"  {attr:20s} {count:4d}/{with_attrs:4d} ({pct:5.1f}%) {bar}\n"
+            )
 
 
 def run_dump(argv: Sequence[str] | None = None) -> int:
@@ -193,9 +201,11 @@ def run_dump(argv: Sequence[str] | None = None) -> int:
         return 2
 
     def progress(msg: str, pct: int) -> None:
-        pass
+        sys.stderr.write(f"\r{msg} {pct}%")
+        sys.stderr.flush()
 
     players = parse_people_db(db_path, progress_cb=progress)
+    sys.stderr.write("\n")
 
     if args.search:
         players = search_players(players, args.search)
@@ -209,13 +219,17 @@ def run_dump(argv: Sequence[str] | None = None) -> int:
 
     # Apply limit
     limited = players[: args.limit]
+    total = len(players)
+    shown = len(limited)
 
     # Output
     if args.tsv:
-        for _p in limited:
-            pass
+        sys.stdout.write(_format_tsv_header(show_attrs=args.attrs) + "\n")
+        for p in limited:
+            sys.stdout.write(_format_tsv_row(p, show_attrs=args.attrs) + "\n")
     else:
-        for _p in limited:
-            pass
+        for p in limited:
+            sys.stdout.write(_format_player(p, show_attrs=args.attrs) + "\n\n")
 
+    sys.stdout.write(f"Showing {shown} of {total} players\n")
     return 0
