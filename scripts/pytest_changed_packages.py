@@ -11,7 +11,7 @@ all tests are run as a fallback.
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 import subprocess
 import sys
 
@@ -73,9 +73,27 @@ def main() -> int:
         return 0
 
     packages = _affected_packages(files)
-    cmd = _build_pytest_command(packages)
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+
+    # When many packages are affected, run each one in a separate subprocess
+    # to avoid accumulating memory across all test suites (OOM prevention).
+    if packages is None:
+        # Discover all subpackages that have a tests/ directory.
+        packages = {
+            entry.name
+            for entry in Path("python_pkg").iterdir()
+            if (entry / "tests").is_dir()
+        }
+
+    if not packages:
+        return 0
+
+    # Run each package in its own subprocess so memory is freed between runs.
+    for pkg in sorted(packages):
+        cmd = _build_pytest_command({pkg})
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            return result.returncode
+    return 0
 
 
 if __name__ == "__main__":
