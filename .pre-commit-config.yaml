@@ -11,8 +11,8 @@
 default_language_version:
   python: python3
 
-# Fail fast on first error (set to false to see all errors)
-fail_fast: false
+# Fail fast on first error — also prevents stacking memory-heavy hooks
+fail_fast: true
 
 # Configuration
 ci:
@@ -337,22 +337,10 @@ repos:
     hooks:
       - id: cppcheck
         name: cppcheck
-        entry: bash -c 'ulimit -v 3145728; exec cppcheck "$@"' --
+        entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 1 cppcheck --enable=warning,portability --check-level=normal --quiet --error-exitcode=1 --inline-suppr --suppress=missingIncludeSystem --suppress=syntaxError --suppress=nullPointerOutOfResources --suppress=ctunullpointerOutOfResources --suppress=ctunullpointerOutOfMemory --std=c11' --
         language: system
         types_or: [c, c++]
         exclude: ^(pomodoro_app/|horatio/)
-        args:
-          - --enable=warning,portability
-          - --check-level=normal
-          - --quiet
-          - --error-exitcode=1
-          - --inline-suppr
-          - --suppress=missingIncludeSystem
-          - --suppress=syntaxError
-          - --suppress=nullPointerOutOfResources
-          - --suppress=ctunullpointerOutOfResources
-          - --suppress=ctunullpointerOutOfMemory
-          - --std=c11
 
   # ===========================================================================
   # FLAWFINDER - C/C++ security scanner
@@ -376,7 +364,7 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: npx eslint --no-warn-ignored
+        entry: bash -c 'NODE_OPTIONS="--max-old-space-size=512" npx eslint --no-warn-ignored "$@"' --
         language: system
         types_or: [ts, tsx]
         files: ^TS/
