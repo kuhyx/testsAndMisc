@@ -337,12 +337,13 @@ repos:
     hooks:
       - id: cppcheck
         name: cppcheck
-        entry: cppcheck
+        entry: bash -c 'ulimit -v 3145728; exec cppcheck "$@"' --
         language: system
         types_or: [c, c++]
         exclude: ^(pomodoro_app/|horatio/)
         args:
           - --enable=warning,portability
+          - --check-level=normal
           - --quiet
           - --error-exitcode=1
           - --inline-suppr
