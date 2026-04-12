@@ -11,11 +11,14 @@ all tests are run as a fallback.
 
 from __future__ import annotations
 
+import gc
 from pathlib import Path, PurePosixPath
+import shutil
 import subprocess
 import sys
 
 _MIN_SUBPACKAGE_DEPTH = 2
+_PER_PACKAGE_MEM = "2G"
 
 
 def _affected_packages(files: list[str]) -> set[str] | None:
@@ -88,9 +91,24 @@ def main() -> int:
         return 0
 
     # Run each package in its own subprocess so memory is freed between runs.
+    # Wrap each in a nested cgroup with MemorySwapMax=0 so it gets killed
+    # instantly at the limit instead of thrashing swap/zram.
+    use_cgroup = shutil.which("systemd-run") is not None
     for pkg in sorted(packages):
         cmd = _build_pytest_command({pkg})
+        if use_cgroup:
+            cmd = [
+                "systemd-run",
+                "--user",
+                "--scope",
+                "-p",
+                f"MemoryMax={_PER_PACKAGE_MEM}",
+                "-p",
+                "MemorySwapMax=0",
+                *cmd,
+            ]
         result = subprocess.run(cmd, check=False)
+        gc.collect()
         if result.returncode != 0:
             return result.returncode
     return 0
