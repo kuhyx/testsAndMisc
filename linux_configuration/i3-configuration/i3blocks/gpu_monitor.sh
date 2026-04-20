@@ -1,64 +1,75 @@
 #!/bin/bash
+# i3blocks GPU monitor, persist mode.
+#
+# Keeps a single long-lived `nvidia-smi --loop=5` (or reads amdgpu sysfs
+# in a blocking-read loop) instead of forking nvidia-smi/lspci/awk/tr/bc
+# every interval. No sleep, no polling loop in bash — nvidia-smi's own
+# periodic emitter drives updates and we block on `read`.
+#
+# Configure with `interval=persist` in the i3blocks config.
 
-# Function to get NVIDIA GPU metrics
-get_nvidia_metrics() {
-  gpu_temp=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2> /dev/null)
-  if [ -z "$gpu_temp" ]; then
-    gpu_temp="N/A"
-  fi
+set -u
 
-  gpu_load=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2> /dev/null)
-  if [ -z "$gpu_load" ]; then
-    gpu_load="N/A"
-  fi
-
-  echo "GPU Temp: $gpu_temp°C, GPU Load: $gpu_load"
-}
-
-# Function to get Intel GPU metrics
-get_intel_metrics() {
-  gpu_load=$(cat /sys/class/drm/card0/device/gpu_busy_percent 2> /dev/null)
-  if [ -z "$gpu_load" ]; then
-    gpu_load="N/A"
-  fi
-
-  gpu_temp=$(sensors | awk '/^temp1:/ {print $2; exit}' | tr -d '+°C')
-  if [ -z "$gpu_temp" ]; then
-    gpu_temp="N/A"
-  fi
-
-  echo "GPU Temp: $gpu_temp°C, GPU Load: $gpu_load"
-}
-
-# Detect GPU type and get metrics
-if lspci | grep -i nvidia > /dev/null; then
-  gpu_metrics=$(get_nvidia_metrics)
-elif lspci | grep -i vga | grep -i intel > /dev/null; then
-  gpu_metrics=$(get_intel_metrics)
-else
-  echo "No supported GPU found."
-fi
-
-#!/bin/bash
-# GPU Metrics
-gpu_temp=$(echo "$gpu_metrics" | awk -F', ' '{print $1}' | awk -F': ' '{print $2}')
-gpu_load=$(echo "$gpu_metrics" | awk -F', ' '{print $2}' | awk -F': ' '{print $2}')
-
-gpu_color="#FFFFFF"
-# Colors for GPU Load
-if [[ $gpu_load != "N/A" ]]; then
-  if (($(echo "$gpu_load < 50.0" | bc -l))); then
-    gpu_color="#50FA7B" # Green
-  elif (($(echo "$gpu_load < 75.0" | bc -l))); then
-    gpu_color="#F1FA8C" # Yellow
+emit() {
+  local temp=$1 load=$2 color
+  if [[ $load == 'N/A' ]]; then
+    color='#FFFFFF'
+  elif ((load < 50)); then
+    color='#50FA7B'
+  elif ((load < 75)); then
+    color='#F1FA8C'
   else
-    gpu_color="#FF5555" # Red
+    color='#FF5555'
   fi
-else
-  gpu_color="#FFFFFF" # Default color
+  printf '<span color="%s">    %s°C, %s%%</span>\n\n%s\n' \
+    "$color" "$temp" "$load" "$color"
+}
+
+# Prefer NVIDIA if present (persist via --loop).
+if command -v nvidia-smi > /dev/null 2>&1; then
+  # One child process for the lifetime of i3blocks; emits CSV every 5s.
+  nvidia-smi \
+    --query-gpu=temperature.gpu,utilization.gpu \
+    --format=csv,noheader,nounits \
+    --loop=5 2> /dev/null |
+    while IFS=',' read -r temp load; do
+      # Strip leading/trailing whitespace using parameter expansion.
+      temp=${temp## }
+      temp=${temp%% }
+      load=${load## }
+      load=${load%% }
+      [[ -z $temp || -z $load ]] && continue
+      emit "$temp" "$load"
+    done
+  exit 0
 fi
 
-# Output<
-echo -e "<span color=\"$gpu_color\">    ${gpu_temp}, ${gpu_load}%</span>"
-echo
-echo "#FFFFFF" # Default color for fallback (ignored if markup is enabled)
+# AMD fallback: read sysfs directly; emit once (i3blocks restarts on exit).
+amdgpu=''
+for d in /sys/class/hwmon/hwmon*/; do
+  [[ -r ${d}name ]] || continue
+  read -r n < "${d}name"
+  [[ $n == amdgpu ]] && {
+    amdgpu=$d
+    break
+  }
+done
+if [[ -n $amdgpu ]]; then
+  temp='N/A'
+  if [[ -r ${amdgpu}temp1_input ]]; then
+    read -r milli < "${amdgpu}temp1_input"
+    temp=$((milli / 1000))
+  fi
+  load='N/A'
+  # drm card matching the amdgpu hwmon exposes gpu_busy_percent.
+  for card in /sys/class/drm/card*/device/gpu_busy_percent; do
+    [[ -r $card ]] && {
+      read -r load < "$card"
+      break
+    }
+  done
+  emit "$temp" "$load"
+  exit 0
+fi
+
+printf 'No supported GPU\n\n#FF5555\n'
