@@ -1,48 +1,60 @@
 #!/bin/bash
+# i3blocks CPU monitor, zero-fork per invocation.
+#
+# Reads /proc/loadavg and /sys/class/hwmon/*/temp*_input directly instead
+# of forking `sensors | awk | tr` and `echo | bc`. Pure bash builtins.
 
-# CPU Temperature
-cpu_temp=$(sensors | awk '/^Tctl:/ {print $2}' | tr -d '+°C')
-if [ -z "$cpu_temp" ]; then
-  cpu_temp=$(sensors | awk '/^Package id 0:/ {print $4}' | tr -d '+°C')
-fi
-if [ -z "$cpu_temp" ]; then
-  cpu_temp=$(sensors | awk '/^Core 0:/ {print $3}' | tr -d '+°C')
-fi
-if [ -z "$cpu_temp" ]; then
-  cpu_temp="N/A"
+set -u
+
+# Locate AMD k10temp or Intel coretemp hwmon node.
+hwmon=''
+for d in /sys/class/hwmon/hwmon*/; do
+  [[ -r ${d}name ]] || continue
+  read -r n < "${d}name"
+  case $n in
+    k10temp | coretemp)
+      hwmon=$d
+      break
+      ;;
+  esac
+done
+
+temp='N/A'
+temp_int=-1
+if [[ -n $hwmon && -r ${hwmon}temp1_input ]]; then
+  read -r milli < "${hwmon}temp1_input"
+  temp_int=$((milli / 1000))
+  temp=$temp_int
 fi
 
-# CPU Load (1-minute average)
-cpu_load=$(awk '{print $1}' /proc/loadavg)
-if [ -z "$cpu_load" ]; then
-  cpu_load="N/A"
+load='N/A'
+load_x100=0
+if [[ -r /proc/loadavg ]]; then
+  read -r one _ < /proc/loadavg
+  load=$one
+  # loadavg prints two decimals, e.g. "1.23" → 123, "0.05" → 5.
+  load_digits=${one//./}
+  load_digits=${load_digits##0}
+  load_x100=$((10#${load_digits:-0}))
 fi
 
-# Colors for CPU Load and Temperature
-cpu_color="#FFFFFF" # Default color
-
-# Change color based on CPU load
-if [[ $cpu_load != "N/A" ]]; then
-  cpu_load_float=$(echo "$cpu_load" | awk '{print ($1 + 0)}')
-  if (($(echo "$cpu_load_float < 1.0" | bc -l))); then
-    cpu_color="#50FA7B" # Green for low load
-  elif (($(echo "$cpu_load_float < 2.0" | bc -l))); then
-    cpu_color="#F1FA8C" # Yellow for medium load
+color='#FFFFFF'
+if ((temp_int >= 0)); then
+  if ((temp_int < 65)); then
+    color='#50FA7B'
+  elif ((temp_int < 85)); then
+    color='#F1FA8C'
   else
-    cpu_color="#FF5555" # Red for high load
+    color='#FF5555'
+  fi
+elif ((load_x100 > 0)); then
+  if ((load_x100 < 100)); then
+    color='#50FA7B'
+  elif ((load_x100 < 200)); then
+    color='#F1FA8C'
+  else
+    color='#FF5555'
   fi
 fi
 
-# Change color based on CPU temperature
-if [[ $cpu_temp != "N/A" ]]; then
-  cpu_temp_float=$(echo "$cpu_temp" | awk '{print ($1 + 0)}')
-  if (($(echo "$cpu_temp_float < 65.0" | bc -l))); then
-    cpu_color="#50FA7B" # Green for low temperature
-  elif (($(echo "$cpu_temp_float < 85.0" | bc -l))); then
-    cpu_color="#F1FA8C" # Yellow for medium temperature
-  else
-    cpu_color="#FF5555" # Red for high temperature
-  fi
-fi
-
-echo -e "<span color=\"$cpu_color\">    ${cpu_temp}°C, ${cpu_load}</span>"
+printf '<span color="%s">    %s°C, %s</span>\n' "$color" "$temp" "$load"

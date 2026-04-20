@@ -6,7 +6,7 @@ markup=pango
 
 [gpu_monitor]
 command=~/.config/i3blocks/gpu_monitor.sh
-interval=5
+interval=persist
 markup=pango
 
 
@@ -31,7 +31,7 @@ color=#50FA7B
 
 [volume]
 command=~/.config/i3blocks/volume.sh
-interval=1
+interval=persist
 
 
 
