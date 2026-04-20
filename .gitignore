@@ -423,6 +423,8 @@ pomodoro_app/build
 horatio/horatio_app/build
 sonic_pi/build
 CPP/mini_browser/build
+phone_focus_mode/focus_status_app/build
+phone_focus_mode/focus_status_app/debug.keystore
 pomodoro_app/.dart_tool
 horatio/horatio_app/.dart_tool
 horatio/horatio_core/.dart_tool
