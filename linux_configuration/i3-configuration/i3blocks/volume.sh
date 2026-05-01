@@ -5,7 +5,9 @@
 # No sleep, no polling loop, no awk/tr/grep forks. One pactl-subscribe
 # process stays alive; two short pactl calls run only on actual events.
 #
-# Configure with `interval=persist` in the i3blocks config.
+# Configure with `interval=persist` and `markup=pango` in the i3blocks
+# config. In persist mode each newline is a separate status update, so
+# we emit exactly ONE line (with inline pango markup for color).
 
 set -u
 
@@ -30,7 +32,7 @@ emit() {
     color=$GREEN
   fi
 
-  printf '%s %s%%\n\n%s\n' "$icon" "$vol" "$color"
+  printf '<span color="%s">%s %s%%</span>\n' "$color" "$icon" "$vol"
 }
 
 emit

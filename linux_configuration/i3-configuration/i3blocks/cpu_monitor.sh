@@ -57,4 +57,5 @@ elif ((load_x100 > 0)); then
   fi
 fi
 
-printf '<span color="%s">    %s°C, %s</span>\n' "$color" "$temp" "$load"
+# Nerd Font glyph: microchip / CPU icon (U+F2DB).
+printf '<span color="%s">\uf2db    %s°C, %s</span>\n' "$color" "$temp" "$load"

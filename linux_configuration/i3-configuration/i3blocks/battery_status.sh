@@ -6,6 +6,9 @@
 
 set -u
 
+# Nerd Font glyph: battery-full icon (U+F240).
+ICON=$'\uf240'
+
 bat=
 for d in /sys/class/power_supply/BAT*/; do
   [[ -d $d ]] && {
@@ -43,7 +46,17 @@ if ((den > 0 && num > 0)); then
   printf -v time_str '%02d:%02d' "$((total_min / 60))" "$((total_min % 60))"
 fi
 
-printf '  %s%%' "$cap"
-[[ -n $time_str ]] && printf ', %s' "$time_str"
-[[ $status == Charging ]] && printf ', '
-printf '\n'
+color='#50FA7B'
+if [[ $cap =~ ^[0-9]+$ ]]; then
+  if ((cap < 15)); then
+    color='#FF5555'
+  elif ((cap < 35)); then
+    color='#F1FA8C'
+  fi
+fi
+[[ $status == Charging ]] && color='#8BE9FD'
+
+printf -v body '%s %s%%' "$ICON" "$cap"
+[[ -n $time_str ]] && body+=", $time_str"
+[[ $status == Charging ]] && body+=', '
+printf '<span color="%s">%s</span>\n' "$color" "$body"

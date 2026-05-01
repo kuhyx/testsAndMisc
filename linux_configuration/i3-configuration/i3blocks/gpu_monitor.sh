@@ -6,9 +6,14 @@
 # every interval. No sleep, no polling loop in bash — nvidia-smi's own
 # periodic emitter drives updates and we block on `read`.
 #
-# Configure with `interval=persist` in the i3blocks config.
+# Configure with `interval=persist` and `markup=pango` in the i3blocks
+# config. In persist mode each newline is a separate status update, so
+# we emit exactly ONE line (with inline pango markup for color).
 
 set -u
+
+# Nerd Font glyph: display / desktop icon (U+F108).
+ICON=$'\uf108'
 
 emit() {
   local temp=$1 load=$2 color
@@ -21,8 +26,8 @@ emit() {
   else
     color='#FF5555'
   fi
-  printf '<span color="%s">    %s°C, %s%%</span>\n\n%s\n' \
-    "$color" "$temp" "$load" "$color"
+  printf '<span color="%s">%s    %s°C, %s%%</span>\n' \
+    "$color" "$ICON" "$temp" "$load"
 }
 
 # Prefer NVIDIA if present (persist via --loop).
@@ -72,4 +77,4 @@ if [[ -n $amdgpu ]]; then
   exit 0
 fi
 
-printf 'No supported GPU\n\n#FF5555\n'
+printf '<span color="#FF5555">%s No supported GPU</span>\n' "$ICON"
