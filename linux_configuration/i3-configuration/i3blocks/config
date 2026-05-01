@@ -13,6 +13,7 @@ markup=pango
 [motherboard_temperature]
 command=~/.config/i3blocks/motherboard_temp.sh
 interval=5
+markup=pango
 
 
 [memory]
@@ -32,6 +33,7 @@ color=#50FA7B
 [volume]
 command=~/.config/i3blocks/volume.sh
 interval=persist
+markup=pango
 
 
 
@@ -44,6 +46,7 @@ color=#FFFFFF
 [battery]
 command=~/.config/i3blocks/battery_status.sh
 interval=1
+markup=pango
 
 
 [ethernet]

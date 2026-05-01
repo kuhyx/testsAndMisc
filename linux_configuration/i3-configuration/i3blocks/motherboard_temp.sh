@@ -7,6 +7,9 @@
 
 set -u
 
+# Nerd Font glyph: thermometer icon (U+F2C9).
+ICON=$'\uf2c9'
+
 hwmon=''
 for d in /sys/class/hwmon/hwmon*/; do
   [[ -r ${d}name ]] || continue
@@ -33,7 +36,7 @@ if [[ -z $hwmon ]]; then
 fi
 
 if [[ -z $hwmon || ! -r ${hwmon}temp1_input ]]; then
-  printf '  MB: N/A\n\n#FF5555\n'
+  printf '<span color="#FF5555">%s  MB: N/A</span>\n' "$ICON"
   exit 0
 fi
 
@@ -48,4 +51,4 @@ else
   color='#FF5555'
 fi
 
-printf '  %s°C\n\n%s\n' "$temp" "$color"
+printf '<span color="%s">%s  %s°C</span>\n' "$color" "$ICON" "$temp"
