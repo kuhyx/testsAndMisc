@@ -11,7 +11,9 @@ HOSTS_INSTALL_SCRIPT="__HOSTS_INSTALL_SCRIPT__"
 
 # Log with timestamp (hosts-file-monitor specific)
 log_message() {
-  printf '%s [hosts-monitor] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" | tee -a "$LOG_FILE" >&2
+  local _ts
+  printf -v _ts '%(%Y-%m-%d %H:%M:%S)T' -1
+  printf '%s [hosts-monitor] %s\n' "$_ts" "$1" | tee -a "$LOG_FILE" >&2
 }
 
 # Function to check if hosts file needs restoration

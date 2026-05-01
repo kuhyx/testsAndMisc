@@ -1,48 +1,36 @@
 #!/bin/bash
-# ActivityWatch status script for i3blocks
-# Shows ActivityWatch installation and running status
+# ActivityWatch status script for i3blocks.
 
-# Check if ActivityWatch is installed
+set -euo pipefail
+
 check_installed() {
-  # Check if activitywatch-bin package is installed
-  if pacman -Qi activitywatch-bin &> /dev/null; then
-    return 0
-  fi
-
-  # Check if aw-qt binary exists
-  if command -v aw-qt &> /dev/null; then
-    return 0
-  fi
-
-  return 1
+  command -v aw-qt > /dev/null 2>&1 || command -v aw-server > /dev/null 2>&1
 }
 
-# Check if ActivityWatch is running
 check_running() {
-  # Check for aw-qt process
-  if pgrep -f "aw-qt" > /dev/null 2>&1; then
-    return 0
-  fi
-
-  # Check for aw-server process
-  if pgrep -f "aw-server" > /dev/null 2>&1; then
-    return 0
-  fi
-
+  local proc_file proc_name
+  for proc_file in /proc/[0-9]*/comm; do
+    [[ -r $proc_file ]] || continue
+    read -r proc_name < "$proc_file" || continue
+    case $proc_name in
+      aw-qt | aw-server)
+        return 0
+        ;;
+    esac
+  done
   return 1
 }
 
-# Main logic
 if ! check_installed; then
   echo "AW uninstalled"
   echo
-  echo "#FF0000" # Red
+  echo "#FF0000"
 elif check_running; then
   echo "AW on"
   echo
-  echo "#00FF00" # Green
+  echo "#00FF00"
 else
   echo "AW off"
   echo
-  echo "#FF0000" # Red
+  echo "#FF0000"
 fi

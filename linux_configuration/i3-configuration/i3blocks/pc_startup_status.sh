@@ -1,72 +1,71 @@
 #!/bin/bash
-# PC Startup Monitor status script for i3blocks
-# Shows compact startup compliance status in the status bar
+# PC Startup Monitor status script for i3blocks.
 
-# Function to check if today is a monitored day
+set -euo pipefail
+
+get_now_epoch() {
+  if [[ -n ${NOW_EPOCH:-} ]]; then
+    printf '%s\n' "$NOW_EPOCH"
+  else
+    printf '%(%s)T\n' -1
+  fi
+}
+
+get_uptime_seconds() {
+  local uptime_line
+  if [[ -n ${UPTIME_SECONDS:-} ]]; then
+    printf '%s\n' "$UPTIME_SECONDS"
+    return 0
+  fi
+
+  read -r uptime_line _ < /proc/uptime || uptime_line='0'
+  printf '%s\n' "${uptime_line%%.*}"
+}
+
 is_monitored_day() {
-  local day_of_week
-  day_of_week=$(date +%u)
-  if [[ $day_of_week == "1" ]] || [[ $day_of_week == "5" ]] || [[ $day_of_week == "6" ]] || [[ $day_of_week == "7" ]]; then
-    return 0
-  else
-    return 1
-  fi
+  local epoch=$1 day_of_week
+  printf -v day_of_week '%(%u)T' "$epoch"
+  case $day_of_week in
+    1 | 5 | 6 | 7)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
-# Function to check if current time is in window
-is_current_time_in_window() {
-  local current_hour current_hour_num
-  current_hour=$(date +%H)
-  current_hour_num=$((10#$current_hour))
-  if [[ $current_hour_num -ge 5 ]] && [[ $current_hour_num -lt 8 ]]; then
-    return 0
-  else
-    return 1
-  fi
+hour_in_window() {
+  local epoch=$1 hour
+  printf -v hour '%(%H)T' "$epoch"
+  ((10#$hour >= 5 && 10#$hour < 8))
 }
 
-# Function to check if PC was booted in window today
 was_booted_in_window_today() {
-  local today uptime_seconds boot_time boot_date
-  today=$(date +%Y-%m-%d)
-  uptime_seconds=$(awk '{print int($1)}' /proc/uptime 2> /dev/null || echo "0")
-  boot_time=$(date -d "@$(($(date +%s) - uptime_seconds))" +"%Y-%m-%d %H:%M:%S")
-  boot_date=$(echo "$boot_time" | cut -d' ' -f1)
-
-  if [[ $boot_date != "$today" ]]; then
-    return 1
-  fi
-
-  local boot_hour boot_hour_num
-  boot_hour=$(echo "$boot_time" | cut -d' ' -f2 | cut -d':' -f1)
-  boot_hour_num=$((10#$boot_hour))
-
-  if [[ $boot_hour_num -ge 5 ]] && [[ $boot_hour_num -lt 8 ]]; then
-    return 0
-  else
-    return 1
-  fi
+  local now_epoch=$1 boot_epoch now_day boot_day
+  boot_epoch=$((now_epoch - $(get_uptime_seconds)))
+  printf -v now_day '%(%Y-%m-%d)T' "$now_epoch"
+  printf -v boot_day '%(%Y-%m-%d)T' "$boot_epoch"
+  [[ $boot_day == "$now_day" ]] || return 1
+  hour_in_window "$boot_epoch"
 }
 
-# Main logic
-if ! is_monitored_day; then
-  # Not a monitored day
+now_epoch=$(get_now_epoch)
+
+if ! is_monitored_day "$now_epoch"; then
   echo "PC:skip"
   echo
-  echo "#888888" # Gray
-elif is_current_time_in_window; then
-  # Currently in the window - all good
+  echo "#888888"
+elif hour_in_window "$now_epoch"; then
   echo "PC:live"
   echo
-  echo "#00FF00" # Green
-elif was_booted_in_window_today; then
-  # Was booted in window today - compliant
+  echo "#00FF00"
+elif was_booted_in_window_today "$now_epoch"; then
   echo "PC:ok"
   echo
-  echo "#00FF00" # Green
+  echo "#00FF00"
 else
-  # Was NOT booted in window today - non-compliant
   echo "PC:warn"
   echo
-  echo "#FF0000" # Red
+  echo "#FF0000"
 fi

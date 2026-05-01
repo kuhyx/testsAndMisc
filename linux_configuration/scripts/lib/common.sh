@@ -19,7 +19,7 @@ log_message() {
 	local msg="$1"
 	local log_file="${2:-}"
 	local formatted
-	formatted="$(date '+%Y-%m-%d %H:%M:%S') - $msg"
+	printf -v formatted '%(%Y-%m-%d %H:%M:%S)T - %s' -1 "$msg"
 	echo "$formatted" >&2
 	if [[ -n $log_file ]]; then
 		echo "$formatted" >>"$log_file" 2>/dev/null || true
@@ -29,7 +29,9 @@ log_message() {
 # Simple log with timestamp (no file output)
 # Usage: log "message"
 log() {
-	printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+	local _ts
+	printf -v _ts '%(%Y-%m-%d %H:%M:%S)T' -1
+	printf '[%s] %s\n' "$_ts" "$*"
 }
 
 # =============================================================================
@@ -180,24 +182,29 @@ FOCUS_APPS_PROCESSES=(
 # Returns 0 if focus app found, 1 otherwise
 # Echoes the name of the found app
 is_focus_app_running() {
-	# Check windows first
-	if command -v xdotool &>/dev/null; then
-		local app
-		for app in "${FOCUS_APPS_WINDOWS[@]}"; do
-			if xdotool search --name "$app" &>/dev/null 2>&1; then
-				echo "$app"
+	# One xdotool call with a combined regex instead of N separate calls
+	if command -v xdotool &>/dev/null && [[ ${#FOCUS_APPS_WINDOWS[@]} -gt 0 ]]; then
+		local regex wid
+		printf -v regex '%s|' "${FOCUS_APPS_WINDOWS[@]}"
+		regex="${regex%|}"  # strip trailing |
+		wid=$(xdotool search --name "$regex" 2>/dev/null | head -1 || true)
+		if [[ -n $wid ]]; then
+			xdotool getwindowname "$wid" 2>/dev/null || echo "focus app"
+			return 0
+		fi
+	fi
+
+	# Check specific processes via /proc (no fork)
+	local app comm
+	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
+		for comm in /proc/[0-9]*/comm; do
+			[[ -r $comm ]] || continue
+			read -r _proc_comm < "$comm" 2>/dev/null || continue
+			if [[ $_proc_comm == *"$app"* ]]; then
+				echo "$_proc_comm"
 				return 0
 			fi
 		done
-	fi
-
-	# Check specific processes
-	local app
-	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
-		if pgrep -f "$app" &>/dev/null; then
-			echo "$app"
-			return 0
-		fi
 	done
 
 	return 1

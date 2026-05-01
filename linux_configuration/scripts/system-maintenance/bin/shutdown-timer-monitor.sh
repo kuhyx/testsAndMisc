@@ -12,7 +12,9 @@ CHECK_INTERVAL=30
 
 # Log with timestamp (shutdown-timer-monitor specific)
 log_message() {
-	printf '%s [shutdown-monitor] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" | tee -a "$LOG_FILE" >&2
+	local _ts
+	printf -v _ts '%(%Y-%m-%d %H:%M:%S)T' -1
+	printf '%s [shutdown-monitor] %s\n' "$_ts" "$1" | tee -a "$LOG_FILE" >&2
 }
 
 # Function to check if timer needs to be re-enabled

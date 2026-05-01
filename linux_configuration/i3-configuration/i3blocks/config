@@ -17,13 +17,13 @@ markup=pango
 
 
 [memory]
-command=free -h | awk '/^Mem:/ {print "  " $3 "/" $2}'  #  for RAM
+command=~/.config/i3blocks/memory.sh
 interval=5
 color=#50FA7B
 
 
 [disk]
-command=df -h / | awk '/\// {print "  " $3 "/" $2}'  #  for disk
+command=~/.config/i3blocks/disk.sh
 interval=60
 color=#50FA7B
 
@@ -50,7 +50,7 @@ markup=pango
 
 
 [ethernet]
-command=ip -o -4 addr show | grep -E 'enp6s0|eth0' | awk '{print "    "$4}' || echo "  down"  #  for Ethernet
+command=~/.config/i3blocks/ethernet.sh
 interval=10
 color=#FFFFFF
 
@@ -91,6 +91,6 @@ markup=pango
 
 
 [time]
-command=echo "  $(date '+%Y-%m-%d %H:%M')"  #  for time (Font Awesome icon)
-interval=1
+command=~/.config/i3blocks/time.sh
+interval=persist
 color=#50FA7B
