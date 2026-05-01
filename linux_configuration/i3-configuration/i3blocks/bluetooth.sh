@@ -1,14 +1,27 @@
 #!/bin/bash
+# i3blocks bluetooth indicator.
 
-# Get Bluetooth device info
-bluetooth_info=$(bluetoothctl info)
+set -euo pipefail
 
-# Check if Bluetooth is connected
-if echo "$bluetooth_info" | grep -q "Connected: yes"; then
-  device=$(echo "$bluetooth_info" | grep "Alias" | cut -d ' ' -f2-)
-  echo " $device" #  is the Bluetooth icon
+bluetooth_info=$(bluetoothctl info 2> /dev/null) || bluetooth_info=''
+
+connected='no'
+device=''
+while IFS= read -r line; do
+  case $line in
+    *'Connected: yes')
+      connected='yes'
+      ;;
+    *'Alias: '*)
+      device=${line#*Alias: }
+      ;;
+  esac
+done <<< "$bluetooth_info"
+
+if [[ $connected == yes && -n $device ]]; then
+  echo " $device"
   echo
-  echo "#50FA7B" # Green for connected
+  echo "#50FA7B"
 else
   echo " Disconnected"
 fi
