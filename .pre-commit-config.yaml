@@ -68,6 +68,18 @@ repos:
         always_run: false
 
   # ===========================================================================
+  # POLLING SCRIPT LINTER - Detect fork-storm anti-patterns in shell scripts
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: no-polling-antipatterns
+        name: Block polling script anti-patterns
+        entry: scripts/check_polling_antipatterns.sh
+        language: script
+        types: [shell]
+        exclude: ^(\.git/|C/|CPP/|phone_focus_mode/lib/tests/|tests/)
+
+  # ===========================================================================
   # NOQA BLOCKER - Zero tolerance for noqa/type:ignore suppression comments
   # ===========================================================================
   - repo: local
