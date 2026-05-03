@@ -45,7 +45,7 @@ color=#FFFFFF
 
 [battery]
 command=~/.config/i3blocks/battery_status.sh
-interval=1
+interval=5
 markup=pango
 
 
