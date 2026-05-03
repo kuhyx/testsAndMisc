@@ -34,8 +34,9 @@ total_tx_now=0
 total_last_rx=0
 total_last_tx=0
 
-# Initialize time variables
-current_time=$(date +%s)
+# Initialize time variables without forking: read from /proc/uptime
+read -r uptime_s _ < /proc/uptime
+current_time=${uptime_s%%.*}
 last_time=$current_time
 
 # Iterate over each interface and accumulate RX and TX bytes
@@ -63,8 +64,8 @@ for interface in "${interfaces[@]}"; do
   total_last_rx=$((total_last_rx + last_rx))
   total_last_tx=$((total_last_tx + last_tx))
 
-  # Save current RX and TX bytes for the next check
-  echo "$rx_now $tx_now $current_time" > "$state_file"
+  # Save current RX and TX bytes for the next check (using uptime as source)
+  printf '%s %s %s\n' "$rx_now" "$tx_now" "$current_time" > "$state_file"
 done
 
 # Calculate time difference
