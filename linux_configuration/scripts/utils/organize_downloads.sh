@@ -37,9 +37,11 @@ TEMP_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/media_organize_$$"
 IMAGE_EXTENSIONS=("jpg" "jpeg" "png" "gif" "bmp" "tiff" "tif" "webp" "raw" "cr2" "nef" "orf" "arw" "dng" "heic" "heif")
 VIDEO_EXTENSIONS=("mp4" "avi" "mkv" "mov" "wmv" "flv" "webm" "m4v" "3gp" "ogv" "mpg" "mpeg" "mts" "m2ts" "vob")
 
-# Function to log messages with timestamp
+# Function to log messages with timestamp (bash builtin %()T = zero forks)
 log() {
-	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+	local ts
+	printf -v ts '%(%Y-%m-%d %H:%M:%S)T' -1
+	echo "[$ts] $1"
 }
 
 # Parse CLI flags early
@@ -65,11 +67,11 @@ while [[ ${1:-} =~ ^- ]]; do
 	esac
 done
 
-# Function to check if file has media extension
+# Function to check if file has media extension (zero forks: bash 4 ${var,,})
 is_media_file() {
 	local file="$1"
 	local extension="${file##*.}"
-	extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+	extension="${extension,,}"
 
 	# Check if it's an image
 	for ext in "${IMAGE_EXTENSIONS[@]}"; do
