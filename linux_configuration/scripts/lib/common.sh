@@ -386,6 +386,125 @@ warn() { log_warn "$@"; }
 err() { log_error "$@"; }
 
 # =============================================================================
+# EFFICIENT TIME FUNCTIONS (zero-fork bash builtins)
+# =============================================================================
+# These functions use printf '%(...)'T' bash builtin (NO external commands)
+# to avoid fork-storm anti-patterns in polling scripts.
+# See: .github/skills/efficient-polling-scripts/SKILL.md
+
+# Get current Unix timestamp (seconds since epoch)
+# Usage: ts=$(get_timestamp)
+# FORK-FREE: uses bash builtin printf %s (sec_since_epoch)
+get_timestamp() {
+	printf '%(%s)T' -1
+}
+
+# Get current date in YYYY-MM-DD format
+# Usage: date=$(get_date)
+get_date() {
+	printf '%(%Y-%m-%d)T' -1
+}
+
+# Get current time in HH:MM:SS format
+# Usage: time=$(get_time)
+get_time() {
+	printf '%(%H:%M:%S)T' -1
+}
+
+# Get current date-time in YYYY-MM-DD HH:MM:SS format
+# Usage: dt=$(get_datetime)
+get_datetime() {
+	printf '%(%Y-%m-%d %H:%M:%S)T' -1
+}
+
+# Get day of week (1=Monday, 7=Sunday)
+# Usage: dow=$(get_day_of_week)
+get_day_of_week() {
+	printf '%(%u)T' -1
+}
+
+# Get day name (Monday, Tuesday, ...)
+# Usage: day=$(get_day_name)
+get_day_name() {
+	printf '%(%A)T' -1
+}
+
+# Get current hour (00-23)
+# Usage: hour=$(get_hour)
+get_hour() {
+	printf '%(%H)T' -1
+}
+
+# Get current minute (00-59)
+# Usage: minute=$(get_minute)
+get_minute() {
+	printf '%(%M)T' -1
+}
+
+# Get current second (00-59)
+# Usage: second=$(get_second)
+get_second() {
+	printf '%(%S)T' -1
+}
+
+# Get Unix timestamp from boot (uptime in seconds)
+# Usage: boot_seconds=$(get_uptime_seconds)
+get_uptime_seconds() {
+	read -r uptime_with_fraction _ < /proc/uptime
+	printf '%.*f\n' 0 "$uptime_with_fraction"
+}
+
+# Get boot time in YYYY-MM-DD HH:MM:SS format
+# Usage: boot_time=$(get_boot_datetime)
+# Calculates: current_time - uptime_seconds
+get_boot_datetime() {
+	local uptime_seconds
+	uptime_seconds=$(get_uptime_seconds)
+	local boot_ts=$(($(get_timestamp) - uptime_seconds))
+	printf '%(%Y-%m-%d %H:%M:%S)T' "$boot_ts"
+}
+
+# Get boot time date only (YYYY-MM-DD)
+# Usage: boot_date=$(get_boot_date)
+get_boot_date() {
+	local uptime_seconds
+	uptime_seconds=$(get_uptime_seconds)
+	local boot_ts=$(($(get_timestamp) - uptime_seconds))
+	printf '%(%Y-%m-%d)T' "$boot_ts"
+}
+
+# Get boot time hour only (00-23)
+# Usage: boot_hour=$(get_boot_hour)
+get_boot_hour() {
+	local uptime_seconds
+	uptime_seconds=$(get_uptime_seconds)
+	local boot_ts=$(($(get_timestamp) - uptime_seconds))
+	printf '%(%H)T' "$boot_ts"
+}
+
+# Check if current time is within a given hour range
+# Usage: if is_hour_in_range 5 8; then ...  # 5AM-8AM
+is_hour_in_range() {
+	local start_hour=$1
+	local end_hour=$2
+	local current_hour
+	current_hour=$(get_hour)
+	local current_hour_num=$((10#$current_hour))
+	[[ $current_hour_num -ge $start_hour ]] && [[ $current_hour_num -lt $end_hour ]]
+}
+
+# Check if current day is a specific day of week
+# Usage: if is_day_of_week 1 5 6 7; then ...  # Monday, Friday, Saturday, Sunday
+is_day_of_week() {
+	local target_day
+	target_day=$(get_day_of_week)
+	for day in "$@"; do
+		[[ $target_day -eq $day ]] && return 0
+	done
+	return 1
+}
+
+# =============================================================================
 # INTERACTIVE PROMPTS
 # =============================================================================
 
@@ -415,10 +534,12 @@ has_cmd() {
 # Usage: print_setup_header "Script Name"
 print_setup_header() {
 	local title="$1"
+	local current_datetime
+	current_datetime=$(get_datetime)
 	echo "$title"
 	printf '=%.0s' $(seq 1 ${#title})
 	echo ""
-	echo "Current Date: $(date)"
+	echo "Current Date: $current_datetime"
 	echo "User: $USER"
 	echo "Original user: $(get_actual_user)"
 	if [[ $INTERACTIVE_MODE == "true" ]]; then
