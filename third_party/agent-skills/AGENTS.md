@@ -69,9 +69,9 @@ This ensures OpenCode behaves similarly to Claude Code with full workflow enforc
 
 This repo has three composable layers. They have different jobs and should not be confused:
 
-- **Skills** (`skills/<name>/SKILL.md`) — workflows with steps and exit criteria. The *how*. Mandatory hops when an intent matches.
-- **Personas** (`agents/<role>.md`) — roles with a perspective and an output format. The *who*.
-- **Slash commands** (`.claude/commands/*.md`) — user-facing entry points. The *when*. The orchestration layer.
+- **Skills** (`skills/<name>/SKILL.md`) — workflows with steps and exit criteria. The _how_. Mandatory hops when an intent matches.
+- **Personas** (`agents/<role>.md`) — roles with a perspective and an output format. The _who_.
+- **Slash commands** (`.claude/commands/*.md`) — user-facing entry points. The _when_. The orchestration layer.
 
 Composition rule: **the user (or a slash command) is the orchestrator. Personas do not invoke other personas.** A persona may invoke skills.
 
@@ -103,10 +103,15 @@ skills/
 
 ### SKILL.md Format
 
-```markdown
+````markdown
 ---
-name: {skill-name}
-description: {One sentence describing when to use this skill. Include trigger phrases like "Deploy my app", "Check logs", etc.}
+name: { skill-name }
+description:
+  {
+    One sentence describing when to use this skill. Include trigger phrases like "Deploy my app",
+    "Check logs",
+    etc.,
+  }
 ---
 
 # {Skill Title}
@@ -122,8 +127,10 @@ description: {One sentence describing when to use this skill. Include trigger ph
 ```bash
 bash /mnt/skills/user/{skill-name}/scripts/{script}.sh [args]
 ```
+````
 
 **Arguments:**
+
 - `arg1` - Description (defaults to X)
 
 **Examples:**
@@ -140,7 +147,8 @@ bash /mnt/skills/user/{skill-name}/scripts/{script}.sh [args]
 ## Troubleshooting
 
 {Common issues and solutions, especially network/permissions errors}
-```
+
+````
 
 ### Best Practices for Context Efficiency
 
@@ -168,13 +176,14 @@ After creating or updating a skill:
 ```bash
 cd skills
 zip -r {skill-name}.zip {skill-name}/
-```
+````
 
 ### End-User Installation
 
 Document these two installation methods for users:
 
 **Claude Code:**
+
 ```bash
 cp -r skills/{skill-name} ~/.claude/skills/
 ```

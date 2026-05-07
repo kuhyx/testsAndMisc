@@ -24,18 +24,33 @@ result[3] = buf[3] ^ key[3];
     "PreToolUse": [
       {
         "matcher": "Read",
-        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PROJECT_DIR}/hooks/simplify-ignore.sh" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PROJECT_DIR}/hooks/simplify-ignore.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
-        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PROJECT_DIR}/hooks/simplify-ignore.sh" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PROJECT_DIR}/hooks/simplify-ignore.sh"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "bash ${CLAUDE_PROJECT_DIR}/hooks/simplify-ignore.sh" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PROJECT_DIR}/hooks/simplify-ignore.sh"
+          }
+        ]
       }
     ]
   }
@@ -50,19 +65,19 @@ result[3] = buf[3] ^ key[3];
 
 One script, three hook events:
 
-| Event | Action |
-|---|---|
-| `PreToolUse Read` | Backs up file, replaces blocks with `BLOCK_<hash>` placeholders in-place |
+| Event                     | Action                                                                    |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `PreToolUse Read`         | Backs up file, replaces blocks with `BLOCK_<hash>` placeholders in-place  |
 | `PostToolUse Edit\|Write` | Expands placeholders back to real code, saves model's changes, re-filters |
-| `Stop` | Restores all files from backup when session ends |
+| `Stop`                    | Restores all files from backup when session ends                          |
 
 Each block is content-hashed (8 hex chars via `shasum`/`sha1sum`) so the round-trip is unambiguous even if the model duplicates or reorders placeholders. Cache is project-scoped to prevent cross-session interference.
 
 ## Annotation syntax
 
 ```js
-/* simplify-ignore-start */           // basic — hides the block
-/* simplify-ignore-start: reason */   // with reason — appears in placeholder
+/* simplify-ignore-start */ // basic — hides the block
+/* simplify-ignore-start: reason */ // with reason — appears in placeholder
 /* simplify-ignore-end */
 ```
 

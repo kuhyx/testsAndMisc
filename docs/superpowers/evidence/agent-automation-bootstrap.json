@@ -1,13 +1,7 @@
 {
   "intent": "Describe the expected user-visible outcome for agent automation bootstrap.",
-  "scope": [
-    "Impacted modules/files",
-    "Constraints/non-goals"
-  ],
-  "changes": [
-    "Implementation summary item 1",
-    "Implementation summary item 2"
-  ],
+  "scope": ["Impacted modules/files", "Constraints/non-goals"],
+  "changes": ["Implementation summary item 1", "Implementation summary item 2"],
   "verification": [
     {
       "command": "pre-commit run --files <changed-files>",
@@ -15,12 +9,6 @@
       "evidence": "Paste command output summary"
     }
   ],
-  "risks": [
-    "Risk 1",
-    "Risk 2"
-  ],
-  "rollback": [
-    "Revert commit(s)",
-    "Re-run validation checks"
-  ]
+  "risks": ["Risk 1", "Risk 2"],
+  "rollback": ["Revert commit(s)", "Re-run validation checks"]
 }

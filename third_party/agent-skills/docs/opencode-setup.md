@@ -92,11 +92,13 @@ This replaces slash commands like `/spec`, `/plan`, etc.
 ### Example 1: Feature Development
 
 User:
+
 ```
 Add authentication to this app
 ```
 
 Agent behavior:
+
 - Detects feature work
 - Invokes `spec-driven-development`
 - Produces a spec before writing code
@@ -107,11 +109,13 @@ Agent behavior:
 ### Example 2: Bug Fix
 
 User:
+
 ```
 This endpoint is returning 500 errors
 ```
 
 Agent behavior:
+
 - Invokes `debugging-and-error-recovery`
 - Reproduces → localizes → fixes → adds guards
 
@@ -120,11 +124,13 @@ Agent behavior:
 ### Example 3: Code Review
 
 User:
+
 ```
 Review this PR
 ```
 
 Agent behavior:
+
 - Invokes `code-review-and-quality`
 - Applies structured review (correctness, design, readability, etc.)
 

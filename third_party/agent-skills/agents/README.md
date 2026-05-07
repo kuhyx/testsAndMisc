@@ -2,27 +2,28 @@
 
 Specialist personas that play a single role with a single perspective. Each persona is a Markdown file consumed as a system prompt by your harness (Claude Code, Cursor, Copilot, etc.).
 
-| Persona | Role | Best for |
-|---------|------|----------|
-| [code-reviewer](code-reviewer.md) | Senior Staff Engineer | Five-axis review before merge |
-| [security-auditor](security-auditor.md) | Security Engineer | Vulnerability detection, OWASP-style audit |
-| [test-engineer](test-engineer.md) | QA Engineer | Test strategy, coverage analysis, Prove-It pattern |
+| Persona                                 | Role                  | Best for                                           |
+| --------------------------------------- | --------------------- | -------------------------------------------------- |
+| [code-reviewer](code-reviewer.md)       | Senior Staff Engineer | Five-axis review before merge                      |
+| [security-auditor](security-auditor.md) | Security Engineer     | Vulnerability detection, OWASP-style audit         |
+| [test-engineer](test-engineer.md)       | QA Engineer           | Test strategy, coverage analysis, Prove-It pattern |
 
 ## How personas relate to skills and commands
 
 Three layers, each with a distinct job:
 
-| Layer | What it is | Example | Composition role |
-|-------|-----------|---------|------------------|
-| **Skill** | A workflow with steps and exit criteria | `code-review-and-quality` | The *how* — invoked from inside a persona or command |
-| **Persona** | A role with a perspective and an output format | `code-reviewer` | The *who* — adopts a viewpoint, produces a report |
-| **Command** | A user-facing entry point | `/review`, `/ship` | The *when* — composes personas and skills |
+| Layer       | What it is                                     | Example                   | Composition role                                     |
+| ----------- | ---------------------------------------------- | ------------------------- | ---------------------------------------------------- |
+| **Skill**   | A workflow with steps and exit criteria        | `code-review-and-quality` | The _how_ — invoked from inside a persona or command |
+| **Persona** | A role with a perspective and an output format | `code-reviewer`           | The _who_ — adopts a viewpoint, produces a report    |
+| **Command** | A user-facing entry point                      | `/review`, `/ship`        | The _when_ — composes personas and skills            |
 
 The user (or a slash command) is the orchestrator. **Personas do not call other personas.** Skills are mandatory hops inside a persona's workflow.
 
 ## When to use each
 
 ### Direct persona invocation
+
 Pick this when you want one perspective on the current change and the user is in the loop.
 
 - "Review this PR" → invoke `code-reviewer` directly
@@ -30,12 +31,14 @@ Pick this when you want one perspective on the current change and the user is in
 - "What tests are missing for the checkout flow?" → invoke `test-engineer` directly
 
 ### Slash command (single persona behind it)
+
 Pick this when there's a repeatable workflow you'd otherwise re-explain every time.
 
 - `/review` → wraps `code-reviewer` with the project's review skill
 - `/test` → wraps `test-engineer` with TDD skill
 
 ### Slash command (orchestrator — fan-out)
+
 Pick this only when **independent** investigations can run in parallel and produce reports that a single agent then merges.
 
 - `/ship` → fans out to `code-reviewer` + `security-auditor` + `test-engineer` in parallel, then synthesizes their reports into a go/no-go decision
@@ -68,6 +71,7 @@ Is the work a single perspective on a single artifact?
 ```
 
 Why this works:
+
 - Each sub-agent operates on the same diff but produces a **different perspective**
 - They have no dependencies on each other → genuine parallelism, real wall-clock savings
 - Each runs in a fresh context window → main session stays uncluttered
@@ -88,6 +92,7 @@ A `meta-orchestrator` persona whose job is "decide which other persona to call":
 ```
 
 Why this fails:
+
 - Pure routing layer with no domain value
 - Adds two paraphrasing hops → information loss + 2× token cost
 - The user already knows they want a review; let them call `/review` directly
@@ -96,8 +101,8 @@ Why this fails:
 ## Rules for personas
 
 1. A persona is a single role with a single output format. If you find yourself adding a second role, create a second persona.
-2. **Personas do not invoke other personas.** Composition is the job of slash commands or the user. On Claude Code this is also a hard platform constraint — *"subagents cannot spawn other subagents"* — so the rule is enforced for you.
-3. A persona may invoke skills (the *how*).
+2. **Personas do not invoke other personas.** Composition is the job of slash commands or the user. On Claude Code this is also a hard platform constraint — _"subagents cannot spawn other subagents"_ — so the rule is enforced for you.
+3. A persona may invoke skills (the _how_).
 4. Every persona file ends with a "Composition" block stating where it fits.
 
 ## Claude Code interop

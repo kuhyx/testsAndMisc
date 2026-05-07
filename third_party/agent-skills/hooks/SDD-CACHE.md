@@ -39,7 +39,7 @@ This hook caches fetched content on disk, but **revalidates with the origin serv
 }
 ```
 
-   `${CLAUDE_PROJECT_DIR}` resolves to the directory you launched Claude Code from. The snippet above works when the hooks live inside the same project. If you installed `agent-skills` elsewhere (e.g. as a shared plugin under `~/agent-skills`), replace `${CLAUDE_PROJECT_DIR}/hooks/...` with the absolute path to each script.
+`${CLAUDE_PROJECT_DIR}` resolves to the directory you launched Claude Code from. The snippet above works when the hooks live inside the same project. If you installed `agent-skills` elsewhere (e.g. as a shared plugin under `~/agent-skills`), replace `${CLAUDE_PROJECT_DIR}/hooks/...` with the absolute path to each script.
 
 2. Make sure `.claude/sdd-cache/` is in your `.gitignore` (already included in this repo).
 
@@ -55,10 +55,10 @@ The stored body is not raw HTML — `WebFetch` post-processes each response thro
 
 One cache entry per URL, stored as JSON in `.claude/sdd-cache/<sha>.json`:
 
-| Event | Action |
-|---|---|
-| `PreToolUse WebFetch` | If an entry exists, sends a `HEAD` request with `If-None-Match` / `If-Modified-Since`. On `304`, blocks the fetch and returns the cached content to the agent via stderr, with the original prompt surfaced as metadata. Otherwise allows the fetch. |
-| `PostToolUse WebFetch` | Captures the response, issues a `HEAD` request to record the current `ETag` / `Last-Modified`, and stores `{url, prompt, etag, last_modified, content, fetched_at}`. |
+| Event                  | Action                                                                                                                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PreToolUse WebFetch`  | If an entry exists, sends a `HEAD` request with `If-None-Match` / `If-Modified-Since`. On `304`, blocks the fetch and returns the cached content to the agent via stderr, with the original prompt surfaced as metadata. Otherwise allows the fetch. |
+| `PostToolUse WebFetch` | Captures the response, issues a `HEAD` request to record the current `ETag` / `Last-Modified`, and stores `{url, prompt, etag, last_modified, content, fetched_at}`.                                                                                 |
 
 **Freshness rules:**
 
@@ -109,16 +109,21 @@ Expected:
 6. Verify the second `WebFetch` is blocked and the cached content is returned (visible in the session transcript as a tool error with `[sdd-cache]` prefix).
 
 ### 3. Freshness verification
+
 # Pick the entry you want to corrupt (swap in the actual filename)
+
 ENTRY=.claude/sdd-cache/e49c9f378670cfbb1d7d871b6dee16d9.json
 
 # Patch its ETag to something the origin will not recognize
+
 jq '.etag = "W/\"stale-etag-forced\""' "$ENTRY" > "$ENTRY.tmp" && mv "$ENTRY.tmp" "$ENTRY"
 
 # Next PreToolUse should miss (server returns 200, not 304)
+
 echo '{"tool_input":{"url":"...", "prompt":"..."}}' | bash hooks/sdd-cache-pre.sh
-echo "exit=$?"   # expect 0 (fetch allowed through)
-```
+echo "exit=$?" # expect 0 (fetch allowed through)
+
+````
 
 ### 4. Debugging
 
@@ -131,7 +136,7 @@ SDD_CACHE_DEBUG=1 claude
 # Option B: sentinel file (persistent)
 mkdir -p .claude/sdd-cache && touch .claude/sdd-cache/.debug
 # …disable with: rm .claude/sdd-cache/.debug
-```
+````
 
 The log captures URL, detected `tool_response` shape, HEAD status, and why each invocation hit or missed. Useful when a cache miss looks unexpected (typically: the origin stopped emitting validators).
 

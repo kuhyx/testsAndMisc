@@ -7,9 +7,5 @@
     "Capture exact command outputs in evidence artifact",
     "Record residual risks and rollback plan"
   ],
-  "forbidden_phrases": [
-    "should work",
-    "probably fine",
-    "seems right"
-  ]
+  "forbidden_phrases": ["should work", "probably fine", "seems right"]
 }

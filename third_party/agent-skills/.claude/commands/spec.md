@@ -5,6 +5,7 @@ description: Start spec-driven development — write a structured specification 
 Invoke the agent-skills:spec-driven-development skill.
 
 Begin by understanding what the user wants to build. Ask clarifying questions about:
+
 1. The objective and target users
 2. Core features and acceptance criteria
 3. Tech stack preferences and constraints

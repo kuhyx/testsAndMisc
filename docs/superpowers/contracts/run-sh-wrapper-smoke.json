@@ -1,12 +1,7 @@
 {
   "title": "run-sh-wrapper-smoke",
   "objective": "Define what success looks like for run-sh-wrapper-smoke.",
-  "acceptance_criteria": [
-    "Criterion 1",
-    "Criterion 2"
-  ],
-  "out_of_scope": [
-    "Explicitly excluded work item"
-  ],
+  "acceptance_criteria": ["Criterion 1", "Criterion 2"],
+  "out_of_scope": ["Explicitly excluded work item"],
   "verifier": "pre-commit + task-specific tests"
 }

@@ -1,12 +1,7 @@
 {
   "title": "Short contract title",
   "objective": "One-paragraph objective and success definition.",
-  "acceptance_criteria": [
-    "Criterion 1",
-    "Criterion 2"
-  ],
-  "out_of_scope": [
-    "Explicitly excluded item 1"
-  ],
+  "acceptance_criteria": ["Criterion 1", "Criterion 2"],
+  "out_of_scope": ["Explicitly excluded item 1"],
   "verifier": "Name the command(s) or gate responsible for verification"
 }

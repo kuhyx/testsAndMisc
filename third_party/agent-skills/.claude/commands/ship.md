@@ -19,6 +19,7 @@ In Claude Code, each call passes `subagent_type` matching the persona's `name` f
 In other harnesses without an Agent tool, invoke each persona's system prompt sequentially and treat their outputs as if returned in parallel — the merge phase still works.
 
 Constraints (from Claude Code's subagent model):
+
 - Subagents cannot spawn other subagents — do not let one persona delegate to another.
 - Each subagent gets its own context window and returns only its report to this main session.
 - If you need teammates that talk to each other instead of just reporting back, use Claude Code Agent Teams and reference these personas as teammate types (see `references/orchestration-patterns.md`).
@@ -44,20 +45,25 @@ Produce a single output:
 ## Ship Decision: GO | NO-GO
 
 ### Blockers (must fix before ship)
+
 - [Source persona: Critical finding + file:line]
 
 ### Recommended fixes (should fix before ship)
+
 - [Source persona: Important finding + file:line]
 
 ### Acknowledged risks (shipping anyway)
+
 - [Risk + mitigation]
 
 ### Rollback plan
+
 - Trigger conditions: [what signals would prompt rollback]
 - Rollback procedure: [exact steps]
 - Recovery time objective: [target]
 
 ### Specialist reports (full)
+
 - [code-reviewer report]
 - [security-auditor report]
 - [test-engineer report]
