@@ -1,0 +1,15 @@
+{
+  "subject": "Verification playbook",
+  "principle": "Evidence before assertions",
+  "required_checks": [
+    "Run relevant linters/formatters",
+    "Run relevant tests",
+    "Capture exact command outputs in evidence artifact",
+    "Record residual risks and rollback plan"
+  ],
+  "forbidden_phrases": [
+    "should work",
+    "probably fine",
+    "seems right"
+  ]
+}

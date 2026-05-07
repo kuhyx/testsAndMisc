@@ -1,0 +1,9 @@
+{
+  "subject": "Critical invariants for agentic changes",
+  "invariants": [
+    "No commit touching code ships without evidence artifact",
+    "Multi-file code changes require explicit contract",
+    "Session logs are append-only",
+    "Do not remove or rewrite historical verification evidence"
+  ]
+}

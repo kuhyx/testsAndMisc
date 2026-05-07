@@ -1,0 +1,18 @@
+{
+  "subject": "Failure-to-guardrail ratchets",
+  "policy": "Each repeated failure mode must produce one durable rule or hook",
+  "entries": [
+    {
+      "failure_mode": "Unverified completion claims",
+      "guardrail": "Require evidence artifact with verification commands and outputs"
+    },
+    {
+      "failure_mode": "Large unsliced changes",
+      "guardrail": "Require workflow contract for >=4 staged code files"
+    },
+    {
+      "failure_mode": "Lost context in long tasks",
+      "guardrail": "Append-only session logs"
+    }
+  ]
+}

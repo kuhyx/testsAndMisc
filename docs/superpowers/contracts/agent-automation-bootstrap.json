@@ -1,0 +1,12 @@
+{
+  "title": "agent automation bootstrap",
+  "objective": "Define what success looks like for agent automation bootstrap.",
+  "acceptance_criteria": [
+    "Criterion 1",
+    "Criterion 2"
+  ],
+  "out_of_scope": [
+    "Explicitly excluded work item"
+  ],
+  "verifier": "pre-commit + task-specific tests"
+}

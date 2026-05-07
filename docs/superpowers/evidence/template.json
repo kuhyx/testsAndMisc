@@ -1,0 +1,26 @@
+{
+  "intent": "Describe the intended user-visible outcome.",
+  "scope": [
+    "List impacted modules or files",
+    "List constraints or non-goals"
+  ],
+  "changes": [
+    "Summarize key implementation change #1",
+    "Summarize key implementation change #2"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "Paste compact output summary here"
+    }
+  ],
+  "risks": [
+    "Potential risk #1",
+    "Potential risk #2"
+  ],
+  "rollback": [
+    "How to revert safely",
+    "What to validate after rollback"
+  ]
+}

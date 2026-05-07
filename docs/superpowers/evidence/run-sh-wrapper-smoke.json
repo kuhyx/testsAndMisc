@@ -1,0 +1,26 @@
+{
+  "intent": "Describe the expected user-visible outcome for run-sh-wrapper-smoke.",
+  "scope": [
+    "Impacted modules/files",
+    "Constraints/non-goals"
+  ],
+  "changes": [
+    "Implementation summary item 1",
+    "Implementation summary item 2"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "Paste command output summary"
+    }
+  ],
+  "risks": [
+    "Risk 1",
+    "Risk 2"
+  ],
+  "rollback": [
+    "Revert commit(s)",
+    "Re-run validation checks"
+  ]
+}

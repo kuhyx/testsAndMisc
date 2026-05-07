@@ -1,0 +1,35 @@
+{
+  "workflow": "planner_generator_evaluator",
+  "version": 1,
+  "roles": {
+    "planner": {
+      "responsibilities": [
+        "Generate objective and acceptance criteria",
+        "Define scope and out-of-scope",
+        "Emit contract artifact"
+      ],
+      "artifact": "docs/superpowers/contracts/<task>.json"
+    },
+    "generator": {
+      "responsibilities": [
+        "Implement one contract slice at a time",
+        "Update evidence artifact with commands and outputs",
+        "Avoid out-of-scope changes"
+      ],
+      "artifact": "docs/superpowers/evidence/<task>.json"
+    },
+    "evaluator": {
+      "responsibilities": [
+        "Verify acceptance criteria independently",
+        "Reject unverifiable claims",
+        "Record failing checks and required fixes"
+      ],
+      "artifact": "docs/superpowers/sessions/<task>.jsonl"
+    }
+  },
+  "gates": [
+    "contract_exists_for_multifile_changes",
+    "evidence_exists_for_code_changes",
+    "append_only_session_logs"
+  ]
+}

@@ -6,6 +6,7 @@
 #   ./run.sh --top 25             # override row count
 #   ./run.sh --profile [duration] # profile polling scripts (default 60s)
 #   ./run.sh --diagnose           # find inefficient shell scripts
+#   ./run.sh --init-artifacts ... # bootstrap contract/evidence/session artifacts
 #
 # Any other args are forwarded to usage_report.py unchanged.
 
@@ -13,9 +14,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPORT_SCRIPT="$SCRIPT_DIR/linux_configuration/scripts/system-maintenance/bin/usage_report.py"
+ARTIFACT_INIT_SCRIPT="$SCRIPT_DIR/scripts/init_agent_artifacts.sh"
 
 if [[ ! -f "$REPORT_SCRIPT" ]]; then
     echo "Error: usage_report.py not found at: $REPORT_SCRIPT" >&2
+    exit 1
+fi
+
+if [[ ! -f "$ARTIFACT_INIT_SCRIPT" ]]; then
+    echo "Error: init_agent_artifacts.sh not found at: $ARTIFACT_INIT_SCRIPT" >&2
     exit 1
 fi
 
@@ -125,6 +132,10 @@ case "${1:-}" in
     --diagnose)
         diagnose_polling_scripts
         exit 0
+        ;;
+    --init-artifacts)
+        shift
+        exec "$ARTIFACT_INIT_SCRIPT" "$@"
         ;;
     --help)
         grep '^# Usage:' "$0" | sed 's/^# //' | head -1

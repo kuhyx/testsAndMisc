@@ -66,6 +66,24 @@ repos:
         entry: scripts/check_no_binaries.sh
         language: script
         always_run: false
+      - id: ai-evidence-contract
+        name: Require AI evidence artifacts for code changes
+        entry: scripts/check_ai_evidence.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+      - id: ai-multifile-contract
+        name: Require workflow contract for multi-file code changes
+        entry: scripts/check_agent_contract.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+      - id: append-only-sessions
+        name: Enforce append-only session logs
+        entry: scripts/check_append_only_sessions.sh
+        language: script
+        pass_filenames: false
+        always_run: true
 
   # ===========================================================================
   # POLLING SCRIPT LINTER - Detect fork-storm anti-patterns in shell scripts
