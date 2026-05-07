@@ -1,0 +1,26 @@
+{
+  "intent": "Adjust shutdown schedule protection logic by disabling the leniency violation checks currently implemented in setup_midnight_shutdown.sh.",
+  "scope": [
+    "linux_configuration/scripts/digital_wellbeing/setup_midnight_shutdown.sh",
+    "docs/superpowers/evidence/setup-midnight-shutdown-violation-checks-disabled.json"
+  ],
+  "changes": [
+    "Commented out violation checks that previously blocked more-lenient schedule values",
+    "Kept stricter-change reporting logic intact"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files linux_configuration/scripts/digital_wellbeing/setup_midnight_shutdown.sh docs/superpowers/evidence/setup-midnight-shutdown-violation-checks-disabled.json",
+      "result": "pass",
+      "evidence": "All relevant pre-commit hooks passed for this commit scope."
+    }
+  ],
+  "risks": [
+    "Lenient schedule changes may now proceed where they were previously blocked",
+    "Behavior may diverge from original anti-cheat intent"
+  ],
+  "rollback": [
+    "Revert this commit to restore original violation checks",
+    "Re-run pre-commit and verify setup_midnight_shutdown.sh logic after rollback"
+  ]
+}
