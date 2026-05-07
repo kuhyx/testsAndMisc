@@ -1,0 +1,14 @@
+{
+  "title": "Vendor third_party agent-skills snapshot",
+  "objective": "Add a vendored copy of the external agent-skills toolkit under third_party/agent-skills for local reference and integration, without introducing nested repository metadata.",
+  "acceptance_criteria": [
+    "third_party/agent-skills files are staged without embedded .git metadata",
+    "pre-commit hooks pass for this commit scope",
+    "changes are isolated to third_party plus required contract/evidence artifacts"
+  ],
+  "out_of_scope": [
+    "Modifying upstream third_party content semantics",
+    "Refactoring local scripts that may consume these files"
+  ],
+  "verifier": "pre-commit run --files <staged-files>"
+}

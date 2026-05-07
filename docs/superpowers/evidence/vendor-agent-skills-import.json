@@ -1,0 +1,27 @@
+{
+  "intent": "Vendor external agent-skills assets into this repository as a standalone third_party snapshot for local reuse.",
+  "scope": [
+    "third_party/agent-skills/**",
+    "docs/superpowers/contracts/vendor-agent-skills-import.json",
+    "docs/superpowers/evidence/vendor-agent-skills-import.json"
+  ],
+  "changes": [
+    "Added third_party/agent-skills repository snapshot files (without nested .git directory)",
+    "Added contract/evidence artifacts required by repository governance hooks"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files <staged-files>",
+      "result": "pass",
+      "evidence": "All commit-stage hooks passed after adding contract/evidence JSON files."
+    }
+  ],
+  "risks": [
+    "Vendored snapshot can drift from upstream over time",
+    "Large third_party updates may increase review overhead"
+  ],
+  "rollback": [
+    "Revert this commit to remove vendored files",
+    "Re-run pre-commit to validate repository state after rollback"
+  ]
+}
