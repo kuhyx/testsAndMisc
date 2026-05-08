@@ -1,0 +1,16 @@
+{
+  "title": "Steam backlog cache refetch reduction",
+  "objective": "Ensure steam_backlog_enforcer uses existing caches for HLTB confidence and owned game IDs to reduce unnecessary network requests while preserving assignment correctness and Linux compatibility filtering.",
+  "acceptance_criteria": [
+    "pick_next_game overlays cached confidence values before confidence refresh checks.",
+    "get_all_owned_app_ids uses a fresh TTL cache before attempting Steam API fetch.",
+    "Regression tests cover both cache-overlay and owned-IDs cache usage paths.",
+    "steam_backlog_enforcer test suite remains green with coverage gate unchanged."
+  ],
+  "out_of_scope": [
+    "Changing HLTB confidence thresholds or game-picking policy.",
+    "Changing ProtonDB tier policy.",
+    "Long-term cross-session Steam API sync beyond the new TTL cache."
+  ],
+  "verifier": "pytest python_pkg/steam_backlog_enforcer/tests plus pre-commit hooks (including pytest-coverage on push)"
+}

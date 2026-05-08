@@ -1,0 +1,55 @@
+{
+  "intent": "Reduce unnecessary network refetching by using existing caches for HLTB confidence and Steam owned game IDs.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/scanning.py",
+    "python_pkg/steam_backlog_enforcer/_enforce_loop.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_scanning.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_enforce_loop.py",
+    "Non-goal: change scoring thresholds or assignment policy"
+  ],
+  "changes": [
+    "Added _apply_cached_confidence_to_candidates and applied it in pick_next_game before confidence checks.",
+    "Added owned app IDs TTL cache in _enforce_loop (owned_app_ids_cache.json, 1h TTL) and integrated cache-first path in get_all_owned_app_ids.",
+    "Added regression tests for cache-overlay no-refetch behavior and owned IDs cache no-API behavior; updated existing tests to bypass cache path where needed."
+  ],
+  "verification": [
+    {
+      "command": "runTests: test_scanning.py::test_cached_confidence_overlay_avoids_refetch_for_zero_snapshot_fields",
+      "result": "pass",
+      "evidence": "1 passed, 0 failed"
+    },
+    {
+      "command": "runTests: test_enforce_loop.py::test_uses_owned_ids_cache_without_api_call",
+      "result": "pass",
+      "evidence": "1 passed, 0 failed"
+    },
+    {
+      "command": "runTests: test_enforce_loop.py helper cache tests",
+      "result": "pass",
+      "evidence": "cache loader/saver helper branches covered; module coverage 100%"
+    },
+    {
+      "command": "runTests: test_scanning.py + test_enforce_loop.py",
+      "result": "pass",
+      "evidence": "64 passed, 0 failed"
+    },
+    {
+      "command": "runTests: python_pkg/steam_backlog_enforcer/tests",
+      "result": "pass",
+      "evidence": "519 passed, 0 failed"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/scanning.py python_pkg/steam_backlog_enforcer/_enforce_loop.py python_pkg/steam_backlog_enforcer/tests/test_scanning.py python_pkg/steam_backlog_enforcer/tests/test_enforce_loop.py",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    }
+  ],
+  "risks": [
+    "Owned app IDs cache may be stale within TTL if ownership changes outside the tool.",
+    "HLTB confidence overlay assumes cache correctness; stale cache remains possible until refreshed."
+  ],
+  "rollback": [
+    "git revert <commit>",
+    "Re-run steam_backlog_enforcer tests and compare fetch logs during done/scan flows"
+  ]
+}
