@@ -1,0 +1,53 @@
+{
+  "intent": "Ensure the next assigned Steam game remains install-triggered even if library reconciliation restarts Steam.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/_cmd_done.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_main_part2.py",
+    "Non-goal: modify runtime behavior outside done/finalize assignment flow"
+  ],
+  "changes": [
+    "In _finalize_completion, after hide_other_games, re-check is_game_installed for the assigned game and re-trigger install_game(..., use_steam_protocol=True) when still missing.",
+    "Add user-facing echo and logger.info diagnostics for the post-hide install retry path.",
+    "Add regression test test_retriggers_install_after_library_hide_if_still_missing to lock behavior."
+  ],
+  "verification": [
+    {
+      "command": "runTests: test_main_part2.py::test_retriggers_install_after_library_hide_if_still_missing",
+      "result": "pass",
+      "evidence": "1 passed, 0 failed"
+    },
+    {
+      "command": "runTests: test_main_part2.py::test_skips_install_retry_when_assigned_game_already_installed",
+      "result": "pass",
+      "evidence": "1 passed, 0 failed"
+    },
+    {
+      "command": "runTests: test_main_part2.py targeted tests",
+      "result": "pass",
+      "evidence": "2 passed, 0 failed"
+    },
+    {
+      "command": "runTests: python_pkg/steam_backlog_enforcer/tests",
+      "result": "pass",
+      "evidence": "516 passed, 0 failed"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/_cmd_done.py python_pkg/steam_backlog_enforcer/tests/test_main_part2.py",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/_cmd_done.py",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    }
+  ],
+  "risks": [
+    "Repeated install trigger logs may appear when Steam metadata lags briefly.",
+    "No functional impact expected if game is already installed because branch is guarded by is_game_installed check."
+  ],
+  "rollback": [
+    "git revert <commit>",
+    "Re-run targeted test and done-flow tests to confirm prior behavior restored"
+  ]
+}
