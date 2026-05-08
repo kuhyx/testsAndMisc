@@ -1,0 +1,28 @@
+{
+  "intent": "Remove unreachable dead code in unplayable_reason and add coverage for the is_playable=True path.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/protondb.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_protondb.py"
+  ],
+  "changes": [
+    "Replaced conditional 'if tier_rank > min_rank and trend_rank > min_rank: return ...' + dead fallback 'return fails ProtonDB rule' with a direct return, since the condition is always True in that branch",
+    "Added test_unplayable_reason_empty_when_playable to cover the return '' path"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files protondb.py tests/test_protondb.py",
+      "result": "pass",
+      "evidence": "All hooks passed on second run (ruff auto-fixed unused variable on first run)"
+    },
+    {
+      "command": "pytest python_pkg/steam_backlog_enforcer/tests/test_protondb.py",
+      "result": "pass",
+      "evidence": "31 passed, 0 failed"
+    }
+  ],
+  "risks": ["None — dead code removal only, no logic change"],
+  "rollback": [
+    "Revert protondb.py to restore the if-condition and fallback return",
+    "Remove the new test"
+  ]
+}
