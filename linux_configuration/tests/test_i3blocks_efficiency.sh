@@ -8,6 +8,9 @@ REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
 I3BLOCKS_DIR="$REPO_DIR/i3-configuration/i3blocks"
 CONFIG_FILE="$I3BLOCKS_DIR/config"
 
+printf 'Running persist_common helper regression checks...\n'
+bash "$SCRIPT_DIR/test_i3blocks_persist_common.sh"
+
 TMP_DIR=$(mktemp -d)
 BIN_DIR="$TMP_DIR/bin"
 mkdir -p "$BIN_DIR"
@@ -164,6 +167,58 @@ grep -q '^command=~/.config/i3blocks/ethernet.sh$' "$CONFIG_FILE" \
   || fail 'ethernet block should call ethernet.sh'
 grep -q '^command=~/.config/i3blocks/disk.sh$' "$CONFIG_FILE" \
   || fail 'disk block should call disk.sh'
+grep -q '^interval=10$' "$CONFIG_FILE" \
+  || fail 'cpu block should poll at 10s interval'
+grep -A2 '^\[motherboard_temperature\]$' "$CONFIG_FILE" | grep -q '^interval=30$' \
+  || fail 'motherboard block should poll at 30s interval'
+grep -A2 '^\[memory\]$' "$CONFIG_FILE" | grep -q '^interval=30$' \
+  || fail 'memory block should poll at 30s interval'
+grep -A2 '^\[bluetooth\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
+  || fail 'bluetooth block should use persist mode'
+grep -A2 '^\[battery\]$' "$CONFIG_FILE" | grep -q '^interval=60$' \
+  || fail 'battery block should poll at 60s interval'
+grep -A2 '^\[ethernet\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
+  || fail 'ethernet block should use persist mode'
+grep -A2 '^\[wifi\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
+  || fail 'wifi block should use persist mode'
+grep -A2 '^\[activitywatch\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
+  || fail 'activitywatch block should use persist mode'
+grep -A2 '^\[warp\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
+  || fail 'warp block should use persist mode'
+
+printf 'Checking focus detection path avoids extra xdotool lookups...\n'
+! grep -Fq "xdotool getwindowname \"\$wid\"" "$REPO_DIR/scripts/lib/common.sh" \
+  || fail 'focus detection should not call xdotool getwindowname in hot path'
+
+printf 'Checking ActivityWatch persist strategy avoids /proc event storm...\n'
+! grep -Fq 'inotifywait -m -q -e create -e delete /proc' "$I3BLOCKS_DIR/activitywatch_status.sh" \
+  || fail 'activitywatch persist mode should avoid noisy /proc inotify stream'
+
+printf 'Checking GPU/WARP dedupe guards exist...\n'
+grep -Fq 'emit_if_changed()' "$I3BLOCKS_DIR/gpu_monitor.sh" \
+  || fail 'gpu monitor should dedupe repeated identical samples'
+grep -Fq 'emit_if_changed()' "$I3BLOCKS_DIR/warp_status.sh" \
+  || fail 'warp status should dedupe repeated identical states'
+grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/bluetooth.sh" \
+  || fail 'bluetooth script should use shared persist helper'
+grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/wifi_monitor.sh" \
+  || fail 'wifi script should use shared persist helper'
+grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/ethernet.sh" \
+  || fail 'ethernet script should use shared persist helper'
+grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/activitywatch_status.sh" \
+  || fail 'activitywatch script should use shared persist helper'
+grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/gpu_monitor.sh" \
+  || fail 'gpu script should use shared persist helper'
+grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/warp_status.sh" \
+  || fail 'warp script should use shared persist helper'
+grep -Fq 'i3blocks_update_if_changed_key "bluetooth_state"' "$I3BLOCKS_DIR/bluetooth.sh" \
+  || fail 'bluetooth script should dedupe unchanged state'
+grep -Fq 'i3blocks_update_if_changed_key "wifi_output"' "$I3BLOCKS_DIR/wifi_monitor.sh" \
+  || fail 'wifi script should dedupe unchanged output'
+grep -Fq 'i3blocks_update_if_changed_key "ethernet_output"' "$I3BLOCKS_DIR/ethernet.sh" \
+  || fail 'ethernet script should dedupe unchanged output'
+grep -Fq 'i3blocks_update_if_changed_key "activitywatch_state"' "$I3BLOCKS_DIR/activitywatch_status.sh" \
+  || fail 'activitywatch script should dedupe unchanged state'
 
 printf 'Checking bluetooth block behavior and fork count...\n'
 bluetooth_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/bluetooth.sh")

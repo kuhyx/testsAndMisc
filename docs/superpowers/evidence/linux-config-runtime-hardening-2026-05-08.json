@@ -1,0 +1,41 @@
+{
+  "intent": "Ensure improved Linux configuration scripts are actually deployed/running and harden pacman wrapper installation against partial-success permission failures.",
+  "scope": [
+    "linux_configuration/i3-configuration/i3blocks/*",
+    "linux_configuration/scripts/digital_wellbeing/pacman/*",
+    "linux_configuration/scripts/system-maintenance/bin/usage_report.py",
+    "linux_configuration/tests/*",
+    "python_pkg/steam_backlog_enforcer/*"
+  ],
+  "changes": [
+    "Added and integrated constrained makepkg execution (`makepkg_capped`, `mkpkg`, wrapper command routing) and installer deployment paths.",
+    "Hardened pacman installer with strict mode and immutable-file unlock/relock flow to avoid partial-success installs.",
+    "Improved i3blocks runtime deployment by syncing optimized scripts/config and confirming active processes use persist helper logic.",
+    "Added/updated regression tests for pacman wrapper security, i3blocks persist helper, usage monitoring installer, and pmon process-name normalization."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files linux_configuration/i3-configuration/i3blocks/activitywatch_status.sh linux_configuration/i3-configuration/i3blocks/bluetooth.sh linux_configuration/i3-configuration/i3blocks/config linux_configuration/i3-configuration/i3blocks/ethernet.sh linux_configuration/i3-configuration/i3blocks/gpu_monitor.sh linux_configuration/i3-configuration/i3blocks/warp_status.sh linux_configuration/i3-configuration/i3blocks/wifi_monitor.sh linux_configuration/scripts/digital_wellbeing/music_parallelism.sh linux_configuration/scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh linux_configuration/scripts/digital_wellbeing/pacman/pacman_wrapper.sh linux_configuration/scripts/lib/common.sh linux_configuration/scripts/system-maintenance/bin/install_usage_monitoring.sh linux_configuration/scripts/system-maintenance/bin/usage_report.py linux_configuration/tests/test_i3blocks_efficiency.sh linux_configuration/tests/test_pacman_wrapper_security.sh linux_configuration/tests/test_i3blocks_persist_common.sh python_pkg/steam_backlog_enforcer/enforcer.py python_pkg/steam_backlog_enforcer/game_install.py python_pkg/steam_backlog_enforcer/steam-backlog-enforcer.service python_pkg/steam_backlog_enforcer/tests/test_enforcer.py linux_configuration/i3-configuration/i3blocks/persist_common.sh linux_configuration/scripts/digital_wellbeing/pacman/makepkg_capped.sh linux_configuration/scripts/digital_wellbeing/pacman/mkpkg.sh linux_configuration/tests/__init__.py linux_configuration/tests/test_makepkg_capped.sh linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh linux_configuration/tests/test_usage_report_pmon_names.py",
+      "result": "pass",
+      "evidence": "All hooks passed including no-polling-antipatterns, ruff, shellcheck, and leak checks."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_pacman_wrapper_security.sh",
+      "result": "pass",
+      "evidence": "All 19 security/integration checks passed, including strict installer mode and immutable-file handling markers."
+    },
+    {
+      "command": "bash linux_configuration/scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh",
+      "result": "pass",
+      "evidence": "Installer completed without prior Operation not permitted failures; deployed binaries and wrapper help verified."
+    }
+  ],
+  "risks": [
+    "Installer now fails fast for missing required source files, which may stop previously permissive installs.",
+    "Live i3blocks config/script sync may diverge from user-local manual tweaks if reapplied blindly."
+  ],
+  "rollback": [
+    "Revert commit and rerun installer to restore previous wrapper behavior.",
+    "Restore i3blocks config from generated backup in ~/.config/i3blocks/config.bak.<timestamp> and restart i3blocks."
+  ]
+}

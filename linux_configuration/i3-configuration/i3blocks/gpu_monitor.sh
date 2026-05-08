@@ -12,6 +12,11 @@
 
 set -u
 
+SCRIPT_DIR=${BASH_SOURCE[0]%/*}
+[[ $SCRIPT_DIR == "${BASH_SOURCE[0]}" ]] && SCRIPT_DIR='.'
+# shellcheck source=linux_configuration/i3-configuration/i3blocks/persist_common.sh
+source "$SCRIPT_DIR/persist_common.sh"
+
 # Nerd Font glyph: display / desktop icon (U+F108).
 ICON=$'\uf108'
 
@@ -30,6 +35,15 @@ emit() {
     "$color" "$ICON" "$temp" "$load"
 }
 
+emit_if_changed() {
+  local temp=$1 load=$2
+  if ! i3blocks_update_if_changed_key "gpu_metric" "$temp|$load"; then
+    return 0
+  fi
+  emit "$temp" "$load"
+}
+
+
 # Prefer NVIDIA if present (persist via --loop).
 if command -v nvidia-smi > /dev/null 2>&1; then
   # One child process for the lifetime of i3blocks; emits CSV every 5s.
@@ -44,7 +58,7 @@ if command -v nvidia-smi > /dev/null 2>&1; then
       load=${load## }
       load=${load%% }
       [[ -z $temp || -z $load ]] && continue
-      emit "$temp" "$load"
+      emit_if_changed "$temp" "$load"
     done
   exit 0
 fi
@@ -73,7 +87,7 @@ if [[ -n $amdgpu ]]; then
       break
     }
   done
-  emit "$temp" "$load"
+  emit_if_changed "$temp" "$load"
   exit 0
 fi
 

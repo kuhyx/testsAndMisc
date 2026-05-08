@@ -187,11 +187,11 @@ is_focus_app_running() {
 		local regex wid
 		printf -v regex '%s|' "${FOCUS_APPS_WINDOWS[@]}"
 		regex="${regex%|}"  # strip trailing |
-		wid=$(xdotool search --name "$regex" 2>/dev/null | head -1 || true)
-		if [[ -n $wid ]]; then
-			xdotool getwindowname "$wid" 2>/dev/null || echo "focus app"
+		while IFS= read -r wid; do
+			[[ -n $wid ]] || continue
+			echo "focus app"
 			return 0
-		fi
+		done < <(xdotool search --name "$regex" 2>/dev/null)
 	fi
 
 	# Check specific processes via /proc (no fork)

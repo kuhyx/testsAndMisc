@@ -528,6 +528,39 @@ def _pmon_fields(line: str) -> list[str] | None:
     return s.split()
 
 
+def _normalize_pmon_command(command_fields: list[str]) -> str:
+    """Normalize pmon command fields into a stable process-ish name.
+
+    `nvidia-smi pmon -o DT` emits fixed numeric columns followed by a command
+    field that can include whitespace. We prefer the *first* non-option token
+    (usually executable) and normalize it to a basename.
+    """
+    tokens = [token.strip().strip("\"'") for token in command_fields if token.strip()]
+    if not tokens:
+        return "unknown"
+
+    selected = tokens[0]
+    if selected.startswith("-"):
+        for candidate in tokens[1:]:
+            if not candidate.startswith("-"):
+                selected = candidate
+                break
+
+    name = Path(selected).name.strip(";,:")
+    if not name:
+        return "unknown"
+    return name
+
+
+def _pid_comm_name(pid: int) -> str | None:
+    """Return `/proc/<pid>/comm` basename when available."""
+    try:
+        comm = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return Path(comm).name if comm else None
+
+
 def aggregate_pmon(
     log: Path,
     progress: _Progress,
@@ -563,7 +596,10 @@ def _ingest_pmon_row(parts: list[str], agg: dict[str, GpuAgg]) -> int:
         return 0
     sm_raw = parts[5]
     mem_raw = parts[6]
-    name = parts[-1]
+    command_fields = parts[11:]
+    name = _normalize_pmon_command(command_fields)
+    if name == "unknown":
+        name = _pid_comm_name(pid) or "unknown"
     sm = float(sm_raw) if sm_raw != "-" else 0.0
     mem = float(mem_raw) if mem_raw != "-" else 0.0
     entry = agg.setdefault(name, GpuAgg(name=name))

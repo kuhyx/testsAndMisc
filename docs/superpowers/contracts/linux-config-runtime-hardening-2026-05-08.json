@@ -1,0 +1,15 @@
+{
+  "title": "Linux config runtime hardening and deployment contract",
+  "objective": "Deploy and verify improved Linux scripts in runtime (not just repository state), while ensuring pacman wrapper installation handles immutable files safely and fails fast on required-file errors.",
+  "acceptance_criteria": [
+    "Pacman wrapper exposes `--makepkg-capped` and `/usr/local/bin/makepkg_capped` + `/usr/local/bin/mkpkg` are deployed.",
+    "Hardened installer runs successfully and no longer reports partial-success permission failures for policy/integrity writes.",
+    "Optimized i3blocks scripts/config are present in ~/.config/i3blocks and active processes are running those scripts.",
+    "Pre-commit passes for all modified files involved in this change set."
+  ],
+  "out_of_scope": [
+    "Repository-wide cleanup of unrelated legacy pre-commit failures in untouched files.",
+    "Functional redesign of steam_backlog_enforcer logic beyond included pending edits."
+  ],
+  "verifier": "pre-commit run --files <all modified files>; bash linux_configuration/tests/test_pacman_wrapper_security.sh; runtime probes for deployed binaries/processes"
+}

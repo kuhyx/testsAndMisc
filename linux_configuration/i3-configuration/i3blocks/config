@@ -1,6 +1,6 @@
 [cpu_monitor]
 command=~/.config/i3blocks/cpu_monitor.sh
-interval=5
+interval=10
 markup=pango
 
 
@@ -12,13 +12,13 @@ markup=pango
 
 [motherboard_temperature]
 command=~/.config/i3blocks/motherboard_temp.sh
-interval=5
+interval=30
 markup=pango
 
 
 [memory]
 command=~/.config/i3blocks/memory.sh
-interval=5
+interval=30
 color=#50FA7B
 
 
@@ -39,25 +39,25 @@ markup=pango
 
 [bluetooth]
 command=~/.config/i3blocks/bluetooth.sh
-interval=5
+interval=persist
 color=#FFFFFF
 
 
 [battery]
 command=~/.config/i3blocks/battery_status.sh
-interval=5
+interval=60
 markup=pango
 
 
 [ethernet]
 command=~/.config/i3blocks/ethernet.sh
-interval=10
+interval=persist
 color=#FFFFFF
 
 
 [wifi]
 command=~/.config/i3blocks/wifi_monitor.sh
-interval=10
+interval=persist
 color=#FFFFFF
 
 
@@ -69,12 +69,12 @@ color=#FFFFFF
 
 [warp]
 command=~/.config/i3blocks/warp_status.sh
-interval=60
+interval=persist
 
 
 [activitywatch]
 command=~/.config/i3blocks/activitywatch_status.sh
-interval=10
+interval=persist
 color=#FFFFFF
 
 

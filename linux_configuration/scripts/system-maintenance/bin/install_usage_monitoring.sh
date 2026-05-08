@@ -32,7 +32,11 @@ for id in ${ID:-} ${ID_LIKE:-}; do
       FAMILY="arch"
       break
       ;;
-    debian | ubuntu | linuxmint | pop | elementary)
+    debian | ubuntu | linuxmint | pop)
+      FAMILY="debian"
+      break
+      ;;
+    elementary)
       FAMILY="debian"
       break
       ;;
@@ -152,20 +156,24 @@ if ! command -v nvidia-smi >/dev/null 2>&1; then
   exit 1
 fi
 
+current_day() {
+  printf '%(%Y%m%d)T' -1
+}
+
 while true; do
-  day="$(date +%Y%m%d)"
+  day="$(current_day)"
   out_file="$LOG_DIR/pmon-${day}.log"
 
   nvidia-smi pmon -d 10 -o DT >> "$out_file" 2>> "$ERR_LOG" &
   pmon_pid=$!
 
   while kill -0 "$pmon_pid" >/dev/null 2>&1; do
-    if [[ "$(date +%Y%m%d)" != "$day" ]]; then
+    if [[ "$(current_day)" != "$day" ]]; then
       kill "$pmon_pid" >/dev/null 2>&1 || true
       wait "$pmon_pid" || true
       break
     fi
-    read -r -t 20 _ || true
+    sleep 60
   done
 
 done
