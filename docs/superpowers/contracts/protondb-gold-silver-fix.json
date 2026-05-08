@@ -1,0 +1,18 @@
+{
+  "title": "ProtonDB gold+silver acceptance fix",
+  "objective": "Fix the is_playable rule in protondb.py so that a game with one gold rating and one silver rating (in either order) is accepted as playable. Previously both ratings had to be gold+. Add an unplayable_reason property for diagnostic logging in scanning.py.",
+  "acceptance_criteria": [
+    "gold+silver -> accepted",
+    "silver+gold -> accepted",
+    "gold+bronze -> rejected",
+    "silver+silver -> rejected",
+    "Skip log includes the unplayable_reason string",
+    "All existing and new tests pass (63 total)",
+    "Pre-commit passes on all 4 changed files"
+  ],
+  "out_of_scope": [
+    "Changes to any other enforcement logic",
+    "Changes to config or API clients"
+  ],
+  "verifier": "pytest python_pkg/steam_backlog_enforcer/tests/ && pre-commit run --files <changed-files>"
+}

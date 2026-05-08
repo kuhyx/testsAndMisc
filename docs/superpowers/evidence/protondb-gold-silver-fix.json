@@ -1,0 +1,35 @@
+{
+  "intent": "Fix ProtonDB acceptance rule so gold+silver combinations are accepted, and add explicit skip-reason logging.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/protondb.py",
+    "python_pkg/steam_backlog_enforcer/scanning.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_protondb.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_scanning.py",
+    "No changes to config, API clients, or other modules"
+  ],
+  "changes": [
+    "Updated is_playable: both ratings must be >= silver AND at least one must be gold+",
+    "Added unplayable_reason property returning terse diagnostic string",
+    "Updated _pick_playable_candidate skip log to include unplayable_reason",
+    "Added/updated tests for new acceptance rule and unplayable_reason"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/protondb.py python_pkg/steam_backlog_enforcer/scanning.py python_pkg/steam_backlog_enforcer/tests/test_protondb.py python_pkg/steam_backlog_enforcer/tests/test_scanning.py",
+      "result": "pass",
+      "evidence": "All hooks passed (trim whitespace, ruff, ruff-format, codespell, etc.)"
+    },
+    {
+      "command": "pytest python_pkg/steam_backlog_enforcer/tests/",
+      "result": "pass",
+      "evidence": "63 passed, 0 failed"
+    }
+  ],
+  "risks": [
+    "Games with gold+silver were previously rejected; they will now be assigned — intended behaviour change"
+  ],
+  "rollback": [
+    "Revert is_playable to require both ratings to be gold+",
+    "Validate with pytest python_pkg/steam_backlog_enforcer/tests/"
+  ]
+}
