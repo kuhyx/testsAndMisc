@@ -84,13 +84,13 @@ monitor_with_dbus() {
 	log_message "Starting shutdown timer monitoring with D-Bus events"
 
 	# Use busctl to monitor systemd unit changes
-	# Fall back to polling if this fails
+	# Fall back to polling if this fails.
 	if command -v busctl &>/dev/null; then
 		# Monitor for unit state changes
 		busctl monitor --system org.freedesktop.systemd1 2>/dev/null |
 			while read -r line; do
 				# Check if the line mentions our timer
-				if echo "$line" | grep -q "$TIMER_NAME\|$SERVICE_NAME"; then
+				if [[ $line == *"$TIMER_NAME"* || $line == *"$SERVICE_NAME"* ]]; then
 					log_message "Systemd event detected for shutdown timer"
 					sleep 2
 					if timer_needs_restoration; then
@@ -116,18 +116,29 @@ monitor_with_polling() {
 	done
 }
 
+start_monitoring() {
+	log_message "=== Shutdown Timer Monitor Started ==="
+	log_message "Monitoring timer: $TIMER_NAME"
+	log_message "Monitoring service: $SERVICE_NAME"
+
+	# Initial check
+	if timer_needs_restoration; then
+		log_message "Initial check: Timer needs restoration"
+		restore_timer
+	else
+		log_message "Initial check: Timer is properly configured"
+	fi
+
+	# Prefer D-Bus monitoring, with polling as the fallback path.
+	if command -v busctl &>/dev/null; then
+		monitor_with_dbus
+	else
+		log_message "busctl not available, falling back to polling"
+		monitor_with_polling
+	fi
+}
+
 # Main execution
-log_message "=== Shutdown Timer Monitor Started ==="
-log_message "Monitoring timer: $TIMER_NAME"
-log_message "Monitoring service: $SERVICE_NAME"
-
-# Initial check
-if timer_needs_restoration; then
-	log_message "Initial check: Timer needs restoration"
-	restore_timer
-else
-	log_message "Initial check: Timer is properly configured"
+if [[ ${SHUTDOWN_TIMER_MONITOR_SKIP_MAIN:-0} -ne 1 ]]; then
+	start_monitoring
 fi
-
-# Use polling for reliability (D-Bus monitoring can miss events)
-monitor_with_polling

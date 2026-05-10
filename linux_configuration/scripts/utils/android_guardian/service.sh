@@ -7,32 +7,39 @@
 # 4. Can only be stopped via ADB with the correct command
 
 MODDIR=${0%/*}
-GUARDIAN_DIR="/data/adb/android_guardian"
+GUARDIAN_DIR="${ANDROID_GUARDIAN_DIR:-/data/adb/android_guardian}"
 LOG_FILE="$GUARDIAN_DIR/guardian.log"
 BLOCKED_APPS_FILE="$GUARDIAN_DIR/blocked_apps.txt"
 CONTROL_FILE="$GUARDIAN_DIR/control"
 HOSTS_BACKUP="$GUARDIAN_DIR/hosts.backup"
-MODULE_DIR="/data/adb/modules/android_guardian"
+MODULE_DIR="${ANDROID_GUARDIAN_MODULE_DIR:-/data/adb/modules/android_guardian}"
+SYSTEM_HOSTS_FILE="${ANDROID_GUARDIAN_SYSTEM_HOSTS_FILE:-/system/etc/hosts}"
+MODULE_HOSTS_FILE="${ANDROID_GUARDIAN_MODULE_HOSTS_FILE:-$MODDIR/system/etc/hosts}"
 DISABLE_FILE="$MODULE_DIR/disable"
 REMOVE_FILE="$MODULE_DIR/remove"
-
-# Ensure guardian directory exists
-mkdir -p "$GUARDIAN_DIR"
+LOOP_SLEEP_SECONDS=5
+HOSTS_CHECK_EVERY_TICKS=6
+APPS_CHECK_EVERY_TICKS=12
 
 log() {
 	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >>"$LOG_FILE"
 }
 
-# Initialize control file if not exists
-[ ! -f "$CONTROL_FILE" ] && echo "ENABLED" >"$CONTROL_FILE"
+initialize_service() {
+	mkdir -p "$GUARDIAN_DIR"
 
-log "=== Android Guardian starting ==="
+	if [ ! -f "$CONTROL_FILE" ]; then
+		echo "ENABLED" >"$CONTROL_FILE"
+	fi
 
-# Enable wireless ADB on boot (persistent port 5555)
-setprop service.adb.tcp.port 5555
-stop adbd
-start adbd
-log "Wireless ADB enabled on port 5555"
+	log "=== Android Guardian starting ==="
+
+	# Enable wireless ADB on boot (persistent port 5555)
+	setprop service.adb.tcp.port 5555
+	stop adbd
+	start adbd
+	log "Wireless ADB enabled on port 5555"
+}
 
 # Function to check if guardian is enabled (via ADB control, not Magisk UI)
 is_enabled() {
@@ -59,12 +66,9 @@ protect_module() {
 # Function to restore hosts file if tampered
 protect_hosts() {
 	if [ -f "$HOSTS_BACKUP" ]; then
-		current_hash=$(md5sum /system/etc/hosts 2>/dev/null | cut -d' ' -f1)
-		backup_hash=$(md5sum "$HOSTS_BACKUP" 2>/dev/null | cut -d' ' -f1)
-
-		if [ "$current_hash" != "$backup_hash" ]; then
+		if ! cmp -s "$SYSTEM_HOSTS_FILE" "$HOSTS_BACKUP"; then
 			log "Hosts file tampering detected! Restoring..."
-			cp "$HOSTS_BACKUP" "$MODDIR/system/etc/hosts"
+			cp "$HOSTS_BACKUP" "$MODULE_HOSTS_FILE"
 			log "Hosts file restored"
 		fi
 	fi
@@ -76,6 +80,14 @@ check_blocked_apps() {
 		return
 	fi
 
+	installed_packages=$(pm list packages 2>/dev/null) || installed_packages=""
+	if [ -z "$installed_packages" ]; then
+		return
+	fi
+	installed_packages="
+$installed_packages
+"
+
 	while IFS= read -r package || [ -n "$package" ]; do
 		# Skip comments and empty lines
 		case "$package" in
@@ -83,26 +95,45 @@ check_blocked_apps() {
 		esac
 
 		# Check if package is installed
-		if pm list packages 2>/dev/null | grep -q "package:$package"; then
+		case "$installed_packages" in
+		*"
+package:$package
+"*)
 			log "Blocked app detected: $package - Uninstalling..."
 			pm uninstall "$package" 2>/dev/null && log "Uninstalled: $package" || log "Failed to uninstall: $package"
-		fi
+			;;
+		esac
 	done <"$BLOCKED_APPS_FILE"
 }
 
-# Main monitoring loop - runs every 5 seconds for faster protection
-while true; do
-	# ALWAYS protect module from UI disabling (even if guardian is "disabled" via ADB)
-	# This ensures only ADB can control the guardian
-	protect_module
+guardian_loop() {
+	tick_count=0
+	while true; do
+		# ALWAYS protect module from UI disabling (even if guardian is "disabled" via ADB)
+		# This ensures only ADB can control the guardian
+		protect_module
 
-	if is_enabled; then
-		protect_hosts
-		check_blocked_apps
-	fi
+		if is_enabled; then
+			if [ $((tick_count % HOSTS_CHECK_EVERY_TICKS)) -eq 0 ]; then
+				protect_hosts
+			fi
 
-	# Check every 5 seconds (faster response to disable attempts)
-	sleep 5
-done &
+			if [ $((tick_count % APPS_CHECK_EVERY_TICKS)) -eq 0 ]; then
+				check_blocked_apps
+			fi
+		fi
 
-log "Guardian service started (PID: $!)"
+		tick_count=$((tick_count + 1))
+		sleep "$LOOP_SLEEP_SECONDS"
+	done
+}
+
+service_main() {
+	initialize_service
+	guardian_loop &
+	log "Guardian service started (PID: $!)"
+}
+
+if [ "${ANDROID_GUARDIAN_SKIP_MAIN:-0}" -ne 1 ]; then
+	service_main
+fi

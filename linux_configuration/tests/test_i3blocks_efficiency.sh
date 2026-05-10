@@ -193,6 +193,8 @@ printf 'Checking focus detection path avoids extra xdotool lookups...\n'
 printf 'Checking ActivityWatch persist strategy avoids /proc event storm...\n'
 ! grep -Fq 'inotifywait -m -q -e create -e delete /proc' "$I3BLOCKS_DIR/activitywatch_status.sh" \
   || fail 'activitywatch persist mode should avoid noisy /proc inotify stream'
+grep -Fq 'HEARTBEAT_INTERVAL_S=60' "$I3BLOCKS_DIR/activitywatch_status.sh" \
+  || fail 'activitywatch persist mode should use a 60 second calm heartbeat'
 
 printf 'Checking GPU/WARP dedupe guards exist...\n'
 grep -Fq 'emit_if_changed()' "$I3BLOCKS_DIR/gpu_monitor.sh" \
@@ -219,6 +221,8 @@ grep -Fq 'i3blocks_update_if_changed_key "ethernet_output"' "$I3BLOCKS_DIR/ether
   || fail 'ethernet script should dedupe unchanged output'
 grep -Fq 'i3blocks_update_if_changed_key "activitywatch_state"' "$I3BLOCKS_DIR/activitywatch_status.sh" \
   || fail 'activitywatch script should dedupe unchanged state'
+grep -Fq 'WARP_POLL_INTERVAL_S=120' "$I3BLOCKS_DIR/warp_status.sh" \
+  || fail 'warp status should poll at a calmer 120 second interval'
 
 printf 'Checking bluetooth block behavior and fork count...\n'
 bluetooth_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/bluetooth.sh")

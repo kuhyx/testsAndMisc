@@ -8,6 +8,7 @@ set -euo pipefail
 LOG_FILE="/var/log/hosts-file-monitor.log"
 HOSTS_FILE="/etc/hosts"
 HOSTS_INSTALL_SCRIPT="__HOSTS_INSTALL_SCRIPT__"
+readonly MIN_HOSTS_LINES=1000
 
 # Log with timestamp (hosts-file-monitor specific)
 log_message() {
@@ -23,20 +24,39 @@ needs_restoration() {
     return 0 # File missing, needs restoration
   fi
 
-  # Check if file is empty or too small (less than 1000 lines indicates tampering)
-  local line_count
-  line_count=$(wc -l < "$HOSTS_FILE" 2> /dev/null || echo "0")
-  if [[ $line_count -lt 1000 ]]; then
+  # Check if file is empty or too small (less than MIN_HOSTS_LINES indicates tampering)
+  local line_count=0
+  local has_custom_entries=0
+  local has_stevenblack_entries=0
+  local line=""
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    line_count=$((line_count + 1))
+
+    if [[ $has_custom_entries -eq 0 && $line == *"Custom blocking entries"* ]]; then
+      has_custom_entries=1
+    fi
+
+    if [[ $has_stevenblack_entries -eq 0 && $line == *"StevenBlack"* ]]; then
+      has_stevenblack_entries=1
+    fi
+
+    if (( line_count >= MIN_HOSTS_LINES && has_custom_entries == 1 && has_stevenblack_entries == 1 )); then
+      return 1 # File seems intact
+    fi
+  done < "$HOSTS_FILE"
+
+  if [[ $line_count -lt $MIN_HOSTS_LINES ]]; then
     return 0 # File too small, likely tampered with
   fi
 
   # Check if our custom entries are missing
-  if ! grep -q "Custom blocking entries" "$HOSTS_FILE" 2> /dev/null; then
+  if [[ $has_custom_entries -eq 0 ]]; then
     return 0 # Our custom entries missing, needs restoration
   fi
 
   # Check if StevenBlack entries are missing
-  if ! grep -q "StevenBlack" "$HOSTS_FILE" 2> /dev/null; then
+  if [[ $has_stevenblack_entries -eq 0 ]]; then
     return 0 # StevenBlack entries missing, needs restoration
   fi
 
@@ -98,15 +118,20 @@ monitor_with_polling() {
   done
 }
 
-# Main execution
-log_message "=== Hosts File Monitor Started ==="
+start_monitoring() {
+  log_message "=== Hosts File Monitor Started ==="
 
-# Check if inotify-tools is available
-if command -v inotifywait > /dev/null 2>&1; then
-  log_message "Using inotify for file monitoring"
-  monitor_with_inotify
-else
-  log_message "inotify-tools not available, using polling method"
-  log_message "Consider installing inotify-tools for better performance: pacman -S inotify-tools"
-  monitor_with_polling
+  if command -v inotifywait > /dev/null 2>&1; then
+    log_message "Using inotify for file monitoring"
+    monitor_with_inotify
+  else
+    log_message "inotify-tools not available, using polling method"
+    log_message "Consider installing inotify-tools for better performance: pacman -S inotify-tools"
+    monitor_with_polling
+  fi
+}
+
+# Main execution
+if [[ ${HOSTS_FILE_MONITOR_SKIP_MAIN:-0} -ne 1 ]]; then
+  start_monitoring
 fi

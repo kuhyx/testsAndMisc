@@ -17,6 +17,8 @@ is_persist_mode() {
   [[ ${BLOCK_INTERVAL:-} == "persist" ]]
 }
 
+WARP_POLL_INTERVAL_S=120
+
 read_status() {
   local status line
   status=''
@@ -62,7 +64,7 @@ if is_persist_mode; then
 fi
 if is_persist_mode; then
   while true; do
-    sleep 60
+    sleep "$WARP_POLL_INTERVAL_S"
     current_status=$(read_status)
     emit_if_changed "$current_status"
   done

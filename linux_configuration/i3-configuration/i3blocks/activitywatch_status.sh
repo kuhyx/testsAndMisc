@@ -59,13 +59,15 @@ is_persist_mode() {
   [[ ${BLOCK_INTERVAL:-} == "persist" ]]
 }
 
+HEARTBEAT_INTERVAL_S=60
+
 emit
 
 if is_persist_mode; then
   # Intentionally calm heartbeat in persist mode: process-table event streams can
   # be extremely noisy and cause unnecessary churn.
   while true; do
-    sleep 20
+    sleep "$HEARTBEAT_INTERVAL_S"
     emit
   done
 fi

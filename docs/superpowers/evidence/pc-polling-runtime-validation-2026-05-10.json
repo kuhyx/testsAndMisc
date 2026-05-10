@@ -1,0 +1,38 @@
+{
+  "intent": "Reduce desktop polling overhead and ensure updated Linux monitoring scripts are actually active on the PC runtime paths.",
+  "scope": [
+    "linux_configuration i3blocks persist scripts and digital wellbeing daemon scripts",
+    "Runtime deployment sync to ~/.config/i3blocks and /usr/local/bin",
+    "Non-goal: fix unrelated repo-wide historical lint/polling findings"
+  ],
+  "changes": [
+    "Optimized i3blocks activitywatch and warp polling intervals and synced live ~/.config script paths",
+    "Optimized android_guardian service/post-fs-data scripts with throttled checks and lower-fork comparisons, with new shell regressions",
+    "Deployed updated /usr/local/bin/music-parallelism.sh and restarted user service"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files $(git diff --name-only) $(git ls-files --others --exclude-standard)",
+      "result": "pass",
+      "evidence": "All hooks passed for changed files including no-polling-antipatterns, ruff, shellcheck, and secrets checks."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "i3blocks efficiency regression suite passed after interval updates."
+    },
+    {
+      "command": "ps -eo pid,ppid,comm,args --sort=comm | grep -E 'music-parallelism|focus-mode-daemon|i3blocks|activitywatch_status'",
+      "result": "pass",
+      "evidence": "Confirmed running i3blocks tree, focus-mode daemon, and music-parallelism service process."
+    }
+  ],
+  "risks": [
+    "Longer polling intervals may delay status updates for warp/activitywatch",
+    "Live deployment drift can recur if repo edits are not synced to installed paths"
+  ],
+  "rollback": [
+    "Revert the commit and copy prior script versions back into ~/.config/i3blocks and /usr/local/bin",
+    "Restart i3 (i3-msg reload) and systemctl --user restart music-parallelism.service; verify process tree"
+  ]
+}

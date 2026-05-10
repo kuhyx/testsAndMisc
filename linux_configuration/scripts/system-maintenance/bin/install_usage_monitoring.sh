@@ -160,21 +160,34 @@ current_day() {
   printf '%(%Y%m%d)T' -1
 }
 
+seconds_until_next_day() {
+  local hour minute second
+  printf -v hour '%(%H)T' -1
+  printf -v minute '%(%M)T' -1
+  printf -v second '%(%S)T' -1
+  printf '%s\n' $(((23 - 10#$hour) * 3600 + (59 - 10#$minute) * 60 + (60 - 10#$second)))
+}
+
 while true; do
   day="$(current_day)"
   out_file="$LOG_DIR/pmon-${day}.log"
+  rollover_pid=''
 
   nvidia-smi pmon -d 10 -o DT >> "$out_file" 2>> "$ERR_LOG" &
   pmon_pid=$!
 
-  while kill -0 "$pmon_pid" >/dev/null 2>&1; do
-    if [[ "$(current_day)" != "$day" ]]; then
-      kill "$pmon_pid" >/dev/null 2>&1 || true
-      wait "$pmon_pid" || true
-      break
-    fi
-    sleep 60
-  done
+  (
+    sleep "$(seconds_until_next_day)"
+    kill "$pmon_pid" >/dev/null 2>&1 || true
+  ) &
+  rollover_pid=$!
+
+  wait "$pmon_pid" || true
+
+  if [[ -n $rollover_pid ]]; then
+    kill "$rollover_pid" >/dev/null 2>&1 || true
+    wait "$rollover_pid" 2>/dev/null || true
+  fi
 
 done
 SCRIPT

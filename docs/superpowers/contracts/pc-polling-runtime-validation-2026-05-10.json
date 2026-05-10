@@ -1,0 +1,14 @@
+{
+  "title": "PC polling/runtime validation and deployment sync",
+  "objective": "Ensure PC-facing monitoring scripts are optimized, validated, and actually running from deployed runtime paths rather than only modified in-repo files.",
+  "acceptance_criteria": [
+    "Changed-file pre-commit checks pass with no remaining hook failures",
+    "Updated scripts are synced to runtime paths (~/.config/i3blocks and /usr/local/bin where applicable)",
+    "Runtime process evidence shows active i3blocks + music-parallelism + focus-mode daemons"
+  ],
+  "out_of_scope": [
+    "Repository-wide legacy lint/polling findings in untouched files",
+    "Android device runtime verification outside PC scope"
+  ],
+  "verifier": "pre-commit hooks, shell regression tests, and runtime process inspection commands"
+}

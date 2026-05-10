@@ -1,33 +1,42 @@
 #!/system/bin/sh
 # Runs early in boot - set up hosts file and start watchdog
 # MODDIR is set by Magisk and points to this module's directory
-GUARDIAN_DIR="/data/adb/android_guardian"
-# shellcheck disable=SC2034  # Used for documentation; heredoc defines its own
-MODULE_DIR="/data/adb/modules/android_guardian"
-WATCHDOG_SCRIPT="$GUARDIAN_DIR/watchdog.sh"
+GUARDIAN_DIR="${ANDROID_GUARDIAN_DIR:-/data/adb/android_guardian}"
+WATCHDOG_SCRIPT="${ANDROID_GUARDIAN_WATCHDOG_SCRIPT:-$GUARDIAN_DIR/watchdog.sh}"
+LOG_FILE="$GUARDIAN_DIR/guardian.log"
 
-mkdir -p "$GUARDIAN_DIR"
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: $*" >>"$LOG_FILE"
+}
 
-# Log that we're starting
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: Guardian module loading" >>"$GUARDIAN_DIR/guardian.log"
-
-# Create persistent watchdog script that runs independently of module state
+write_watchdog_script() {
 cat >"$WATCHDOG_SCRIPT" <<'WATCHDOG'
 #!/system/bin/sh
 # Secondary watchdog - runs independently of module state
 # Even if module is "disabled" in Magisk UI, this keeps running and undoes it
-GUARDIAN_DIR="/data/adb/android_guardian"
-MODULE_DIR="/data/adb/modules/android_guardian"
+GUARDIAN_DIR="${ANDROID_GUARDIAN_DIR:-/data/adb/android_guardian}"
+MODULE_DIR="${ANDROID_GUARDIAN_MODULE_DIR:-/data/adb/modules/android_guardian}"
 LOG_FILE="$GUARDIAN_DIR/watchdog.log"
+CONTROL_FILE="$GUARDIAN_DIR/control"
+HOSTS_BACKUP="$GUARDIAN_DIR/hosts.backup"
+MODULE_HOSTS="$MODULE_DIR/system/etc/hosts"
+LOOP_SLEEP_SECONDS=3
+HOSTS_CHECK_EVERY_TICKS=10
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >>"$LOG_FILE"
 }
 
-log "=== Watchdog starting ==="
+is_enabled() {
+    if [ ! -f "$CONTROL_FILE" ]; then
+        return 1
+    fi
 
-while true; do
-    # Protect module from Magisk UI disable/remove
+    IFS= read -r guardian_state < "$CONTROL_FILE" || guardian_state=""
+    [ "$guardian_state" = "ENABLED" ]
+}
+
+protect_module_flags() {
     if [ -f "$MODULE_DIR/disable" ]; then
         log "ALERT: Module disable detected via Magisk UI - removing disable flag"
         rm -f "$MODULE_DIR/disable"
@@ -37,27 +46,56 @@ while true; do
         log "ALERT: Module removal detected via Magisk UI - removing remove flag"
         rm -f "$MODULE_DIR/remove"
     fi
+}
 
-    # Also protect the hosts file directly
-    CONTROL_FILE="$GUARDIAN_DIR/control"
-    if [ "$(cat "$CONTROL_FILE" 2>/dev/null)" = "ENABLED" ]; then
-        if [ -f "$GUARDIAN_DIR/hosts.backup" ] && [ -f "$MODULE_DIR/system/etc/hosts" ]; then
-            current_hash=$(md5sum "$MODULE_DIR/system/etc/hosts" 2>/dev/null | cut -d' ' -f1)
-            backup_hash=$(md5sum "$GUARDIAN_DIR/hosts.backup" 2>/dev/null | cut -d' ' -f1)
+protect_hosts() {
+    if [ ! -f "$HOSTS_BACKUP" ] || [ ! -f "$MODULE_HOSTS" ]; then
+        return
+    fi
 
-            if [ "$current_hash" != "$backup_hash" ]; then
-                log "ALERT: Hosts tampering detected - restoring"
-                cp "$GUARDIAN_DIR/hosts.backup" "$MODULE_DIR/system/etc/hosts"
-            fi
+    if ! cmp -s "$MODULE_HOSTS" "$HOSTS_BACKUP"; then
+        log "ALERT: Hosts tampering detected - restoring"
+        cp "$HOSTS_BACKUP" "$MODULE_HOSTS"
+    fi
+}
+
+log "=== Watchdog starting ==="
+
+tick_count=0
+while true; do
+    protect_module_flags
+
+    if is_enabled; then
+        if [ $((tick_count % HOSTS_CHECK_EVERY_TICKS)) -eq 0 ]; then
+            protect_hosts
         fi
     fi
 
-    sleep 3
+    tick_count=$((tick_count + 1))
+    sleep "$LOOP_SLEEP_SECONDS"
 done
 WATCHDOG
+}
 
-chmod 755 "$WATCHDOG_SCRIPT"
+start_watchdog() {
+    nohup sh "$WATCHDOG_SCRIPT" >/dev/null 2>&1 &
+}
 
-# Start watchdog as a separate background process
-nohup sh "$WATCHDOG_SCRIPT" >/dev/null 2>&1 &
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-fs-data: Watchdog started" >>"$GUARDIAN_DIR/guardian.log"
+post_fs_main() {
+    mkdir -p "$GUARDIAN_DIR"
+    log "Guardian module loading"
+    write_watchdog_script
+    chmod 755 "$WATCHDOG_SCRIPT"
+
+    if [ "${ANDROID_GUARDIAN_POST_FS_SKIP_WATCHDOG_START:-0}" -ne 1 ]; then
+        start_watchdog
+        log "Watchdog started"
+        return
+    fi
+
+    log "Watchdog generation complete (start skipped)"
+}
+
+if [ "${ANDROID_GUARDIAN_POST_FS_SKIP_MAIN:-0}" -ne 1 ]; then
+    post_fs_main
+fi
