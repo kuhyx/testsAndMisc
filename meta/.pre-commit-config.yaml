@@ -220,7 +220,7 @@ repos:
   # ===========================================================================
   # PYTEST + COVERAGE - Run tests and enforce 100% code coverage
   # Only tests for subpackages with changed files are run (see script).
-  # Runs on push only (slow); use --hook-stage pre-push to run manually.
+  # Uses pytest-xdist (-n auto) to parallelize across all CPUs.
   # ===========================================================================
   - repo: local
     hooks:
@@ -230,7 +230,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
-        stages: [pre-push]
+        stages: [pre-commit]
 
   # ===========================================================================
   # VULTURE - Dead code detection (disabled - doesn't work well with pre-commit)

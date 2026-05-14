@@ -1,0 +1,39 @@
+{
+  "intent": "Make pre-commit run a single batched, parallelized pytest invocation and eliminate the 15s real time.sleep() calls in steam_backlog_enforcer tests, so the pytest-coverage hook is fast enough to run on every commit instead of only on push.",
+  "scope": [
+    "meta/.pre-commit-config.yaml",
+    "scripts/pytest_changed_packages.py",
+    "python_pkg/steam_backlog_enforcer/tests/conftest.py",
+    "Non-goal: changing what packages are covered or the 100% threshold",
+    "Non-goal: touching the .git/hooks/pre-push 4 GiB cgroup wrapper"
+  ],
+  "changes": [
+    "Move pytest-coverage hook from stages:[pre-push] to stages:[pre-commit] in meta/.pre-commit-config.yaml.",
+    "Rewrite scripts/pytest_changed_packages.py: drop per-package subprocess loop and gc/tempfile bookkeeping; run a single batched pytest call with -n auto and one --cov flag per affected python_pkg subpackage; wrap in systemd-run --user --scope -p MemoryMax=4G -p MemorySwapMax=0 when available.",
+    "Add autouse fixture _no_real_sleep in steam_backlog_enforcer/tests/conftest.py that patches time.sleep in game_install / library_hider / steam_api / _enforce_loop. Fixes 3 TestFinalizeCompletion tests that were each waiting 15s in real time inside _ensure_steam_running()."
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/steam_backlog_enforcer/tests --no-cov -n auto -q",
+      "result": "pass",
+      "evidence": "535 passed in 5.61s (was 33.97s on main; ~6x speedup). Slowest test now 4.46s; previous top-3 at 15-18s gone."
+    },
+    {
+      "command": "time python scripts/pytest_changed_packages.py python_pkg/shared/x.py python_pkg/wake_alarm/x.py python_pkg/brother_printer/x.py python_pkg/random_jpg/x.py python_pkg/screen_locker/x.py",
+      "result": "pass",
+      "evidence": "732 passed in 1.37s, 668% CPU; coverage 100%."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/tests/conftest.py scripts/pytest_changed_packages.py meta/.pre-commit-config.yaml",
+      "result": "pass",
+      "evidence": "All hooks passed including pytest-coverage at 100% on steam_backlog_enforcer."
+    }
+  ],
+  "risks": [
+    "Tests that intentionally observe time.sleep behavior in the affected modules must override the autouse patch with their own with-patch (existing patterns already do).",
+    "systemd-run is optional; script falls back to direct pytest invocation if unavailable."
+  ],
+  "rollback": [
+    "git revert the commit. Re-running pre-commit must show pytest-coverage hook back on pre-push stage and steam_backlog_enforcer test suite back to ~34s wall time."
+  ]
+}
