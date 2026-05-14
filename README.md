@@ -1,6 +1,6 @@
 # testsAndMisc
 
-A collection of personal projects, scripts, and experiments — from a GPS-based phone focus tool to C/C++ demos, with CI, linting, and pre-commit hooks across the board.
+A collection of personal projects, scripts, and experiments — from a GPS-based phone focus tool to Linux/Arch automation, with CI, linting, and pre-commit hooks across the board.
 
 ## Highlights
 
@@ -14,21 +14,26 @@ Automated Arch Linux setup: fresh-install scripts, i3 window manager config, LaT
 
 ### [Scripts](scripts/)
 
-Utility scripts for development workflows — C/C++ build file validation, secret detection, and custom makepkg helpers.
+Utility scripts for development workflows — build file validation, secret detection, and custom makepkg helpers.
 
-## Other Projects
+## Repository Layout
 
-| Directory     | Description              |
-| ------------- | ------------------------ |
-| `Bash/`       | FFmpeg build scripts     |
-| `C/`          | Small native helpers     |
-| `python_pkg/` | Python package structure |
+| Path                   | Description                                                                                                                                                                                                |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `python_pkg/`          | Python packages (each maintained subpackage lives here)                                                                                                                                                    |
+| `linux_configuration/` | Arch Linux setup, i3 config, system maintenance scripts                                                                                                                                                    |
+| `phone_focus_mode/`    | GPS-based Android focus enforcer                                                                                                                                                                           |
+| `scripts/`             | Workspace-level helper scripts and pre-commit hooks                                                                                                                                                        |
+| `docs/`                | Reference docs and historical reports                                                                                                                                                                      |
+| `third_party/`         | Vendored upstream skills/agents                                                                                                                                                                            |
+| `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `.pre-commit-config.yaml`, `run.sh`, `lint_python.sh`, `.fvmrc`. Symlinked into the repo root so tools that auto-discover from root keep working. |
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Tooling
 
-- **Python linting**: [Ruff](https://docs.astral.sh/ruff/) with all rules enabled (see `pyproject.toml`)
+- **Python linting**: [Ruff](https://docs.astral.sh/ruff/) with all rules enabled (see `meta/pyproject.toml`)
+- **Dependencies**: `pip install -r meta/requirements.txt` (combined runtime + dev)
 - **CI**: GitHub Actions — lint, build, and test on push
 - **Testing**: pytest (Python), custom shell-based test harness for scripts

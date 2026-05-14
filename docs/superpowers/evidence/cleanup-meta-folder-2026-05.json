@@ -1,0 +1,50 @@
+{
+  "intent": "Consolidate repo-wide tooling configs into a meta/ folder, drop unused C/ and a few stale python_pkg subpackages, combine requirements files, and remove setup.sh + .binary-allowlist. Root-level symlinks keep tool auto-discovery (pyproject.toml, .pre-commit-config.yaml, requirements.txt, run.sh, lint_python.sh, .fvmrc) working unchanged.",
+  "scope": [
+    "Delete: setup.sh, .binary-allowlist, C/, python_pkg/{split,pdfCentered,geo_data}, scripts/check_c_cpp_build_files.sh",
+    "Move into meta/: run.sh, lint_python.sh, pyproject.toml, .pre-commit-config.yaml, .fvmrc",
+    "Combine requirements.txt + requirements-dev.txt into meta/requirements.txt",
+    "Add root symlinks for each moved file so existing tooling keeps resolving from repo root",
+    "Update README.md and meta/.pre-commit-config.yaml to drop archived path references",
+    "Add .secret-patterns to .gitignore and untrack it (its content is sensitive home-coordinate regex)"
+  ],
+  "changes": [
+    "git rm of removed paths and stale combined requirements files",
+    "git mv of five root configs into meta/ preserving git history",
+    "Created meta/requirements.txt as the single source of truth (alphabetically sorted, pre-commit-friendly)",
+    "Created six root symlinks pointing into meta/",
+    "Removed clang-format/cppcheck/flawfinder/check-c-cpp-build-files hooks (no C/C++ code remains)",
+    "Edited check-json, check_polling, codespell, gitleaks-style excludes to drop C/ and CPP/ references",
+    "Rewrote README.md repository layout section to mention meta/ and drop C/ + Bash/ rows"
+  ],
+  "verification": [
+    {
+      "command": "ls -la run.sh pyproject.toml .pre-commit-config.yaml requirements.txt lint_python.sh .fvmrc",
+      "result": "pass",
+      "evidence": "All resolve as symlinks into meta/ with correct targets"
+    },
+    {
+      "command": "python -c 'import tomllib; tomllib.load(open(\"pyproject.toml\",\"rb\"))'",
+      "result": "pass",
+      "evidence": "tomllib parses pyproject.toml through the root symlink"
+    },
+    {
+      "command": "pre-commit validate-config",
+      "result": "pass",
+      "evidence": "Config validates after path edits"
+    },
+    {
+      "command": "pre-commit run --hook-stage pre-commit",
+      "result": "pending",
+      "evidence": "Final run executed after adding this artifact"
+    }
+  ],
+  "risks": [
+    "Anything that hard-coded the legacy path requirements-dev.txt or C/ breaks. No internal callers found via git grep.",
+    "If a tool resolves symlinks (rare) it might log the meta/ path instead of root; harmless."
+  ],
+  "rollback": [
+    "git revert the consolidation commit; symlinks and moved files restore atomically because git tracks them.",
+    "Run pre-commit run --all-files after revert to confirm legacy layout still validates."
+  ]
+}

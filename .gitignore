@@ -1,5 +1,8 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
+# Sensitive — must NEVER be committed (contains regex of home GPS coordinates etc.)
+.secret-patterns
+
 # Compiled output
 /dist
 /tmp

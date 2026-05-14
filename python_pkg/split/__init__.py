@@ -1,1 +1,0 @@
-"""Symmetric splitting utilities package."""
