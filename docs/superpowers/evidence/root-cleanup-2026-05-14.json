@@ -1,0 +1,36 @@
+{
+  "intent": "Spring-clean repo root: relocate documentation, move misplaced phone-focus script, drop stale puzzle_solver output, delete untracked binary/text garbage.",
+  "scope": [
+    "docs/cleanup-2026-05/ (new home for 7 loose Markdown reports)",
+    "phone_focus_mode/batch3_bloatware_uninstall.sh (new location)",
+    "out.json (deleted)",
+    "Untracked: moviepy_demo.mp4, moviepy_showcase_full.mp4, coverage.lcov, test_input*.wav, batch3_execution.log, cinema_plan_2025-01-25.txt, out.txt",
+    "Non-goal: editing the moved documents or any code"
+  ],
+  "changes": [
+    "git mv 7 *.md from root into docs/cleanup-2026-05/.",
+    "git mv batch3_bloatware_uninstall.sh -> phone_focus_mode/.",
+    "git rm out.json (stale puzzle_solver fixture, empty).",
+    "rm untracked binaries and stray text outputs from the working tree."
+  ],
+  "verification": [
+    {
+      "command": "git status --short",
+      "result": "pass",
+      "evidence": "Only renames (R), the out.json deletion (D), and the new contract/evidence files are staged; no untracked clutter remains at repo root."
+    },
+    {
+      "command": "ls /home/kuhy/testsAndMisc | grep -E '\\.(md|mp4|wav|lcov)$|^out\\.|^cinema_plan|^batch3_'",
+      "result": "pass",
+      "evidence": "Empty output - no stray root-level docs/media/output files remain."
+    }
+  ],
+  "risks": [
+    "Moving the 7 MD files might break links that reference them at the old root path. Mitigation: they were never linked from tracked code/tools.",
+    "Relocating batch3_bloatware_uninstall.sh to phone_focus_mode/ changes invocation path. Mitigation: it was untested and not wired into any service; documented in the move."
+  ],
+  "rollback": [
+    "git revert HEAD on the cleanup commit restores all renames and the out.json deletion.",
+    "Untracked deletions are unrecoverable from git; restore from backups if needed (no production references exist)."
+  ]
+}

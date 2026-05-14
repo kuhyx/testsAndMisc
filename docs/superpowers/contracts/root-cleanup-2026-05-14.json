@@ -1,0 +1,16 @@
+{
+  "title": "Repo root spring cleaning",
+  "objective": "Remove stray top-level artifacts: relocate seven loose Markdown reports into docs/cleanup-2026-05/, move batch3_bloatware_uninstall.sh into phone_focus_mode/, delete the stale out.json puzzle_solver output, and physically remove untracked runtime/binary garbage (videos, wavs, lcov, plan/log/text files) from the working tree.",
+  "acceptance_criteria": [
+    "No loose *_SUMMARY.md / *_GUIDE.md / *_REPORT.md / *_GUIDELINES.md / DELIVERABLES_INDEX.md files remain at repo root.",
+    "batch3_bloatware_uninstall.sh lives under phone_focus_mode/.",
+    "out.json is removed from the index.",
+    "Working tree contains no .mp4 / .wav / .lcov / cinema_plan_*.txt / batch3_execution.log / out.txt at the root."
+  ],
+  "out_of_scope": [
+    "Editing the moved documents' contents.",
+    "Removing any tracked code or library files.",
+    "Modifying .gitignore beyond the existing patterns."
+  ],
+  "verifier": "git status --short && ls /home/kuhy/testsAndMisc | grep -E '\\.(md|mp4|wav|lcov)$|^out\\.|^cinema_plan|^batch3_'"
+}
