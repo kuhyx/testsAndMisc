@@ -1,0 +1,33 @@
+{
+  "intent": "Provide a single entry-point installer for core modules and clean up failed/unused scripts.",
+  "scope": [
+    "linux_configuration/scripts/single_use/install_core_system.sh — new file",
+    "linux_configuration/scripts/single_use/fresh-install/main.sh — remove dead call",
+    "Removed: pc_startup_visual_status.sh, setup_pc_startup_monitor.sh, thesis_work_tracker.sh, thesis_work_status.sh, setup_thesis_work_tracker.sh, README_THESIS_TRACKER.md, systemd/thesis-work-tracker@.service, test_thesis_work_tracker.sh, test_thesis_work_status.sh"
+  ],
+  "changes": [
+    "Added install_core_system.sh: installs workout screen locker, hosts blocking, and midnight shutdown timer unconditionally; prompts for steam enforcer, pacman wrapper, i3 config, compulsive block, focus daemon (--all/--none flags bypass prompts)",
+    "Removed 9 files: pc_startup_visual_status.sh and its setup script (failed expectations), all thesis_work_tracker artefacts (failed expectations) including systemd unit and 2 test files",
+    "Removed dead setup_pc_startup_monitor.sh call from fresh-install/main.sh"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "All 35 active hooks passed (shellcheck, codespell, block-polling-antipatterns, etc.)"
+    },
+    {
+      "command": "shellcheck linux_configuration/scripts/single_use/install_core_system.sh",
+      "result": "pass",
+      "evidence": "No shellcheck warnings"
+    }
+  ],
+  "risks": [
+    "fresh-install/main.sh still references setup_pc_startup_monitor.sh path in comments — none present, removal was clean",
+    "install_core_system.sh calls sub-installers that may require sudo interactively at runtime"
+  ],
+  "rollback": [
+    "git revert HEAD to restore removed files and undo main.sh change",
+    "Verify pre-commit still passes after revert"
+  ]
+}
