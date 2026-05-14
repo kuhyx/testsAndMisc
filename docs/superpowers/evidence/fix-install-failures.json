@@ -1,0 +1,20 @@
+{
+  "intent": "Fix two failures in install_core_system.sh run: workout locker PYTHONPATH and steam enforcer sudo",
+  "scope": [
+    "python_pkg/screen_locker/install_systemd.sh",
+    "linux_configuration/install_core_system.sh"
+  ],
+  "changes": [
+    "install_systemd.sh: set PYTHONPATH to repo root before running screen_lock.py status check so python_pkg is importable",
+    "install_core_system.sh: call steam backlog enforcer installer with sudo so EUID check passes for systemd service install"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck python_pkg/screen_locker/install_systemd.sh linux_configuration/install_core_system.sh",
+      "result": "pass",
+      "evidence": "no warnings"
+    }
+  ],
+  "risks": ["sudo on steam enforcer installs pip packages as root; acceptable since --break-system-packages is already used"],
+  "rollback": ["git revert HEAD"]
+}

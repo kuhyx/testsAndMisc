@@ -141,7 +141,7 @@ run_installer "Midnight shutdown timer" \
 printf '\n%s\n' "$(bold "Secondary modules (${SECONDARY_MODE})…")"
 
 ask_install "Steam backlog enforcer" \
-    bash "$REPO_ROOT/python_pkg/steam_backlog_enforcer/install.sh"
+    sudo bash "$REPO_ROOT/python_pkg/steam_backlog_enforcer/install.sh"
 
 ask_install "Pacman wrapper" \
     bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
