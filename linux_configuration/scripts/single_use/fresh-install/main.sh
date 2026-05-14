@@ -290,8 +290,8 @@ else
 fi
 
 cd ~/linux-configuration
-sudo hosts/install.sh
-i3-configuration/install.sh
+sudo scripts/periodic_background/hosts/install.sh
+scripts/periodic_background/i3-configuration/install.sh
 scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
 scripts/fixes/nvidia_troubleshoot.sh
 sudo scripts/features/setup_activitywatch.sh

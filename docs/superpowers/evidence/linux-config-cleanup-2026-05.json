@@ -1,0 +1,30 @@
+{
+  "intent": "Finish reorganizing linux_configuration/ and move repo-level scripts/ to meta/scripts/.",
+  "scope": [
+    "linux_configuration/fresh-install/ → scripts/single_use/fresh-install/",
+    "linux_configuration/hosts/ → scripts/periodic_background/hosts/",
+    "linux_configuration/i3-configuration/ → scripts/periodic_background/i3-configuration/",
+    "linux_configuration/LaTeX/, nix-poc/, report/ deleted",
+    "scripts/ moved to meta/scripts/",
+    ".pre-commit-config.yaml entry paths updated to meta/scripts/",
+    "run.sh ARTIFACT_INIT_SCRIPT updated to meta/scripts/",
+    "fresh-install/main.sh internal references updated",
+    "check_python_location.sh exception list updated for meta/scripts/",
+    "Fix midnight boundary bug in test_recent_workout_returns_true"
+  ],
+  "changes": [
+    "git mv for all directory moves; git rm -r for deletions",
+    "sed bulk-replace scripts/ → meta/scripts/ in .pre-commit-config.yaml (9 entries)",
+    "meta/.pre-commit-config.yaml unchanged (scripts/ resolves correctly from meta/)",
+    "Timezone-aware datetime fix in test to avoid midnight flakiness"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run",
+      "result": "pass",
+      "evidence": "All hooks passed including ruff, mypy, pylint, bandit, pytest 100% coverage, shellcheck"
+    }
+  ],
+  "risks": ["Symlink .pre-commit-config.yaml replaced by regular file (intentional divergence)"],
+  "rollback": ["git revert HEAD", "Verify pre-commit run passes after revert"]
+}

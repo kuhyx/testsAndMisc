@@ -1,0 +1,19 @@
+{
+  "title": "linux_configuration cleanup: move remaining dirs, delete dead dirs, move scripts/ to meta/",
+  "objective": "Complete the linux_configuration reorganization by moving fresh-install, hosts, and i3-configuration into their semantic subdirectories under scripts/, deleting the dead LaTeX/nix-poc/report directories, moving the repo-level scripts/ to meta/scripts/, and updating all references in pre-commit configs and run.sh.",
+  "acceptance_criteria": [
+    "fresh-install/ is under scripts/single_use/",
+    "hosts/ is under scripts/periodic_background/",
+    "i3-configuration/ is under scripts/periodic_background/",
+    "LaTeX/, nix-poc/, report/ are deleted from linux_configuration/",
+    "scripts/ is moved to meta/scripts/",
+    "Root .pre-commit-config.yaml uses meta/scripts/ paths",
+    "run.sh ARTIFACT_INIT_SCRIPT points to meta/scripts/",
+    "All pre-commit hooks pass"
+  ],
+  "out_of_scope": [
+    "Changes to script functionality",
+    "Changes to other python_pkg packages"
+  ],
+  "verifier": "pre-commit run --all-files"
+}

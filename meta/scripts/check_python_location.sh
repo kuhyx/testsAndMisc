@@ -17,7 +17,7 @@ for file in "$@"; do
 
     # Skip allowed directories (non-Python projects with some Python scripts)
     case "$file" in
-        linux_configuration/*|scripts/*) continue ;;
+        linux_configuration/*|scripts/*|meta/scripts/*) continue ;;
     esac
 
     # Skip vendored/generated directories
