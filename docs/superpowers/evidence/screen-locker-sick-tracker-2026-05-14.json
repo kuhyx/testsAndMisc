@@ -1,0 +1,40 @@
+{
+  "intent": "Allow declaring sick days in screen_locker so workout enforcement is exempted while accumulating commitment debt; preserve existing unlock paths and 100% branch coverage.",
+  "scope": [
+    "python_pkg/screen_locker/_sick_dialog.py (new)",
+    "python_pkg/screen_locker/_sick_tracker.py (new)",
+    "python_pkg/screen_locker/_constants.py",
+    "python_pkg/screen_locker/_ui_flows.py",
+    "python_pkg/screen_locker/screen_lock.py",
+    "python_pkg/screen_locker/tests/conftest.py",
+    "python_pkg/screen_locker/tests/test_phone_check_unlock.py",
+    "python_pkg/screen_locker/tests/test_ui_and_timers.py",
+    "python_pkg/screen_locker/tests/test_ui_and_timers_part2.py",
+    "python_pkg/screen_locker/tests/test_sick_features.py (new)",
+    "python_pkg/screen_locker/tests/test_sick_tracker.py (new)",
+    ".gitignore (ignore sick_history.json)",
+    "Non-goal: change workout enforcement policy outside sick exemption"
+  ],
+  "changes": [
+    "Added _sick_tracker module with persisted sick_history.json (days, debt, commitments, justifications).",
+    "Added _sick_dialog module integrating sick-day declaration into the UI flow.",
+    "Updated _ui_flows.py and screen_lock.py to consult the sick tracker before enforcing workout requirements.",
+    "Extended existing tests and added test_sick_features.py + test_sick_tracker.py to cover all new branches.",
+    "Gitignored python_pkg/screen_locker/sick_history.json (runtime state, like sick_day_state.json)."
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/screen_locker/tests/ --cov=python_pkg.screen_locker --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "304 passed, 0 failed; per-file coverage 100% on every screen_locker source (_sick_dialog 116/20, _sick_tracker 134/34, _ui_flows 156/36, screen_lock 264/68, etc.)."
+    }
+  ],
+  "risks": [
+    "Sick history file lives under the package directory; if package is reinstalled state is lost — mitigated by gitignore + manual backup if needed.",
+    "Adding the sick flow expands the screen-lock state machine; misconfigured callers could skip workout enforcement unintentionally — mitigated by tests covering all new branches."
+  ],
+  "rollback": [
+    "Revert this commit; sick_history.json remains on disk but is gitignored and unused.",
+    "Re-run pytest python_pkg/screen_locker/tests to confirm pre-feature coverage holds."
+  ]
+}

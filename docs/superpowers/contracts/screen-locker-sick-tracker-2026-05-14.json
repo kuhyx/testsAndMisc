@@ -1,0 +1,16 @@
+{
+  "title": "Screen locker sick-day tracker and commitment debt",
+  "objective": "Add a sick-day exemption flow with commitment debt tracking to screen_locker so workout enforcement can be skipped on declared sick days while preserving the existing unlock invariants and 100% branch coverage.",
+  "acceptance_criteria": [
+    "Sick state persisted to gitignored sick_history.json with debt and commitment fields.",
+    "_sick_dialog and _sick_tracker modules integrate with existing screen_lock flow without regressing phone verification or shutdown paths.",
+    "New tests test_sick_features.py and test_sick_tracker.py cover all new branches.",
+    "screen_locker package retains 100% branch coverage."
+  ],
+  "out_of_scope": [
+    "Changing workout enforcement thresholds beyond sick-day handling.",
+    "Modifying phone verification, shutdown, or activity-watch integrations.",
+    "Persisting sick history outside the package directory."
+  ],
+  "verifier": "pytest python_pkg/screen_locker/tests with --cov=python_pkg.screen_locker --cov-branch (must report 100% on all screen_locker files)"
+}
