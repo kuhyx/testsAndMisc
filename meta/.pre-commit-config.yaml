@@ -100,6 +100,7 @@ repos:
         entry: scripts/check_polling_antipatterns.sh
         language: script
         types: [shell]
+        require_serial: true
         exclude: ^(\.git/|phone_focus_mode/lib/tests/|tests/)
 
   # ===========================================================================
@@ -172,7 +173,7 @@ repos:
           (?x)^(
             Bash/.*|
             \.venv/.*|
-            linux_configuration/scripts/misc/testsAndMisc-bash/tools/.*
+            linux_configuration/scripts/single_use/misc/testsAndMisc-bash/tools/.*
           )$
         additional_dependencies:
           - types-requests

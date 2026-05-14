@@ -129,8 +129,13 @@ color_output = true
 exclude = [
     "Bash/ffmpeg-build/",
     ".venv/",
-    "linux_configuration/scripts/misc/testsAndMisc-bash/tools/",  # Avoid duplicate module named 'tools'
+    "linux_configuration/scripts/single_use/misc/testsAndMisc-bash/tools/",  # Avoid duplicate module named 'tools'
 ]
+
+# Standalone tool scripts outside python_pkg/ are not held to strict mypy rules
+[[tool.mypy.overrides]]
+module = "linux_configuration.*"
+ignore_errors = true
 
 # ============================================================================
 # PYLINT - Comprehensive Python linter

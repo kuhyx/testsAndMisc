@@ -41,85 +41,52 @@ usage() {
 
 check_file() {
     local file="$1"
-    local file_errors=0
-    local line_num=0
-    local in_polling_function=0
-    # shellcheck disable=SC2034
-    local function_name=""
 
     # Skip non-shell files
-    if ! grep -q "#!/bin/bash\|#!/bin/sh\|#!/usr/bin/env bash" "$file" 2>/dev/null; then
+    if ! grep -qE '^#!.*/(ba)?sh' "$file" 2>/dev/null; then
         return 0
     fi
 
     files_checked=$((files_checked + 1))
 
-    # Line-by-line check
-    while IFS= read -r line; do
-        line_num=$((line_num + 1))
+    # Single-pass awk analysis: C code, no bash loops, no per-line subshell forks.
+    # '\'' embeds a literal single quote inside a bash single-quoted string.
+    local findings
+    findings=$(awk '
+        /^[[:space:]]*([a-zA-Z0-9_]*_(loop|daemon)|poll[a-zA-Z0-9_]*)[[:space:]]*\(\)/ { in_poll=1 }
+        /^[[:space:]]*\}/ { in_poll=0 }
+        in_poll {
+            if (/while[[:space:]]+(true|:)/ && /sleep/)
+                print NR ": while true/: + sleep (use event-driven I/O)"
+            if (/\$\(date[[:space:]]/ || /`date[[:space:]]/)
+                print NR ": date fork in polling function"
+            if (/[^_a-zA-Z0-9]pgrep/ || /^[[:space:]]*pgrep/)
+                print NR ": pgrep in polling context"
+            if (/[^_a-zA-Z0-9]xdotool/ || /^[[:space:]]*xdotool/)
+                print NR ": xdotool in polling context"
+            if (/sleep[[:space:]]+0\.[0-9]/)
+                print NR ": Aggressive polling (sleep < 1s)"
+        }
+        !/^[[:space:]]*#/ && !/=/ && !/\)[[:space:]]*(#.*)?$/ && !/;;/ {
+            line = $0
+            gsub(/\|\|/, "", line)
+            while (match(line, /'\''[^'\'']*'\''/)) line = substr(line, 1, RSTART-1) substr(line, RSTART+RLENGTH)
+            while (match(line, /"[^"]*"/)) line = substr(line, 1, RSTART-1) substr(line, RSTART+RLENGTH)
+            n = gsub(/\|/, "", line)
+            if (n > 3) print NR ": Excessive pipes (" n " pipes = many forks)"
+        }
+    ' "$file")
 
-        # Track if we're in a polling-related function
-        if [[ $line =~ ^[[:space:]]*(.*_loop|.*_daemon|poll.*)\(\) ]]; then
-            in_polling_function=1
-            # shellcheck disable=SC2034
-            function_name="${BASH_REMATCH[1]}"
-        elif [[ $line =~ ^[[:space:]]*\} ]]; then
-            in_polling_function=0
-        fi
-
-        # Only check within potential polling contexts
-        if [[ $in_polling_function -eq 1 ]]; then
-            # Check for while true + sleep (classic polling anti-pattern)
-            if [[ $line =~ while[[:space:]]+(true|:) ]] && [[ $line =~ sleep ]]; then
-                echo "  Line $line_num: ❌ while true/: + sleep detected (use event-driven I/O)"
-                file_errors=$((file_errors + 1))
-            fi
-
-            # Check for $(date ...) or `date ...` in loops
-            if [[ $line =~ \$\(date[[:space:]] ]] || [[ $line =~ \`date[[:space:]] ]]; then
-                echo "  Line $line_num: ❌ date fork in polling function (optimize with single invocation)"
-                file_errors=$((file_errors + 1))
-            fi
-
-            # Check for pgrep in loops
-            if [[ $line =~ \bpgrep\b ]]; then
-                echo "  Line $line_num: ❌ pgrep in polling context (consider alternatives or cache PID)"
-                file_errors=$((file_errors + 1))
-            fi
-
-            # Check for xdotool in loops
-            if [[ $line =~ \bxdotool\b ]]; then
-                echo "  Line $line_num: ❌ xdotool in polling context (high fork overhead)"
-                file_errors=$((file_errors + 1))
-            fi
-
-            # Check for aggressive polling (sleep < 1s)
-            if [[ $line =~ sleep[[:space:]]+0\.[0-9] ]]; then
-                echo "  Line $line_num: ⚠️  Aggressive polling (sleep < 1s)"
-                file_errors=$((file_errors + 1))
-            fi
-        fi
-
-        # Check for excessive pipe chains (each | is a fork)
-        # Skip lines that are variable assignments or comments
-        if [[ ! $line =~ = ]] && [[ ! $line =~ ^[[:space:]]*# ]]; then
-            local pipe_count
-            pipe_count=$(echo "$line" | tr -cd '|' | wc -c)
-            if [[ $pipe_count -gt 3 ]]; then
-                echo "  Line $line_num: ⚠️  Excessive pipes ($pipe_count pipes = many forks)"
-                file_errors=$((file_errors + 1))
-            fi
-        fi
-
-    done < "$file"
-
-    if [[ $file_errors -gt 0 ]]; then
-        errors=$((errors + file_errors))
+    if [[ -n "$findings" ]]; then
+        echo "  $file:"
+        while IFS= read -r finding; do
+            echo "    Line $finding"
+        done <<< "$findings"
+        errors=$((errors + 1))
         return 1
     fi
     return 0
 }
-
 provide_suggestions() {
     echo ""
     echo "📋 Optimization Tips:"

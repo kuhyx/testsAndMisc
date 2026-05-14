@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-TARGET_SCRIPT="$REPO_DIR/scripts/digital_wellbeing/thesis_work_status.sh"
+TARGET_SCRIPT="$REPO_DIR/scripts/periodic_background/digital_wellbeing/thesis_work_status.sh"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -29,8 +29,8 @@ trap cleanup EXIT
 
 WORKTREE="$TMP_DIR/worktree"
 BIN_DIR="$TMP_DIR/bin"
-mkdir -p "$WORKTREE/scripts/digital_wellbeing" "$BIN_DIR"
-cp "$TARGET_SCRIPT" "$WORKTREE/scripts/digital_wellbeing/thesis_work_status.sh"
+mkdir -p "$WORKTREE/scripts/periodic_background/digital_wellbeing" "$BIN_DIR"
+cp "$TARGET_SCRIPT" "$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_status.sh"
 
 # sudo stub — passes through all commands
 cat >"$BIN_DIR/sudo" <<'EOF'
@@ -78,7 +78,7 @@ printf 'Checking state parsing does not depend on grep/cut...\n'
 parsed_vals=$(PATH="$BIN_DIR:$PATH" THESIS_STATUS_SKIP_SUDO=1 THESIS_STATUS_SKIP_OUTPUT=1 \
   bash -lc \
   "STATE_FILE='$STATE_PATH'; \
-   source '$WORKTREE/scripts/digital_wellbeing/thesis_work_status.sh'; \
+   source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_status.sh'; \
    printf '%s|%s|%s|%s' \"\$TOTAL_WORK_SECONDS\" \"\$STEAM_ACCESS_GRANTED\" \"\$CURRENT_SESSION_SECONDS\" \"\$LAST_WORK_SESSION_START\"" \
   2>/dev/null)
 

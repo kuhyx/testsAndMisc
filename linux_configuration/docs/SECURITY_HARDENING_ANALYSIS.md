@@ -44,7 +44,7 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 
 **Files involved:**
 
-- [scripts/digital_wellbeing/setup_midnight_shutdown.sh](../scripts/digital_wellbeing/setup_midnight_shutdown.sh) (1359 lines)
+- [scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh](../scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh) (1359 lines)
 
 **Current Protection Layers:**
 
@@ -87,9 +87,9 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 
 **Files involved:**
 
-- [scripts/digital_wellbeing/pacman/pacman_wrapper.sh](../scripts/digital_wellbeing/pacman/pacman_wrapper.sh) (823 lines)
-- [scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt](../scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt)
-- [scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh](../scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh)
+- [scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh](../scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh) (823 lines)
+- [scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt](../scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt)
+- [scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh](../scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh)
 
 **Current Protection:**
 
@@ -109,7 +109,7 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 
 ### 5. Block Compulsive Opening
 
-**File:** [scripts/digital_wellbeing/block_compulsive_opening.sh](../scripts/digital_wellbeing/block_compulsive_opening.sh) (507 lines)
+**File:** [scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh](../scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh) (507 lines)
 
 **Current Behavior:**
 
@@ -129,7 +129,7 @@ This document analyzes six digital wellbeing/security scripts and provides a det
 
 ### 6. YouTube Music Wrapper
 
-**File:** [scripts/digital_wellbeing/youtube-music-wrapper.sh](../scripts/digital_wellbeing/youtube-music-wrapper.sh)
+**File:** [scripts/periodic_background/digital_wellbeing/youtube-music-wrapper.sh](../scripts/periodic_background/digital_wellbeing/youtube-music-wrapper.sh)
 
 **Current Behavior:**
 
@@ -220,7 +220,7 @@ hosts line completely bypasses /etc/hosts without touching it.
 
 ## 2. MIDNIGHT SHUTDOWN - Silent Denial
 
-Location: scripts/digital_wellbeing/setup_midnight_shutdown.sh
+Location: scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh
 
 Changes needed:
 - Remove ALL helpful messages about how to bypass (unlock-shutdown-schedule path)
@@ -252,7 +252,7 @@ Changes needed:
 
 ## 4. PACMAN WRAPPER - Chrome Block + LeechBlock Auto-Install
 
-Location: scripts/digital_wellbeing/pacman/
+Location: scripts/periodic_background/digital_wellbeing/pacman/
 
 Changes needed to pacman_blocked_keywords.txt:
 - Add: google-chrome
@@ -271,7 +271,7 @@ New behavior in pacman_wrapper.sh:
 
 ## 5. BLOCK COMPULSIVE OPENING - Auto-Close Timer
 
-Location: scripts/digital_wellbeing/block_compulsive_opening.sh
+Location: scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh
 
 New behavior:
 - After app is allowed to open, start a background timer
@@ -319,7 +319,7 @@ launch_with_timer() {
 
 This requires a more sophisticated approach. Create a new Python daemon.
 
-Location: scripts/digital_wellbeing/focus_mode_daemon.py (new file)
+Location: scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py (new file)
 
 Behavior:
 
@@ -351,18 +351,18 @@ New files:
 - hosts/guard/nsswitch-guard.path
 - hosts/guard/nsswitch-guard.service
 - hosts/guard/enforce-nsswitch.sh
-- scripts/digital_wellbeing/focus_mode_daemon.py
-- scripts/digital_wellbeing/install_focus_mode_daemon.sh
+- scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py
+- scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh
 - tests/test_security_hardening.sh
 
 Modified files:
 
 - hosts/guard/setup_hosts_guard.sh (add nsswitch protection)
-- scripts/digital_wellbeing/setup_midnight_shutdown.sh (remove helpful messages)
-- scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt (add chrome)
-- scripts/digital_wellbeing/pacman/pacman_wrapper.sh (leechblock auto-install)
-- scripts/digital_wellbeing/block_compulsive_opening.sh (auto-close timer)
-- scripts/digital_wellbeing/youtube-music-wrapper.sh (daemon integration)
+- scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh (remove helpful messages)
+- scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt (add chrome)
+- scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh (leechblock auto-install)
+- scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh (auto-close timer)
+- scripts/periodic_background/digital_wellbeing/youtube-music-wrapper.sh (daemon integration)
 
 External repo (separate changes):
 
@@ -419,7 +419,7 @@ You are an expert on the midnight shutdown system. You understand:
 
 FILES YOU KNOW:
 
-- scripts/digital_wellbeing/setup_midnight_shutdown.sh - Main installer (1300+ lines)
+- scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh - Main installer (1300+ lines)
 - /etc/shutdown-schedule.conf - Runtime config (MON_WED_HOUR, THU_SUN_HOUR, MORNING_END_HOUR)
 - /usr/local/share/locked-shutdown-schedule.conf - Canonical protected copy
 - /usr/local/bin/day-specific-shutdown-check.sh - Checks if in shutdown window
@@ -457,12 +457,12 @@ You are an expert on the pacman wrapper security system. You understand:
 
 FILES YOU KNOW:
 
-- scripts/digital_wellbeing/pacman/pacman_wrapper.sh - Main wrapper (823 lines)
-- scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh - Backs up real pacman
-- scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt - Always blocked
-- scripts/digital_wellbeing/pacman/pacman_whitelist.txt - Exceptions to keywords
-- scripts/digital_wellbeing/pacman/pacman_greylist.txt - Challenge required
-- scripts/digital_wellbeing/pacman/words.txt - Word scramble challenge words
+- scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh - Main wrapper (823 lines)
+- scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh - Backs up real pacman
+- scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt - Always blocked
+- scripts/periodic_background/digital_wellbeing/pacman/pacman_whitelist.txt - Exceptions to keywords
+- scripts/periodic_background/digital_wellbeing/pacman/pacman_greylist.txt - Challenge required
+- scripts/periodic_background/digital_wellbeing/pacman/words.txt - Word scramble challenge words
 - /var/lib/pacman-wrapper/policy.sha256 - Integrity checksums
 
 KEY CONCEPTS:
@@ -501,7 +501,7 @@ You are an expert on the block_compulsive_opening.sh script. You understand:
 
 FILES YOU KNOW:
 
-- scripts/digital_wellbeing/block_compulsive_opening.sh - Main script (507 lines)
+- scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh - Main script (507 lines)
 - /usr/local/bin/block-compulsive-opening.sh - Installed location
 - ~/.local/state/compulsive-block/\*.lastopen - Per-app state files
 - ~/.local/state/compulsive-block/compulsive-block.log - Activity log
@@ -632,7 +632,7 @@ sudo ~/linux-configuration/hosts/guard/setup_hosts_guard.sh
 
 ````
 
-### [scripts/digital_wellbeing/pacman/README_FOR_LLM.md](to be created)
+### [scripts/periodic_background/digital_wellbeing/pacman/README_FOR_LLM.md](to be created)
 
 ```markdown
 # Pacman Wrapper - LLM Reference
@@ -732,7 +732,7 @@ else
 fi
 
 # Test 5: google-chrome is blocked
-if grep -qi "google-chrome" ~/linux-configuration/scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt; then
+if grep -qi "google-chrome" ~/linux-configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt; then
     test_result "google-chrome in blocked list" "pass"
 else
     test_result "google-chrome in blocked list" "fail"

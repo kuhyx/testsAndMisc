@@ -16,7 +16,7 @@ The original pacman wrapper had the following vulnerabilities:
 
 ### 1. Policy File Integrity Checks
 
-**File**: `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh`
+**File**: `scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh`
 
 The installer now:
 
@@ -25,7 +25,7 @@ The installer now:
 - Makes the integrity file immutable using `chattr +i`
 - Makes policy files (`pacman_blocked_keywords.txt`, `pacman_greylist.txt`) immutable
 
-**File**: `scripts/digital_wellbeing/pacman/pacman_wrapper.sh`
+**File**: `scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh`
 
 The wrapper now:
 
@@ -42,7 +42,7 @@ The wrapper now:
 
 ### 2. Hardcoded VirtualBox Restrictions
 
-**File**: `scripts/digital_wellbeing/pacman/pacman_wrapper.sh`
+**File**: `scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh`
 
 Added hardcoded VirtualBox detection that **cannot be bypassed** by editing policy files:
 
@@ -75,7 +75,7 @@ This function:
 
 ### 3. VirtualBox Hosts Enforcement
 
-**File**: `scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh`
+**File**: `scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh`
 
 A new enforcement script that:
 
@@ -116,7 +116,7 @@ The pacman wrapper automatically:
 
 ### 4. Installation Integration
 
-**File**: `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh`
+**File**: `scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh`
 
 The installer now:
 
@@ -183,7 +183,7 @@ Tests verify:
 ### Installation
 
 ```bash
-cd scripts/digital_wellbeing/pacman
+cd scripts/periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh
 ```
 
@@ -207,7 +207,7 @@ sudo chattr -i /usr/local/bin/pacman_greylist.txt
 sudo nano /usr/local/bin/pacman_greylist.txt
 
 # Reinstall wrapper to update checksums
-cd scripts/digital_wellbeing/pacman
+cd scripts/periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh
 
 # This will regenerate checksums and reapply immutable attributes

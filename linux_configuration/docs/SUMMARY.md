@@ -37,7 +37,7 @@ Implemented a **defense-in-depth** security architecture with multiple layers:
 
 ### Layer 4: VirtualBox Enforcement
 
-- New script: `scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh`
+- New script: `scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh`
 - Automatically configures all VMs to:
   - Use host's DNS resolution (`--natdnshostresolver1 on`)
   - Enable NAT DNS proxy (`--natdnsproxy1 on`)
@@ -55,15 +55,15 @@ Implemented a **defense-in-depth** security architecture with multiple layers:
 
 ### New Files (4)
 
-1. `scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh` - VirtualBox enforcement script
+1. `scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh` - VirtualBox enforcement script
 2. `tests/test_pacman_wrapper_security.sh` - Comprehensive test suite (12 tests)
 3. `docs/PACMAN_WRAPPER_SECURITY.md` - Detailed security documentation
 4. `docs/SUMMARY.md` - This summary
 
 ### Modified Files (2)
 
-1. `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh` - Added integrity checks and immutable attributes
-2. `scripts/digital_wellbeing/pacman/pacman_wrapper.sh` - Added integrity verification and VirtualBox enforcement
+1. `scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh` - Added integrity checks and immutable attributes
+2. `scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh` - Added integrity verification and VirtualBox enforcement
 
 ## Security Guarantees
 
@@ -103,7 +103,7 @@ Tests verify:
 ## Installation
 
 ```bash
-cd scripts/digital_wellbeing/pacman
+cd scripts/periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh
 ```
 
@@ -137,7 +137,7 @@ If legitimate policy updates are needed:
 ```bash
 sudo chattr -i /usr/local/bin/pacman_greylist.txt
 sudo nano /usr/local/bin/pacman_greylist.txt
-cd scripts/digital_wellbeing/pacman
+cd scripts/periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh  # Regenerates checksums
 ```
 

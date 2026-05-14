@@ -23,7 +23,7 @@ in {
       serviceConfig = {
         Type = "oneshot";
         User = "root";
-        ExecStart = "${repo}/scripts/system-maintenance/bin/periodic-system-maintenance.sh";
+        ExecStart = "${repo}/scripts/periodic_background/system-maintenance/bin/periodic-system-maintenance.sh";
         StandardOutput = "journal";
         StandardError = "journal";
         TimeoutStartSec = "300";
@@ -55,7 +55,7 @@ in {
       serviceConfig = {
         Type = "oneshot";
         User = "root";
-        ExecStart = "${repo}/scripts/system-maintenance/bin/periodic-system-maintenance.sh";
+        ExecStart = "${repo}/scripts/periodic_background/system-maintenance/bin/periodic-system-maintenance.sh";
         StandardOutput = "journal";
         StandardError = "journal";
         RemainAfterExit = true;
@@ -73,7 +73,7 @@ in {
       serviceConfig = {
         Type = "simple";
         User = "root";
-        ExecStart = "${repo}/scripts/system-maintenance/bin/hosts-file-monitor.sh";
+        ExecStart = "${repo}/scripts/periodic_background/system-maintenance/bin/hosts-file-monitor.sh";
         Restart = "always";
         RestartSec = "10";
         StandardOutput = "journal";
@@ -93,7 +93,7 @@ in {
       serviceConfig = {
         Type = "oneshot";
         User = "root";
-        ExecStart = "${repo}/scripts/system-maintenance/bin/auto-system-update.sh";
+        ExecStart = "${repo}/scripts/periodic_background/system-maintenance/bin/auto-system-update.sh";
         StandardOutput = "journal";
         StandardError = "journal";
         TimeoutStartSec = "1800";

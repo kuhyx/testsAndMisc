@@ -1,0 +1,19 @@
+{
+  "title": "linux_configuration scripts: split into single_use/ and periodic_background/",
+  "objective": "Physically reorganise all shell scripts under linux_configuration/scripts/ into exactly two semantically-named subdirectories: single_use/ (run on demand / one-off) and periodic_background/ (run by daemons, timers, or wrappers). lib/ and meta/ remain in place. All internal source paths, CONFIG_DIR derivations, and external references in tests, fresh-install, nix-poc, docs, and copilot-instructions are updated to match the new locations. git mv is used throughout to preserve file history.",
+  "acceptance_criteria": [
+    "All tracked .sh files under scripts/ (except lib/ and meta/) reside under single_use/ or periodic_background/",
+    "shellcheck passes with no warnings on all moved scripts",
+    "All source lib/common.sh and lib/android.sh relative paths updated to reflect new depth",
+    "CONFIG_DIR derivation in setup_periodic_system.sh and check_and_enable_services.sh updated (one extra dirname)",
+    "tests/test_shutdown_timer_monitor.sh, fresh-install/main.sh, nix-poc/*.nix, .github/copilot-instructions.md and docs/*.md all reference new paths",
+    "pre-commit passes (shellcheck, codespell, session-log, binary, secrets hooks)"
+  ],
+  "out_of_scope": [
+    "lib/common.sh and lib/android.sh (shared libraries, not standalone scripts)",
+    "meta/shell_check.sh (dev tooling helper)",
+    "report/jscpd-report.json (auto-generated, not manually maintained)",
+    "Changes to script behaviour or logic"
+  ],
+  "verifier": "shellcheck -S warning on key scripts + pre-commit run --files <all changed .sh>"
+}

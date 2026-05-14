@@ -292,13 +292,13 @@ fi
 cd ~/linux-configuration
 sudo hosts/install.sh
 i3-configuration/install.sh
-scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh
+scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
 scripts/fixes/nvidia_troubleshoot.sh
 sudo scripts/features/setup_activitywatch.sh
 sudo scripts/utils/setup_media_organizer.sh
-sudo scripts/digital_wellbeing/setup_pc_startup_monitor.sh
-yes | sudo scripts/setup_periodic_system.sh
-sudo scripts/setup_thorium_startup.sh
+sudo scripts/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh
+yes | sudo scripts/periodic_background/setup_periodic_system.sh
+sudo scripts/single_use/setup_thorium_startup.sh
 yes | protonup
 yes | sudo pacman -Syuu
 

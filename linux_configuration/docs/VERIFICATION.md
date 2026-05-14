@@ -63,7 +63,7 @@ bash tests/test_pacman_wrapper_security.sh
 ### Implementation Verification
 
 - [x] **VirtualBox Enforcement Script**
-  - Location: `scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh`
+  - Location: `scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh`
   - DNS configuration: Lines 49-54
   - Shared folder setup: Lines 62-76
   - VM startup script generation: Lines 79-147
@@ -127,15 +127,15 @@ bash tests/test_pacman_wrapper_security.sh
 
 ### Files Created (4)
 
-1. ✅ `scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh` - 282 lines
+1. ✅ `scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh` - 282 lines
 2. ✅ `tests/test_pacman_wrapper_security.sh` - 131 lines (12 tests)
 3. ✅ `docs/PACMAN_WRAPPER_SECURITY.md` - 245 lines
 4. ✅ `docs/SUMMARY.md` - 149 lines
 
 ### Files Modified (2)
 
-1. ✅ `scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh` - +70 lines
-2. ✅ `scripts/digital_wellbeing/pacman/pacman_wrapper.sh` - +154 lines
+1. ✅ `scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh` - +70 lines
+2. ✅ `scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh` - +154 lines
 
 ### Total Changes
 
@@ -185,9 +185,9 @@ bash tests/test_pacman_wrapper_security.sh
 ### Syntax Validation ✅
 
 ```bash
-bash -n scripts/digital_wellbeing/pacman/pacman_wrapper.sh
-bash -n scripts/digital_wellbeing/pacman/install_pacman_wrapper.sh
-bash -n scripts/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh
+bash -n scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh
+bash -n scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
+bash -n scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh
 # All pass
 ```
 

@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-TARGET_SCRIPT="$REPO_DIR/scripts/digital_wellbeing/thesis_work_tracker.sh"
+TARGET_SCRIPT="$REPO_DIR/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -29,8 +29,8 @@ trap cleanup EXIT
 
 WORKTREE="$TMP_DIR/worktree"
 BIN_DIR="$TMP_DIR/bin"
-mkdir -p "$WORKTREE/scripts/digital_wellbeing" "$BIN_DIR"
-cp "$TARGET_SCRIPT" "$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh"
+mkdir -p "$WORKTREE/scripts/periodic_background/digital_wellbeing" "$BIN_DIR"
+cp "$TARGET_SCRIPT" "$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh"
 
 cat >"$BIN_DIR/xdotool" <<'EOF'
 #!/bin/bash
@@ -72,13 +72,13 @@ EOF
 chmod +x "$BIN_DIR/date"
 
 source_env() {
-  PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; $1"
+  PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; $1"
 }
 
 source_env_with_proc() {
   local proc_root="$1"
   local cmd="$2"
-  PATH="$BIN_DIR:$PATH" PROC_ROOT="$proc_root" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; $cmd"
+  PATH="$BIN_DIR:$PATH" PROC_ROOT="$proc_root" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; $cmd"
 }
 
 printf 'Checking helper output for VS Code on thesis repo...\n'
@@ -134,7 +134,7 @@ chmod +x "$BIN_DIR/tee"
 LOG_PATH="$TMP_DIR/tracker.log"
 set +e
 log_result=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; LOG_FILE='$LOG_PATH'; log_info 'logging regression test'; printf ok")
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; LOG_FILE='$LOG_PATH'; log_info 'logging regression test'; printf ok")
 log_ec=$?
 set -e
 assert_equals '0' "$log_ec" 'log_info should not fail when tee is unavailable'
@@ -180,7 +180,7 @@ CURRENT_SESSION_SECONDS=15
 EOF
 
 loaded_state=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    STATE_FILE='$STATE_PATH'; \
    load_state; \
    printf '%s|%s|%s|%s' \"\$TOTAL_WORK_SECONDS\" \"\$STEAM_ACCESS_GRANTED\" \"\$CURRENT_SESSION_SECONDS\" \"\$LAST_WORK_SESSION_START\"")
@@ -189,7 +189,7 @@ assert_equals '123|1|15|77' "$loaded_state" 'load_state should parse values with
 printf 'Checking state saving does not depend on tee...\n'
 set +e
 save_state_result=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    STATE_FILE='$STATE_PATH'; \
    STATE_DIR='$(dirname "$STATE_PATH")'; \
    save_state 321 0 45 9; \
@@ -200,7 +200,7 @@ assert_equals '0' "$save_state_ec" 'save_state should not fail when tee is unava
 assert_equals 'ok' "$save_state_result" 'save_state should complete successfully without tee dependency'
 
 saved_state=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    STATE_FILE='$STATE_PATH'; \
    load_state; \
    printf '%s|%s|%s|%s' \"\$TOTAL_WORK_SECONDS\" \"\$STEAM_ACCESS_GRANTED\" \"\$CURRENT_SESSION_SECONDS\" \"\$LAST_WORK_SESSION_START\"")
@@ -216,7 +216,7 @@ chmod +x "$BIN_DIR/mktemp"
 
 set +e
 save_fast_result=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    STATE_FILE='$STATE_PATH'; \
    STATE_DIR='$(dirname "$STATE_PATH")'; \
    save_state 654 1 30 11; \
@@ -227,7 +227,7 @@ assert_equals '0' "$save_fast_ec" 'save_state should not require mktemp when sta
 assert_equals 'ok' "$save_fast_result" 'save_state fast path should complete successfully'
 
 saved_fast_state=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    STATE_FILE='$STATE_PATH'; \
    load_state; \
    printf '%s|%s|%s|%s' \"\$TOTAL_WORK_SECONDS\" \"\$STEAM_ACCESS_GRANTED\" \"\$CURRENT_SESSION_SECONDS\" \"\$LAST_WORK_SESSION_START\"")
@@ -253,7 +253,7 @@ chmod +x "$BIN_DIR/tee"
 
 set +e
 block_result=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    HOSTS_FILE='$HOSTS_PATH'; \
    block_distractions; \
    printf ok")
@@ -271,7 +271,7 @@ grep -q 'localhost' "$HOSTS_PATH" \
 printf 'Checking block_distractions is idempotent (no duplicate entries)...\n'
 set +e
 block_result2=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    HOSTS_FILE='$HOSTS_PATH'; \
    block_distractions; \
    printf ok")
@@ -302,7 +302,7 @@ chmod +x "$BIN_DIR/mktemp"
 
 set +e
 unblock_result=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    HOSTS_FILE='$HOSTS_UNBLOCK_PATH'; \
    unblock_distractions; \
    printf ok")
@@ -326,7 +326,7 @@ mkdir -p "$STATE_INIT_DIR"
 
 set +e
 init_result=$(PATH="$BIN_DIR:$PATH" THESIS_WORK_TRACKER_SKIP_MAIN=1 bash -lc \
-  "source '$WORKTREE/scripts/digital_wellbeing/thesis_work_tracker.sh'; \
+  "source '$WORKTREE/scripts/periodic_background/digital_wellbeing/thesis_work_tracker.sh'; \
    STATE_FILE='$STATE_INIT_PATH'; \
    STATE_DIR='$STATE_INIT_DIR'; \
    LOG_DIR='$TMP_DIR'; \

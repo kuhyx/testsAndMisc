@@ -9,7 +9,7 @@ in {
         echo "[linuxConfigPoc] Running imperative bootstrap scripts"
         bash ${repo}/hosts/install.sh || true
         bash ${repo}/hosts/guard/setup_hosts_guard.sh || true
-        bash ${repo}/scripts/setup_periodic_system.sh || true
+        bash ${repo}/scripts/periodic_background/setup_periodic_system.sh || true
       '';
       deps = [ "users" "groups" ];
     };

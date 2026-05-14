@@ -1,0 +1,50 @@
+{
+  "intent": "Split all linux_configuration/scripts/ shell scripts into two semantically-named directories: single_use/ for on-demand/one-off scripts and periodic_background/ for daemon/timer/wrapper scripts. lib/ and meta/ remain in place. All path references updated.",
+  "scope": [
+    "linux_configuration/scripts/ — all subdirectories except lib/ and meta/",
+    "digital_wellbeing/, system-maintenance/, features/, fixes/, utils/, misc/ and root-level scripts",
+    "utils/android_guardian/ split: daemon scripts to periodic_background/, rest stays in single_use/utils/",
+    "No changes to script logic, only file locations and relative source paths"
+  ],
+  "changes": [
+    "git mv features/ -> single_use/features/",
+    "git mv fixes/ -> single_use/fixes/",
+    "git mv misc/ -> single_use/misc/",
+    "git mv digital_wellbeing/ -> periodic_background/digital_wellbeing/ (whole dir including systemd/, pacman/, virtualbox/)",
+    "git mv system-maintenance/ -> periodic_background/system-maintenance/",
+    "git mv utils/ -> single_use/utils/ then git mv utils/android_guardian/ -> periodic_background/utils/android_guardian/",
+    "Root scripts: install_code_insiders.sh, install_joplin.sh, setup_thorium_startup.sh, test_bad.sh, test_removal.sh -> single_use/",
+    "Root scripts: check_and_enable_services.sh, setup_periodic_system.sh -> periodic_background/",
+    "Fixed 2 depth-2 scripts: $SCRIPT_DIR/lib/ -> $SCRIPT_DIR/../lib/ (setup_thorium_startup.sh, setup_periodic_system.sh)",
+    "Fixed 27 depth-3 scripts: $SCRIPT_DIR/../lib/ -> $SCRIPT_DIR/../../lib/ across fixes/, digital_wellbeing/, utils/ etc.",
+    "Fixed CONFIG_DIR in setup_periodic_system.sh and check_and_enable_services.sh: dirname -> dirname(dirname) for correct linux_configuration/ root",
+    "Updated internal path variables in setup_periodic_system.sh and check_and_enable_services.sh for new digital_wellbeing and system-maintenance locations",
+    "Updated tests/test_shutdown_timer_monitor.sh, fresh-install/main.sh, nix-poc/*.nix, .github/copilot-instructions.md, docs/*.md, 13 test files"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck -S warning scripts/periodic_background/setup_periodic_system.sh scripts/periodic_background/check_and_enable_services.sh scripts/single_use/setup_thorium_startup.sh scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+      "result": "pass",
+      "evidence": "No shellcheck warnings or errors for any of the listed scripts"
+    },
+    {
+      "command": "pre-commit run --files <115 changed .sh files>",
+      "result": "pass",
+      "evidence": "All hooks passed: shellcheck, codespell, session-log, binary, secrets, append-only-sessions, polling-antipatterns. Only workflow-contract hooks required these artifacts."
+    },
+    {
+      "command": "grep -rn 'scripts/digital_wellbeing\\|scripts/system-maintenance\\b' --include='*.sh' --include='*.md' --include='*.nix' . | grep -v report/jscpd",
+      "result": "pass",
+      "evidence": "Zero results — no stale old-path references remain in tracked files outside the auto-generated jscpd report"
+    }
+  ],
+  "risks": [
+    "Scripts that hardcode paths at install-time (e.g. /usr/local/bin copies) are unaffected since they use absolute paths after installation",
+    "Any external cron entries or symlinks pointing to old paths would break — but all known references were updated",
+    "CONFIG_DIR fix in setup_periodic_system.sh and check_and_enable_services.sh is a logic change; validated with shellcheck"
+  ],
+  "rollback": [
+    "git revert <commit> to undo all moves and path changes in one operation",
+    "Validate after rollback: pre-commit run --all-files and check tests/test_shutdown_timer_monitor.sh runs successfully"
+  ]
+}
