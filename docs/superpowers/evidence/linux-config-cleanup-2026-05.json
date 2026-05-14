@@ -25,6 +25,8 @@
       "evidence": "All hooks passed including ruff, mypy, pylint, bandit, pytest 100% coverage, shellcheck"
     }
   ],
-  "risks": ["Symlink .pre-commit-config.yaml replaced by regular file (intentional divergence)"],
+  "risks": [
+    "Symlink .pre-commit-config.yaml replaced by regular file (intentional divergence)"
+  ],
   "rollback": ["git revert HEAD", "Verify pre-commit run passes after revert"]
 }
