@@ -67,7 +67,7 @@ if is_persist_mode; then
   # Intentionally calm heartbeat in persist mode: process-table event streams can
   # be extremely noisy and cause unnecessary churn.
   while true; do
-    sleep "$HEARTBEAT_INTERVAL_S"
+    i3blocks_wait_seconds "$HEARTBEAT_INTERVAL_S"
     emit
   done
 fi

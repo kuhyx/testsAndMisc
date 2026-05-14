@@ -53,3 +53,15 @@ i3blocks_update_if_changed_key() {
   I3BLOCKS_LAST_STATE[$key]=$new_state
   return 0
 }
+
+# Wait for a number of seconds without forking an external `sleep` process.
+# Uses bash builtin read timeout. Set I3BLOCKS_TEST_SKIP_WAIT=1 to bypass in tests.
+i3blocks_wait_seconds() {
+  local timeout_s=$1
+
+  if [[ ${I3BLOCKS_TEST_SKIP_WAIT:-0} -eq 1 ]]; then
+    return 0
+  fi
+
+  IFS= read -r -t "$timeout_s" || true
+}

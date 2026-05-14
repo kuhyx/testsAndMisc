@@ -64,7 +64,7 @@ if is_persist_mode; then
 fi
 if is_persist_mode; then
   while true; do
-    sleep "$WARP_POLL_INTERVAL_S"
+    i3blocks_wait_seconds "$WARP_POLL_INTERVAL_S"
     current_status=$(read_status)
     emit_if_changed "$current_status"
   done

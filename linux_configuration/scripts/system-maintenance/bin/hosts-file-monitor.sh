@@ -9,12 +9,40 @@ LOG_FILE="/var/log/hosts-file-monitor.log"
 HOSTS_FILE="/etc/hosts"
 HOSTS_INSTALL_SCRIPT="__HOSTS_INSTALL_SCRIPT__"
 readonly MIN_HOSTS_LINES=1000
+readonly EVENT_COOLDOWN_S=5
+
+current_epoch() {
+  local out_var="${1:-}"
+  if [[ -n $out_var ]]; then
+    printf -v "$out_var" '%(%s)T' -1
+  else
+    printf '%(%s)T\n' -1
+  fi
+}
+
+wait_seconds() {
+  local timeout_s=$1
+  local start_ts end_ts elapsed_s remaining_s
+
+  printf -v start_ts '%(%s)T' -1
+  IFS= read -r -t "$timeout_s" || true
+  printf -v end_ts '%(%s)T' -1
+
+  elapsed_s=$((end_ts - start_ts))
+  if (( elapsed_s < timeout_s )); then
+    remaining_s=$((timeout_s - elapsed_s))
+    sleep "$remaining_s"
+  fi
+}
 
 # Log with timestamp (hosts-file-monitor specific)
 log_message() {
   local _ts
+  local msg
   printf -v _ts '%(%Y-%m-%d %H:%M:%S)T' -1
-  printf '%s [hosts-monitor] %s\n' "$_ts" "$1" | tee -a "$LOG_FILE" >&2
+  printf -v msg '%s [hosts-monitor] %s' "$_ts" "$1"
+  printf '%s\n' "$msg" >&2
+  printf '%s\n' "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 # Function to check if hosts file needs restoration
@@ -83,16 +111,21 @@ restore_hosts_file() {
 # Function to monitor with inotifywait
 monitor_with_inotify() {
   log_message "Starting hosts file monitoring with inotify"
+  local last_check_ts=0
 
   # Monitor the hosts file and its directory for various events
   inotifywait -m -e delete,move,modify,attrib,create --format '%w%f %e %T' --timefmt '%Y-%m-%d %H:%M:%S' "$HOSTS_FILE" /etc/ 2> /dev/null |
     while read -r file event time; do
       # Check if the event is related to our hosts file
       if [[ $file == "$HOSTS_FILE" ]] || [[ $file == "/etc/hosts" ]]; then
-        log_message "Event detected: $event on $file at $time"
+        local now_ts
+        current_epoch now_ts
+        if (( now_ts - last_check_ts < EVENT_COOLDOWN_S )); then
+          continue
+        fi
+        last_check_ts=$now_ts
 
-        # Small delay to avoid rapid-fire events
-        sleep 2
+        log_message "Event detected: $event on $file at $time"
 
         # Check if restoration is needed
         if needs_restoration; then
@@ -114,7 +147,7 @@ monitor_with_polling() {
     fi
 
     # Check every 30 seconds
-    sleep 30
+    wait_seconds 30
   done
 }
 

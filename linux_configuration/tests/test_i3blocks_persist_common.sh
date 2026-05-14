@@ -30,6 +30,15 @@ assert_eq() {
   fi
 }
 
+assert_le() {
+  local actual=$1
+  local expected_max=$2
+  local context=$3
+  if (( actual > expected_max )); then
+    fail "$context (expected <= '$expected_max', actual '$actual')"
+  fi
+}
+
 count_execs() {
   local script_path=$1
   local log_file=$2
@@ -142,5 +151,12 @@ chmod +x "$fork_probe"
 
 exec_count=$(count_execs "$fork_probe" "$TMP_DIR/fork_probe.trace")
 assert_eq '1' "$exec_count" 'persist helper hot path should not fork external commands'
+
+printf 'Checking wait helper supports test skip mode...\n'
+SECONDS=0
+export I3BLOCKS_TEST_SKIP_WAIT=1
+i3blocks_wait_seconds 5
+assert_le "$SECONDS" 1 'wait helper should return immediately in test skip mode'
+unset I3BLOCKS_TEST_SKIP_WAIT
 
 printf 'persist_common helper regression tests passed.\n'

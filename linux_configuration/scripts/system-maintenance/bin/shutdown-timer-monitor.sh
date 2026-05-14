@@ -10,11 +10,38 @@ TIMER_NAME="day-specific-shutdown.timer"
 SERVICE_NAME="day-specific-shutdown.service"
 CHECK_INTERVAL=30
 
+current_epoch() {
+	local out_var="${1:-}"
+	if [[ -n $out_var ]]; then
+		printf -v "$out_var" '%(%s)T' -1
+	else
+		printf '%(%s)T\n' -1
+	fi
+}
+
+wait_seconds() {
+	local timeout_s=$1
+	local start_ts end_ts elapsed_s remaining_s
+
+	printf -v start_ts '%(%s)T' -1
+	IFS= read -r -t "$timeout_s" || true
+	printf -v end_ts '%(%s)T' -1
+
+	elapsed_s=$((end_ts - start_ts))
+	if (( elapsed_s < timeout_s )); then
+		remaining_s=$((timeout_s - elapsed_s))
+		sleep "$remaining_s"
+	fi
+}
+
 # Log with timestamp (shutdown-timer-monitor specific)
 log_message() {
 	local _ts
+	local msg
 	printf -v _ts '%(%Y-%m-%d %H:%M:%S)T' -1
-	printf '%s [shutdown-monitor] %s\n' "$_ts" "$1" | tee -a "$LOG_FILE" >&2
+	printf -v msg '%s [shutdown-monitor] %s' "$_ts" "$1"
+	printf '%s\n' "$msg" >&2
+	printf '%s\n' "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 # Function to check if timer needs to be re-enabled
@@ -82,6 +109,7 @@ restore_timer() {
 # Function to monitor timer with systemd events
 monitor_with_dbus() {
 	log_message "Starting shutdown timer monitoring with D-Bus events"
+	local last_check_ts=0
 
 	# Use busctl to monitor systemd unit changes
 	# Fall back to polling if this fails.
@@ -91,8 +119,13 @@ monitor_with_dbus() {
 			while read -r line; do
 				# Check if the line mentions our timer
 				if [[ $line == *"$TIMER_NAME"* || $line == *"$SERVICE_NAME"* ]]; then
+					local now_ts
+					current_epoch now_ts
+					if (( now_ts - last_check_ts < CHECK_INTERVAL )); then
+						continue
+					fi
+					last_check_ts=$now_ts
 					log_message "Systemd event detected for shutdown timer"
-					sleep 2
 					if timer_needs_restoration; then
 						restore_timer
 					fi
@@ -112,7 +145,7 @@ monitor_with_polling() {
 		if timer_needs_restoration; then
 			restore_timer
 		fi
-		sleep "$CHECK_INTERVAL"
+		wait_seconds "$CHECK_INTERVAL"
 	done
 }
 

@@ -1,0 +1,70 @@
+{
+  "intent": "Harden i3blocks and digital-wellbeing polling scripts and their tests; cover thesis_work_status.sh with a fresh regression test.",
+  "scope": [
+    "linux_configuration/i3-configuration/i3blocks/activitywatch_status.sh",
+    "linux_configuration/i3-configuration/i3blocks/persist_common.sh",
+    "linux_configuration/i3-configuration/i3blocks/warp_status.sh",
+    "linux_configuration/scripts/digital_wellbeing/music_parallelism.sh",
+    "linux_configuration/scripts/digital_wellbeing/setup_midnight_shutdown.sh",
+    "linux_configuration/scripts/digital_wellbeing/thesis_work_status.sh",
+    "linux_configuration/scripts/digital_wellbeing/thesis_work_tracker.sh",
+    "linux_configuration/scripts/digital_wellbeing/pacman/pacman_blocked_keywords.txt",
+    "linux_configuration/scripts/system-maintenance/bin/hosts-file-monitor.sh",
+    "linux_configuration/scripts/system-maintenance/bin/shutdown-timer-monitor.sh",
+    "linux_configuration/tests/test_hosts_file_monitor.sh",
+    "linux_configuration/tests/test_i3blocks_persist_common.sh",
+    "linux_configuration/tests/test_music_parallelism.sh",
+    "linux_configuration/tests/test_shutdown_timer_monitor.sh",
+    "linux_configuration/tests/test_thesis_work_tracker.sh",
+    "linux_configuration/tests/test_thesis_work_status.sh (new)",
+    "Non-goal: changing systemd unit topology or i3 keybindings"
+  ],
+  "changes": [
+    "Tightened state-output and error paths in music_parallelism.sh and thesis_work_tracker.sh; expanded their regression tests.",
+    "Hardened hosts-file-monitor.sh and shutdown-timer-monitor.sh against partial failures; added matching test branches.",
+    "Improved persist_common.sh helper used by activitywatch_status.sh and warp_status.sh.",
+    "Tuned setup_midnight_shutdown.sh and thesis_work_status.sh state parsing.",
+    "Dropped one obsolete entry from pacman_blocked_keywords.txt.",
+    "Added new test_thesis_work_status.sh regression script."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_hosts_file_monitor.sh",
+      "result": "pass",
+      "evidence": "hosts-file-monitor.sh regression checks passed."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_persist_common.sh",
+      "result": "pass",
+      "evidence": "persist_common helper regression tests passed."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_music_parallelism.sh",
+      "result": "pass",
+      "evidence": "music_parallelism.sh regression checks passed."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_shutdown_timer_monitor.sh",
+      "result": "pass",
+      "evidence": "shutdown-timer-monitor.sh regression checks passed."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_thesis_work_tracker.sh",
+      "result": "pass",
+      "evidence": "thesis_work_tracker.sh regression checks passed."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_thesis_work_status.sh",
+      "result": "pass",
+      "evidence": "thesis_work_status.sh regression checks passed."
+    }
+  ],
+  "risks": [
+    "i3blocks scripts run on every status tick; a regression in persist_common.sh could fork-storm — mitigated by regression tests and prior efficient-polling skill review.",
+    "Hosts/shutdown monitors run as root in production; permission-denied paths are only exercised in unit tests as non-root."
+  ],
+  "rollback": [
+    "git revert this commit; tests will revert with the implementation.",
+    "Re-run bash linux_configuration/tests/test_*.sh after rollback to confirm baseline still green."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Linux configuration polling/runtime hardening 2026-05-14",
+  "objective": "Continue hardening the i3blocks and digital-wellbeing shell scripts against fork-storm/polling anti-patterns and runtime bugs while adding regression tests; preserve fail-closed behavior across hosts/shutdown monitors.",
+  "acceptance_criteria": [
+    "All modified shell scripts pass their bash regression tests under linux_configuration/tests/.",
+    "music_parallelism.sh, thesis_work_tracker.sh, shutdown timer/hosts file monitors, and persist_common.sh keep deterministic state output even under partial failures.",
+    "New test_thesis_work_status.sh regression script covers the state-parsing helper.",
+    "No new noqa/shellcheck suppressions introduced."
+  ],
+  "out_of_scope": [
+    "Changing i3 keybindings or systemd unit topology.",
+    "Modifying screen_locker or steam_backlog_enforcer in this commit.",
+    "Refactoring pacman blocklist policy beyond the single keyword adjustment."
+  ],
+  "verifier": "bash linux_configuration/tests/test_*.sh (all six modified/new tests) plus pre-commit run on staged files"
+}
