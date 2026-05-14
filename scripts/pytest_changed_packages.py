@@ -23,21 +23,32 @@ _MIN_SUBPACKAGE_DEPTH = 2
 _PER_PACKAGE_MEM = "2G"
 
 
+_RUN_ALL_TRIGGERS = frozenset({"conftest.py", "__init__.py"})
+
+
 def _affected_packages(files: list[str]) -> set[str] | None:
     """Return subpackage names touched by *files*, or ``None`` for all.
 
-    Returns ``None`` when a root-level ``python_pkg/`` file is modified,
-    meaning every test should run.
+    Returns ``None`` only when a *currently existing* root-level
+    ``python_pkg/`` shared file (``conftest.py`` / ``__init__.py``) is
+    modified. Stray root-level files from rewritten history, or paths
+    pointing at deleted/non-existent subpackages, are silently skipped so
+    pre-push doesn't run the whole suite for irrelevant diffs.
     """
     packages: set[str] = set()
+    root = Path("python_pkg")
     for path in files:
         parts = PurePosixPath(path).parts
         if len(parts) < _MIN_SUBPACKAGE_DEPTH or parts[0] != "python_pkg":
             continue
         if len(parts) == _MIN_SUBPACKAGE_DEPTH:
-            # Root-level file like python_pkg/conftest.py - run everything.
-            return None
-        packages.add(parts[1])
+            name = parts[1]
+            if name in _RUN_ALL_TRIGGERS and (root / name).is_file():
+                return None
+            continue
+        pkg = parts[1]
+        if (root / pkg / "tests").is_dir():
+            packages.add(pkg)
     return packages
 
 

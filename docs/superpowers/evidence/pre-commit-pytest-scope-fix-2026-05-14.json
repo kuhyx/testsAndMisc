@@ -1,0 +1,26 @@
+{
+  "intent": "Tighten pre-push pytest scope so it only runs tests for python_pkg subpackages that actually have a tests/ directory, preventing wasted runs and OOM during force-push.",
+  "scope": [
+    "scripts/pytest_changed_packages.py",
+    "Non-goal: changing mypy/pylint/bandit/prettier hook scoping"
+  ],
+  "changes": [
+    "_affected_packages() now filters out subpackage names whose python_pkg/<pkg>/tests/ directory does not exist on disk (covers deleted packages left over in rewritten history).",
+    "Root-level python_pkg/<file>.py paths only trigger run-all when the file exists AND is conftest.py or __init__.py; stray root files from rewritten history are now silently skipped instead of running the full suite."
+  ],
+  "verification": [
+    {
+      "command": "python -c 'from pytest_changed_packages import _affected_packages; ...'",
+      "result": "pass",
+      "evidence": "deleted-only paths -> set(); valid pkg path -> {steam_backlog_enforcer}; stray python_pkg/geo_data.py -> set(); existing python_pkg/conftest.py -> None (run all)."
+    }
+  ],
+  "risks": [
+    "If a future package is added without a tests/ dir, it will be silently skipped on push.",
+    "Stray python_pkg/<name>.py files added in the future would no longer trigger run-all unless they are conftest.py or __init__.py."
+  ],
+  "rollback": [
+    "git revert <this-commit>",
+    "Re-run pre-commit run --hook-stage pre-push --all-files to confirm prior behavior."
+  ]
+}
