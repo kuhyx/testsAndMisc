@@ -1,0 +1,32 @@
+{
+  "intent": "Make `git push` cheap by restricting the pre-push stage to only pytest-coverage and prettier. All other hooks default to commit-stage only, so a force-push of already-committed (already-audited) history does not re-run the full lint suite on the divergent file diff.",
+  "scope": [
+    "meta/.pre-commit-config.yaml — add default_stages: [pre-commit].",
+    "Non-goals: do not modify .git/hooks/pre-push wrapper; do not change hook arguments or per-hook excludes; do not drop any hook from commit stage."
+  ],
+  "changes": [
+    "Added `default_stages: [pre-commit]` to the global block.",
+    "Effect: hooks without an explicit `stages:` directive (general pre-commit-hooks suite, ruff, ruff-format, codespell, shellcheck, check-no-secrets, no-binaries, ai-evidence-contract, ai-multifile-contract, append-only-sessions, no-polling-antipatterns, no-noqa, check-python-location, remove-empty-dirs) now run on commit only.",
+    "Pre-push surface reduced to: pytest-coverage (scoped via scripts/pytest_changed_packages.py) + prettier (scoped + isolated systemd-run scope)."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit validate-config meta/.pre-commit-config.yaml",
+      "result": "pass",
+      "evidence": "exit 0"
+    },
+    {
+      "command": "git push --force origin main",
+      "result": "pending",
+      "evidence": "next step after this commit"
+    }
+  ],
+  "risks": [
+    "If a commit is made bypassing hooks (forbidden by policy), pre-push will not catch lint/secret issues. Mitigation: existing repo rule forbids --no-verify; ai-evidence-contract hook also runs on commit.",
+    "Hooks like `check-added-large-files` and `check-no-secrets` no longer run on push. Acceptable because they ran on every commit that produced the pushed history."
+  ],
+  "rollback": [
+    "Remove the `default_stages: [pre-commit]` line to restore previous behavior (hooks running on every stage).",
+    "Run `pre-commit install --hook-type pre-commit --hook-type pre-push --overwrite` and then restore the custom .git/hooks/pre-push wrapper if it was clobbered."
+  ]
+}

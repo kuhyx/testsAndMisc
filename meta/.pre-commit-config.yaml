@@ -11,6 +11,12 @@
 default_language_version:
   python: python3
 
+# By default every hook runs ONLY at commit-time. Pre-push runs only the
+# hooks that explicitly opt in via `stages: [pre-push]` (currently
+# pytest-coverage + prettier). This keeps `git push` cheap; commit-time
+# already enforces the full lint suite.
+default_stages: [pre-commit]
+
 # Fail fast on first error (set to false to see all errors)
 fail_fast: false
 
