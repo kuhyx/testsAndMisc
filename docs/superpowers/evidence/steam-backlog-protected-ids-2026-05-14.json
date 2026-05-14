@@ -1,0 +1,26 @@
+{
+  "intent": "Add four Steam app IDs to PROTECTED_APP_IDS so steam_backlog_enforcer never uninstalls them during enforcement.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/game_install.py",
+    "Non-goal: changing tests, enforcement loop, or any persisted state"
+  ],
+  "changes": ["Added 1410710, 10500, 813780, 489830 to PROTECTED_APP_IDS set."],
+  "verification": [
+    {
+      "command": "git diff python_pkg/steam_backlog_enforcer/game_install.py",
+      "result": "pass",
+      "evidence": "Diff shows only +4 lines inside PROTECTED_APP_IDS literal; no other lines touched."
+    },
+    {
+      "command": "grep PROTECTED_APP_IDS python_pkg/steam_backlog_enforcer/tests/*.py",
+      "result": "pass",
+      "evidence": "Tests patch the set, so set membership changes do not affect test outcomes."
+    }
+  ],
+  "risks": [
+    "If the user later wants one of these IDs enforced again, they must be removed manually from the set."
+  ],
+  "rollback": [
+    "Revert this commit; PROTECTED_APP_IDS returns to prior contents."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Steam backlog enforcer protected app IDs expansion 2026-05-14",
+  "objective": "Prevent steam_backlog_enforcer from uninstalling four additional Steam app IDs that the user wants preserved across enforcement cycles.",
+  "acceptance_criteria": [
+    "PROTECTED_APP_IDS in game_install.py contains the four new IDs (1410710, 10500, 813780, 489830) in addition to existing entries.",
+    "Existing tests that patch PROTECTED_APP_IDS continue to pass without modification.",
+    "No other behavior of game_install.py changes."
+  ],
+  "out_of_scope": [
+    "Changing enforcement scheduling or HLTB matching.",
+    "Modifying state.json or any persisted enforcement state."
+  ],
+  "verifier": "Static review of the four-line addition plus pre-commit ruff/mypy/pylint hooks on game_install.py"
+}
