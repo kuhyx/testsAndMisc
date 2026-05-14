@@ -1,0 +1,23 @@
+{
+  "intent": "Move install_core_system.sh to linux_configuration/ root for easier discovery",
+  "scope": [
+    "linux_configuration/install_core_system.sh (moved from scripts/single_use/)"
+  ],
+  "changes": [
+    "git mv to linux_configuration/ root",
+    "Update LINUX_CONFIG and REPO_ROOT path vars to match new location"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck linux_configuration/install_core_system.sh",
+      "result": "pass",
+      "evidence": "no warnings"
+    }
+  ],
+  "risks": [
+    "None \u2014 pure rename + one-line path fix"
+  ],
+  "rollback": [
+    "git revert HEAD"
+  ]
+}

@@ -24,8 +24,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LINUX_CONFIG="$(cd "$SCRIPT_DIR/../.." && pwd)"
-REPO_ROOT="$(cd "$LINUX_CONFIG/.." && pwd)"
+LINUX_CONFIG="$SCRIPT_DIR"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Colour helpers ───────────────────────────────────────────────────────────
 bold() { printf '\e[1m%s\e[0m' "$*"; }
