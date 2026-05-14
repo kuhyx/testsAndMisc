@@ -1,0 +1,26 @@
+{
+  "intent": "Cut prettier's pre-push file set so Node memory peaks well under the 4 GB cgroup MemoryMax used by the wrapped pre-push hook, preventing the SIGTERM that aborted recent force-pushes.",
+  "scope": [
+    "meta/.pre-commit-config.yaml prettier hook exclude",
+    "Non-goal: removing prettier from pre-push or weakening lint coverage on first-party files"
+  ],
+  "changes": [
+    "prettier exclude expanded from ^(Bash/|\\.venv/|.*\\.lock$) to also skip third_party/, .github/skills/ (mirror of third_party), docs/superpowers/{plans,specs}/, and linux_configuration/report/.",
+    "Hook still runs on first-party YAML/JSON/Markdown across the rest of the repo."
+  ],
+  "verification": [
+    {
+      "command": "git ls-files | grep -E '\\.(ya?ml|json|md)$' | grep -vE '<new-exclude>' | wc -l",
+      "result": "pass",
+      "evidence": "Matching file count drops 143 -> 75 (-47%); largest excluded files are vendored agent-skills mirrors, big plan/spec markdowns, and the 54 KB jscpd-report.json."
+    }
+  ],
+  "risks": [
+    "Vendored content in third_party/ and .github/skills/ may drift from prettier's style; acceptable because we don't author it.",
+    "docs/superpowers/{plans,specs}/ may end up with inconsistent formatting; CI prettier (not constrained by local cgroup) can still check it if desired."
+  ],
+  "rollback": [
+    "git revert <this-commit> to restore the narrower exclude.",
+    "Re-run pre-commit run --hook-stage pre-push prettier --all-files to confirm previous coverage."
+  ]
+}

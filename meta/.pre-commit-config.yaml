@@ -331,7 +331,18 @@ repos:
     hooks:
       - id: prettier
         types_or: [yaml, json, markdown]
-        exclude: ^(Bash/|\.venv/|.*\.lock$)
+        # Skip vendored/mirrored content and large generated reports so the
+        # pre-push Node heap stays well under the cgroup memory cap.
+        exclude: >-
+          (?x)^(
+            Bash/.*|
+            \.venv/.*|
+            third_party/.*|
+            \.github/skills/.*|
+            docs/superpowers/(plans|specs)/.*|
+            linux_configuration/report/.*|
+            .*\.lock
+          )$
         stages: [pre-push]
 
   # ===========================================================================
