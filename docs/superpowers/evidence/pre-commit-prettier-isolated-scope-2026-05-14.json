@@ -1,0 +1,27 @@
+{
+  "intent": "Isolate the pre-push prettier check in its own systemd-run scope so prettier's Node memory budget is independent of the outer 4 GB pre-push cgroup's accumulated page cache from pytest/mypy/pylint/bandit. Eliminates the SIGTERM that aborted force-pushes despite a tightened file scope.",
+  "scope": [
+    "scripts/run_prettier_capped.sh (new wrapper)",
+    "meta/.pre-commit-config.yaml prettier hook (mirrors-prettier -> local language: system)",
+    "Non-goal: changing prettier's check semantics or coverage on first-party files"
+  ],
+  "changes": [
+    "Added scripts/run_prettier_capped.sh that wraps `prettier --check` in `systemd-run --user --scope --collect -p MemoryMax=1G -p MemorySwapMax=0` with NODE_OPTIONS=--max-old-space-size=768, falling back to a direct invocation if systemd-run is unavailable.",
+    "Replaced the mirrors-prettier repo hook with a `repo: local` hook calling the wrapper; same types_or/exclude as before so coverage is unchanged."
+  ],
+  "verification": [
+    {
+      "command": "scripts/run_prettier_capped.sh README.md",
+      "result": "pass",
+      "evidence": "`Checking formatting...\\nAll matched files use Prettier code style!` exit=0 from inside a fresh systemd-run scope."
+    }
+  ],
+  "risks": [
+    "Requires prettier on PATH (currently provided by the user's global nvm install); CI must install prettier separately or fall back path executes.",
+    "If systemd-run is unavailable on a contributor's machine, the wrapper still runs prettier directly without the memory cap."
+  ],
+  "rollback": [
+    "git revert <this-commit> restores the mirrors-prettier repo hook.",
+    "Delete scripts/run_prettier_capped.sh if no longer referenced."
+  ]
+}
