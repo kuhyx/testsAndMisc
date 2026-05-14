@@ -1,1 +1,0 @@
-"""Thesis video visualization scripts."""

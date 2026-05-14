@@ -1,1 +1,0 @@
-"""Poker modifier application package."""

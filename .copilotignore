@@ -86,10 +86,6 @@ __pycache__/
 **/__pycache__/
 
 # Build outputs (symlinked to ../testsAndMisc_builds/)
-pomodoro_app/build/
-horatio/horatio_app/build/
-sonic_pi/build/
-CPP/mini_browser/build/
 **/build/
 
 # Dart / Flutter caches (symlinked to ../testsAndMisc_builds/)
@@ -104,26 +100,12 @@ CPP/mini_browser/build/
 **/generated_images_*/
 **/preview_images/
 
-# Anki decks
-python_pkg/anki_decks/
-
-# Image-heavy directories (moved to ../testsAndMisc_binaries/)
-python_pkg/praca_magisterska_video/images/
-python_pkg/praca_magisterska_video/
-python_pkg/articles/uploads/
-python_pkg/download_cats/http_cat_cache/
-C/misc/randomJPG/
-
 # Files with many embedded image references
 python_pkg/cinema_planner/pasted_content.txt
 
 # Large data files (exceed indexing limits)
-python_pkg/keyboard_coop/words_dictionary.json
 linux_configuration/scripts/digital_wellbeing/pacman/words.txt
-python_pkg/word_frequency/test_texts/
 
 # C build artifacts
 **/*.out
-**/random_engine
 **/fps_demo
-**/1dvelocitysimulator

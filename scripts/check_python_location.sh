@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 # Check that all Python files are under python_pkg/.
-# Exceptions: linux_configuration/, pomodoro_app/, sonic_pi/, Bash/,
+# Exceptions: linux_configuration/, Bash/,
 #             and vendored/generated directories.
 # Used as a pre-commit hook; receives staged file paths as arguments.
 
 set -uo pipefail
-
-# Directories allowed to contain Python files outside python_pkg/
-ALLOWED_DIRS="linux_configuration/|pomodoro_app/|sonic_pi/|scripts/"
 
 errors=()
 
@@ -19,14 +16,18 @@ for file in "$@"; do
     [[ "$file" == python_pkg/* ]] && continue
 
     # Skip allowed directories (non-Python projects with some Python scripts)
-    if echo "$file" | grep -qE "^($ALLOWED_DIRS)"; then
-        continue
-    fi
+    case "$file" in
+        linux_configuration/*|scripts/*) continue ;;
+    esac
 
     # Skip vendored/generated directories
-    if echo "$file" | grep -qE '(^|/)(\.venv|venv|__pycache__|build|dist|node_modules|\.git)/'; then
-        continue
-    fi
+    skip=0
+    for part in /.venv/ /venv/ /__pycache__/ /build/ /dist/ /node_modules/ /.git/; do
+        case "/$file" in
+            *"$part"*) skip=1; break ;;
+        esac
+    done
+    [[ $skip -eq 1 ]] && continue
 
     errors+=("$file")
 done

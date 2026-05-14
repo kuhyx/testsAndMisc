@@ -1,1 +1,0 @@
-"""Cat image generator package."""

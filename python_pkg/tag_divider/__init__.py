@@ -1,1 +1,0 @@
-"""Image tag divider package."""

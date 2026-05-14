@@ -110,19 +110,6 @@ Thumbs.db
 *.dylib
 
 # Explicitly allowed binary files (override above with !)
-!pomodoro_app/android/app/src/main/res/mipmap-*/ic_launcher.png
-!pomodoro_app/packaging/arch/pomodoro-app.svg
-!TS/battery-status/public/favicon.svg
-
-# Binary asset symlinks (point to ../testsAndMisc_binaries/)
-pomodoro_app/assets/sounds/long_break_done.wav
-pomodoro_app/assets/sounds/long_break_start.wav
-pomodoro_app/assets/sounds/short_break_done.wav
-pomodoro_app/assets/sounds/work_done.wav
-horatio/horatio_app/assets/demo_recordings/hamlet_line0_take1.wav
-horatio/horatio_app/assets/demo_recordings/hamlet_line0_take2.wav
-horatio/horatio_app/assets/demo_recordings/hamlet_line0_take3.wav
-horatio/horatio_app/assets/demo_recordings/hamlet_line1_take1.wav
 
 # ===========================================================================
 
@@ -337,48 +324,9 @@ Bash/ffmpeg-build/FFmpeg
 *.gcda
 *.gcno
 **/coverage.info
-C/1dvelocitysimulator/test_physics
-C/lichess_random_engine/test_movegen
-C/lichess_random_engine/test_search
-C/vocabulary_curve/test_vocabulary
-CPP/miscelanious/test_challenges
-
-# C/C++ compiled binaries
-C/1dvelocitysimulator/1dvelocitysimulator
-C/imageViewer/imageviewer
-C/lichess_random_engine/random_engine
-C/lichess_random_engine/perft
-C/misc/generating_words
-C/misc/randomJPG/generate_images
-C/misc/split/split
-C/opening_learner/opening_learner
-C/scrapeWebsite/scrape
-C/tests/polish_letters
-C/vocabulary_curve/vocabulary_curve
-C/websocketServer/websocket_server
-CPP/miscelanious/brydz/brydz
-CPP/miscelanious/calculateShotsDarts/darts
-CPP/miscelanious/findIntegerPercentageValue/find_percentage
-CPP/miscelanious/howManyValidISBNNumbersAreThere/isbn_counter
-CPP/miscelanious/howOftenDoesCharOccur
-CPP/miscelanious/quickchallenges
-CPP/miscelanious/reverseString
-CPP/miscelanious/solveQuadraticEquation
-CPP/miscelanious/markovChainGenerator/markov
-CPP/miscelanious/mutiplicationWithoutStar/multiplication
-CPP/miscelanious/Pi/pi
-CPP/miscelanious/randomDevice/random_device_demo
-CPP/miscelanious/tictactoe/tictactoe
-CPP/miscelanious/tierListConverter/tier_list_converter
-CPP/miscelanious/xGoesTo0/xgoes
-CPP/miscelanious/yousuckatcards/a.out
-CPP/miscelanious/yousuckatcards/Bernouli/bernouli
-CPP/miscelanious/yousuckatcards/Bernouli/test
-CPP/tests/division_test
 
 # Screen locker workout log
 python_pkg/screen_locker/workout_log.json
-python_pkg/music_gen/output/
 
 # Screen locker state files
 python_pkg/screen_locker/sick_day_state.json
@@ -394,45 +342,16 @@ python_pkg/geo_cache/
 python_pkg/*/.venv/
 python_pkg/*/cache/
 
-# HTTP cat image cache
-python_pkg/download_cats/http_cat_cache/
-
-# Large geojson files that can be downloaded
-python_pkg/anki_decks/warsaw_districts/warszawa-dzielnice.geojson
-
-# Wikipedia cache (can be refreshed)
-python_pkg/anki_decks/polish_license_plates/.wikipedia_cache/
-python_pkg/cinema_planner/pasted_content.txt
-
 # FVM Version Cache
 .fvm/
-CPP/miscelanious/howManyValidISBNNumbersAreThere/ISBN.txt
 
 # Focus mode secrets (contains home GPS coordinates)
 phone_focus_mode/config_secrets.sh
 
 # Generated output files
 out.txt
-cinema_plan_*.txt
-
-# Binary images moved to external storage (testsAndMisc_binaries/)
-python_pkg/praca_magisterska_video/images/
 
 # Build output symlinks (point to ../testsAndMisc_builds/)
 # Patterns without trailing / to match symlinks, not just directories
-pomodoro_app/build
-horatio/horatio_app/build
-sonic_pi/build
-CPP/mini_browser/build
 phone_focus_mode/focus_status_app/build
 phone_focus_mode/focus_status_app/debug.keystore
-pomodoro_app/.dart_tool
-horatio/horatio_app/.dart_tool
-horatio/horatio_core/.dart_tool
-
-# Web icon symlinks (point to ../testsAndMisc_binaries/horatio_app_web_icons/)
-horatio/horatio_app/web/favicon.png
-horatio/horatio_app/web/icons/Icon-192.png
-horatio/horatio_app/web/icons/Icon-512.png
-horatio/horatio_app/web/icons/Icon-maskable-192.png
-horatio/horatio_app/web/icons/Icon-maskable-512.png

@@ -47,7 +47,6 @@ repos:
       - id: debug-statements
       - id: name-tests-test
         args: [--pytest-test-first]
-        exclude: python_pkg/word_frequency/tests/_translator_helpers\.py
       - id: check-ast
       - id: check-builtin-literals
       - id: check-docstring-first
@@ -165,9 +164,6 @@ repos:
           (?x)^(
             Bash/.*|
             \.venv/.*|
-            python_pkg/music_gen/.*|
-            python_pkg/praca_magisterska_video/.*|
-            pomodoro_app/tools/.*|
             linux_configuration/scripts/misc/testsAndMisc-bash/tools/.*
           )$
         additional_dependencies:
@@ -349,7 +345,6 @@ repos:
         entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 40 shellcheck --severity=warning' --
         language: system
         types: [shell]
-        exclude: ^pomodoro_app/
 
   # ===========================================================================
   # CLANG-FORMAT - C/C++ code formatting
@@ -370,7 +365,6 @@ repos:
         entry: cppcheck
         language: system
         types_or: [c, c++]
-        exclude: ^(pomodoro_app/|horatio/)
         args:
           - --enable=warning,portability
           - --force
@@ -400,18 +394,6 @@ repos:
           - --columns
 
   # ===========================================================================
-  # ESLINT - TypeScript/JavaScript linting
-  # ===========================================================================
-  - repo: local
-    hooks:
-      - id: eslint
-        name: eslint
-        entry: npx eslint --no-warn-ignored
-        language: system
-        types_or: [ts, tsx]
-        files: ^TS/
-
-  # ===========================================================================
   # CHECK C/C++ BUILD FILES - Ensure every C/C++ dir has Makefile and run.sh
   # ===========================================================================
   - repo: local
@@ -421,7 +403,6 @@ repos:
         entry: scripts/check_c_cpp_build_files.sh
         language: script
         types_or: [c, c++]
-        exclude: ^(CPP/mini_browser/|horatio/)
 
   # ===========================================================================
   # CHECK PYTHON LOCATION - All Python files must be under python_pkg/
@@ -466,29 +447,3 @@ repos:
   #     - id: commitizen
   #     - id: commitizen-branch
   #       stages: [push]
-
-  # ===========================================================================
-  # POMODORO APP - Flutter analyze + test (push only)
-  # ===========================================================================
-  - repo: local
-    hooks:
-      - id: pomodoro-app-flutter
-        name: pomodoro_app flutter analyze & test
-        entry: bash -c 'cd pomodoro_app && flutter pub get --enforce-lockfile && flutter analyze && flutter test'
-        language: system
-        files: ^pomodoro_app/
-        pass_filenames: false
-        stages: [pre-push]
-
-  # ===========================================================================
-  # HORATIO - Dart/Flutter tests with coverage enforcement (push only)
-  # ===========================================================================
-  - repo: local
-    hooks:
-      - id: horatio-tests
-        name: horatio test coverage
-        entry: bash -c 'cd horatio && bash run.sh test'
-        language: system
-        files: ^horatio/
-        stages: [pre-push]
-        pass_filenames: false

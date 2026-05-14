@@ -1,0 +1,37 @@
+{
+  "intent": "Move unmaintained / never-changed-and-never-used directories out of testsAndMisc into a sibling archive repo so the main repo focuses on actively-used code.",
+  "scope": [
+    "git rm of 41 archived directories across python_pkg/, C/, CPP/, TS/, and top-level (horatio, pomodoro_app, sonic_pi, robotgo_demo)",
+    "Removal of obsolete node/eslint files (package.json, package-lock.json, eslint.config.mjs)",
+    "Pruning of references in .gitignore, .copilotignore, .vscode/settings.json, .pre-commit-config.yaml, pyproject.toml, .binary-allowlist, scripts/check_python_location.sh, README.md",
+    "Non-goal: changing behavior of kept packages (screen_locker, steam_backlog_enforcer, brother_printer, wake_alarm, shared, random_jpg, pdfCentered, split, geo_data, geo_cache, atop_agg, phone_focus_mode, linux_configuration, scripts, docs, third_party)"
+  ],
+  "changes": [
+    "Full per-directory history preserved via git-filter-repo and pushed to https://github.com/kuhyx/testsAndMisc-archive",
+    "Deleted 1014+ files from main repo via git rm",
+    "Refactored scripts/check_python_location.sh to use case statements instead of regex grep (removes excessive-pipes warning, removes unused ALLOWED_DIRS var)",
+    "Removed eslint pre-commit hook block since no TS code remains",
+    "Trimmed README.md tooling section and project table"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --hook-stage pre-commit",
+      "result": "pass",
+      "evidence": "All hooks pass after refactor; remaining staged changes are pure deletions plus straightforward config pruning"
+    },
+    {
+      "command": "gh repo view kuhyx/testsAndMisc-archive",
+      "result": "pass",
+      "evidence": "Archive repo exists and contains 143 filtered commits with preserved per-directory history"
+    }
+  ],
+  "risks": [
+    "Cross-repo references (CI workflows, external docs) to archived paths will break — none known in main repo after pruning",
+    "Future contributors may rediscover archived code only via the sibling repo link in README"
+  ],
+  "rollback": [
+    "git revert <archive-commit> to restore deleted paths from history",
+    "Re-add removed configs from prior HEAD if needed",
+    "Archive repo remains read-only reference; main repo can pull back any directory via git checkout <old-sha> -- <path>"
+  ]
+}

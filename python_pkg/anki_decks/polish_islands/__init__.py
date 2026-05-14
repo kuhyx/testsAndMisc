@@ -1,1 +1,0 @@
-"""Polish islands Anki generator."""

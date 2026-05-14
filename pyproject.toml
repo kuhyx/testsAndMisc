@@ -69,25 +69,6 @@ unfixable = []
     "S101",
     "SLF001",
 ]
-# Heavy ML libraries (torch, transformers, scipy, bark) must be lazily imported
-# inside functions — they take seconds to load and aren't needed at module level.
-"python_pkg/music_gen/_music_generation.py" = ["PLC0415"]
-"python_pkg/music_gen/_music_speech.py" = ["PLC0415"]
-# Circular dependency: submodules import constants (W, H, CLIP_DUR, etc.)
-# from this module, so they must be imported lazily inside _build().
-"python_pkg/moviepy_showcase/moviepy_showcase.py" = ["PLC0415"]
-# Matplotlib drawing helpers inherently require many parameters (x, y, w, h,
-# fill, lw, fontsize, etc.) — refactoring to config dataclasses would break
-# 57+ callers spread across the diagram generation pipeline.
-"python_pkg/praca_magisterska_video/generate_images/*.py" = ["PLR0913"]
-# generate_arch_diagrams.py: matplotlib imports must follow mpl.use("Agg").
-"python_pkg/praca_magisterska_video/generate_images/generate_arch_diagrams.py" = [
-    "E402", "PLR0913",
-]
-# Long deeply-nested import paths and matplotlib text strings can't be shortened.
-"python_pkg/praca_magisterska_video/**/*.py" = ["E501"]
-# Circular dependency: _q02_algorithm_steps imports constants from this module.
-"python_pkg/praca_magisterska_video/visualize_q02.py" = ["E501", "PLC0415"]
 
 
 [tool.ruff.lint.pydocstyle]
@@ -148,9 +129,6 @@ color_output = true
 exclude = [
     "Bash/ffmpeg-build/",
     ".venv/",
-    "python_pkg/music_gen/",  # Uses dynamic imports from transformers
-    "python_pkg/praca_magisterska_video/",  # Thesis plotting scripts
-    "pomodoro_app/tools/",  # Avoid duplicate module named 'tools'
     "linux_configuration/scripts/misc/testsAndMisc-bash/tools/",  # Avoid duplicate module named 'tools'
 ]
 
@@ -211,7 +189,7 @@ generated-members = [
 # ============================================================================
 [tool.bandit]
 # Exclude test directories and vendored code
-exclude_dirs = ["tests", ".venv", "Bash/ffmpeg-build", "python_pkg/lichess_bot/.venv"]
+exclude_dirs = ["tests", ".venv", "Bash/ffmpeg-build"]
 
 # ============================================================================
 # BLACK & ISORT - Removed (ruff handles formatting and import sorting)

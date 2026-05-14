@@ -18,19 +18,17 @@ Utility scripts for development workflows — C/C++ build file validation, secre
 
 ## Other Projects
 
-| Directory             | Description                                 |
-| --------------------- | ------------------------------------------- |
-| `poker_modifier_app/` | Browser-based poker hand modifier (HTML/JS) |
-| `pomodoro_app/`       | Pomodoro timer (Flutter)                    |
-| `Bash/`               | FFmpeg build scripts                        |
-| `C/`, `CPP/`, `TS/`   | Language-specific experiments               |
-| `sonic_pi/`           | Music programming experiments               |
-| `robotgo_demo/`       | Go desktop automation demo                  |
-| `python_pkg/`         | Python package structure example            |
+| Directory     | Description              |
+| ------------- | ------------------------ |
+| `Bash/`       | FFmpeg build scripts     |
+| `C/`          | Small native helpers     |
+| `python_pkg/` | Python package structure |
+
+Archived / unmaintained projects live in the sibling repository
+[`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Tooling
 
 - **Python linting**: [Ruff](https://docs.astral.sh/ruff/) with all rules enabled (see `pyproject.toml`)
-- **JS/TS linting**: ESLint (flat config)
 - **CI**: GitHub Actions — lint, build, and test on push
 - **Testing**: pytest (Python), custom shell-based test harness for scripts
