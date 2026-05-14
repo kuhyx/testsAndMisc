@@ -1,0 +1,28 @@
+{
+  "intent": "Make pre-push fast and lightweight by moving the heaviest hooks (mypy, pylint, bandit) from pre-push to pre-commit so they run on tiny per-commit staged diffs instead of the full force-push diff that scans ~every .py file in the repo.",
+  "scope": [
+    "meta/.pre-commit-config.yaml",
+    "Non-goals: do not change ruff/codespell/shellcheck stages; do not relax the 4 GiB pre-push cgroup cap; do not remove pytest-coverage or prettier from pre-push."
+  ],
+  "changes": [
+    "mypy: stages: [pre-push] -> stages: [pre-commit]",
+    "pylint: stages: [pre-push] -> stages: [pre-commit]",
+    "bandit: stages: [pre-push] -> stages: [pre-commit]",
+    "Updated section comments to reflect new per-commit scoping rationale (force-push divergence after history rewrite caused full-repo scans + OOM under cgroup cap)."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit validate-config meta/.pre-commit-config.yaml",
+      "result": "pass",
+      "evidence": "exit 0; grep confirms stage assignments: mypy:pre-commit, pylint:pre-commit, bandit:pre-commit, pytest-coverage:pre-push, prettier:pre-push."
+    }
+  ],
+  "risks": [
+    "Per-commit time grows by ~5-10 s on Python edits (mypy + pylint + bandit on the staged file set). Acceptable trade vs current pre-push behavior which scans thousands of files after a divergent force-push.",
+    "If a user bypasses commit-stage hooks (e.g. amends with --no-verify, which is forbidden by policy) the safety net is gone on push. Mitigation: existing repo rule forbids --no-verify; ai-evidence-contract hook still runs on commit."
+  ],
+  "rollback": [
+    "Revert this commit (git revert <sha>) to restore stages: [pre-push] on the three hooks.",
+    "After rollback: run pre-commit install --hook-type pre-commit --hook-type pre-push to refresh local hooks."
+  ]
+}

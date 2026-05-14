@@ -131,13 +131,15 @@ repos:
         types_or: [python, pyi]
 
   # ===========================================================================
-  # MYPY - Static type checking (runs on push only for speed)
+  # MYPY - Static type checking (per-commit on changed files only)
+  # Was on pre-push, but force-push diffs caused full-repo scans + OOM. On
+  # pre-commit it sees only the file(s) currently staged → near-instant.
   # ===========================================================================
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
-        stages: [pre-push]
+        stages: [pre-commit]
         args:
           - --ignore-missing-imports
           - --no-error-summary
@@ -172,13 +174,14 @@ repos:
           - types-python-dateutil
 
   # ===========================================================================
-  # PYLINT - Comprehensive Python linter (runs on push only for speed)
+  # PYLINT - Comprehensive Python linter (per-commit on changed files only)
+  # Was on pre-push, but force-push diffs caused full-repo scans + OOM.
   # ===========================================================================
   - repo: https://github.com/pylint-dev/pylint
     rev: v3.3.2
     hooks:
       - id: pylint
-        stages: [pre-push]
+        stages: [pre-commit]
         args:
           - --rcfile=pyproject.toml
           - --fail-under=8.0
@@ -191,13 +194,14 @@ repos:
         exclude: ^(Bash/|\.venv/)
 
   # ===========================================================================
-  # BANDIT - Security linter (runs on push only for speed)
+  # BANDIT - Security linter (per-commit on changed files only)
+  # Was on pre-push, but force-push diffs caused full-repo scans + OOM.
   # ===========================================================================
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10
     hooks:
       - id: bandit
-        stages: [pre-push]
+        stages: [pre-commit]
         args:
           - -c
           - pyproject.toml
