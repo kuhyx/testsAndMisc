@@ -1,0 +1,42 @@
+{
+  "intent": "Sync linux_configuration tests after directory reorganisation, remove stale assertions, and fix a coverage gap introduced by removing unplayable_reason from a logger call.",
+  "scope": [
+    "linux_configuration/tests/* (path updates only)",
+    "linux_configuration/scripts/periodic_background/hosts/generate_hosts_file.sh",
+    "python_pkg/steam_backlog_enforcer/scanning.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_scanning.py",
+    "python_pkg/steam_backlog_enforcer/tests/test_protondb.py",
+    "Non-goal: changes to actual script logic, blocked domains, or host file content"
+  ],
+  "changes": [
+    "test_hosts_file_monitor.sh, test_shutdown_timer_monitor.sh: updated path from periodic_background/system-maintenance/ to system-maintenance/",
+    "test_makepkg_capped.sh: updated path from periodic_background/digital_wellbeing/pacman/ to digital_wellbeing/pacman/",
+    "test_music_parallelism.sh: updated path from periodic_background/digital_wellbeing/ to digital_wellbeing/",
+    "test_usage_monitoring_installer_efficiency.sh: updated path and replaced seconds_until_next_day checks with simpler sleep 60 check",
+    "test_i3blocks_efficiency.sh: removed checks for HEARTBEAT_INTERVAL_S and WARP_POLL_INTERVAL_S constants that no longer exist",
+    "test_pacman_wrapper_security.sh: removed tests 20-21 (builtin time helpers / external date calls) and updated path",
+    "generate_hosts_file.sh: added sed unblock rules for delio.com.pl and loverslab.com to stay consistent with install.sh whitelist",
+    "scanning.py: removed unplayable_reason arg from logger.info call (too many format args)",
+    "test_scanning.py: removed test_logs_explicit_protondb_skip_reason which asserted the removed log arg",
+    "test_protondb.py: added test_unplayable_reason_no_trending_tier to cover protondb.py line 97 (was previously covered indirectly via scanning logger call)"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/steam_backlog_enforcer/ -q -n auto --cov=python_pkg/steam_backlog_enforcer --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "535 tests passed, 100% branch coverage on steam_backlog_enforcer"
+    },
+    {
+      "command": "pre-commit run --files linux_configuration/tests/test_*.sh linux_configuration/scripts/periodic_background/hosts/generate_hosts_file.sh python_pkg/steam_backlog_enforcer/scanning.py python_pkg/steam_backlog_enforcer/tests/test_scanning.py python_pkg/steam_backlog_enforcer/tests/test_protondb.py",
+      "result": "pass",
+      "evidence": "All hooks passed including shellcheck, ruff, mypy, pylint, bandit"
+    }
+  ],
+  "risks": [
+    "Removed tests 20-21 from test_pacman_wrapper_security.sh reduce security regression coverage for time-related wrapper behaviour"
+  ],
+  "rollback": [
+    "Revert path strings in shell tests to previous directory names",
+    "Restore test_logs_explicit_protondb_skip_reason test and unplayable_reason arg in scanning.py logger call"
+  ]
+}

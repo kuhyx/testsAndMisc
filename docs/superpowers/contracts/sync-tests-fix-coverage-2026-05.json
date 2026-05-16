@@ -1,0 +1,17 @@
+{
+  "title": "Sync test paths, drop stale assertions, fix coverage gap",
+  "objective": "After a directory reorganisation in linux_configuration/scripts/, several shell tests had stale paths that prevented them from finding the scripts under test. Additionally, a logger call in scanning.py had one too many format arguments; removing the argument dropped coverage for protondb.py line 97 (unplayable_reason with no trending_tier), which must be restored. Success means all affected tests pass with correct paths, pre-commit is green, and steam_backlog_enforcer has 100% branch coverage.",
+  "acceptance_criteria": [
+    "All linux_configuration/tests/ shell tests reference the correct post-reorganisation script paths",
+    "test_i3blocks_efficiency.sh no longer checks for removed constants",
+    "scanning.py logger.info call has exactly 4 format args (no unplayable_reason)",
+    "steam_backlog_enforcer maintains 100% branch coverage (535 tests pass)",
+    "generate_hosts_file.sh unblock rules match install.sh whitelist"
+  ],
+  "out_of_scope": [
+    "Changing actual script logic in linux_configuration",
+    "Modifying the blocked or unblocked domain lists",
+    "Fixing the 2 PytestUnraisableExceptionWarning warnings (pre-existing)"
+  ],
+  "verifier": "python -m pytest python_pkg/steam_backlog_enforcer/ -q -n auto --cov=python_pkg/steam_backlog_enforcer --cov-branch --cov-fail-under=100; pre-commit run --files <all changed files>"
+}
