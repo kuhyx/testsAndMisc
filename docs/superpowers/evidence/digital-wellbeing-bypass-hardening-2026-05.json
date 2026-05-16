@@ -1,0 +1,53 @@
+{
+  "intent": "Harden three digital-wellbeing tools against easy self-circumvention.",
+  "scope": [
+    "python_pkg/screen_locker/screen_lock.py",
+    "python_pkg/screen_locker/tests/conftest.py",
+    "python_pkg/screen_locker/tests/test_vt_switching.py",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+    "linux_configuration/scripts/periodic_background/hosts/install.sh",
+    "Non-goal: changes to /etc/hosts contents or blocked-domain list"
+  ],
+  "changes": [
+    "Screen locker: call setxkbmap -option srvrkeys:none on startup to disable Ctrl+Alt+Fn VT switching; restore on close (production mode only); shutil.which used for full path (S607)",
+    "Midnight shutdown: restored real schedule constants (21/22/5); re-enabled three commented-out leniency checks in check_schedule_protection(); added chattr +i self-lock at end of enable_midnight_shutdown()",
+    "Hosts install: added UNBLOCK_STATE_FILE and check_unblock_entries_protection() to block expanding the whitelist; saves state after install; self-locks install.sh and generate_hosts_file.sh with chattr +i",
+    "Tests: 7 new tests covering VT disable/restore in production vs demo mode and graceful handling when setxkbmap is absent; mock_subprocess_run autouse fixture added to conftest"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/screen_locker/screen_lock.py python_pkg/screen_locker/tests/conftest.py python_pkg/screen_locker/tests/test_vt_switching.py",
+      "result": "pass",
+      "evidence": "All hooks passed (ruff, ruff-format, mypy, pylint, bandit, shellcheck, codespell)"
+    },
+    {
+      "command": "pre-commit run --files linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh linux_configuration/scripts/periodic_background/hosts/install.sh",
+      "result": "pass",
+      "evidence": "All hooks passed including shellcheck"
+    },
+    {
+      "command": "python -m pytest python_pkg/screen_locker/tests/ -q --cov=python_pkg.screen_locker --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "311 tests passed, screen_locker package at 100% branch coverage"
+    },
+    {
+      "command": "sudo bash linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+      "result": "pass",
+      "evidence": "Script ran, schedule set to 21/22/5, PC shut down at 02:xx as expected"
+    },
+    {
+      "command": "systemctl --user restart screen-locker.service",
+      "result": "pass",
+      "evidence": "Screen locker service restarted successfully; Ctrl+Alt+Fn blocked during active lock"
+    }
+  ],
+  "risks": [
+    "setxkbmap -option srvrkeys:none disables ALL server-handled keys (not just VT switching); restored on clean close but NOT restored if the process is killed with SIGKILL",
+    "chattr +i on install.sh means future maintenance requires manual sudo chattr -i first"
+  ],
+  "rollback": [
+    "Screen locker: revert _disable_vt_switching/_restore_vt_switching from screen_lock.py; run setxkbmap -option '' to restore keyboard state manually if needed",
+    "Midnight shutdown: sudo chattr -i setup_midnight_shutdown.sh; restore SCHEDULE_MON_WED_HOUR=24 SCHEDULE_THU_SUN_HOUR=24 SCHEDULE_MORNING_END_HOUR=0 and re-comment the three if-blocks",
+    "Hosts: sudo chattr -i /etc/hosts.unblock-entries.state && sudo rm /etc/hosts.unblock-entries.state; sudo chattr -i install.sh generate_hosts_file.sh"
+  ]
+}

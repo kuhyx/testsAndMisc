@@ -1,0 +1,18 @@
+{
+  "title": "Harden digital-wellbeing bypass vectors",
+  "objective": "Close three easy bypass vectors in the digital-wellbeing tooling: (1) screen locker bypassed by switching to a TTY with Ctrl+Alt+Fn, (2) midnight shutdown disabled by editing schedule constants or commenting out protection checks, (3) hosts-file unblock list silently expanded by adding sed commands. Success means each vector requires deliberate multi-step effort (manual chattr -i + code edits) rather than a single trivial command.",
+  "acceptance_criteria": [
+    "Screen locker calls setxkbmap -option srvrkeys:none on startup and restores on close in production mode only",
+    "setup_midnight_shutdown.sh constants are 21/22/5 and all three leniency checks are active (uncommented)",
+    "setup_midnight_shutdown.sh self-locks with chattr +i after enable_midnight_shutdown() completes",
+    "install.sh tracks whitelisted domains in /etc/hosts.unblock-entries.state (chattr +i) and blocks install if the list grows",
+    "install.sh and generate_hosts_file.sh self-lock with chattr +i after a successful install",
+    "screen_locker package maintains 100% branch coverage (311 tests pass)"
+  ],
+  "out_of_scope": [
+    "Preventing root from bypassing chattr +i (requires kernel-level controls)",
+    "Changes to the actual blocked or unblocked domain list",
+    "Hardening against SIGKILL of the screen locker process"
+  ],
+  "verifier": "pre-commit run --files <changed-files>; python -m pytest python_pkg/screen_locker/tests/ --cov=python_pkg.screen_locker --cov-branch"
+}
