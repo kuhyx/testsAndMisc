@@ -14,10 +14,6 @@
       "evidence": "no warnings"
     }
   ],
-  "risks": [
-    "None \u2014 pure rename + one-line path fix"
-  ],
-  "rollback": [
-    "git revert HEAD"
-  ]
+  "risks": ["None \u2014 pure rename + one-line path fix"],
+  "rollback": ["git revert HEAD"]
 }
