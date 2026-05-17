@@ -1,0 +1,33 @@
+{
+  "intent": "Harden Steam Backlog Enforcer so the whitelist cannot be trivially circumvented by editing config files or adding arbitrary app IDs.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/ — all source modules and tests",
+    "Non-goals: changing game assignment logic, HLTB integration, or store-blocking"
+  ],
+  "changes": [
+    "Removed skip_app_ids from user-editable Config dataclass; all callers updated",
+    "Stripped non-infra game IDs from PROTECTED_APP_IDS; only Steam runtimes and Proton versions remain",
+    "Added _whitelist.py: 24h time-locked exceptions, entropy-checked justification (>=5 words), append-only audit log, chattr +i immutability",
+    "Added is_protected_app() in game_install.py; replaces direct PROTECTED_APP_IDS membership checks throughout",
+    "Added 'add-exception' CLI command (cmd_add_exception) in main.py",
+    "Integrated promote_pending_exceptions() and lock_enforcement_files() into _enforce_loop_iteration",
+    "Added _whitelist.py constants (_ADD_EXCEPTION_USAGE, _MIN_ADD_EXCEPTION_ARGS) to module level (ruff N806 fix)",
+    "Fixed COMMANDS type annotation from Callable[..., None] to Callable[..., object] (mypy compliance)",
+    "590 tests pass, 100% branch coverage on all steam_backlog_enforcer modules"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/... (17 files)",
+      "result": "pass",
+      "evidence": "ruff Passed, ruff format Passed, mypy Passed, pylint Passed, bandit Passed, pytest with coverage enforcement Passed — all hooks green"
+    }
+  ],
+  "risks": [
+    "chattr +i on config file requires root or appropriate capabilities; silently skipped if chattr is unavailable",
+    "The 24h cooldown is wall-clock based; NTP jumps or hibernation could affect timing"
+  ],
+  "rollback": [
+    "git revert HEAD on steam-backlog-hardening branch, then fast-forward main",
+    "Validate: pytest python_pkg/steam_backlog_enforcer/tests/ --cov=python_pkg.steam_backlog_enforcer --cov-fail-under=100"
+  ]
+}

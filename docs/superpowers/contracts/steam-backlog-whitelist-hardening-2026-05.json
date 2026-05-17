@@ -1,0 +1,19 @@
+{
+  "title": "Steam Backlog Enforcer — Whitelist Circumvention Hardening",
+  "objective": "Prevent users from trivially bypassing the Steam Backlog Enforcer by editing config files or adding arbitrary app IDs to a whitelist. The enforcer must require a time-locked, reason-justified exception request for any non-infra app, with an immutable config file between enforce cycles.",
+  "acceptance_criteria": [
+    "skip_app_ids removed from Config; no caller passes it",
+    "PROTECTED_APP_IDS contains only Steam infra and Proton IDs",
+    "New exceptions require >=5-word justification with entropy check",
+    "New exceptions have a 24-hour cooldown before becoming active",
+    "Every exception request is appended to an append-only audit log",
+    "Enforcement-critical config files are locked with chattr +i after each enforce cycle",
+    "All steam_backlog_enforcer tests pass with 100% branch coverage",
+    "All pre-commit hooks pass (ruff, mypy, pylint, bandit, pytest)"
+  ],
+  "out_of_scope": [
+    "Game assignment logic, HLTB integration, store-blocking, library hiding",
+    "Phone focus mode or linux_configuration changes"
+  ],
+  "verifier": "pre-commit run --files <17 changed files> && pytest python_pkg/steam_backlog_enforcer/tests/ --cov=python_pkg.steam_backlog_enforcer --cov-branch --cov-fail-under=100"
+}

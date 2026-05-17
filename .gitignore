@@ -358,3 +358,4 @@ out.txt
 # Patterns without trailing / to match symlinks, not just directories
 phone_focus_mode/focus_status_app/build
 phone_focus_mode/focus_status_app/debug.keystore
+.worktrees
