@@ -1,0 +1,41 @@
+{
+  "intent": "Split large hltb.py and scanning.py modules into private helper submodules (_hltb_search.py, _scanning_confidence.py) to reduce file size below the 500-line budget. Fix all 23 test failures caused by the module split (broken imports and stale patch targets).",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/hltb.py",
+    "python_pkg/steam_backlog_enforcer/_hltb_search.py (new)",
+    "python_pkg/steam_backlog_enforcer/scanning.py",
+    "python_pkg/steam_backlog_enforcer/_scanning_confidence.py (new)",
+    "python_pkg/steam_backlog_enforcer/_cmd_done.py",
+    "python_pkg/steam_backlog_enforcer/tests/ (23 test files updated)",
+    "No behavioral change; pure structural refactor"
+  ],
+  "changes": [
+    "Extracted hltb.py private helpers (_AuthInfo, _build_search_payload, _fetch_batch, _get_auth_info, _get_hltb_search_url, _pick_best_hltb_entry, _search_one, _SearchCtx, _similarity) into new _hltb_search.py",
+    "Extracted scanning.py confidence helpers (_apply_cached_confidence_to_candidates, _backfill_polls_for_finished, _candidate_passes_hltb_confidence, _confidence_fail_reasons, _filter_hltb_confident_candidates, _force_refresh_candidate_confidence, _refresh_candidate_confidence, _refresh_candidate_confidence_batch, _report_poll_confidence) into new _scanning_confidence.py",
+    "Refactored pick_next_game() into 6 helper functions (_sort_key, _collect_qualified_candidates, _prompt_user_pick, _assign_chosen_game + constants) to satisfy ruff cognitive complexity limits",
+    "Updated _cmd_done.py to import _confidence_fail_reasons and _refresh_candidate_confidence from _scanning_confidence directly",
+    "Updated all test files to import symbols from the defining module (_hltb_search, _scanning_confidence) rather than re-export locations (hltb, scanning)",
+    "Updated all patch targets in tests to reference the defining module namespace (e.g. _scanning_confidence._echo instead of scanning._echo)"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/steam_backlog_enforcer/tests/ -x -q --tb=short",
+      "result": "pass",
+      "evidence": "622 passed in ~60s; 0 failures; all 23 previously failing tests now pass"
+    },
+    {
+      "command": "pre-commit run --files $(git diff --cached --name-only | tr '\\n' ' ')",
+      "result": "pass",
+      "evidence": "ruff, ruff-format, mypy, pylint, bandit, pytest-coverage all passed; only contract/evidence artifact hooks pending (pre-existing requirement)"
+    }
+  ],
+  "risks": [
+    "Private submodule naming with _ prefix signals internal-only; if external callers imported from hltb/scanning directly they would break — no such callers exist in this repo",
+    "patch() targets in tests must reference the defining module; any future move of helpers requires updating patch paths again"
+  ],
+  "rollback": [
+    "git revert the commit to restore hltb.py and scanning.py as single-file modules",
+    "Delete _hltb_search.py and _scanning_confidence.py",
+    "Verify 622 tests still pass after rollback"
+  ]
+}

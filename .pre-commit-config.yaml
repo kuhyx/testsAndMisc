@@ -192,7 +192,7 @@ repos:
         args:
           - --rcfile=pyproject.toml
           - --fail-under=8.0
-          - --jobs=0
+          - --jobs=4
         additional_dependencies:
           - pytest
           - python-chess
@@ -231,6 +231,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
+        require_serial: true
         stages: [pre-commit]
 
   # ===========================================================================

@@ -1,0 +1,17 @@
+{
+  "title": "steam_backlog_enforcer: split hltb/scanning helpers into private submodules",
+  "objective": "Reduce hltb.py and scanning.py below the 500-line budget by extracting private helper functions into _hltb_search.py and _scanning_confidence.py respectively. Fix all 23 test failures introduced by the split (broken imports and stale patch targets in tests).",
+  "acceptance_criteria": [
+    "hltb.py and scanning.py are each under 500 lines",
+    "_hltb_search.py and _scanning_confidence.py contain the extracted helpers",
+    "All 622 tests pass with 100% branch coverage",
+    "ruff, mypy, pylint, bandit all pass with zero suppressions",
+    "No behavioral change to the running bot"
+  ],
+  "out_of_scope": [
+    "Public API changes to steam_backlog_enforcer",
+    "Refactoring of other modules (main.py, library_hider.py, etc.)",
+    "Performance improvements"
+  ],
+  "verifier": "python -m pytest python_pkg/steam_backlog_enforcer/tests/ --cov=python_pkg.steam_backlog_enforcer --cov-branch --cov-fail-under=100 && pre-commit run --files $(git diff --cached --name-only | tr '\\n' ' ')"
+}

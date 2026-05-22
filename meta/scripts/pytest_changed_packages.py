@@ -55,7 +55,7 @@ def _build_pytest_command(packages: set[str]) -> list[str]:
         "--cov-fail-under=100",
         "-q",
         "-n",
-        "auto",
+        "4",
         # Override addopts from pyproject.toml to drop the global
         # --cov=python_pkg that would widen coverage to the entire tree.
         "-o",
