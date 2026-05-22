@@ -1,0 +1,16 @@
+{
+  "title": "Fix Steam library hider crash on invalid AppIDs",
+  "objective": "hide_other_games() crashes with RuntimeError 'JS evaluation error: Unknown JS error' because SetAppsAsHidden() throws in Steam's AddApps internals when fed AppIDs that are not recognised game entries (e.g. DLC/tool IDs returned by get_all_owned_app_ids via include_played_free_games). The fix makes the JS resilient via a safeHide() binary-search fallback that silently skips rejected IDs, and improves error reporting so future JS failures show the real exception message.",
+  "acceptance_criteria": [
+    "hide_other_games() completes without RuntimeError when owned list contains invalid AppIDs",
+    "Valid game IDs are still hidden correctly",
+    "Invalid/unrecognised AppIDs are silently skipped (not fatal)",
+    "CDP exception messages include the actual JS error text instead of 'Unknown JS error'",
+    "All 590 existing tests continue to pass at 100% coverage"
+  ],
+  "out_of_scope": [
+    "Filtering invalid AppIDs on the Python side before passing to JS",
+    "Changing which AppIDs get_all_owned_app_ids() returns"
+  ],
+  "verifier": "python -m pytest python_pkg/steam_backlog_enforcer/tests/ -x -q && pre-commit run --files python_pkg/steam_backlog_enforcer/library_hider.py"
+}

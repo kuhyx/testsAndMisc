@@ -1,0 +1,37 @@
+{
+  "intent": "Fix RuntimeError 'JS evaluation error: Unknown JS error' when hide_other_games() is called with owned game IDs that include invalid AppIDs (DLC/tools returned by Steam API include_played_free_games).",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/library_hider.py",
+    "No behavioral change for valid game IDs; invalid IDs are silently skipped"
+  ],
+  "changes": [
+    "Replace bare SetAppsAsHidden() call with safeHide() recursive binary-search fallback that skips IDs rejected by Steam's AddApps internals",
+    "Improve _cdp_result_value() to extract actual JS error from exceptionDetails (exception.description / text) instead of always reporting 'Unknown JS error'",
+    "Increase _CDP_TIMEOUT from 30s to 120s to accommodate extra fallback calls when problematic IDs trigger individual-retry path"
+  ],
+  "verification": [
+    {
+      "command": "python -c \"from python_pkg.steam_backlog_enforcer.library_hider import _evaluate_js, _cdp_result_value; ...safeHide test...\"",
+      "result": "pass",
+      "evidence": "Result: {\"hidden\":3,\"total\":6} - safeHide correctly hid 3 real IDs and silently skipped 3 fake/invalid IDs without throwing"
+    },
+    {
+      "command": "python -m pytest python_pkg/steam_backlog_enforcer/tests/ -x -q --tb=short",
+      "result": "pass",
+      "evidence": "590 passed, 0 failures, 100% coverage on steam_backlog_enforcer modules"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/library_hider.py",
+      "result": "pass",
+      "evidence": "ruff, mypy, pylint, bandit all passed; only contract artifact hooks pending"
+    }
+  ],
+  "risks": [
+    "safeHide silently skips problematic IDs instead of surfacing them; in theory a valid game could slip through if AddApps has a transient error — second pass via visibleApps would catch it",
+    "120s CDP timeout may mask genuinely hung JS evaluations"
+  ],
+  "rollback": [
+    "git revert the library_hider.py changes to restore bare SetAppsAsHidden() call and 30s timeout",
+    "Verify tests still pass after rollback"
+  ]
+}
