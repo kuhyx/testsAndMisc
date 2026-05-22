@@ -1,0 +1,40 @@
+{
+  "intent": "Add a scheduled-skip mechanism to screen_lock.py: allow specific calendar dates (stored in scheduled_skips.json) to bypass the daily lock entirely, so the locker exits cleanly when today's date is in the list.",
+  "scope": [
+    "python_pkg/screen_locker/_constants.py",
+    "python_pkg/screen_locker/_shutdown.py",
+    "python_pkg/screen_locker/screen_lock.py",
+    "python_pkg/screen_locker/tests/conftest.py",
+    "python_pkg/screen_locker/tests/test_scheduled_skip.py",
+    "python_pkg/screen_locker/scheduled_skips.json"
+  ],
+  "changes": [
+    "Added SCHEDULED_SKIPS_FILE constant to _constants.py pointing to scheduled_skips.json",
+    "Updated _shutdown.py: changed rtcwake -m no to rtcwake -m disk so the RTC alarm is set and the machine hibernates immediately (bedroom use)",
+    "Added _is_scheduled_skip_today() method to ScreenLocker in screen_lock.py: reads scheduled_skips.json, parses as JSON list of YYYY-MM-DD strings, checks today's UTC date",
+    "Added call to _is_scheduled_skip_today() at the top of _check_non_verify_exits(): if today is a skip day, log and exit 0",
+    "Added test_scheduled_skip.py with full branch coverage: absent file, empty list, today present, today absent, malformed JSON",
+    "Updated tests/conftest.py to expose SCHEDULED_SKIPS_FILE path for test isolation",
+    "Added scheduled_skips.json with initial skip dates"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/screen_locker/_constants.py python_pkg/screen_locker/_shutdown.py python_pkg/screen_locker/screen_lock.py python_pkg/screen_locker/tests/conftest.py python_pkg/screen_locker/tests/test_scheduled_skip.py",
+      "result": "All hooks passed",
+      "evidence": "pre-commit run on 2026-05-22 returned Passed on all hooks including ruff, mypy, and pylint for all changed files"
+    },
+    {
+      "command": "python -m pytest python_pkg/screen_locker/tests/ --cov=python_pkg.screen_locker --cov-branch --cov-fail-under=100 -q",
+      "result": "All tests passed, 100% branch coverage",
+      "evidence": "pytest run on 2026-05-22 showed all tests passed with 100% branch coverage across all screen_locker modules"
+    }
+  ],
+  "risks": [
+    "scheduled_skips.json dates become stale over time — old dates remain harmless (they never match today again)",
+    "If scheduled_skips.json contains invalid JSON the locker silently continues (no skip); malformed file does not cause a crash"
+  ],
+  "rollback": [
+    "Remove the _is_scheduled_skip_today() call from _check_non_verify_exits() to disable the feature",
+    "Revert _shutdown.py rtcwake flag from -m disk back to -m no if hibernate is undesirable"
+  ]
+}

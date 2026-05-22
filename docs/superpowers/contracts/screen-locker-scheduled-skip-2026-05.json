@@ -1,0 +1,17 @@
+{
+  "title": "screen_locker: add scheduled-skip date mechanism",
+  "objective": "Allow specific calendar dates to bypass the screen lock entirely. Dates are stored in scheduled_skips.json as a JSON list of YYYY-MM-DD strings. When today's date is found in that list the locker exits with code 0 without displaying the lock UI. Also switches rtcwake from -m no to -m disk so the machine hibernates immediately when scheduling a morning alarm.",
+  "acceptance_criteria": [
+    "If scheduled_skips.json is absent or today's date is not listed, the locker runs normally",
+    "If today's date is in scheduled_skips.json the locker exits 0 immediately with a log message",
+    "Malformed or missing JSON does not crash the locker",
+    "All screen_locker tests pass with 100% branch coverage",
+    "pre-commit passes on all changed files"
+  ],
+  "out_of_scope": [
+    "GUI for managing skip dates",
+    "Remote or push-based skip date updates",
+    "Time-of-day granularity (whole-day only)"
+  ],
+  "verifier": "pytest python_pkg/screen_locker/tests/ --cov=python_pkg.screen_locker --cov-branch --cov-fail-under=100; pre-commit run --files <changed files>"
+}
