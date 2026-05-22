@@ -1,0 +1,56 @@
+{
+  "intent": "Fix YouTube blocking in phone_focus_mode: Android 13 netd caches /etc/hosts in memory at startup and never re-reads from disk, so bind mounts alone do not update the live DNS resolver. Restart netd once after applying the bind mount to reload the cache.",
+  "scope": [
+    "phone_focus_mode/hosts_enforcer.sh",
+    "phone_focus_mode/deploy.sh",
+    "phone_focus_mode/dns_enforcer.sh",
+    "phone_focus_mode/config.sh",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+    "python_pkg/screen_locker/_shutdown.py",
+    "python_pkg/steam_backlog_enforcer/library_hider.py",
+    "python_pkg/wake_alarm/install.sh"
+  ],
+  "changes": [
+    "Added restart_netd_for_hosts_cache() to hosts_enforcer.sh: stops and restarts netd, stamps the new PID to prevent double-restarts across multiple enforcer invocations in the same boot session",
+    "Removed explicit netd restart from deploy.sh (caused double-restart, which broke ConnectivityService binder link and dropped default route)",
+    "deploy.sh now waits 10s after starting focus_daemon.sh so hosts_enforcer.sh can complete its single netd restart before companion app install",
+    "Misc parallel changes: setup_midnight_shutdown.sh, dns_enforcer.sh, config.sh, screen_locker/_shutdown.py, library_hider.py, wake_alarm/install.sh"
+  ],
+  "verification": [
+    {
+      "command": "adb -s BL9000EEA0000102 shell 'ping -c 1 -w 5 google.com 2>&1 | head -2'",
+      "result": "PING google.com (142.250.109.100) 56(84) bytes of data. — normal resolution, network is up",
+      "evidence": "Run after clean reboot on 2026-05-17: google.com resolved to 142.250.109.100 with 22.9ms RTT"
+    },
+    {
+      "command": "adb -s BL9000EEA0000102 shell 'ping -c 1 -w 5 www.youtube.com 2>&1 | head -2'",
+      "result": "PING www.youtube.com (127.0.0.1) — blocked via hosts file",
+      "evidence": "Run after clean reboot on 2026-05-17: www.youtube.com resolved to 127.0.0.1 (0.0.0.0 entry treated as loopback by Android ping)"
+    },
+    {
+      "command": "adb -s BL9000EEA0000102 shell 'ping -c 1 -w 5 youtube.com 2>&1 | head -2'",
+      "result": "PING youtube.com (127.0.0.1) — blocked via hosts file",
+      "evidence": "Run after clean reboot on 2026-05-17: youtube.com resolved to 127.0.0.1 confirming 0.0.0.0 custom domain entry is active"
+    },
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 bash phone_focus_mode/deploy.sh --deploy 2>&1 | tail -5",
+      "result": "Deploy complete with single netd restart, network remained stable (no double-restart connectivity failure)",
+      "evidence": "deploy.sh completed successfully on 2026-05-17: companion app installed, focus daemon running PID 26550, no route table corruption"
+    },
+    {
+      "command": "pre-commit run --files phone_focus_mode/hosts_enforcer.sh phone_focus_mode/deploy.sh",
+      "result": "All hooks passed (shellcheck, codespell, etc.)",
+      "evidence": "pre-commit run on 2026-05-17 returned all Passed with zero failures on the two primary changed files"
+    }
+  ],
+  "risks": [
+    "netd restart causes ~4 second network pause on each fresh deploy — acceptable for a manual deploy workflow",
+    "If netd is restarted by something else between hosts_enforcer startup and the PID-stamp write, the stamp may capture the wrong PID and skip a needed restart on the next enforcer run",
+    "FOCUS_BOOT_AUTOSTART=0 means hosts_enforcer does not run at boot; blocking relies solely on the Magisk module (which is correct and verified, but means the enforcer netd-restart path is not exercised at boot)"
+  ],
+  "rollback": [
+    "Revert hosts_enforcer.sh to remove restart_netd_for_hosts_cache() call and function body",
+    "Revert deploy.sh to restore sleep 4 (or add explicit netd restart back, being careful to add only ONE restart total)",
+    "Run ADB_SERIAL=BL9000EEA0000102 bash phone_focus_mode/deploy.sh --deploy to redeploy previous version"
+  ]
+}

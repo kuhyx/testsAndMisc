@@ -1,0 +1,19 @@
+{
+  "title": "phone_focus_mode: fix YouTube DNS blocking via netd cache restart",
+  "objective": "Android 13's netd process caches /etc/hosts entirely in memory at startup and never re-reads from disk. The existing bind-mount approach changes the on-disk file but not the live resolver cache, so blocked domains continued to resolve. Fix: restart netd exactly once after applying the bind mount, using PID-stamp deduplication to prevent double-restarts that corrupt ConnectivityService's routing table.",
+  "acceptance_criteria": [
+    "www.youtube.com resolves to 0.0.0.0/127.0.0.1 (blocked) after deploy",
+    "youtube.com resolves to 0.0.0.0/127.0.0.1 (blocked) after deploy",
+    "google.com resolves to a real IP (network is up, not over-blocked)",
+    "Blocking persists after a clean reboot (Magisk module path verified)",
+    "deploy.sh completes without network disruption beyond the expected ~4s during single netd restart",
+    "pre-commit passes on all changed files (shellcheck, codespell, all hooks)"
+  ],
+  "out_of_scope": [
+    "Firefox UI verification",
+    "googlevideo.com CDN blocking",
+    "FOCUS_BOOT_AUTOSTART=1 boot path testing",
+    "mid-session domain addition without reboot"
+  ],
+  "verifier": "ping tests via ADB after reboot and after fresh deploy; pre-commit run on changed shell files"
+}
