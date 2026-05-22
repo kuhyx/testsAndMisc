@@ -1,0 +1,39 @@
+{
+  "intent": "Add hibernate-on-alarm-night support to the wake-alarm system: on alarm nights (Mon/Fri/Sat/Sun) the PC should hibernate with the RTC wake time set rather than powering off, so it wakes automatically for morning workouts.",
+  "scope": [
+    "python_pkg/wake_alarm/install.sh",
+    "python_pkg/wake_alarm/shutdown-wrapper.sh",
+    "python_pkg/wake_alarm/sleep-hook.sh",
+    "python_pkg/wake_alarm/wake_state.json",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
+  ],
+  "changes": [
+    "install.sh: added step 3 to install sleep-hook.sh to /usr/lib/systemd/system-sleep/wake-alarm.sh and step 5 to install shutdown-wrapper.sh to /usr/local/bin/shutdown",
+    "shutdown-wrapper.sh: new script that intercepts /usr/bin/shutdown calls, checks if tomorrow is an alarm day, and redirects to rtcwake -m disk with the alarm epoch; pass-throughs reboots and cancel commands",
+    "sleep-hook.sh: new systemd-sleep hook that restarts wake-alarm.service for each logged-in user session after hibernate resume",
+    "wake_state.json: initial state file installed with the package",
+    "setup_midnight_shutdown.sh: replaced simple systemctl poweroff with logic that checks wake-alarm day and calls rtcwake -m disk + systemctl hibernate on alarm nights"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/wake_alarm/install.sh python_pkg/wake_alarm/shutdown-wrapper.sh python_pkg/wake_alarm/sleep-hook.sh linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+      "result": "All hooks passed",
+      "evidence": "pre-commit run on 2026-05-22 returned Passed on all hooks for the four shell files"
+    },
+    {
+      "command": "bash -n python_pkg/wake_alarm/shutdown-wrapper.sh && bash -n python_pkg/wake_alarm/sleep-hook.sh",
+      "result": "No syntax errors",
+      "evidence": "bash -n syntax check passed on both new scripts on 2026-05-22"
+    }
+  ],
+  "risks": [
+    "/usr/local/bin/shutdown shadows /usr/bin/shutdown — if the wrapper script has a bug it can prevent clean shutdown; rollback by removing /usr/local/bin/shutdown",
+    "sleep-hook.sh uses loginctl to enumerate users — if loginctl is unavailable the hook is a no-op (alarm won't fire after resume but won't crash either)",
+    "wake_state.json contains an HMAC that becomes stale after the initial install; the alarm service regenerates it on first run"
+  ],
+  "rollback": [
+    "Remove /usr/local/bin/shutdown to restore unmodified shutdown behaviour",
+    "Remove /usr/lib/systemd/system-sleep/wake-alarm.sh to stop the sleep hook",
+    "Revert setup_midnight_shutdown.sh to use systemctl poweroff unconditionally"
+  ]
+}

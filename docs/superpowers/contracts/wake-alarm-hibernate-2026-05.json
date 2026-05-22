@@ -1,0 +1,17 @@
+{
+  "title": "wake_alarm + midnight-shutdown: add hibernate-on-alarm-night support",
+  "objective": "Extend the wake-alarm system so that on nights when an alarm is scheduled (Mon/Fri/Sat/Sun) the PC hibernates instead of powering off. Two new components: (1) shutdown-wrapper.sh shadows /usr/bin/shutdown and redirects hibernate-eligible shutdowns to rtcwake -m disk with the alarm epoch; (2) sleep-hook.sh is a systemd-sleep hook that restarts wake-alarm.service for every logged-in user after hibernate resume. setup_midnight_shutdown.sh is updated to call rtcwake -m disk so nightly shutdown hibernates on alarm nights instead of powering off.",
+  "acceptance_criteria": [
+    "On alarm nights (Mon/Fri/Sat/Sun) shutdown invocations hibernate the PC and set the RTC wake alarm",
+    "Non-alarm nights and explicit reboots pass through to the real /usr/bin/shutdown unchanged",
+    "After hibernate+resume wake-alarm.service is restarted for every active user session",
+    "install.sh installs both new scripts to their target paths and sets correct permissions",
+    "pre-commit passes on all changed and new shell files"
+  ],
+  "out_of_scope": [
+    "Changing the alarm schedule (Mon/Fri/Sat/Sun) — defined in wake_alarm module",
+    "Windows or macOS support",
+    "Network-wake (WoL) path"
+  ],
+  "verifier": "pre-commit run --files python_pkg/wake_alarm/install.sh python_pkg/wake_alarm/shutdown-wrapper.sh python_pkg/wake_alarm/sleep-hook.sh linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
+}
