@@ -1,0 +1,42 @@
+{
+  "intent": "Steam backlog enforcer must only prompt the user about the next game once the current assigned game is actually complete; skipped picks are ignored for 7 days.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/config.py",
+    "python_pkg/steam_backlog_enforcer/scanning.py",
+    "python_pkg/steam_backlog_enforcer/_cmd_done.py",
+    "python_pkg/steam_backlog_enforcer/tests/*"
+  ],
+  "changes": [
+    "State.skipped_until + skip_for_days + active_skipped_ids with ISO-8601 expiry pruning",
+    "pick_next_game gains optional on_select callback driving a sequential while-True picker that filters finished + active-skipped IDs",
+    "_cmd_done._prompt_keep_or_skip emits Y/n prompt; non-TTY accepts silently",
+    "_finalize_completion uses pick_next_game(on_select=_prompt_keep_or_skip)",
+    "Removed _try_reassign_shorter_game + _apply_cached_confidence_to_games + _should_reassign_candidate + _echo_reassign_decision + _evaluate_reassign_iteration and call site in cmd_done",
+    "Dropped now-unused imports (_confidence_fail_reasons, _refresh_candidate_confidence, load_hltb_count_comp_cache, _pick_next_shortest_candidate)"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/steam_backlog_enforcer/tests/ --cov=python_pkg.steam_backlog_enforcer --cov-branch",
+      "result": "pass",
+      "evidence": "622 passed; steam_backlog_enforcer modules at 100% coverage"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/steam_backlog_enforcer/_cmd_done.py python_pkg/steam_backlog_enforcer/tests/test_cmd_done_part2.py python_pkg/steam_backlog_enforcer/tests/test_main_part2.py python_pkg/steam_backlog_enforcer/tests/test_main_part3.py",
+      "result": "pass",
+      "evidence": "ruff/ruff-format/mypy/pylint/bandit/pytest-coverage all pass"
+    },
+    {
+      "command": "./run.sh (Fluffy Store 9/13 achievements)",
+      "result": "pass",
+      "evidence": "Output: 'NOT COMPLETE: 4 achievements remaining. Keep going!' — no swap prompt fired"
+    }
+  ],
+  "risks": [
+    "Loss of auto-recovery when current game's HLTB confidence is bad (was force-reassign); accepted by user request",
+    "skipped_until pruning relies on ISO parse; malformed entries are silently dropped"
+  ],
+  "rollback": [
+    "git revert the commit; deletes State.skipped_until field at runtime gracefully (default_factory dict)",
+    "Validate by running pytest and ./run.sh after revert"
+  ]
+}

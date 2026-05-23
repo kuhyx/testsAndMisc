@@ -1,0 +1,17 @@
+{
+  "title": "Steam backlog: finished-only next-pick prompt with 7-day skip",
+  "objective": "Replace silent auto-reassign-to-shorter-game with a strict finished-only workflow: only after the assigned game is complete, propose the next shortest game and let the user accept or skip (skipped games are ignored for 7 days).",
+  "acceptance_criteria": [
+    "State persists skipped_until and prunes expired entries",
+    "_finalize_completion calls pick_next_game with on_select prompt",
+    "_try_reassign_shorter_game and helpers removed from _cmd_done",
+    "Legacy cmd_pick top-N picker preserved when on_select is None",
+    "pytest + pre-commit pass; steam_backlog_enforcer coverage 100%",
+    "./run.sh on in-progress game prints 'NOT COMPLETE: N achievements remaining' with no swap prompt"
+  ],
+  "out_of_scope": [
+    "Changes to other commands (status, scan, pick, install)",
+    "Changes to HLTB cache schema"
+  ],
+  "verifier": "pytest python_pkg/steam_backlog_enforcer/tests/ --cov=python_pkg.steam_backlog_enforcer --cov-branch + pre-commit run --files <changed> + ./run.sh"
+}
