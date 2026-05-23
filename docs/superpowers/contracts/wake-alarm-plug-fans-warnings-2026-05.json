@@ -1,0 +1,17 @@
+{
+  "title": "wake_alarm: Tapo P110 plug + fan ramp + loud warnings",
+  "objective": "The weekend wake alarm must (a) turn the speaker plug on at trigger and off at dismissal, (b) ramp NCT case fans to 100% during the alarm and restore them after, and (c) never silently swallow any failure — every skipped side effect must log a WARNING with a clear reason.",
+  "acceptance_criteria": [
+    "turn_on_plug / turn_off_plug toggle the configured Tapo P110 within TAPO_TIMEOUT_SECONDS, otherwise log a warning and return.",
+    "_max_fans / _restore_fans drive NCT pwm1 to 255 and restore the saved state via sudo wake-alarm-fans.sh.",
+    "All previously silent skip paths (xset/xrandr/speaker-test/hwmon/fan script/Tapo config/kasa import) emit _logger.warning(...).",
+    "ntfy.sh integration is fully removed (no NTFY_TOPIC constant, no _send_ntfy_alert, no tests).",
+    "100% line and branch coverage maintained on python_pkg/wake_alarm."
+  ],
+  "out_of_scope": [
+    "Changes outside python_pkg/wake_alarm (other than the single python-kasa entry in meta/requirements.txt).",
+    "python_pkg/steam_backlog_enforcer/scanning.py (unrelated WIP, deferred to a separate commit).",
+    "Hardware different from this host (NCT6799 + Tapo P110); other hosts will simply log warnings and skip."
+  ],
+  "verifier": "pre-commit run --files python_pkg/wake_alarm/...  (ruff, mypy, pylint, bandit, pytest with --cov-fail-under=100 on the package)"
+}

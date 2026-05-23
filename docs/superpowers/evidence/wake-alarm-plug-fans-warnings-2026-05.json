@@ -1,0 +1,46 @@
+{
+  "intent": "Make the weekend wake alarm actually drive its peripherals (TP-Link Tapo P110 plug, NCT super-I/O case fans) and stop silently swallowing failures.",
+  "scope": [
+    "python_pkg/wake_alarm/_alarm.py",
+    "python_pkg/wake_alarm/_smart_plug.py (new)",
+    "python_pkg/wake_alarm/_constants.py",
+    "python_pkg/wake_alarm/install.sh",
+    "python_pkg/wake_alarm/wake-alarm-fans.sh (new)",
+    "python_pkg/wake_alarm/wake-alarm.service",
+    "python_pkg/wake_alarm/tests/* (+test_smart_plug.py)",
+    "meta/requirements.txt"
+  ],
+  "changes": [
+    "Add python-kasa-backed smart-plug module (_smart_plug.py) with bounded asyncio.wait_for timeout; turn_on_plug/turn_off_plug wired into the alarm side-effect sequence.",
+    "Remove ntfy.sh push notifications entirely (silent no-op was useless on this setup).",
+    "Replace every silent `return` / contextlib.suppress in _alarm.py and _smart_plug.py with explicit _logger.warning() so missing xset/xrandr/speaker-test/hwmon/fan script/Tapo config all log a visible reason.",
+    "Fan ramp now invokes /usr/local/bin/wake-alarm-fans.sh via /usr/bin/sudo -n (sudoers NOPASSWD entry installed by install.sh step 6); previously the script ran without sudo and failed on pwm1_enable.",
+    "Extract _play_tone_on_sink helper to avoid ruff PERF203 from try/except inside a loop.",
+    "wake-alarm.service: Restart=on-failure with 10s backoff."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/wake_alarm/_alarm.py python_pkg/wake_alarm/_constants.py python_pkg/wake_alarm/_smart_plug.py python_pkg/wake_alarm/tests/test_alarm.py python_pkg/wake_alarm/tests/test_alarm_part2.py python_pkg/wake_alarm/tests/test_smart_plug.py",
+      "result": "pass",
+      "evidence": "All hooks passed (ruff, ruff format, mypy, pylint, bandit, codespell, secrets, pytest coverage)."
+    },
+    {
+      "command": "python -m pytest python_pkg/wake_alarm/tests/ --cov=python_pkg.wake_alarm --cov-branch",
+      "result": "pass",
+      "evidence": "114 passed; 100% line and branch coverage on _alarm.py, _constants.py, _smart_plug.py, _state.py."
+    },
+    {
+      "command": "python -c 'from python_pkg.wake_alarm._alarm import _max_fans, _restore_fans; s=_max_fans(); print(s); _restore_fans(s)'",
+      "result": "pass",
+      "evidence": "state=('/sys/class/hwmon/hwmon6','0','255'); restore returned cleanly with no warnings."
+    }
+  ],
+  "risks": [
+    "Tapo control depends on python-kasa availability on the target host; module logs a warning and no-ops if missing or if ~/.config/wake_alarm/tapo.json is absent.",
+    "Fan ramp depends on /etc/sudoers.d/wake-alarm and /usr/local/bin/wake-alarm-fans.sh being installed; install.sh now provisions both, otherwise alarm logs a warning and skips."
+  ],
+  "rollback": [
+    "git revert the commit; the systemd user service auto-restarts and previous behaviour (ntfy stub, silent skips) returns.",
+    "Optional: `sudo rm /usr/local/bin/wake-alarm-fans.sh /etc/sudoers.d/wake-alarm` to undo install.sh step 6."
+  ]
+}
