@@ -1,0 +1,41 @@
+{
+  "intent": "User reported the dismiss UI did not accept typing, the alarm audio was barely audible, and the fans did not seem to work. Make the alarm typeable, loud, and ramp every connected PWM fan.",
+  "scope": [
+    "python_pkg/wake_alarm/_alarm.py",
+    "python_pkg/wake_alarm/tests/test_alarm.py",
+    "python_pkg/wake_alarm/tests/test_alarm_part2.py",
+    "python_pkg/wake_alarm/wake-alarm-fans.sh"
+  ],
+  "changes": [
+    "Removed overrideredirect(True) from WakeAlarm.__init__; X11 was preventing the Entry from receiving focus. -fullscreen + -topmost still take over the screen.",
+    "Added _max_sink_volume() / _restore_sink_volume() and wired them into WakeAlarm.__init__ + _close + _close_and_schedule_fallback so the default sink is unmuted and pushed to 100% during the alarm and restored on dismiss.",
+    "Bumped _TONE_DURATION_SECONDS (0.8 -> 1.5), _TONE_AMPLITUDE (30000 -> 32760), added _PCSPKR_REPEATS=3 with 0.12s gap.",
+    "wake-alarm-fans.sh now iterates pwm[0-9], saves per-channel state to /run/wake-alarm-fans.state, restore() reads back without CLI args.",
+    "Added TestMaxSinkVolume + TestRestoreSinkVolume; updated demo/production fullscreen tests to assert -fullscreen attribute instead of overrideredirect call."
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/wake_alarm/ --cov=python_pkg.wake_alarm --cov-branch -q",
+      "result": "pass",
+      "evidence": "140 passed in 2.70s; python_pkg/wake_alarm/_alarm.py 409/409 stmts, 86/86 branches, 100% coverage."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/wake_alarm/_alarm.py python_pkg/wake_alarm/tests/test_alarm.py python_pkg/wake_alarm/tests/test_alarm_part2.py",
+      "result": "pass",
+      "evidence": "All hooks Passed (ruff, ruff-format, mypy, pylint, bandit, pytest+cov, codespell, shellcheck, secret scanners)."
+    },
+    {
+      "command": "timeout 15 python -m python_pkg.wake_alarm._alarm --trigger-now --demo",
+      "result": "partial",
+      "evidence": "Process ran 15s, ALARM TRIGGERED logged, fan2 ramped 925 -> 1849 RPM. Visual fullscreen + keyboard input confirmed by user feedback in follow-up turn."
+    }
+  ],
+  "risks": [
+    "If pactl returns an unusual volume format, the percent-token parser falls back to 100% restore — could overshoot pre-alarm volume. Mitigated by capturing the original numeric percent when present and explicit unit-tested fallback.",
+    "Removing overrideredirect lets the WM see the window; on tiling WMs with strict rules this could let the user alt-tab away. Acceptable trade for keyboard focus."
+  ],
+  "rollback": [
+    "git revert <this commit>",
+    "Re-run `pre-commit run --files python_pkg/wake_alarm/_alarm.py python_pkg/wake_alarm/tests/test_alarm.py python_pkg/wake_alarm/tests/test_alarm_part2.py python_pkg/wake_alarm/wake-alarm-fans.sh`"
+  ]
+}

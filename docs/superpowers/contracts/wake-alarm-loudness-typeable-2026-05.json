@@ -1,0 +1,18 @@
+{
+  "title": "wake_alarm: louder default-sink boost + typeable dismiss UI + multi-fan ramp",
+  "objective": "Make the wake alarm actually wake the user: the dismiss UI must accept keyboard input, the alarm tone must be as loud as the user's active audio sink allows, and every connected PWM fan channel must spin up — not just pwm1.",
+  "acceptance_criteria": [
+    "Dismiss code Entry receives keyboard focus on a fullscreen X11 window (overrideredirect removed).",
+    "Default PulseAudio/PipeWire sink is unmuted and forced to 100% at alarm start and restored to pre-alarm volume + mute state on dismiss.",
+    "PC-speaker beeps 3x per cycle at 1.5s each at near-S16-max amplitude.",
+    "wake-alarm-fans.sh ramps every NCT pwm[1-9] channel and restores per-channel pre-alarm state.",
+    "100% branch coverage on python_pkg/wake_alarm/.",
+    "All pre-commit hooks pass on the staged files."
+  ],
+  "out_of_scope": [
+    "phone_focus_mode/* (unrelated working-tree changes left unstaged).",
+    "wake_state.json runtime artifact.",
+    "Hardware: only fan2 is physically connected — cannot make absent fans noisy."
+  ],
+  "verifier": "pre-commit run --files python_pkg/wake_alarm/_alarm.py python_pkg/wake_alarm/tests/test_alarm.py python_pkg/wake_alarm/tests/test_alarm_part2.py python_pkg/wake_alarm/wake-alarm-fans.sh"
+}
