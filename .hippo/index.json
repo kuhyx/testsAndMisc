@@ -1,0 +1,2398 @@
+{
+  "version": 3,
+  "entries": {
+    "mem_c50df7731c01": {
+      "id": "mem_c50df7731c01",
+      "file": "episodic/mem_c50df7731c01.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.195Z",
+      "last_retrieved": "2026-05-24T15:54:45.195Z",
+      "pinned": false
+    },
+    "mem_85a99db3644f": {
+      "id": "mem_85a99db3644f",
+      "file": "episodic/mem_85a99db3644f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.200Z",
+      "last_retrieved": "2026-05-24T15:54:45.200Z",
+      "pinned": false
+    },
+    "mem_fe1d26fbc522": {
+      "id": "mem_fe1d26fbc522",
+      "file": "episodic/mem_fe1d26fbc522.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.207Z",
+      "last_retrieved": "2026-05-24T15:54:45.207Z",
+      "pinned": false
+    },
+    "mem_e3ae95c268c3": {
+      "id": "mem_e3ae95c268c3",
+      "file": "episodic/mem_e3ae95c268c3.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.212Z",
+      "last_retrieved": "2026-05-24T15:54:45.212Z",
+      "pinned": false
+    },
+    "mem_9a84702940a5": {
+      "id": "mem_9a84702940a5",
+      "file": "episodic/mem_9a84702940a5.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.216Z",
+      "last_retrieved": "2026-05-24T15:54:45.216Z",
+      "pinned": false
+    },
+    "mem_386f50ead43a": {
+      "id": "mem_386f50ead43a",
+      "file": "episodic/mem_386f50ead43a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.221Z",
+      "last_retrieved": "2026-05-24T15:54:45.221Z",
+      "pinned": false
+    },
+    "mem_8a9adce10999": {
+      "id": "mem_8a9adce10999",
+      "file": "episodic/mem_8a9adce10999.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.227Z",
+      "last_retrieved": "2026-05-24T15:54:45.227Z",
+      "pinned": false
+    },
+    "mem_7ac404671ea8": {
+      "id": "mem_7ac404671ea8",
+      "file": "episodic/mem_7ac404671ea8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.232Z",
+      "last_retrieved": "2026-05-24T15:54:45.232Z",
+      "pinned": false
+    },
+    "mem_6794b9502e26": {
+      "id": "mem_6794b9502e26",
+      "file": "episodic/mem_6794b9502e26.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.237Z",
+      "last_retrieved": "2026-05-24T15:54:45.237Z",
+      "pinned": false
+    },
+    "mem_519ad4c0e0bf": {
+      "id": "mem_519ad4c0e0bf",
+      "file": "episodic/mem_519ad4c0e0bf.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.241Z",
+      "last_retrieved": "2026-05-24T15:54:45.241Z",
+      "pinned": false
+    },
+    "mem_c357eeedf831": {
+      "id": "mem_c357eeedf831",
+      "file": "episodic/mem_c357eeedf831.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.248Z",
+      "last_retrieved": "2026-05-24T15:54:45.248Z",
+      "pinned": false
+    },
+    "mem_e373d2fec1d2": {
+      "id": "mem_e373d2fec1d2",
+      "file": "episodic/mem_e373d2fec1d2.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.253Z",
+      "last_retrieved": "2026-05-24T15:54:45.253Z",
+      "pinned": false
+    },
+    "mem_29608be2f198": {
+      "id": "mem_29608be2f198",
+      "file": "episodic/mem_29608be2f198.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.262Z",
+      "last_retrieved": "2026-05-24T15:54:45.262Z",
+      "pinned": false
+    },
+    "mem_15e2fe11e995": {
+      "id": "mem_15e2fe11e995",
+      "file": "episodic/mem_15e2fe11e995.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.267Z",
+      "last_retrieved": "2026-05-24T15:54:45.267Z",
+      "pinned": false
+    },
+    "mem_4ac1ad32d88d": {
+      "id": "mem_4ac1ad32d88d",
+      "file": "episodic/mem_4ac1ad32d88d.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.272Z",
+      "last_retrieved": "2026-05-24T15:54:45.272Z",
+      "pinned": false
+    },
+    "mem_f4b5cf43e0a4": {
+      "id": "mem_f4b5cf43e0a4",
+      "file": "episodic/mem_f4b5cf43e0a4.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.277Z",
+      "last_retrieved": "2026-05-24T15:54:45.277Z",
+      "pinned": false
+    },
+    "mem_e18c04fac779": {
+      "id": "mem_e18c04fac779",
+      "file": "episodic/mem_e18c04fac779.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.282Z",
+      "last_retrieved": "2026-05-24T15:54:45.282Z",
+      "pinned": false
+    },
+    "mem_351aa609d2b2": {
+      "id": "mem_351aa609d2b2",
+      "file": "episodic/mem_351aa609d2b2.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.287Z",
+      "last_retrieved": "2026-05-24T15:54:45.287Z",
+      "pinned": false
+    },
+    "mem_c9811080a3b4": {
+      "id": "mem_c9811080a3b4",
+      "file": "episodic/mem_c9811080a3b4.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.292Z",
+      "last_retrieved": "2026-05-24T15:54:45.292Z",
+      "pinned": false
+    },
+    "mem_cbbba1c2fe97": {
+      "id": "mem_cbbba1c2fe97",
+      "file": "episodic/mem_cbbba1c2fe97.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.296Z",
+      "last_retrieved": "2026-05-24T15:54:45.296Z",
+      "pinned": false
+    },
+    "mem_5794f474a352": {
+      "id": "mem_5794f474a352",
+      "file": "episodic/mem_5794f474a352.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.301Z",
+      "last_retrieved": "2026-05-24T15:54:45.301Z",
+      "pinned": false
+    },
+    "mem_a7eddc02cb8b": {
+      "id": "mem_a7eddc02cb8b",
+      "file": "episodic/mem_a7eddc02cb8b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.306Z",
+      "last_retrieved": "2026-05-24T15:54:45.306Z",
+      "pinned": false
+    },
+    "mem_566f72615321": {
+      "id": "mem_566f72615321",
+      "file": "episodic/mem_566f72615321.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.310Z",
+      "last_retrieved": "2026-05-24T15:54:45.310Z",
+      "pinned": false
+    },
+    "mem_81f8092edc39": {
+      "id": "mem_81f8092edc39",
+      "file": "episodic/mem_81f8092edc39.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.315Z",
+      "last_retrieved": "2026-05-24T15:54:45.315Z",
+      "pinned": false
+    },
+    "mem_afcb8d6d6299": {
+      "id": "mem_afcb8d6d6299",
+      "file": "episodic/mem_afcb8d6d6299.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.320Z",
+      "last_retrieved": "2026-05-24T15:54:45.320Z",
+      "pinned": false
+    },
+    "mem_d3bcfef90b51": {
+      "id": "mem_d3bcfef90b51",
+      "file": "episodic/mem_d3bcfef90b51.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.325Z",
+      "last_retrieved": "2026-05-24T15:54:45.325Z",
+      "pinned": false
+    },
+    "mem_4a8d07398416": {
+      "id": "mem_4a8d07398416",
+      "file": "episodic/mem_4a8d07398416.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.329Z",
+      "last_retrieved": "2026-05-24T15:54:45.329Z",
+      "pinned": false
+    },
+    "mem_d73a2fcf64c0": {
+      "id": "mem_d73a2fcf64c0",
+      "file": "episodic/mem_d73a2fcf64c0.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.334Z",
+      "last_retrieved": "2026-05-24T15:54:45.334Z",
+      "pinned": false
+    },
+    "mem_9aae41c5d80a": {
+      "id": "mem_9aae41c5d80a",
+      "file": "episodic/mem_9aae41c5d80a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.339Z",
+      "last_retrieved": "2026-05-24T15:54:45.339Z",
+      "pinned": false
+    },
+    "mem_94ca602c1e22": {
+      "id": "mem_94ca602c1e22",
+      "file": "episodic/mem_94ca602c1e22.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.344Z",
+      "last_retrieved": "2026-05-24T15:54:45.344Z",
+      "pinned": false
+    },
+    "mem_d4cd69af7758": {
+      "id": "mem_d4cd69af7758",
+      "file": "episodic/mem_d4cd69af7758.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.349Z",
+      "last_retrieved": "2026-05-24T15:54:45.349Z",
+      "pinned": false
+    },
+    "mem_9ce7d77b8ace": {
+      "id": "mem_9ce7d77b8ace",
+      "file": "episodic/mem_9ce7d77b8ace.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.358Z",
+      "last_retrieved": "2026-05-24T15:54:45.358Z",
+      "pinned": false
+    },
+    "mem_e62c4e9cb045": {
+      "id": "mem_e62c4e9cb045",
+      "file": "episodic/mem_e62c4e9cb045.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.364Z",
+      "last_retrieved": "2026-05-24T15:54:45.364Z",
+      "pinned": false
+    },
+    "mem_ccf6c314f693": {
+      "id": "mem_ccf6c314f693",
+      "file": "episodic/mem_ccf6c314f693.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.370Z",
+      "last_retrieved": "2026-05-24T15:54:45.370Z",
+      "pinned": false
+    },
+    "mem_5ad4a6473566": {
+      "id": "mem_5ad4a6473566",
+      "file": "episodic/mem_5ad4a6473566.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.375Z",
+      "last_retrieved": "2026-05-24T15:54:45.375Z",
+      "pinned": false
+    },
+    "mem_acf5649b67eb": {
+      "id": "mem_acf5649b67eb",
+      "file": "episodic/mem_acf5649b67eb.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.382Z",
+      "last_retrieved": "2026-05-24T15:54:45.382Z",
+      "pinned": false
+    },
+    "mem_9423cf9911bd": {
+      "id": "mem_9423cf9911bd",
+      "file": "episodic/mem_9423cf9911bd.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.387Z",
+      "last_retrieved": "2026-05-24T15:54:45.387Z",
+      "pinned": false
+    },
+    "mem_fe84cf2b377d": {
+      "id": "mem_fe84cf2b377d",
+      "file": "episodic/mem_fe84cf2b377d.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.392Z",
+      "last_retrieved": "2026-05-24T15:54:45.392Z",
+      "pinned": false
+    },
+    "mem_4cf53b2cb419": {
+      "id": "mem_4cf53b2cb419",
+      "file": "episodic/mem_4cf53b2cb419.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.397Z",
+      "last_retrieved": "2026-05-24T15:54:45.397Z",
+      "pinned": false
+    },
+    "mem_5c0edebea511": {
+      "id": "mem_5c0edebea511",
+      "file": "episodic/mem_5c0edebea511.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.402Z",
+      "last_retrieved": "2026-05-24T15:54:45.402Z",
+      "pinned": false
+    },
+    "mem_7462341ca2c8": {
+      "id": "mem_7462341ca2c8",
+      "file": "episodic/mem_7462341ca2c8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.409Z",
+      "last_retrieved": "2026-05-24T15:54:45.409Z",
+      "pinned": false
+    },
+    "mem_290eb44638f2": {
+      "id": "mem_290eb44638f2",
+      "file": "episodic/mem_290eb44638f2.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.414Z",
+      "last_retrieved": "2026-05-24T15:54:45.414Z",
+      "pinned": false
+    },
+    "mem_3e1757f37a78": {
+      "id": "mem_3e1757f37a78",
+      "file": "episodic/mem_3e1757f37a78.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.419Z",
+      "last_retrieved": "2026-05-24T15:54:45.419Z",
+      "pinned": false
+    },
+    "mem_183dbbdd73fa": {
+      "id": "mem_183dbbdd73fa",
+      "file": "episodic/mem_183dbbdd73fa.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.427Z",
+      "last_retrieved": "2026-05-24T15:54:45.427Z",
+      "pinned": false
+    },
+    "mem_45463672994f": {
+      "id": "mem_45463672994f",
+      "file": "episodic/mem_45463672994f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.432Z",
+      "last_retrieved": "2026-05-24T15:54:45.432Z",
+      "pinned": false
+    },
+    "mem_8ef2b598dee0": {
+      "id": "mem_8ef2b598dee0",
+      "file": "episodic/mem_8ef2b598dee0.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.437Z",
+      "last_retrieved": "2026-05-24T15:54:45.437Z",
+      "pinned": false
+    },
+    "mem_b547b0c4f7cd": {
+      "id": "mem_b547b0c4f7cd",
+      "file": "episodic/mem_b547b0c4f7cd.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.442Z",
+      "last_retrieved": "2026-05-24T15:54:45.442Z",
+      "pinned": false
+    },
+    "mem_f859b287338b": {
+      "id": "mem_f859b287338b",
+      "file": "episodic/mem_f859b287338b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.447Z",
+      "last_retrieved": "2026-05-24T15:54:45.447Z",
+      "pinned": false
+    },
+    "mem_61d826d85e51": {
+      "id": "mem_61d826d85e51",
+      "file": "episodic/mem_61d826d85e51.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.452Z",
+      "last_retrieved": "2026-05-24T15:54:45.452Z",
+      "pinned": false
+    },
+    "mem_07a4f145e6ae": {
+      "id": "mem_07a4f145e6ae",
+      "file": "episodic/mem_07a4f145e6ae.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.457Z",
+      "last_retrieved": "2026-05-24T15:54:45.457Z",
+      "pinned": false
+    },
+    "mem_3cdc0e50ff89": {
+      "id": "mem_3cdc0e50ff89",
+      "file": "episodic/mem_3cdc0e50ff89.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.462Z",
+      "last_retrieved": "2026-05-24T15:54:45.462Z",
+      "pinned": false
+    },
+    "mem_2efe9d90db13": {
+      "id": "mem_2efe9d90db13",
+      "file": "episodic/mem_2efe9d90db13.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.467Z",
+      "last_retrieved": "2026-05-24T15:54:45.467Z",
+      "pinned": false
+    },
+    "mem_2fde60450260": {
+      "id": "mem_2fde60450260",
+      "file": "episodic/mem_2fde60450260.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.473Z",
+      "last_retrieved": "2026-05-24T15:54:45.473Z",
+      "pinned": false
+    },
+    "mem_122ef7bf313c": {
+      "id": "mem_122ef7bf313c",
+      "file": "episodic/mem_122ef7bf313c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.478Z",
+      "last_retrieved": "2026-05-24T15:54:45.478Z",
+      "pinned": false
+    },
+    "mem_dd2d61dbe53b": {
+      "id": "mem_dd2d61dbe53b",
+      "file": "episodic/mem_dd2d61dbe53b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.483Z",
+      "last_retrieved": "2026-05-24T15:54:45.483Z",
+      "pinned": false
+    },
+    "mem_7f937e6c9f7b": {
+      "id": "mem_7f937e6c9f7b",
+      "file": "episodic/mem_7f937e6c9f7b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.489Z",
+      "last_retrieved": "2026-05-24T15:54:45.489Z",
+      "pinned": false
+    },
+    "mem_163795a79c49": {
+      "id": "mem_163795a79c49",
+      "file": "episodic/mem_163795a79c49.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.494Z",
+      "last_retrieved": "2026-05-24T15:54:45.494Z",
+      "pinned": false
+    },
+    "mem_f817a4edb4b2": {
+      "id": "mem_f817a4edb4b2",
+      "file": "episodic/mem_f817a4edb4b2.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.503Z",
+      "last_retrieved": "2026-05-24T15:54:45.503Z",
+      "pinned": false
+    },
+    "mem_fc4aef50ed3e": {
+      "id": "mem_fc4aef50ed3e",
+      "file": "episodic/mem_fc4aef50ed3e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.508Z",
+      "last_retrieved": "2026-05-24T15:54:45.508Z",
+      "pinned": false
+    },
+    "mem_4c410f569e6c": {
+      "id": "mem_4c410f569e6c",
+      "file": "episodic/mem_4c410f569e6c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.514Z",
+      "last_retrieved": "2026-05-24T15:54:45.514Z",
+      "pinned": false
+    },
+    "mem_2d7459650787": {
+      "id": "mem_2d7459650787",
+      "file": "episodic/mem_2d7459650787.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.519Z",
+      "last_retrieved": "2026-05-24T15:54:45.519Z",
+      "pinned": false
+    },
+    "mem_82fd7d58478a": {
+      "id": "mem_82fd7d58478a",
+      "file": "episodic/mem_82fd7d58478a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.531Z",
+      "last_retrieved": "2026-05-24T15:54:45.531Z",
+      "pinned": false
+    },
+    "mem_6e5cacaf9914": {
+      "id": "mem_6e5cacaf9914",
+      "file": "episodic/mem_6e5cacaf9914.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.540Z",
+      "last_retrieved": "2026-05-24T15:54:45.540Z",
+      "pinned": false
+    },
+    "mem_062572981e0a": {
+      "id": "mem_062572981e0a",
+      "file": "episodic/mem_062572981e0a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.549Z",
+      "last_retrieved": "2026-05-24T15:54:45.549Z",
+      "pinned": false
+    },
+    "mem_0413132ca050": {
+      "id": "mem_0413132ca050",
+      "file": "episodic/mem_0413132ca050.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.556Z",
+      "last_retrieved": "2026-05-24T15:54:45.556Z",
+      "pinned": false
+    },
+    "mem_276a8bc7b85f": {
+      "id": "mem_276a8bc7b85f",
+      "file": "episodic/mem_276a8bc7b85f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.570Z",
+      "last_retrieved": "2026-05-24T15:54:45.570Z",
+      "pinned": false
+    },
+    "mem_f4921cadfac8": {
+      "id": "mem_f4921cadfac8",
+      "file": "episodic/mem_f4921cadfac8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.575Z",
+      "last_retrieved": "2026-05-24T15:54:45.575Z",
+      "pinned": false
+    },
+    "mem_dbdf3d3b4a55": {
+      "id": "mem_dbdf3d3b4a55",
+      "file": "episodic/mem_dbdf3d3b4a55.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.595Z",
+      "last_retrieved": "2026-05-24T15:54:45.595Z",
+      "pinned": false
+    },
+    "mem_f3bbff923c7b": {
+      "id": "mem_f3bbff923c7b",
+      "file": "episodic/mem_f3bbff923c7b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.600Z",
+      "last_retrieved": "2026-05-24T15:54:45.600Z",
+      "pinned": false
+    },
+    "mem_fbe20e5a7b54": {
+      "id": "mem_fbe20e5a7b54",
+      "file": "episodic/mem_fbe20e5a7b54.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.606Z",
+      "last_retrieved": "2026-05-24T15:54:45.606Z",
+      "pinned": false
+    },
+    "mem_b4a4aad1f75c": {
+      "id": "mem_b4a4aad1f75c",
+      "file": "episodic/mem_b4a4aad1f75c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.612Z",
+      "last_retrieved": "2026-05-24T15:54:45.612Z",
+      "pinned": false
+    },
+    "mem_d14b15ee9f3e": {
+      "id": "mem_d14b15ee9f3e",
+      "file": "episodic/mem_d14b15ee9f3e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.618Z",
+      "last_retrieved": "2026-05-24T15:54:45.618Z",
+      "pinned": false
+    },
+    "mem_311d12899318": {
+      "id": "mem_311d12899318",
+      "file": "episodic/mem_311d12899318.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.623Z",
+      "last_retrieved": "2026-05-24T15:54:45.623Z",
+      "pinned": false
+    },
+    "mem_355c3898b68c": {
+      "id": "mem_355c3898b68c",
+      "file": "episodic/mem_355c3898b68c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.629Z",
+      "last_retrieved": "2026-05-24T15:54:45.629Z",
+      "pinned": false
+    },
+    "mem_176b47f44766": {
+      "id": "mem_176b47f44766",
+      "file": "episodic/mem_176b47f44766.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.634Z",
+      "last_retrieved": "2026-05-24T15:54:45.634Z",
+      "pinned": false
+    },
+    "mem_21934645dbcd": {
+      "id": "mem_21934645dbcd",
+      "file": "episodic/mem_21934645dbcd.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.639Z",
+      "last_retrieved": "2026-05-24T15:54:45.639Z",
+      "pinned": false
+    },
+    "mem_cfe7438b1e5e": {
+      "id": "mem_cfe7438b1e5e",
+      "file": "episodic/mem_cfe7438b1e5e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.644Z",
+      "last_retrieved": "2026-05-24T15:54:45.644Z",
+      "pinned": false
+    },
+    "mem_66c9a57b2566": {
+      "id": "mem_66c9a57b2566",
+      "file": "episodic/mem_66c9a57b2566.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.649Z",
+      "last_retrieved": "2026-05-24T15:54:45.649Z",
+      "pinned": false
+    },
+    "mem_36d35775f563": {
+      "id": "mem_36d35775f563",
+      "file": "episodic/mem_36d35775f563.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.654Z",
+      "last_retrieved": "2026-05-24T15:54:45.654Z",
+      "pinned": false
+    },
+    "mem_313d9df77fd0": {
+      "id": "mem_313d9df77fd0",
+      "file": "episodic/mem_313d9df77fd0.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.660Z",
+      "last_retrieved": "2026-05-24T15:54:45.660Z",
+      "pinned": false
+    },
+    "mem_beb3d0080083": {
+      "id": "mem_beb3d0080083",
+      "file": "episodic/mem_beb3d0080083.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.665Z",
+      "last_retrieved": "2026-05-24T15:54:45.665Z",
+      "pinned": false
+    },
+    "mem_efa29807475a": {
+      "id": "mem_efa29807475a",
+      "file": "episodic/mem_efa29807475a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.670Z",
+      "last_retrieved": "2026-05-24T15:54:45.670Z",
+      "pinned": false
+    },
+    "mem_48f0a45cdd7a": {
+      "id": "mem_48f0a45cdd7a",
+      "file": "episodic/mem_48f0a45cdd7a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.677Z",
+      "last_retrieved": "2026-05-24T15:54:45.677Z",
+      "pinned": false
+    },
+    "mem_d8cc342b104b": {
+      "id": "mem_d8cc342b104b",
+      "file": "episodic/mem_d8cc342b104b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.683Z",
+      "last_retrieved": "2026-05-24T15:54:45.683Z",
+      "pinned": false
+    },
+    "mem_125c8ece53df": {
+      "id": "mem_125c8ece53df",
+      "file": "episodic/mem_125c8ece53df.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.688Z",
+      "last_retrieved": "2026-05-24T15:54:45.688Z",
+      "pinned": false
+    },
+    "mem_fd0a201d4485": {
+      "id": "mem_fd0a201d4485",
+      "file": "episodic/mem_fd0a201d4485.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.693Z",
+      "last_retrieved": "2026-05-24T15:54:45.693Z",
+      "pinned": false
+    },
+    "mem_9965f1178426": {
+      "id": "mem_9965f1178426",
+      "file": "episodic/mem_9965f1178426.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.698Z",
+      "last_retrieved": "2026-05-24T15:54:45.698Z",
+      "pinned": false
+    },
+    "mem_a29196c1ed40": {
+      "id": "mem_a29196c1ed40",
+      "file": "episodic/mem_a29196c1ed40.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.703Z",
+      "last_retrieved": "2026-05-24T15:54:45.703Z",
+      "pinned": false
+    },
+    "mem_f04107f095c3": {
+      "id": "mem_f04107f095c3",
+      "file": "episodic/mem_f04107f095c3.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.708Z",
+      "last_retrieved": "2026-05-24T15:54:45.708Z",
+      "pinned": false
+    },
+    "mem_1bd873a35f09": {
+      "id": "mem_1bd873a35f09",
+      "file": "episodic/mem_1bd873a35f09.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.714Z",
+      "last_retrieved": "2026-05-24T15:54:45.714Z",
+      "pinned": false
+    },
+    "mem_c7dd08084799": {
+      "id": "mem_c7dd08084799",
+      "file": "episodic/mem_c7dd08084799.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.719Z",
+      "last_retrieved": "2026-05-24T15:54:45.719Z",
+      "pinned": false
+    },
+    "mem_d6c519c522b9": {
+      "id": "mem_d6c519c522b9",
+      "file": "episodic/mem_d6c519c522b9.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.724Z",
+      "last_retrieved": "2026-05-24T15:54:45.724Z",
+      "pinned": false
+    },
+    "mem_8d8553257de5": {
+      "id": "mem_8d8553257de5",
+      "file": "episodic/mem_8d8553257de5.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.729Z",
+      "last_retrieved": "2026-05-24T15:54:45.729Z",
+      "pinned": false
+    },
+    "mem_7a9bea5abbca": {
+      "id": "mem_7a9bea5abbca",
+      "file": "episodic/mem_7a9bea5abbca.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.738Z",
+      "last_retrieved": "2026-05-24T15:54:45.738Z",
+      "pinned": false
+    },
+    "mem_f5ef378d120d": {
+      "id": "mem_f5ef378d120d",
+      "file": "episodic/mem_f5ef378d120d.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.746Z",
+      "last_retrieved": "2026-05-24T15:54:45.746Z",
+      "pinned": false
+    },
+    "mem_f8ea07378557": {
+      "id": "mem_f8ea07378557",
+      "file": "episodic/mem_f8ea07378557.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.752Z",
+      "last_retrieved": "2026-05-24T15:54:45.752Z",
+      "pinned": false
+    },
+    "mem_0c7b164718b6": {
+      "id": "mem_0c7b164718b6",
+      "file": "episodic/mem_0c7b164718b6.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.757Z",
+      "last_retrieved": "2026-05-24T15:54:45.757Z",
+      "pinned": false
+    },
+    "mem_77319db9c2ad": {
+      "id": "mem_77319db9c2ad",
+      "file": "episodic/mem_77319db9c2ad.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.762Z",
+      "last_retrieved": "2026-05-24T15:54:45.762Z",
+      "pinned": false
+    },
+    "mem_e61ae48db1a9": {
+      "id": "mem_e61ae48db1a9",
+      "file": "episodic/mem_e61ae48db1a9.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.767Z",
+      "last_retrieved": "2026-05-24T15:54:45.767Z",
+      "pinned": false
+    },
+    "mem_6caab1f1d2a5": {
+      "id": "mem_6caab1f1d2a5",
+      "file": "episodic/mem_6caab1f1d2a5.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.772Z",
+      "last_retrieved": "2026-05-24T15:54:45.772Z",
+      "pinned": false
+    },
+    "mem_009df4aeb6ab": {
+      "id": "mem_009df4aeb6ab",
+      "file": "episodic/mem_009df4aeb6ab.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.778Z",
+      "last_retrieved": "2026-05-24T15:54:45.778Z",
+      "pinned": false
+    },
+    "mem_e0339ce3ae60": {
+      "id": "mem_e0339ce3ae60",
+      "file": "episodic/mem_e0339ce3ae60.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.783Z",
+      "last_retrieved": "2026-05-24T15:54:45.783Z",
+      "pinned": false
+    },
+    "mem_65f8416d860e": {
+      "id": "mem_65f8416d860e",
+      "file": "episodic/mem_65f8416d860e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.788Z",
+      "last_retrieved": "2026-05-24T15:54:45.788Z",
+      "pinned": false
+    },
+    "mem_b6edfe136978": {
+      "id": "mem_b6edfe136978",
+      "file": "episodic/mem_b6edfe136978.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.793Z",
+      "last_retrieved": "2026-05-24T15:54:45.793Z",
+      "pinned": false
+    },
+    "mem_adc92bcc834f": {
+      "id": "mem_adc92bcc834f",
+      "file": "episodic/mem_adc92bcc834f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.802Z",
+      "last_retrieved": "2026-05-24T15:54:45.802Z",
+      "pinned": false
+    },
+    "mem_aceafa67700c": {
+      "id": "mem_aceafa67700c",
+      "file": "episodic/mem_aceafa67700c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.809Z",
+      "last_retrieved": "2026-05-24T15:54:45.809Z",
+      "pinned": false
+    },
+    "mem_2ee60f6893c5": {
+      "id": "mem_2ee60f6893c5",
+      "file": "episodic/mem_2ee60f6893c5.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.821Z",
+      "last_retrieved": "2026-05-24T15:54:45.821Z",
+      "pinned": false
+    },
+    "mem_06b392ce465c": {
+      "id": "mem_06b392ce465c",
+      "file": "episodic/mem_06b392ce465c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.828Z",
+      "last_retrieved": "2026-05-24T15:54:45.828Z",
+      "pinned": false
+    },
+    "mem_0e9160971654": {
+      "id": "mem_0e9160971654",
+      "file": "episodic/mem_0e9160971654.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.833Z",
+      "last_retrieved": "2026-05-24T15:54:45.833Z",
+      "pinned": false
+    },
+    "mem_094898025890": {
+      "id": "mem_094898025890",
+      "file": "episodic/mem_094898025890.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.839Z",
+      "last_retrieved": "2026-05-24T15:54:45.839Z",
+      "pinned": false
+    },
+    "mem_b1701e3ac2fe": {
+      "id": "mem_b1701e3ac2fe",
+      "file": "episodic/mem_b1701e3ac2fe.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc",
+        "invalidated"
+      ],
+      "created": "2026-05-24T15:54:45.846Z",
+      "last_retrieved": "2026-05-24T15:54:45.846Z",
+      "pinned": false
+    },
+    "mem_491424bb7489": {
+      "id": "mem_491424bb7489",
+      "file": "episodic/mem_491424bb7489.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.864Z",
+      "last_retrieved": "2026-05-24T15:54:45.864Z",
+      "pinned": false
+    },
+    "mem_a6acf0846fc0": {
+      "id": "mem_a6acf0846fc0",
+      "file": "episodic/mem_a6acf0846fc0.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.871Z",
+      "last_retrieved": "2026-05-24T15:54:45.871Z",
+      "pinned": false
+    },
+    "mem_df286fa21d5e": {
+      "id": "mem_df286fa21d5e",
+      "file": "episodic/mem_df286fa21d5e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.877Z",
+      "last_retrieved": "2026-05-24T15:54:45.877Z",
+      "pinned": false
+    },
+    "mem_e4b47ab7bd88": {
+      "id": "mem_e4b47ab7bd88",
+      "file": "episodic/mem_e4b47ab7bd88.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.884Z",
+      "last_retrieved": "2026-05-24T15:54:45.884Z",
+      "pinned": false
+    },
+    "mem_b3538d23aa67": {
+      "id": "mem_b3538d23aa67",
+      "file": "episodic/mem_b3538d23aa67.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.889Z",
+      "last_retrieved": "2026-05-24T15:54:45.889Z",
+      "pinned": false
+    },
+    "mem_152270bcab1b": {
+      "id": "mem_152270bcab1b",
+      "file": "episodic/mem_152270bcab1b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.896Z",
+      "last_retrieved": "2026-05-24T15:54:45.896Z",
+      "pinned": false
+    },
+    "mem_2e2fdd49bee8": {
+      "id": "mem_2e2fdd49bee8",
+      "file": "episodic/mem_2e2fdd49bee8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.902Z",
+      "last_retrieved": "2026-05-24T15:54:45.902Z",
+      "pinned": false
+    },
+    "mem_474f947d185f": {
+      "id": "mem_474f947d185f",
+      "file": "episodic/mem_474f947d185f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.908Z",
+      "last_retrieved": "2026-05-24T15:54:45.908Z",
+      "pinned": false
+    },
+    "mem_b80fe626086f": {
+      "id": "mem_b80fe626086f",
+      "file": "episodic/mem_b80fe626086f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.913Z",
+      "last_retrieved": "2026-05-24T15:54:45.913Z",
+      "pinned": false
+    },
+    "mem_4b35781b8b40": {
+      "id": "mem_4b35781b8b40",
+      "file": "episodic/mem_4b35781b8b40.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.919Z",
+      "last_retrieved": "2026-05-24T15:54:45.919Z",
+      "pinned": false
+    },
+    "mem_6ed35cd6ed73": {
+      "id": "mem_6ed35cd6ed73",
+      "file": "episodic/mem_6ed35cd6ed73.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.924Z",
+      "last_retrieved": "2026-05-24T15:54:45.924Z",
+      "pinned": false
+    },
+    "mem_0fb17ba64df0": {
+      "id": "mem_0fb17ba64df0",
+      "file": "episodic/mem_0fb17ba64df0.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.930Z",
+      "last_retrieved": "2026-05-24T15:54:45.930Z",
+      "pinned": false
+    },
+    "mem_4cebe62eacca": {
+      "id": "mem_4cebe62eacca",
+      "file": "episodic/mem_4cebe62eacca.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.935Z",
+      "last_retrieved": "2026-05-24T15:54:45.935Z",
+      "pinned": false
+    },
+    "mem_e6307470a76c": {
+      "id": "mem_e6307470a76c",
+      "file": "episodic/mem_e6307470a76c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.941Z",
+      "last_retrieved": "2026-05-24T15:54:45.941Z",
+      "pinned": false
+    },
+    "mem_ffb85cfe912d": {
+      "id": "mem_ffb85cfe912d",
+      "file": "episodic/mem_ffb85cfe912d.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.946Z",
+      "last_retrieved": "2026-05-24T15:54:45.946Z",
+      "pinned": false
+    },
+    "mem_e63aa20247a8": {
+      "id": "mem_e63aa20247a8",
+      "file": "episodic/mem_e63aa20247a8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.953Z",
+      "last_retrieved": "2026-05-24T15:54:45.953Z",
+      "pinned": false
+    },
+    "mem_8c98f0a8e556": {
+      "id": "mem_8c98f0a8e556",
+      "file": "episodic/mem_8c98f0a8e556.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.958Z",
+      "last_retrieved": "2026-05-24T15:54:45.958Z",
+      "pinned": false
+    },
+    "mem_e2c5b2077e71": {
+      "id": "mem_e2c5b2077e71",
+      "file": "episodic/mem_e2c5b2077e71.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.963Z",
+      "last_retrieved": "2026-05-24T15:54:45.963Z",
+      "pinned": false
+    },
+    "mem_a13fdeca95ec": {
+      "id": "mem_a13fdeca95ec",
+      "file": "episodic/mem_a13fdeca95ec.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.969Z",
+      "last_retrieved": "2026-05-24T15:54:45.969Z",
+      "pinned": false
+    },
+    "mem_b6d23f65aa78": {
+      "id": "mem_b6d23f65aa78",
+      "file": "episodic/mem_b6d23f65aa78.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.975Z",
+      "last_retrieved": "2026-05-24T15:54:45.975Z",
+      "pinned": false
+    },
+    "mem_fc6d97a7e2af": {
+      "id": "mem_fc6d97a7e2af",
+      "file": "episodic/mem_fc6d97a7e2af.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:45.981Z",
+      "last_retrieved": "2026-05-24T15:54:45.981Z",
+      "pinned": false
+    },
+    "mem_3b8b4ef3a1f0": {
+      "id": "mem_3b8b4ef3a1f0",
+      "file": "episodic/mem_3b8b4ef3a1f0.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.011Z",
+      "last_retrieved": "2026-05-24T15:54:46.011Z",
+      "pinned": false
+    },
+    "mem_16713f31cf04": {
+      "id": "mem_16713f31cf04",
+      "file": "episodic/mem_16713f31cf04.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.017Z",
+      "last_retrieved": "2026-05-24T15:54:46.017Z",
+      "pinned": false
+    },
+    "mem_996c1a178819": {
+      "id": "mem_996c1a178819",
+      "file": "episodic/mem_996c1a178819.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.022Z",
+      "last_retrieved": "2026-05-24T15:54:46.022Z",
+      "pinned": false
+    },
+    "mem_8cc01c7e2dcc": {
+      "id": "mem_8cc01c7e2dcc",
+      "file": "episodic/mem_8cc01c7e2dcc.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.028Z",
+      "last_retrieved": "2026-05-24T15:54:46.028Z",
+      "pinned": false
+    },
+    "mem_a5b90d63fcb4": {
+      "id": "mem_a5b90d63fcb4",
+      "file": "episodic/mem_a5b90d63fcb4.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.034Z",
+      "last_retrieved": "2026-05-24T15:54:46.034Z",
+      "pinned": false
+    },
+    "mem_dabead860849": {
+      "id": "mem_dabead860849",
+      "file": "episodic/mem_dabead860849.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.039Z",
+      "last_retrieved": "2026-05-24T15:54:46.039Z",
+      "pinned": false
+    },
+    "mem_91cc225c1cb2": {
+      "id": "mem_91cc225c1cb2",
+      "file": "episodic/mem_91cc225c1cb2.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.044Z",
+      "last_retrieved": "2026-05-24T15:54:46.044Z",
+      "pinned": false
+    },
+    "mem_6f322a3e8d30": {
+      "id": "mem_6f322a3e8d30",
+      "file": "episodic/mem_6f322a3e8d30.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.050Z",
+      "last_retrieved": "2026-05-24T15:54:46.050Z",
+      "pinned": false
+    },
+    "mem_edaebb8997d6": {
+      "id": "mem_edaebb8997d6",
+      "file": "episodic/mem_edaebb8997d6.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.055Z",
+      "last_retrieved": "2026-05-24T15:54:46.055Z",
+      "pinned": false
+    },
+    "mem_dc9c88be2bfc": {
+      "id": "mem_dc9c88be2bfc",
+      "file": "episodic/mem_dc9c88be2bfc.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.061Z",
+      "last_retrieved": "2026-05-24T15:54:46.061Z",
+      "pinned": false
+    },
+    "mem_73705ae79adf": {
+      "id": "mem_73705ae79adf",
+      "file": "episodic/mem_73705ae79adf.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.066Z",
+      "last_retrieved": "2026-05-24T15:54:46.066Z",
+      "pinned": false
+    },
+    "mem_428a9dc61fc6": {
+      "id": "mem_428a9dc61fc6",
+      "file": "episodic/mem_428a9dc61fc6.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.072Z",
+      "last_retrieved": "2026-05-24T15:54:46.072Z",
+      "pinned": false
+    },
+    "mem_add4c952845a": {
+      "id": "mem_add4c952845a",
+      "file": "episodic/mem_add4c952845a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.079Z",
+      "last_retrieved": "2026-05-24T15:54:46.079Z",
+      "pinned": false
+    },
+    "mem_180b57474f00": {
+      "id": "mem_180b57474f00",
+      "file": "episodic/mem_180b57474f00.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.084Z",
+      "last_retrieved": "2026-05-24T15:54:46.084Z",
+      "pinned": false
+    },
+    "mem_694d821319c8": {
+      "id": "mem_694d821319c8",
+      "file": "episodic/mem_694d821319c8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.090Z",
+      "last_retrieved": "2026-05-24T15:54:46.090Z",
+      "pinned": false
+    },
+    "mem_25b0f0c20e0b": {
+      "id": "mem_25b0f0c20e0b",
+      "file": "episodic/mem_25b0f0c20e0b.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.095Z",
+      "last_retrieved": "2026-05-24T15:54:46.095Z",
+      "pinned": false
+    },
+    "mem_e48afad45c3a": {
+      "id": "mem_e48afad45c3a",
+      "file": "episodic/mem_e48afad45c3a.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.101Z",
+      "last_retrieved": "2026-05-24T15:54:46.101Z",
+      "pinned": false
+    },
+    "mem_ba96fb00dfb6": {
+      "id": "mem_ba96fb00dfb6",
+      "file": "episodic/mem_ba96fb00dfb6.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.106Z",
+      "last_retrieved": "2026-05-24T15:54:46.106Z",
+      "pinned": false
+    },
+    "mem_8db623d273f8": {
+      "id": "mem_8db623d273f8",
+      "file": "episodic/mem_8db623d273f8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.111Z",
+      "last_retrieved": "2026-05-24T15:54:46.111Z",
+      "pinned": false
+    },
+    "mem_e97e13c852c9": {
+      "id": "mem_e97e13c852c9",
+      "file": "episodic/mem_e97e13c852c9.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.116Z",
+      "last_retrieved": "2026-05-24T15:54:46.116Z",
+      "pinned": false
+    },
+    "mem_11b2ad453301": {
+      "id": "mem_11b2ad453301",
+      "file": "episodic/mem_11b2ad453301.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.122Z",
+      "last_retrieved": "2026-05-24T15:54:46.122Z",
+      "pinned": false
+    },
+    "mem_556eb425128f": {
+      "id": "mem_556eb425128f",
+      "file": "episodic/mem_556eb425128f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.127Z",
+      "last_retrieved": "2026-05-24T15:54:46.127Z",
+      "pinned": false
+    },
+    "mem_61e56d305961": {
+      "id": "mem_61e56d305961",
+      "file": "episodic/mem_61e56d305961.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.132Z",
+      "last_retrieved": "2026-05-24T15:54:46.132Z",
+      "pinned": false
+    },
+    "mem_249e5bc0d8e3": {
+      "id": "mem_249e5bc0d8e3",
+      "file": "episodic/mem_249e5bc0d8e3.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.139Z",
+      "last_retrieved": "2026-05-24T15:54:46.139Z",
+      "pinned": false
+    },
+    "mem_0b9ae633642c": {
+      "id": "mem_0b9ae633642c",
+      "file": "episodic/mem_0b9ae633642c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.144Z",
+      "last_retrieved": "2026-05-24T15:54:46.144Z",
+      "pinned": false
+    },
+    "mem_e3dbf69ce9df": {
+      "id": "mem_e3dbf69ce9df",
+      "file": "episodic/mem_e3dbf69ce9df.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:kuhy",
+        "path:testsandmisc"
+      ],
+      "created": "2026-05-24T15:54:46.150Z",
+      "last_retrieved": "2026-05-24T15:54:46.150Z",
+      "pinned": false
+    }
+  },
+  "last_retrieval_ids": []
+}
