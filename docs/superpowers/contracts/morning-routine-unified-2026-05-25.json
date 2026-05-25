@@ -1,0 +1,18 @@
+{
+  "title": "Unified morning routine: alarm + workout lock orchestrator",
+  "objective": "Replace the fragile standalone wake_alarm service with a unified orchestrator that runs alarm then workout lock sequentially, fixing the silent/missed alarm caused by missing HDMI audio activation and 30-min silent give-up. One service owns the fullscreen at a time.",
+  "acceptance_criteria": [
+    "morning-routine.service runs alarm (blocks until dismissed) then workout lock",
+    "Alarm forces G27Q HDMI card profile on and polls for sink before playing audio",
+    "Alarm persists until typeable code is entered (no more silent give-up after 30 min)",
+    "wake-alarm.service autostart disabled; sleep hook starts morning-routine.service on resume",
+    "100% branch coverage maintained for wake_alarm and morning_routine packages",
+    "All pre-commit hooks pass (ruff, mypy, pylint, bandit, shellcheck)"
+  ],
+  "out_of_scope": [
+    "Changing workout-locker.service login-time behavior",
+    "Supporting audio outputs other than G27Q HDMI",
+    "Bluetooth speaker reconnection at wake time"
+  ],
+  "verifier": "pre-commit run --files <all changed files> && systemctl --user start morning-routine.service"
+}

@@ -1,0 +1,20 @@
+[Unit]
+Description=Unified Morning Routine (wake alarm + workout lock)
+After=graphical-session.target
+
+[Service]
+Type=simple
+# Started by the systemd-sleep hook on resume (NOT auto-started at login), so
+# there is intentionally no [Install] WantedBy=graphical-session.target: the
+# alarm must only run on a real wake, never on an ordinary evening login.
+# DISPLAY/PYTHONPATH mirror workout-locker.service so Tk can open the X server;
+# the short sleep lets the resumed session export DISPLAY first.
+Environment=DISPLAY=:0
+Environment=PYTHONPATH=%h/testsAndMisc
+ExecStartPre=/bin/sleep 1
+ExecStart=/usr/bin/python -m python_pkg.morning_routine._orchestrator --with-alarm --production
+WorkingDirectory=%h/testsAndMisc
+Restart=on-failure
+RestartSec=2s
+RestartPreventExitStatus=0
+User=%u

@@ -359,3 +359,4 @@ out.txt
 phone_focus_mode/focus_status_app/build
 phone_focus_mode/focus_status_app/debug.keystore
 .worktrees
+.claude/

@@ -1,0 +1,41 @@
+{
+  "intent": "Fix silent/missed wake alarm and unify alarm + workout lock into one orchestrated morning flow.",
+  "scope": [
+    "python_pkg/wake_alarm: audio activation, persist-until-dismissed, DISPLAY env fix",
+    "python_pkg/morning_routine: new orchestrator package (alarm then lock, sequential)",
+    "phone_focus_mode/config.sh: add Revolut, mObywatel, VaultKitBypass to whitelist",
+    "Non-goal: changing workout-locker.service login-time behavior"
+  ],
+  "changes": [
+    "wake_alarm/_constants.py: add 5 ALARM_AUDIO_* constants for G27Q HDMI output",
+    "wake_alarm/_alarm.py: replace max-volume-snapshot with _activate_alarm_audio (force HDMI card profile, poll 6s for sink, set default, unmute 100%) + _restore_alarm_audio; alarm persists until code typed (_skip_earnable flag, _on_skip_window_expired); wake-alarm.service gains DISPLAY=:0 + ExecStartPre sleep 1",
+    "wake_alarm/sleep-hook.sh: on resume start morning-routine.service instead of wake-alarm.service",
+    "morning_routine/_orchestrator.py: new package; runs alarm then workout-lock as sequential blocking subprocesses; --with-alarm flag; morning-routine.service + install.sh",
+    "phone_focus_mode/config.sh: whitelist Revolut, pl.nask.mobywatel, com.kuhy.vaultkitbypass"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/wake_alarm/_alarm.py python_pkg/wake_alarm/_constants.py python_pkg/wake_alarm/sleep-hook.sh python_pkg/wake_alarm/tests/test_alarm.py python_pkg/wake_alarm/tests/test_alarm_part2.py python_pkg/wake_alarm/wake-alarm.service python_pkg/morning_routine/__init__.py python_pkg/morning_routine/_orchestrator.py python_pkg/morning_routine/morning-routine.service python_pkg/morning_routine/install.sh python_pkg/morning_routine/tests/__init__.py python_pkg/morning_routine/tests/test_orchestrator.py phone_focus_mode/config.sh",
+      "result": "pass",
+      "evidence": "All hooks pass: ruff lint+fix, ruff-format, mypy, pylint, bandit, shellcheck, no-noqa, no-polling-antipatterns, ai-evidence-contract"
+    },
+    {
+      "command": "systemctl --user start morning-routine.service",
+      "result": "pass",
+      "evidence": "Service completed cleanly: alarm self-exited (already dismissed today), then workout lock self-exited (skip earned). morning-routine.service exited 0."
+    },
+    {
+      "command": "grep morning-routine /usr/lib/systemd/system-sleep/wake-alarm.sh",
+      "result": "pass",
+      "evidence": "Installed sleep hook references morning-routine.service (not old wake-alarm.service)"
+    }
+  ],
+  "risks": [
+    "HDMI sink may not appear within 6s if monitor takes longer to wake from DPMS — alarm fires silently but still shows on screen",
+    "First real-alarm-day test is next alarm night; audio only fully verified in interactive demo run"
+  ],
+  "rollback": [
+    "systemctl --user disable morning-routine.service; systemctl --user enable wake-alarm.service",
+    "sudo cp python_pkg/wake_alarm/sleep-hook.sh.bak /usr/lib/systemd/system-sleep/wake-alarm.sh (if backup exists) or reinstall via wake_alarm/install.sh"
+  ]
+}
