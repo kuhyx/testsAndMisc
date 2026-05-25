@@ -11,15 +11,15 @@ Archived / unmaintained projects live in the sibling repository
 
 ## Repository Layout
 
-| Path                   | Description                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `python_pkg/`          | Python packages — each maintained subpackage lives here                                        |
-| `linux_configuration/` | Arch Linux setup, i3 config, system maintenance scripts                                        |
+| Path                   | Description                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `python_pkg/`          | Python packages — each maintained subpackage lives here                                       |
+| `linux_configuration/` | Arch Linux setup, i3 config, system maintenance scripts                                       |
 | `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                          |
 | `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc` |
-| `scripts/`             | Workspace-level helper scripts and pre-commit hooks (moved to `meta/scripts/`)                 |
-| `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                |
-| `third_party/`         | Vendored upstream skills/agents                                                                |
+| `scripts/`             | Workspace-level helper scripts and pre-commit hooks (moved to `meta/scripts/`)                |
+| `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                               |
+| `third_party/`         | Vendored upstream skills/agents                                                               |
 
 > **Note**: Root-level `pyproject.toml`, `requirements.txt`, `requirements.txt`, `run.sh`, and `.fvmrc`
 > are symlinks into `meta/`. Edit files there, not the symlinks.
@@ -113,6 +113,7 @@ linux_configuration/
 ```
 
 Key scripts:
+
 - `scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py` — Linux digital-wellbeing daemon
 - `scripts/periodic_background/hosts/generate_hosts_file.sh` — Generates `/etc/hosts` blocklist
 - `scripts/periodic_background/system-maintenance/bin/usage_report.py` — Daily usage report
@@ -174,23 +175,23 @@ pre-commit run --all-files --hook-stage pre-push  # Includes pytest + prettier
 
 **Active hooks (commit-stage)**:
 
-| Hook | Purpose |
-|------|---------|
-| trailing-whitespace, end-of-file-fixer, check-yaml/json/toml/xml | General formatting |
-| check-added-large-files (max 2 MB) | Prevent large files |
-| detect-private-key | Secret detection |
-| no-binaries | Block binary/image files from being committed |
-| ai-evidence-contract | Require `docs/superpowers/evidence/*.json` for code changes |
-| ai-multifile-contract | Require workflow contract for multi-file changes |
-| append-only-sessions | Enforce append-only session logs |
-| no-polling-antipatterns | Block polling script fork-storm anti-patterns |
-| no-noqa / no-ruff-noqa | Block lint suppression comments |
-| ruff (lint+fix) | Python linting |
-| ruff-format | Python formatting |
-| mypy | Python type checking |
-| pylint | Python extended linting |
-| bandit | Python security checks |
-| codespell | Spell checking |
+| Hook                                                             | Purpose                                                     |
+| ---------------------------------------------------------------- | ----------------------------------------------------------- |
+| trailing-whitespace, end-of-file-fixer, check-yaml/json/toml/xml | General formatting                                          |
+| check-added-large-files (max 2 MB)                               | Prevent large files                                         |
+| detect-private-key                                               | Secret detection                                            |
+| no-binaries                                                      | Block binary/image files from being committed               |
+| ai-evidence-contract                                             | Require `docs/superpowers/evidence/*.json` for code changes |
+| ai-multifile-contract                                            | Require workflow contract for multi-file changes            |
+| append-only-sessions                                             | Enforce append-only session logs                            |
+| no-polling-antipatterns                                          | Block polling script fork-storm anti-patterns               |
+| no-noqa / no-ruff-noqa                                           | Block lint suppression comments                             |
+| ruff (lint+fix)                                                  | Python linting                                              |
+| ruff-format                                                      | Python formatting                                           |
+| mypy                                                             | Python type checking                                        |
+| pylint                                                           | Python extended linting                                     |
+| bandit                                                           | Python security checks                                      |
+| codespell                                                        | Spell checking                                              |
 
 **Push-stage only**: `pytest-coverage` + `prettier`
 
