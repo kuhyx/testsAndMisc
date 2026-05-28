@@ -1,0 +1,30 @@
+{
+  "intent": "Add weekly check feature to screen_locker with UI flows and window setup integration.",
+  "scope": [
+    "python_pkg/screen_locker/_weekly_check.py",
+    "python_pkg/screen_locker/_ui_flows.py",
+    "python_pkg/screen_locker/_window_setup.py",
+    "python_pkg/screen_locker/screen_lock.py",
+    "python_pkg/screen_locker/tests/"
+  ],
+  "changes": [
+    "Add _weekly_check.py with weekly check logic",
+    "Update _ui_flows.py and _window_setup.py to integrate weekly check into lock UI",
+    "Update screen_lock.py main flow to invoke weekly check",
+    "Add conftest.py fixtures and test_weekly_check/test_weekly_logic test files"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "All hooks passed including ruff, mypy, pylint, bandit, pytest-coverage (100% branch coverage)"
+    }
+  ],
+  "risks": [
+    "Weekly check integrates into critical lock flow — regression risk if weekly check raises unexpectedly"
+  ],
+  "rollback": [
+    "Revert commits to restore prior screen_lock.py and UI files",
+    "Validate by running screen locker and confirming lock/unlock cycle works"
+  ]
+}

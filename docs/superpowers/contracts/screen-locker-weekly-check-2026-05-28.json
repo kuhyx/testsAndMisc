@@ -1,0 +1,16 @@
+{
+  "title": "screen_locker: weekly check feature with UI integration",
+  "objective": "Add a weekly check module to screen_locker that runs at lock time and integrates with the existing UI flow and window setup. The feature should be covered at 100% branch coverage and not regress any existing lock/unlock behavior.",
+  "acceptance_criteria": [
+    "New _weekly_check.py module implements weekly check logic",
+    "_ui_flows.py and _window_setup.py integrate the weekly check into the lock UI",
+    "screen_lock.py main flow invokes weekly check at appropriate point",
+    "All new code covered by test_weekly_check.py and test_weekly_logic.py",
+    "100% branch coverage maintained across screen_locker package"
+  ],
+  "out_of_scope": [
+    "Changes to other python_pkg subpackages",
+    "Wake alarm or morning routine integration"
+  ],
+  "verifier": "pre-commit run --files <changed>"
+}
