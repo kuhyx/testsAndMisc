@@ -3,11 +3,12 @@
 ## Project Overview
 
 A mixed-language monorepo containing Python packages, Bash scripts, and misc automation. Actively-developed
-components span personal productivity tools: alarm/shutdown scheduling, screen locking, Linux system
-configuration, and Android phone focus enforcement.
+components span personal productivity tools: alarm/shutdown scheduling, Linux system configuration, and
+Android phone focus enforcement.
 
-Steam backlog enforcer has been extracted to its own repo:
-[`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer).
+Extracted to their own repos:
+- [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer)
+- [`screen-locker`](https://github.com/kuhyx/screen-locker)
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
@@ -31,17 +32,6 @@ Archived / unmaintained projects live in the sibling repository
 
 ### Python Packages (`python_pkg/`)
 
-- **screen_locker/** — Tkinter/systemd screen locker with workout tracking and sick-day management
-  - `screen_lock.py` — main locker UI
-  - `_early_bird.py` — early-bird workout check
-  - `_sick_tracker.py` — sick-day tracker
-  - `_shutdown.py` — scheduled shutdown integration
-  - `_phone_verification.py` — phone check integration
-  - `_ui_flows.py` / `_window_setup.py` — UI helpers
-  - `_time_check.py` — time/schedule checks
-  - `_log_integrity.py` — tamper-evident workout logs
-  - `tests/` — 100% branch coverage enforced (300+ tests)
-
 - **wake_alarm/** — Alarm + fan ramp + Tapo P110 smart plug control
   - `_alarm.py` — alarm logic
   - `_smart_plug.py` — Tapo P110 control
@@ -57,9 +47,6 @@ Archived / unmaintained projects live in the sibling repository
   - `cups_queue.py` / `cups_service.py` — CUPS integration
   - `network_query.py` / `usb_query.py` — device discovery
   - `tests/` — pytest tests
-
-- **screen_locker** and **wake_alarm** share the `midnight_shutdown` integration:
-  on alarm nights the system hibernates instead of powering off.
 
 - **shared/** — Shared utilities across python_pkg subpackages
 - **random_jpg/** — Random JPEG downloader utility
@@ -148,7 +135,6 @@ before committing. The `ai-evidence-contract` hook will reject commits without i
 python -m pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100
 
 # Run a single package
-python -m pytest python_pkg/screen_locker/ --cov=python_pkg.screen_locker --cov-branch --cov-fail-under=100
 python -m pytest python_pkg/wake_alarm/ --cov=python_pkg.wake_alarm --cov-branch --cov-fail-under=100
 python -m pytest python_pkg/brother_printer/ --cov=python_pkg.brother_printer --cov-branch --cov-fail-under=100
 

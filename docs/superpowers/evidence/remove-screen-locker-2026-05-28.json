@@ -1,0 +1,26 @@
+{
+  "intent": "Remove screen_locker from monorepo after extracting it to its own GitHub repo.",
+  "scope": [
+    "python_pkg/screen_locker/ — deleted",
+    "CLAUDE.md — removed screen_locker sections, added link to new repo",
+    "No other packages affected"
+  ],
+  "changes": [
+    "Deleted python_pkg/screen_locker/ (extracted to github.com/kuhyx/screen-locker with 43 commits)",
+    "Cross-package deps vendored: shared.log_integrity inlined, wake_alarm constants copied, has_workout_skip_today extracted to _wake_state.py",
+    "Updated CLAUDE.md: removed screen_locker section, removed its test command"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100 -q",
+      "result": "pass",
+      "evidence": "523 passed, 100% branch coverage across all remaining packages (wake_alarm, brother_printer, wake_alarm, shared)"
+    }
+  ],
+  "risks": [
+    "screen_locker._wake_state reads wake_alarm's wake_state.json at a relative path — if wake_alarm moves, update WAKE_STATE_FILE in screen_locker/_constants.py"
+  ],
+  "rollback": [
+    "Clone github.com/kuhyx/screen-locker, reverse the import rewrites (screen_locker.* → python_pkg.screen_locker.*), restore under python_pkg/"
+  ]
+}
