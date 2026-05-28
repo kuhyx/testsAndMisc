@@ -26,4 +26,4 @@ owner: null
 artifact_ref: null
 ---
 
-add PLR2004 to test_*.py per-file ignores
+add PLR2004 to test\_\*.py per-file ignores
