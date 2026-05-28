@@ -1,0 +1,17 @@
+{
+  "title": "steam_backlog_enforcer: fix stats command Rush/Leisure/Worst data",
+  "objective": "The stats command must show real hour totals for Rush, Leisure, and Worst Case scenarios across all qualifying games. Four bugs were preventing data from showing: broken HLTB search for games with special characters, a wrong key-presence check in fetch_hltb_detail_missing, a partial-save that erased rush/leisure data, and stale snapshot hours excluding games that had valid HLTB cache data.",
+  "acceptance_criteria": [
+    "stats command shows Rush, Leisure, Worst Case totals (non-zero)",
+    "Games with TM/R/C/& in names are found by HLTB search",
+    "fetch_hltb_detail_missing actually fetches missing detail (not returns 0 immediately)",
+    "save_hltb_cache preserves rush/leisure data on confidence-only partial saves",
+    "Games with stale snapshot completionist_hours=-1 are included if HLTB cache has hours",
+    "100% branch coverage maintained across all steam_backlog_enforcer modules"
+  ],
+  "out_of_scope": [
+    "Games genuinely absent from HLTB database",
+    "Changes to other python_pkg subpackages"
+  ],
+  "verifier": "python -m steam_backlog_enforcer stats && pre-commit run --files <changed>"
+}

@@ -1,0 +1,37 @@
+{
+  "intent": "Fix steam_backlog_enforcer stats command to show real Rush/Leisure/Worst data for all qualifying games.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/_hltb_search.py",
+    "python_pkg/steam_backlog_enforcer/_hltb_types.py",
+    "python_pkg/steam_backlog_enforcer/hltb.py",
+    "python_pkg/steam_backlog_enforcer/_stats.py",
+    "python_pkg/steam_backlog_enforcer/tests/"
+  ],
+  "changes": [
+    "_hltb_search: sanitize game names before search (strip TM/R/C/fullwidth-asterisk, replace & with and, filter standalone punctuation)",
+    "_hltb_search: extend _build_search_variants with Steam-suffix stripping (Legacy, RHCP, Classic, beta) and chained edition+subtitle simplifications",
+    "hltb: fix fetch_hltb_detail_missing — changed `app_id not in rush` to `rush.get(app_id, -1) <= 0` (presence check was wrong)",
+    "_hltb_types: fix save_hltb_cache to preserve rush/leisure/game_id from existing cache on partial (confidence-only) saves",
+    "_stats: use HLTB hours cache as fallback when snapshot completionist_hours is stale (-1)"
+  ],
+  "verification": [
+    {
+      "command": "python -m steam_backlog_enforcer stats",
+      "result": "pass",
+      "evidence": "Detail data: rush + leisure available for all 785 qualifying games. Rush: 64670h, Leisure: 136807h, Worst: 228594h"
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "All hooks passed including ruff, mypy, pylint, bandit, pytest-coverage (700 tests, 100% branch coverage)"
+    }
+  ],
+  "risks": [
+    "HLTB name sanitization may over-strip edge-case game names — mitigated by variant fallback chain",
+    "save_hltb_cache partial-save preservation reads disk on every confidence save — minor I/O overhead"
+  ],
+  "rollback": [
+    "Revert commits; delete hltb_cache.json to force re-fetch with old logic",
+    "Validate by running stats command and checking Rush/Leisure/Worst totals"
+  ]
+}
