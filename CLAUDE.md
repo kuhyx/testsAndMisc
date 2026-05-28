@@ -3,8 +3,11 @@
 ## Project Overview
 
 A mixed-language monorepo containing Python packages, Bash scripts, and misc automation. Actively-developed
-components span personal productivity tools: Steam backlog management, alarm/shutdown scheduling, screen
-locking, Linux system configuration, and Android phone focus enforcement.
+components span personal productivity tools: alarm/shutdown scheduling, screen locking, Linux system
+configuration, and Android phone focus enforcement.
+
+Steam backlog enforcer has been extracted to its own repo:
+[`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer).
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
@@ -27,17 +30,6 @@ Archived / unmaintained projects live in the sibling repository
 ## Architecture
 
 ### Python Packages (`python_pkg/`)
-
-- **steam_backlog_enforcer/** — Steam game backlog enforcer with HLTB hour tracking, game library hider,
-  ProtonDB compatibility checks, and installation automation
-  - `main.py` — entry point and enforce loop
-  - `enforcer.py` — core enforcement logic
-  - `hltb.py` / `_hltb_search.py` / `_hltb_detail.py` — HowLongToBeat API integration
-  - `steam_api.py` — Steam library and install API
-  - `library_hider.py` — hides non-current games from Steam
-  - `protondb.py` — ProtonDB compatibility rating lookup
-  - `scanning.py` — scan and select next game
-  - `tests/` — pytest tests; requires real Steam state; `conftest.py` redirects all paths to tmp_path
 
 - **screen_locker/** — Tkinter/systemd screen locker with workout tracking and sick-day management
   - `screen_lock.py` — main locker UI
@@ -156,7 +148,6 @@ before committing. The `ai-evidence-contract` hook will reject commits without i
 python -m pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100
 
 # Run a single package
-python -m pytest python_pkg/steam_backlog_enforcer/ --cov=python_pkg.steam_backlog_enforcer --cov-branch --cov-fail-under=100
 python -m pytest python_pkg/screen_locker/ --cov=python_pkg.screen_locker --cov-branch --cov-fail-under=100
 python -m pytest python_pkg/wake_alarm/ --cov=python_pkg.wake_alarm --cov-branch --cov-fail-under=100
 python -m pytest python_pkg/brother_printer/ --cov=python_pkg.brother_printer --cov-branch --cov-fail-under=100
@@ -235,15 +226,12 @@ For every commit that touches `.py`, `.sh`, `.c`, `.go`, `.ts`, etc.:
 # Type aliases for test dicts (keeps mypy happy)
 Event = dict[str, Any]
 
-# Mock external calls — never hit real APIs/filesystem/Steam
-with patch("python_pkg.steam_backlog_enforcer.main.some_func") as mock:
+# Mock external calls — never hit real APIs/filesystem
+with patch("python_pkg.screen_locker.screen_lock.some_func") as mock:
     ...
 
 # Use PropertyMock for property exceptions
 type(mock_obj).property_name = PropertyMock(side_effect=TypeError())
-
-# steam_backlog_enforcer: conftest.py redirects ALL paths to tmp_path
-# Never assume real state.json or steamapps path is safe to touch in tests
 ```
 
 ### Branch Coverage Tips

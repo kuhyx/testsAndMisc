@@ -1,0 +1,25 @@
+{
+  "intent": "Remove steam_backlog_enforcer from monorepo after extracting it to its own GitHub repo.",
+  "scope": [
+    "python_pkg/steam_backlog_enforcer/ — deleted",
+    "CLAUDE.md — removed steam_backlog_enforcer documentation sections",
+    "No other packages affected"
+  ],
+  "changes": [
+    "Deleted python_pkg/steam_backlog_enforcer/ entirely (extracted to github.com/kuhyx/steam-backlog-enforcer)",
+    "Updated CLAUDE.md: removed steam_backlog_enforcer architecture section, removed its test command, updated project overview and test patterns"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100 -q",
+      "result": "pass",
+      "evidence": "902 passed, 100% branch coverage across all remaining packages"
+    }
+  ],
+  "risks": [
+    "Any local scripts pointing to python_pkg/steam_backlog_enforcer/ will break — use the standalone repo instead"
+  ],
+  "rollback": [
+    "Clone github.com/kuhyx/steam-backlog-enforcer and place it back under python_pkg/ with original imports (python_pkg.steam_backlog_enforcer.*)"
+  ]
+}
