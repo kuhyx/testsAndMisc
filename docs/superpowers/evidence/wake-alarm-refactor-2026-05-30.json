@@ -1,0 +1,36 @@
+{
+  "intent": "Split oversized wake_alarm modules, fix ruff lint violations, and enforce whole-tree coverage in pre-commit.",
+  "scope": [
+    "python_pkg/wake_alarm/_alarm.py",
+    "python_pkg/wake_alarm/_audio.py (new)",
+    "python_pkg/wake_alarm/_challenges.py (new)",
+    "python_pkg/wake_alarm/tests/ (split into 6 files)",
+    "meta/scripts/pytest_changed_packages.py"
+  ],
+  "changes": [
+    "Split _alarm.py (1059 lines) into _alarm.py + _audio.py + _challenges.py, all <= 500 lines",
+    "Split test_alarm.py (1305 lines) and test_alarm_part2.py (725 lines) into 6 files <= 500 lines each",
+    "Replaced random.* with secrets.* throughout (S311), fixed RUF001/SIM117/E501 ruff violations",
+    "Rewrote pytest_changed_packages.py to always run all packages with --cov python_pkg globally"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/wake_alarm/ -q",
+      "result": "pass",
+      "evidence": "165 passed, all wake_alarm modules at 100% branch coverage"
+    },
+    {
+      "command": "pre-commit run --files <all changed files>",
+      "result": "pass",
+      "evidence": "All hooks passed after auto-fixes (ruff unused imports, end-of-file)"
+    }
+  ],
+  "risks": [
+    "patch() targets: tests patching _alarm.* still work because WakeAlarm uses names bound in _alarm's namespace via re-imports",
+    "tests patching audio/challenge internals now target _audio.* and _challenges.* namespaces correctly"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Verify pre-commit passes after revert"
+  ]
+}

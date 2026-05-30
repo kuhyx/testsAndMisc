@@ -1,0 +1,15 @@
+{
+  "title": "wake_alarm: split modules, fix ruff violations, enforce global coverage",
+  "objective": "Resolve 500-line file limit violations by splitting _alarm.py and test files into focused modules. Fix all ruff lint violations (S311 random->secrets, RUF001, SIM117, E501). Rewrite pytest_changed_packages.py to enforce 100% branch coverage across all python_pkg subpackages on every commit.",
+  "acceptance_criteria": [
+    "All Python source files under 500 lines",
+    "All wake_alarm modules at 100% branch coverage",
+    "pre-commit passes cleanly on all changed files",
+    "165 tests pass"
+  ],
+  "out_of_scope": [
+    "Changing alarm runtime behaviour",
+    "Other python_pkg subpackages"
+  ],
+  "verifier": "pre-commit run --files <changed-files> && python -m pytest python_pkg/wake_alarm/ -q"
+}

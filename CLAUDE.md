@@ -128,51 +128,9 @@ before committing. The `ai-evidence-contract` hook will reject commits without i
 
 ## Development Workflow
 
-### Testing (Critical — 100% branch coverage enforced for all packages)
-
-```bash
-# Run all python_pkg tests with coverage
-python -m pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100
-
-# Run a single package
-python -m pytest python_pkg/wake_alarm/ --cov=python_pkg.wake_alarm --cov-branch --cov-fail-under=100
-python -m pytest python_pkg/brother_printer/ --cov=python_pkg.brother_printer --cov-branch --cov-fail-under=100
-
-# Quick run without coverage
-python -m pytest python_pkg/ -x -v
-```
-
-### Pre-commit Hooks (Always run before commits)
-
-```bash
-pre-commit run --files <file1> <file2>  # Check specific files (recommended)
-pre-commit run --all-files              # Full check (~10s linters)
-pre-commit run --all-files --hook-stage pre-push  # Includes pytest + prettier
-```
-
-**Active hooks (commit-stage)**:
-
-| Hook                                                             | Purpose                                                     |
-| ---------------------------------------------------------------- | ----------------------------------------------------------- |
-| trailing-whitespace, end-of-file-fixer, check-yaml/json/toml/xml | General formatting                                          |
-| check-added-large-files (max 2 MB)                               | Prevent large files                                         |
-| detect-private-key                                               | Secret detection                                            |
-| no-binaries                                                      | Block binary/image files from being committed               |
-| ai-evidence-contract                                             | Require `docs/superpowers/evidence/*.json` for code changes |
-| ai-multifile-contract                                            | Require workflow contract for multi-file changes            |
-| append-only-sessions                                             | Enforce append-only session logs                            |
-| no-polling-antipatterns                                          | Block polling script fork-storm anti-patterns               |
-| no-noqa / no-ruff-noqa                                           | Block lint suppression comments                             |
-| ruff (lint+fix)                                                  | Python linting                                              |
-| ruff-format                                                      | Python formatting                                           |
-| mypy                                                             | Python type checking                                        |
-| pylint                                                           | Python extended linting                                     |
-| bandit                                                           | Python security checks                                      |
-| codespell                                                        | Spell checking                                              |
-
-**Push-stage only**: `pytest-coverage` + `prettier`
-
-**CRITICAL: NEVER use `--no-verify`** on `git commit` or `git push`. Fix failures or ask — never bypass hooks.
+do NOT run tests unless specifically instructed to do so or before committing
+ALWAYS confirm that the feature you add / bug you fixed behaves as it should by running the program after your changes (not tests!) and inspecting output comparing it with what user wanted, after confirming by yourself ask user if the program behaves as they intended
+After running tests fix all coverage gaps and issues, do not ignore unless specifically instructed to do so
 
 ### AI Evidence Requirement
 
