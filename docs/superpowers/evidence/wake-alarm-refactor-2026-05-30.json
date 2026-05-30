@@ -29,8 +29,5 @@
     "patch() targets: tests patching _alarm.* still work because WakeAlarm uses names bound in _alarm's namespace via re-imports",
     "tests patching audio/challenge internals now target _audio.* and _challenges.* namespaces correctly"
   ],
-  "rollback": [
-    "git revert the commit",
-    "Verify pre-commit passes after revert"
-  ]
+  "rollback": ["git revert the commit", "Verify pre-commit passes after revert"]
 }
