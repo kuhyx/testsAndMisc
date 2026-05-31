@@ -1,0 +1,17 @@
+{
+  "title": "BL-9000 fresh-phone recovery automation",
+  "objective": "After a factory reset, deploy.sh runs end-to-end without any manual Magisk UI or coordinate-entry steps: it auto-installs the Magisk Systemless Hosts module (rebooting if needed), captures home GPS coordinates automatically, and deploys all focus mode daemons and hosts blocking. A separate --capture-coords action handles the case where GPS is unavailable at deploy time.",
+  "acceptance_criteria": [
+    "deploy.sh detects missing Magisk Hosts module, creates it, reboots, and continues without user intervention",
+    "deploy.sh captures current GPS as home coords when config_secrets.sh has placeholder values",
+    "On GPS failure, deploy completes with stub coords and prints exact --capture-coords command",
+    "--capture-coords updates phone config_secrets.sh and restarts daemon in one command",
+    "batch3_bloatware_uninstall.sh removes all 42 BL-9000 bloatware packages with 0 errors",
+    "com.kuhy.workout_app and com.shazam.android are never disabled by focus mode"
+  ],
+  "out_of_scope": [
+    "Wireless ADB auto-reconnect after reboot (USB reconnect is handled; wireless requires manual re-pairing)",
+    "Launcher enforcement setup (still requires manual Minimalist Phone install + --snapshot-launcher)"
+  ],
+  "verifier": "ADB_SERIAL=BL9000EEA0000102 ./deploy.sh && ./deploy.sh --capture-coords && ./deploy.sh --status (Distance: 0m, No apps disabled)"
+}

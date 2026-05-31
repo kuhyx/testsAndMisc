@@ -1,0 +1,55 @@
+{
+  "intent": "Full fresh-phone recovery after factory reset: bloatware removal, focus mode deploy with auto Magisk Hosts module install, GPS coordinate auto-capture, and whitelist additions.",
+  "scope": [
+    "phone_focus_mode/batch3_bloatware_uninstall.sh",
+    "phone_focus_mode/deploy.sh",
+    "phone_focus_mode/config.sh",
+    "linux_configuration/scripts/periodic_background/hosts/generate_hosts_file.sh",
+    "linux_configuration/scripts/periodic_background/hosts/install.sh"
+  ],
+  "changes": [
+    "batch3_bloatware_uninstall.sh: rewritten with 39 confirmed BL-9000 Blackview packages + Chrome/YouTube/YouTube Music; no reboot between removals; supports --list dry-run and ADB_SERIAL/PHONE_IP",
+    "deploy.sh: added ensure_magisk_hosts_module() — auto-creates Magisk Systemless Hosts module dir+module.prop and reboots if absent/disabled, verified working on live device",
+    "deploy.sh: added fetch_home_coords_from_phone() — enables location, waits for fused/network fix, parses 'last location=Location[' format; non-blocking fallback to stub coords on failure",
+    "deploy.sh: added --capture-coords action for post-WiFi GPS capture and daemon restart",
+    "deploy.sh: check_coords() now detects non-numeric placeholder coords and sets NEEDS_GPS_FETCH flag",
+    "config.sh: added com.kuhy.workout_app and com.shazam.android to WHITELIST",
+    "hosts scripts: broadened Facebook/Messenger unblocking to cover all subdomains (fbcdn.net, facebook.net, m.facebook.com)"
+  ],
+  "verification": [
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 ./batch3_bloatware_uninstall.sh --list",
+      "result": "pass",
+      "evidence": "42 packages detected on live device, 0 not installed"
+    },
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 ./batch3_bloatware_uninstall.sh",
+      "result": "pass",
+      "evidence": "42 removed, 0 skipped, 0 errors"
+    },
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 ./deploy.sh",
+      "result": "pass",
+      "evidence": "Magisk Hosts absent -> auto-created + rebooted -> active; 177783-line hosts deployed; daemons running PID 9696/22478/25289"
+    },
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 ./deploy.sh --capture-coords",
+      "result": "pass",
+      "evidence": "GPS fix acquired 52.229047,20.951483; config_secrets.sh updated; daemon restarted; status shows Distance: 0m"
+    },
+    {
+      "command": "pre-commit run --files phone_focus_mode/batch3_bloatware_uninstall.sh phone_focus_mode/config.sh phone_focus_mode/deploy.sh linux_configuration/scripts/periodic_background/hosts/generate_hosts_file.sh linux_configuration/scripts/periodic_background/hosts/install.sh",
+      "result": "pass",
+      "evidence": "All hooks passed including shellcheck"
+    }
+  ],
+  "risks": [
+    "ensure_magisk_hosts_module reboots the phone mid-deploy; if the device fails to reconnect (wireless ADB), deploy must be retried manually",
+    "GPS stub coords (0.000001,0.000001) written on GPS failure mean focus mode stays in normal mode until --capture-coords is run"
+  ],
+  "rollback": [
+    "Bloatware: pm install-existing --user 0 <package> restores any removed package",
+    "Focus mode: adb shell su -c 'sh /data/local/tmp/focus_mode/focus_ctl.sh stop' disables all enforcement",
+    "Magisk Hosts module: remove /data/adb/modules/hosts/ and reboot to restore stock /system/etc/hosts"
+  ]
+}
