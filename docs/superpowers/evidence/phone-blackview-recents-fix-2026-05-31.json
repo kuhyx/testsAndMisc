@@ -1,0 +1,31 @@
+{
+  "intent": "Restore swipe-up-for-recent-apps gesture broken by removing com.blackview.launcher.",
+  "scope": [
+    "phone_focus_mode/batch3_bloatware_uninstall.sh",
+    "phone_focus_mode/config.sh"
+  ],
+  "changes": [
+    "Discovered com.blackview.launcher hosts com.android.quickstep.RecentsActivity (mRecentsComponent in dumpsys activity recents)",
+    "Removed com.blackview.launcher and overlay from batch3_bloatware_uninstall.sh target list with explanatory comment",
+    "Removed com.blackview.launcher from LAUNCHER_COMPETITORS so launcher_enforcer does not disable it",
+    "Added com.blackview.launcher and overlay to WHITELIST so focus daemon never disables them"
+  ],
+  "verification": [
+    {
+      "command": "adb shell dumpsys activity recents | grep mRecentsComponent",
+      "result": "pass",
+      "evidence": "mRecentsComponent=ComponentInfo{com.blackview.launcher/com.android.quickstep.RecentsActivity}"
+    },
+    {
+      "command": "adb shell su -c 'sh /data/local/tmp/focus_mode/focus_ctl.sh status'",
+      "result": "pass",
+      "evidence": "Daemon RUNNING, No apps currently disabled by focus mode"
+    }
+  ],
+  "risks": [
+    "com.blackview.launcher remains installed and enabled; it may appear in launcher picker dialogs, but launcher_enforcer still pins Minimalist Phone as default HOME"
+  ],
+  "rollback": [
+    "pm uninstall --user 0 com.blackview.launcher (restores broken state — do not do this)"
+  ]
+}
