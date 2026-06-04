@@ -1,0 +1,15 @@
+{
+  "title": "Fix HZ-as-CPU off-by-one in usage_report and restore the native helper",
+  "objective": "The usage report must attribute CPU time from atop's utime/stime columns, not its HZ field. Success means short-lived, near-zero-CPU processes (xset, dd, chronyc, sleep) no longer appear in the Top CPU table, real consumers rank correctly, and both the Python parser and the restored native C aggregator agree on the numbers.",
+  "acceptance_criteria": [
+    "_parse_prc skips the HZ field; xset/dd/chronyc report ~0 CPU-seconds.",
+    "The native C helper builds from linux_configuration/C/atop_agg and emits the same CPU figures as the Python path.",
+    "A regression test feeds a raw PRC line including the HZ field and fails against the pre-fix indices.",
+    "usage_report.py runs end-to-end and the Top CPU table is led by genuine consumers (e.g. SkyrimSE)."
+  ],
+  "out_of_scope": [
+    "Rewriting the digital_wellbeing polling daemons that generate the fork storm.",
+    "Achieving 100% line coverage of the C helper's defensive OOM/hash-full paths."
+  ],
+  "verifier": "python3 usage_report.py --date 20260604; make test in linux_configuration/C/atop_agg; python3 -m pytest linux_configuration/tests/test_usage_report_since.py"
+}

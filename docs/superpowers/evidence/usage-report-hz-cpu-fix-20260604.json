@@ -1,0 +1,40 @@
+{
+  "intent": "Stop the usage report from charging atop's per-record HZ field as CPU time, which made short-lived processes (xset, dd, chronyc, sleep) appear as the top CPU consumers (xset reported 67h of CPU in a 5h40m window). After the fix the CPU table reflects real consumers (SkyrimSE, zstd, the video-capture pipeline) and the fork storm shows only in the accurate PID-count column.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/system-maintenance/bin/_usage_report_parsing.py",
+    "linux_configuration/C/atop_agg/ (restored native helper with the same fix)",
+    "linux_configuration/tests/test_usage_report_since.py (regression tests)",
+    "Non-goal: rewriting the digital_wellbeing daemons that cause the fork storm"
+  ],
+  "changes": [
+    "_parse_prc now reads utime/stime at after+2/after+3, skipping atop's HZ field that sits between state and utime; bumped _PRC_MIN_LEN 11 to 12.",
+    "_atop_agg_binary returns None (Python fallback) when the C source tree is absent, instead of trusting an orphaned cached binary; removed the stale ~/.cache/usage_report/atop_agg.",
+    "Restored C/atop_agg from git history into linux_configuration/C/atop_agg with the identical HZ-skip fix (tokens[10]/[11]), guard bumped to n<12, redundant PRM length check removed, and test fixtures corrected to include the HZ field.",
+    "Added Python regression tests asserting HZ is not summed as CPU and that a missing C source falls back to Python."
+  ],
+  "verification": [
+    {
+      "command": "python3 usage_report.py --date 20260604 --no-clipboard --quiet",
+      "result": "pass",
+      "evidence": "Top CPU now led by SkyrimSE.exe 933s; xset/dd/chronyc dropped out entirely (real CPU ~0). Cross-checked against atop directly with corrected field indices."
+    },
+    {
+      "command": "make test (linux_configuration/C/atop_agg)",
+      "result": "pass",
+      "evidence": "atop_agg tests: OK. Rebuilt binary emits xset cpu_ticks=0 vs 24427000 before."
+    },
+    {
+      "command": "python3 -m pytest test_usage_report_since.py -k 'parse_prc or atop_agg_binary'",
+      "result": "pass",
+      "evidence": "4 passed. Buggy indices would yield 107 ticks vs the asserted 10, so the regression test fails against the old code."
+    }
+  ],
+  "risks": [
+    "Native fast path needs a C compiler; without cc the report now falls back to the (slower) Python parser rather than a stale binary.",
+    "C helper coverage remains below 100% on defensive OOM/hash-full paths (pre-existing; the suite is not coverage-gated for linux_configuration)."
+  ],
+  "rollback": [
+    "git checkout the parsing module and remove linux_configuration/C/atop_agg to revert.",
+    "Re-run usage_report.py --date 20260604 and confirm whether xset reappears with inflated CPU."
+  ]
+}

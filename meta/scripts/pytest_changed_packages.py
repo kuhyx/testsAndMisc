@@ -9,6 +9,10 @@ invocation with whole-repo coverage measured against ``python_pkg``.
 Running all packages together (rather than just the touched ones) ensures that
 100% branch coverage is maintained across the entire codebase on every commit,
 not just the files that happened to change.
+
+Standalone script suites outside ``python_pkg/`` (currently
+``linux_configuration/tests``) are also run so their behaviour is gated, but
+they are not coverage-measured (coverage stays scoped to ``python_pkg``).
 """
 
 from __future__ import annotations
@@ -20,6 +24,10 @@ import subprocess
 import sys
 
 _TOTAL_MEM = "4G"
+
+# Standalone script test suites outside python_pkg/ that should be gated but
+# not coverage-measured. Skipped silently if the directory does not exist.
+_EXTRA_TEST_DIRS = ("linux_configuration/tests",)
 
 
 def main() -> int:
@@ -34,6 +42,9 @@ def main() -> int:
     )
     if not packages:
         return 0
+
+    test_dirs = [f"python_pkg/{pkg}/tests" for pkg in packages]
+    test_dirs += [d for d in _EXTRA_TEST_DIRS if Path(d).is_dir()]
 
     cmd = [
         sys.executable,
@@ -50,7 +61,7 @@ def main() -> int:
         # Override addopts from pyproject.toml to avoid double --cov flags.
         "-o",
         "addopts=--strict-markers --strict-config -ra",
-        *[f"python_pkg/{pkg}/tests" for pkg in packages],
+        *test_dirs,
     ]
 
     if shutil.which("systemd-run") is not None:
