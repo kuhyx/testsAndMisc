@@ -204,7 +204,10 @@ exclude_dirs = ["tests", ".venv", "Bash/ffmpeg-build"]
 # PYTEST - Testing framework configuration
 # ============================================================================
 [tool.pytest.ini_options]
-testpaths = ["python_pkg"]
+# linux_configuration/tests covers the standalone usage_report scripts. It adds
+# no python_pkg coverage (those tests don't import python_pkg), so running it
+# alongside leaves the 100%-on-python_pkg gate untouched.
+testpaths = ["python_pkg", "linux_configuration/tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

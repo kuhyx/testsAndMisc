@@ -1,0 +1,9 @@
+# Build artifacts — atop_agg is rebuilt locally (and into ~/.cache/usage_report
+# by usage_report.py); never commit the compiled binary or coverage output.
+atop_agg
+test_atop_agg
+*.o
+*.gcda
+*.gcno
+coverage.info
+coverage_html/

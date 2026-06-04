@@ -1,0 +1,38 @@
+{
+  "intent": "Eliminate the fork storm from turn_off_auto_idle_screen_shutdown.sh's controller watcher. Previously, while a game controller was connected, each joystick event forked 4 xset + 1 xdotool + a dd read + a sleep (~21 forks/s during gaming). The session must still be kept awake while a controller is connected, but with no per-event forks.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/turn_off_auto_idle_screen_shutdown.sh",
+    "Non-goal: the one-shot idle-disable steps (xset/gsettings at startup) are unchanged",
+    "Non-goal: external chronyc forks (~1/s) which originate outside this repo"
+  ],
+  "changes": [
+    "Replaced reset_idle_activity + watch_js_device + the polling start_controller_watchers with a single long-lived `systemd-inhibit --what=idle:sleep` lock held only while a /dev/input/js* device is present.",
+    "Controller presence is re-evaluated on udev input add/remove events (event-driven, no polling), with a 30 s presence-poll fallback when udevadm is absent.",
+    "Cleanup hardened: EXIT plus INT/TERM traps release the inhibitor on any termination path; presence check is a pure-bash glob (zero forks)."
+  ],
+  "verification": [
+    {
+      "command": "bash turn_off_auto_idle_screen_shutdown.sh --watch-controller (with js0 connected)",
+      "result": "pass",
+      "evidence": "systemd-inhibit --list shows exactly one 'game controller connected' lock; the watcher subtree stays {systemd-inhibit, udevadm} with zero dd/xset/xdotool over a 3 s sample, versus the old watcher still churning dd."
+    },
+    {
+      "command": "kill -TERM <watcher>; systemd-inhibit --list",
+      "result": "pass",
+      "evidence": "Watcher exits cleanly, 0 inhibitors remain, no orphaned systemd-inhibit reparented to init."
+    },
+    {
+      "command": "bash -n + shellcheck",
+      "result": "pass",
+      "evidence": "syntax OK; shellcheck clean."
+    }
+  ],
+  "risks": [
+    "Semantics changed from 'awake only during active controller input' to 'awake while a controller is connected'; a permanently-plugged controller will keep the session from auto-idling.",
+    "If the holding process is SIGKILLed outside a systemd cgroup (e.g. i3 crash), the inhibitor lingers until session end; EXIT trap covers normal termination."
+  ],
+  "rollback": [
+    "git checkout the script to restore the previous controller watcher.",
+    "Re-run with --watch-controller and confirm whether xset/dd churn returns."
+  ]
+}
