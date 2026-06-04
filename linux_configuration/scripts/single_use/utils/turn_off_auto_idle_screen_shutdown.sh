@@ -12,7 +12,7 @@
 # Optional persistence (requires sudo):
 #   --persist-systemd     -> Set IdleAction=ignore in /etc/systemd/logind.conf and restart logind
 # Optional activity watcher:
-#   --watch-controller    -> Treat game controller (e.g., Xbox) input as user activity to keep session awake
+#   --watch-controller    -> Hold a systemd idle/sleep inhibitor while a game controller is connected (keeps the session awake, fork-free)
 #
 # Notes:
 # - This script focuses on keeping the screen on and unlocked. Use with care on shared systems.
@@ -42,7 +42,7 @@ Disables idle detection, screen blanking, and auto-lock for the current session.
 
 Options:
 		--persist-systemd   Also set IdleAction=ignore in /etc/systemd/logind.conf (needs sudo)
-		--watch-controller  Watch game controllers and generate activity to keep the session awake
+		--watch-controller  Hold an idle/sleep inhibitor while a game controller is connected
 		-h, --help          Show this help and exit
 
 What this does:
@@ -52,7 +52,7 @@ What this does:
 	- Sway: kill swayidle if running
 	- TTY: setterm -blank 0 -powersave off -powerdown 0
 		- Optional: systemd-logind IdleAction=ignore
-		- Optional: watch controller input and reset idle timers
+		- Optional: hold a systemd idle inhibitor while a controller is connected
 EOF
       exit 0
       ;;
@@ -136,76 +136,85 @@ disable_tty_idle() {
   fi
 }
 
-reset_idle_activity() {
-  # Trigger activity hints depending on environment
-  if [[ -n ${DISPLAY:-} ]]; then
-    if has_cmd xset; then
-      xset s reset || true
-      xset -dpms || true
-      xset s off || true
-      xset s noblank || true
-    fi
-    if has_cmd xdotool; then
-      # No-op mousemove to generate X11 activity without visible movement
-      xdotool mousemove_relative -- 0 0 2> /dev/null || true
-    fi
+# PID of the single long-lived idle/sleep inhibitor we hold while a controller
+# is connected. Empty when no inhibitor is active.
+inhibit_pid=""
+
+start_idle_inhibit() {
+  # Hold one systemd idle/sleep inhibitor for the whole time a controller is
+  # connected. This replaces the previous per-event fork storm (4 xset + an
+  # xdotool + a dd read + a sleep on *every* joystick event, ~21 forks/s while
+  # gaming): a single long-lived process keeps logind from idling, suspending,
+  # or locking, while X11 blanking stays off thanks to the one-shot
+  # disable_x11_idle above. Idempotent — a live inhibitor is reused.
+  if [[ -n $inhibit_pid ]] && kill -0 "$inhibit_pid" 2> /dev/null; then
+    return 0
   fi
+  systemd-inhibit --what=idle:sleep --who="idle-off" \
+    --why="game controller connected" sleep infinity &
+  inhibit_pid=$!
+  log "Holding idle/sleep inhibitor (pid ${inhibit_pid}) while a controller is connected"
 }
 
-watch_js_device() {
-  local dev="$1"
-  log "Watching controller device: $dev"
-  while :; do
-    if [[ ! -e $dev ]]; then
-      warn "Device disappeared: $dev"
-      break
-    fi
-    # Joystick API event size is 8 bytes; block until an event arrives
-    if dd if="$dev" bs=8 count=1 status=none of=/dev/null; then
-      reset_idle_activity
-      # Debounce bursts of events
-      sleep 0.3
-    else
-      # On read error (e.g., permission), backoff
-      sleep 1
-    fi
+stop_idle_inhibit() {
+  if [[ -z $inhibit_pid ]]; then
+    return 0
+  fi
+  kill "$inhibit_pid" 2> /dev/null || true
+  wait "$inhibit_pid" 2> /dev/null || true
+  inhibit_pid=""
+  log "Released idle/sleep inhibitor; normal idle behaviour resumes"
+}
+
+controller_connected() {
+  # Pure-bash glob check — zero forks. True if any /dev/input/js* node exists.
+  local dev
+  for dev in /dev/input/js*; do
+    [[ -e $dev ]] && return 0
   done
+  return 1
+}
+
+sync_inhibit_to_controllers() {
+  # Hold the inhibitor exactly when a controller is present.
+  if controller_connected; then
+    start_idle_inhibit
+  else
+    stop_idle_inhibit
+  fi
 }
 
 start_controller_watchers() {
-  # Attempt to watch all /dev/input/js* devices; rescan periodically for new ones
-  declare -A pids
-
-  # Initial permission check
-  local any_js=false any_readable=false
-  for dev in /dev/input/js*; do
-    [[ -e $dev ]] || continue
-    any_js=true
-    if [[ -r $dev ]]; then any_readable=true; fi
-  done
-  if [[ $any_js == true && $any_readable == false ]]; then
-    warn "No read permission to /dev/input/js*; add your user to the 'input' group or create udev rules."
+  # Event-driven and fork-free in the hot path: react only to input-device
+  # add/remove (rare udev events), never to individual joystick *input* events,
+  # and hold a single systemd-inhibit lock while a controller is present.
+  if ! has_cmd systemd-inhibit; then
+    warn "systemd-inhibit not found; cannot hold an idle inhibitor"
+    return 0
   fi
+  # EXIT covers every termination path (including a SIGTERM that interrupts the
+  # blocking read below); INT/TERM additionally give a clean exit status.
+  trap 'stop_idle_inhibit' EXIT
+  trap 'exit 0' INT TERM
 
-  while :; do
-    local found_any=false
-    for dev in /dev/input/js*; do
-      [[ -e $dev ]] || continue
-      found_any=true
-      if [[ -z ${pids[$dev]:-} ]] || ! kill -0 "${pids[$dev]}" 2> /dev/null; then
-        # Start a watcher for this device in background
-        watch_js_device "$dev" &
-        pids[$dev]=$!
-      fi
+  sync_inhibit_to_controllers # apply current state once at startup
+
+  if has_cmd udevadm; then
+    log "Watching controller hotplug via udev (no polling)"
+    # Process substitution (not a pipe) keeps the loop in this shell so
+    # inhibit_pid persists across events.
+    while read -r _; do
+      sync_inhibit_to_controllers
+    done < <(udevadm monitor --udev --subsystem-match=input 2> /dev/null)
+  else
+    # Fallback when udevadm is unavailable: a low-frequency presence poll. One
+    # sleep per 30 s cycle (~0.03 forks/s) versus the old ~21 forks/s.
+    warn "udevadm not found; falling back to a 30 s presence poll"
+    while :; do
+      sync_inhibit_to_controllers
+      sleep 30
     done
-    if [[ $found_any == false ]]; then
-      # No joystick devices; quiet rescan
-      sleep 5
-    else
-      # Rescan less frequently when active
-      sleep 2
-    fi
-  done
+  fi
 }
 
 persist_with_systemd_logind() {
@@ -255,14 +264,9 @@ main() {
   persist_with_systemd_logind
 
   if [[ $watch_controller == true ]]; then
-    log "Controller activity watcher enabled"
-    # Keep the script alive to watch controllers
-    start_controller_watchers &
-    watcher_pid=$!
-    log "Watcher PID: $watcher_pid"
-    # Wait indefinitely and forward termination
-    trap 'log "Stopping controller watcher"; kill "$watcher_pid" 2>/dev/null || true; exit 0' INT TERM
-    wait "$watcher_pid"
+    log "Controller activity watcher enabled (idle-inhibitor mode)"
+    # Blocks until terminated; releases the inhibitor on exit via its own trap.
+    start_controller_watchers
   else
     log "Done. The screen should no longer blank, lock, or power down automatically."
   fi
