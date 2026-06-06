@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Check that all Python files are under python_pkg/.
-# Exceptions: linux_configuration/, Bash/,
+# Exceptions: linux_configuration/, phone_focus_mode/, Bash/,
 #             and vendored/generated directories.
 # Used as a pre-commit hook; receives staged file paths as arguments.
 
@@ -17,7 +17,7 @@ for file in "$@"; do
 
     # Skip allowed directories (non-Python projects with some Python scripts)
     case "$file" in
-        linux_configuration/*|scripts/*|meta/scripts/*) continue ;;
+        linux_configuration/*|phone_focus_mode/*|scripts/*|meta/scripts/*) continue ;;
     esac
 
     # Skip vendored/generated directories

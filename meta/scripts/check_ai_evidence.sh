@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly EVIDENCE_GLOB='docs/superpowers/evidence/*.json'
 
 has_code_changes() {
@@ -15,72 +17,7 @@ find_staged_evidence_files() {
 
 validate_json_schema() {
   local file_path="$1"
-
-  python - "$file_path" <<'PY'
-import json
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-
-try:
-    data = json.loads(path.read_text(encoding="utf-8"))
-except Exception as exc:  # pragma: no cover - hook error path
-    raise SystemExit(f"{path}: invalid JSON ({exc})")
-
-required = [
-    "intent",
-    "scope",
-    "changes",
-    "verification",
-    "risks",
-    "rollback",
-]
-
-missing = [key for key in required if key not in data]
-if missing:
-    raise SystemExit(f"{path}: missing required keys: {', '.join(missing)}")
-
-if not isinstance(data["intent"], str) or not data["intent"].strip():
-    raise SystemExit(f"{path}: intent must be a non-empty string")
-
-for key in ("scope", "changes", "risks", "rollback"):
-    value = data[key]
-    if not isinstance(value, list) or not value:
-        raise SystemExit(f"{path}: {key} must be a non-empty list")
-    if any(not isinstance(item, str) or not item.strip() for item in value):
-        raise SystemExit(f"{path}: {key} entries must be non-empty strings")
-
-verification = data["verification"]
-if not isinstance(verification, list) or not verification:
-    raise SystemExit(f"{path}: verification must be a non-empty list")
-
-required_verification_fields = {"command", "result", "evidence"}
-for index, item in enumerate(verification):
-    if not isinstance(item, dict):
-        raise SystemExit(f"{path}: verification[{index}] must be an object")
-    missing_fields = required_verification_fields - item.keys()
-    if missing_fields:
-        missing_joined = ", ".join(sorted(missing_fields))
-        raise SystemExit(
-            f"{path}: verification[{index}] missing fields: {missing_joined}"
-        )
-    for field in required_verification_fields:
-        value = item[field]
-        if not isinstance(value, str) or not value.strip():
-            raise SystemExit(
-                f"{path}: verification[{index}].{field} must be a non-empty string"
-            )
-
-content_lower = path.read_text(encoding="utf-8").lower()
-for phrase in ("should work", "probably fine", "seems right"):
-    if phrase in content_lower:
-        raise SystemExit(
-            f"{path}: contains rationalization phrase '{phrase}', replace with evidence"
-        )
-
-print(f"{path}: schema OK")
-PY
+  python "${SCRIPT_DIR}/validate_evidence.py" "$file_path"
 }
 
 main() {

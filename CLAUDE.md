@@ -164,6 +164,14 @@ For every commit that touches `.py`, `.sh`, `.c`, `.go`, `.ts`, etc.:
 - Double-quote all variable expansions
 - Avoid fork-heavy patterns: prefer `/proc`, `/sys`, bash builtins over `$(...)` in hot paths
 - Use `jq`/`yq` for JSON/YAML, not `grep`/`awk`
+- **NEVER embed Python program logic inline in a shell script** — no multi-line
+  `python -c "..."` and no `python <<'PY' ... PY` heredocs that contain real logic.
+  Put the code in a separate `.py` file so the repo's Python tooling (ruff, mypy,
+  pylint, bandit, tests) applies to it, and invoke it as `python3 path/to/file.py "$arg"`.
+  Resolve the path relative to the script (e.g. `"${0:A:h}/helper.py"` in zsh,
+  `"$(dirname "$0")/helper.py"` in bash). The only permitted inline Python is a
+  single-line availability/version probe with no logic, e.g. `python3 -c 'import kasa'`
+  or `python3 -c 'import sys; print(sys.version_info[0])'`.
 
 ### Test Patterns
 

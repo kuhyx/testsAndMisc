@@ -141,6 +141,11 @@ ignore_errors = true
 # PYLINT - Comprehensive Python linter
 # ============================================================================
 [tool.pylint.main]
+# Make standalone script dirs importable so tests that import their modules by
+# bare name (the same dirs linux_configuration/tests/conftest.py adds to
+# sys.path at runtime) resolve under static analysis instead of raising E0401.
+# Paths are relative to the repo root, which is pre-commit's working directory.
+init-hook = "import sys; sys.path[:0] = ['meta/scripts', 'phone_focus_mode', 'phone_focus_mode/lib', 'linux_configuration/scripts/single_use/utils', 'linux_configuration/scripts/periodic_background/system-maintenance/bin']"
 # Analyse import fallback blocks
 analyse-fallback-blocks = true
 # Pickle collected data for later comparisons

@@ -371,6 +371,21 @@ repos:
         entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 40 shellcheck --severity=warning' --
         language: system
         types: [shell]
+        # shellcheck only understands sh/bash/dash/ksh; it cannot parse zsh
+        # syntax (e.g. extended globs like (#s)). zsh files are checked by the
+        # zsh-syntax hook below instead.
+        exclude_types: [zsh]
+
+  # ===========================================================================
+  # ZSH SYNTAX - zsh -n parse check (shellcheck has no zsh mode)
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: zsh-syntax
+        name: zsh syntax check
+        entry: bash -c 'for f in "$@"; do zsh -n "$f" || exit 1; done' --
+        language: system
+        types: [zsh]
 
   # ===========================================================================
   # CHECK PYTHON LOCATION - All Python files must be under python_pkg/

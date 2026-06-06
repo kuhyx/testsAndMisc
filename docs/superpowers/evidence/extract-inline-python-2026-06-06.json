@@ -1,0 +1,48 @@
+{
+  "intent": "Extract all substantial inline Python from shell scripts into proper .py files, add 100% branch-covered tests for every helper, add zsh syntax hook, and document the no-inline-Python rule in CLAUDE.md and global shell guidelines.",
+  "scope": [
+    "linux_configuration/zsh/calc-live.zsh → python_pkg/live_calc/calc_eval.py",
+    "meta/scripts/check_ai_evidence.sh → meta/scripts/validate_evidence.py",
+    "meta/scripts/check_agent_contract.sh → meta/scripts/validate_contract.py",
+    "phone_focus_mode/lib/monitor.sh → phone_focus_mode/lib/monitor_report.py",
+    "phone_focus_mode/deploy.sh → phone_focus_mode/strip_workout_hosts.py",
+    "linux_configuration/scripts/single_use/utils/analyze_repo.sh → fast_count.py",
+    "Tests for all 4 non-python_pkg helpers added to linux_configuration/tests/",
+    "calc_eval.py moved into python_pkg/live_calc/ with 100% branch coverage",
+    "No changes to user-visible behavior"
+  ],
+  "changes": [
+    "Extracted inline Python heredocs from 6 shell scripts into separate .py files",
+    "Added python_pkg/live_calc/ with calc_eval.py (safe AST evaluator) and 46-test suite",
+    "Added linux_configuration/tests/ helpers: test_validate_evidence, test_validate_contract, test_monitor_report, test_strip_workout_hosts, test_fast_count (50 tests total)",
+    "Added zsh-syntax pre-commit hook (zsh -n) and excluded zsh from shellcheck",
+    "Updated check_python_location.sh allowlist to include phone_focus_mode/",
+    "Added pylint init-hook to meta/pyproject.toml for new script paths",
+    "Updated CLAUDE.md Shell Style with NEVER-inline-Python rule"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/live_calc/tests/ --cov=python_pkg.live_calc --cov-branch -q",
+      "result": "pass",
+      "evidence": "46 passed, 100% coverage"
+    },
+    {
+      "command": "python -m pytest linux_configuration/tests/ -q",
+      "result": "pass",
+      "evidence": "All helper tests pass (validate_evidence, validate_contract, monitor_report, strip_workout_hosts, fast_count)"
+    },
+    {
+      "command": "pre-commit run --files <all changed files>",
+      "result": "pass",
+      "evidence": "ruff, mypy, pylint, bandit, shellcheck, zsh-syntax, pytest+coverage all pass"
+    }
+  ],
+  "risks": [
+    "calc-live.zsh path resolution (${0:A:h:h:h}) follows symlinks — verified against actual oh-my-zsh install location",
+    "monitor.sh uses ${BASH_SOURCE[0]} which works when sourced from any cwd — verified"
+  ],
+  "rollback": [
+    "git revert this commit to restore inline heredocs in all 6 scripts",
+    "Remove the python_pkg/live_calc/ directory and linux_configuration/tests/ helper test files"
+  ]
+}

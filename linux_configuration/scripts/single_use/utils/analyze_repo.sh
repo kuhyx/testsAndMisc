@@ -10,6 +10,10 @@
 
 set -e
 
+# Resolve this script's directory up front (absolute), before any cd, so sibling
+# helpers like fast_count.py remain locatable once we cd into the analyzed repo.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Parse arguments
 INPUT=""
 WORK_DIR=""
@@ -334,13 +338,7 @@ fast_count() {
 	if command -v counts &>/dev/null; then
 		counts 2>/dev/null | head -$((top_n + 1)) | tail -$top_n
 	else
-		python3 -c "
-import sys
-from collections import Counter
-c = Counter(line.rstrip() for line in sys.stdin)
-for word, count in c.most_common($top_n):
-    print(f'{count} {word}')
-"
+		python3 "$SCRIPT_DIR/fast_count.py" "$top_n"
 	fi
 }
 

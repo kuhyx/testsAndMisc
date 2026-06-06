@@ -1,0 +1,18 @@
+{
+  "title": "Extract all inline Python from shell scripts into proper .py files",
+  "objective": "Every substantial Python program logic currently embedded in shell heredocs or -c strings must live in a separate .py file so ruff/mypy/pylint/bandit/pytest can apply to it. calc_eval.py moves into python_pkg/ (100% branch coverage gate). Four non-python_pkg helpers get comprehensive tests. A no-inline-Python rule is added to CLAUDE.md and the global shell guidelines.",
+  "acceptance_criteria": [
+    "No shell script in the repo contains a multi-line python -c or <<'PY' heredoc with real logic",
+    "python_pkg/live_calc/calc_eval.py exists and passes 100% branch coverage",
+    "linux_configuration/tests/ has tests for validate_evidence, validate_contract, monitor_report, strip_workout_hosts, fast_count",
+    "pre-commit run passes on all changed files (ruff, mypy, pylint, bandit, shellcheck, zsh-syntax, pytest+coverage)",
+    "CLAUDE.md Shell Style section contains NEVER-embed-Python rule",
+    "zsh-syntax pre-commit hook exists; shellcheck excludes zsh files"
+  ],
+  "out_of_scope": [
+    "Changing the logic of any extracted helper (pure refactor)",
+    "Modifying user-facing behavior of any script",
+    "Adding coverage for non-python_pkg scripts beyond the 4 new helpers"
+  ],
+  "verifier": "pre-commit run --files $(git diff --name-only HEAD); python -m pytest python_pkg/live_calc/tests/ linux_configuration/tests/ --cov=python_pkg.live_calc --cov-branch -q"
+}

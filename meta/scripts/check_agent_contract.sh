@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly CONTRACT_GLOB='docs/superpowers/contracts/*.json'
 readonly MULTI_FILE_THRESHOLD=4
 
@@ -16,44 +18,7 @@ list_staged_contract_files() {
 
 validate_contract_file() {
   local file_path="$1"
-  python - "$file_path" <<'PY'
-import json
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-data = json.loads(path.read_text(encoding="utf-8"))
-
-required = [
-    "title",
-    "objective",
-    "acceptance_criteria",
-    "out_of_scope",
-    "verifier",
-]
-
-missing = [field for field in required if field not in data]
-if missing:
-    raise SystemExit(f"{path}: missing required fields: {', '.join(missing)}")
-
-if not isinstance(data["title"], str) or not data["title"].strip():
-    raise SystemExit(f"{path}: title must be non-empty string")
-
-if not isinstance(data["objective"], str) or not data["objective"].strip():
-    raise SystemExit(f"{path}: objective must be non-empty string")
-
-if not isinstance(data["verifier"], str) or not data["verifier"].strip():
-    raise SystemExit(f"{path}: verifier must be non-empty string")
-
-for field in ("acceptance_criteria", "out_of_scope"):
-    value = data[field]
-    if not isinstance(value, list) or not value:
-        raise SystemExit(f"{path}: {field} must be a non-empty list")
-    if any(not isinstance(item, str) or not item.strip() for item in value):
-        raise SystemExit(f"{path}: {field} items must be non-empty strings")
-
-print(f"{path}: contract schema OK")
-PY
+  python "${SCRIPT_DIR}/validate_contract.py" "$file_path"
 }
 
 main() {
