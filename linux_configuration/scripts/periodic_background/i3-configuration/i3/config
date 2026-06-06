@@ -57,6 +57,11 @@ tiling_drag modifier titlebar
 # start a terminal
 bindsym $mod+Return exec terminator
 
+# scratchpad calculator: floating popup running the live-calc widget (type
+# math, results appear as you type; Ctrl-D to close)
+bindsym $mod+c exec --no-startup-id /home/kuhy/testsAndMisc/linux_configuration/zsh/calc-popup.sh
+for_window [window_role="calc"] floating enable, border pixel 3, resize set 820 px 220 px, move position center
+
 # kill focused window
 bindsym $mod+Shift+q kill
 
@@ -213,7 +218,3 @@ bar {
 }
 
 bindsym $mod+d exec "dmenu_run -nf '#F8F8F2' -nb '#282A36' -sb '#6272A4' -sf '#F8F8F2' -fn 'monospace-10' -p 'dmenu%'"
-
-# Screen replay buffer
-exec --no-startup-id /home/kuchy/linux-configuration/scripts/utils/screen_replay.sh start
-bindsym $mod+Shift+F12 exec --no-startup-id /home/kuchy/linux-configuration/scripts/utils/screen_replay.sh save

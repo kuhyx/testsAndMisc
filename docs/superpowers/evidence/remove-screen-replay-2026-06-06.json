@@ -1,0 +1,27 @@
+{
+  "intent": "Remove unused ffmpeg instant-replay feature and move scripts to testsAndMisc-archive.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/screen_replay.sh",
+    "linux_configuration/scripts/periodic_background/system-maintenance/bin/kill_stale_recorders.sh",
+    "linux_configuration/scripts/periodic_background/i3-configuration/i3/config",
+    "linux_configuration/dwm/bin/dwm-session"
+  ],
+  "changes": [
+    "Deleted screen_replay.sh (ffmpeg x11grab ring-buffer daemon + save/stop/status commands)",
+    "Deleted kill_stale_recorders.sh (written to clean up stray ffmpeg x11grab processes from the replay daemon)",
+    "Removed 'Screen replay buffer' exec and keybinding lines from i3/config",
+    "Removed replay= variable and startup call from dwm-session"
+  ],
+  "verification": [
+    {
+      "command": "grep -r screen_replay testsAndMisc/linux_configuration",
+      "result": "pass",
+      "evidence": "No remaining references to screen_replay in linux_configuration after edits"
+    }
+  ],
+  "risks": ["None — feature was unused; no running daemon to kill"],
+  "rollback": [
+    "Restore scripts from testsAndMisc-archive/linux_configuration/scripts/",
+    "Re-add exec and bindsym lines to i3/config and replay lines to dwm-session"
+  ]
+}

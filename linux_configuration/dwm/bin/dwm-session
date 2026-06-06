@@ -1,0 +1,30 @@
+#!/bin/sh
+# dwm session launcher — invoked by lightdm via /usr/share/xsessions/dwm.desktop
+# Mirrors the i3 config's autostart. Deliberately NOT `set -e` (see installer).
+set -u
+
+# XDG autostart .desktop files (nm-applet tray etc.)
+command -v dex >/dev/null 2>&1 && dex --autostart --environment dwm &
+
+# lock the screen on suspend (i3 used xss-lock + i3lock)
+if command -v xss-lock >/dev/null 2>&1 && command -v i3lock >/dev/null 2>&1; then
+    xss-lock --transfer-sleep-lock -- i3lock --nofork &
+fi
+
+# network applet, compositor, notes app — all installed; harmless if duplicated
+command -v nm-applet  >/dev/null 2>&1 && nm-applet &
+command -v picom      >/dev/null 2>&1 && picom &
+command -v simplenote >/dev/null 2>&1 && simplenote &
+
+# restore wallpaper if feh saved one
+[ -x "$HOME/.fehbg" ] && "$HOME/.fehbg" &
+
+# repo helpers (real current paths under single_use/utils); guarded in case moved
+idle="$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/turn_off_auto_idle_screen_shutdown.sh"
+[ -x "$idle" ] && bash "$idle" --watch-controller &
+
+# lightweight status bar (root window name)
+command -v dwmstatus >/dev/null 2>&1 && dwmstatus &
+
+# the window manager — must be last; replaces this shell
+exec dwm
