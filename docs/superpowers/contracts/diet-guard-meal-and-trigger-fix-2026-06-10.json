@@ -1,0 +1,16 @@
+{
+  "title": "diet_guard: screen-lock meal gate with trigger fix, food-bank hardening, and multi-item meals",
+  "objective": "Land the diet_guard package so the 4-hour meal-logging gate reliably locks the screen at slot time, no longer crashes when the systemd timer fires before X authorization is ready, no longer floods/overwrites a corrupt food bank, and supports logging a composite meal made of several separately-macroed items. Success = the package is committed, all pre-commit gates pass, and diet_guard holds 100% branch coverage.",
+  "acceptance_criteria": [
+    "The gate retries instead of raising TclError when the display is not yet authorized at session start (wait_for_display in _gatelock.py, wired into _cli._cmd_gate).",
+    "A corrupt food_bank.json is moved aside with a timestamped backup and warned about once, never silently overwritten.",
+    "A meal of multiple items records each item plus a composite total (kcal/macros summed) to the food bank, surfaced via a '+ Add item' control in the gate.",
+    "diet_guard reports 100% branch coverage and the full pre-commit suite (ruff, ruff-format, mypy, pylint, bandit, codespell, no-noqa, pytest-coverage) passes."
+  ],
+  "out_of_scope": [
+    "Changes to other python_pkg packages (wake_alarm, etc.) — excluded from this commit.",
+    "Resolving the unrelated dirty working-tree edits to wake_alarm and the dwm/gaming scripts.",
+    "Real-world reboot confirmation of the display-race fix and human visual review of the meal UI layout."
+  ],
+  "verifier": "pre-commit run --files <diet_guard files> (run from a clean worktree); pytest_changed_packages.py enforces --cov-fail-under=100 across python_pkg"
+}

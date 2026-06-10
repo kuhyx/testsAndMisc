@@ -1,0 +1,32 @@
+{
+  "intent": "Add the diet_guard package: a screen-locking meal-logging gate that fires on 4-hour slots, with a fix for the session-start X-display race that prevented it from triggering, hardened food-bank corruption handling, and a new multi-item meal feature.",
+  "scope": [
+    "python_pkg/diet_guard/ (new package: gate UI, slots, state, food bank, meal model, CLI, systemd unit+timer, install.sh)",
+    "Non-goal: changes to other python_pkg packages (wake_alarm etc.) are out of scope and excluded from this commit"
+  ],
+  "changes": [
+    "Trigger fix: added wait_for_display()/_display_is_ready() in _gatelock.py and wired it into _cli._cmd_gate so the gate retries instead of crashing with TclError when the systemd timer fires before lightdm has written ~/.Xauthority; added Environment=XAUTHORITY=%h/.Xauthority to the service as belt-and-suspenders.",
+    "Food-bank hardening: _read_bank now quarantines a corrupt food_bank.json via _quarantine_corrupt_bank() (warn-once + timestamped backup) instead of flooding warnings and silently overwriting user data.",
+    "Multi-item meals: new _meal.py (MealItem, meal_total, MEAL_SOURCE), remember_meal() + _upsert() refactor in _foodbank.py, and a '+ Add item' meal UI in the gate that logs both the individual items and the composite meal to the food bank."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run pylint --files <diet_guard *.py>",
+      "result": "pass",
+      "evidence": "pylint Passed on all 30 diet_guard .py files (hook threshold --fail-under=8.0; package aggregate 8.36/10, same pattern as committed wake_alarm at 8.47)."
+    },
+    {
+      "command": "pre-commit run --files <diet_guard *.py> (full suite)",
+      "result": "pass",
+      "evidence": "ruff, ruff-format, mypy, no-noqa, bandit, codespell all pass. diet_guard at 100% branch coverage; 969 tests pass. (Coverage hook measures all of python_pkg.)"
+    }
+  ],
+  "risks": [
+    "Session-start display-race fix is verified by unit tests of wait_for_display but a full real-world confirmation requires an actual reboot/login race.",
+    "Meal UI visual layout verified by real-tk construction but not by human visual inspection of the rendered window."
+  ],
+  "rollback": [
+    "git revert the commit (the package is self-contained under python_pkg/diet_guard/).",
+    "After rollback: systemctl --user disable --now diet-guard-gate.timer if the unit was installed; verify no stray diet-guard process holds a screen lock."
+  ]
+}
