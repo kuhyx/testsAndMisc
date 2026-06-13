@@ -1,0 +1,20 @@
+{
+  "title": "Phone night curfew (23:00–05:00 at-home strict allow-list)",
+  "objective": "While phone_focus_mode is at home (focus ON) and the local clock is in 23:00–05:00, restrict the phone to a strict essential-only allow-list across three layers — app disabling, locked grayscale + DND, and an optional per-UID internet allow-list — to stop late-night phone use. Apps auto-restore at 05:00. Success = browsers/social/email/media are blocked at night while banking/maps/clock/auth/keyboard stay usable, with no risk to the BL9000 (no system-app disabling) and a working on-device opt-out.",
+  "acceptance_criteria": [
+    "At home after 23:00, non-NIGHT_WHITELIST third-party apps (Firefox, Discord, Teams, Messenger, email, media) are pm disable-user'd; before 23:00 / away, behaviour is unchanged.",
+    "Essential apps stay enabled at night: banking (mBank/IKO/Revolut), Maps, calendar, clock, authenticators, gov ID, plus the active keyboard and Home/Dialer/SMS handlers.",
+    "At 05:00 (or on leaving home) every curfew-disabled app is automatically re-enabled via the existing reconcile path.",
+    "Grayscale + DND-alarms-only are forced during curfew and re-applied within 5s of any manual toggle; both revert at curfew end; the morning alarm still rings (zen=3).",
+    "Per-UID internet allow-list is implemented but ships disabled (CURFEW_NET_ENABLED=0) until validated on-device with focus_ctl curfew-test-on.",
+    "Companion notification shows a 'Suspend curfew / Re-arm' action only while curfew is active, toggling the override file.",
+    "Clock parser fails open to daytime on a malformed time; no system apps are ever disabled."
+  ],
+  "out_of_scope": [
+    "Disabling system/AOSP packages (kept empty for BL9000 bootloop/factory-wipe safety).",
+    "A no-PC recovery path other than the companion button (PC/ADB + boot emergency-disable file remain the fallback).",
+    "Enabling the network allow-list by default (requires on-device proof first).",
+    "Changing the existing location-based focus, hosts, DNS, launcher or workout subsystems."
+  ],
+  "verifier": "sh -n + shellcheck on changed scripts; on-device curfew boundary + real is_allowed decision test (Android 13 mksh); reversible grayscale/DND/iptables/pm-U probes; then pre-commit run --files <changed> and a live focus_ctl curfew-test-on/off app-sweep cycle."
+}

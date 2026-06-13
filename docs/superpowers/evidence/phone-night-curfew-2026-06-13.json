@@ -1,0 +1,63 @@
+{
+  "intent": "Add a time-gated 'night curfew' to phone_focus_mode so that while at home (focus mode ON) after 23:00, the phone is restricted to a strict essential-only allow-list to stop late-night phone use. Three layers: app disabling, locked grayscale + DND, and an optional per-UID internet allow-list. Includes an on-device companion-app opt-out button.",
+  "scope": [
+    "phone_focus_mode/config.sh (NIGHT_CURFEW_* knobs, NIGHT_WHITELIST, CURFEW_* enforcer flags)",
+    "phone_focus_mode/focus_daemon.sh (is_curfew_now/curfew_active/_dec, curfew-aware is_allowed, active-IME guard, default-browser split, status.json curfew fields)",
+    "phone_focus_mode/curfew_enforcer.sh (NEW: grayscale+DND lock, per-UID iptables net allow-list)",
+    "phone_focus_mode/focus_ctl.sh (curfew-status/start/stop/log/test-on/test-off/off/on)",
+    "phone_focus_mode/magisk_service.sh + deploy.sh (boot + deploy wiring)",
+    "phone_focus_mode/focus_status_app/* (CurfewToggleReceiver NEW, Status.java, StatusService.java, AndroidManifest.xml)",
+    "phone_focus_mode/README.md (Night curfew section)",
+    "Non-goals: net layer ships default-OFF until proven; no system-app disabling (BL9000 bootloop/wipe safety); companion button is the only on-device opt-out by design."
+  ],
+  "changes": [
+    "is_allowed() swaps the permissive WHITELIST for the strict NIGHT_WHITELIST while curfew_active (time window + at-home, reusing the existing pm disable-user/reconcile path so apps auto-re-enable at 05:00).",
+    "Active IME and Home/Dialer/SMS stay hard-guarded day and night; the default browser was split out so it CAN be disabled at night (it is the #1 target).",
+    "curfew_enforcer.sh re-applies grayscale + DND-alarms-only every 5s (snap-back lock) and tears them down at curfew end; optional per-UID iptables allow-list (default off).",
+    "Companion notification gains a 'Suspend curfew / Re-arm' action shown only while curfew is active; daemon publishes curfew state to status.json.",
+    "_dec helper strips leading zeros so zero-padded HHMM (0830/0900) is not parsed as invalid octal; clock parser fails open to daytime."
+  ],
+  "verification": [
+    {
+      "command": "sh -n + shellcheck (PC) on all changed shell scripts",
+      "result": "pass",
+      "evidence": "6/6 scripts pass sh -n; shellcheck clean after replacing 10# base-conversion (SC3052) with the portable _dec strip."
+    },
+    {
+      "command": "Curfew boundary unit test (PC and on-device mksh)",
+      "result": "pass",
+      "evidence": "23:00->CURFEW, 22:59/05:00/05:01/08:30/09:00/12:00->day, 00:00/04:59->CURFEW; malformed clock -> day (fail-open). Identical on Android 13 mksh."
+    },
+    {
+      "command": "On-device REAL is_allowed decision test (Android 13, scratch state, nothing disabled)",
+      "result": "pass",
+      "evidence": "DAY: Firefox/mBank/Gboard/Discord/Maps ALLOW, Chrome BLOCK. NIGHT: Firefox/Discord/Teams/Messenger BLOCK, mBank/Maps/Gboard/StrongLifts ALLOW. Confirms default-browser (=Firefox here) is droppable at night and keyboard never disabled."
+    },
+    {
+      "command": "On-device reversible primitive probes (root)",
+      "result": "pass",
+      "evidence": "Grayscale apply enabled=1 level=0 then restored to off; cmd notification set_dnd alarms -> zen_mode=3 (alarm still rings) -> off; iptables --uid-owner userid[-userid] supported (xt_owner present + dash-range); pm list packages -U => 'package:pl.mbank uid:10242' parses. Device left clean (daltonizer=0 zen=0)."
+    },
+    {
+      "command": "Full live deploy + focus_ctl curfew-test-on/off on the BL9000 (at home, focus ON)",
+      "result": "pass",
+      "evidence": "deploy.sh restarted the stack (daemon PID 31404, curfew_enforcer PID 31396). curfew-test-on: org.mozilla.fenix + com.discord + com.facebook.orca became disabled; pl.mbank + com.google.android.inputmethod.latin + com.google.android.apps.maps stayed enabled; daltonizer_enabled=1, zen_mode=3 (alarms-only). curfew-test-off: all three re-enabled (reconcile), daltonizer_enabled=0, zen_mode=0. Device returned to clean daytime state."
+    },
+    {
+      "command": "Companion APK rebuild (new Suspend-curfew button) ; pre-commit",
+      "result": "pending",
+      "evidence": "APK rebuild needs the Android SDK, absent on this PC; deploy.sh now warns and keeps the prior APK instead of aborting, so the curfew core still deployed. The button code is on-device-decision-tested; build/install of the new APK is deferred until the SDK is present. pre-commit run at commit time."
+    }
+  ],
+  "risks": [
+    "BL9000 is MTK bootloop/factory-wipe sensitive. Mitigated: curfew uses pm disable-user only on 3rd-party apps (never system apps); BLOCKED_SYSTEM_APPS stays empty.",
+    "Net layer (iptables allow-list) is the most fragile; shipped default-OFF and self-heals on reboot (rules are not persisted).",
+    "Grayscale/DND lock is snap-back (re-applied every 5s), not absolute; true impossibility would require blocking Settings (instability), deliberately avoided.",
+    "On-device opt-out is the companion button only; without it, recovery is PC/ADB or the boot emergency-disable file."
+  ],
+  "rollback": [
+    "Immediate: focus_ctl.sh curfew-off (suspend) or --stop / --disable (re-enable all apps); or set NIGHT_CURFEW_ENABLED=0 and redeploy.",
+    "Full: git revert the change set; delete curfew_enforcer.sh from device; the daemon falls back to pure location-based focus.",
+    "After rollback validate: all apps re-enabled (pm list packages -d empty of focus-disabled pkgs), grayscale/DND off, no FOCUS_CURFEW_NET iptables chain present."
+  ]
+}
