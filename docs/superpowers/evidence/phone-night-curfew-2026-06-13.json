@@ -44,9 +44,14 @@
       "evidence": "deploy.sh restarted the stack (daemon PID 31404, curfew_enforcer PID 31396). curfew-test-on: org.mozilla.fenix + com.discord + com.facebook.orca became disabled; pl.mbank + com.google.android.inputmethod.latin + com.google.android.apps.maps stayed enabled; daltonizer_enabled=1, zen_mode=3 (alarms-only). curfew-test-off: all three re-enabled (reconcile), daltonizer_enabled=0, zen_mode=0. Device returned to clean daytime state."
     },
     {
-      "command": "Companion APK rebuild (new Suspend-curfew button) ; pre-commit",
-      "result": "pending",
-      "evidence": "APK rebuild needs the Android SDK, absent on this PC; deploy.sh now warns and keeps the prior APK instead of aborting, so the curfew core still deployed. The button code is on-device-decision-tested; build/install of the new APK is deferred until the SDK is present. pre-commit run at commit time."
+      "command": "Companion APK build + button toggle (built with the Unity-bundled Android SDK)",
+      "result": "pass",
+      "evidence": "build.sh produced focus_status.apk (16.8 KB) via the Unity SDK (build-tools 36.0.0); deploy installed it. CurfewToggleReceiver is registered (dumpsys). Firing the action as root toggled /data/local/tmp/focus_mode/curfew_override: tap1 -> present (suspended), tap2 -> absent (re-armed). A shell-uid broadcast is correctly denied (receiver exported=false); the real notification tap fires as the app's own uid."
+    },
+    {
+      "command": "Per-UID internet allow-list (CURFEW_NET_ENABLED=1) live on device",
+      "result": "pass",
+      "evidence": "Under curfew the FOCUS_CURFEW_NET chain is built: loopback + ESTABLISHED + uid 0/1000/2000 + DNS 53 ACCEPT, an ACCEPT per night-whitelist UID (mBank 10242, Maps 10198 present), then REJECT for uid 10000-19999. mBank (whitelisted) reachable to 1.1.1.1:443 through the chain; device stays online. curfew-test-off removes the chain and OUTPUT jump cleanly. A clean functional negative is not obtainable on-device (non-whitelisted apps are disabled; synthetic UIDs lack inet/SELinux context), so the REJECT is evidenced by the deterministic chain structure rather than a live drop."
     }
   ],
   "risks": [
