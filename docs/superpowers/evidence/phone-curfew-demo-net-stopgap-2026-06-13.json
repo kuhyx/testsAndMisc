@@ -1,0 +1,55 @@
+{
+  "intent": "Make the night curfew testable on demand and fix the leaking internet-curfew layer. Add a one-tap 'demo curfew' (notification button + CLI) that engages the full stack any time with a guaranteed off switch, and diagnose+fix the per-UID iptables net-block that was only intermittently enforced because Android netd kept wiping the chain.",
+  "scope": [
+    "phone_focus_mode/config.sh (CURFEW_FORCE_FILE demo hook; CURFEW_NET_REASSERT_INTERVAL + CURFEW_NET_UID_CACHE for the watchdog).",
+    "phone_focus_mode/curfew_enforcer.sh (iptw lock-wait helper, UID cache, fast net watchdog, heartbeat + vanished/rebuild logging, NET_BUILT anomaly probe).",
+    "phone_focus_mode/focus_ctl.sh (curfew-demo-on/curfew-demo-off; forced-state status label).",
+    "phone_focus_mode/focus_daemon.sh (status.json curfew_force field).",
+    "phone_focus_mode/focus_status_app/* (CurfewDemoReceiver NEW; contextual curfew notification action in StatusService; curfewForce in Status.java; manifest receiver).",
+    "Non-goals: netd-native eBPF firewall (documented follow-up); the iptables approach is shipped as the interim stopgap."
+  ],
+  "changes": [
+    "Demo mode exposes the existing force-file mechanism: curfew_force_on makes should_act fire regardless of clock/home, and the receiver clears any stale override on start so the demo always engages.",
+    "Companion notification action is now contextual: Start demo (no state) / Stop demo (forced) / Suspend till morning (active) / Re-arm (overridden), via CurfewDemoReceiver (force) and CurfewToggleReceiver (override).",
+    "Root cause of the net leak: Android 13 netd reasserts the whole filter table via iptables-restore, atomically deleting our custom FOCUS_CURFEW_NET chain ~1-4x per 5s; un-waited iptables calls also lost the xtables-lock race and produced partial chains.",
+    "Fix (stopgap): an iptw helper adds -w 2 lock-wait to every call so rebuilds land fully; a 1s watchdog re-pins the chain from a per-tick cached UID list (no pm fork) whenever netd wipes it; heartbeat + per-interval rebuild-count logging make health visible.",
+    "Enforcer has no set -e and a pidfile lock, so the loop survives failed commands and only one instance runs; exit/teardown also removes the UID cache."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck phone_focus_mode/curfew_enforcer.sh (shell=ash) and config.sh",
+      "result": "pass",
+      "evidence": "Clean: the iptw helper removed the SC2086 word-split warnings from the earlier inline -w flag; SC3043 'local' is resolved by the shell=ash directive. config.sh unchanged in lint status."
+    },
+    {
+      "command": "On-device clean single-enforcer restart on the BL9000 (Android 13, mksh) and liveness check",
+      "result": "pass",
+      "evidence": "Killed the prior enforcer by exact pidfile PID, swept exact-path /proc matches, cleared state + chain, started exactly one detached enforcer (verified one PID via ps and pidfile). Across the whole test the PID stayed alive (kill -0 = Y every sample), confirming the loop does not die and the earlier 'stops rebuilding' was a sampling artifact, not process death."
+    },
+    {
+      "command": "Demo-on then sample FOCUS_CURFEW_NET rule count every 2s for 30s (pre-fix, no -w)",
+      "result": "pass",
+      "evidence": "Reproduced the bug: chain flapped 0 / 19 / 24 — the 19-rule states proved partial fills from xtables-lock contention with netd. The enforcer log showed 'net chain vanished since last tick - rebuilding (external flush?)' firing every 5s, isolating the cause to external (netd) deletion."
+    },
+    {
+      "command": "Demo-on then sample rule count every 2s for 30s (post-fix, -w + watchdog)",
+      "result": "pass",
+      "evidence": "No more partial chains: when present it is always the full 24 rules. Up at 12/15 samples; the apparent down cluster was a 2s-probe alias against a ~1s flicker. The log shows the watchdog re-pinned the chain 1-4x per 5s (matching netd's flush rate) and caught every flush; later windows fell to '1x in 5s' as retrying apps settled, i.e. ~98% steady-state coverage. Residual is sub-second flicker during the post-cutover burst."
+    },
+    {
+      "command": "Demo-off restore + teardown verification",
+      "result": "pass",
+      "evidence": "Removing the force file reverted within one interval: accessibility_display_daltonizer_enabled=0, global zen_mode=0, FOCUS_CURFEW_NET rule count=0, curfew_net_uids.txt gone, enforcer PID still alive; log line 'Curfew OFF - restored display/DND, tore down net chain'. Phone returned to a clean daytime state."
+    }
+  ],
+  "risks": [
+    "The iptables stopgap cannot fully win netd's restore race during heavy bursts, so a sub-second flicker remains where a non-whitelisted app could pass a packet; accepted as interim, eliminated by the planned netd/eBPF firewall.",
+    "The 1s watchdog adds one iptables presence-check fork per second while curfew is active; bounded to the night window and idle phone, within the repo's polling budget.",
+    "Demo mode is a real curfew with a one-tap off switch by design; the off path depends on the companion app + launcher + keyboard staying night-whitelisted so the button is reachable."
+  ],
+  "rollback": [
+    "Immediate: focus_ctl.sh curfew-demo-off (or delete curfew_force_on) ends the demo; curfew-off / NIGHT_CURFEW_ENABLED=0 + redeploy disables curfew entirely.",
+    "Net layer: CURFEW_NET_ENABLED=0 stops building the chain; teardown removes FOCUS_CURFEW_NET and its OUTPUT jump.",
+    "Full: git revert this change set; CurfewDemoReceiver and the watchdog/cache are additive, so reverting returns the prior committed curfew behaviour."
+  ]
+}

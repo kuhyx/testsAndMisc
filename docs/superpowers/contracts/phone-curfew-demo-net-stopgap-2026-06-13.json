@@ -1,0 +1,20 @@
+{
+  "title": "Phone curfew: on-demand demo mode + netd-resistant net-block stopgap",
+  "objective": "Make the night curfew testable on demand and fix the internet-curfew layer leaking. (1) Add a 'demo curfew' the user can start/stop with a single notification tap (and CLI) so the full stack can be experienced any time without waiting for 23:00, with a guaranteed one-tap off switch. (2) Diagnose and fix the per-UID iptables net-block, which was only intermittently enforced. Success = demo on/off engages and fully restores all layers on one tap each way, and the FOCUS_CURFEW_NET chain stays present near-continuously while curfew is active instead of flapping.",
+  "acceptance_criteria": [
+    "A force-file (curfew_force_on) makes should_act return true regardless of clock/home, and removing it reverts within one enforcer interval; setting force also clears any stale override.",
+    "The companion notification shows a contextual curfew action: Start demo / Stop demo / Suspend-till-morning / Re-arm depending on current state, wired to CurfewDemoReceiver (force file) and CurfewToggleReceiver (override file).",
+    "focus_ctl.sh exposes curfew-demo-on / curfew-demo-off mirroring the button.",
+    "Demo-on applies all active layers (app-disable, grayscale, DND, net); demo-off restores grayscale=0, zen_mode=0, tears down the net chain, removes the UID cache, and leaves the enforcer running.",
+    "Every iptables/ip6tables call uses a lock-wait (-w) so concurrent netd iptables-restore cannot make our rebuilds silently fail and leave a partial chain.",
+    "A fast watchdog re-pins the chain from a cached UID list (no pm fork) every CURFEW_NET_REASSERT_INTERVAL seconds while curfew is active, so a netd flush is repaired within <=1s.",
+    "The enforcer logs a periodic heartbeat and a per-interval watchdog-rebuild count so liveness and netd-flush frequency are visible rather than inferred from silence.",
+    "The enforcer process survives indefinitely (no set -e abort); restart is clean (single PID via pidfile lock)."
+  ],
+  "out_of_scope": [
+    "The proper netd-native per-UID firewall (ndc/eBPF uid maps) that would eliminate the residual sub-second flicker entirely — tracked as a documented follow-up; this commit ships the iptables stopgap chosen by the user.",
+    "Changing the curfew window, whitelist contents, grayscale/DND mechanics, or the app-disable layer.",
+    "Persisting iptables rules across reboot (the enforcer rebuilds them; magisk_service starts it at boot)."
+  ],
+  "verifier": "shellcheck on changed scripts; on-device clean single-enforcer restart on the BL9000 (Android 13) then drive demo-on/off and sample the FOCUS_CURFEW_NET rule count plus the enforcer log over multiple intervals to confirm chain stability, full-chain rebuilds, watchdog repair counts, and clean teardown."
+}
