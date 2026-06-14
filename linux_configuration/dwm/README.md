@@ -28,17 +28,17 @@ which is what keeps "always latest master" working.
 
 ## Files
 
-| Path | What it is |
-| --- | --- |
-| `config.h` | dwm config: Mod4, Dracula colours, 10 tags, bottom bar, vim-style focus/move, multi-monitor keys, media keys, `movestack`/`togglefullscr` defined inline so `dwm.c` needs no extra patch for them. |
-| `pointer-confine.c` | Standalone helper: traps the X pointer on the current monitor with XFixes pointer barriers until killed. Used for fullscreen gaming so the cursor can't slide onto the other screen. |
-| `patches/focus-on-click.patch` | No-ops `enternotify`/`motionnotify` so the pointer never changes focus or switches monitors — focus only changes on click or via keys. |
-| `patches/fullscreen-pointer-confine.patch` | Hooks `setfullscreen`/`unmanage` to start/stop `pconfine-auto` so the cursor-lock turns on automatically when a window goes fullscreen. |
-| `bin/dwm-session` | lightdm session launcher (autostart + `dwmstatus` + `exec dwm`). |
-| `bin/dwmstatus` | Status feeder: CPU/GPU/board temps, RAM, load, volume, clock → root window name. `dwmstatus once` prints the line without `xsetroot`. |
-| `bin/dwm-rebuild` | Recompile `~/.local/src/dwm` in place (quick local rebuild). |
-| `bin/switch-wm` | Flip the lightdm boot session between `i3` and `dwm`. |
-| `bin/pconfine-auto` | `on`/`off` single-instance control of the `pointer-confine` daemon (called by the dwm hooks and the panic key). |
+| Path                                       | What it is                                                                                                                                                                                         |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config.h`                                 | dwm config: Mod4, Dracula colours, 10 tags, bottom bar, vim-style focus/move, multi-monitor keys, media keys, `movestack`/`togglefullscr` defined inline so `dwm.c` needs no extra patch for them. |
+| `pointer-confine.c`                        | Standalone helper: traps the X pointer on the current monitor with XFixes pointer barriers until killed. Used for fullscreen gaming so the cursor can't slide onto the other screen.               |
+| `patches/focus-on-click.patch`             | No-ops `enternotify`/`motionnotify` so the pointer never changes focus or switches monitors — focus only changes on click or via keys.                                                             |
+| `patches/fullscreen-pointer-confine.patch` | Hooks `setfullscreen`/`unmanage` to start/stop `pconfine-auto` so the cursor-lock turns on automatically when a window goes fullscreen.                                                            |
+| `bin/dwm-session`                          | lightdm session launcher (autostart + `dwmstatus` + `exec dwm`).                                                                                                                                   |
+| `bin/dwmstatus`                            | Status feeder: CPU/GPU/board temps, RAM, load, volume, clock → root window name. `dwmstatus once` prints the line without `xsetroot`.                                                              |
+| `bin/dwm-rebuild`                          | Recompile `~/.local/src/dwm` in place (quick local rebuild).                                                                                                                                       |
+| `bin/switch-wm`                            | Flip the lightdm boot session between `i3` and `dwm`.                                                                                                                                              |
+| `bin/pconfine-auto`                        | `on`/`off` single-instance control of the `pointer-confine` daemon (called by the dwm hooks and the panic key).                                                                                    |
 
 ## Customising
 

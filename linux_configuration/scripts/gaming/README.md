@@ -6,28 +6,33 @@ Both accounts play simultaneously with full GPU acceleration — no VT switching
 ### One-time setup (fresh install)
 
 **1. Create the player2 user:**
+
 ```bash
 sudo useradd -m -G audio,video,input -s /bin/bash player2
 sudo passwd player2
 ```
 
 **2. Install dependencies:**
+
 ```bash
 sudo pacman -S xorg-xhost
 ```
 
 **3. Add passwordless sudoers rule** (allows launching Steam as player2 without a prompt):
+
 ```bash
 echo "kuhy ALL=(player2) NOPASSWD: /usr/bin/steam" | sudo tee /etc/sudoers.d/player2-steam
 sudo chmod 440 /etc/sudoers.d/player2-steam
 ```
 
 **4. Symlink the script into PATH:**
+
 ```bash
 sudo ln -sf ~/testsAndMisc/linux_configuration/scripts/gaming/start-player2.sh /usr/local/bin/start-player2
 ```
 
 **5. Start the getty on tty2** (needed if LightDM autologin is configured, otherwise tty2 has no login prompt):
+
 ```bash
 sudo systemctl enable getty@tty2
 ```
@@ -53,7 +58,7 @@ To stop: close the Steam window or `pkill -u player2 -f steam`.
 
 ### Monitor layout
 
-| Output | Resolution | Session      |
-|--------|------------|--------------|
-| DP-0   | 3840×2160  | kuhy (main)  |
-| HDMI-0 | 2560×1440  | player2      |
+| Output | Resolution | Session     |
+| ------ | ---------- | ----------- |
+| DP-0   | 3840×2160  | kuhy (main) |
+| HDMI-0 | 2560×1440  | player2     |

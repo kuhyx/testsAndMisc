@@ -52,5 +52,8 @@
     "mypy reports 5 pre-existing tkinter-stub errors in _gatelock_window.py/_gatelock_nutrition.py; confirmed identical on the pre-split file at commit 31992b2, not a regression, not flagged by pre-commit's pinned mypy 1.13.0",
     "patch() targets for relocated helpers (display, pmon, render) were retargeted to their new modules; verified via full test run"
   ],
-  "rollback": ["git revert the commit", "Re-run python3 -m pytest -q to confirm 100% coverage on the reverted tree"]
+  "rollback": [
+    "git revert the commit",
+    "Re-run python3 -m pytest -q to confirm 100% coverage on the reverted tree"
+  ]
 }
