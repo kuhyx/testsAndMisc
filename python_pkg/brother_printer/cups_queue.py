@@ -10,6 +10,7 @@ import sys
 import time
 from typing import TYPE_CHECKING
 
+from python_pkg.brother_printer._query import run_command_text
 from python_pkg.brother_printer.constants import (
     BOLD,
     CYAN,
@@ -69,32 +70,14 @@ def get_cups_queue_status() -> CUPSQueueStatus:
     if not lpstat_path:
         return result
 
-    try:
-        r = subprocess.run(
-            [lpstat_path, "-p", printer_name],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if "printer" in line.lower() and printer_name in line:
-                result.enabled, result.reason = _parse_lpstat_printer_line(line)
-                break
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        pass
+    status_lines = run_command_text([lpstat_path, "-p", printer_name]).splitlines()
+    for line in status_lines:
+        if "printer" in line.lower() and printer_name in line:
+            result.enabled, result.reason = _parse_lpstat_printer_line(line)
+            break
 
-    try:
-        r = subprocess.run(
-            [lpstat_path, "-o", printer_name],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        result.jobs = _parse_lpstat_jobs(r.stdout, printer_name)
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        pass
+    jobs_output = run_command_text([lpstat_path, "-o", printer_name])
+    result.jobs = _parse_lpstat_jobs(jobs_output, printer_name)
 
     has_errors, last_error = _check_cups_backend_errors(printer_name)
     result.has_backend_errors = has_errors
@@ -121,8 +104,7 @@ def _cups_enable_printer(printer_name: str) -> bool:
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
         _out(f"  {RED}Failed to enable printer: {e}{RESET}")
         return False
-    else:
-        return True
+    return True
 
 
 def _cups_cancel_all_jobs(printer_name: str) -> bool:
@@ -140,8 +122,7 @@ def _cups_cancel_all_jobs(printer_name: str) -> bool:
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
         _out(f"  {RED}Failed to cancel jobs: {e}{RESET}")
         return False
-    else:
-        return True
+    return True
 
 
 def _cups_cancel_job(job_id: str) -> bool:
@@ -157,8 +138,7 @@ def _cups_cancel_job(job_id: str) -> bool:
         )
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
         return False
-    else:
-        return True
+    return True
 
 
 def _cups_restart_service() -> bool:
@@ -208,23 +188,13 @@ def _is_cups_printer_healthy(printer_name: str) -> bool:
     lpstat_path = shutil.which("lpstat")
     if not lpstat_path:
         return False
-    try:
-        r = subprocess.run(
-            [lpstat_path, "-p", printer_name],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if (
-                printer_name in line
-                and "idle" in line.lower()
-                and "enabled" in line.lower()
-            ):
-                return True
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        pass
+    for line in run_command_text([lpstat_path, "-p", printer_name]).splitlines():
+        if (
+            printer_name in line
+            and "idle" in line.lower()
+            and "enabled" in line.lower()
+        ):
+            return True
     return False
 
 

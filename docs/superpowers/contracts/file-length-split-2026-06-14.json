@@ -1,0 +1,16 @@
+{
+  "title": "Split 6 oversized files to satisfy the 500-line file-length test",
+  "objective": "Fix python_pkg/tests/test_file_length.py::test_all_python_files_are_at_most_500_lines by splitting diet_guard/_gatelock.py + test_gatelock.py, wake_alarm/_alarm.py + test_alarm.py, and the usage_report.py + _usage_report_parsing.py pair into focused modules, each <= 500 lines, while preserving behaviour, 100% branch coverage on python_pkg, and pylint 10.00/10 on touched non-test modules.",
+  "acceptance_criteria": [
+    "All Python source files repo-wide are <= 500 lines",
+    "python_pkg/tests/test_file_length.py passes",
+    "Full repo pytest passes with 100% branch coverage on python_pkg",
+    "pylint 10.00/10 on all touched non-test modules",
+    "usage_report.py CLI still produces a full Markdown report"
+  ],
+  "out_of_scope": [
+    "Changing diet_guard/wake_alarm/usage_report runtime behaviour",
+    "The pre-existing _AlarmProgress/_AlarmView/_AlarmHardware field-grouping refactor (unrelated, already in the working tree)"
+  ],
+  "verifier": "python3 -m pytest -q && python3 -m pylint <touched-modules>"
+}

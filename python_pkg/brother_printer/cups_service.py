@@ -11,8 +11,11 @@ import shutil
 import subprocess
 import time
 from typing import TYPE_CHECKING
-import urllib.parse
 
+from python_pkg.brother_printer._query import (
+    printer_info_from_cups,
+    run_command_text,
+)
 from python_pkg.brother_printer.constants import (
     _CUPS_REASONS_TO_STATUS,
     _CUPS_STATE_TO_STATUS,
@@ -63,11 +66,10 @@ def _get_pyusb_device_info() -> dict[str, str]:
             return {}
     except (ImportError, OSError, ValueError):
         return {}
-    else:
-        return {
-            "product": dev.product or "",
-            "serial": dev.serial_number or "",
-        }
+    return {
+        "product": dev.product or "",
+        "serial": dev.serial_number or "",
+    }
 
 
 # ── CUPS service control ────────────────────────────────────────────
@@ -310,21 +312,12 @@ def _get_cups_economode(printer_name: str) -> str:
     lpoptions_path = shutil.which("lpoptions")
     if not lpoptions_path:
         return ""
-    try:
-        r = subprocess.run(
-            [lpoptions_path, "-p", printer_name, "-l"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if "conomode" in line.lower():
-                match = re.search(r"\*(\w+)", line)
-                if match:
-                    return "ON" if match.group(1).lower() == "true" else "OFF"
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        pass
+    command = [lpoptions_path, "-p", printer_name, "-l"]
+    for line in run_command_text(command).splitlines():
+        if "conomode" in line.lower():
+            match = re.search(r"\*(\w+)", line)
+            if match:
+                return "ON" if match.group(1).lower() == "true" else "OFF"
     return ""
 
 
@@ -375,56 +368,15 @@ def find_cups_printer_name() -> str:
     lpstat_path = shutil.which("lpstat")
     if not lpstat_path:
         return ""
-    try:
-        r = subprocess.run(
-            [lpstat_path, "-v"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if "brother" in line.lower():
-                match = re.match(r"device for (\S+):", line)
-                if match:
-                    return match.group(1)
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        pass
+    for line in run_command_text([lpstat_path, "-v"]).splitlines():
+        if "brother" in line.lower():
+            match = re.match(r"device for (\S+):", line)
+            if match:
+                return match.group(1)
     return ""
 
 
 # ── CUPS-based USB fallback query ────────────────────────────────────
-
-
-def _parse_cups_usb_uri(uri: str, info: dict[str, str]) -> None:
-    """Extract product and serial from a CUPS usb:// URI."""
-    parsed = urllib.parse.urlparse(uri)
-    info["product"] = urllib.parse.unquote(parsed.path.lstrip("/"))
-    qs = urllib.parse.parse_qs(parsed.query)
-    if "serial" in qs:
-        info["serial"] = qs["serial"][0]
-
-
-def _get_printer_info_from_cups() -> dict[str, str]:
-    """Get printer model/serial from lpstat."""
-    info: dict[str, str] = {"product": "", "serial": ""}
-    try:
-        r = subprocess.run(
-            ["/usr/bin/lpstat", "-v"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if "Brother" in line:
-                for part in line.split():
-                    if part.startswith("usb://"):
-                        _parse_cups_usb_uri(part, info)
-                        break
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        logger.debug("Failed to query CUPS for printer info", exc_info=True)
-    return info
 
 
 def query_usb_via_cups() -> USBResult:
@@ -439,7 +391,7 @@ def query_usb_via_cups() -> USBResult:
         )
 
     pyusb_info = _get_pyusb_device_info()
-    cups_info = _get_printer_info_from_cups()
+    cups_info = printer_info_from_cups()
 
     result = USBResult(
         device="cups",

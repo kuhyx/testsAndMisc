@@ -191,14 +191,18 @@ repos:
         stages: [pre-commit]
         args:
           - --rcfile=pyproject.toml
-          - --fail-under=8.0
+          - --fail-under=10
           - --jobs=4
         additional_dependencies:
           - pytest
           - python-chess
           - requests
           - pygame
-        exclude: ^(Bash/|\.venv/)
+          - pillow
+        # Test suites and conftest fixtures are linted separately; they use
+        # patterns (protected-access, missing docstrings, fixture shadowing)
+        # that don't belong in the source-code 10/10 gate.
+        exclude: ^(Bash/|\.venv/)|(^|/)(tests/|conftest\.py)
 
   # ===========================================================================
   # BANDIT - Security linter (per-commit on changed files only)

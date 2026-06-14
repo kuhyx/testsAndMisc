@@ -7,6 +7,8 @@ on:
       - "python_pkg/lichess_bot/**"
       - "python_pkg/**"
       - "tests/**"
+      - "linux_configuration/scripts/periodic_background/system-maintenance/bin/**"
+      - "linux_configuration/tests/**"
       - "requirements.txt"
   pull_request:
     branches: [main]
@@ -14,6 +16,8 @@ on:
       - "python_pkg/lichess_bot/**"
       - "python_pkg/**"
       - "tests/**"
+      - "linux_configuration/scripts/periodic_background/system-maintenance/bin/**"
+      - "linux_configuration/tests/**"
       - "requirements.txt"
 
 jobs:

@@ -12,7 +12,7 @@
 # Optional persistence (requires sudo):
 #   --persist-systemd     -> Set IdleAction=ignore in /etc/systemd/logind.conf and restart logind
 # Optional activity watcher:
-#   --watch-controller    -> Hold a systemd idle/sleep inhibitor while a game controller is connected (keeps the session awake, fork-free)
+#   --watch-controller    -> Hold a systemd idle inhibitor while a game controller is connected (keeps the session awake, fork-free; does NOT block deliberate suspend/hibernate)
 #
 # Notes:
 # - This script focuses on keeping the screen on and unlocked. Use with care on shared systems.
@@ -42,7 +42,7 @@ Disables idle detection, screen blanking, and auto-lock for the current session.
 
 Options:
 		--persist-systemd   Also set IdleAction=ignore in /etc/systemd/logind.conf (needs sudo)
-		--watch-controller  Hold an idle/sleep inhibitor while a game controller is connected
+		--watch-controller  Hold an idle inhibitor while a game controller is connected
 		-h, --help          Show this help and exit
 
 What this does:
@@ -136,24 +136,30 @@ disable_tty_idle() {
   fi
 }
 
-# PID of the single long-lived idle/sleep inhibitor we hold while a controller
+# PID of the single long-lived idle inhibitor we hold while a controller
 # is connected. Empty when no inhibitor is active.
 inhibit_pid=""
 
 start_idle_inhibit() {
-  # Hold one systemd idle/sleep inhibitor for the whole time a controller is
+  # Hold one systemd idle inhibitor for the whole time a controller is
   # connected. This replaces the previous per-event fork storm (4 xset + an
   # xdotool + a dd read + a sleep on *every* joystick event, ~21 forks/s while
-  # gaming): a single long-lived process keeps logind from idling, suspending,
-  # or locking, while X11 blanking stays off thanks to the one-shot
-  # disable_x11_idle above. Idempotent — a live inhibitor is reused.
+  # gaming): a single long-lived process keeps logind from treating the session
+  # as idle (so it won't auto-suspend or lock), while X11 blanking stays off
+  # thanks to the one-shot disable_x11_idle above. Idempotent — a live inhibitor
+  # is reused.
   if [[ -n $inhibit_pid ]] && kill -0 "$inhibit_pid" 2> /dev/null; then
     return 0
   fi
-  systemd-inhibit --what=idle:sleep --who="idle-off" \
+  # NOTE: --what=idle only (NOT idle:sleep). An idle inhibitor already stops
+  # logind's idle-triggered auto-suspend/lock — which is all gaming needs — but
+  # a *sleep* inhibitor would also block *deliberate* suspend/hibernate, e.g.
+  # the scheduled digital-wellbeing day-specific-shutdown hibernate. Blocking
+  # sleep here once silently kept the PC running past every shutdown window.
+  systemd-inhibit --what=idle --who="idle-off" \
     --why="game controller connected" sleep infinity &
   inhibit_pid=$!
-  log "Holding idle/sleep inhibitor (pid ${inhibit_pid}) while a controller is connected"
+  log "Holding idle inhibitor (pid ${inhibit_pid}) while a controller is connected"
 }
 
 stop_idle_inhibit() {
@@ -163,7 +169,7 @@ stop_idle_inhibit() {
   kill "$inhibit_pid" 2> /dev/null || true
   wait "$inhibit_pid" 2> /dev/null || true
   inhibit_pid=""
-  log "Released idle/sleep inhibitor; normal idle behaviour resumes"
+  log "Released idle inhibitor; normal idle behaviour resumes"
 }
 
 controller_connected() {

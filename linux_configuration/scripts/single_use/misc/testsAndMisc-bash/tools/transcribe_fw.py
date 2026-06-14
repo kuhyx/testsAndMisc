@@ -210,6 +210,30 @@ def _write_diarized_outputs(
         )
 
 
+def _load_whisper_model(
+    fw: types.ModuleType,
+    args: argparse.Namespace,
+    device: str,
+    compute_type: str,
+) -> object:
+    """Resolve the model path, configure logging, and load the model."""
+    model_path: str = args.model
+    if not Path(args.model).is_dir():
+        model_path = download_model_with_progress(args.model)
+
+    ct2_logger = logging.getLogger("faster_whisper")
+    ct2_logger.setLevel(logging.INFO)
+
+    logger.info("Initializing model...")
+    model = fw.WhisperModel(
+        model_path,
+        device=device,
+        compute_type=compute_type,
+    )
+    logger.info("Model loaded successfully.")
+    return model
+
+
 def main() -> int:
     """Run the main transcription pipeline."""
     logging.basicConfig(
@@ -247,20 +271,7 @@ def main() -> int:
         compute_type,
     )
 
-    model_path: str = args.model
-    if not Path(args.model).is_dir():
-        model_path = download_model_with_progress(args.model)
-
-    ct2_logger = logging.getLogger("faster_whisper")
-    ct2_logger.setLevel(logging.INFO)
-
-    logger.info("Initializing model...")
-    model = fw.WhisperModel(
-        model_path,
-        device=device,
-        compute_type=compute_type,
-    )
-    logger.info("Model loaded successfully.")
+    model = _load_whisper_model(fw, args, device, compute_type)
 
     total_duration = get_media_duration(inp)
     if total_duration:

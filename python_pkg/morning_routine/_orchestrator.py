@@ -25,6 +25,8 @@ import logging
 import subprocess
 import sys
 
+from python_pkg.shared.logging_setup import configure_logging
+
 _logger = logging.getLogger(__name__)
 
 # Modules invoked as ``python -m <module> --production``.
@@ -79,10 +81,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main() -> None:
     """Entry point: optionally run the alarm, then always run the workout lock."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    configure_logging()
     args = _parse_args(sys.argv[1:])
     # Alarm first so it owns the fullscreen and escalates until dismissed; only
     # then hand off to the workout lock. Running them in this order in a single

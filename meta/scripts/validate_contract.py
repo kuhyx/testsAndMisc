@@ -11,9 +11,18 @@ repository's Python tooling applies; see CLAUDE.md "Shell Style".
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 import sys
+from typing import TYPE_CHECKING
+
+from _schema_validation import (
+    check_string_lists,
+    is_nonempty_str,
+    load_and_check_required,
+    run_cli,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Top-level keys every contract must define.
 _REQUIRED_KEYS = (
@@ -29,11 +38,6 @@ _STRING_KEYS = ("title", "objective", "verifier")
 _STRING_LIST_KEYS = ("acceptance_criteria", "out_of_scope")
 
 
-def _is_nonempty_str(value: object) -> bool:
-    """Return True if ``value`` is a string with non-whitespace content."""
-    return isinstance(value, str) and bool(value.strip())
-
-
 def _check_required_keys(data: dict[str, object]) -> list[str]:
     """Report any required top-level keys that are absent."""
     missing = [key for key in _REQUIRED_KEYS if key not in data]
@@ -47,58 +51,28 @@ def _check_strings(data: dict[str, object]) -> list[str]:
     return [
         f"{key} must be non-empty string"
         for key in _STRING_KEYS
-        if not _is_nonempty_str(data.get(key))
+        if not is_nonempty_str(data.get(key))
     ]
-
-
-def _check_string_lists(data: dict[str, object]) -> list[str]:
-    """Each list field must be a non-empty list of non-empty strings."""
-    errors: list[str] = []
-    for key in _STRING_LIST_KEYS:
-        value = data.get(key)
-        if not isinstance(value, list) or not value:
-            errors.append(f"{key} must be a non-empty list")
-            continue
-        if any(not _is_nonempty_str(item) for item in value):
-            errors.append(f"{key} items must be non-empty strings")
-    return errors
 
 
 def validate(path: Path) -> list[str]:
     """Return a list of schema problems for ``path`` (empty when it is valid)."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        return [f"cannot read file ({exc})"]
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        return [f"invalid JSON ({exc})"]
-    if not isinstance(data, dict):
-        return ["top-level JSON value must be an object"]
-
-    errors = _check_required_keys(data)
-    if errors:  # without the keys present, the per-field checks are noise
+    data, _text, errors = load_and_check_required(path, _check_required_keys)
+    if data is None:
         return errors
     errors += _check_strings(data)
-    errors += _check_string_lists(data)
+    errors += check_string_lists(data, _STRING_LIST_KEYS, "items")
     return errors
 
 
 def main() -> int:
     """Validate the contract named by ``argv[1]``; return a process exit code."""
-    args = sys.argv[1:]
-    if not args:
-        sys.stderr.write("usage: validate_contract.py <contract.json>\n")
-        return 2
-    path = Path(args[0])
-    errors = validate(path)
-    if errors:
-        for error in errors:
-            sys.stderr.write(f"{path}: {error}\n")
-        return 1
-    sys.stdout.write(f"{path}: contract schema OK\n")
-    return 0
+    return run_cli(
+        sys.argv[1:],
+        usage="usage: validate_contract.py <contract.json>",
+        validate=validate,
+        success_message="contract schema OK",
+    )
 
 
 if __name__ == "__main__":

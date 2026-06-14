@@ -1,0 +1,20 @@
+#!/bin/sh
+# pconfine-auto on|off — single-instance control of the pointer-confine
+# daemon, called by dwm's setfullscreen()/unmanage() hooks and the Mod+Shift+p
+# panic key. `on` locks the cursor to the current monitor; `off` releases it.
+set -u
+case "${1:-}" in
+    on)
+        # start only if not already running, and only if the helper exists
+        pgrep -x pointer-confine >/dev/null 2>&1 && exit 0
+        command -v pointer-confine >/dev/null 2>&1 || exit 0
+        setsid pointer-confine >/dev/null 2>&1 &   # new session: outlives the hook
+        ;;
+    off)
+        pkill -x pointer-confine 2>/dev/null || true
+        ;;
+    *)
+        echo "usage: ${0##*/} on|off" >&2
+        exit 1
+        ;;
+esac

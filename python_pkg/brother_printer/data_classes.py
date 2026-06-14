@@ -68,6 +68,19 @@ class USBResult:
 
 
 @dataclass
+class SupplyReadings:
+    """Parallel SNMP supply tables (descriptions, capacities, current levels).
+
+    The three lists are always populated and indexed together, so they travel
+    as one object rather than three loose fields on NetworkResult.
+    """
+
+    descriptions: list[str] = field(default_factory=list)
+    max_values: list[str] = field(default_factory=list)
+    levels: list[str] = field(default_factory=list)
+
+
+@dataclass
 class NetworkResult:
     """Result from an SNMP network query."""
 
@@ -79,9 +92,7 @@ class NetworkResult:
     device_status: str = ""
     display: str = ""
     page_count: str = ""
-    supply_descriptions: list[str] = field(default_factory=list)
-    supply_max: list[str] = field(default_factory=list)
-    supply_levels: list[str] = field(default_factory=list)
+    supplies: SupplyReadings = field(default_factory=SupplyReadings)
     error: str = ""
 
 
@@ -90,7 +101,7 @@ class SupplyStatus:
     """Processed supply level info for display."""
 
     color: str
-    bar: str
+    bar_text: str
     status_text: str
     warning: str
     needs_replacement: bool

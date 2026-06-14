@@ -1,0 +1,9 @@
+#!/bin/sh
+# Recompile dwm after editing ~/.local/src/dwm/config.h. Log out and back in
+# (lightdm) to apply — dwm has no in-place restart without the restart patch.
+set -eu
+cd "$HOME/.local/src/dwm" || { echo "dwm source not found"; exit 1; }
+sudo make clean install
+printf '\n>>> dwm rebuilt. Log out and back in to apply the new config. <<<\n'
+printf 'Press Enter to close…'
+read -r _

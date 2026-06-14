@@ -224,7 +224,7 @@ fi
 # PYLINT - Comprehensive linting
 # ==============================================================================
 if check_tool pylint; then
-    run_tool "pylint" "pylint --rcfile=pyproject.toml --jobs=0 --fail-under=0 ${TARGET_FILES}" || OVERALL_STATUS=1
+    run_tool "pylint" "pylint --rcfile=pyproject.toml --jobs=0 --fail-under=10 ${TARGET_FILES}" || OVERALL_STATUS=1
 fi
 
 # ==============================================================================

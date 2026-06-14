@@ -1,0 +1,18 @@
+{
+  "title": "Dedupe validate_contract/validate_evidence to reach pylint 10/10",
+  "objective": "validate_contract.py and validate_evidence.py shared near-identical required-key/string-list/CLI-dispatch logic, triggering 3x pylint R0801 duplicate-code findings. This was the last of 16 findings blocking the repo-wide pylint pre-commit hook from reaching --fail-under=10. Extract the shared logic into a new _schema_validation.py helper module so both scripts import it, eliminating the duplication while preserving identical CLI behaviour (success/error messages, exit codes).",
+  "acceptance_criteria": [
+    "meta/scripts/_schema_validation.py provides is_nonempty_str, load_and_check_required, check_string_lists, run_cli",
+    "validate_contract.py and validate_evidence.py import and use these helpers instead of duplicating the logic",
+    "pylint --rcfile=meta/pyproject.toml on the 3 files scores 10.00/10 with zero duplicate-code findings",
+    "pre-commit run pylint --all-files passes repo-wide (the overarching --fail-under=10 goal)",
+    "validate_contract.py and validate_evidence.py produce identical stdout/stderr/exit codes for: valid artifact, missing file, missing argv",
+    "linux_configuration/tests/test_validate_contract.py and test_validate_evidence.py pass unchanged"
+  ],
+  "out_of_scope": [
+    "Any other staged/unstaged changes already present in the working tree (dwm setup, gaming scripts, transcription tools, usage-report edits, etc.)",
+    "python_pkg/tests/test_file_length.py 500-line violations (pre-existing, separate issue)",
+    "Changing error-message wording in _check_required_keys/_check_strings/_check_intent/_check_verification/_check_phrases"
+  ],
+  "verifier": "pylint --rcfile=meta/pyproject.toml meta/scripts/_schema_validation.py meta/scripts/validate_contract.py meta/scripts/validate_evidence.py; pre-commit run pylint --all-files; python3 -m pytest linux_configuration/tests/test_validate_contract.py linux_configuration/tests/test_validate_evidence.py -q"
+}

@@ -33,7 +33,7 @@ class TestQueryUsbViaCups:
             patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
             patch(f"{MOD}._get_pyusb_device_info", return_value={}),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "HL-1110", "serial": "ABC"},
             ),
             patch(
@@ -58,7 +58,7 @@ class TestQueryUsbViaCups:
             patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
             patch(f"{MOD}._get_pyusb_device_info", return_value={}),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "", "serial": ""},
             ),
             patch(
@@ -81,7 +81,7 @@ class TestQueryUsbViaCups:
             patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
             patch(f"{MOD}._get_pyusb_device_info", return_value={}),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "", "serial": ""},
             ),
             patch(
@@ -112,7 +112,7 @@ class TestQueryUsbViaCups:
             patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
             patch(f"{MOD}._get_pyusb_device_info", return_value={}),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "", "serial": ""},
             ),
             patch(
@@ -151,7 +151,7 @@ class TestQueryUsbViaCups:
             patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
             patch(f"{MOD}._get_pyusb_device_info", return_value={}),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "", "serial": ""},
             ),
             patch(
@@ -190,7 +190,7 @@ class TestQueryUsbViaCups:
             patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
             patch(f"{MOD}._get_pyusb_device_info", return_value={}),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "", "serial": ""},
             ),
             patch(
@@ -229,7 +229,7 @@ class TestQueryUsbViaCups:
                 return_value={"product": "HL-1110", "serial": "SN1"},
             ),
             patch(
-                f"{MOD}._get_printer_info_from_cups",
+                f"{MOD}.printer_info_from_cups",
                 return_value={"product": "", "serial": ""},
             ),
             patch(

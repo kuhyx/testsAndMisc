@@ -285,8 +285,8 @@ def _process_supply_item(desc: str, max_val: int, level: int) -> SupplyStatus:
     pct, status_text, color, warning, needs_replacement = _classify_supply_level(
         desc, max_val, level
     )
-    bar = _format_supply_bar(pct)
-    return SupplyStatus(color, bar, status_text, warning, needs_replacement)
+    bar_text = _format_supply_bar(pct)
+    return SupplyStatus(color, bar_text, status_text, warning, needs_replacement)
 
 
 def _display_supply_warnings(*, needs_replacement: bool, warnings: list[str]) -> None:
@@ -318,9 +318,9 @@ def _collect_supply_items(
     """Parse and collect supply items with their descriptions."""
     items: list[SupplyStatus] = []
     descs: list[str] = []
-    for i, desc in enumerate(result.supply_descriptions):
-        max_val = _parse_supply_value(result.supply_max, i)
-        level = _parse_supply_value(result.supply_levels, i)
+    for i, desc in enumerate(result.supplies.descriptions):
+        max_val = _parse_supply_value(result.supplies.max_values, i)
+        level = _parse_supply_value(result.supplies.levels, i)
         items.append(_process_supply_item(desc, max_val, level))
         descs.append(desc)
     return items, descs
@@ -339,7 +339,7 @@ def _display_supply_levels(result: NetworkResult) -> None:
     for desc, item in zip(descs, items, strict=True):
         _out(
             f"  {BOLD}{desc:<25}{RESET}"
-            f" {item.color}{item.bar} {item.status_text}{RESET}"
+            f" {item.color}{item.bar_text} {item.status_text}{RESET}"
         )
         if item.needs_replacement:
             needs_replacement = True

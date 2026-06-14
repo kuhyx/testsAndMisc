@@ -11,9 +11,18 @@ repository's Python tooling applies; see CLAUDE.md "Shell Style".
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 import sys
+from typing import TYPE_CHECKING
+
+from _schema_validation import (
+    check_string_lists,
+    is_nonempty_str,
+    load_and_check_required,
+    run_cli,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Top-level keys every evidence artifact must define.
 _REQUIRED_KEYS = ("intent", "scope", "changes", "verification", "risks", "rollback")
@@ -23,11 +32,6 @@ _STRING_LIST_KEYS = ("scope", "changes", "risks", "rollback")
 _VERIFICATION_FIELDS = ("command", "result", "evidence")
 # Rationalization phrases that must be replaced with concrete evidence.
 _BANNED_PHRASES = ("should work", "probably fine", "seems right")
-
-
-def _is_nonempty_str(value: object) -> bool:
-    """Return True if ``value`` is a string with non-whitespace content."""
-    return isinstance(value, str) and bool(value.strip())
 
 
 def _check_required_keys(data: dict[str, object]) -> list[str]:
@@ -40,22 +44,9 @@ def _check_required_keys(data: dict[str, object]) -> list[str]:
 
 def _check_intent(data: dict[str, object]) -> list[str]:
     """The ``intent`` field must be a non-empty string."""
-    if not _is_nonempty_str(data.get("intent")):
+    if not is_nonempty_str(data.get("intent")):
         return ["intent must be a non-empty string"]
     return []
-
-
-def _check_string_lists(data: dict[str, object]) -> list[str]:
-    """Each string-list field must be a non-empty list of non-empty strings."""
-    errors: list[str] = []
-    for key in _STRING_LIST_KEYS:
-        value = data.get(key)
-        if not isinstance(value, list) or not value:
-            errors.append(f"{key} must be a non-empty list")
-            continue
-        if any(not _is_nonempty_str(item) for item in value):
-            errors.append(f"{key} entries must be non-empty strings")
-    return errors
 
 
 def _check_verification(data: dict[str, object]) -> list[str]:
@@ -74,7 +65,7 @@ def _check_verification(data: dict[str, object]) -> list[str]:
         bad = [
             field
             for field in _VERIFICATION_FIELDS
-            if field in item and not _is_nonempty_str(item[field])
+            if field in item and not is_nonempty_str(item[field])
         ]
         errors.extend(
             f"verification[{index}].{field} must be a non-empty string" for field in bad
@@ -94,22 +85,11 @@ def _check_phrases(text: str) -> list[str]:
 
 def validate(path: Path) -> list[str]:
     """Return a list of schema problems for ``path`` (empty when it is valid)."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        return [f"cannot read file ({exc})"]
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        return [f"invalid JSON ({exc})"]
-    if not isinstance(data, dict):
-        return ["top-level JSON value must be an object"]
-
-    errors = _check_required_keys(data)
-    if errors:  # without the keys present, the per-field checks are noise
+    data, text, errors = load_and_check_required(path, _check_required_keys)
+    if data is None:
         return errors
     errors += _check_intent(data)
-    errors += _check_string_lists(data)
+    errors += check_string_lists(data, _STRING_LIST_KEYS, "entries")
     errors += _check_verification(data)
     errors += _check_phrases(text)
     return errors
@@ -117,18 +97,12 @@ def validate(path: Path) -> list[str]:
 
 def main() -> int:
     """Validate the artifact named by ``argv[1]``; return a process exit code."""
-    args = sys.argv[1:]
-    if not args:
-        sys.stderr.write("usage: validate_evidence.py <evidence.json>\n")
-        return 2
-    path = Path(args[0])
-    errors = validate(path)
-    if errors:
-        for error in errors:
-            sys.stderr.write(f"{path}: {error}\n")
-        return 1
-    sys.stdout.write(f"{path}: schema OK\n")
-    return 0
+    return run_cli(
+        sys.argv[1:],
+        usage="usage: validate_evidence.py <evidence.json>",
+        validate=validate,
+        success_message="schema OK",
+    )
 
 
 if __name__ == "__main__":

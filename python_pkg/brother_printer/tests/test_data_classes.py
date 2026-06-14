@@ -74,9 +74,9 @@ class TestNetworkResult:
         assert r.connection == "network"
         assert r.ip == ""
         assert r.product == "Unknown"
-        assert r.supply_descriptions == []
-        assert r.supply_max == []
-        assert r.supply_levels == []
+        assert r.supplies.descriptions == []
+        assert r.supplies.max_values == []
+        assert r.supplies.levels == []
         assert r.error == ""
 
 
@@ -84,7 +84,7 @@ class TestSupplyStatus:
     def test_create(self) -> None:
         s = SupplyStatus(
             color="red",
-            bar="[###]",
+            bar_text="[###]",
             status_text="50%",
             warning="low",
             needs_replacement=True,

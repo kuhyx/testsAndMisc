@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-from python_pkg.brother_printer.data_classes import NetworkResult
+from python_pkg.brother_printer.data_classes import NetworkResult, SupplyReadings
 
 
 def _snmpwalk_cmd(
@@ -81,9 +81,11 @@ def _build_network_result(ip: str, community: str, timeout: int) -> NetworkResul
         device_status=" ".join(walk("1.3.6.1.2.1.25.3.2.1.5")[:1]) or "",
         display=" ".join(walk("1.3.6.1.2.1.43.16.5.1.2")[:3]) or "",
         page_count=" ".join(walk("1.3.6.1.2.1.43.10.2.1.4")[:1]) or "",
-        supply_descriptions=walk("1.3.6.1.2.1.43.11.1.1.6"),
-        supply_max=walk("1.3.6.1.2.1.43.11.1.1.8"),
-        supply_levels=walk("1.3.6.1.2.1.43.11.1.1.9"),
+        supplies=SupplyReadings(
+            descriptions=walk("1.3.6.1.2.1.43.11.1.1.6"),
+            max_values=walk("1.3.6.1.2.1.43.11.1.1.8"),
+            levels=walk("1.3.6.1.2.1.43.11.1.1.9"),
+        ),
     )
 
 

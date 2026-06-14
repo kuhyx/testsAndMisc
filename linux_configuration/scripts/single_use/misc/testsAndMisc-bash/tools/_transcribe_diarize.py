@@ -214,8 +214,7 @@ def _ffmpeg_transcode_to_wav16_mono(
         with contextlib.suppress(OSError):
             Path(tmp_path).unlink()
         return None
-    else:
-        return tmp_path
+    return tmp_path
 
 
 def _cleanup_temp(path: str | None) -> None:
@@ -263,10 +262,8 @@ def _load_audio(
             )
             _cleanup_temp(alt)
             return None
-        else:
-            return wav, sr, alt
-    else:
-        return wav, sr, None
+        return wav, sr, alt
+    return wav, sr, None
 
 
 def _load_speaker_classifier(
@@ -290,8 +287,7 @@ def _load_speaker_classifier(
         )
         _cleanup_temp(temp_to_cleanup)
         return None
-    else:
-        return classifier
+    return classifier
 
 
 def _extract_embeddings(

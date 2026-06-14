@@ -109,8 +109,7 @@ def generate_sine_wav(
     except OSError:
         logger.exception("Failed to generate WAV")
         return False
-    else:
-        return True
+    return True
 
 
 def prepare_model(model_name: str, model_dir: str) -> bool:
@@ -151,8 +150,7 @@ def prepare_model(model_name: str, model_dir: str) -> bool:
     except (OSError, RuntimeError):
         logger.exception("Failed to prepare model")
         return False
-    else:
-        return True
+    return True
 
 
 def test_cuda() -> bool:
@@ -172,8 +170,7 @@ def test_cuda() -> bool:
     except (OSError, RuntimeError):
         logger.exception("CUDA test failed")
         return False
-    else:
-        return True
+    return True
 
 
 def _handle_python_version() -> None:

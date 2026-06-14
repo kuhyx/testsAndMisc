@@ -1,0 +1,50 @@
+{
+  "intent": "Eliminate the last 3 pylint R0801 duplicate-code findings (between validate_contract.py and validate_evidence.py) so the repo-wide pylint pre-commit hook passes at --fail-under=10, completing the multi-session pylint-10/10 goal.",
+  "scope": [
+    "meta/scripts/_schema_validation.py (new)",
+    "meta/scripts/validate_contract.py",
+    "meta/scripts/validate_evidence.py",
+    "Non-goal: changing CLI output wording, exit codes, or any other staged work in the tree"
+  ],
+  "changes": [
+    "Added meta/scripts/_schema_validation.py with is_nonempty_str, load_and_check_required, check_string_lists, run_cli shared helpers",
+    "validate_contract.py: removed duplicated key/list/CLI logic, now calls load_and_check_required(path, _check_required_keys) and run_cli(...)",
+    "validate_evidence.py: removed duplicated key/list/CLI logic, now calls load_and_check_required(path, _check_required_keys) and run_cli(...)",
+    "Moved Path import to TYPE_CHECKING-only in both scripts (annotation-only after refactor)",
+    "Added shebang + chmod +x to _schema_validation.py to satisfy ruff INP001/EXE001 conventions used by sibling files in meta/scripts/"
+  ],
+  "verification": [
+    {
+      "command": "pylint --rcfile=meta/pyproject.toml meta/scripts/_schema_validation.py meta/scripts/validate_contract.py meta/scripts/validate_evidence.py",
+      "result": "pass",
+      "evidence": "Your code has been rated at 10.00/10 (previous run: 10.00/10, +0.00)"
+    },
+    {
+      "command": "pylint --disable=all --enable=duplicate-code --rcfile=meta/pyproject.toml meta/scripts/*.py",
+      "result": "pass",
+      "evidence": "No R0801 findings reported; score 10.00/10"
+    },
+    {
+      "command": "pre-commit run pylint --all-files",
+      "result": "pass",
+      "evidence": "pylint...................................................................Passed"
+    },
+    {
+      "command": "python3 -m pytest linux_configuration/tests/test_validate_contract.py linux_configuration/tests/test_validate_evidence.py -p no:cacheprovider -q",
+      "result": "pass",
+      "evidence": "27 passed in 0.36s"
+    },
+    {
+      "command": "python3 meta/scripts/validate_contract.py docs/superpowers/contracts/agent-automation-bootstrap.json; python3 meta/scripts/validate_evidence.py docs/superpowers/evidence/template.json; python3 meta/scripts/validate_evidence.py; python3 meta/scripts/validate_contract.py /nonexistent.json",
+      "result": "pass",
+      "evidence": "Manual run: 'contract schema OK' / 'schema OK' (exit 0); usage message on stderr (exit 2); 'cannot read file (...)' on stderr (exit 1) -- identical to pre-refactor behaviour"
+    }
+  ],
+  "risks": [
+    "New module _schema_validation.py is a private dependency shared by two CLI entry points used by pre-commit hooks (check_agent_contract.sh, check_ai_evidence.sh) -- if it fails to import, both hooks break"
+  ],
+  "rollback": [
+    "git checkout -- meta/scripts/validate_contract.py meta/scripts/validate_evidence.py && rm meta/scripts/_schema_validation.py",
+    "Re-run pre-commit run pylint --all-files to confirm prior state (will show R0801 findings again, pre-existing pre-this-change state was already 10.00/10 minus this fix)"
+  ]
+}

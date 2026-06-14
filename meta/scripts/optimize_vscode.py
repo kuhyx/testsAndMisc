@@ -128,7 +128,7 @@ def _detect_cpu(hw: _Hw) -> None:
 
 def _detect_ram(hw: _Hw) -> None:
     try:
-        meminfo = Path("/proc/meminfo").read_text()
+        meminfo = Path("/proc/meminfo").read_text(encoding="utf-8")
     except OSError:
         return
     m = re.search(r"MemTotal:\s+(\d+)\s+kB", meminfo)
@@ -167,7 +167,7 @@ def _detect_disk(hw: _Hw) -> None:
     rotational = Path(f"/sys/block/{base}/queue/rotational")
     if not rotational.exists():
         return
-    if rotational.read_text().strip() == "1":
+    if rotational.read_text(encoding="utf-8").strip() == "1":
         hw.disk_type = "hdd"
     elif "nvme" in base:
         hw.disk_type = "nvme"

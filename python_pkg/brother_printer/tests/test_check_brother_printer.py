@@ -25,7 +25,7 @@ class TestDiscoverNetworkPrinter:
     def test_no_lpstat(self, m: MagicMock) -> None:
         assert _discover_network_printer() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_found_ip(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -33,7 +33,7 @@ class TestDiscoverNetworkPrinter:
         )
         assert _discover_network_printer() == "192.168.1.100"
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_socket(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -41,7 +41,7 @@ class TestDiscoverNetworkPrinter:
         )
         assert _discover_network_printer() == "10.0.0.5"
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_no_match(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -49,13 +49,13 @@ class TestDiscoverNetworkPrinter:
         )
         assert _discover_network_printer() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("lpstat", 5)
         assert _discover_network_printer() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")

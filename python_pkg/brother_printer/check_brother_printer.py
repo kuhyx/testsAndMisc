@@ -31,9 +31,9 @@ import logging
 import os
 import re
 import shutil
-import subprocess
 import sys
 
+from python_pkg.brother_printer._query import run_command_text
 from python_pkg.brother_printer.constants import CYAN, RED, RESET, _out
 from python_pkg.brother_printer.cups_service import reset_consumable
 from python_pkg.brother_printer.display import (
@@ -54,22 +54,12 @@ def _discover_network_printer() -> str:
     lpstat_path = shutil.which("lpstat")
     if not lpstat_path:
         return ""
-    try:
-        r = subprocess.run(
-            [lpstat_path, "-v"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        match = re.search(
-            r"(?:ipp|socket|lpd|http)://" r"(\d+\.\d+\.\d+\.\d+)",
-            r.stdout,
-        )
-        if match:
-            return match.group(1)
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        logger.debug("Failed to discover printer via CUPS", exc_info=True)
+    match = re.search(
+        r"(?:ipp|socket|lpd|http)://(\d+\.\d+\.\d+\.\d+)",
+        run_command_text([lpstat_path, "-v"]),
+    )
+    if match:
+        return match.group(1)
     return ""
 
 

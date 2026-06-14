@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# dwm status feeder — sets the root window name, which dwm paints in the bar.
+# Run `dwmstatus once` to print the line a single time (no xsetroot required).
+set -u
+
+# Echo the primary temperature (temp1_input, whole °C) of the first hwmon chip
+# whose name matches the given ERE. Echoes nothing if no such chip/sensor exists.
+read_temp() {
+    local want=$1 d n milli
+    for d in /sys/class/hwmon/hwmon*/; do
+        [[ -r ${d}name ]] || continue
+        read -r n < "${d}name"
+        [[ $n =~ $want ]] || continue
+        [[ -r ${d}temp1_input ]] || return 0
+        read -r milli < "${d}temp1_input"
+        printf '%d' "$((milli / 1000))"
+        return 0
+    done
+}
+
+# Format kibibytes as a compact GiB/MiB string (e.g. 11.2GiB).
+fmt_kib() {
+    local mib=$(( $1 / 1024 ))
+    if ((mib >= 1024)); then
+        printf '%d.%dGiB' "$((mib / 1024))" "$((((mib % 1024) * 10) / 1024))"
+    else
+        printf '%dMiB' "$mib"
+    fi
+}
+
+# Assemble the whole status line into $_status.
+build_status() {
+    local cpu gpu mb load total avail raw mute vol now temps=""
+
+    cpu=$(read_temp 'k10temp|coretemp')
+    gpu=$(read_temp 'amdgpu|nouveau|radeon')
+    mb=$(read_temp 'nct[0-9]|it87|f71')
+    [[ -n $cpu ]] && temps+="CPU ${cpu}C  "
+    [[ -n $gpu ]] && temps+="GPU ${gpu}C  "
+    [[ -n $mb ]] && temps+="MB ${mb}C  "
+
+    read -r load _ < /proc/loadavg
+
+    total=0 avail=0
+    while IFS=' :' read -r key value _; do
+        case $key in
+            MemTotal) total=$value ;;
+            MemAvailable) avail=$value ;;
+        esac
+    done < /proc/meminfo
+
+    vol="?"
+    raw=$(pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null) || raw=""
+    [[ $raw =~ ([0-9]+)% ]] && vol="${BASH_REMATCH[1]}%"
+    mute=$(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null) || mute=""
+    [[ $mute == *yes ]] && vol="mute"
+
+    printf -v now '%(%Y-%m-%d %H:%M)T' -1
+
+    _status="  ${temps}RAM $(fmt_kib "$((total - avail))")/$(fmt_kib "$total")  load ${load}  vol ${vol}  ${now}  "
+}
+
+if [[ ${1:-} == once ]]; then
+    build_status
+    printf '%s\n' "$_status"
+    exit 0
+fi
+
+# Need xsetroot to actually paint the bar; without it the bar just stays empty.
+if ! command -v xsetroot >/dev/null 2>&1; then
+    printf 'dwmstatus: xorg-xsetroot not installed; run: sudo pacman -S xorg-xsetroot\n' >&2
+    exit 0
+fi
+
+while :; do
+    build_status
+    xsetroot -name "$_status"
+    sleep 5
+done

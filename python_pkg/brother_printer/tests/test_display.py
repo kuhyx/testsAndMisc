@@ -10,6 +10,7 @@ import pytest
 from python_pkg.brother_printer.data_classes import (
     NetworkResult,
     PageCountEstimate,
+    SupplyReadings,
     USBPortStatus,
     USBResult,
 )
@@ -399,9 +400,11 @@ class TestParseSupplyValue:
 class TestCollectSupplyItems:
     def test_collect(self) -> None:
         result = NetworkResult(
-            supply_descriptions=["Toner", "Drum"],
-            supply_max=["100", "200"],
-            supply_levels=["80", "150"],
+            supplies=SupplyReadings(
+                descriptions=["Toner", "Drum"],
+                max_values=["100", "200"],
+                levels=["80", "150"],
+            ),
         )
         items, descs = _collect_supply_items(result)
         assert len(items) == 2
@@ -411,9 +414,11 @@ class TestCollectSupplyItems:
 class TestDisplaySupplyLevels:
     def test_with_items(self) -> None:
         result = NetworkResult(
-            supply_descriptions=["Toner"],
-            supply_max=["100"],
-            supply_levels=["80"],
+            supplies=SupplyReadings(
+                descriptions=["Toner"],
+                max_values=["100"],
+                levels=["80"],
+            ),
         )
         with patch("sys.stdout", new_callable=StringIO) as out:
             _display_supply_levels(result)
@@ -421,9 +426,11 @@ class TestDisplaySupplyLevels:
 
     def test_needs_replacement_and_warning(self) -> None:
         result = NetworkResult(
-            supply_descriptions=["Toner", "Drum"],
-            supply_max=["100", "100"],
-            supply_levels=["0", "15"],
+            supplies=SupplyReadings(
+                descriptions=["Toner", "Drum"],
+                max_values=["100", "100"],
+                levels=["0", "15"],
+            ),
         )
         with patch("sys.stdout", new_callable=StringIO) as out:
             _display_supply_levels(result)

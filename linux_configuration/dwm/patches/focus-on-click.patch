@@ -1,0 +1,46 @@
+--- a/dwm.c
++++ b/dwm.c
+@@ -759,20 +759,8 @@
+ void
+ enternotify(XEvent *e)
+ {
+-	Client *c;
+-	Monitor *m;
+-	XCrossingEvent *ev = &e->xcrossing;
+-
+-	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
+-		return;
+-	c = wintoclient(ev->window);
+-	m = c ? c->mon : wintomon(ev->window);
+-	if (m != selmon) {
+-		unfocus(selmon->sel, 1);
+-		selmon = m;
+-	} else if (!c || c == selmon->sel)
+-		return;
+-	focus(c);
++	/* focusonclick: pointer never changes focus; use a click or Mod+keys. */
++	(void)e;
+ }
+
+ void
+@@ -1128,18 +1116,8 @@
+ void
+ motionnotify(XEvent *e)
+ {
+-	static Monitor *mon = NULL;
+-	Monitor *m;
+-	XMotionEvent *ev = &e->xmotion;
+-
+-	if (ev->window != root)
+-		return;
+-	if ((m = recttomon(ev->x_root, ev->y_root, 1, 1)) != mon && mon) {
+-		unfocus(selmon->sel, 1);
+-		selmon = m;
+-		focus(NULL);
+-	}
+-	mon = m;
++	/* focusonclick: keep the active monitor fixed when crossing screens. */
++	(void)e;
+ }
+
+ void

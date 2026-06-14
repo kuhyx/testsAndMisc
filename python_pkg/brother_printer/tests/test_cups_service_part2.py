@@ -8,9 +8,7 @@ from unittest.mock import MagicMock, patch
 from python_pkg.brother_printer.cups_service import (
     _cups_reasons_to_error,
     _get_cups_economode,
-    _get_printer_info_from_cups,
     _map_cups_to_status_code,
-    _parse_cups_usb_uri,
     _port_status_to_status_code,
     find_cups_printer_name,
 )
@@ -31,7 +29,7 @@ class TestGetCupsEconomode:
     def test_no_lpoptions(self, m: MagicMock) -> None:
         assert _get_cups_economode("Brother") == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpoptions")
     def test_economode_on(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -39,7 +37,7 @@ class TestGetCupsEconomode:
         )
         assert _get_cups_economode("Brother") == "ON"
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpoptions")
     def test_economode_off(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -47,7 +45,7 @@ class TestGetCupsEconomode:
         )
         assert _get_cups_economode("Brother") == "OFF"
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpoptions")
     def test_no_economode_line(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -55,7 +53,7 @@ class TestGetCupsEconomode:
         )
         assert _get_cups_economode("Brother") == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpoptions")
     def test_economode_no_star_match(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -63,13 +61,13 @@ class TestGetCupsEconomode:
         )
         assert _get_cups_economode("Brother") == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpoptions")
     def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("lpoptions", 5)
         assert _get_cups_economode("Brother") == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpoptions")
     def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
@@ -191,7 +189,7 @@ class TestFindCupsPrinterName:
     def test_no_lpstat(self, m: MagicMock) -> None:
         assert find_cups_printer_name() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_found(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -199,13 +197,13 @@ class TestFindCupsPrinterName:
         )
         assert find_cups_printer_name() == "BrotherHL1110"
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_no_brother(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="device for HP: ipp://hp.local\n")
         assert find_cups_printer_name() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_brother_no_match(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -213,73 +211,14 @@ class TestFindCupsPrinterName:
         )
         assert find_cups_printer_name() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = subprocess.TimeoutExpired("lpstat", 5)
         assert find_cups_printer_name() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lpstat")
     def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
         assert find_cups_printer_name() == ""
-
-
-# ── _parse_cups_usb_uri ─────────────────────────────────────────────
-
-
-class TestParseCupsUsbUri:
-    """Tests for _parse_cups_usb_uri."""
-
-    def test_full_uri(self) -> None:
-        info: dict[str, str] = {"product": "", "serial": ""}
-        _parse_cups_usb_uri("usb://Brother/HL-1110%20series?serial=ABC123", info)
-        assert info["product"] == "HL-1110 series"
-        assert info["serial"] == "ABC123"
-
-    def test_no_serial(self) -> None:
-        info: dict[str, str] = {"product": "", "serial": ""}
-        _parse_cups_usb_uri("usb://Brother/HL-1110", info)
-        assert info["product"] == "HL-1110"
-        assert info["serial"] == ""
-
-
-# ── _get_printer_info_from_cups ──────────────────────────────────────
-
-
-class TestGetPrinterInfoFromCups:
-    """Tests for _get_printer_info_from_cups."""
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_found(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(
-            stdout="device for B: usb://Brother/HL-1110?serial=XYZ\n"
-        )
-        result = _get_printer_info_from_cups()
-        assert result["product"] == "HL-1110"
-        assert result["serial"] == "XYZ"
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_no_brother(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(stdout="device for HP: ipp://hp.local\n")
-        result = _get_printer_info_from_cups()
-        assert result["product"] == ""
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_brother_no_usb(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(stdout="device for B: ipp://Brother.local\n")
-        result = _get_printer_info_from_cups()
-        assert result["product"] == ""
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_timeout(self, mock_run: MagicMock) -> None:
-        mock_run.side_effect = subprocess.TimeoutExpired("lpstat", 5)
-        result = _get_printer_info_from_cups()
-        assert result["product"] == ""
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_oserror(self, mock_run: MagicMock) -> None:
-        mock_run.side_effect = OSError("fail")
-        result = _get_printer_info_from_cups()
-        assert result["product"] == ""

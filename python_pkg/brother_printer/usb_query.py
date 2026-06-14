@@ -5,21 +5,23 @@ from __future__ import annotations
 import contextlib
 import fcntl
 import importlib
+import logging
 import os
 from pathlib import Path
 import select
 import shutil
-import subprocess
 import time
 from typing import TYPE_CHECKING
-import urllib.parse
 
+from python_pkg.brother_printer._query import (
+    printer_info_from_cups,
+    run_command_text,
+)
 from python_pkg.brother_printer.data_classes import USBResult
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +33,9 @@ def find_brother_usb() -> str:
     """Look for any Brother printer on USB via lsusb. Returns the info line."""
     if not shutil.which("lsusb"):
         return ""
-    try:
-        r = subprocess.run(
-            ["/usr/bin/lsusb"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if "04f9:" in line.lower():
-                return line.split(": ", 1)[1] if ": " in line else line
-    except (subprocess.TimeoutExpired, OSError):
-        pass
+    for line in run_command_text(["/usr/bin/lsusb"]).splitlines():
+        if "04f9:" in line.lower():
+            return line.split(": ", 1)[1] if ": " in line else line
     return ""
 
 
@@ -51,37 +43,6 @@ def find_usb_printer_dev() -> str | None:
     """Find /dev/usb/lp* device for the Brother printer."""
     devices = sorted(Path("/dev/usb").glob("lp*"))
     return str(devices[0]) if devices else None
-
-
-def _parse_cups_usb_uri(uri: str, info: dict[str, str]) -> None:
-    """Extract product and serial from a CUPS usb:// URI."""
-    parsed = urllib.parse.urlparse(uri)
-    info["product"] = urllib.parse.unquote(parsed.path.lstrip("/"))
-    qs = urllib.parse.parse_qs(parsed.query)
-    if "serial" in qs:
-        info["serial"] = qs["serial"][0]
-
-
-def get_printer_info_from_cups() -> dict[str, str]:
-    """Get printer model/serial from lpstat."""
-    info: dict[str, str] = {"product": "", "serial": ""}
-    try:
-        r = subprocess.run(
-            ["/usr/bin/lpstat", "-v"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in r.stdout.splitlines():
-            if "Brother" in line:
-                for part in line.split():
-                    if part.startswith("usb://"):
-                        _parse_cups_usb_uri(part, info)
-                        break
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-        logger.debug("Failed to query CUPS for printer info", exc_info=True)
-    return info
 
 
 # ── PJL over USB ─────────────────────────────────────────────────────
@@ -200,7 +161,7 @@ def _run_pjl_queries(fd: int, result: USBResult, max_retries: int) -> None:
 
 def _init_usb_result(dev_path: str) -> USBResult:
     """Create a USBResult with device info from CUPS."""
-    cups_info = get_printer_info_from_cups()
+    cups_info = printer_info_from_cups()
     return USBResult(
         device=dev_path,
         product=cups_info.get("product") or "Brother Laser Printer",

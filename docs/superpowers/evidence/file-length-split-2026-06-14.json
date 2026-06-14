@@ -1,0 +1,56 @@
+{
+  "intent": "Fix the repo-wide 500-line file length test by splitting 6 oversized files into focused modules, preserving behaviour, coverage, and lint scores.",
+  "scope": [
+    "python_pkg/diet_guard/_gatelock.py (991 lines)",
+    "python_pkg/diet_guard/tests/test_gatelock.py (922 lines)",
+    "python_pkg/wake_alarm/_alarm.py (561 lines)",
+    "python_pkg/wake_alarm/tests/test_alarm.py (581 lines)",
+    "linux_configuration/scripts/periodic_background/system-maintenance/bin/_usage_report_parsing.py (545 lines)",
+    "linux_configuration/scripts/periodic_background/system-maintenance/bin/usage_report.py (733 lines)"
+  ],
+  "changes": [
+    "Split _gatelock.py into _gatelock_core.py, _gatelock_window.py, _gatelock_nutrition.py, _gatelock_mealflow.py, _gatelock.py (mixin/composition split for MealGate)",
+    "Split test_gatelock.py into test_gatelock.py + test_gatelock_mealflow.py + conftest.py (shared fixtures/fakes)",
+    "Split _alarm.py into _alarm.py + _alarm_display.py (ddcutil/display helpers)",
+    "Split test_alarm.py into test_alarm.py + test_alarm_display.py, retargeting shutil/subprocess patches to _alarm_display",
+    "Split usage_report.py + _usage_report_parsing.py into 4 modules: usage_report.py, _usage_report_parsing.py, _usage_report_render.py (markdown rendering), _usage_report_pmon.py (GPU pmon aggregation); updated linux_configuration/tests to match",
+    "Installed missing python-kasa dependency into .venv (declared in meta/requirements.txt but absent after the python3.13->3.14 venv upgrade), fixing 8 pre-existing test_smart_plug.py failures and the resulting <100% coverage gap"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q",
+      "result": "pass",
+      "evidence": "968 passed, TOTAL coverage 100.00% (python_pkg)"
+    },
+    {
+      "command": "python3 -m pytest python_pkg/tests/test_file_length.py -q",
+      "result": "pass",
+      "evidence": "1 passed - all *.py files now <= 500 lines"
+    },
+    {
+      "command": "python3 -m pylint python_pkg/diet_guard/_gatelock*.py python_pkg/wake_alarm/_alarm.py python_pkg/wake_alarm/_alarm_display.py",
+      "result": "pass",
+      "evidence": "10.00/10"
+    },
+    {
+      "command": "python3 -m pylint --rcfile=pyproject.toml linux_configuration/.../bin/usage_report.py _usage_report_parsing.py _usage_report_render.py _usage_report_pmon.py",
+      "result": "pass",
+      "evidence": "10.00/10"
+    },
+    {
+      "command": "python3 usage_report.py --since 20260613 --quiet --no-clipboard --no-update-state",
+      "result": "pass",
+      "evidence": "Produced full Markdown report (host profile, CPU/RAM/GPU tables, methodology)"
+    },
+    {
+      "command": "python3 -m python_pkg.wake_alarm._alarm --help",
+      "result": "pass",
+      "evidence": "CLI argument parsing and module imports (incl. _alarm_display) resolve correctly"
+    }
+  ],
+  "risks": [
+    "mypy reports 5 pre-existing tkinter-stub errors in _gatelock_window.py/_gatelock_nutrition.py; confirmed identical on the pre-split file at commit 31992b2, not a regression, not flagged by pre-commit's pinned mypy 1.13.0",
+    "patch() targets for relocated helpers (display, pmon, render) were retargeted to their new modules; verified via full test run"
+  ],
+  "rollback": ["git revert the commit", "Re-run python3 -m pytest -q to confirm 100% coverage on the reverted tree"]
+}

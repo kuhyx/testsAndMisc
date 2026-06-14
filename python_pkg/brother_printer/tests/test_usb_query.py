@@ -8,7 +8,6 @@ from python_pkg.brother_printer.data_classes import USBResult
 from python_pkg.brother_printer.usb_query import (
     _drain_buffer,
     _init_usb_result,
-    _parse_cups_usb_uri,
     _parse_status,
     _parse_variables,
     _read_nonblocking,
@@ -17,7 +16,6 @@ from python_pkg.brother_printer.usb_query import (
     _wait_for_pjl_response,
     find_brother_usb,
     find_usb_printer_dev,
-    get_printer_info_from_cups,
     pjl_query,
     query_usb_pjl,
 )
@@ -30,7 +28,7 @@ class TestFindBrotherUsb:
     def test_no_lsusb(self, m: MagicMock) -> None:
         assert find_brother_usb() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
     def test_found(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(
@@ -39,13 +37,13 @@ class TestFindBrotherUsb:
         result = find_brother_usb()
         assert "Brother" in result
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
     def test_not_found(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="Bus 001 Device 001: Hub\n")
         assert find_brother_usb() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
     def test_line_with_colon_sep(self, w: MagicMock, mock_run: MagicMock) -> None:
         """Line contains 04f9: but no ': ' separator → returns full line."""
@@ -53,14 +51,14 @@ class TestFindBrotherUsb:
         result = find_brother_usb()
         assert result == "ID 04f9:0042"
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
     def test_no_match(self, w: MagicMock, mock_run: MagicMock) -> None:
         """Line without 04f9: vendor id is ignored."""
         mock_run.return_value = MagicMock(stdout="04f9 brother no colon\n")
         assert find_brother_usb() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
     def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
         import subprocess
@@ -68,7 +66,7 @@ class TestFindBrotherUsb:
         mock_run.side_effect = subprocess.TimeoutExpired("lsusb", 5)
         assert find_brother_usb() == ""
 
-    @patch(f"{MOD}.subprocess.run")
+    @patch("python_pkg.brother_printer._query.subprocess.run")
     @patch(f"{MOD}.shutil.which", return_value="/usr/bin/lsusb")
     def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
         mock_run.side_effect = OSError("fail")
@@ -97,62 +95,6 @@ class TestFindUsbPrinterDev:
         mock_path_cls.return_value = mock_usb
         result = find_usb_printer_dev()
         assert result is None
-
-
-class TestParseCupsUsbUri:
-    def test_basic_uri(self) -> None:
-        info: dict[str, str] = {"product": "", "serial": ""}
-        _parse_cups_usb_uri(
-            "usb://Brother/HL-1110%20series?serial=ABC123",
-            info,
-        )
-        assert info["product"] == "HL-1110 series"
-        assert info["serial"] == "ABC123"
-
-    def test_no_serial(self) -> None:
-        info: dict[str, str] = {"product": "", "serial": ""}
-        _parse_cups_usb_uri("usb://Brother/HL-1110%20series", info)
-        assert info["product"] == "HL-1110 series"
-        assert info["serial"] == ""
-
-
-class TestGetPrinterInfoFromCups:
-    @patch(f"{MOD}.subprocess.run")
-    def test_found(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(
-            stdout="device for Brother: usb://Brother/HL-1110?serial=SN1\n",
-        )
-        info = get_printer_info_from_cups()
-        assert info["product"] == "HL-1110"
-        assert info["serial"] == "SN1"
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_no_brother(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(stdout="device for HP: ipp://hp\n")
-        info = get_printer_info_from_cups()
-        assert info["product"] == ""
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_brother_no_usb_uri(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(
-            stdout="device for Brother: ipp://1.2.3.4\n",
-        )
-        info = get_printer_info_from_cups()
-        assert info["product"] == ""
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_timeout(self, mock_run: MagicMock) -> None:
-        import subprocess
-
-        mock_run.side_effect = subprocess.TimeoutExpired("lpstat", 5)
-        info = get_printer_info_from_cups()
-        assert info == {"product": "", "serial": ""}
-
-    @patch(f"{MOD}.subprocess.run")
-    def test_oserror(self, mock_run: MagicMock) -> None:
-        mock_run.side_effect = OSError("fail")
-        info = get_printer_info_from_cups()
-        assert info == {"product": "", "serial": ""}
 
 
 class TestDrainBuffer:
@@ -403,7 +345,7 @@ class TestRunPjlQueries:
 
 
 class TestInitUsbResult:
-    @patch(f"{MOD}.get_printer_info_from_cups")
+    @patch(f"{MOD}.printer_info_from_cups")
     def test_from_cups(self, mock_cups: MagicMock) -> None:
         mock_cups.return_value = {"product": "HL-1110", "serial": "SN1"}
         result = _init_usb_result("/dev/usb/lp0")
@@ -411,7 +353,7 @@ class TestInitUsbResult:
         assert result.product == "HL-1110"
         assert result.serial == "SN1"
 
-    @patch(f"{MOD}.get_printer_info_from_cups")
+    @patch(f"{MOD}.printer_info_from_cups")
     def test_no_product(self, mock_cups: MagicMock) -> None:
         mock_cups.return_value = {"product": "", "serial": ""}
         result = _init_usb_result("/dev/usb/lp0")

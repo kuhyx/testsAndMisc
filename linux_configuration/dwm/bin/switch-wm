@@ -1,0 +1,41 @@
+#!/bin/bash
+# switch-wm — choose which window manager lightdm boots you into.
+# Flips the autologin + default session between i3 and dwm in both lightdm
+# config files (main lightdm.conf overrides the conf.d drop-in, so keep both in
+# sync). Reboot or log out to apply.
+#   switch-wm        show the current boot session
+#   switch-wm dwm    boot into dwm next time
+#   switch-wm i3     boot into i3 next time
+# Recovery: if a session misbehaves at boot, go to a TTY (Ctrl+Alt+F3),
+# log in, run `switch-wm i3`, then `reboot`.
+set -euo pipefail
+
+readonly CONFS=(
+    /etc/lightdm/lightdm.conf
+    /etc/lightdm/lightdm.conf.d/50-autologin.conf
+)
+
+show_current() {
+    grep -hE '^autologin-session=' /etc/lightdm/lightdm.conf 2>/dev/null \
+        | tail -1 | cut -d= -f2
+}
+
+target="${1:-}"
+case "$target" in
+    "")     echo "boot session: $(show_current)"; exit 0 ;;
+    i3|dwm) ;;
+    *)      echo "Usage: $(basename "$0") {i3|dwm}   (no arg = show current)" >&2; exit 1 ;;
+esac
+
+if [[ ! -f "/usr/share/xsessions/${target}.desktop" ]]; then
+    echo "Error: /usr/share/xsessions/${target}.desktop not found — is '${target}' installed?" >&2
+    exit 1
+fi
+
+for f in "${CONFS[@]}"; do
+    [[ -f "$f" ]] || continue
+    sudo sed -i -E \
+        "s/^(autologin-session=).*/\1${target}/; s/^(user-session=).*/\1${target}/" "$f"
+done
+
+echo "Boot session set to '${target}'. Reboot (or log out) to apply."

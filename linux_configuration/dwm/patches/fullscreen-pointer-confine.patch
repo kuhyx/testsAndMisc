@@ -1,0 +1,26 @@
+--- a/dwm.c
++++ b/dwm.c
+@@ -1464,6 +1464,7 @@
+ 		XChangeProperty(dpy, c->win, netatom[NetWMState], XA_ATOM, 32,
+ 			PropModeReplace, (unsigned char*)&netatom[NetWMFullscreen], 1);
+ 		c->isfullscreen = 1;
++		if (system("pconfine-auto on &")) {}
+ 		c->oldstate = c->isfloating;
+ 		c->oldbw = c->bw;
+ 		c->bw = 0;
+@@ -1474,6 +1475,7 @@
+ 		XChangeProperty(dpy, c->win, netatom[NetWMState], XA_ATOM, 32,
+ 			PropModeReplace, (unsigned char*)0, 0);
+ 		c->isfullscreen = 0;
++		if (system("pconfine-auto off &")) {}
+ 		c->isfloating = c->oldstate;
+ 		c->bw = c->oldbw;
+ 		c->x = c->oldx;
+@@ -1758,6 +1760,7 @@
+ {
+ 	Monitor *m = c->mon;
+ 	XWindowChanges wc;
++	if (c->isfullscreen) { if (system("pconfine-auto off &")) {} }
+
+ 	detach(c);
+ 	detachstack(c);
