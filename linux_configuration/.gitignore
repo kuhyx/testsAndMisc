@@ -4,6 +4,10 @@ scripts/features/.raspberry_pi.conf
 .nextcloud_raspberry.conf
 .raspberry_pi.conf
 
+# WireGuard/SSH remote-access setup config (contains the DuckDNS token)
+scripts/single_use/features/.wireguard_ssh.conf
+.wireguard_ssh.conf
+
 # Generated study materials (repo_to_study.sh output)
 study_materials/
 **/study_materials/

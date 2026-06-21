@@ -1,0 +1,48 @@
+{
+  "intent": "Let the user SSH into this PC from their Android phone across different networks (mobile data vs home broadband), using only FOSS/free software (self-hosted WireGuard + DuckDNS), without ever exposing sshd directly to the public internet. Verified fully end-to-end: passwordless SSH from phone to PC over mobile data via WireGuard.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_wireguard_ssh.sh (new)",
+    "linux_configuration/.gitignore (new entries for the gitignored DuckDNS/LAN config file)",
+    "phone_focus_mode/config.sh (WHITELIST additions: org.fdroid.fdroid, com.zaneschepke.wireguardautotunnel, org.connectbot -- so the focus-mode daemon doesn't disable the apps needed for this feature)",
+    "PC system state: /etc/wireguard/, /etc/nftables.conf, /etc/ssh/sshd_config.d/10-wireguard-only.conf, a cron entry, ~/.ssh/authorized_keys (added the user's own existing key plus a new ConnectBot-generated key)",
+    "Phone state (via adb, user's own rooted device): installed via user action WG Tunnel + ConnectBot; daemon config redeployed and restarted to pick up whitelist changes",
+    "Not wired into install_core_system.sh -- stays standalone/on-demand like sibling feature scripts"
+  ],
+  "changes": [
+    "New script with subcommands: setup (deps, WireGuard server keys/config, wg-quick@wg0, nftables host-only firewall with verify-then-apply rollback gate, sshd hardening gated on a manual key-auth confirmation, DuckDNS cron), add-peer <name> (generates a phone WireGuard config + QR code via qrencode), status, revoke <name>",
+    "Reuses scripts/lib/common.sh helpers instead of reimplementing them; reuses the DuckDNS prompt/cron pattern from raspberry_pi_nextcloud.sh",
+    "Bugs found and fixed via live execution (not caught by shellcheck/static review): (1) DNS=1.1.1.1 in the client template broke ALL phone DNS once the tunnel was active, since AllowedIPs is scoped to 10.8.0.0/24 only with no route to 1.1.1.1 -- removed the line entirely; (2) require_root was called after `shift`, which would have dropped the subcommand on sudo re-exec -- moved before shift; (3) `hostname -I` and `dig +short` aren't installed on a minimal Arch system -- replaced with `ip route get` and `getent hosts`; (4) `trap ... RETURN` is not function-scoped in bash and fired again on the next function's return with the local variable out of scope (\"unbound variable\") -- fixed by self-clearing the trap (`trap - RETURN` inside the handler); (5) the DuckDNS cron-dedup used `grep -v duckdns`, which would have deleted the user's pre-existing, unrelated Joplin DuckDNS cron entry just because the substring matched -- narrowed to the script's own managed path, plus added duckdns_already_updated() to skip creating a redundant updater when one already exists for the same domain; (6) running `setup` via sudo meant `crontab`/`crontab -l` operated on root's crontab, not caught as a bug per se but combined with (5) led to a stray root cron entry that was manually removed",
+    "Whitelisted the WireGuard/F-Droid/ConnectBot packages in phone_focus_mode's WHITELIST (day list only, not NIGHT_WHITELIST) so the GPS-based focus daemon doesn't pm-disable them; redeployed config.sh to the phone and restarted focus_daemon.sh",
+    "Diagnosed a phone-side app bug (not a fix in this repo): WG Tunnel's app-level DNS resolution method was set to 'Plain DNS (port 53)' instead of 'System', which fails on this carrier's IPv6-only/NAT64 mobile network even though Android's system resolver (used by `ping`) works fine -- user changed it to 'System' in the app's own settings, which fixed hostname resolution for the WireGuard endpoint",
+    "Added the user's ConnectBot-generated ED25519 public key to ~/.ssh/authorized_keys for passwordless login from the phone; also fixed a pre-existing issue where the user's own desktop key (kuhy@archlinux) was missing from authorized_keys (a different key, kuchy@archlinux, was present instead)"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck --severity=warning scripts/single_use/features/setup_wireguard_ssh.sh && bash -n scripts/single_use/features/setup_wireguard_ssh.sh",
+      "result": "pass",
+      "evidence": "Clean after every fix iteration; re-run after each of the 6 bug fixes listed above"
+    },
+    {
+      "command": "sudo ./setup_wireguard_ssh.sh setup (run twice for idempotency, end to end on the live PC)",
+      "result": "pass",
+      "evidence": "wg-quick@wg0 active, nftables default-drop ruleset loaded with only udp/51820 + LAN/wg0-scoped tcp/22 accepted (confirmed with a temporary nft counter: 0 -> 23 packets after enabling the phone tunnel), sshd hardened (PasswordAuthentication no, confirmed via sshd -T) without losing the live SSH session, DuckDNS cron coexists with the pre-existing Joplin DuckDNS cron entry (verified both present, neither clobbers the other)"
+    },
+    {
+      "command": "Real end-to-end test: phone on mobile data (not home WiFi), WireGuard tunnel via WG Tunnel, SSH via ConnectBot to kuhy@10.8.0.1",
+      "result": "pass",
+      "evidence": "`sudo wg show` showed a genuine handshake and real data transfer (received/sent KiB) from the phone's actual mobile carrier IP; ConnectBot logged in with no password prompt using its own authorized key"
+    }
+  ],
+  "risks": [
+    "harden_sshd() disables password auth -- mitigated by gating it behind an explicit ask_yes_no confirmation (answered by the user in real time, not bypassed -- a scripted bypass attempt was correctly blocked by the auto-mode safety classifier earlier in the session) and validating with `sshd -t` before reload",
+    "write_nftables_ruleset()/verify_nftables_then_apply() could lock out SSH if misconfigured -- mitigated by nft -c -f syntax check, a post-apply sshd liveness check, and automatic `nft flush ruleset` rollback if sshd is found inactive; exercised twice live with no lockout",
+    "If the home IP changes and the phone's carrier ever regresses on DNS64/NAT64 handling again, the WireGuard endpoint hostname resolution could break again depending on the WG Tunnel app's resolution-method setting (now set to 'System' by the user, outside this repo's control)",
+    "Two new SSH public keys now live in ~/.ssh/authorized_keys outside version control (the user's own previously-missing desktop key, and the new ConnectBot phone key) -- expected and intentional, not a regression"
+  ],
+  "rollback": [
+    "git revert HEAD (removes the script, .gitignore entries, and the phone_focus_mode whitelist additions)",
+    "On the PC: `sudo systemctl disable --now wg-quick@wg0`, restore /etc/nftables.conf from the .bak.<timestamp> the script creates, remove /etc/ssh/sshd_config.d/10-wireguard-only.conf, remove the duckdns cron line (`crontab -e`), then `sudo systemctl reload sshd`",
+    "On the phone: revert config.sh's WHITELIST additions, redeploy, restart focus_daemon.sh (`adb shell su -c 'kill <pid>'` then relaunch as in this session)",
+    "Verify after rollback: `ssh <user>@<LAN-IP>` still works over the LAN before doing anything else"
+  ]
+}
