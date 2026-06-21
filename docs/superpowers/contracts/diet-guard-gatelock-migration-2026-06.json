@@ -1,0 +1,18 @@
+{
+  "title": "Migrate diet_guard to the shared gatelock backend",
+  "objective": "Replace diet_guard's hand-rolled fullscreen/grab/VT-disable lock-window mechanics and its log_integrity import with the new shared `gatelock` package (https://github.com/kuhyx/gatelock), which was extracted from diet_guard's own _GateWindow as the most mature of the three lock implementations (wake_alarm, screen-locker, diet_guard). MealGate now owns a gatelock.LockWindow via composition and implements LockWindowHooks, instead of inheriting the now-deleted _GateWindow/_GateRoot classes. Success: diet_guard's lock/grab/VT-disable/unlock behavior is unchanged for the end user, demo mode manually verified by running the gate and observing the window, all existing diet_guard tests adapted or removed (window-mechanics tests deleted since that logic is now tested in gatelock's own 100%-covered suite), and the whole monorepo stays at 100% branch coverage.",
+  "acceptance_criteria": [
+    "MealGate no longer inherits _GateWindow/_GateRoot; it composes gatelock.GateRoot + gatelock.LockWindow",
+    "_gatelock_window.py is deleted (its mechanics now live in gatelock)",
+    "_state.py and _budget.py import HMAC functions from gatelock.log_integrity instead of python_pkg.shared.log_integrity",
+    "testsAndMisc/meta/requirements.txt and the pylint pre-commit hook's additional_dependencies both pin gatelock@v0.1.0",
+    "python_pkg/diet_guard test suite passes with 100% branch coverage, with window-mechanics tests removed (covered upstream in gatelock) and new tests added for MealGate's hook delegation (on_focus_ready, on_close, on_callback_error) and demo-vs-prod LockConfig mode",
+    "demo-mode gate manually run and visually confirmed to render correctly, and SIGTERM confirmed to cleanly restore VT switching and exit 0",
+    "ruff, mypy, and pylint (10/10) all pass on the changed diet_guard files"
+  ],
+  "out_of_scope": [
+    "Migrating screen-locker or wake_alarm (separate, later steps in the same overall plan)",
+    "Live production-mode (demo_mode=False) verification on this machine -- user opted to trust demo-mode + unit-test coverage instead, given the live global-grab risk"
+  ],
+  "verifier": "pytest --cov=python_pkg --cov-branch --cov-fail-under=100; pre-commit run --files <changed diet_guard files>; manual run of `python -m python_pkg.diet_guard gate --demo`"
+}

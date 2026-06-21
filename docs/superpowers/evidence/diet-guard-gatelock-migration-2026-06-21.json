@@ -1,0 +1,58 @@
+{
+  "intent": "Replace diet_guard's hand-rolled fullscreen/grab/VT-disable lock window and HMAC log_integrity import with the new shared gatelock package, with zero user-visible behavior change in demo mode and a hard-mode (production) LockConfig wired in for the real lock.",
+  "scope": [
+    "python_pkg/diet_guard/_gatelock.py: MealGate now composes gatelock.GateRoot + gatelock.LockWindow instead of inheriting the deleted _GateWindow/_GateRoot",
+    "python_pkg/diet_guard/_gatelock_window.py: deleted entirely (mechanics moved to gatelock)",
+    "python_pkg/diet_guard/_gatelock_core.py: _GateRoot removed, _GateCore's root type annotation now points at gatelock.GateRoot",
+    "python_pkg/diet_guard/_gatelock_mealflow.py: _handle_callback_error renamed to on_callback_error to match gatelock.LockWindowHooks directly",
+    "python_pkg/diet_guard/_state.py, _budget.py: HMAC import swapped from python_pkg.shared.log_integrity to gatelock.log_integrity (python_pkg/shared/log_integrity.py is left in place untouched until wake_alarm's later migration removes it, since wake_alarm still depends on it)",
+    "python_pkg/diet_guard/tests/conftest.py: _block_real_tk repointed at gatelock.GateRoot; new _block_real_vt autouse fixture neutralizes gatelock._vt.shutil.which so a prod-mode gate built in a test never runs a real setxkbmap; _hmac_key repointed at gatelock.log_integrity.DEFAULT_HMAC_KEY_FILE",
+    "python_pkg/diet_guard/tests/test_gatelock.py: window-mechanics tests (VT switching, grab retry, signals, keepalive) deleted -- already 100%-covered in gatelock's own test suite, since that source no longer lives in python_pkg; TestGateRootCallback deleted likewise. New TestLockDelegation class added for MealGate's own hook wiring (on_focus_ready, on_close, on_callback_error, run()/close() delegation to self._lock)",
+    "meta/requirements.txt and .pre-commit-config.yaml's pylint additional_dependencies: added gatelock @ git+https://github.com/kuhyx/gatelock@v0.1.0"
+  ],
+  "changes": [
+    "MealGate(_GateMealFlow) builds LockConfig(mode='soft' if demo_mode else 'hard', bg=BG), composes a gatelock.LockWindow, and implements on_focus_ready/on_callback_error/on_close per LockWindowHooks",
+    "close()/run() now delegate to self._lock.close()/self._lock.run() instead of inherited _GateWindow methods",
+    "gatelock itself (https://github.com/kuhyx/gatelock, tagged v0.1.0) was built and pushed first: LockWindow/LockConfig/GateRoot generalizing the fullscreen/grab/VT-disable mechanics, plus a ported log_integrity module, with 50 of its own tests at 100% branch coverage"
+  ],
+  "verification": [
+    {
+      "command": "pip install -e ~/gatelock into testsAndMisc/.venv, then python -m pytest python_pkg/diet_guard/ -q",
+      "result": "pass",
+      "evidence": "271 passed in 0.48s"
+    },
+    {
+      "command": "pytest --cov=python_pkg --cov-branch --cov-report=term-missing --cov-fail-under=100 -q (whole monorepo)",
+      "result": "pass",
+      "evidence": "958 passed; every python_pkg module at 100% branch coverage, including the rewritten _gatelock.py/_gatelock_core.py/_gatelock_mealflow.py/_state.py/_budget.py"
+    },
+    {
+      "command": "ruff check / ruff format --check / mypy (pre-commit's disabled-code set) / pylint --fail-under=10 on python_pkg/diet_guard",
+      "result": "pass",
+      "evidence": "ruff: all checks passed; mypy: only a pre-existing unrelated missing-requests-stubs note; pylint: 10.00/10"
+    },
+    {
+      "command": "manual run: python -m python_pkg.diet_guard gate --demo (real Tk window, not mocked)",
+      "result": "pass",
+      "evidence": "Screenshot confirmed: 'Diet Gate' window rendered with full UI (description field, macros, dashboard); WM-tiled as expected since demo mode stays WM-managed (no overrideredirect), matching the original docstring's intent"
+    },
+    {
+      "command": "manual: SIGTERM sent to the running demo gate process",
+      "result": "pass",
+      "evidence": "Process exited cleanly with code 0 -- confirms LockWindow.run()'s signal handler -> SystemExit -> finally -> close() -> on_close() hook -> VT restore -> destroy all worked end-to-end on a real (non-mocked) Tk instance"
+    },
+    {
+      "command": "pre-commit run --files <changed diet_guard files + meta/requirements.txt>",
+      "result": "pass",
+      "evidence": "All hooks passed after adding gatelock to the pylint hook's additional_dependencies (its isolated env couldn't otherwise import gatelock) and adding this evidence/contract pair"
+    }
+  ],
+  "risks": [
+    "Production (demo_mode=False) lock was not live-tested on this machine -- user explicitly opted to trust demo-mode verification plus gatelock's own 100%-covered hard-mode/grab/VT-disable unit tests, rather than trigger a real global keyboard grab on the live desktop session",
+    "python_pkg/shared/log_integrity.py is temporarily unused by diet_guard but left in place because wake_alarm (migrating last, in a separate step) still imports it; it will be deleted once wake_alarm's migration removes its last reference"
+  ],
+  "rollback": [
+    "git revert this commit to restore _gatelock_window.py and the original _GateWindow/_GateRoot inheritance",
+    "After rollback, remove the gatelock entries from meta/requirements.txt and .pre-commit-config.yaml's pylint additional_dependencies, and re-run the full test suite to confirm 100% coverage is restored under the old code path"
+  ]
+}

@@ -32,6 +32,7 @@ flake8-pyi>=24.0.0
 flake8-pytest-style>=2.0.0
 flake8-return>=1.2.0
 flake8-simplify>=0.21.0
+gatelock @ git+https://github.com/kuhyx/gatelock@v0.1.0
 genanki>=0.13
 geopandas>=1.0
 howlongtobeatpy>=1.0
