@@ -1,0 +1,42 @@
+{
+  "intent": "Migrate wake_alarm to the shared gatelock backend (mode=\"soft\"), the third and final leg of the diet_guard -> screen-locker -> wake_alarm gatelock extraction plan.",
+  "scope": [
+    "python_pkg/wake_alarm/_alarm.py",
+    "python_pkg/wake_alarm/_state.py",
+    "python_pkg/wake_alarm/tests/test_alarm.py, test_alarm_part2.py, test_alarm_part3.py, test_alarm_part4.py",
+    "python_pkg/shared/log_integrity.py and its test (deleted, last call site migrated)",
+    "Non-goal: hard-lock (overrideredirect+grab) for wake_alarm, deferred per plan"
+  ],
+  "changes": [
+    "WakeAlarm now owns a gatelock.LockWindow (mode=\"soft\") instead of driving tk.Tk() fullscreen/topmost setup directly",
+    "Added on_focus_ready/on_callback_error/on_close LockWindowHooks; hardware teardown (fans/audio/display/plug) moved into on_close so it runs on every exit path including SIGTERM, not just a clean dismiss",
+    "_state.py HMAC import swapped from python_pkg.shared.log_integrity to gatelock.log_integrity (last remaining call site); deleted the now-superseded shared module and its test",
+    "Updated wake_alarm test fixtures to mock gatelock.GateRoot alongside tk; rewrote run()/close() tests to assert delegation rather than invoking the real LockWindow.run() (avoids registering real SIGTERM/SIGINT handlers in the test process)",
+    "Split new gatelock-hook tests into test_alarm_part4.py to keep _alarm.py and its test files under the repo's 500-line limit"
+  ],
+  "verification": [
+    {
+      "command": "python -m python_pkg.wake_alarm._alarm --demo --trigger-now (manual, real X11 display)",
+      "result": "pass",
+      "evidence": "Fullscreen WAKE UP overlay rendered; xdotool type into the dismiss-code Entry showed typed characters, confirming keyboard focus still reaches the Entry under mode=\"soft\" (no overrideredirect/grab) exactly as before"
+    },
+    {
+      "command": "kill -TERM <pid> against a running demo alarm",
+      "result": "pass",
+      "evidence": "Process exited within ~0.4s (within the 250ms gatelock keepalive tick), confirming on_close (hardware restore) runs on SIGTERM, not just normal dismiss"
+    },
+    {
+      "command": "python -m pytest (full repo suite)",
+      "result": "pass",
+      "evidence": "949 passed; TOTAL coverage 100.00% (statements and branches); file-length check green after splitting test_alarm_part4.py"
+    }
+  ],
+  "risks": [
+    "wake_alarm has no watchdog against a clean, silent failure to lock (only Restart=on-failure, which doesn't catch a no-op exit) -- per the plan, this migration is not considered fully done until verified against a real scheduled alarm trigger, not just --demo",
+    "Manual verification runs wrote test data into the real python_pkg/wake_alarm/wake_state.json; caught and reverted before commit (git checkout --) so no test pollution lands in the repo or affects real wake-state history"
+  ],
+  "rollback": [
+    "git revert this commit; gatelock pin in meta/requirements.txt is unaffected (diet_guard and screen-locker keep using it)",
+    "After rollback, confirm `python -m pytest python_pkg/wake_alarm/ python_pkg/shared/` is green and wake_alarm's systemd service starts cleanly"
+  ]
+}

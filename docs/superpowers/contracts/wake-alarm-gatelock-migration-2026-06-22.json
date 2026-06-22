@@ -1,0 +1,19 @@
+{
+  "title": "Migrate wake_alarm to the shared gatelock backend",
+  "objective": "Replace wake_alarm's hand-rolled tk.Tk()/fullscreen/topmost setup and its log_integrity import with the shared `gatelock` package, the third and final leg of the diet_guard -> screen-locker -> wake_alarm migration. WakeAlarm now owns a gatelock.LockWindow (mode=\"soft\": topmost+fullscreen only, no overrideredirect/grab/VT-disable, matching today's behavior) via composition and implements LockWindowHooks, instead of driving tk.Tk() directly. Success: the dismiss-challenge window and beep/fan/audio/plug behavior are unchanged for the end user, demo mode manually verified on the real X11 display including typed keyboard input into the dismiss-code Entry, hardware teardown confirmed to run on SIGTERM (not just a clean dismiss) by closing the gap where killing the process previously left fans maxed, all existing wake_alarm tests adapted, and the whole monorepo stays at 100% branch coverage.",
+  "acceptance_criteria": [
+    "WakeAlarm no longer calls tk.Tk()/geometry/attributes directly in __init__; it composes gatelock.GateRoot + gatelock.LockWindow with LockConfig(mode=\"soft\")",
+    "Hardware teardown (fans, audio, display, plug) moved from a destroyed _close() method into an on_close() LockWindowHooks callback, so it runs on every LockWindow.close() exit path including SIGTERM/SIGINT",
+    "_state.py imports HMAC functions from gatelock.log_integrity instead of python_pkg.shared.log_integrity (last remaining call site); python_pkg/shared/log_integrity.py and its test are deleted",
+    "testsAndMisc/meta/requirements.txt already pins gatelock@v0.1.0 from the diet_guard migration; no change needed",
+    "python_pkg/wake_alarm test suite passes with 100% branch coverage, with tk.Tk()-construction assertions updated to the gatelock LockWindow mechanics, run()/close() tests rewritten to assert delegation (not invoke the real LockWindow.run(), which installs real SIGTERM/SIGINT handlers), and new tests added for on_focus_ready/on_callback_error/on_close",
+    "_alarm.py and its test files stay under the repo's 500-line limit (new gatelock-hook tests split into test_alarm_part4.py)",
+    "demo-mode alarm manually run on the real X11 display: fullscreen WAKE UP overlay renders, xdotool-typed input reaches the dismiss-code Entry (confirming mode=\"soft\" keeps the old typing-focus behavior), and SIGTERM exits the process within ~0.4s while restoring hardware state",
+    "ruff, mypy, and pylint (10/10) all pass on the changed wake_alarm files"
+  ],
+  "out_of_scope": [
+    "Hard-lock (overrideredirect + grab) for wake_alarm -- deferred per the plan: no watchdog exists yet for a clean, silent lock failure, so a typing-focus edge case at 6am is the worst place to discover one",
+    "Verification against a real scheduled alarm trigger (only --demo --trigger-now was run this session); the plan flags this as required before the migration is considered fully done, since a silent failure to lock would look identical to a correctly-skipped non-alarm day"
+  ],
+  "verifier": "pytest (full repo suite) --cov --cov-branch --cov-fail-under=100; pre-commit run --files <changed wake_alarm files>; manual run of `python -m python_pkg.wake_alarm._alarm --demo --trigger-now` with xdotool keystroke injection and a real SIGTERM"
+}
