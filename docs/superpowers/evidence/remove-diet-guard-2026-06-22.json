@@ -1,0 +1,46 @@
+{
+  "intent": "Extract diet_guard out of testsAndMisc into its own standalone repo (https://github.com/kuhyx/diet-guard), and remove it from this monorepo, mirroring the screen-locker/steam-backlog-enforcer precedent.",
+  "scope": [
+    "Removed python_pkg/diet_guard/ (source + tests, install.sh, systemd units, docs/design.md)",
+    "Updated root CLAUDE.md's 'Extracted to their own repos' list",
+    "No other monorepo file referenced diet_guard (confirmed by grep); no orphaned coupling to clean up"
+  ],
+  "changes": [
+    "git filter-repo extraction into /tmp/diet-guard-extract preserved full commit history",
+    "Rewrote python_pkg.diet_guard imports to diet_guard, vendored shared.coerce.as_float as diet_guard/_coerce.py",
+    "Scaffolded standalone pyproject.toml/.pre-commit-config.yaml/CI matching testsAndMisc's real enforced bar (pylint --fail-under=10 with tests excluded and the use-implicit-booleaness/consider-using-with disables, mypy's actual disabled-error-code set, ruff ALL, bandit, 100% branch coverage) -- found and fixed 3 places where a naive copy of screen-locker's scaffold was looser than testsAndMisc's actual gate",
+    "Pushed to https://github.com/kuhyx/diet-guard, pip-installed into system Python's user site-packages (pip install --user --break-system-packages), cut over diet-guard-gate.service to the pip-installed package (dropped PYTHONPATH/WorkingDirectory), verified a live systemctl --user start runs clean",
+    "git rm -r python_pkg/diet_guard/ from the monorepo"
+  ],
+  "verification": [
+    {
+      "command": "cd /tmp/diet-guard-extract && pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "All hooks green: ruff, ruff-format, mypy, pylint (10.00/10), bandit, codespell, shellcheck, max-file-length"
+    },
+    {
+      "command": "cd /tmp/diet-guard-extract && pytest diet_guard/tests/ --cov=diet_guard --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "271 passed, TOTAL coverage 100.00% (1375 stmts, 286 branches)"
+    },
+    {
+      "command": "systemctl --user start diet-guard-gate.service && systemctl --user status diet-guard-gate.service",
+      "result": "pass",
+      "evidence": "ExecStart=/usr/bin/python -m diet_guard gate exited 0, journal: 'ok - no lock needed right now.'"
+    },
+    {
+      "command": "cd ~/testsAndMisc && pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "594 passed, TOTAL coverage 100.00% after diet_guard removal"
+    }
+  ],
+  "risks": [
+    "Production diet-guard-gate.service now depends on a git+https pip install rather than a monorepo-local path; if the GitHub repo becomes unavailable, reinstalling would fail (mitigated: package is already installed in site-packages, not re-resolved per service run)",
+    "screen-locker's own pyproject.toml/.pre-commit-config.yaml has the same 3 scaffold gaps just found and fixed here (pylint --fail-under=8 not 10, no tests exclude, missing 2 disables) -- not fixed as part of this task, flagged separately"
+  ],
+  "rollback": [
+    "git revert this commit to restore python_pkg/diet_guard/ in the monorepo",
+    "Revert ~/.config/systemd/user/diet-guard-gate.service to the PYTHONPATH=%h/testsAndMisc / python -m python_pkg.diet_guard gate version and systemctl --user daemon-reload",
+    "pip uninstall diet_guard from system Python if reverting fully"
+  ]
+}

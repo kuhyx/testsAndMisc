@@ -10,6 +10,7 @@ Extracted to their own repos:
 
 - [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer)
 - [`screen-locker`](https://github.com/kuhyx/screen-locker)
+- [`diet-guard`](https://github.com/kuhyx/diet-guard)
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
