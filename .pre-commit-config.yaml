@@ -34,7 +34,12 @@ repos:
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        # chattr +i (self-commitment lock on the shutdown-enforcement
+        # script) makes this file unwritable on purpose; the fixer hooks
+        # can't open it for writing even as the owning user.
+        exclude: ^linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown\.sh$
       - id: end-of-file-fixer
+        exclude: ^linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown\.sh$
       - id: check-yaml
         args: [--unsafe]
       - id: check-json
