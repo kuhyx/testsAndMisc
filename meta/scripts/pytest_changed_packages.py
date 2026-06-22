@@ -56,8 +56,12 @@ def main() -> int:
         "--cov-report=term-missing",
         "--cov-fail-under=100",
         "-q",
-        "-n",
-        "4",
+        # No -n/xdist: pytest-cov's worker coverage combine has shown a
+        # reproducible (not flaky -- failed identically twice in a row) gap
+        # under -n 4 on the GitHub Actions runner that never occurs running
+        # serially, including run repeatedly with the same -n 4 locally.
+        # Serial is slightly slower but has never produced a false coverage
+        # failure, which matters more for a 100%-coverage gate.
         # Override addopts from pyproject.toml to avoid double --cov flags.
         "-o",
         "addopts=--strict-markers --strict-config -ra",

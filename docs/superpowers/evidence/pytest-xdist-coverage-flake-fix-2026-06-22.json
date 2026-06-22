@@ -1,0 +1,28 @@
+{
+  "intent": "Eliminate a reproducible (not flaky) coverage-gate false failure on GitHub Actions, where pytest-xdist's -n 4 workers combined with pytest-cov consistently dropped coverage of one specific line (wake_alarm/_alarm_display.py:71) on the CI runner, never locally.",
+  "scope": [
+    "meta/scripts/pytest_changed_packages.py (the pre-commit pytest-coverage hook entry point)",
+    "Non-goal: a full root-cause diagnosis of the xdist/coverage interaction itself -- not reproducible locally despite 6 attempts, so the fix removes the risk rather than chasing the exact mechanism"
+  ],
+  "changes": [
+    "Removed the -n 4 (pytest-xdist parallel workers) flag from the pytest invocation this hook runs. Serial execution has never produced a coverage gap in any local or CI run; -n 4 produced the identical gap on two consecutive CI runs (a rerun of the same commit), which rules out a one-off flake and points at a CI-runner-specific worker/coverage-combine timing issue this repo cannot fix at the pytest-cov/xdist level from here."
+  ],
+  "verification": [
+    {
+      "command": "time python meta/scripts/pytest_changed_packages.py python_pkg/wake_alarm/_alarm.py",
+      "result": "pass",
+      "evidence": "948 passed, 100.00% coverage, 14.3s total -- functionally identical runtime to the parallel version locally, with the coverage gap gone"
+    },
+    {
+      "command": "pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "all hooks green including pytest-coverage"
+    }
+  ],
+  "risks": [
+    "Slightly slower CI runs without parallelism, though local timing showed negligible difference (~13-14s either way for this test count); reliability of the 100%-coverage gate matters more than a few seconds"
+  ],
+  "rollback": [
+    "git revert this commit to restore -n 4 if CI proves the gap was actually something else (e.g. transient runner load) -- but two identical consecutive failures on the same line make that unlikely"
+  ]
+}
