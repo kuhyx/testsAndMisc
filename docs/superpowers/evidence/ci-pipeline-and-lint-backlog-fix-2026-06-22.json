@@ -1,0 +1,52 @@
+{
+  "intent": "Fix the CI environment so it actually runs: re-enabled GitHub Actions repo-wide (was disabled, explaining why python-tests/pre-commit/Claude Code workflows had zero runs ever), then clear the pre-existing lint/test backlog the first real run surfaced.",
+  "scope": [
+    "meta/requirements.txt (drop unused, broken pylama dependency)",
+    ".github/workflows/pre-commit.yml (install zsh for the zsh-syntax hook)",
+    ".github/workflows/claude-code-review.yml, claude.yml (trailing blank line at EOF)",
+    "phone_focus_mode/lib/adb_common.sh (shellcheck SC2120 dead optional-arg)",
+    "Non-goal: anything related to the wake_alarm gatelock migration, already committed separately"
+  ],
+  "changes": [
+    "Set actions/permissions enabled=true for kuhyx/testsAndMisc via the GitHub API (was enabled:false, the actual root cause of zero CI runs)",
+    "Removed pylama>=8.4.0 from meta/requirements.txt: grep confirmed it is referenced nowhere in the repo, and its pytest plugin auto-loads via setuptools entry points, crashing the entire pytest-coverage pre-commit hook with ModuleNotFoundError: pkg_resources on the CI runner's newer setuptools",
+    "Added an 'Install system dependencies' step (apt-get install zsh) to pre-commit.yml so the zsh-syntax hook's `zsh -n` check has a binary to run, instead of failing with 'zsh: command not found'",
+    "Simplified _load_trusted_device_values() in adb_common.sh to drop its unused optional ${1:-...} parameter (grep confirmed it is never called with an argument anywhere, including tests), resolving shellcheck SC2120",
+    "Stripped the extra trailing blank line from claude-code-review.yml and claude.yml that the trailing-whitespace/end-of-file-fixer hooks had been silently flagging since CI never ran to enforce them"
+  ],
+  "verification": [
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc/actions/permissions",
+      "result": "pass",
+      "evidence": "enabled:true, allowed_actions:all (was enabled:false before the fix); confirmed by pushing an empty commit and observing 'Pre-commit checks' run for the first time ever in the repo's history"
+    },
+    {
+      "command": "shellcheck --severity=warning phone_focus_mode/lib/adb_common.sh",
+      "result": "pass",
+      "evidence": "clean, no SC2120 warning"
+    },
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_adb_common.sh",
+      "result": "pass",
+      "evidence": "13 passed, 0 failed -- the simplified function is unchanged in behavior"
+    },
+    {
+      "command": "python -m pytest (full repo suite, after removing pylama and reinstalling requirements.txt)",
+      "result": "pass",
+      "evidence": "949 passed, TOTAL coverage 100.00%"
+    },
+    {
+      "command": "pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "every hook passed including shellcheck and pytest-coverage, which were previously broken in CI"
+    }
+  ],
+  "risks": [
+    "Enabling Actions repo-wide is a GitHub account/repo setting change with broader effect than just this commit -- confirmed with the user before applying via the API",
+    "zsh installed via apt-get in CI adds a small amount of job time; acceptable tradeoff for the zsh-syntax hook to actually function"
+  ],
+  "rollback": [
+    "git revert this commit for the code/workflow changes",
+    "Re-disable Actions via `gh api -X PUT repos/kuhyx/testsAndMisc/actions/permissions -F enabled=false` if re-disabling is ever desired (not expected)"
+  ]
+}
