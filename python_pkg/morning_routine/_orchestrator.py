@@ -1,10 +1,11 @@
 """Orchestrate the morning wake/workout flow as one sequential routine.
 
-The wake alarm (``python_pkg.wake_alarm``) and the workout screen lock
-(``python_pkg.screen_locker``) used to run as two independent
-``graphical-session.target`` user services, each opening its own fullscreen
-``-topmost`` Tk window. On a wake morning they could grab the screen at the same
-time, so the alarm could end up hidden behind the workout lock (or vice versa).
+The wake alarm (``wake_alarm``, https://github.com/kuhyx/wake-alarm) and the
+workout screen lock (``screen_locker``, https://github.com/kuhyx/screen-locker)
+used to run as two independent ``graphical-session.target`` user services,
+each opening its own fullscreen ``-topmost`` Tk window. On a wake morning they
+could grab the screen at the same time, so the alarm could end up hidden
+behind the workout lock (or vice versa).
 
 This orchestrator makes them one coherent flow by running them as **sequential
 subprocesses**: the alarm runs first and owns the fullscreen until it is
@@ -12,6 +13,11 @@ dismissed, then the workout lock runs. Only one fullscreen window is ever alive
 at a time, so they can never collide. Each subprocess still self-gates (the
 alarm only fires on alarm days when undismissed; the lock exits if a skip was
 earned or the workout is already logged), so this is safe to run on every wake.
+
+Both ``wake_alarm`` and ``screen_locker`` are pip-installed into system
+Python's user site-packages (each repo's own install.sh does this), so
+``python -m <module>`` resolves them with no extra ``PYTHONPATH``/``cwd``
+plumbing here.
 
 Usage:
     python -m python_pkg.morning_routine._orchestrator --with-alarm  # resume
@@ -30,8 +36,8 @@ from python_pkg.shared.logging_setup import configure_logging
 _logger = logging.getLogger(__name__)
 
 # Modules invoked as ``python -m <module> --production``.
-ALARM_MODULE: str = "python_pkg.wake_alarm._alarm"
-WORKOUT_LOCK_MODULE: str = "python_pkg.screen_locker.screen_lock"
+ALARM_MODULE: str = "wake_alarm._alarm"
+WORKOUT_LOCK_MODULE: str = "screen_locker.screen_lock"
 
 
 def _run_module(module: str) -> int:

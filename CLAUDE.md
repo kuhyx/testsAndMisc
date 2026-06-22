@@ -11,6 +11,7 @@ Extracted to their own repos:
 - [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer)
 - [`screen-locker`](https://github.com/kuhyx/screen-locker)
 - [`diet-guard`](https://github.com/kuhyx/diet-guard)
+- [`wake-alarm`](https://github.com/kuhyx/wake-alarm)
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
@@ -33,16 +34,6 @@ Archived / unmaintained projects live in the sibling repository
 ## Architecture
 
 ### Python Packages (`python_pkg/`)
-
-- **wake_alarm/** — Alarm + fan ramp + Tapo P110 smart plug control
-  - `_alarm.py` — alarm logic
-  - `_smart_plug.py` — Tapo P110 control
-  - `_state.py` — alarm state persistence
-  - `_constants.py` — timing/config constants
-  - `wake_state.json` — persistent alarm state
-  - `wake-alarm-fans.sh` — fan ramp script (requires sudo)
-  - `wake-alarm.service` — systemd unit
-  - `tests/` — pytest tests
 
 - **brother_printer/** — Brother printer status checker via CUPS and USB/network query
   - `check_brother_printer.py` — main status check

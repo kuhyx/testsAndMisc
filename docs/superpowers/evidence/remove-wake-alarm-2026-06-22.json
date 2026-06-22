@@ -1,0 +1,56 @@
+{
+  "intent": "Extract wake_alarm out of testsAndMisc into its own standalone repo (https://github.com/kuhyx/wake-alarm), remove it from this monorepo, and fix morning_routine's orchestrator which had been silently broken since screen-locker's extraction on 2026-05-28 (stale python_pkg.screen_locker.screen_lock module reference, causing ModuleNotFoundError every morning the workout lock handoff ran).",
+  "scope": [
+    "Removed python_pkg/wake_alarm/ (source + tests, install.sh, systemd units, shell scripts)",
+    "Fixed python_pkg/morning_routine/_orchestrator.py's ALARM_MODULE/WORKOUT_LOCK_MODULE constants",
+    "Simplified python_pkg/morning_routine/install.sh (dropped the now-redundant sleep-hook install step, duplicated by wake_alarm's own installer)",
+    "Updated root CLAUDE.md's Architecture and 'Extracted to their own repos' sections",
+    "morning_routine itself stays in testsAndMisc (2-package glue script, no standalone value)"
+  ],
+  "changes": [
+    "git filter-repo extraction into /tmp/wake-alarm-extract preserved full commit history (10 commits)",
+    "Rewrote python_pkg.wake_alarm imports to wake_alarm, vendored shared.logging_setup.configure_logging as wake_alarm/_logging_setup.py, untracked wake_state.json (runtime HMAC state, now gitignored)",
+    "Scaffolded standalone pyproject.toml/.pre-commit-config.yaml/CI by copying the already-corrected diet_guard scaffold (not screen-locker's, which still has the looser bar), plus a wave.Wave_write pylint generated-members fix this package's _audio.py needs",
+    "Pushed to https://github.com/kuhyx/wake-alarm, pip-installed into system Python's user site-packages, cut over wake-alarm.service to the pip-installed package (also fixed a config drift where the live unit was missing Environment=DISPLAY=:0 entirely)",
+    "Fixed _orchestrator.py: python_pkg.wake_alarm._alarm -> wake_alarm._alarm, python_pkg.screen_locker.screen_lock -> screen_locker.screen_lock",
+    "Discovered screen_locker had never been pip-installed (workout-locker.service relied entirely on WorkingDirectory/PYTHONPATH against the cloned repo); pip install -e failed until a packaging bug was fixed in screen-locker's own pyproject.toml ([tool.setuptools.packages.find] scope, blocked by the unrelated stronglift_replacement/ Flutter app sharing the repo) -- fixed in screen-locker commits 6b22b2e and 9489ee5, separately pushed",
+    "git rm -r python_pkg/wake_alarm/ from the monorepo"
+  ],
+  "verification": [
+    {
+      "command": "cd /tmp/wake-alarm-extract && pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "All hooks green: ruff, ruff-format, mypy, pylint (10.00/10), bandit, codespell, shellcheck, max-file-length"
+    },
+    {
+      "command": "cd /tmp/wake-alarm-extract && pytest wake_alarm/tests/ --cov=wake_alarm --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "179 passed, TOTAL coverage 100.00% (692 stmts, 140 branches)"
+    },
+    {
+      "command": "DISPLAY=:0 /usr/bin/python3 -m wake_alarm._alarm --demo --trigger-now",
+      "result": "pass",
+      "evidence": "User confirmed alarm window appeared; /run/wake-alarm-fans.state showed a fresh write with valid hwmon values (fan ramp ran via sudo -n, then auto-restored when the 30s demo window closed)"
+    },
+    {
+      "command": "cd ~/testsAndMisc && PYTHONPATH=~/testsAndMisc DISPLAY=:0 /usr/bin/python3 -m python_pkg.morning_routine._orchestrator --with-alarm --production",
+      "result": "pass",
+      "evidence": "Ran wake_alarm._alarm (already dismissed today, exited 0) then screen_locker.screen_lock (workout already logged today per workout_log.json, exited 0) -- no ModuleNotFoundError for either, confirming the live orchestrator bug is fixed"
+    },
+    {
+      "command": "cd ~/testsAndMisc && pytest python_pkg/ --cov=python_pkg --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "415 passed, TOTAL coverage 100.00% after wake_alarm removal and the orchestrator fix"
+    }
+  ],
+  "risks": [
+    "wake_alarm's hibernate/rtcwake wake cycle itself was not re-verified end-to-end (only --demo --trigger-now); real verification needs to wait for a natural ALARM_DAYS occurrence",
+    "screen_locker's pyproject.toml packaging fix was a necessary side-fix in a third, separately-versioned repo -- flagged to the user and pushed with separate confirmation, not silently bundled"
+  ],
+  "rollback": [
+    "git revert this commit to restore python_pkg/wake_alarm/ and the old orchestrator module paths in the monorepo",
+    "Revert ~/.config/systemd/user/wake-alarm.service to the PYTHONPATH=%h/testsAndMisc / python -m python_pkg.wake_alarm._alarm version and systemctl --user daemon-reload",
+    "Revert ~/.config/systemd/user/workout-locker.service to the WorkingDirectory/PYTHONPATH version if reverting the screen_locker pip-install too",
+    "pip uninstall wake_alarm (and screen_locker, if reverting that leg) from system Python if reverting fully"
+  ]
+}
