@@ -1,0 +1,23 @@
+{
+  "intent": "Fix two diet_guard tests that were non-hermetic: they never mocked wait_for_display(), so they silently depended on a real, reachable X display. Discovered when the previous CI-fix commit's first true headless run (no X server) made them block for a real 60s timeout each and then fail.",
+  "scope": [
+    "python_pkg/diet_guard/tests/test_cli.py (TestGate.test_demo_opens_window, TestGate.test_bare_gate_due_opens_window)",
+    "Non-goal: any change to _cli.py's actual gate logic, which is correct as-is"
+  ],
+  "changes": [
+    "Added patch.object(_cli, \"wait_for_display\", return_value=True) to both tests, matching the pattern already used in the adjacent test_gate_due_but_display_not_ready_defers test (which mocks it to False for that scenario)"
+  ],
+  "verification": [
+    {
+      "command": "time python -m pytest -q (full repo suite)",
+      "result": "pass",
+      "evidence": "949 passed, 100% coverage, 14.25s total -- back to normal from the previous CI run's 131s (which included two real 60s blocking waits for the unmocked tests)"
+    }
+  ],
+  "risks": [
+    "None -- this restores test hermeticity without changing any production code path"
+  ],
+  "rollback": [
+    "git revert this commit; the two tests will again depend on a real X display being present, passing on a dev machine but failing/hanging for 60s+ each on headless CI"
+  ]
+}
