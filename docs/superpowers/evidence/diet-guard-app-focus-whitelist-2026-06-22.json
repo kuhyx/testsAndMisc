@@ -1,0 +1,16 @@
+{
+  "intent": "Let the new diet_guard companion phone app stay running on the BL9000 phone instead of being killed by phone_focus_mode within ~1s of launch.",
+  "scope": ["phone_focus_mode/config.sh"],
+  "changes": [
+    "Added com.kuhy.diet_guard_app to the 'User-requested productive apps' whitelist block, alongside com.kuhy.workout_app."
+  ],
+  "verification": [
+    {
+      "command": "adb push config.sh /data/local/tmp/focus_mode/config.sh (via root cp) && focus_ctl.sh restart, then pm list packages -d/-e",
+      "result": "pass",
+      "evidence": "com.kuhy.diet_guard_app absent from `pm list packages -d`, present in `pm list packages -e` after restart; app stayed alive (pidof returned a pid after 5s, previously killed within ~1s)."
+    }
+  ],
+  "risks": ["None — additive whitelist entry, no change to enforcement logic for other apps."],
+  "rollback": ["Remove the added line from config.sh, push, and restart focus_daemon to re-disable the app."]
+}
