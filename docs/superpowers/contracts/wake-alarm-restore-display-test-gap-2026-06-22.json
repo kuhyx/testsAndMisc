@@ -1,0 +1,15 @@
+{
+  "title": "Fix real root cause of the wake_alarm coverage gap: untested _restore_display xset-found branch",
+  "objective": "The previous two CI-fix attempts (removing -n 4 xdist, testing under Python 3.12) both failed to fix a reproducible coverage gap on wake_alarm/_alarm_display.py:71 because they were the wrong diagnosis. The actual cause: _restore_display() was never mocked in the _block_extra_devices autouse fixture shared by test_alarm_part2/3/4.py, so every on_close()/_lock.close() call in those tests executed the REAL _restore_display(), which only reaches the xset-found branch (line 71) because the dev machine genuinely has /usr/bin/xset installed -- the CI runner does not, so it always took the xset-missing branch instead, and there was no dedicated unit test for the xset-found path at all to provide coverage independent of the environment. Success: a dedicated, hermetic unit test exists for both branches of _restore_display, and no test depends on real xset presence/absence to pass.",
+  "acceptance_criteria": [
+    "_restore_display is added to the _block_extra_devices fixture in test_alarm_part2.py, test_alarm_part3.py, and test_alarm_part4.py, matching its sibling hardware-teardown mocks (_restore_fans, _restore_alarm_audio, turn_off_plug) that were already mocked there",
+    "test_alarm_display.py gains test_restore_display_runs_xset_s_on_when_present, mirroring the existing test_wake_display_runs_ddcutil_and_xset_commands pattern, mocking shutil.which to a fake path rather than depending on the real xset binary",
+    "Full repo test suite passes with 100% branch coverage with no -n 4/xdist parallelism change and no Python version change required -- confirming the prior two fix attempts were unnecessary for this specific gap (though the xdist removal is being kept as a separate, independently-justified reliability improvement)",
+    "No test in the wake_alarm suite makes a real subprocess call (xset, ddcutil, etc.) as a side effect of running on a developer's real X11 desktop"
+  ],
+  "out_of_scope": [
+    "Reverting the prior -n 4 removal or Python-3.12 verification work -- both were reasonable diagnostic steps given the evidence available at the time, and removing xdist parallelism remains a valid, separately-motivated reliability improvement even though it didn't fix this particular gap",
+    "Auditing every other test file for the same missing-mock pattern -- scoped specifically to the _restore_display gap that was actually observed failing in CI"
+  ],
+  "verifier": "python -m pytest (full repo suite) --cov --cov-branch --cov-fail-under=100; pre-commit run --all-files; push and confirm GitHub Actions Pre-commit checks run goes green"
+}

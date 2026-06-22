@@ -1,0 +1,35 @@
+{
+  "intent": "Find and fix the actual root cause of a coverage gap on wake_alarm/_alarm_display.py:71 that survived two prior diagnostic fix attempts (removing xdist -n 4, testing under Python 3.12) because both were wrong guesses.",
+  "scope": [
+    "python_pkg/wake_alarm/tests/test_alarm_part2.py, test_alarm_part3.py, test_alarm_part4.py (_block_extra_devices fixture)",
+    "python_pkg/wake_alarm/tests/test_alarm_display.py (new test)",
+    "Non-goal: any production code change -- _alarm_display.py's _restore_display is correct as-is"
+  ],
+  "changes": [
+    "Added patch(\"python_pkg.wake_alarm._alarm._restore_display\") to the _block_extra_devices autouse fixture in all three test files that exercise WakeAlarm.on_close()/_lock.close() -- it was the one hardware-teardown call left unmocked there, meaning every test in those files that triggered on_close() ran the REAL _restore_display(), which calls the REAL shutil.which('xset')",
+    "Added test_restore_display_runs_xset_s_on_when_present to test_alarm_display.py, a dedicated hermetic test for the xset-found branch (mirrors the existing test_wake_display_runs_ddcutil_and_xset_commands pattern), so that branch's coverage no longer depends on whether the machine running the suite happens to have /usr/bin/xset installed"
+  ],
+  "verification": [
+    {
+      "command": "which xset",
+      "result": "pass",
+      "evidence": "/usr/bin/xset -- confirms the dev machine has it, explaining why this gap was invisible locally despite being 100% reproducible on the CI runner (which does not have it)"
+    },
+    {
+      "command": "python -m pytest -q (full repo suite)",
+      "result": "pass",
+      "evidence": "950 passed (949 + 1 new test), TOTAL coverage 100.00%"
+    },
+    {
+      "command": "pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "all hooks green"
+    }
+  ],
+  "risks": [
+    "None to production code. Two prior commits in this session (xdist removal, the implicit 3.12 check) addressed real but ultimately unrelated reliability concerns; this commit is the one that actually closes the specific coverage gap that's been failing CI"
+  ],
+  "rollback": [
+    "git revert this commit -- the gap will reappear on any machine/CI runner lacking /usr/bin/xset, and the unmocked _restore_display will resume making a real xset subprocess call as a side effect of running the wake_alarm test suite on any machine that does have it"
+  ]
+}
