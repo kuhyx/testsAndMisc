@@ -11,6 +11,10 @@
       "evidence": "com.kuhy.diet_guard_app absent from `pm list packages -d`, present in `pm list packages -e` after restart; app stayed alive (pidof returned a pid after 5s, previously killed within ~1s)."
     }
   ],
-  "risks": ["None — additive whitelist entry, no change to enforcement logic for other apps."],
-  "rollback": ["Remove the added line from config.sh, push, and restart focus_daemon to re-disable the app."]
+  "risks": [
+    "None — additive whitelist entry, no change to enforcement logic for other apps."
+  ],
+  "rollback": [
+    "Remove the added line from config.sh, push, and restart focus_daemon to re-disable the app."
+  ]
 }
