@@ -1,0 +1,157 @@
+.container {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: #e0e7ff;
+}
+
+.heading {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(90deg, #818cf8, #f472b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sub {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.cards {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.card {
+  background: rgba(30, 27, 75, 0.7);
+  border: 2px solid #818cf8;
+  border-radius: 16px;
+  padding: 32px 40px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  color: #e0e7ff;
+}
+
+.card:hover {
+  border-color: #f472b6;
+  transform: translateY(-4px);
+}
+
+.cardIcon {
+  font-size: 48px;
+}
+
+.cardTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.cardDesc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.cardDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #4b5563;
+}
+
+.cardDisabled:hover {
+  border-color: #4b5563;
+  transform: none;
+}
+
+.puzzleCard {
+  cursor: default;
+}
+
+.gridRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.preset {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1.5px solid #4b5563;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+.preset:hover {
+  border-color: #818cf8;
+  color: #c7d2fe;
+}
+
+.presetActive {
+  border-color: #f472b6;
+  color: #f9a8d4;
+  background: rgba(244, 114, 182, 0.12);
+}
+
+.gridInput {
+  width: 52px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: rgba(15, 12, 41, 0.8);
+  border: 1.5px solid #4b5563;
+  color: #e0e7ff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.gridInput:focus {
+  border-color: #818cf8;
+}
+
+.gridEq {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 2px 0 0;
+}
+
+.puzzleStart {
+  margin-top: 6px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f472b6, #818cf8);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.puzzleStart:hover {
+  opacity: 0.85;
+}

@@ -274,7 +274,7 @@ repos:
     hooks:
       - id: codespell
         args:
-          - --skip=*.json,*.lock,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
+          - --skip=*.json,*.lock,*-lock.yaml,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
           - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,bloc,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph,iif
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|.*\.geojson$)
 

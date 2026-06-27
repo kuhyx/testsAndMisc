@@ -1,0 +1,42 @@
+{
+  "intent": "Add bucket_catch to testsAndMisc: an osu!catch browser game where falling files/puzzle pieces are caught with a mouse-tracked basket. Includes frontend (React 19 + Vite 6 + TypeScript strict), backend (NestJS 11), and 100% Vitest test coverage.",
+  "scope": [
+    "bucket_catch/ — new top-level app directory",
+    "pnpm workspace: packages/frontend (React) + packages/backend (NestJS)",
+    "No changes to existing Python packages or linux_configuration"
+  ],
+  "changes": [
+    "Frontend: DropZone (drag-drop + file input), ModeSelect (download/upload/puzzle), GameCanvas, PuzzleCanvas, ScoreScreen, PuzzleResult components",
+    "Game engine: Canvas 2D requestAnimationFrame loop with AABB collision between falling items and mouse-tracked basket",
+    "Puzzle mode: image sliced into NxN grid via OffscreenCanvas; spatial clustering (Union-Find interval graph) guarantees 100% always achievable",
+    "Backend: NestJS POST /files/upload (multer disk storage) and GET /health",
+    "ESLint with typescript-eslint strict-type-checked; zero lint errors",
+    "Vitest + @vitest/coverage-v8: 145 tests, 100% on statements/branches/functions/lines",
+    "App.tsx: removed unreachable && branches; usePuzzleGameLoop: non-null assertions eliminate defensive dead branches"
+  ],
+  "verification": [
+    {
+      "command": "pnpm run coverage (packages/frontend)",
+      "result": "pass",
+      "evidence": "145 tests passed; Statements 100% (583/583), Branches 100% (217/217), Functions 100% (97/97), Lines 100% (534/534)"
+    },
+    {
+      "command": "pnpm run lint (packages/frontend)",
+      "result": "pass",
+      "evidence": "0 errors, 0 warnings with typescript-eslint strict-type-checked"
+    },
+    {
+      "command": "pnpm build (packages/frontend)",
+      "result": "pass",
+      "evidence": "46 modules transformed, no TypeScript errors"
+    }
+  ],
+  "risks": [
+    "NestJS backend tests not yet written (tracked separately)",
+    "Canvas puzzle mode relies on jsdom canvas mock in tests; real browser rendering not E2E tested"
+  ],
+  "rollback": [
+    "git revert HEAD — removes the entire bucket_catch directory from tracking",
+    "bucket_catch/ dir stays on disk (git revert only removes it from the repo)"
+  ]
+}

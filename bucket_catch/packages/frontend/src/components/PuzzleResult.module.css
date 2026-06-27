@@ -1,0 +1,86 @@
+.container {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 32px 16px;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: #e0e7ff;
+}
+
+.scoreBox {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.grade {
+  font-size: 6rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(90deg, #f472b6, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pct {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+
+.stats {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.caught {
+  color: #34d399;
+}
+
+.grid {
+  display: grid;
+  gap: 3px;
+  max-width: min(480px, 90vw);
+  width: 100%;
+  border: 3px solid rgba(129, 140, 248, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e1b4b;
+}
+
+.piece {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.hole {
+  width: 100%;
+  aspect-ratio: 1;
+  background: rgba(30, 27, 75, 0.9);
+  border: 1px dashed rgba(129, 140, 248, 0.2);
+}
+
+.restartBtn {
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: transparent;
+  border: 2px solid #f472b6;
+  color: #f9a8d4;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.restartBtn:hover {
+  border-color: #818cf8;
+  color: #a5b4fc;
+}

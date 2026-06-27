@@ -1,0 +1,25 @@
+.wrapper {
+  position: relative;
+  width: 100dvw;
+  height: 100dvh;
+  overflow: hidden;
+  cursor: none;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(244, 114, 182, 0.7);
+  font-size: 0.9rem;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}

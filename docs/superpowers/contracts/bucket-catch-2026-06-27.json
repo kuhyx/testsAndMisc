@@ -1,0 +1,16 @@
+{
+  "title": "bucket_catch: osu!catch browser game with 100% test coverage",
+  "objective": "Add bucket_catch to testsAndMisc — a browser game where falling files/puzzle pieces are caught with a mouse-tracked basket. The frontend (React 19 + Vite 6 + TypeScript strict) achieves 100% Vitest coverage across statements, branches, functions, and lines. The backend (NestJS 11) exposes file upload and health endpoints.",
+  "acceptance_criteria": [
+    "pnpm run coverage passes with 100% on all four metrics (statements, branches, functions, lines)",
+    "pnpm run lint passes with zero errors under typescript-eslint strict-type-checked",
+    "pnpm build succeeds with no TypeScript errors",
+    "Puzzle mode guarantees 100% catchable via Union-Find spatial clustering"
+  ],
+  "out_of_scope": [
+    "Backend (NestJS) test suite — tracked as a separate task",
+    "E2E / browser automation tests",
+    "Deployment or CI integration"
+  ],
+  "verifier": "pnpm run coverage && pnpm run lint (in packages/frontend)"
+}

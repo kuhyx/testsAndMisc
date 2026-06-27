@@ -1,0 +1,157 @@
+.container {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 32px 16px;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: #e0e7ff;
+}
+
+.scoreBox {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.grade {
+  font-size: 6rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(90deg, #818cf8, #f472b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pct {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+
+.stats {
+  display: flex;
+  gap: 24px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.caught {
+  color: #34d399;
+}
+
+.missed {
+  color: #f87171;
+}
+
+.lists {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 640px;
+  width: 100%;
+}
+
+.listTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+}
+
+.fileList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 27, 75, 0.7);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}
+
+.missedItem {
+  opacity: 0.5;
+}
+
+.fname {
+  flex: 1;
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.fsize {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.actionBtn {
+  padding: 12px 32px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #818cf8, #f472b6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.actionBtn:hover {
+  opacity: 0.85;
+}
+
+.restartBtn {
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: transparent;
+  border: 2px solid #818cf8;
+  color: #a5b4fc;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.restartBtn:hover {
+  border-color: #f472b6;
+  color: #f9a8d4;
+}
+
+.status {
+  color: #34d399;
+  font-weight: 600;
+  margin: 0;
+}
+
+.error {
+  color: #f87171;
+  font-weight: 600;
+  margin: 0;
+}
