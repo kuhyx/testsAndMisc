@@ -37,6 +37,7 @@ fi
 DUCKDNS_DOMAIN="${DUCKDNS_DOMAIN:-}"
 DUCKDNS_TOKEN="${DUCKDNS_TOKEN:-}"
 LAN_SUBNET="${LAN_SUBNET:-}"
+ALLOW_WEB="${ALLOW_WEB:-false}"
 
 die() {
 	log_error "$1"
@@ -48,6 +49,7 @@ save_config() {
 DUCKDNS_DOMAIN="${DUCKDNS_DOMAIN}"
 DUCKDNS_TOKEN="${DUCKDNS_TOKEN}"
 LAN_SUBNET="${LAN_SUBNET}"
+ALLOW_WEB="${ALLOW_WEB}"
 EOF
 	chmod 600 "$CONFIG_FILE"
 }
@@ -113,6 +115,10 @@ write_nftables_ruleset() {
 		cp "$NFT_CONF" "${NFT_CONF}.bak.$(date +%s)"
 		log_warn "Backed up existing ${NFT_CONF} before overwriting."
 	fi
+	local web_rule=""
+	if [[ $ALLOW_WEB == "true" ]]; then
+		web_rule=$'\n\t\ttcp dport { 80, 443 } accept'
+	fi
 	cat >"${NFT_CONF}.new" <<EOF
 #!/usr/sbin/nft -f
 flush ruleset
@@ -131,7 +137,7 @@ table inet filter {
 		udp dport ${WG_PORT} accept
 
 		iifname "${WG_IFACE}" tcp dport 22 accept
-		ip saddr ${LAN_SUBNET} tcp dport 22 accept
+		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}
 	}
 	chain forward {
 		type filter hook forward priority 0; policy drop;
@@ -341,6 +347,14 @@ print_android_instructions() {
 EOF
 }
 
+allow_web() {
+	ALLOW_WEB=true
+	save_config
+	write_nftables_ruleset
+	verify_nftables_then_apply
+	log_ok "Opened tcp/80 and tcp/443 in the input chain (persisted -- future 'setup' re-runs keep this rule)."
+}
+
 status_cmd() {
 	echo "=== WireGuard ==="
 	wg show 2>/dev/null || echo "(interface not up)"
@@ -362,6 +376,7 @@ Usage: $0 <command> [args]
 Commands:
   setup            Full first-time setup (WireGuard, firewall, sshd, DuckDNS).
   add-peer <name>  Provision a new phone/laptop and print its QR code.
+  allow-web        Open tcp/80 and tcp/443 in the firewall (for a web server on this host).
   status           Show WireGuard/firewall/sshd status.
   revoke <name>    Remove a peer.
   help             Show this message.
@@ -375,7 +390,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke)
+	setup | add-peer | revoke | allow-web)
 		require_root "$@"
 		;;
 	esac
@@ -398,6 +413,9 @@ main() {
 	add-peer)
 		add_phone_peer "${1:-}"
 		print_android_instructions
+		;;
+	allow-web)
+		allow_web
 		;;
 	status)
 		status_cmd

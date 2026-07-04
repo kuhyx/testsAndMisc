@@ -1,0 +1,67 @@
+{
+  "intent": "Stand up a self-hosted, publicly-reachable Gitea instance (Docker+Caddy) at kuhy.duckdns.org, and mirror all of kuhyx's GitHub repos into it with ongoing sync, so repos are reachable from a phone off the home network.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_wireguard_ssh.sh (extended: allow-web subcommand)",
+    "linux_configuration/scripts/single_use/features/setup_gitea.sh (new)",
+    "linux_configuration/scripts/single_use/features/migrate_github_to_gitea.sh (new)",
+    "~/gitea/ (docker-compose.yml, Caddyfile -- outside the git repo, matching ~/.joplin-server/ convention)",
+    "Non-goal: did not touch ~/.joplin-server/duckdns-update.sh (pre-existing, out of scope); did not implement per-repo webhooks for near-instant sync (10-min mirror interval is the guaranteed baseline)"
+  ],
+  "changes": [
+    "Removed an unrecognized, previously-running GitLab CE container + ~/gitlab data + ~/install_gitlab.sh that the user did not recognize as their own work",
+    "Added an 'allow-web' subcommand to setup_wireguard_ssh.sh: persists ALLOW_WEB flag, conditionally emits 'tcp dport { 80, 443 } accept' in the nftables input chain, reuses existing verify-then-apply-with-sshd-rollback safety logic",
+    "Deployed Gitea 1.22.3 + Caddy 2.8 via docker-compose with network_mode: host (not a bridge network) -- discovered mid-implementation that this host's custom nftables FORWARD chain (default-drop, zero rules) silently blocks all Docker bridge-network egress since both nf_tables and Docker's separate iptables-legacy rules hook the same netfilter point and a DROP verdict from either is terminal; host networking sidesteps this without touching the shared firewall script",
+    "Gitea bound to 127.0.0.1:3000 only (never exposed); Caddy is the only container bound to host 80/443, obtains a real Let's Encrypt cert automatically",
+    "Headless admin bootstrap via 'gitea admin user create'/'generate-access-token' (no web installer), all secrets (admin password, API token) written directly to 0600 files, never echoed to any transcript",
+    "Migrated 21 non-fork GitHub repos (5 private) as Gitea pull-mirrors via a single /api/v1/repos/migrate call each (mirror:true, 10m interval) -- one mechanism covers both initial import and ongoing sync",
+    "Private-repo credential is a dedicated fine-grained GitHub PAT (Contents: Read-only, scoped to the 5 private repos), stored in a 0600 file, applied only to private repos' migrate payload -- not the broader-scoped gh CLI token, given the host is now internet-facing"
+  ],
+  "verification": [
+    {
+      "command": "bash -n on both new/edited scripts + shellcheck",
+      "result": "pass",
+      "evidence": "No warnings beyond a pre-existing SC1091 info note also present in the unedited parts of setup_wireguard_ssh.sh"
+    },
+    {
+      "command": "sudo nft list ruleset | grep -A15 'chain input'",
+      "result": "pass",
+      "evidence": "tcp dport { 80, 443 } accept present alongside all pre-existing WireGuard/LAN-SSH rules; sshd stayed active through apply"
+    },
+    {
+      "command": "docker logs gitea-caddy | grep 'certificate obtained successfully'",
+      "result": "pass",
+      "evidence": "Let's Encrypt tls-alpn-01 challenge completed from external LE validation IPs, confirming inbound 443 is reachable from the internet"
+    },
+    {
+      "command": "curl -sI https://kuhy.duckdns.org",
+      "result": "pass",
+      "evidence": "HTTP/2 200, server: Caddy"
+    },
+    {
+      "command": "git clone https://kuhy.duckdns.org/kuhyx/testsAndMisc.git and compare commit count",
+      "result": "pass",
+      "evidence": "714 commits on both Gitea mirror and GitHub original (main branch); CV (private) repo visibility confirmed private:true, mirror:true via API"
+    },
+    {
+      "command": "./migrate_github_to_gitea.sh run twice",
+      "result": "pass",
+      "evidence": "First run: 21 migrated, 0 failed. Second run: 0 migrated, 21 already present, 0 failed -- confirms idempotency"
+    },
+    {
+      "command": "POST /api/v1/repos/{owner}/wake-alarm/mirror-sync",
+      "result": "pass",
+      "evidence": "HTTP 200 -- on-demand sync endpoint confirmed functional"
+    }
+  ],
+  "risks": [
+    "Public exposure: Gitea (including 5 private repos) is now reachable from the open internet -- user was explicitly warned and chose this over a VPN-gated alternative",
+    "Gitea/Caddy run with network_mode: host rather than an isolated bridge network, as a workaround for a pre-existing firewall/Docker interaction bug -- slightly less network isolation for these two containers specifically",
+    "The pre-existing forward-chain bug (nftables default-drop silently blocking all Docker bridge egress) was NOT fixed at the shared-script level per user's choice -- it may still affect other containers (joplin-server, open-webui) that need outbound access; not in scope for this task",
+    "Final phone-off-WiFi reachability check (the literal backlog 'done' condition) was not independently verified by the agent -- strong indirect evidence (external Let's Encrypt validation succeeded) but pending user confirmation"
+  ],
+  "rollback": [
+    "Gitea/mirrors: cd ~/gitea && docker compose down -v && rm -rf ~/gitea",
+    "Firewall: sudo sed -i 's/ALLOW_WEB=\"true\"/ALLOW_WEB=\"false\"/' linux_configuration/scripts/single_use/features/.wireguard_ssh.conf && sudo ./linux_configuration/scripts/single_use/features/setup_wireguard_ssh.sh setup (regenerates ruleset without the web rule)",
+    "After rollback, validate: docker ps shows no gitea/gitea-caddy containers, curl to kuhy.duckdns.org times out, sudo nft list ruleset no longer shows tcp dport 80/443, sshd/WireGuard access still work"
+  ]
+}
