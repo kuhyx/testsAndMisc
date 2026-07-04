@@ -1,0 +1,46 @@
+{
+  "intent": "Replace hosts-guard/shutdown-schedule-guard's bespoke chattr/bind-mount/systemd-watcher implementations with the shared guard-lib (guardctl) primitives.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+    "linux_configuration/scripts/periodic_background/hosts/guard/plugins/nsswitch-plugin.sh (new)",
+    "linux_configuration/scripts/periodic_background/hosts/guard/plugins/resolved-plugin.sh (new)"
+  ],
+  "changes": [
+    "Renamed pacman_wrapper.sh's hosts-only pre/post hook fallback functions to call guard-lib's generic unlock-all/relock-all scripts (covers hosts, nsswitch, resolved, shutdown-schedule from one place)",
+    "setup_midnight_shutdown.sh now installs/updates its guarded config via guardctl file-guard (install, canonical-path, status) instead of hand-writing chattr calls and systemd path/service units",
+    "Added nsswitch-plugin.sh / resolved-plugin.sh guard hooks for the hosts-file guard's dependent configs",
+    "Fixed 3 pre-existing shellcheck SC2329 false positives in pacman_wrapper.sh (load_policy_lists, is_blocked_package_name, is_greylisted_package_name, is_steam_package are invoked indirectly by name, not misses) with disable comments explaining the indirect-call pattern",
+    "Fixed a pre-existing SC2001 style warning: replaced an echo|sed VM-name extraction with bash parameter expansion (${line#\"}/${vm_name%%\"*}), verified to produce identical output"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck <all 4 changed files>",
+      "result": "pass",
+      "evidence": "0 warnings/errors, including the 3 previously-flagged SC2329 and 1 SC2001 findings"
+    },
+    {
+      "command": "bash -n <all 4 changed files>",
+      "result": "pass",
+      "evidence": "syntax OK on all 4 files"
+    },
+    {
+      "command": "pre-commit run --files <changed files + this evidence/contract pair>",
+      "result": "pass",
+      "evidence": "All hooks passed (ai-evidence-contract, ai-multifile-contract, shellcheck, codespell, secret scan, etc.)"
+    },
+    {
+      "command": "live verification of the guard-lib migration end-to-end",
+      "result": "pass",
+      "evidence": "Performed in steam-backlog-enforcer's block-gaming feature session: guardctl file-guard sync/pacman-unlock round-trips confirmed live against /etc/hosts, and a real 1-day block-gaming test run exercised the shared guard-lib package-block + file-guard primitives this migration depends on"
+    }
+  ],
+  "risks": [
+    "setup_midnight_shutdown.sh's create_config_guard() now hard-requires guardctl on PATH; if ~/guard-lib isn't installed on a fresh machine, first run will error instead of silently falling back",
+    "test_pacman_wrapper_security.sh already referenced a stale pre-reorg path (scripts/digital_wellbeing/... instead of scripts/periodic_background/digital_wellbeing/...) before this change and still does - not fixed here, out of scope"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Re-run setup_midnight_shutdown.sh's old chattr-based path if guard-lib is removed (not needed unless guard-lib itself is rolled back)"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "title": "pacman_wrapper.sh + setup_midnight_shutdown.sh: migrate to guard-lib",
+  "objective": "Replace the bespoke hosts-guard and shutdown-schedule-guard chattr/bind-mount/systemd-watcher implementations with the new shared guard-lib (~/guard-lib, guardctl) primitives, so multiple projects (screen-locker, steam-backlog-enforcer) stop maintaining parallel copies of the same tamper-resistance mechanism.",
+  "acceptance_criteria": [
+    "pacman_wrapper.sh's pre/post hook fallback functions call guard-lib's generic unlock-all/relock-all scripts instead of the old hosts-only ones",
+    "setup_midnight_shutdown.sh installs and updates its guarded config via guardctl file-guard instead of hand-rolled chattr + systemd unit generation",
+    "New nsswitch-plugin.sh / resolved-plugin.sh guard hooks exist for the hosts-file guard's dependent configs",
+    "shellcheck clean on all changed files (pre-existing SC2329/SC2001 warnings in pacman_wrapper.sh fixed alongside, at user's request, even though unrelated to this migration)"
+  ],
+  "out_of_scope": [
+    "steam-backlog-enforcer's block-gaming feature (separate repo/commit)",
+    "guard-lib's own implementation (separate repo/commit)",
+    "phone_focus_mode, code_tutor, and other unrelated in-progress work present in the working tree"
+  ],
+  "verifier": "pre-commit run --files linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh linux_configuration/scripts/periodic_background/hosts/guard/plugins/*.sh && live verification via steam-backlog-enforcer's block-gaming test run"
+}
