@@ -1,0 +1,40 @@
+{
+  "intent": "Build an osu!catch-style browser game where dropped files fall from the top and the user catches them with a basket. Caught files are either zipped and downloaded (client mode) or uploaded to a NestJS backend (server mode).",
+  "scope": [
+    "bucket_catch/ — new top-level app directory in testsAndMisc",
+    "pnpm workspace with two packages: frontend (React 19 + Vite 6) and backend (NestJS 11)",
+    "No changes to existing Python packages or linux_configuration"
+  ],
+  "changes": [
+    "Created bucket_catch/packages/frontend: React 19 + Vite 6 app with DropZone, ModeSelect, GameCanvas, ScoreScreen components",
+    "Game engine: Canvas 2D requestAnimationFrame loop with AABB collision between falling file cards and mouse-tracked basket",
+    "Created bucket_catch/packages/backend: NestJS 11 app with POST /files/upload (multer disk storage) and GET /health",
+    "JSZip integration for local download mode; fetch-based upload for server mode",
+    "pnpm workspace root with parallel dev/build scripts"
+  ],
+  "verification": [
+    {
+      "command": "curl http://localhost:3000/health",
+      "result": "pass",
+      "evidence": "{\"status\":\"ok\"}"
+    },
+    {
+      "command": "curl -X POST http://localhost:3000/files/upload -F file=@/tmp/test.txt",
+      "result": "pass",
+      "evidence": "{\"filename\":\"...\",\"originalname\":\"test.txt\",\"size\":12,\"savedAt\":\"2026-06-26T...\"}"
+    },
+    {
+      "command": "pnpm build (frontend)",
+      "result": "pass",
+      "evidence": "46 modules transformed, dist/assets/index.js 304 KB, built in 772ms, no TypeScript errors"
+    }
+  ],
+  "risks": [
+    "esbuild postinstall script is blocked by pnpm v10 approval system — binary exists but may need `pnpm rebuild esbuild` on a fresh install",
+    "Backend stores files in uploads/ on disk with no cleanup; directory will grow unbounded"
+  ],
+  "rollback": [
+    "rm -rf bucket_catch/ — entire feature is self-contained, no changes to existing packages",
+    "No database or system config changes to revert"
+  ]
+}
