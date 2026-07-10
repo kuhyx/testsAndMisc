@@ -1,0 +1,43 @@
+{
+  "intent": "Give every device on the LAN the same domain blocking as the PC's /etc/hosts, with no app installed on the device, by running the PC as a Pi-hole-like DNS (and, for this router, DHCP) server.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_dns_blocker.sh (new: dnsmasq-based LAN DNS blocker + optional DHCP-server mode)",
+    "linux_configuration/scripts/single_use/features/setup_wireguard_ssh.sh (new allow-dns subcommand: opens DNS 53 + DHCP 67 for the LAN in the single-owner nftables ruleset)",
+    "linux_configuration/tests/test_setup_dns_blocker.sh (new regression tests)",
+    "Non-goals: no Pi-hole/web dashboard, no per-query analytics, no DoH enforcement on clients (a voluntary-DNS design cannot force off-path traffic)."
+  ],
+  "changes": [
+    "dnsmasq serves the identical blocklist as /etc/hosts via addn-hosts pointed at generate_hosts_file.sh output (same StevenBlack variant + custom entries + unblocks); no-hosts + no-resolv keep it deterministic; bound to the LAN interface only so the systemd-resolved stub stays free.",
+    "Daily systemd timer rebuilds the feed and SIGHUPs dnsmasq; Restart=always drop-in; logs to /var/log/dns-blocker/.",
+    "dhcp/dhcp-off subcommands: because the ISP router cannot advertise a custom DNS, the PC becomes the LAN DHCP server (static IP via nmcli with a gateway-ping self-check + auto-revert; hands out itself as DNS). Rollback keeps the PC online on its static IP.",
+    "Firewall: allow-dns opens udp/tcp 53 (LAN saddr) and udp 67 for DHCP. The DHCP accept rule is placed BEFORE 'ct state invalid drop' because the 0.0.0.0->255.255.255.255 broadcast is classified INVALID and was being dropped.",
+    "Fixed firewall detection to read the actual loaded nftables ruleset (a ruleset can be loaded while nftables.service reads inactive), avoiding a grep -q/pipefail SIGPIPE false-negative."
+  ],
+  "verification": [
+    {
+      "command": "sudo setup_dns_blocker.sh setup && sudo setup_dns_blocker.sh dhcp && setup_dns_blocker.sh status",
+      "result": "pass",
+      "evidence": "status all green: dnsmasq active/enabled, listening 192.168.1.43:53, firewall DNS/DHCP open for LAN, DHCP mode ON. Pixel-6a leased 192.168.1.82 with option6 dns-server=192.168.1.43 (DHCPDISCOVER->OFFER->REQUEST->ACK). dig @192.168.1.43 youtube.com -> 0.0.0.0 (blocked); example.com/wikipedia.org -> real IP."
+    },
+    {
+      "command": "on-device manual test (Pixel 6a)",
+      "result": "pass",
+      "evidence": "User confirmed: legit websites load, youtube.com is blocked."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_setup_dns_blocker.sh",
+      "result": "pass",
+      "evidence": "PASS: dispatch (help lists all subcommands, unknown cmd exits non-zero) + firewall_is_loaded regression (drop->LOADED, accept->NOT_LOADED under set -o pipefail with large nft output)."
+    }
+  ],
+  "risks": [
+    "Voluntary DNS: a device using DoH / Android Private DNS / a VPN / a manual DNS bypasses blocking; the PC is not the gateway so it cannot force traffic. Phone Private DNS must be Off.",
+    "PC is now the LAN DHCP server: if it is down, new devices get no lease (existing leases persist ~12h). Fail-closed by design.",
+    "Static IP pinned on enp6s0; a wrong gateway would break connectivity (mitigated by an immediate ping self-check that auto-reverts)."
+  ],
+  "rollback": [
+    "DHCP: sudo setup_dns_blocker.sh dhcp-off (stops serving DHCP, KEEPS the PC on its static IP so it stays online), then re-tick the router's DHCP.",
+    "DNS blocker: systemctl disable --now dnsmasq dns-blocklist-refresh.timer; rm /etc/dnsmasq.d/lan-blocker.conf /etc/dnsmasq.d/lan-dhcp.conf.",
+    "Validate after rollback: devices get leases from the router again and normal DNS resolves."
+  ]
+}

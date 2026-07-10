@@ -38,6 +38,7 @@ DUCKDNS_DOMAIN="${DUCKDNS_DOMAIN:-}"
 DUCKDNS_TOKEN="${DUCKDNS_TOKEN:-}"
 LAN_SUBNET="${LAN_SUBNET:-}"
 ALLOW_WEB="${ALLOW_WEB:-false}"
+ALLOW_DNS="${ALLOW_DNS:-false}"
 
 die() {
 	log_error "$1"
@@ -50,6 +51,7 @@ DUCKDNS_DOMAIN="${DUCKDNS_DOMAIN}"
 DUCKDNS_TOKEN="${DUCKDNS_TOKEN}"
 LAN_SUBNET="${LAN_SUBNET}"
 ALLOW_WEB="${ALLOW_WEB}"
+ALLOW_DNS="${ALLOW_DNS}"
 EOF
 	chmod 600 "$CONFIG_FILE"
 }
@@ -119,6 +121,19 @@ write_nftables_ruleset() {
 	if [[ $ALLOW_WEB == "true" ]]; then
 		web_rule=$'\n\t\ttcp dport { 80, 443 } accept'
 	fi
+	# DNS blocker (setup_dns_blocker.sh): serve DNS (53) -- and DHCP (67) when
+	# this PC is the LAN DHCP server -- to LAN clients only. Restricted to the
+	# LAN subnet so nothing is ever exposed to the internet.
+	local dns_rule="" dhcp_rule=""
+	if [[ $ALLOW_DNS == "true" ]]; then
+		dns_rule=$'\n\t\tip saddr '"${LAN_SUBNET}"$' udp dport 53 accept'
+		dns_rule+=$'\n\t\tip saddr '"${LAN_SUBNET}"$' tcp dport 53 accept'
+		# DHCP clients have no IP yet (saddr 0.0.0.0 -> 255.255.255.255) and the
+		# broadcast is classified INVALID by conntrack -- so this rule MUST sit
+		# BEFORE 'ct state invalid drop' and match the client source port, not a
+		# saddr. Link-local only: :67 broadcasts never route in from the internet.
+		dhcp_rule=$'\n\t\tudp sport 68 udp dport 67 accept'
+	fi
 	cat >"${NFT_CONF}.new" <<EOF
 #!/usr/sbin/nft -f
 flush ruleset
@@ -128,7 +143,7 @@ table inet filter {
 		type filter hook input priority 0; policy drop;
 
 		iif "lo" accept
-		ct state established,related accept
+		ct state established,related accept${dhcp_rule}
 		ct state invalid drop
 
 		icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-request } accept
@@ -137,7 +152,7 @@ table inet filter {
 		udp dport ${WG_PORT} accept
 
 		iifname "${WG_IFACE}" tcp dport 22 accept
-		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}
+		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}${dns_rule}
 	}
 	chain forward {
 		type filter hook forward priority 0; policy drop;
@@ -355,6 +370,14 @@ allow_web() {
 	log_ok "Opened tcp/80 and tcp/443 in the input chain (persisted -- future 'setup' re-runs keep this rule)."
 }
 
+allow_dns() {
+	ALLOW_DNS=true
+	save_config
+	write_nftables_ruleset
+	verify_nftables_then_apply
+	log_ok "Opened udp/tcp 53 from ${LAN_SUBNET:-the LAN} in the input chain (persisted -- future 'setup' re-runs keep this rule)."
+}
+
 status_cmd() {
 	echo "=== WireGuard ==="
 	wg show 2>/dev/null || echo "(interface not up)"
@@ -377,6 +400,7 @@ Commands:
   setup            Full first-time setup (WireGuard, firewall, sshd, DuckDNS).
   add-peer <name>  Provision a new phone/laptop and print its QR code.
   allow-web        Open tcp/80 and tcp/443 in the firewall (for a web server on this host).
+  allow-dns        Open udp/tcp 53 from the LAN in the firewall (for the DNS blocker on this host).
   status           Show WireGuard/firewall/sshd status.
   revoke <name>    Remove a peer.
   help             Show this message.
@@ -390,7 +414,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web)
+	setup | add-peer | revoke | allow-web | allow-dns)
 		require_root "$@"
 		;;
 	esac
@@ -416,6 +440,9 @@ main() {
 		;;
 	allow-web)
 		allow_web
+		;;
+	allow-dns)
+		allow_dns
 		;;
 	status)
 		status_cmd
