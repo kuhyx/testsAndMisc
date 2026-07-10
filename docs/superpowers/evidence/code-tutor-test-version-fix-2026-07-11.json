@@ -1,0 +1,30 @@
+{
+  "intent": "Fix a Python-version-fragile code_tutor test so testsAndMisc CI (Python 3.11) passes: the codebase_fingerprint OSError-branch test passed on 3.14 but failed on 3.11.",
+  "scope": [
+    "python_pkg/code_tutor/tests/test_analyzer.py",
+    "Non-goal: any change to _analyzer.py source (behavior unchanged)."
+  ],
+  "changes": [
+    "test_codebase_fingerprint_stat_oserror_raises now patches Path.is_file to return True for the target file (without calling stat) in addition to patching Path.stat to raise, so the loop deterministically reaches the guarded path.stat() call and hits the `except OSError` branch on every Python version.",
+    "Root cause: on 3.11/3.12 Path.is_file() calls stat() and re-raises OSErrors without a recognized errno, so the injected error escaped before the guarded stat() was reached; on 3.14 is_file() uses os.path.isfile and did not."
+  ],
+  "verification": [
+    {
+      "command": "python3.11 -m pytest test_codebase_fingerprint_stat_oserror_raises -o addopts=''",
+      "result": "pass",
+      "evidence": "1 passed on 3.11.11 (the CI version that previously failed)"
+    },
+    {
+      "command": "python -m pytest test_analyzer.py::...stat_oserror_raises --cov=python_pkg.code_tutor._analyzer",
+      "result": "pass",
+      "evidence": "1 passed on 3.14; _analyzer.py lines 386-387 (except OSError branch) covered"
+    }
+  ],
+  "risks": [
+    "Patching is_file globally could mask a real is_file bug, but the mock delegates to the real is_file for all non-target paths."
+  ],
+  "rollback": [
+    "git revert the commit; the prior test still covers the branch on 3.14 only.",
+    "After rollback, re-run on 3.11 to confirm the flake returns."
+  ]
+}

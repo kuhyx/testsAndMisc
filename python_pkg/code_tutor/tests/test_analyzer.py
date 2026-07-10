@@ -422,12 +422,15 @@ def test_code_item_defaults() -> None:
 def test_codebase_fingerprint_stat_oserror_raises(tmp_path: Path) -> None:
     """Skip a file whose ``stat`` raises ``OSError`` (except branch).
 
-    On this Python ``Path.is_file`` uses ``os.path.isfile`` rather than
-    ``Path.stat``, so a stat that always fails for the source file reaches
-    the ``except OSError`` handler that drops the unreadable entry.
+    ``is_file()`` is forced True for the target so the loop reaches the
+    explicit ``path.stat()`` at fingerprint time; that stat then raises and
+    the ``except OSError`` handler drops the unreadable entry.  Patching both
+    keeps this deterministic across Python versions (on some, ``is_file``
+    itself calls ``stat`` and would otherwise re-raise before line reached).
     """
     (tmp_path / "source.py").write_text("x = 1", encoding="utf-8")
     real_stat = Path.stat
+    real_is_file = Path.is_file
 
     def failing_stat(self: Path, **kwargs: object) -> object:
         """Raise for the target file, delegate to the real stat otherwise."""
@@ -436,7 +439,14 @@ def test_codebase_fingerprint_stat_oserror_raises(tmp_path: Path) -> None:
             raise OSError(msg)
         return real_stat(self, **kwargs)
 
-    with patch.object(Path, "stat", failing_stat):
+    def always_file(self: Path) -> bool:
+        """Report the target as a regular file without calling stat."""
+        return str(self).endswith("source.py") or real_is_file(self)
+
+    with (
+        patch.object(Path, "stat", failing_stat),
+        patch.object(Path, "is_file", always_file),
+    ):
         result = codebase_fingerprint(tmp_path)
 
     assert len(result) == 16
