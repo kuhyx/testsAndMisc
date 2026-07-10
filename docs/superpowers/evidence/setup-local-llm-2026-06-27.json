@@ -1,0 +1,34 @@
+{
+  "intent": "Set up a self-hosted local LLM stack (ollama-cuda + qwen3:32b + Open WebUI) optimised for the RTX 3090 (24 GB VRAM) on Arch Linux, accessible via a chat UI for agentic coding sessions.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_local_llm.sh",
+    "docs/superpowers/evidence/setup-local-llm-2026-06-27.json"
+  ],
+  "changes": [
+    "Added setup_local_llm.sh: idempotent, self-contained Bash script that installs ollama-cuda, writes a systemd drop-in enabling flash attention + Q8_0 KV cache quantisation, pulls qwen3:32b, creates a custom Ollama model with a condensed developer system prompt, and launches Open WebUI via Docker.",
+    "Context fixed at 16 K tokens (safe ceiling for 24 GB VRAM: ~20 GB weights + ~2 GB KV cache + ~1.5 GB buffers ≈ 23.5 GB). Verify step checks actual GPU utilisation and tok/s after warm-up generation.",
+    "Shell script passes bash -n and shellcheck -x with zero warnings."
+  ],
+  "verification": [
+    {
+      "command": "bash -n linux_configuration/scripts/single_use/features/setup_local_llm.sh",
+      "result": "pass",
+      "evidence": "Exit 0, no syntax errors"
+    },
+    {
+      "command": "shellcheck -x linux_configuration/scripts/single_use/features/setup_local_llm.sh",
+      "result": "pass",
+      "evidence": "shellcheck: OK — zero warnings or errors"
+    }
+  ],
+  "risks": [
+    "First run downloads ~20 GB for qwen3:32b — requires stable internet and ~20 GB free disk space",
+    "ollama-cuda replaces non-CUDA ollama package if present; re-install of downstream packages may be needed",
+    "Ollama bound to 0.0.0.0:11434 — accessible on LAN; add firewall rule if that is undesirable"
+  ],
+  "rollback": [
+    "sudo systemctl stop ollama && sudo pacman -Rs ollama-cuda to remove Ollama",
+    "docker rm -f open-webui && docker volume rm open-webui-data to remove WebUI",
+    "sudo rm /etc/systemd/system/ollama.service.d/local-llm.conf && sudo systemctl daemon-reload to remove drop-in"
+  ]
+}
