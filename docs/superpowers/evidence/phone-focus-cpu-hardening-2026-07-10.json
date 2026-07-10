@@ -1,0 +1,40 @@
+{
+  "intent": "Stop the on-device phone_focus_mode enforcer from overheating the phone by eliminating redundant per-tick firewall/rule rebuilds, while preserving self-healing enforcement; also whitelist the new wake_alarm_sync app so it can set tomorrow's alarm at night.",
+  "scope": [
+    "phone_focus_mode/config.sh",
+    "phone_focus_mode/dns_enforcer.sh",
+    "phone_focus_mode/focus_daemon.sh",
+    "phone_focus_mode/deploy.sh",
+    ".github/skills/efficient-polling-scripts/SKILL.md",
+    "Non-goal: replacing the interim iptables stopgap with a proper netd/eBPF per-UID firewall (tracked as a follow-up)"
+  ],
+  "changes": [
+    "config.sh: throttle CURFEW_NET_REASSERT_INTERVAL 1s -> 15s. A 1s interval forked `iptables -L` every second all night, pegging netd at ~30% CPU and overheating the phone; 15s matches HOSTS/LAUNCHER pacing. Deliberate tradeoff: curfew leak window grows from <=1s to <=15s.",
+    "config.sh: add com.kuhy.wake_alarm_sync to the general and curfew-night app whitelists so the wake-alarm phone companion can run (it writes the alarm time to a GitHub Gist).",
+    "dns_enforcer.sh: state-gate the DNS chain rebuild. fill_chain_v4/v6 flush+reinsert ~50-100 rules each call; running that unconditionally every tick pegged netd at ~50% CPU on the xtables lock even though the rule set never changes. New chain_intact()/expected_rule_count() only rebuild when the chain is missing, untethered from OUTPUT, or the wrong size; self-healing is preserved.",
+    "focus_daemon.sh: build the blocked-system-apps file once at startup instead of every enable sweep, and memoize is_allowed() lookups once per main-loop tick.",
+    "deploy.sh: drop `su --mount-master` (removed in Magisk v26+); plain `su -c` runs in the correct mount namespace for our use cases.",
+    "SKILL.md: document the state-change-gate pattern (only rebuild firewall rules when tampered) in the efficient-polling-scripts skill."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck --severity=warning phone_focus_mode/config.sh phone_focus_mode/deploy.sh phone_focus_mode/dns_enforcer.sh phone_focus_mode/focus_daemon.sh",
+      "result": "pass",
+      "evidence": "Exit 0, no warnings or errors"
+    },
+    {
+      "command": "pre-commit run (staged phone_focus_mode scripts + SKILL.md)",
+      "result": "pass",
+      "evidence": "shellcheck, no-polling-antipatterns, codespell and generic hooks pass"
+    }
+  ],
+  "risks": [
+    "Curfew net leak window grows from <=1s to <=15s during the reassert interval; acceptable vs. thermal/CPU cost.",
+    "State-gate on the DNS chain relies on chain_intact() correctly detecting tampering (existence + attachment + rule count); a subtle mismatch that always reads intact would skip a legitimate rebuild.",
+    "Dropping --mount-master assumes the deployed Magisk is v26+."
+  ],
+  "rollback": [
+    "git revert the commit to restore unconditional rebuilds and the 1s interval.",
+    "After rollback, re-run deploy.sh and confirm the DNS/curfew chains reassert and the whitelist no longer contains wake_alarm_sync."
+  ]
+}

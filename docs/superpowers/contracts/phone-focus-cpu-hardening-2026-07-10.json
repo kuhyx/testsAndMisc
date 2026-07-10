@@ -1,0 +1,16 @@
+{
+  "title": "phone_focus_mode CPU/overheat hardening",
+  "objective": "Eliminate redundant per-tick firewall and rule rebuilds in the on-device focus enforcer that were pegging netd and overheating the phone, without weakening enforcement or self-healing, and whitelist the wake_alarm_sync companion app.",
+  "acceptance_criteria": [
+    "DNS chain is rebuilt only when missing, detached from OUTPUT, or the wrong rule count; identical rebuilds are skipped.",
+    "Curfew net reassert runs every 15s instead of every 1s.",
+    "Blocked-system-apps file is built once at startup; is_allowed() is memoized per tick.",
+    "com.kuhy.wake_alarm_sync is present in both the general and curfew-night whitelists.",
+    "shellcheck --severity=warning passes on all four scripts and the no-polling-antipatterns hook passes."
+  ],
+  "out_of_scope": [
+    "Replacing the interim iptables stopgap with a netd/eBPF per-UID firewall.",
+    "Any change to the Linux-side focus daemon (this is the Android/ADB enforcer)."
+  ],
+  "verifier": "shellcheck --severity=warning + pre-commit no-polling-antipatterns hook + on-device netd CPU observation"
+}

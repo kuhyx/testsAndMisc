@@ -140,6 +140,41 @@ Target: a 1-Hz script should take < 2 ms per invocation on a modern desktop.
 A 5-second-interval script can afford ~20 ms.
 If you're over budget, count the `execve` with `strace -c` and remove forks.
 
+### R9. Never flush+rebuild firewall rules unconditionally in a poll loop
+
+`iptables -F chain` followed by dozens of `iptables -A` calls every tick is
+one of the most expensive fork patterns possible — each rule insert is its
+own fork, plus it contends the xtables lock with the kernel's own netfilter
+subsystem (netd on Android, firewalld/nftables on Linux). This is a specific
+enough, and costly enough, instance of R6-style unconditional recomputation
+to call out on its own: a real incident (`phone_focus_mode/dns_enforcer.sh`,
+see `feedback-iptables-hash-gate-before-rebuild` in this user's memory)
+rebuilt ~100 rules every 20s with no state check at all, and measured out
+to pegging `netd` at a sustained ~50% CPU, contributing to a phone
+overheating.
+
+Fix: check whether the current state is already correct before touching
+iptables at all —
+
+```bash
+# Cheap check (2-3 forks): is the chain already right?
+chain_intact() {
+    "$1" -C OUTPUT -j "$2" >/dev/null 2>&1 || return 1
+    [ "$("$1" -S "$2" 2>/dev/null | grep -c '^-A')" = "$3" ]
+}
+
+# Only pay for the expensive flush+rebuild (50-100+ forks) when it's wrong.
+chain_intact iptables MY_CHAIN "$expected_count" || rebuild_my_chain
+```
+
+This preserves self-healing (a flush by the kernel or another process is
+still detected and repaired on the next tick) while skipping the ~95% of
+ticks where nothing changed. If diagnosing whether this pattern is already
+live in a running system, `kill -STOP`/`kill -CONT` the suspect script's PID
+and compare `/proc/<pid>/stat` utime+stime jiffy deltas of the netfilter
+daemon before/after — don't trust `dumpsys cpuinfo` (Android) or similar
+cached snapshot tools, some builds don't refresh them between calls.
+
 ## Python-specific rules (for daemons, not hot-loop callees)
 
 - Use `pathlib.Path.read_text()` / `read_bytes()` — one syscall, no subprocess.
@@ -158,6 +193,8 @@ If you're over budget, count the `execve` with `strace -c` and remove forks.
 - `sensors`, `acpi`, `free`, `lspci`, `iwgetid` in a per-second script
 - `python …` / `node …` invoked per tick
 - No `set -u` (silent typo bugs compound over thousands of ticks)
+- `iptables -F` / `ip6tables -F` followed by unconditional `-A` rebuilds with
+  no preceding "is this already correct?" check (see R9)
 
 ## Verification checklist before shipping
 
@@ -175,3 +212,5 @@ If you're over budget, count the `execve` with `strace -c` and remove forks.
 - `linux_configuration/i3-configuration/i3blocks/cpu_monitor.sh` — zero-fork via `/proc/loadavg` + `/sys/class/hwmon`.
 - `linux_configuration/i3-configuration/i3blocks/motherboard_temp.sh` — zero-fork via `/sys/class/hwmon`.
 - `linux_configuration/scripts/system-maintenance/systemd/monitors.slice` — resource-cap slice.
+- `phone_focus_mode/dns_enforcer.sh::chain_intact()`/`expected_rule_count()` — R9's hash/count-gate pattern, fixed 2026-07-03 after it was found pegging Android's `netd` at ~50% CPU.
+- `phone_focus_mode/hosts_enforcer.sh::sync_magisk_module` — the original hash-before-write pattern R9 mirrors.
