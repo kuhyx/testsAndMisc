@@ -204,7 +204,7 @@ repos:
           - requests
           - pygame
           - pillow
-          - gatelock @ git+https://github.com/kuhyx/gatelock@v0.1.0
+          - gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.1.0#subdirectory=gatelock
         # Test suites and conftest fixtures are linted separately; they use
         # patterns (protected-access, missing docstrings, fixture shadowing)
         # that don't belong in the source-code 10/10 gate.
