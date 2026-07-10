@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-HELPER="$REPO_DIR/i3-configuration/i3blocks/persist_common.sh"
+HELPER="$REPO_DIR/scripts/periodic_background/i3-configuration/i3blocks/persist_common.sh"
 TMP_DIR=$(mktemp -d)
 
 cleanup() {
@@ -13,7 +13,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# shellcheck source=linux_configuration/i3-configuration/i3blocks/persist_common.sh
+# shellcheck source=linux_configuration/scripts/periodic_background/i3-configuration/i3blocks/persist_common.sh
 source "$HELPER"
 
 fail() {
@@ -136,7 +136,7 @@ cat >"$fork_probe" <<EOF
 #!/bin/bash
 set -euo pipefail
 
-# shellcheck source=linux_configuration/i3-configuration/i3blocks/persist_common.sh
+# shellcheck source=linux_configuration/scripts/periodic_background/i3-configuration/i3blocks/persist_common.sh
 source "$HELPER"
 
 I3BLOCKS_LAST_TS=()

@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Resolve the directory this script lives in and work from there, so every
+# relative path below (i3blocks/, i3/) resolves no matter where it is invoked.
+SCRIPT_DIR=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
+cd "$SCRIPT_DIR" || exit 1
+
 # Function to detect if the system is Ubuntu
 is_ubuntu() {
 	[ -f /etc/os-release ] && grep -qi 'ubuntu' /etc/os-release
@@ -46,9 +51,23 @@ fi
 # Set font size based on screen resolution
 font_size=$(set_font_size)
 
-# Make all scripts in i3blocks executable
-find i3blocks -type f -exec chmod +x {} \;
-cp -r i3blocks ~/.config/
+# Make the i3blocks shell scripts executable (only *.sh — the `config` file
+# and any runtime artifacts must stay non-executable).
+find i3blocks -type f -name '*.sh' -exec chmod +x {} \;
+
+# Deploy i3blocks by SYMLINKING each repo file into ~/.config/i3blocks rather
+# than copying it. A plain `cp -r` here was the source of silent drift: edits
+# to a repo script never reached the running copy (and live tweaks never made
+# it back to the repo). Symlinks make the repo the single source of truth, so
+# editing a repo script IS editing the deployed one — drift becomes impossible.
+mkdir -p "$HOME/.config/i3blocks"
+for src in "$SCRIPT_DIR"/i3blocks/*; do
+	[ -f "$src" ] || continue
+	ln -sfn "$src" "$HOME/.config/i3blocks/$(basename "$src")"
+done
+
+# i3 config is copied (not symlinked) because it needs a per-machine font-size
+# mutation applied below; symlinking would write that change back into the repo.
 cp -r i3 ~/.config/
 sed -i "s/font pango:System San Francisco Display, FontAwesome [0-9]*/font pango:System San Francisco Display, FontAwesome $font_size/" ~/.config/i3/config
 i3-msg reload

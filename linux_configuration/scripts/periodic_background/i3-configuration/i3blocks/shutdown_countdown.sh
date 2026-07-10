@@ -1,9 +1,13 @@
 #!/bin/bash
 # Shutdown countdown status script for i3blocks.
+# Shows the exact absolute time of the next enforced shutdown, or the
+# overridden time if a shutdown-override-manager.sh window rescues it.
 
 set -euo pipefail
 
 SHUTDOWN_CONFIG=${SHUTDOWN_CONFIG:-/etc/shutdown-schedule.conf}
+SKIP_DATES_FILE=${SKIP_DATES_FILE:-/etc/shutdown-skip-dates}
+OVERRIDES_FILE=${OVERRIDES_FILE:-/etc/shutdown-schedule-overrides.conf}
 
 # Function to show error state in i3blocks and exit
 show_error() {
@@ -57,12 +61,25 @@ get_now_epoch() {
 }
 
 now_epoch=$(get_now_epoch)
+printf -v today_date '%(%Y-%m-%d)T' "$now_epoch"
+# Fork-free whole-line match against the skip-dates file (bash builtin read,
+# no `grep` process spawned every tick). Equivalent to `grep -qxF`.
+if [[ -r $SKIP_DATES_FILE ]]; then
+  while IFS= read -r skip_date || [[ -n $skip_date ]]; do
+    if [[ $skip_date == "$today_date" ]]; then
+      exit 0
+    fi
+  done < "$SKIP_DATES_FILE"
+fi
+
 printf -v current_hour '%(%H)T' "$now_epoch"
 printf -v current_minute '%(%M)T' "$now_epoch"
+printf -v current_second '%(%S)T' "$now_epoch"
 printf -v day_of_week '%(%u)T' "$now_epoch"
 
 current_time_minutes=$((10#$current_hour * 60 + 10#$current_minute))
 morning_end_minutes=$((10#$morning_end_hour * 60))
+midnight_epoch=$((now_epoch - (10#$current_hour * 3600 + 10#$current_minute * 60 + 10#$current_second)))
 
 if [[ $day_of_week -ge 1 ]] && [[ $day_of_week -le 3 ]]; then
   shutdown_hour=$MON_WED_HOUR
@@ -71,7 +88,41 @@ else
 fi
 
 shutdown_time_minutes=$((shutdown_hour * 60))
+shutdown_epoch_today=$((midnight_epoch + shutdown_hour * 3600))
 
+# Prints "start_epoch|end_epoch|reason" for the first registered override
+# (shutdown-override-manager.sh) whose window covers the given epoch, empty
+# otherwise. Builtin `read` only - no forks in this hot path.
+find_override_covering() {
+  local target_epoch=$1
+  [[ -f $OVERRIDES_FILE ]] || return 1
+  local start_epoch end_epoch _created reason
+  while IFS='|' read -r start_epoch end_epoch _created reason; do
+    [[ -n $start_epoch ]] || continue
+    if [[ $target_epoch -ge $start_epoch ]] && [[ $target_epoch -le $end_epoch ]]; then
+      printf '%s|%s|%s\n' "$start_epoch" "$end_epoch" "$reason"
+      return 0
+    fi
+  done <"$OVERRIDES_FILE"
+  return 1
+}
+
+format_hhmm() {
+  printf '%(%H:%M)T' "$1"
+}
+
+# Case 1: an override is active right now - always takes priority, whether
+# or not we are inside the normal blocked window.
+if override_match=$(find_override_covering "$now_epoch"); then
+  IFS='|' read -r _ override_end _ <<<"$override_match"
+  echo "▶ $(format_hhmm "$override_end") (override)"
+  echo "▶ $(format_hhmm "$override_end")"
+  echo "#50FA7B"
+  exit 0
+fi
+
+# Case 2: currently inside the normal blocked window with no rescuing
+# override registered - shutdown is due now.
 if [[ $current_time_minutes -ge $shutdown_time_minutes ]] || [[ $current_time_minutes -le $morning_end_minutes ]]; then
   echo "⏻ SHUTDOWN"
   echo "⏻"
@@ -79,30 +130,29 @@ if [[ $current_time_minutes -ge $shutdown_time_minutes ]] || [[ $current_time_mi
   exit 0
 fi
 
-minutes_until_shutdown=$((shutdown_time_minutes - current_time_minutes))
-hours=$((minutes_until_shutdown / 60))
-minutes=$((minutes_until_shutdown % 60))
-
-if [[ $hours -gt 0 ]]; then
-  time_str="${hours}h ${minutes}m"
-else
-  time_str="${minutes}m"
+# Case 3: normal usable time. Show the exact hour of the next shutdown,
+# unless a registered override starts before it and extends past it - in
+# which case show the rescued (overridden) time instead, proactively.
+if override_match=$(find_override_covering "$shutdown_epoch_today"); then
+  IFS='|' read -r _ override_end _ <<<"$override_match"
+  echo "▶ $(format_hhmm "$override_end") (override)"
+  echo "▶ $(format_hhmm "$override_end")"
+  echo "#50FA7B"
+  exit 0
 fi
+
+minutes_until_shutdown=$((shutdown_time_minutes - current_time_minutes))
 
 if [[ $minutes_until_shutdown -le 30 ]]; then
   color="#FF5555"
-  icon="⏻"
 elif [[ $minutes_until_shutdown -le 60 ]]; then
   color="#FFB86C"
-  icon="⏻"
 elif [[ $minutes_until_shutdown -le 120 ]]; then
   color="#F1FA8C"
-  icon="⏻"
 else
   color="#6272A4"
-  icon="⏻"
 fi
 
-echo "$icon $time_str"
-echo "$icon"
+echo "⏻ $(format_hhmm "$shutdown_epoch_today")"
+echo "⏻"
 echo "$color"

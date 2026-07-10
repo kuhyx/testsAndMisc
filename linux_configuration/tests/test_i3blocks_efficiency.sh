@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-I3BLOCKS_DIR="$REPO_DIR/i3-configuration/i3blocks"
+I3BLOCKS_DIR="$REPO_DIR/scripts/periodic_background/i3-configuration/i3blocks"
 CONFIG_FILE="$I3BLOCKS_DIR/config"
 
 printf 'Running persist_common helper regression checks...\n'
@@ -310,18 +310,38 @@ MON_WED_HOUR=23
 THU_SUN_HOUR=21
 EOF
 
+# Isolate from the machine's real override file so these assertions are hermetic.
+shutdown_overrides_empty="$TMP_DIR/shutdown-overrides-empty.conf"
+: > "$shutdown_overrides_empty"
+
+# 2026-05-01 is a Friday -> THU_SUN_HOUR=21 applies; at 19:30 the next shutdown
+# is 21:00. The block shows the exact clock time of the shutdown, not a
+# relative countdown.
 shutdown_countdown_epoch=$(epoch_utc '2026-05-01 19:30:00')
-shutdown_countdown_output=$(TZ=UTC NOW_EPOCH="$shutdown_countdown_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
-assert_equals '⏻ 1h 30m' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n '1p')" \
-  'shutdown countdown should show the time remaining until shutdown'
+shutdown_countdown_output=$(TZ=UTC NOW_EPOCH="$shutdown_countdown_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
+assert_equals '⏻ 21:00' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n '1p')" \
+  'shutdown countdown should show the exact clock time of the next shutdown'
 assert_equals '#F1FA8C' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n '3p')" \
   'shutdown countdown should show yellow for two hours or less remaining'
 assert_le "$(count_execs "$I3BLOCKS_DIR/shutdown_countdown.sh")" 1 \
   'shutdown countdown should avoid date helpers in the hot path'
 
 shutdown_window_epoch=$(epoch_utc '2026-05-01 21:15:00')
-shutdown_window_output=$(TZ=UTC NOW_EPOCH="$shutdown_window_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
+shutdown_window_output=$(TZ=UTC NOW_EPOCH="$shutdown_window_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
 assert_equals '⏻ SHUTDOWN' "$(printf '%s\n' "$shutdown_window_output" | sed -n '1p')" \
   'shutdown countdown should show SHUTDOWN inside the blocked window'
+
+# An active override (shutdown-override-manager.sh) rescues the shutdown: the
+# block should show the overridden end time in green instead of a countdown or
+# a SHUTDOWN warning. Window 19:00-23:00 covers the 19:30 sample time.
+shutdown_overrides_active="$TMP_DIR/shutdown-overrides-active.conf"
+override_start=$(epoch_utc '2026-05-01 19:00:00')
+override_end=$(epoch_utc '2026-05-01 23:00:00')
+printf '%s|%s|%s|%s\n' "$override_start" "$override_end" "$override_start" 'regression test override' > "$shutdown_overrides_active"
+shutdown_override_output=$(TZ=UTC NOW_EPOCH="$shutdown_countdown_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" OVERRIDES_FILE="$shutdown_overrides_active" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
+assert_equals '▶ 23:00 (override)' "$(printf '%s\n' "$shutdown_override_output" | sed -n '1p')" \
+  'shutdown countdown should show the overridden end time when an override is active'
+assert_equals '#50FA7B' "$(printf '%s\n' "$shutdown_override_output" | sed -n '3p')" \
+  'shutdown countdown should show green while an override is active'
 
 printf 'All i3blocks efficiency regression tests passed.\n'

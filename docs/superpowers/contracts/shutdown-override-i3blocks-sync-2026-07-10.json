@@ -1,0 +1,16 @@
+{
+  "title": "World Cup shutdown overrides + drift-proof i3blocks deploy",
+  "objective": "Allow time-boxed, self-expiring exceptions to the digital-wellbeing auto-shutdown so specific late-night live events can be watched on the PC, show the exact next-shutdown (or overridden) clock time in the i3bar, and make the i3blocks deployment symlink-based so running scripts can never silently drift from the repo. Success = a friction-gated override suspends the shutdown only within its window and expires on its own, the i3bar reflects the real next-shutdown time, and the reconciled scripts are the repo's single source of truth with the regression suite green.",
+  "acceptance_criteria": [
+    "shutdown-override-manager.sh add requires a typed confirmation phrase plus a 30s delay, enforces max duration and window count, and writes an absolute-epoch window that day-specific-shutdown-check.sh honors (verified live via DRY_RUN and journal logs).",
+    "shutdown_countdown.sh shows the exact clock time of the next shutdown, the overridden end time in green when an override is active or will rescue the upcoming shutdown, and spawns zero external processes in its hot path (strace: 1 execve).",
+    "install.sh symlinks every i3blocks file into ~/.config/i3blocks (idempotent) and leaves the non-script config at 0644; all 18 tracked files verified as symlinks after the user's live run.",
+    "The i3blocks regression suite (test_i3blocks_efficiency.sh + test_i3blocks_persist_common.sh) runs from its correct path and passes, including new absolute-time and override assertions and the fork-count guarantee."
+  ],
+  "out_of_scope": [
+    "Weakening the permanent shutdown ratchet or lowering MORNING_END_HOUR's hard floor (overrides are strictly time-boxed and expire).",
+    "Reconciling the three other pre-existing drifted config trees (phone_focus_mode, meta, .pre-commit-config) unrelated to this change.",
+    "Any change to the i3 (window manager) config beyond what install.sh already did."
+  ],
+  "verifier": "bash linux_configuration/tests/test_i3blocks_efficiency.sh (exit 0), shellcheck on the changed shell scripts, and the ai-evidence / pre-commit gate"
+}

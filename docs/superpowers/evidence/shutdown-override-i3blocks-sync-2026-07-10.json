@@ -1,0 +1,54 @@
+{
+  "intent": "Let the PC survive the normal digital-wellbeing auto-shutdown during specific live-event windows (2026 World Cup matches) via self-expiring, friction-gated overrides; surface the exact next-shutdown clock time (or the overridden time) in the i3bar; and make the i3blocks deploy drift-proof so the running scripts can never silently diverge from the repo.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh",
+    "linux_configuration/scripts/periodic_background/i3-configuration/i3blocks/shutdown_countdown.sh",
+    "linux_configuration/scripts/periodic_background/i3-configuration/install.sh",
+    "linux_configuration/tests/test_i3blocks_efficiency.sh",
+    "linux_configuration/tests/test_i3blocks_persist_common.sh",
+    "Non-goal: does not weaken the permanent shutdown ratchet or lower MORNING_END_HOUR's hard floor; overrides are time-boxed and expire automatically."
+  ],
+  "changes": [
+    "Added a time-boxed override system: shutdown-override-manager.sh (add/list/remove) writes absolute-epoch windows to /etc/shutdown-schedule-overrides.conf; adding requires an exact typed confirmation phrase plus a 30s delay. The generated day-specific-shutdown-check.sh now skips the shutdown decision inside an active window (pruning expired entries) and gained a DRY_RUN guard around rtcwake/poweroff/hibernate for safe testing.",
+    "Rewrote the i3blocks shutdown_countdown.sh to show the exact clock time of the next shutdown (e.g. '21:00') instead of a relative countdown, to show the overridden end time in green when an override is active or will rescue the upcoming shutdown, and made the skip-dates check fork-free (bash builtin read loop replacing grep -qxF) so the hot path spawns zero external processes.",
+    "Changed install.sh to deploy i3blocks by symlinking each repo file into ~/.config/i3blocks (was cp -r, the source of silent drift), added cd-to-script-dir so it runs from anywhere, and restricted chmod +x to *.sh so the non-executable config file is left at 0644. Reconciled all 18 live files (17 scripts + config) to symlinks.",
+    "Repaired the previously-dead i3blocks regression suite: fixed the stale i3-configuration path in both test files, updated the shutdown assertion to the new absolute-time output, added hermetic override coverage, and re-verified the fork-count guarantee (<=1 exec)."
+  ],
+  "verification": [
+    {
+      "command": "sudo DRY_RUN=1 /usr/local/bin/day-specific-shutdown-check.sh (with a short test override active)",
+      "result": "pass",
+      "evidence": "journalctl showed 'Active override in effect (reason: ...) - skipping shutdown check' and the script exited without evaluating the day-of-week branch; outside the window it logged the normal skip/shutdown decision unchanged."
+    },
+    {
+      "command": "NOW_EPOCH=... bash ~/.config/i3blocks/shutdown_countdown.sh across normal/active-override/gap/skip-date cases",
+      "result": "pass",
+      "evidence": "Normal time -> '⏻ 21:00'; inside override -> '▶ 00:30 (override)' green; gap between windows -> '⏻ SHUTDOWN'; matching skip-date -> empty output exit 0. Matches expected enforcement."
+    },
+    {
+      "command": "strace -f -e trace=execve bash ~/.config/i3blocks/shutdown_countdown.sh",
+      "result": "pass",
+      "evidence": "Exactly 1 execve (the bash interpreter); no grep/date forks in the hot path after the builtin-read rewrite."
+    },
+    {
+      "command": "bash tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "Exit code 0 - 'All i3blocks efficiency regression tests passed.' including the new absolute-time and override assertions and the fork-count check."
+    },
+    {
+      "command": "shellcheck on shutdown_countdown.sh and install.sh (-s sh); bash -n on setup_midnight_shutdown.sh",
+      "result": "pass",
+      "evidence": "All lint-clean, zero warnings; setup script syntax OK. Live install.sh run by the user completed through 'i3-msg reload' -> [{\"success\":true}] and 18/18 files verified as symlinks."
+    }
+  ],
+  "risks": [
+    "Overrides intentionally suspend the wellbeing shutdown for their window; a mistakenly-long window keeps the PC up. Mitigated by the 12h max duration, 3-window cap, typed-confirmation + 30s delay on add, and automatic expiry.",
+    "The override and schedule config files must stay world-readable (0644) because the i3blocks countdown runs as the regular user; a future 0600 regression would blank the block (the script now degrades on unreadable files rather than crashing).",
+    "Symlink deploy assumes the repo stays at its current path; moving the repo breaks the ~/.config/i3blocks symlinks until install.sh is re-run."
+  ],
+  "rollback": [
+    "i3blocks: git checkout the four repo files, then re-run install.sh (or cp the previous scripts into ~/.config/i3blocks) to restore prior deploy; symlinks are replaced idempotently.",
+    "Overrides: sudo shutdown-override-manager.sh remove <n> cancels a window immediately, or truncate /etc/shutdown-schedule-overrides.conf; the check script prunes expired entries on its own.",
+    "After rollback, run bash tests/test_i3blocks_efficiency.sh and confirm the i3bar block still renders to validate the restored state."
+  ]
+}
