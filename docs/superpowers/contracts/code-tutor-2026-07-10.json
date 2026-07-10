@@ -1,0 +1,17 @@
+{
+  "title": "code_tutor interactive codebase-learning CLI",
+  "objective": "Ship a new python_pkg/code_tutor package that turns an unfamiliar codebase into an interactive lesson: analyse code into items, order them dependency-first, pose reimplement challenges, and verify user implementations with tests and coverage, with optional local-LLM hints.",
+  "acceptance_criteria": [
+    "Analyzer extracts functions/classes as CodeItems from a codebase.",
+    "Plan builder orders items dependency-first and groups them into sessions.",
+    "Challenge flow discovers matching user tests and drives the attempt loop.",
+    "Verifier runs the user's implementation against tests and enforces a coverage bar.",
+    "CLI (Typer/Rich) exposes the tutor commands.",
+    "Whole package passes ruff select=ALL, mypy strict, pylint 10/10, and 100% line+branch test coverage."
+  ],
+  "out_of_scope": [
+    "A hosted/multi-user service.",
+    "Bundling or managing the local LLM runtime itself."
+  ],
+  "verifier": "python -m pytest python_pkg/code_tutor/tests/ --cov=python_pkg.code_tutor --cov-branch (100%) + pre-commit (ruff/mypy/pylint/bandit)"
+}

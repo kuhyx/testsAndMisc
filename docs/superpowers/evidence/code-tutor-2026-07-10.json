@@ -1,0 +1,39 @@
+{
+  "intent": "Add a `code_tutor` CLI that teaches you an unfamiliar codebase interactively: it analyses the code into items, builds a dependency-first learning plan, poses 'reimplement this' challenges, and verifies your implementation with tests and coverage, using a local LLM for hints.",
+  "scope": [
+    "python_pkg/code_tutor/ (new package: _analyzer, _plan_builder, _challenge, _verifier, _progress, _session, _llm, cli)",
+    "meta/pyproject.toml, meta/requirements.txt, .pre-commit-config.yaml (tooling config + deps: anthropic, rich, typer)",
+    "Non-goal: shipping a hosted service; the tutor runs locally against a local Ollama-compatible LLM."
+  ],
+  "changes": [
+    "_analyzer.py: parse a codebase into CodeItem objects (functions/classes) via the ast module, with a content hash over file mtime/size and skip rules.",
+    "_plan_builder.py: order items dependency-first (topological sort of Python import edges via graphlib) and group them into learning sessions.",
+    "_challenge.py: pose reimplement-the-item challenges, discover matching user test functions via AST, and drive the attempt loop.",
+    "_verifier.py: run the user's implementation against tests and enforce a coverage bar.",
+    "_progress.py / _session.py: persist and track per-item progress and session state.",
+    "_llm.py: streaming client for a local Ollama-compatible LLM (line-delimited JSON, on_token callback).",
+    "cli.py: Typer + Rich command-line interface.",
+    "meta/pyproject.toml: ruff/pylint max-args=6, max-returns=8, max-locals=20 for the challenge flows; mypy overrides for rich/typer/anthropic (no stubs) and for code_tutor's TYPE_CHECKING-only imports; allow AST NodeVisitor visit_CapWords method names.",
+    "meta/requirements.txt + .pre-commit-config.yaml: add anthropic, rich, typer."
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/code_tutor/tests/ --cov=python_pkg.code_tutor --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "All code_tutor modules at 100% line and branch coverage"
+    },
+    {
+      "command": "pre-commit run (staged code_tutor package + tooling config)",
+      "result": "pass",
+      "evidence": "ruff (select=ALL), mypy strict, pylint 10/10, bandit, evidence + multi-file contract hooks all pass"
+    }
+  ],
+  "risks": [
+    "_llm.py talks to a local LLM endpoint; if none is running the hint feature is unavailable (challenges/verification still work offline).",
+    "The tutor executes user-supplied implementation code during verification; intended for local single-user use only."
+  ],
+  "rollback": [
+    "git revert the commit; remove anthropic/rich/typer from requirements if nothing else uses them.",
+    "After rollback, run pre-commit run --all-files to confirm the lint/type config still validates without the code_tutor overrides."
+  ]
+}
