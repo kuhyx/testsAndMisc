@@ -1,0 +1,24 @@
+{
+  "intent": "Let the todo notes app (dev.kuhy.todo) keep running during the post-23:00 night curfew, so ideas can be captured before sleep and the crdt_sync migration can be verified on-device at night.",
+  "scope": [
+    "phone_focus_mode/config.sh — NIGHT_WHITELIST only",
+    "Non-goal: no change to the general daytime WHITELIST (todo was already on it)"
+  ],
+  "changes": [
+    "Add dev.kuhy.todo to $NIGHT_WHITELIST (offline-first notes capture; not a scroll trap)"
+  ],
+  "verification": [
+    {
+      "command": "CLAUDE_DEPLOY_DIRTY_OK=1 ADB_SERIAL=BL9000EEA0000102 bash phone_focus_mode/deploy.sh",
+      "result": "pass",
+      "evidence": "Deploy complete; curfew_enforcer.sh pushed. dev.kuhy.todo launched and stayed running under the active 23:xx curfew (no focus-mode kill); migration verified on-device."
+    }
+  ],
+  "risks": [
+    "Slightly weakens the night curfew by allowing one more app; mitigated because todo is a capture tool, not a scroll trap"
+  ],
+  "rollback": [
+    "Remove the dev.kuhy.todo line from $NIGHT_WHITELIST in config.sh and re-run deploy.sh",
+    "Confirm via deploy.sh --list that todo is no longer night-whitelisted"
+  ]
+}
