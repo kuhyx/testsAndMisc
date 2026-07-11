@@ -1,0 +1,24 @@
+{
+  "intent": "Let the diet_guard companion app (com.kuhy.diet_guard_app) run during the post-23:00 night curfew so its on-device foreground check could be verified after the crdt_sync client repoint.",
+  "scope": [
+    "phone_focus_mode/config.sh — NIGHT_WHITELIST only",
+    "Non-goal: no change to the general daytime WHITELIST"
+  ],
+  "changes": [
+    "Add com.kuhy.diet_guard_app to $NIGHT_WHITELIST (meal-logging health tool, not a scroll trap)"
+  ],
+  "verification": [
+    {
+      "command": "CLAUDE_DEPLOY_DIRTY_OK=1 ADB_SERIAL=BL9000EEA0000102 bash phone_focus_mode/deploy.sh",
+      "result": "pass",
+      "evidence": "Deploy complete; app re-enabled (pm list packages -d no longer lists it) and launched to the foreground under the active curfew. Diet Guard capture screen rendered with real food-log data intact (meal slots logged, food-bank autocomplete populated); no crash."
+    }
+  ],
+  "risks": [
+    "Slightly weakens the night curfew by allowing one more app; mitigated because diet_guard is a meal-logging tool, not a scroll trap"
+  ],
+  "rollback": [
+    "Remove the com.kuhy.diet_guard_app line from $NIGHT_WHITELIST in config.sh and re-run deploy.sh",
+    "Confirm via deploy.sh --list that diet_guard is no longer night-whitelisted"
+  ]
+}
