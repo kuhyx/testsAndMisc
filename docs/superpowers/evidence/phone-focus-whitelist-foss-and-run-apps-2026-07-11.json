@@ -1,0 +1,39 @@
+{
+  "intent": "Whitelist the apps needed to go for a run with music (RunnerUp + Metrolist + workout_app) including during the 23:00-05:00 night curfew, whitelist the kicktipp football-prediction app for daytime, and unhide the user's newly-installed FOSS stock-app replacements (Clock You, Camera, Teyin file manager, Rain weather, LibreFind, Thunderbird) so focus mode stops disabling them near home.",
+  "scope": [
+    "phone_focus_mode/config.sh (WHITELIST + NIGHT_WHITELIST arrays only)",
+    "Non-goal: hiding Google system apps via package-disable (unsafe on BL9000 - MTK bootloop/factory-wipe risk; done via launcher instead)",
+    "Non-goal: no changes to enforcement logic, curfew timing, or other packages"
+  ],
+  "changes": [
+    "NIGHT_WHITELIST: added com.metrolist.music so music survives the curfew for a night run",
+    "WHITELIST: added de.kicktipp.mbookmark (daytime only) under a new Sports category",
+    "WHITELIST: added FOSS stock-app replacements com.bnyro.clock, com.vayunmathur.camera, com.rama.teyin, com.yoshi.rain, com.jksalcedo.librefind (removed dead org.fossify.clock entry) and net.thunderbird.android.beta under Email",
+    "NIGHT_WHITELIST: replaced non-installed org.fossify.clock with the installed com.bnyro.clock so alarms fire during curfew"
+  ],
+  "verification": [
+    {
+      "command": "bash -n phone_focus_mode/config.sh",
+      "result": "pass",
+      "evidence": "syntax OK"
+    },
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 ./deploy.sh  (device BL9000EEA0000102)",
+      "result": "pass",
+      "evidence": "Daemon RUNNING (PID 19994), Mode focus. Regenerated whitelist.txt contains all 7 FOSS packages + metrolist + kicktipp; night_whitelist.txt contains com.metrolist.music and com.bnyro.clock, no org.fossify.clock."
+    },
+    {
+      "command": "adb -s BL9000EEA0000102 shell dumpsys package <pkg> | grep enabled=",
+      "result": "pass",
+      "evidence": "All 6 previously-disabled FOSS apps (bnyro.clock, vayunmathur.camera, rama.teyin, yoshi.rain, librefind, thunderbird) went from enabled=3 to enabled=1 after deploy; pm list packages -d shows none of them disabled."
+    }
+  ],
+  "risks": [
+    "kicktipp/Rain package identity confirmed off-device (de.kicktipp.mbookmark; com.yoshi.rain label 'Rain', internet-only perms = weather) per user confirmation",
+    "Whitelisting a package only stops focus-mode from disabling it; it does not force-hide the Google originals - user hides those in the launcher"
+  ],
+  "rollback": [
+    "git revert the commit, then ADB_SERIAL=BL9000EEA0000102 ./deploy.sh to regenerate the state files from the old config",
+    "After rollback, confirm daemon RUNNING and that whitelist.txt no longer lists the reverted packages"
+  ]
+}
