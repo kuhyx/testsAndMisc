@@ -1,0 +1,35 @@
+{
+  "intent": "Add the repo-wide CI-mirror pre-push gate + requirements-sync dep check to testsAndMisc, so a push cannot go out green-locally but red-in-CI. Adapted for the python_pkg monorepo and the OOM-safe changed-packages runner (user's choice).",
+  "scope": [
+    "meta/scripts/check_requirements_sync.py",
+    "meta/scripts/ci_mirror.sh",
+    ".pre-commit-config.yaml",
+    ".gitignore",
+    "Non-goal: no change to any python_pkg package or its tests."
+  ],
+  "changes": [
+    "check_requirements_sync.py: AST-scans python_pkg for third-party top-level imports and fails if any distribution is absent from requirements.txt. Treats python_pkg's subpackages (imported bare, e.g. `from brother_printer import ...`) as first-party, and maps PIL->pillow / kasa->python-kasa / dateutil->python-dateutil / yaml->pyyaml.",
+    "ci_mirror.sh: pre-push gate = requirements.txt-only venv (hash-gated), `SKIP=pytest-coverage pre-commit run --all-files`, then the changed-packages runner in the clean venv (OOM-safe, no full raw pytest).",
+    ".pre-commit-config.yaml: added requirements-sync (pre-commit stage) and ci-mirror (pre-push stage) hooks; existing pytest-coverage hook left untouched.",
+    ".gitignore: ignore .ci-mirror-venv/."
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/check_requirements_sync.py --package python_pkg --root .",
+      "result": "pass",
+      "evidence": "exit 0 after mapping PIL->pillow and treating brother_printer (a subpackage imported bare) as first-party; both were false positives, requirements already declared pillow."
+    },
+    {
+      "command": "bash meta/scripts/ci_mirror.sh",
+      "result": "pending",
+      "evidence": "run end-to-end (clean venv build + --all-files + changed-packages pytest) before committing."
+    }
+  ],
+  "risks": [
+    "The clean-venv build fetches git deps; needs network. Hash-gated so it only rebuilds when requirements.txt changes.",
+    "check_requirements_sync only flags direct imports, not transitive; the clean-venv install in ci_mirror is the definitive backstop."
+  ],
+  "rollback": [
+    "git revert the commit; remove the two hooks from .pre-commit-config.yaml. No package code is affected."
+  ]
+}

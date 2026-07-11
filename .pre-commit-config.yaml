@@ -246,6 +246,20 @@ repos:
         pass_filenames: true
         require_serial: true
         stages: [pre-commit]
+      - id: requirements-sync
+        name: requirements.txt covers all python_pkg imports
+        entry: python3 meta/scripts/check_requirements_sync.py --package python_pkg
+        language: system
+        pass_filenames: false
+        files: ^(python_pkg/.*\.py|requirements\.txt)$
+      - id: ci-mirror
+        name: CI mirror (clean-venv install + --all-files + changed-pkg pytest)
+        entry: bash meta/scripts/ci_mirror.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
+        stages: [pre-push]
 
   # ===========================================================================
   # VULTURE - Dead code detection (disabled - doesn't work well with pre-commit)
