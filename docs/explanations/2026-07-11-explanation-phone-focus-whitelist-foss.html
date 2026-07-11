@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explaining: whitelist run-with-music apps + FOSS replacements</title>
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#1d1d1f; --muted:#5f5f66; --line:#e3e3e0;
+    --card:#ffffff; --accent:#2b6cb0; --ok:#1f7a4d; --okbg:#e7f5ec;
+    --bad:#b23b3b; --badbg:#fbeaea; --sys:#7a5cb0; --sysbg:#f0eafb;
+    --code:#f4f4f2; --pill:#eef1f5;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#17181a; --fg:#e8e8ea; --muted:#a0a0a8; --line:#2c2e31;
+      --card:#1f2124; --accent:#7db3e8; --ok:#5bd39a; --okbg:#123024;
+      --bad:#e88; --badbg:#3a1e1e; --sys:#c3a9f0; --sysbg:#271f38;
+      --code:#232528; --pill:#282b2f;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.62; font-size:17px;
+  }
+  .wrap{max-width:min(48rem,92vw); margin:0 auto; padding:2.2rem 0 5rem}
+  h1{font-size:1.85rem; line-height:1.25; margin:.2rem 0 .4rem}
+  h2{font-size:1.35rem; margin:2.6rem 0 .6rem; padding-top:.4rem}
+  h3{font-size:1.05rem; margin:1.6rem 0 .3rem}
+  p{margin:.6rem 0}
+  code{background:var(--code); padding:.1em .35em; border-radius:4px; font-size:.9em}
+  .sub{color:var(--muted); font-size:1.02rem; margin-top:0}
+  .toc{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:.9rem 1.1rem; margin:1.4rem 0 .5rem; font-size:.96rem;
+  }
+  .toc b{display:block; margin-bottom:.35rem; font-size:.82rem; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+  .toc a{color:var(--accent); text-decoration:none; margin-right:1.1rem; white-space:nowrap}
+  .toc a:hover{text-decoration:underline}
+  pre{background:var(--code); border:1px solid var(--line); border-radius:10px;
+      padding:.9rem 1rem; overflow-x:auto; white-space:pre-wrap; font-size:.86rem; line-height:1.5}
+  pre code{background:none; padding:0}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.2rem; margin:1.1rem 0}
+  .callout{border-left:4px solid var(--accent); background:var(--card); border-radius:0 10px 10px 0; padding:.7rem 1rem; margin:1.1rem 0}
+  .warn{border-left-color:var(--bad)}
+  .pill{display:inline-block; background:var(--pill); border-radius:999px; padding:.08em .6em; font-size:.78rem; margin:0 .15rem}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .sys{color:var(--sys)}
+  /* diagram */
+  .flow{display:flex; flex-wrap:wrap; gap:.5rem; align-items:stretch; margin:.8rem 0}
+  .node{flex:1 1 150px; border:1px solid var(--line); border-radius:10px; padding:.6rem .7rem; background:var(--card); font-size:.9rem}
+  .node h4{margin:.1rem 0 .3rem; font-size:.82rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted)}
+  .arrow{align-self:center; color:var(--muted); font-size:1.3rem; padding:0 .1rem}
+  /* sim */
+  .sim{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:1.1rem 1.2rem; margin:1.3rem 0}
+  .controls{display:flex; flex-wrap:wrap; gap:1.1rem; margin-bottom:1rem}
+  .cgroup{font-size:.85rem}
+  .cgroup .lab{display:block; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-size:.72rem; margin-bottom:.35rem}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+  .seg button{border:0; background:transparent; color:var(--fg); padding:.4rem .7rem; cursor:pointer; font-size:.85rem}
+  .seg button.on{background:var(--accent); color:#fff}
+  .apps{display:grid; grid-template-columns:1fr; gap:.5rem}
+  @media(min-width:520px){.apps{grid-template-columns:1fr 1fr}}
+  .app{border:1px solid var(--line); border-radius:10px; padding:.55rem .7rem; display:flex; flex-direction:column; gap:.2rem}
+  .app .top{display:flex; justify-content:space-between; align-items:center; gap:.4rem}
+  .app .name{font-weight:600; font-size:.92rem}
+  .app .pkg{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; color:var(--muted); word-break:break-all}
+  .badge{font-size:.74rem; font-weight:700; padding:.12em .55em; border-radius:999px; white-space:nowrap}
+  .b-on{background:var(--okbg); color:var(--ok)}
+  .b-off{background:var(--badbg); color:var(--bad)}
+  .b-sys{background:var(--sysbg); color:var(--sys)}
+  .why{font-size:.78rem; color:var(--muted)}
+  /* quiz */
+  .q{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1rem 1.15rem; margin:1rem 0}
+  .q .stem{font-weight:600; margin-bottom:.6rem}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:var(--bg);
+       color:var(--fg); border-radius:9px; padding:.55rem .7rem; margin:.4rem 0; cursor:pointer; font-size:.92rem; line-height:1.4}
+  .opt:hover{border-color:var(--accent)}
+  .opt.correct{background:var(--okbg); border-color:var(--ok)}
+  .opt.wrong{background:var(--badbg); border-color:var(--bad)}
+  .opt:disabled{cursor:default}
+  .rationale{font-size:.85rem; color:var(--muted); margin-top:.5rem; display:none}
+  .rationale.show{display:block}
+  .score{position:sticky; top:0; z-index:5; background:var(--bg); padding:.4rem 0; font-size:.9rem; color:var(--muted)}
+  .foot{color:var(--muted); font-size:.85rem; margin-top:3rem; border-top:1px solid var(--line); padding-top:1rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Run with music, unhide the FOSS apps</h1>
+  <p class="sub">A change to <code>phone_focus_mode/config.sh</code> — the location-based Android focus enforcer. Commit <code>7e59abd</code>, 2026-07-11.</p>
+
+  <div class="toc">
+    <b>On this page</b>
+    <a href="#background">1 · Background</a>
+    <a href="#intuition">2 · Intuition</a>
+    <a href="#code">3 · The change</a>
+    <a href="#sim">▶ Play</a>
+    <a href="#quiz">4 · Quiz</a>
+  </div>
+
+  <h2 id="background">1 · Background</h2>
+  <p><strong>phone_focus_mode</strong> is a set of shell scripts running as root (via Magisk) on a rooted Android phone. A daemon polls your GPS location every few seconds. When you're <em>within ~150&nbsp;m of home</em>, it enters <em>focus mode</em> and disables distracting apps; when you walk away, it re-enables them. The idea is that home should be low-distraction, but you're not locked out of everything when you're out.</p>
+
+  <p>"Disable" here means <code>pm disable-user</code> — Android's built-in way to make an app vanish from the launcher and stop running, without uninstalling it. The reverse is <code>pm enable</code>.</p>
+
+  <h3>What decides if an app is allowed</h3>
+  <p>Everything hangs off two plain-text lists in <code>config.sh</code>:</p>
+  <ul>
+    <li><code>WHITELIST</code> — apps that stay enabled during ordinary daytime focus mode.</li>
+    <li><code>NIGHT_WHITELIST</code> — a <em>much stricter</em> list used only during the night curfew window, <strong>23:00–05:00</strong>. It is <em>not</em> a subset expression of the daytime list; it's a separate, deliberately short allow-list. "When in doubt, leave it out."</li>
+  </ul>
+  <p>On startup the daemon flattens each list into a state file (<code>whitelist.txt</code>, <code>night_whitelist.txt</code>) and a function <code>is_allowed(pkg)</code> checks the appropriate one for the current time.</p>
+
+  <h3>The one subtlety that drives the whole change</h3>
+  <p>The disable sweep only ever looks at <em>third-party</em> packages:</p>
+  <pre><code>pm list packages -3 -e   # -3 = third-party only, -e = currently enabled</code></pre>
+  <p>System apps (anything preinstalled — Gmail, Google Photos, the stock Clock, the dialer) are <strong>never touched by the sweep.</strong> The only lever that could disable a system app is a separate list, <code>BLOCKED_SYSTEM_APPS</code> — and on this device that list is <strong>intentionally empty</strong>, with a blunt warning in the file:</p>
+  <div class="callout warn">
+    <code>pm disable-user</code> state persists across reboots. A disabled <em>system</em> package across a reboot can trip MediaTek's bootloop protection → recovery → <strong>factory wipe (confirmed on the BL9000)</strong>. So system distraction is handled at the network layer (DNS/iptables), never by disabling the package.
+  </div>
+  <p>Keep that fact in your pocket — it's why half of this request could <em>not</em> be done in code.</p>
+
+  <h2 id="intuition">2 · Intuition</h2>
+  <p>The user wanted three things:</p>
+  <ol>
+    <li><strong>Go for a run with music</strong> — RunnerUp + a music player + the workout app usable even during the night curfew.</li>
+    <li><strong>Unhide</strong> a batch of newly-installed <strong>FOSS apps</strong> (an open-source clock, camera, file manager, weather app, search, email) that replace Google's stock apps.</li>
+    <li><strong>Hide</strong> the Google originals they replaced.</li>
+  </ol>
+
+  <h3>Why the FOSS apps were "hidden" in the first place</h3>
+  <p>They're third-party apps that <em>weren't on any whitelist</em>. So every time the user got home, the sweep found them via <code>pm list packages -3</code>, saw <code>is_allowed</code> return false, and disabled them. From the user's point of view the app "disappeared." The fix is simply: <strong>add them to <code>WHITELIST</code></strong>, and the sweep skips them.</p>
+
+  <div class="flow">
+    <div class="node"><h4>Before</h4>Clock You is third-party, not whitelisted → sweep disables it at home → <span class="bad">gone from launcher</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><h4>Add to WHITELIST</h4><code>is_allowed</code> now returns true → sweep skips it → <span class="ok">stays visible</span></div>
+  </div>
+
+  <h3>Why music needed a <em>second</em> entry</h3>
+  <p>Metrolist (the music player) was already on the daytime <code>WHITELIST</code>. But a real run might happen at 23:30 — inside the curfew — and the curfew uses the <em>other</em> list. Metrolist wasn't on it, so it got disabled after 23:00. Adding <code>com.metrolist.music</code> to <code>NIGHT_WHITELIST</code> is what actually closes the "run with music" gap.</p>
+
+  <h3>Why "hide the Google apps" is not in this diff</h3>
+  <p>Gmail, Photos, Keep, the stock Clock, the dialer — all <strong>system</strong> apps. The sweep can't reach them, and forcing them off means <code>BLOCKED_SYSTEM_APPS</code>, which risks wiping the phone. So that half was <em>declined in code</em>: the safe way to hide a system app is the launcher's own "hide apps" screen, which removes it from view without disabling the package. The diff only does the safe half.</p>
+
+  <h3>A latent bug found along the way</h3>
+  <p>The night list already had <code>org.fossify.clock</code> for morning alarms — but that package <strong>isn't installed</strong>. The user's actual clock is <code>com.bnyro.clock</code>. So nothing clock-related actually survived the curfew: a dead entry guarding a real need. The change swaps the dead package for the installed one.</p>
+
+  <h2 id="sim">▶ Play with it</h2>
+  <p>The whole system is just: <em>where are you</em>, <em>what time is it</em>, <em>is the app third-party</em>, and <em>which list is it on</em>. Flip the controls and watch each app flip between <span class="ok">enabled</span> and <span class="bad">disabled</span>. Toggle <strong>Before / After</strong> to see exactly what this diff changed.</p>
+
+  <div class="sim" id="simroot">
+    <div class="controls">
+      <div class="cgroup">
+        <span class="lab">This change</span>
+        <span class="seg" data-group="ver">
+          <button data-v="before">Before</button>
+          <button data-v="after" class="on">After</button>
+        </span>
+      </div>
+      <div class="cgroup">
+        <span class="lab">Location</span>
+        <span class="seg" data-group="loc">
+          <button data-v="home" class="on">At home</button>
+          <button data-v="away">Away</button>
+        </span>
+      </div>
+      <div class="cgroup">
+        <span class="lab">Time</span>
+        <span class="seg" data-group="time">
+          <button data-v="day" class="on">Daytime</button>
+          <button data-v="night">Night 23–05</button>
+        </span>
+      </div>
+    </div>
+    <div class="apps" id="apps"></div>
+    <p class="why" id="simnote" style="margin-top:.8rem"></p>
+  </div>
+
+  <h2 id="code">3 · The change</h2>
+  <p>All of it lands in two string arrays in <code>config.sh</code>. Grouped by intent:</p>
+
+  <h3>a · Unhide the FOSS replacements (daytime <code>WHITELIST</code>)</h3>
+  <p>Five open-source apps added, and the dead <code>org.fossify.clock</code> removed from this spot (the installed clock takes its place):</p>
+  <pre><code> org.mozilla.fenix
+-org.fossify.clock
++# --- FOSS replacements for stock/Google apps (unhidden per request; hide the
++#     Google originals in the launcher, NOT via package-disable — see the
++#     BLOCKED_SYSTEM_APPS note about MTK bootloop/wipe risk on BL9000) ---
++com.bnyro.clock          # Clock You
++com.vayunmathur.camera   # Camera
++com.rama.teyin           # Teyin file manager (replaces Google Files)
++com.yoshi.rain           # Rain weather
++com.jksalcedo.librefind  # LibreFind (replaces Google Search)
+ ws.xsoh.etar</code></pre>
+  <p class="why">(Inline labels shown for clarity; in the file the comments are on their own lines, because the parser only strips whole <code>#</code> lines.)</p>
+
+  <h3>b · The email replacement</h3>
+  <pre><code> # --- Email &amp; communication ---
++net.thunderbird.android.beta
+ com.microsoft.office.outlook</code></pre>
+
+  <h3>c · The kicktipp app (daytime only)</h3>
+  <p>A football-predictions app, wanted during the day but not the night curfew — so it goes on <code>WHITELIST</code> only:</p>
+  <pre><code> # --- Fitness ---
+ org.runnerup
++
++# --- Sports / football predictions ---
++de.kicktipp.mbookmark</code></pre>
+
+  <h3>d · The run-with-music entries (<code>NIGHT_WHITELIST</code>)</h3>
+  <p>Music survives the curfew, and the dead alarm-clock entry is replaced with the installed one:</p>
+  <pre><code> # Calendar
+ com.google.android.calendar
+ ws.xsoh.etar
+-# Alarm clock
+-org.fossify.clock
++# Alarm clock (Clock You — the installed clock; org.fossify.clock is not present)
++com.bnyro.clock
+ ...
+ com.kuhy.workout_app
+ org.runnerup
++# Music player — kept so a night run has music in the background
++com.metrolist.music</code></pre>
+
+  <div class="callout">
+    <strong>How it was verified.</strong> Deploying regenerates the on-device state files; the six previously-disabled FOSS apps went from <code>enabled=3</code> (disabled-by-user) to <code>enabled=1</code> (enabled), and <code>night_whitelist.txt</code> gained <code>com.metrolist.music</code> and <code>com.bnyro.clock</code> with no <code>org.fossify.clock</code>. Package names (e.g. <code>de.kicktipp.mbookmark</code>, and that "Rain" is a weather app) were confirmed off the device, not guessed.
+  </div>
+
+  <h2 id="quiz">4 · Quiz</h2>
+  <div class="score" id="score">Score: 0 / 0</div>
+  <div id="quiz"></div>
+
+  <div class="foot">Generated by <code>/explain-diff</code>. Grounded in the actual <code>focus_daemon.sh</code> disable sweep and <code>config.sh</code> — behavior verified on device BL9000EEA0000102.</div>
+
+</div>
+
+<script>
+/* ---------------- interactive simulator ---------------- */
+const state = { ver:'after', loc:'home', time:'day' };
+
+// Each app: system? and membership in the daytime/night lists, before & after.
+const APPS = [
+  { name:'Metrolist (music)', pkg:'com.metrolist.music', system:false,
+    before:{day:true,  night:false}, after:{day:true,  night:true} },
+  { name:'Clock You', pkg:'com.bnyro.clock', system:false,
+    before:{day:false, night:false}, after:{day:true,  night:true} },
+  { name:'kicktipp', pkg:'de.kicktipp.mbookmark', system:false,
+    before:{day:false, night:false}, after:{day:true,  night:false} },
+  { name:'Camera (FOSS)', pkg:'com.vayunmathur.camera', system:false,
+    before:{day:false, night:false}, after:{day:true,  night:false} },
+  { name:'A random game', pkg:'com.example.game', system:false,
+    before:{day:false, night:false}, after:{day:false, night:false} },
+  { name:'Gmail', pkg:'com.google.android.gm', system:true,
+    before:{day:true,  night:true},  after:{day:true,  night:true} },
+];
+
+function evalApp(app){
+  // Away from home: focus mode is a no-op; everything is re-enabled.
+  if (state.loc === 'away')
+    return { on:true, kind:'on', why:'Away from home → focus mode off, reconcile re-enables it.' };
+  // System apps are never reached by the third-party sweep.
+  if (app.system)
+    return { on:true, kind:'sys', why:'System app — the sweep only scans pm list packages -3, so it is untouchable here (hide it in the launcher instead).' };
+  // Third-party at home: consult the list for the current time window.
+  const lists = state.ver === 'before' ? app.before : app.after;
+  const allowed = state.time === 'night' ? lists.night : lists.day;
+  const listName = state.time === 'night' ? 'NIGHT_WHITELIST' : 'WHITELIST';
+  if (allowed)
+    return { on:true, kind:'on', why:'On '+listName+' → is_allowed() true → sweep skips it.' };
+  return { on:false, kind:'off', why:'Third-party, not on '+listName+' → sweep runs pm disable-user.' };
+}
+
+function render(){
+  const grid = document.getElementById('apps');
+  grid.innerHTML = '';
+  APPS.forEach(app=>{
+    const r = evalApp(app);
+    const badge = r.kind==='sys' ? '<span class="badge b-sys">system · on</span>'
+                : r.on ? '<span class="badge b-on">enabled</span>'
+                       : '<span class="badge b-off">disabled</span>';
+    const el = document.createElement('div');
+    el.className = 'app';
+    el.innerHTML =
+      '<div class="top"><span class="name">'+app.name+'</span>'+badge+'</div>'+
+      '<div class="pkg">'+app.pkg+'</div>'+
+      '<div class="why">'+r.why+'</div>';
+    grid.appendChild(el);
+  });
+  const note = document.getElementById('simnote');
+  if (state.ver==='after' && state.loc==='home' && state.time==='night')
+    note.textContent = 'This is the run-with-music case: at night, Metrolist and Clock You are now enabled — that is exactly what the diff added.';
+  else if (state.ver==='before' && state.loc==='home' && state.time==='night')
+    note.textContent = 'Before the change: at night Metrolist is disabled (no music on a night run) and no installed clock survives for alarms.';
+  else if (state.loc==='away')
+    note.textContent = 'Away from home, none of this applies — every app is back on, system or not.';
+  else
+    note.textContent = 'Notice Gmail never changes: no setting in this repo can turn a system app off.';
+}
+
+document.querySelectorAll('.seg').forEach(seg=>{
+  const group = seg.dataset.group === 'ver' ? 'ver' : seg.dataset.group === 'loc' ? 'loc' : 'time';
+  seg.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      seg.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      state[group] = btn.dataset.v;
+      render();
+    });
+  });
+});
+render();
+
+/* ---------------- quiz ---------------- */
+// correct index chosen to spread positions: 2,0,3,1,2 (0-based) → spans 0..3.
+const QUIZ = [
+  { stem:'Why did adding com.metrolist.music to NIGHT_WHITELIST matter for a night run?',
+    opts:[
+      'It routes the music player’s traffic past the DNS/iptables blocker at night',
+      'It raises the app’s memory priority so playback survives the curfew',
+      'During 23:00–05:00 the daemon checks the night list, not the day one',
+      'It reinstalls the player in case the curfew had removed it earlier'],
+    correct:2,
+    why:'The curfew window consults NIGHT_WHITELIST specifically; Metrolist was only on the daytime list.' },
+
+  { stem:'Why weren’t the Google apps (Gmail, Photos…) disabled by this change?',
+    opts:[
+      'They are system apps; the sweep only scans third-party packages',
+      'They were quietly removed from the WHITELIST array instead of kept',
+      'Disabling them requires root, which this daemon simply lacks',
+      'Google Play Protect actively blocks attempts to disable them'],
+    correct:0,
+    why:'The sweep uses pm list packages -3 (third-party only); system apps are never in its scope.' },
+
+  { stem:'Why is BLOCKED_SYSTEM_APPS deliberately kept empty on this phone?',
+    opts:[
+      'An empty list keeps the daemon’s per-second polling loop cheap and fast',
+      'The maintainer just hasn’t gotten around to populating it yet, that’s all',
+      'Android flatly refuses to disable any system package through the pm tool',
+      'A disabled system app across a reboot can trip an MTK bootloop → wipe'],
+    correct:3,
+    why:'That wipe was confirmed on the BL9000; system distraction is handled via DNS instead.' },
+
+  { stem:'You walk away from home. What happens to a non-whitelisted third-party app?',
+    opts:[
+      'It stays off until you re-enable it by hand in the Settings app',
+      'Reconcile re-enables it — focus mode only restricts near home',
+      'It gets uninstalled and has to be downloaded from the store again',
+      'Nothing changes — the disabled state is permanent once it is set'],
+    correct:1,
+    why:'Focus mode is location-gated; leaving home reconciles apps back to enabled.' },
+
+  { stem:'Why replace org.fossify.clock with com.bnyro.clock in the night list?',
+    opts:[
+      'Bnyro’s clock ships a louder default morning alarm tone out of the box',
+      'Fossify Clock was demoted to the daytime-only whitelist instead',
+      'org.fossify.clock isn’t installed, so no clock survived the curfew',
+      'The two clock apps had a conflicting package signature on device'],
+    correct:2,
+    why:'The dead entry guarded a real need; the installed clock is com.bnyro.clock.' },
+];
+
+let answered = 0, correct = 0;
+const qroot = document.getElementById('quiz');
+QUIZ.forEach((q, qi)=>{
+  const card = document.createElement('div');
+  card.className = 'q';
+  const stem = document.createElement('div');
+  stem.className = 'stem';
+  stem.textContent = (qi+1)+'. '+q.stem;
+  card.appendChild(stem);
+  let done = false;
+  q.opts.forEach((text, oi)=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.textContent = text;
+    b.addEventListener('click', ()=>{
+      if (done) return;
+      done = true;
+      answered++;
+      card.querySelectorAll('.opt').forEach((o,idx)=>{
+        o.disabled = true;
+        if (idx === q.correct) o.classList.add('correct');
+      });
+      if (oi === q.correct) { correct++; }
+      else b.classList.add('wrong');
+      const r = card.querySelector('.rationale');
+      r.classList.add('show');
+      document.getElementById('score').textContent = 'Score: '+correct+' / '+answered;
+    });
+    card.appendChild(b);
+  });
+  const rat = document.createElement('div');
+  rat.className = 'rationale';
+  rat.textContent = '→ '+q.why;
+  card.appendChild(rat);
+  qroot.appendChild(card);
+});
+</script>
+</body>
+</html>
