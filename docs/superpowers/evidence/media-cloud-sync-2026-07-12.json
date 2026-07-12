@@ -1,0 +1,44 @@
+{
+  "intent": "MOVE organized Downloads media (images + videos) into the dufs cloud, unzipped and date-organized, so they're viewable from anywhere (web + upcoming app) WITHOUT duplication — the file leaves ~/Downloads and lives only in the cloud folder (on local disk, served by dufs). The cloud folder becomes the single storage.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/sync_media_to_cloud.sh (safe move of media → $CLOUD_ROOT/Media/YYYY/MM)",
+    "linux_configuration/scripts/single_use/utils/setup_media_cloud_sync.sh (installer: units + ordering drop-in)",
+    "systemd media-cloud-sync.{service,timer,path} + media-organizer.service.d/10-after-cloud-sync.conf",
+    "Non-goals: no auto-prune/retention of ~/cloud/Media; organize_downloads.sh unchanged (it now finds nothing to zip, since media is moved out first)"
+  ],
+  "changes": [
+    "sync_media_to_cloud.sh sweeps ~/Downloads (recursively, including too_big/) for the same image/video extensions organize_downloads uses and MOVES each into $CLOUD_ROOT/Media/YYYY/MM/ by file mtime. The move is crash-safe: copy to a .partial temp, verify size, atomic rename, then remove the source. Files modified within the last 2 minutes are skipped (possible in-progress downloads). A file identical to one already in the cloud is de-duplicated (source dropped); a name clash with a different file gets a numeric suffix. flock-guarded; excludes media_archive_*.zip and staging dirs. CLOUD_ROOT from the dufs serve-path (fallback ~/cloud).",
+    "setup_media_cloud_sync.sh installs a oneshot service + a 30-min catch-up timer + a ~/Downloads path watcher, plus a drop-in making media-organizer run After=media-cloud-sync so media is moved to the cloud before the organizer runs. Runs an initial sweep."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck -x --severity=warning + bash -n on both scripts; systemd-analyze verify on the three units",
+      "result": "pass",
+      "evidence": "both scripts clean; units structurally valid."
+    },
+    {
+      "command": "sync_media_to_cloud.sh MOVE assertion suite (throwaway dirs)",
+      "result": "pass",
+      "evidence": "12/12: media MOVED (source removed) into Media/YYYY/MM by mtime; too_big included; media_archive zip and non-media left alone; a recently-modified file is SKIPPED and left in Downloads; idempotent re-run moves nothing; an identical file is de-duplicated (source dropped, no cloud duplicate); a clashing different file gets a suffix."
+    },
+    {
+      "command": "Real end-to-end: MOVE media → cloud → live dufs URL",
+      "result": "pass",
+      "evidence": "a PNG moved from a temp source into /home/kuhy/cloud/Media/2026/05/ (source removed) and fetched via https://kuhy-cloud.duckdns.org/Media/2026/05/phase2_move.png → HTTP 200, image/png. Test file cleaned up."
+    },
+    {
+      "command": "Installer real apply (systemd units) + full initial sweep",
+      "result": "pending",
+      "evidence": "Needs sudo, so run by the user via '! setup_media_cloud_sync.sh'. The initial sweep RELOCATES ~4.9 GB of current Downloads media into ~/cloud/Media (same disk — frees Downloads, no net duplication). To confirm."
+    }
+  ],
+  "risks": [
+    "Move is destructive by design: media leaves ~/Downloads and exists only in ~/cloud/Media (on local disk, reachable via the auth-protected dufs cloud). Mitigated by crash-safe move (verify before removing source) and the 2-minute quiesce window for in-progress downloads.",
+    "No retention/auto-prune of ~/cloud/Media yet — it grows over time.",
+    "The path watcher fires on top-level ~/Downloads changes; deeply-nested new files are caught by the 30-min timer instead of instantly."
+  ],
+  "rollback": [
+    "sudo systemctl disable --now media-cloud-sync.timer media-cloud-sync.path; sudo rm /etc/systemd/system/media-cloud-sync.{service,timer,path} /etc/systemd/system/media-organizer.service.d/10-after-cloud-sync.conf; sudo systemctl daemon-reload.",
+    "Media already moved lives under ~/cloud/Media; move any of it back to ~/Downloads if desired. Nothing is deleted by rollback."
+  ]
+}

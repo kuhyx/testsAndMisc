@@ -1,0 +1,17 @@
+{
+  "title": "Downloads media → dufs cloud (moved, unzipped, browsable)",
+  "objective": "Organized images and videos from ~/Downloads automatically MOVE into the dufs cloud, unzipped and date-organized, viewable from anywhere, with no duplication (the file leaves Downloads). Success = a settled image/video in ~/Downloads relocates to ~/cloud/Media/YYYY/MM, disappears from Downloads, and opens via the cloud URL, with no data lost.",
+  "acceptance_criteria": [
+    "sync_media_to_cloud.sh MOVES each Downloads image/video into $CLOUD_ROOT/Media/YYYY/MM by mtime via a crash-safe copy-verify-rename-then-remove-source; idempotent, collision-safe, de-duplicates identical files.",
+    "Files modified within the last 2 minutes (possible in-progress downloads) are skipped and left in Downloads.",
+    "CLOUD_ROOT is derived from the dufs serve-path; media_archive zips and non-media are excluded; too_big/ media is included.",
+    "A systemd timer + path watcher keep the cloud current; a drop-in makes media-organizer run After the cloud sync so media is moved before the organizer runs.",
+    "The moved files are reachable and viewable via the dufs cloud URL."
+  ],
+  "out_of_scope": [
+    "Retention / auto-pruning of ~/cloud/Media",
+    "Changing organize_downloads.sh's zip-and-delete archival",
+    "The web gallery (Phase 3) and mobile app (Phase 4)"
+  ],
+  "verifier": "shellcheck -x + bash -n; systemd-analyze verify on the units; sync_media_to_cloud.sh 8-assertion suite on throwaway dirs; real end-to-end (PNG → ~/cloud/Media → https URL 200 image/png); documented in docs/superpowers/evidence/media-cloud-sync-2026-07-12.json"
+}
