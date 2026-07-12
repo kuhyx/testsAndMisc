@@ -1,0 +1,18 @@
+{
+  "title": "cloud_gallery: green build, 100% coverage, aggressive lint, live deploy + mobile app install",
+  "objective": "Make the cloud_gallery SPA production-ready and deployed: the Vite build must pass, the lint must be the most aggressive type-checked ruleset the toolchain supports, and vitest coverage must be a real 100% across statements/branches/functions/lines. Then deploy the SPA live via setup_cloud_gallery.sh, restore working ffmpeg so video posters generate, and whitelist + install the com.kuhy.dufs_client mobile app so focus mode does not kill it.",
+  "acceptance_criteria": [
+    "pnpm build (tsc -b && vite build) succeeds — the prior TS2493/TS2352 tuple errors in dufs-client.test.ts are gone.",
+    "eslint config uses typescript-eslint strict + stylistic type-checked, react-hooks, and reportUnusedDisableDirectives=error; pnpm lint passes with zero errors.",
+    "pnpm coverage passes with thresholds set to 100/100/100/100 and reports 100% on all four metrics.",
+    "setup_cloud_gallery.sh deploys the SPA and dufs serves it with render-spa on 127.0.0.1:5000 (401 unauthenticated confirms it is up and auth-protected).",
+    "ffmpeg runs (stale /usr/local/bin shadow removed) and generate_thumbnails.sh produces video posters with 0 failures.",
+    "com.kuhy.dufs_client is in phone_focus_mode WHITELIST, the APK installs, launches, and survives the focus daemon."
+  ],
+  "out_of_scope": [
+    "eslint-plugin-react (crashes under ESLint 10; TypeScript covers prop typing)",
+    "Changes to KeePass sync or media-sync scripts",
+    "Authenticated end-to-end browser walkthrough of the live URL (user does this at login)"
+  ],
+  "verifier": "pnpm build + pnpm lint + pnpm coverage (62 tests, 100% all metrics); setup_cloud_gallery.sh run + local dufs :5000 checks; generate_thumbnails.sh (10 made, 0 failed); adb install -r + monkey launch + pidof (RUNNING); documented in docs/superpowers/evidence/cloud-gallery-coverage-lint-deploy-2026-07-12.json"
+}

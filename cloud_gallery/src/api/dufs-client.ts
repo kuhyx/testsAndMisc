@@ -64,21 +64,28 @@ export function sortEntries(entries: readonly DirEntry[]): DirEntry[] {
 }
 
 export function createDufsClient(fetchImpl: typeof fetch = fetch): DufsClient {
-  async function request(path: string, init: RequestInit): Promise<Response> {
+  // `method` is always supplied by callers, so the error message and the fetch
+  // options never need to fall back — keeping it a required arg avoids an
+  // unreachable default branch.
+  async function request(
+    method: string,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
     const res = await fetchImpl(encodePath(path), {
+      method,
       credentials: "same-origin",
       ...init,
     });
     if (!res.ok) {
-      throw new Error(`${init.method ?? "GET"} ${path} → ${res.status}`);
+      throw new Error(`${method} ${path} → ${res.status}`);
     }
     return res;
   }
 
   return {
     async list(dirPath) {
-      const res = await request(dirPath, {
-        method: "PROPFIND",
+      const res = await request("PROPFIND", dirPath, {
         headers: { Depth: "1" },
       });
       return sortEntries(parsePropfind(await res.text(), dirPath));
@@ -90,19 +97,16 @@ export function createDufsClient(fetchImpl: typeof fetch = fetch): DufsClient {
       return encodePath(`/.thumbs${normalize(path)}.jpg`);
     },
     async upload(dirPath, file) {
-      await request(joinPath(dirPath, file.name), {
-        method: "PUT",
-        body: file,
-      });
+      await request("PUT", joinPath(dirPath, file.name), { body: file });
     },
     async remove(path) {
-      await request(path, { method: "DELETE" });
+      await request("DELETE", path);
     },
     async readText(path) {
-      return (await request(path, { method: "GET" })).text();
+      return (await request("GET", path)).text();
     },
     async writeText(path, content) {
-      await request(path, { method: "PUT", body: content });
+      await request("PUT", path, { body: content });
     },
   };
 }

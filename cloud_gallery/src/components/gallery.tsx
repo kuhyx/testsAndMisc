@@ -12,7 +12,8 @@ import { ConfirmDialog } from "./confirm-dialog.tsx";
 export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.Element {
   const [path, navigate] = useHashPath();
   const { entries, loading, error, reload } = useListing(client, path);
-  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  // -1 means "no viewer open" (avoids a null branch in step()).
+  const [viewerIndex, setViewerIndex] = useState(-1);
   const [editEntry, setEditEntry] = useState<DirEntry | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<DirEntry | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -23,18 +24,13 @@ export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.
     [entries],
   );
 
-  function openMediaAt(entriesIndex: number): void {
-    const entry = entries[entriesIndex];
-    if (entry === undefined) return;
-    const mi = media.findIndex((m) => m.path === entry.path);
-    if (mi >= 0) setViewerIndex(mi);
+  // Grid only calls this for media entries, so the entry is always in `media`.
+  function openMedia(entry: DirEntry): void {
+    setViewerIndex(media.findIndex((m) => m.path === entry.path));
   }
 
   function step(delta: number): void {
-    setViewerIndex((cur) => {
-      if (cur === null || media.length === 0) return cur;
-      return (cur + delta + media.length) % media.length;
-    });
+    setViewerIndex((cur) => (cur + delta + media.length) % media.length);
   }
 
   function onUploadPicked(files: FileList | null): void {
@@ -54,9 +50,7 @@ export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.
     })();
   }
 
-  function confirmDelete(): void {
-    const entry = deleteEntry;
-    if (entry === null) return;
+  function confirmDelete(entry: DirEntry): void {
     setDeleteEntry(null);
     setBusy(`Deleting ${entry.name}…`);
     client
@@ -70,7 +64,7 @@ export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.
       });
   }
 
-  const viewerEntry = viewerIndex !== null ? media[viewerIndex] : null;
+  const viewerEntry = viewerIndex >= 0 ? media[viewerIndex] : null;
 
   return (
     <div className="gallery">
@@ -126,7 +120,7 @@ export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.
             client={client}
             entries={entries}
             onOpenDir={navigate}
-            onOpenMedia={openMediaAt}
+            onOpenMedia={openMedia}
             onEditText={setEditEntry}
             onDelete={setDeleteEntry}
           />
@@ -139,7 +133,7 @@ export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.
           entry={viewerEntry}
           url={client.fileUrl(viewerEntry.path)}
           onClose={() => {
-            setViewerIndex(null);
+            setViewerIndex(-1);
           }}
           onPrev={() => {
             step(-1);
@@ -163,7 +157,9 @@ export function Gallery({ client }: { readonly client: DufsClient }): React.JSX.
         <ConfirmDialog
           message={`Delete "${deleteEntry.name}"? This cannot be undone.`}
           confirmLabel="Delete"
-          onConfirm={confirmDelete}
+          onConfirm={() => {
+            confirmDelete(deleteEntry);
+          }}
           onCancel={() => {
             setDeleteEntry(null);
           }}

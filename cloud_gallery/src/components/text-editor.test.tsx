@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEditor } from "./text-editor.tsx";
 import type { DufsClient } from "../api/dufs-client.ts";
@@ -23,7 +23,7 @@ function client(over: Partial<DufsClient>): DufsClient {
     readText: vi.fn(() => Promise.resolve("body")),
     writeText: vi.fn(() => Promise.resolve()),
     ...over,
-  } as DufsClient;
+  };
 }
 
 describe("TextEditor", () => {
@@ -56,11 +56,63 @@ describe("TextEditor", () => {
     expect(await screen.findByText("wfail")).toBeInTheDocument();
   });
 
+  it("stringifies a non-Error load rejection", async () => {
+    const c = client({
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      readText: vi.fn(() => Promise.reject("plain-load-failure")),
+    });
+    render(<TextEditor client={c} entry={entry} onClose={vi.fn()} />);
+    expect(await screen.findByText("plain-load-failure")).toBeInTheDocument();
+  });
+
+  it("stringifies a non-Error save rejection", async () => {
+    const c = client({
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      writeText: vi.fn(() => Promise.reject("plain-save-failure")),
+    });
+    render(<TextEditor client={c} entry={entry} onClose={vi.fn()} />);
+    await screen.findByDisplayValue("body");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("plain-save-failure")).toBeInTheDocument();
+  });
+
   it("closes", async () => {
     const onClose = vi.fn();
     render(<TextEditor client={client({})} entry={entry} onClose={onClose} />);
     await screen.findByDisplayValue("body");
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a load that resolves after unmount", async () => {
+    let settle: (v: string) => void = () => undefined;
+    const pending = new Promise<string>((resolve) => {
+      settle = resolve;
+    });
+    const c = client({ readText: vi.fn(() => pending) });
+    const { unmount } = render(
+      <TextEditor client={c} entry={entry} onClose={vi.fn()} />,
+    );
+    unmount();
+    await act(async () => {
+      settle("late");
+      await pending;
+    });
+  });
+
+  it("ignores a load that rejects after unmount", async () => {
+    let fail: (e: unknown) => void = () => undefined;
+    const pending = new Promise<string>((_, reject) => {
+      fail = reject;
+    });
+    const c = client({ readText: vi.fn(() => pending) });
+    const { unmount } = render(
+      <TextEditor client={c} entry={entry} onClose={vi.fn()} />,
+    );
+    unmount();
+    await act(async () => {
+      fail(new Error("late"));
+      await pending.catch(() => undefined);
+    });
   });
 });

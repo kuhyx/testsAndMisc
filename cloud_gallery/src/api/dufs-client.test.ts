@@ -47,6 +47,12 @@ describe("parsePropfind", () => {
     expect(entry?.size).toBe(0);
     expect(entry?.mtimeMs).toBe(0);
   });
+  it("coerces an unparsable size/mtime to zero", () => {
+    const xml = `<D:multistatus xmlns:D="DAV:"><D:response><D:href>/y.bin</D:href><D:propstat><D:prop><D:resourcetype/><D:getcontentlength>not-a-number</D:getcontentlength><D:getlastmodified>never</D:getlastmodified></D:prop></D:propstat></D:response></D:multistatus>`;
+    const [entry] = parsePropfind(xml, "/");
+    expect(entry?.size).toBe(0);
+    expect(entry?.mtimeMs).toBe(0);
+  });
 });
 
 describe("sortEntries", () => {
@@ -83,17 +89,19 @@ function jsonResponse(body: string, ok = true, status = 200): Response {
 
 describe("createDufsClient", () => {
   it("list() PROPFINDs, sorts, and returns entries", async () => {
-    const fetchImpl = vi.fn(() => Promise.resolve(jsonResponse(PROPFIND_XML)));
-    const client = createDufsClient(fetchImpl as unknown as typeof fetch);
+    const fetchImpl = vi.fn<typeof fetch>(() =>
+      Promise.resolve(jsonResponse(PROPFIND_XML)),
+    );
+    const client = createDufsClient(fetchImpl);
     const entries = await client.list("/Media/2026/07");
-    const [url, init] = fetchImpl.mock.calls[0] ?? [];
-    expect(url).toBe("/Media/2026/07");
-    expect((init as RequestInit).method).toBe("PROPFIND");
+    const firstCall = fetchImpl.mock.calls.at(0);
+    expect(firstCall?.[0]).toBe("/Media/2026/07");
+    expect(firstCall?.[1]?.method).toBe("PROPFIND");
     expect(entries.length).toBe(2);
   });
 
   it("builds file and thumbnail URLs (encoded)", () => {
-    const client = createDufsClient(vi.fn() as unknown as typeof fetch);
+    const client = createDufsClient(vi.fn<typeof fetch>());
     expect(client.fileUrl("/Media/a b.jpg")).toBe("/Media/a%20b.jpg");
     expect(client.thumbUrl("/Media/a b.jpg")).toBe(
       "/.thumbs/Media/a%20b.jpg.jpg",
@@ -101,26 +109,26 @@ describe("createDufsClient", () => {
   });
 
   it("upload PUTs to dir/name, remove DELETEs, writeText PUTs, readText GETs", async () => {
-    const fetchImpl = vi.fn(() => Promise.resolve(jsonResponse("content")));
-    const client = createDufsClient(fetchImpl as unknown as typeof fetch);
+    const fetchImpl = vi.fn<typeof fetch>(() =>
+      Promise.resolve(jsonResponse("content")),
+    );
+    const client = createDufsClient(fetchImpl);
     const file = new File(["x"], "n.txt");
     await client.upload("/dir", file);
     await client.remove("/dir/n.txt");
     await client.writeText("/dir/n.txt", "hi");
     const text = await client.readText("/dir/n.txt");
     expect(text).toBe("content");
-    const methods = fetchImpl.mock.calls.map(
-      (c) => (c[1] as RequestInit).method,
-    );
+    const methods = fetchImpl.mock.calls.map((c) => c[1]?.method);
     expect(methods).toEqual(["PUT", "DELETE", "PUT", "GET"]);
-    expect(fetchImpl.mock.calls[0]?.[0]).toBe("/dir/n.txt");
+    expect(fetchImpl.mock.calls.at(0)?.[0]).toBe("/dir/n.txt");
   });
 
   it("throws on non-ok responses", async () => {
-    const fetchImpl = vi.fn(() =>
+    const fetchImpl = vi.fn<typeof fetch>(() =>
       Promise.resolve(jsonResponse("", false, 404)),
     );
-    const client = createDufsClient(fetchImpl as unknown as typeof fetch);
+    const client = createDufsClient(fetchImpl);
     await expect(client.remove("/nope")).rejects.toThrow("404");
   });
 });

@@ -7,7 +7,7 @@ interface GridProps {
   readonly client: DufsClient;
   readonly entries: readonly DirEntry[];
   readonly onOpenDir: (path: string) => void;
-  readonly onOpenMedia: (index: number) => void;
+  readonly onOpenMedia: (entry: DirEntry) => void;
   readonly onEditText: (entry: DirEntry) => void;
   readonly onDelete: (entry: DirEntry) => void;
 }
@@ -46,11 +46,11 @@ export function Grid({
 }: GridProps): React.JSX.Element {
   return (
     <ul className="grid">
-      {entries.map((entry, index) => {
+      {entries.map((entry) => {
         const media = isImage(entry.name) || isVideo(entry.name);
         const activate = (): void => {
           if (entry.kind === "dir") onOpenDir(entry.path);
-          else if (media) onOpenMedia(index);
+          else if (media) onOpenMedia(entry);
           else if (isText(entry.name)) onEditText(entry);
         };
         return (

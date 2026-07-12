@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useHashPath } from "./lib/use-hash-path.ts";
+import { serverPath, useHashPath } from "./lib/use-hash-path.ts";
 import { ConfirmDialog } from "./components/confirm-dialog.tsx";
 import { App } from "./app.tsx";
 
@@ -38,6 +38,9 @@ describe("useHashPath", () => {
       expect(screen.getByTestId("p").textContent).toBe("/x/y");
     });
   });
+  it("defaults to root for the server snapshot", () => {
+    expect(serverPath()).toBe("/");
+  });
 });
 
 describe("ConfirmDialog", () => {
@@ -72,9 +75,7 @@ describe("ConfirmDialog", () => {
 
 describe("App", () => {
   it("mounts the gallery", async () => {
-    globalThis.fetch = vi.fn(() =>
-      Promise.reject(new Error("offline")),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(() => Promise.reject(new Error("offline")));
     render(<App />);
     expect(
       await screen.findByRole("button", { name: "Upload" }),

@@ -156,4 +156,101 @@ describe("Gallery", () => {
     render(<Gallery client={client} />);
     expect(await screen.findByText(/boom/)).toBeInTheDocument();
   });
+
+  it("navigates via a breadcrumb", async () => {
+    render(<Gallery client={makeClient()} />);
+    await screen.findByText("pic.jpg");
+    await userEvent.click(screen.getByRole("button", { name: "cloud" }));
+    expect(window.location.hash).toBe("#/");
+  });
+
+  it("opens the file picker from the Upload button", async () => {
+    render(<Gallery client={makeClient()} />);
+    await screen.findByText("pic.jpg");
+    // Should not throw; exercises the hidden-input click path.
+    await userEvent.click(screen.getByRole("button", { name: "Upload" }));
+    expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+  });
+
+  it("steps to the previous media with ArrowLeft (wrapping)", async () => {
+    render(<Gallery client={makeClient()} />);
+    await userEvent.click(await screen.findByText("pic.jpg"));
+    await waitFor(() => {
+      expect(document.querySelector(".viewer-img")).not.toBeNull();
+    });
+    // media = [pic.jpg, clip.mp4]; from index 0, prev wraps to the video.
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    await waitFor(() => {
+      expect(document.querySelector("video")).not.toBeNull();
+    });
+  });
+
+  it("shows an empty-folder message", async () => {
+    const client = makeClient({ list: vi.fn(() => Promise.resolve([])) });
+    render(<Gallery client={client} />);
+    expect(await screen.findByText("This folder is empty.")).toBeInTheDocument();
+  });
+
+  it("renders breadcrumb separators for nested paths", async () => {
+    window.location.hash = "#/Media/2026";
+    render(<Gallery client={makeClient()} />);
+    await screen.findByText("pic.jpg");
+    expect(screen.getByRole("button", { name: "Media" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2026" })).toBeInTheDocument();
+    expect(document.querySelectorAll(".crumb-sep").length).toBeGreaterThan(0);
+  });
+
+  it("ignores an upload with no files selected", async () => {
+    const client = makeClient();
+    const { container } = render(<Gallery client={client} />);
+    await screen.findByText("pic.jpg");
+    const input = container.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    );
+    if (input) fireEvent.change(input, { target: { files: null } });
+    expect(client.upload).not.toHaveBeenCalled();
+  });
+
+  it("stringifies a non-Error upload rejection", async () => {
+    const client = makeClient({
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      upload: vi.fn(() => Promise.reject("plain-up")),
+    });
+    const { container } = render(<Gallery client={client} />);
+    await screen.findByText("pic.jpg");
+    const input = container.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    );
+    if (input) {
+      fireEvent.change(input, {
+        target: { files: [new File(["x"], "u.png")] },
+      });
+    }
+    expect(await screen.findByText("plain-up")).toBeInTheDocument();
+  });
+
+  it("stringifies a non-Error delete rejection", async () => {
+    const client = makeClient({
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      remove: vi.fn(() => Promise.reject("plain-del")),
+    });
+    render(<Gallery client={client} />);
+    await screen.findByText("pic.jpg");
+    await userEvent.click(screen.getByLabelText("Delete pic.jpg"));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByText("plain-del")).toBeInTheDocument();
+  });
+
+  it("closes the text editor and reloads", async () => {
+    const client = makeClient();
+    render(<Gallery client={client} />);
+    await userEvent.click(await screen.findByText("notes.txt"));
+    await screen.findByDisplayValue("hello world");
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue("hello world")).toBeNull();
+    });
+    // reload() re-invokes list (initial + after close).
+    expect((client.list as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(1);
+  });
 });

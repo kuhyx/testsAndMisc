@@ -25,17 +25,22 @@ describe("MediaViewer", () => {
     expect(img.className).toContain("zoomed");
   });
 
-  it("renders a <video> for video files", () => {
+  it("renders a <video> for video files and does not close on video click", () => {
+    const onClose = vi.fn();
     render(
       <MediaViewer
         entry={mk("v.mp4")}
         url="/v.mp4"
-        onClose={vi.fn()}
+        onClose={onClose}
         onPrev={vi.fn()}
         onNext={vi.fn()}
       />,
     );
-    expect(document.querySelector("video")).not.toBeNull();
+    const video = document.querySelector("video");
+    expect(video).not.toBeNull();
+    if (video) fireEvent.click(video);
+    // stopPropagation keeps the stage's onClose from firing.
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("offers a download for non-media files", () => {

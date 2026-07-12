@@ -11,6 +11,11 @@ function readHash(): string {
   return normalize(raw === "" ? "/" : raw);
 }
 
+/** Server-render snapshot: there is no hash off the client, so default to root. */
+export function serverPath(): string {
+  return "/";
+}
+
 function subscribe(onChange: () => void): () => void {
   window.addEventListener("hashchange", onChange);
   return () => {
@@ -19,7 +24,7 @@ function subscribe(onChange: () => void): () => void {
 }
 
 export function useHashPath(): readonly [string, (path: string) => void] {
-  const path = useSyncExternalStore(subscribe, readHash, () => "/");
+  const path = useSyncExternalStore(subscribe, readHash, serverPath);
   const navigate = useCallback((next: string) => {
     window.location.hash = normalize(next);
   }, []);

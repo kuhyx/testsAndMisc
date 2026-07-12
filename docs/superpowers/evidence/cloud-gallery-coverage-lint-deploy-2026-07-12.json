@@ -1,0 +1,53 @@
+{
+  "intent": "Fix the cloud_gallery production build, harden its lint to the most aggressive type-checked ruleset, reach 100% test coverage, deploy the SPA live, and whitelist+install the dufs_client mobile app so focus mode does not kill it.",
+  "scope": [
+    "cloud_gallery/ React SPA (source, tests, eslint/vite/package config)",
+    "phone_focus_mode/config.sh (WHITELIST entry only)",
+    "Non-goal: no changes to KeePass sync or media-sync scripts"
+  ],
+  "changes": [
+    "dufs-client.test.ts: typed the fetch mocks as vi.fn<typeof fetch>() so mock.calls carry the real [input, init?] tuple — removed the empty-tuple/undefined-cast TS2493/TS2352 build errors.",
+    "dufs-client.ts: made request() take an explicit method arg, deleting the unreachable `?? \"GET\"` default branch.",
+    "gallery.tsx/grid.tsx: replaced the nullable viewer index with a -1 sentinel and pass the media entry (not an index) so three unreachable defensive guards disappear; onOpenMedia signature changed to (entry) => void.",
+    "use-hash-path.ts: extracted serverPath() so the SSR snapshot is testable.",
+    "eslint.config.js: strict + stylistic type-checked presets, react-hooks, reportUnusedDisableDirectives:error, test-file unbound-method override; dropped eslint-plugin-react (incompatible with ESLint 10).",
+    "Added grid.test.tsx and use-listing.test.ts; extended existing suites — coverage thresholds raised to 100/100/100/100.",
+    "Deployed via setup_cloud_gallery.sh (render-spa live), fixed ffmpeg by renaming a stale /usr/local/bin/ffmpeg shadow that linked the removed libvpx.so.11, regenerated thumbnails (10 made, 0 failed).",
+    "phone_focus_mode/config.sh: added com.kuhy.dufs_client to WHITELIST."
+  ],
+  "verification": [
+    {
+      "command": "pnpm run lint (tsc --noEmit && eslint src)",
+      "result": "pass",
+      "evidence": "no errors"
+    },
+    {
+      "command": "pnpm run coverage",
+      "result": "pass",
+      "evidence": "62 tests passed; Statements 100% Branches 100% Functions 100% Lines 100%"
+    },
+    {
+      "command": "pnpm run build (tsc -b && vite build)",
+      "result": "pass",
+      "evidence": "dist/assets/index-*.js 204.49 kB (gzip 64.38 kB); built ok"
+    },
+    {
+      "command": "setup_cloud_gallery.sh + curl 127.0.0.1:5000",
+      "result": "pass",
+      "evidence": "dufs render-spa live on :5000, returns 401 unauthenticated (up + auth-protected); index.html references built assets; 10 thumbnails on disk"
+    },
+    {
+      "command": "adb -s BL9000EEA0000102 install -r app-debug.apk; monkey launch",
+      "result": "pass",
+      "evidence": "Success; pidof com.kuhy.dufs_client RUNNING 4s after launch (not killed by focus daemon)"
+    }
+  ],
+  "risks": [
+    "render-spa restart briefly interrupts the live dufs service (KeePass file GET/PUT/?hash unaffected).",
+    "The renamed /usr/local/bin/ffmpeg.broken-libvpx11.bak shadow — if any workflow relied on that static build, it now resolves to the pacman ffmpeg instead."
+  ],
+  "rollback": [
+    "git revert this commit and re-run setup_cloud_gallery.sh to redeploy the prior SPA; remove com.kuhy.dufs_client from WHITELIST and redeploy focus mode.",
+    "Restore ffmpeg shadow: sudo mv /usr/local/bin/ffmpeg.broken-libvpx11.bak /usr/local/bin/ffmpeg (not recommended — it is broken)."
+  ]
+}
