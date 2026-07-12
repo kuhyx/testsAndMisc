@@ -1,0 +1,402 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Self-hosted dufs cloud + KeePass WebDAV sync — explained</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1f24; --muted: #5b6570; --card: #f6f8fa;
+    --border: #d8dee4; --accent: #2f6feb; --accent-soft: #dbe7ff;
+    --good: #1a7f37; --good-soft: #d7f5df; --bad: #cf222e; --bad-soft: #ffe3e3;
+    --code: #0b1220; --codefg: #e6edf3; --kbd: #eaeef2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --card: #161b22;
+      --border: #30363d; --accent: #589bff; --accent-soft: #17253f;
+      --good: #3fb950; --good-soft: #10251a; --bad: #f85149; --bad-soft: #2a1416;
+      --code: #010409; --codefg: #e6edf3; --kbd: #21262d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --card: #161b22;
+    --border: #30363d; --accent: #589bff; --accent-soft: #17253f;
+    --good: #3fb950; --good-soft: #10251a; --bad: #f85149; --bad-soft: #2a1416;
+    --code: #010409; --codefg: #e6edf3; --kbd: #21262d;
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --fg: #1c1f24; --muted: #5b6570; --card: #f6f8fa;
+    --border: #d8dee4; --accent: #2f6feb; --accent-soft: #dbe7ff;
+    --good: #1a7f37; --good-soft: #d7f5df; --bad: #cf222e; --bad-soft: #ffe3e3;
+    --code: #0b1220; --codefg: #e6edf3; --kbd: #eaeef2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px;
+  }
+  .wrap { max-width: min(48rem, 92vw); margin: 0 auto; padding: 2.2rem 0 5rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .3rem; }
+  h2 { font-size: 1.4rem; margin: 2.6rem 0 .8rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.08rem; margin: 1.6rem 0 .5rem; }
+  p, li { color: var(--fg); }
+  .sub { color: var(--muted); font-size: 1.02rem; margin-top: .2rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code.inl { background: var(--kbd); padding: .1em .38em; border-radius: 5px; font-size: .88em;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+  pre { background: var(--code); color: var(--codefg); padding: 1rem 1.1rem; border-radius: 10px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: .84rem; line-height: 1.55;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+  pre .c { color: #8b98a5; }
+  pre .k { color: #ff9d6b; }
+  pre .g { color: #6fd08c; }
+  pre .r { color: #ff8080; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1rem 1.2rem; margin: 1.6rem 0; }
+  .toc ol { margin: .3rem 0 0; padding-left: 1.2rem; }
+  .toc li { margin: .25rem 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.2rem; margin: 1.2rem 0; }
+  .note { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0;
+    padding: .7rem 1rem; margin: 1.1rem 0; }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .02em;
+    padding: .12em .5em; border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--border); vertical-align: middle; }
+  /* diagram */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; margin: 1rem 0; }
+  .node { flex: 1 1 130px; min-width: 120px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: .7rem .6rem; text-align: center; }
+  .node b { display: block; font-size: .92rem; }
+  .node span { display: block; color: var(--muted); font-size: .76rem; margin-top: .15rem; }
+  .arrow { align-self: center; color: var(--accent); font-weight: 700; font-size: 1.3rem; }
+  .lock { border-color: var(--good); }
+  .pub { border-color: var(--accent); }
+  .layers { display: grid; gap: .5rem; margin: 1rem 0; }
+  .layer { display: flex; gap: .7rem; align-items: flex-start; background: var(--bg);
+    border: 1px solid var(--border); border-left: 4px solid var(--good); border-radius: 8px; padding: .6rem .8rem; }
+  .layer .n { flex: 0 0 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--good-soft); color: var(--good);
+    display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
+  .layer .t b { font-size: .95rem; }
+  .layer .t span { display: block; color: var(--muted); font-size: .82rem; }
+  /* micro world */
+  .mw { border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.2rem; background: var(--card); }
+  .mw input { width: 100%; padding: .6rem .7rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--fg); font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: .9rem; }
+  .mw .verdict { margin-top: .8rem; padding: .7rem .9rem; border-radius: 8px; font-weight: 600; }
+  .mw .ok { background: var(--good-soft); color: var(--good); border: 1px solid var(--good); }
+  .mw .no { background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad); }
+  .mw .why { font-weight: 400; color: var(--muted); font-size: .85rem; margin-top: .3rem; display:block; }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+  .chip { font-size: .78rem; padding: .28em .6em; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--fg); cursor: pointer; font-family: "SF Mono", ui-monospace, monospace; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  /* quiz */
+  .q { margin: 1.3rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .5rem; }
+  .opt { display: block; width: 100%; text-align: left; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 9px; padding: .6rem .8rem; margin: .4rem 0; cursor: pointer;
+    font-size: .95rem; transition: background .12s, border-color .12s; }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { background: var(--good-soft); border-color: var(--good); }
+  .opt.wrong { background: var(--bad-soft); border-color: var(--bad); }
+  .opt:disabled { cursor: default; }
+  .rat { font-size: .85rem; color: var(--muted); margin: .3rem 0 0; padding-left: .2rem; display: none; }
+  .rat.show { display: block; }
+  .score { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: .5rem 0; font-size: .9rem; color: var(--muted); z-index: 5; }
+  .toggle { float: right; font-size: .8rem; cursor: pointer; color: var(--accent); border: 1px solid var(--border);
+    border-radius: 999px; padding: .1em .7em; background: var(--card); }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .84rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+</style>
+
+<div class="wrap">
+  <span class="toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));r.setAttribute('data-theme', d==='dark'?'light':'dark');})()">◐ theme</span>
+  <h1>A self-hosted “cloud drive” in one Rust binary</h1>
+  <p class="sub">How commit <code class="inl">20bc1ae</code> stands up <b>dufs</b> behind the existing Caddy/DuckDNS stack, auto-syncs the KeePassXC vault over WebDAV, and wraps the one secret it needs in six layers of paranoia.</p>
+
+  <div class="toc">
+    <b>Contents</b>
+    <ol>
+      <li><a href="#background">Background — the pieces already on the machine</a></li>
+      <li><a href="#intuition">Intuition — what changed and why</a></li>
+      <li><a href="#code">Code — a walkthrough by concern</a></li>
+      <li><a href="#playground">Playground — the serve-dir safety guard</a></li>
+      <li><a href="#quiz">Quiz — check your understanding</a></li>
+    </ol>
+  </div>
+
+  <h2 id="background">1 · Background</h2>
+  <p>This PC already runs a small fleet of self-hosted services, and they all share one exposure pattern. Understanding that pattern is 80% of understanding this change.</p>
+
+  <h3>The exposure stack (already in place)</h3>
+  <ul>
+    <li><b>Docker + Caddy</b> — one <code class="inl">caddy:2.8</code> container (<code class="inl">gitea-caddy</code>) is the <i>only</i> thing bound to public ports 80/443. It terminates TLS and gets Let’s Encrypt certificates automatically.</li>
+    <li><b>DuckDNS</b> — a cron job every 5 minutes keeps <code class="inl">kuhy.duckdns.org</code> pointed at the home IP. One account/token, and you can add more subdomain labels to it.</li>
+    <li><b>nftables</b> — default-drop firewall; ports 80/443 are opened by a flag inside <code class="inl">setup_wireguard_ssh.sh allow-web</code>.</li>
+    <li>A subtle gotcha the stack already solved: the nftables <code class="inl">forward</code> chain is default-drop, which silently kills Docker <i>bridge</i> networking. Every public container therefore runs with <code class="inl">network_mode: host</code> and binds its app to <code class="inl">127.0.0.1</code>. Gitea is the reference implementation.</li>
+  </ul>
+
+  <h3>The two things this change adds a home for</h3>
+  <ul>
+    <li><b>A file store</b> reachable from a phone on mobile data — the “Google Drive alternative”.</li>
+    <li><b>The KeePassXC vault</b>: a single encrypted file, <code class="inl">~/Keepass/Passwords.kdbx</code>. KeePass has no built-in cloud sync by design — you choose where the file lives.</li>
+  </ul>
+
+  <div class="note"><b>dufs</b> is the chosen tool: a single ~2.5 MB Rust binary that serves a <i>real filesystem folder</i> over HTTP with a web UI <b>and</b> built-in WebDAV. Because it serves the folder directly, an <code class="inl">rsync</code> (or any local write) into that folder shows up instantly — no database, no re-scan step. Contrast Seafile, which stores files in an internal block database that <code class="inl">rsync</code> cannot write into.</p></div>
+
+  <h2 id="intuition">2 · Intuition</h2>
+  <p>Nothing here reinvents exposure. dufs slots into the existing Caddy pattern exactly like Gitea did — a new loopback app, a new Caddy block, a new DuckDNS label:</p>
+
+  <div class="card">
+    <div class="flow">
+      <div class="node pub"><b>📱 Phone</b><span>on cellular</span></div>
+      <div class="arrow">→</div>
+      <div class="node pub"><b>Caddy</b><span>:443 HTTPS<br>kuhy-cloud.duckdns.org</span></div>
+      <div class="arrow">→</div>
+      <div class="node lock"><b>dufs</b><span>127.0.0.1:5000<br>auth required</span></div>
+      <div class="arrow">→</div>
+      <div class="node lock"><b>~/cloud</b><span>real folder</span></div>
+    </div>
+    <p style="margin:.4rem 0 0; color:var(--muted); font-size:.85rem">Only Caddy is public. dufs is unreachable except through it, and it refuses every request without the right login.</p>
+  </div>
+
+  <h3>The vault, kept fresh automatically</h3>
+  <p>KeePassXC keeps writing <code class="inl">Passwords.kdbx</code> where it always has. A <b>systemd path unit</b> watches that one file; the instant it changes, a oneshot service <code class="inl">rsync</code>s it into the served folder. No polling loop, no cron — the kernel wakes the unit only on a real write.</p>
+
+  <div class="card">
+    <div class="flow">
+      <div class="node"><b>KeePassXC</b><span>saves the vault</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>.path unit</b><span>PathModified fires</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>rsync</b><span>only the .kdbx</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>~/cloud/Keepass</b><span>phone pulls via WebDAV</span></div>
+    </div>
+  </div>
+  <p>On the phone, <b>KeePassDX</b> opens the database straight from the WebDAV URL — so the “mobile app” requirement is met with zero custom code.</p>
+
+  <h3>The paranoid part: one secret, six fences around it</h3>
+  <p>To keep re-runs non-interactive, the installer caches the web password in <code class="inl">.dufs_cloud.conf</code>. That plaintext file must <i>never</i> reach the repo or the served folder. The change surrounds it with defense-in-depth so that a single mistake can’t leak it:</p>
+
+  <div class="layers">
+    <div class="layer"><div class="n">1</div><div class="t"><b>Gitignored three ways</b><span>repo root, <code class="inl">linux_configuration/</code>, and a <code class="inl">**/</code> glob</span></div></div>
+    <div class="layer"><div class="n">2</div><div class="t"><b>Pre-commit backstop</b><span>a hook inspects the staged set and blocks the file even after <code class="inl">git add -f</code></span></div></div>
+    <div class="layer"><div class="n">3</div><div class="t"><b>Runtime refusal</b><span>the installer runs <code class="inl">git check-ignore</code> first and aborts rather than write the secret to a non-ignored path</span></div></div>
+    <div class="layer"><div class="n">4</div><div class="t"><b>No argv leak</b><span>the password is hashed via <code class="inl">openssl passwd -6 -stdin</code>, never passed as a command argument visible in <code class="inl">ps</code></span></div></div>
+    <div class="layer"><div class="n">5</div><div class="t"><b>Serve-dir guard</b><span>dufs refuses to serve <code class="inl">$HOME</code>, <code class="inl">.ssh</code>, <code class="inl">.config</code>, <code class="inl">.gnupg</code>, the repo, or <code class="inl">/</code></span></div></div>
+    <div class="layer"><div class="n">6</div><div class="t"><b>Minimal exposure</b><span>only <code class="inl">Passwords.kdbx</code> is mirrored — the local timestamped <code class="inl">.backup_*</code> vaults stay off the public server</span></div></div>
+  </div>
+
+  <h2 id="code">3 · Code</h2>
+  <p>Nine files, grouped by what they’re for.</p>
+
+  <h3><span class="tag">installer</span> The idempotent flow</h3>
+  <p><code class="inl">setup_dufs_cloud.sh</code> runs as the normal user and uses <code class="inl">sudo</code> only where it must (binary install, systemd, firewall). Its <code class="inl">main</code> reads like the plan:</p>
+  <pre><span class="c"># pinned + checksum-verified — no "curl | sh" trust</span>
+<span class="k">readonly</span> DUFS_VERSION="0.46.0"
+<span class="k">readonly</span> DUFS_SHA256="817769f7…410977"
+…
+main() {
+  preflight            <span class="c"># deps + require the Caddy/DuckDNS stack to already exist</span>
+  load_config; prompt_config; save_config
+  install_dufs         <span class="c"># download, verify sha256, install -m0755</span>
+  create_serve_dir
+  write_dufs_config    <span class="c"># hashed auth, bind 127.0.0.1, no anonymous</span>
+  install_units        <span class="c"># render placeholders → /etc/systemd/system</span>
+  configure_caddy      <span class="c"># append a block, reload gitea-caddy</span>
+  configure_duckdns    <span class="c"># extend the EXISTING updater, no new cron</span>
+  ensure_firewall      <span class="c"># allow-web only if 80/443 not already open</span>
+  setup_autosync       <span class="c"># initial mirror + enable the .path watcher</span>
+}</pre>
+
+  <h3><span class="tag">reuse</span> Slotting into the existing stack</h3>
+  <p>The change deliberately edits shared infrastructure in place rather than duplicating it. The Caddy block is appended with an idempotency guard and the proxy is reloaded live:</p>
+  <pre><span class="k">if</span> <span class="k">grep</span> -qE "^${DUFS_SUBDOMAIN} \{" "$CADDYFILE"; <span class="k">then</span> … <span class="c"># already present</span>
+<span class="k">else</span> printf '\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' "$DUFS_SUBDOMAIN" "$DUFS_PORT" &gt;&gt; "$CADDYFILE"; <span class="k">fi</span>
+docker exec gitea-caddy caddy reload --config /etc/caddy/Caddyfile</pre>
+  <p>DuckDNS gets the new label spliced into the one running updater’s <code class="inl">domains=</code> list (token untouched) — never a second cron:</p>
+  <pre><span class="k">sed</span> -i -E "s|(domains=)([^&amp;\"']*)|\1\2,${label}|" "$DUCKDNS_UPDATER"</pre>
+
+  <h3><span class="tag">systemd</span> Event-driven sync, not polling</h3>
+  <p>Three tiny unit templates carry placeholders (<code class="inl">__USER__</code>, <code class="inl">__HOME__</code>, <code class="inl">__CLOUD_ROOT__</code>) that the installer substitutes. The watcher is the interesting one:</p>
+  <pre><span class="c"># keepass-cloud-sync.path</span>
+[Path]
+PathModified=__HOME__/Keepass/Passwords.kdbx
+Unit=keepass-cloud-sync.service
+
+<span class="c"># keepass-cloud-sync.service (oneshot) — only the vault file</span>
+ExecStart=/usr/bin/rsync -a __HOME__/Keepass/Passwords.kdbx __CLOUD_ROOT__/Keepass/</pre>
+
+  <h3><span class="tag">hardening</span> The runtime secret guards</h3>
+  <p>Two functions make leaking the password structurally hard. First, refuse to persist it unless git is <i>certain</i> it’s ignored:</p>
+  <pre>assert_config_gitignored() {
+  [[ -n $REPO_ROOT ]] || die "Not in a git repo — refusing to write the secret."
+  <span class="k">if</span> ! git -C "$REPO_ROOT" check-ignore -q "$CONFIG_FILE"; <span class="k">then</span>
+    die "Refusing to write $CONFIG_FILE: it is NOT gitignored."
+  <span class="k">fi</span>
+}</pre>
+  <p>Second, never let dufs serve a directory that would expose secrets (this is the logic you can play with below):</p>
+  <pre>case "$resolved" <span class="k">in</span>
+  "$home_r" | / | "$home_r/.ssh"* | "$home_r/.config"* | "$home_r/.gnupg"*)
+    die "Unsafe cloud folder — it would expose sensitive files." ;;
+<span class="k">esac</span>
+<span class="k">if</span> [[ $resolved == "$REPO_ROOT"* ]]; <span class="k">then</span> die "…inside the git repo"; <span class="k">fi</span></pre>
+
+  <h3><span class="tag">hook</span> Blocking the file even against <code class="inl">git add -f</code></h3>
+  <p><code class="inl">check_no_dufs_conf.sh</code> reads the staged set directly, so a force-added conf is caught regardless of any file filter:</p>
+  <pre>staged="$(git diff --cached --name-only --diff-filter=ACM)"
+bad="$(printf '%s\n' "$staged" | grep -E '(^|/)\.dufs_cloud\.conf$' || true)"
+[ -n "$bad" ] &amp;&amp; { echo "ERROR: refusing to commit the dufs secret config" &gt;&amp;2; exit 1; }</pre>
+
+  <h2 id="playground">4 · Playground — the serve-dir guard</h2>
+  <p>Type a candidate <code class="inl">CLOUD_ROOT</code> and see the exact verdict <code class="inl">assert_cloud_root_safe</code> would give. (Assumes <code class="inl">$HOME=/home/kuhy</code>, repo <code class="inl">/home/kuhy/testsAndMisc</code>. Paths are resolved like <code class="inl">readlink -m</code>, so <code class="inl">..</code> collapses.)</p>
+  <div class="mw">
+    <input id="mwIn" value="/home/kuhy/cloud" spellcheck="false" oninput="mwEval()">
+    <div id="mwOut" class="verdict"></div>
+    <div class="chips">
+      <span class="chip" onclick="mwSet('/home/kuhy/cloud')">~/cloud</span>
+      <span class="chip" onclick="mwSet('/home/kuhy')">~ (home)</span>
+      <span class="chip" onclick="mwSet('/home/kuhy/.ssh')">~/.ssh</span>
+      <span class="chip" onclick="mwSet('/home/kuhy/.config/dufs')">~/.config/dufs</span>
+      <span class="chip" onclick="mwSet('/home/kuhy/testsAndMisc/x')">inside the repo</span>
+      <span class="chip" onclick="mwSet('/srv/cloud/../../home/kuhy/.gnupg')">traversal → .gnupg</span>
+      <span class="chip" onclick="mwSet('/srv/cloud')">/srv/cloud</span>
+    </div>
+  </div>
+
+  <h2 id="quiz">5 · Quiz</h2>
+  <div class="score" id="score">Score: 0 / 0</div>
+  <div id="quiz"></div>
+
+  <footer>
+    Generated for commit <code class="inl">20bc1ae</code> · <code class="inl">linux_configuration: self-hosted dufs cloud storage + KeePass WebDAV auto-sync</code>.
+    An <a href="https://www.geoffreylitt.com/2024/06/03/craft-durable-software.html">explain-diff</a> doc — understanding is the bottleneck.
+  </footer>
+</div>
+
+<script>
+  // ---- Micro-world: mirror of assert_cloud_root_safe ----
+  function resolve(p){ // approximate readlink -m: collapse . and ..
+    var parts = p.split('/'), out = [];
+    for (var i=0;i<parts.length;i++){ var s=parts[i];
+      if(s===''||s==='.') continue;
+      if(s==='..'){ out.pop(); continue; }
+      out.push(s);
+    }
+    return '/' + out.join('/');
+  }
+  function guard(cloudRoot){
+    // Mirrors assert_cloud_root_safe: HOME and / are blocked ONLY as an exact
+    // match (subdirs of HOME like ~/cloud are fine); .ssh/.config/.gnupg and
+    // the repo are blocked as exact-or-prefix.
+    var HOME='/home/kuhy', REPO='/home/kuhy/testsAndMisc';
+    var r = resolve(cloudRoot);
+    if (r===HOME) return {ok:false, why:'Resolves to '+r+' — that is $HOME itself; serving it would expose everything.'};
+    if (r==='/')  return {ok:false, why:'Resolves to / — the whole filesystem. Refused.'};
+    var pfx = [HOME+'/.ssh', HOME+'/.config', HOME+'/.gnupg'];
+    for (var i=0;i<pfx.length;i++){
+      var b = pfx[i];
+      if (r===b || r.indexOf(b+'/')===0)
+        return {ok:false, why:'Resolves to '+r+' — under '+b+' (keys/config/secrets). Refused.'};
+    }
+    if (r===REPO || r.indexOf(REPO+'/')===0)
+      return {ok:false, why:'Resolves to '+r+' — inside the git repo, which holds the gitignored secret .conf. Refused.'};
+    return {ok:true, why:'Resolves to '+r+' — a dedicated folder, safe to serve.'};
+  }
+  function mwEval(){
+    var v = document.getElementById('mwIn').value.trim();
+    var out = document.getElementById('mwOut');
+    if(!v){ out.className='verdict'; out.textContent=''; return; }
+    var g = guard(v);
+    out.className = 'verdict ' + (g.ok?'ok':'no');
+    out.innerHTML = (g.ok?'✅ ALLOW':'⛔ REJECT') + '<span class="why">'+g.why+'</span>';
+  }
+  function mwSet(v){ document.getElementById('mwIn').value=v; mwEval(); }
+  mwEval();
+
+  // ---- Quiz ----
+  // correctIndex chosen to span positions C,A,D,B,C and to never be the longest option.
+  var QS = [
+    {
+      q: "Why does dufs listen on 127.0.0.1 instead of 0.0.0.0?",
+      opts: [
+        "Because dufs is technically unable to bind to any publicly routable network interface at all.",
+        "Because DuckDNS only forwards traffic that originates from loopback addresses.",
+        "So Caddy is the only public entry point; dufs can't be reached except through TLS + auth.",
+        "Because the nftables firewall only permits services that bind to loopback ports."
+      ],
+      correct: 2,
+      rat: "Loopback binding + a host-network Caddy means the only way in is the reverse proxy, which enforces HTTPS and login."
+    },
+    {
+      q: "Why does serving a real folder (dufs) matter for the rsync requirement, versus something like Seafile?",
+      opts: [
+        "dufs serves the filesystem directly, so an rsync write shows up immediately with no re-scan.",
+        "dufs compresses uploads, which makes rsync transfers finish roughly two to three times faster overall.",
+        "dufs keeps a separate index database that rsync updates automatically on each run.",
+        "dufs disables WebDAV whenever rsync is active to avoid corrupting concurrent writes."
+      ],
+      correct: 0,
+      rat: "Seafile stores files in an internal block DB rsync can't write into; dufs serves the folder as-is."
+    },
+    {
+      q: "What makes the KeePass mirror event-driven rather than a polling loop?",
+      opts: [
+        "A cron entry re-runs the rsync once every minute to catch recent edits.",
+        "The installer leaves an inotifywait polling loop running in the background after it exits.",
+        "dufs itself watches the vault file and copies it whenever a client connects.",
+        "A systemd .path unit fires the sync service only when Passwords.kdbx is modified."
+      ],
+      correct: 3,
+      rat: "PathModified wakes the oneshot service on a real write — no per-second forks."
+    },
+    {
+      q: "Which guard prevents the installer from ever writing the plaintext password to a non-ignored location?",
+      opts: [
+        "The 0600 file permissions set with umask 077 before the write.",
+        "A git check-ignore call that aborts the install if the conf isn't ignored.",
+        "The three .gitignore entries covering the conf across the repo.",
+        "The pre-commit hook that scans the staged file set for the secret config's filename."
+      ],
+      correct: 1,
+      rat: "assert_config_gitignored refuses to persist the secret unless git confirms it's ignored — a runtime, fail-closed check."
+    },
+    {
+      q: "Why does the sync copy only Passwords.kdbx instead of the whole ~/Keepass directory?",
+      opts: [
+        "Because rsync cannot recurse into directories that contain hidden dot-folders.",
+        "Because copying the directory would exceed dufs's per-file upload size limit.",
+        "To keep the local timestamped .backup_* vault copies off the public server.",
+        "Because KeePassDX refuses to open a database served from a multi-file folder."
+      ],
+      correct: 2,
+      rat: "The vault is what the phone needs; the local .backup_* dirs shouldn't be exposed, encrypted or not."
+    }
+  ];
+  var answered = 0, correct = 0;
+  var quiz = document.getElementById('quiz');
+  QS.forEach(function(item, qi){
+    var wrap = document.createElement('div'); wrap.className='q';
+    var stem = document.createElement('div'); stem.className='stem';
+    stem.textContent = (qi+1)+'. '+item.q; wrap.appendChild(stem);
+    var rat = document.createElement('p'); rat.className='rat'; rat.textContent='→ '+item.rat;
+    item.opts.forEach(function(text, oi){
+      var b = document.createElement('button'); b.className='opt'; b.textContent=text;
+      b.onclick = function(){
+        if (wrap.dataset.done) return;
+        wrap.dataset.done = '1'; answered++;
+        var buttons = wrap.querySelectorAll('.opt');
+        buttons.forEach(function(bb){ bb.disabled=true; });
+        buttons[item.correct].classList.add('correct');
+        if (oi === item.correct){ correct++; }
+        else { b.classList.add('wrong'); }
+        rat.classList.add('show');
+        document.getElementById('score').textContent = 'Score: '+correct+' / '+answered;
+      };
+      wrap.appendChild(b);
+    });
+    wrap.appendChild(rat);
+    quiz.appendChild(wrap);
+  });
+</script>
