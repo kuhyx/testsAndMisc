@@ -1,0 +1,7 @@
+# pnpm build-script allowlist. esbuild needs its postinstall to link its
+# platform binary (Vite depends on it). `onlyBuiltDependencies` is the pnpm 10
+# location; `allowBuilds` is the pnpm 11 location — both are set so either works.
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild

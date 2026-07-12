@@ -1,0 +1,9 @@
+# Lockfiles are tool-generated and must not be reformatted by prettier.
+**/pnpm-lock.yaml
+**/package-lock.json
+**/yarn.lock
+
+# Build output / vendored / generated
+**/dist/
+**/coverage/
+node_modules/

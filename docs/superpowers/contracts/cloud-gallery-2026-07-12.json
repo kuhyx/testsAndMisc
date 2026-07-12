@@ -1,0 +1,17 @@
+{
+  "title": "React media-gallery SPA for the dufs cloud",
+  "objective": "Give the self-hosted cloud a rich web UI at its existing URL: a React SPA served by dufs that shows thumbnails, opens images in a lightbox, plays videos inline, and supports upload, download, delete, and editing text files — all behind the existing dufs auth, without breaking the KeePass sync.",
+  "acceptance_criteria": [
+    "The SPA is served same-origin by dufs (render-spa); it lists directories via WebDAV PROPFIND and streams files via GET (Range for video), so dufs basic-auth covers every request.",
+    "Grid shows generated thumbnails (images via ImageMagick, video posters via ffmpeg) and falls back to an icon when a thumbnail is missing.",
+    "Images open in a lightbox (zoom + keyboard/next/prev); videos play inline; files can be uploaded, downloaded, and deleted (confirm-guarded); .txt/.md files can be edited and saved.",
+    "Enabling render-spa does not break Phase-1 KeePass file GET/PUT/?hash.",
+    "cloud_gallery builds, lints (tsc + eslint strictTypeChecked), and its vitest suite passes with coverage above the project thresholds."
+  ],
+  "out_of_scope": [
+    "Server-side rendering / Next.js (dufs is a static file server)",
+    "Running the live deploy in this session (interactive + outward-facing)",
+    "Fixing the host's broken ffmpeg (video posters skipped until then)"
+  ],
+  "verifier": "de-risk against the real dufs binary (render-spa + PROPFIND/GET/PUT/DELETE/?hash); pnpm build + pnpm lint + pnpm coverage (38 tests, >90%); generate_thumbnails.sh functional test; local dufs --render-spa serving check (shell/asset/thumbnail/PROPFIND all 200); documented in docs/superpowers/evidence/cloud-gallery-2026-07-12.json"
+}

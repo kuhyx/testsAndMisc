@@ -1,0 +1,57 @@
+{
+  "intent": "Replace dufs's plain file-list UI with a bleeding-edge React SPA media gallery, served by dufs itself at the cloud URL behind the existing auth: thumbnail grid, image lightbox, inline video, upload/download, delete, and a simple .txt/.md editor.",
+  "scope": [
+    "cloud_gallery/ — new React 19 + Vite + TypeScript SPA (WebDAV client, browse, lightbox, video, upload, delete, text editor) with vitest tests",
+    "linux_configuration/scripts/single_use/utils/generate_thumbnails.sh — ImageMagick/ffmpeg thumbnail + video-poster generator",
+    "linux_configuration/scripts/single_use/features/setup_cloud_gallery.sh — build + deploy installer",
+    "linux_configuration/scripts/single_use/features/setup_dufs_cloud.sh — conditionally enable dufs render-spa when the SPA is deployed",
+    "Non-goals: no server-side rendering / Next.js (dufs is a static server); no live deploy in this session (interactive/outward-facing)"
+  ],
+  "changes": [
+    "SPA serving architecture (de-risked against the real dufs 0.46.0 binary): dufs --assets does NOT override the UI, so instead dufs `render-spa` serves the app shell, the SPA lists directories via WebDAV PROPFIND (render-flag-immune) and streams files via GET (Range for video), with HashRouter so navigation stays at '/'. Same-origin → dufs basic-auth covers all API calls. Verified render-spa leaves KeePass file GET/PUT/?hash intact (Phase 1 safe).",
+    "cloud_gallery: typed dufs client (PROPFIND parse, GET/PUT/DELETE, thumbnail URLs), useHashPath routing, useListing, and components (grid+thumbnails, media-viewer lightbox/video with keyboard nav, drag/pick upload, confirm-guarded delete, text editor). Mirrors the repo's bucket_catch stack (pnpm, strictTypeChecked eslint, vitest).",
+    "generate_thumbnails.sh writes ~400px JPEGs to $CLOUD_ROOT/.thumbs/<path>.jpg (images via ImageMagick, video posters via ffmpeg), idempotent + flock-guarded; setup_cloud_gallery.sh builds+deploys the SPA into the cloud root, enables render-spa, runs an initial thumbnail pass, and adds an ExecStartPost drop-in so thumbnails refresh after each Phase-2 media sync."
+  ],
+  "verification": [
+    {
+      "command": "dufs --assets vs --render-spa de-risk (real dufs binary)",
+      "result": "pass",
+      "evidence": "--assets did not override the listing UI; --render-spa + WebDAV PROPFIND works: PROPFIND lists dirs, GET serves files, PUT=201, DELETE=204, and ?hash/GET/PUT on files still work (KeePass unaffected)."
+    },
+    {
+      "command": "pnpm build && pnpm lint (tsc + eslint strictTypeChecked)",
+      "result": "pass",
+      "evidence": "vite build produces dist (index.html + assets); tsc --noEmit clean; eslint clean."
+    },
+    {
+      "command": "pnpm test / pnpm coverage",
+      "result": "pass",
+      "evidence": "38 vitest tests pass; coverage 92.8% statements / 85.3% branches / 92.1% functions / 96% lines — above the project thresholds (dufs-client 100%). Tests render the Gallery in jsdom and exercise browse, lightbox, video, upload, delete, and the editor."
+    },
+    {
+      "command": "generate_thumbnails.sh on throwaway media",
+      "result": "pass",
+      "evidence": "image → 400px JPEG thumbnail; idempotent re-run skips current thumbs. Video posters need ffmpeg, which is broken on this host (libvpx.so.11 missing) — the script degrades gracefully (failed count) and the grid shows a film icon."
+    },
+    {
+      "command": "Local dufs --render-spa end-to-end serving check",
+      "result": "pass",
+      "evidence": "Built SPA + test media + thumbnails served by a local dufs: GET / → app shell, /assets/*.js → 200, /.thumbs/....jpg → 200 image/jpeg, PROPFIND lists the media. Live in-browser pixel render pending (Chrome extension not connected while the user is away)."
+    },
+    {
+      "command": "Live deploy (setup_cloud_gallery.sh) + in-browser verification",
+      "result": "pending",
+      "evidence": "Needs sudo + a build on the live host and enables render-spa on the public dufs; left for the user to run via '! setup_cloud_gallery.sh' and eyeball. Note: fix ffmpeg first for video posters."
+    }
+  ],
+  "risks": [
+    "The live deploy enables dufs render-spa (verified safe for the KeePass sync) and copies the SPA (index.html + assets/) into the cloud root; the gallery hides those app files from the grid.",
+    "System ffmpeg is broken (libvpx.so.11) so video posters are skipped until it's fixed (full system upgrade / reinstall ffmpeg); images are unaffected.",
+    "Coverage is high (>90%) but not the monorepo's 100% bar across a full media SPA; the dufs client is 100% and UI branches are covered by integration tests."
+  ],
+  "rollback": [
+    "Remove render-spa from ~/.config/dufs/dufs.yaml and restart dufs to return to the default file-list UI.",
+    "rm ~/cloud/index.html ~/cloud/assets (the deployed SPA) and ~/cloud/.thumbs (thumbnails); remove /etc/systemd/system/media-cloud-sync.service.d/10-thumbnails.conf.",
+    "The cloud data (Media, Keepass, etc.) is untouched by any of the above."
+  ]
+}

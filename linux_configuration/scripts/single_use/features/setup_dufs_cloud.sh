@@ -196,6 +196,10 @@ write_dufs_config() {
 	local hash
 	# Read the password from stdin so it never appears in the process argv (ps).
 	hash="$(printf '%s' "${DUFS_PASSWORD}" | openssl passwd -6 -stdin)"
+	# Serve the cloud_gallery SPA (render-spa) ONLY once it is deployed into the
+	# cloud root — a fresh dufs with no gallery keeps the default file listing.
+	local render=""
+	[[ -f "${CLOUD_ROOT}/index.html" ]] && render="render-spa: true"
 	ensure_dir "${cfg_dir}"
 	umask 077
 	cat >"${cfg}" <<EOF
@@ -204,6 +208,7 @@ serve-path: ${CLOUD_ROOT}
 bind: 127.0.0.1
 port: ${DUFS_PORT}
 allow-all: true
+${render}
 auth:
   - "${DUFS_USER}:${hash}@/:rw"
 EOF
