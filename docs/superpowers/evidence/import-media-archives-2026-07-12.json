@@ -1,0 +1,36 @@
+{
+  "intent": "Extract the 44 media_archive_*.zip snapshots in ~/Downloads/media_archive_archive, MOVE all their media into the dufs cloud (deduplicated), and delete each zip after its media is safely in the cloud — reclaiming Downloads space.",
+  "scope": [
+    "New reusable tool: linux_configuration/scripts/single_use/utils/import_media_archives.sh",
+    "Reuses sync_media_to_cloud.sh (Phase-2 organizer) unchanged",
+    "Non-goal: no non-media handling (archives verified to contain only images/videos)"
+  ],
+  "changes": [
+    "import_media_archives.sh: per-zip extract into a staging dir on the cloud filesystem (so mv is a rename), run sync_media_to_cloud.sh to MOVE media into Media/YYYY/MM with dedup, verify the staging drained, then delete the staging and the zip. A zip is deleted only after its media is confirmed in the cloud; any problem keeps the zip and continues.",
+    "Self-installs unzip on Arch; flock/dedup handled by the reused organizer."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck import_media_archives.sh",
+      "result": "pass",
+      "evidence": "clean after fixing SC2155"
+    },
+    {
+      "command": "single-zip live test on a throwaway copy",
+      "result": "pass",
+      "evidence": "extract -> 1px.png moved to Media/2026/01 -> verify -> test zip deleted"
+    },
+    {
+      "command": "full run over ~/Downloads/media_archive_archive (44 zips, 27 GB)",
+      "result": "pass",
+      "evidence": "44 imported + deleted, 0 kept; the two 13.7 GB near-duplicate snapshots collapsed (zip 36 reported 2412 duplicates dropped); cloud Media 4.9 GB -> 19 GB (2949 files); Downloads archive dir emptied and removed; 27 GB reclaimed"
+    }
+  ],
+  "risks": [
+    "Organizer dedup is by same-name+same-size within a YYYY/MM bucket (not full-hash); two genuinely different media with identical name+size+mtime would be treated as duplicates. Negligible for these dated snapshots.",
+    "Zips are permanently deleted after move — intended, and only after per-zip verification."
+  ],
+  "rollback": [
+    "No rollback for deleted zips (by design). The media itself lives in ~/cloud/Media and is served by dufs; re-run generate_thumbnails.sh if previews are missing."
+  ]
+}

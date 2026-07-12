@@ -1,0 +1,17 @@
+{
+  "title": "Import media_archive_*.zip snapshots into the dufs cloud and delete the zips",
+  "objective": "Give a one-command, safe, resumable way to fold the ~/Downloads/media_archive_archive snapshot zips into the self-hosted cloud: extract each, MOVE its media into ~/cloud/Media/YYYY/MM deduplicated against what is already there, and delete the zip only once its media is confirmed in the cloud — so Downloads reclaims the space with no data loss.",
+  "acceptance_criteria": [
+    "Each zip's media is moved into ~/cloud/Media/YYYY/MM by original mtime, deduplicated across the overlapping snapshots.",
+    "A zip is deleted only after its extracted media is verified to have left staging (moved or deduped); on any failure the zip is kept.",
+    "Staging is on the cloud filesystem so moves are atomic renames, not copies.",
+    "Only media is handled; the archives were verified to contain no non-media files, so nothing else is lost.",
+    "After the run the archive directory is empty and removed, and Downloads has reclaimed the space."
+  ],
+  "out_of_scope": [
+    "Non-media file handling (none exist in these archives)",
+    "Full-content-hash dedup (organizer uses name+size within a date bucket)",
+    "Keeping the zips (explicitly deleted per user request)"
+  ],
+  "verifier": "shellcheck; single-zip live test on a throwaway copy; full run over 44 zips (44 imported+deleted, 0 kept; 2412 duplicates dropped on the near-duplicate 13.7 GB snapshot; cloud Media 4.9->19 GB / 2949 files; archive dir removed); documented in docs/superpowers/evidence/import-media-archives-2026-07-12.json"
+}
