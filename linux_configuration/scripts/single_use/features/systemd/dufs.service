@@ -1,0 +1,22 @@
+[Unit]
+# dufs self-hosted cloud file server (web UI + WebDAV), bound to loopback and
+# fronted by the existing Caddy reverse proxy for public HTTPS.
+# Placeholders (__USER__ / __HOME__) are substituted by setup_dufs_cloud.sh at
+# install time; this file is the source of truth, not the installed copy.
+Description=dufs self-hosted cloud file server
+Documentation=https://github.com/sigoden/dufs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+ExecStart=/usr/local/bin/dufs --config __HOME__/.config/dufs/dufs.yaml
+Restart=on-failure
+RestartSec=3
+# Minimal hardening (dufs needs $HOME/.config and the served dir under /home).
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

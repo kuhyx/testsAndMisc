@@ -448,6 +448,13 @@ repos:
         language: script
         exclude: ^(\.secret-patterns|\.pre-commit-config\.yaml|.*\.geojson)$
 
+      - id: check-no-dufs-conf
+        name: block dufs secret config (.dufs_cloud.conf)
+        entry: meta/scripts/check_no_dufs_conf.sh
+        language: script
+        always_run: true
+        pass_filenames: false
+
   # ===========================================================================
   # COMMITIZEN - Conventional commits (optional)
   # ===========================================================================

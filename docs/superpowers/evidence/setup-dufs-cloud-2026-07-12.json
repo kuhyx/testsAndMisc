@@ -1,0 +1,57 @@
+{
+  "intent": "Provide a self-hosted Google-Drive-style cloud on this Arch PC: a dufs file server (web UI + WebDAV) exposed publicly via the existing Caddy+DuckDNS stack, with the KeePassXC vault auto-mirrored into it so it is reachable and syncable from the phone on mobile network.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_dufs_cloud.sh (new self-sustaining installer)",
+    "linux_configuration/scripts/single_use/features/systemd/{dufs.service,keepass-cloud-sync.service,keepass-cloud-sync.path} (new units)",
+    "linux_configuration/.gitignore (ignore .dufs_cloud.conf)",
+    "Non-goals: no second Caddy/DuckDNS updater, no hand-edit of /etc/nftables.conf, no new mobile app (WebDAV covers KeePassDX)"
+  ],
+  "changes": [
+    "Installer runs as the normal user with targeted sudo: installs a pinned, sha256-verified dufs v0.46.0 binary, writes a 0600 dufs.yaml (SHA-512 hashed auth, no anonymous access, bound to 127.0.0.1:5000), and installs+enables a system dufs.service.",
+    "Reuses the host exposure pattern from setup_gitea.sh: appends a marker-guarded reverse_proxy block for a new DuckDNS subdomain to the shared ~/gitea/Caddyfile and reloads gitea-caddy; extends the existing DuckDNS updater's domains= list (no new cron); opens 80/443 via setup_wireguard_ssh.sh allow-web only if not already open.",
+    "KeePass auto-sync: an event-driven systemd .path unit watches ~/Keepass/Passwords.kdbx and rsyncs ONLY that vault file into the served folder on every change (local .backup_* vaults stay off the public server); an initial mirror runs at install time.",
+    "Paranoid secret hardening: the plaintext password config is gitignored at 3 layers (repo root, linux_configuration/, **/ patterns); a new check-no-dufs-conf pre-commit hook blocks it even against `git add -f`; the installer refuses to write it unless `git check-ignore` confirms it is ignored; the password is hashed via openssl stdin (never in argv/ps); and a cloud-root guard forbids serving home/.ssh/.config/.gnupg/the repo/root."
+  ],
+  "verification": [
+    {
+      "command": "bash -n setup_dufs_cloud.sh && shellcheck -x --severity=warning setup_dufs_cloud.sh",
+      "result": "pass",
+      "evidence": "syntax OK; shellcheck clean (no findings)."
+    },
+    {
+      "command": "dufs v0.46.0 config + WebDAV smoke test (scratchpad, real binary)",
+      "result": "pass",
+      "evidence": "Flat-string auth 'user:$6$hash@/:rw' loads. no-auth->401, bad-pass->401, good->200; WebDAV PROPFIND->207, GET file->200 (returned content). Confirms schema, hashed auth, no anonymous access, WebDAV works."
+    },
+    {
+      "command": "Isolated idempotency/render tests (scratchpad copies)",
+      "result": "pass",
+      "evidence": "DuckDNS domains sed adds label once and is skipped on re-run with token preserved; Caddy block appended once (1 cloud block) with tab indentation; unit rendering substitutes __USER__/__HOME__/__CLOUD_ROOT__ with no leftover placeholders."
+    },
+    {
+      "command": "systemd-analyze verify rendered-*.service rendered-*.path",
+      "result": "pass",
+      "evidence": "No structural errors; only benign 'dufs not executable yet' (binary installed at deploy time) and sandbox 'unknown user' notes."
+    },
+    {
+      "command": "Paranoid secret guards (functional tests)",
+      "result": "pass",
+      "evidence": "git check-ignore confirms .dufs_cloud.conf ignored at all 3 locations; check_no_dufs_conf.sh blocks a `git add -f`ed conf (exit 1) and cleanup leaves nothing staged; cloud-root guard rejects HOME/.ssh/.config/.gnupg/repo/`/`/`../` traversal and allows dedicated folders; openssl passwd -6 -stdin yields a $6$ hash without argv exposure."
+    },
+    {
+      "command": "End-to-end deploy + phone-on-cellular acceptance",
+      "result": "pending",
+      "evidence": "Requires interactive password + sudo, so run by the user via '! ./setup_dufs_cloud.sh', plus a one-time manual DuckDNS subdomain registration. To be confirmed before commit."
+    }
+  ],
+  "risks": [
+    "Public file server: mitigated by mandatory auth (SHA-512 hashed, no anonymous), HTTPS via Caddy, dufs bound to 127.0.0.1 only; the kdbx is itself master-password-encrypted.",
+    "Caddy block is appended to the shared Gitea Caddyfile; re-running setup_gitea.sh regenerates it and drops the block (re-run setup_dufs_cloud.sh to restore).",
+    "External reachability depends on a one-time manual DuckDNS subdomain creation and the existing router 80/443 forward."
+  ],
+  "rollback": [
+    "sudo systemctl disable --now dufs.service keepass-cloud-sync.path; sudo rm /etc/systemd/system/{dufs.service,keepass-cloud-sync.service,keepass-cloud-sync.path}; sudo systemctl daemon-reload",
+    "Remove the cloud block from ~/gitea/Caddyfile and 'docker exec gitea-caddy caddy reload'; revert the domains= edit in ~/.joplin-server/duckdns-update.sh; sudo rm /usr/local/bin/dufs; rm -rf ~/.config/dufs ~/cloud",
+    "Validate after rollback: gitea still reachable at https://kuhy.duckdns.org and dufs.service is gone."
+  ]
+}

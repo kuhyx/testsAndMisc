@@ -3,6 +3,10 @@
 # Sensitive — must NEVER be committed (contains regex of home GPS coordinates etc.)
 .secret-patterns
 
+# dufs cloud secret config — holds a plaintext web password; never commit anywhere.
+**/.dufs_cloud.conf
+.dufs_cloud.conf
+
 # Compiled output
 /dist
 /tmp

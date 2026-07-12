@@ -8,6 +8,11 @@ scripts/features/.raspberry_pi.conf
 scripts/single_use/features/.wireguard_ssh.conf
 .wireguard_ssh.conf
 
+# dufs cloud setup config (contains the plaintext web password) — never commit.
+scripts/single_use/features/.dufs_cloud.conf
+.dufs_cloud.conf
+**/.dufs_cloud.conf
+
 # Generated study materials (repo_to_study.sh output)
 study_materials/
 **/study_materials/

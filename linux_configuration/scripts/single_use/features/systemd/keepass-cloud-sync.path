@@ -1,0 +1,12 @@
+[Unit]
+# Event-driven watch on the KeePassXC vault (no polling). On modification it
+# starts keepass-cloud-sync.service, which rsyncs the vault into the cloud folder.
+# Placeholder __HOME__ is substituted by setup_dufs_cloud.sh at install time.
+Description=Watch KeePass vault and sync to dufs cloud folder
+
+[Path]
+PathModified=__HOME__/Keepass/Passwords.kdbx
+Unit=keepass-cloud-sync.service
+
+[Install]
+WantedBy=multi-user.target
