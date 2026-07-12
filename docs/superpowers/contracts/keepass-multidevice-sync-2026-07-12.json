@@ -1,0 +1,17 @@
+{
+  "title": "One KeePass vault, synced across all devices",
+  "objective": "Give every device (PC, Ubuntu laptop, phone) a single KeePass vault that stays in sync via the dufs cloud, with an identical open flow and without ever storing the vault master password. Success = editing on any device and, on the next open elsewhere, seeing a merged database with no lost entries and exactly one working vault per machine.",
+  "acceptance_criteria": [
+    "keepass-open prompts the master password (held only in memory), folds in strays, pulls+merges the cloud copy, opens KeePassXC on ~/Keepass/Passwords.kdbx, and publishes edits on close.",
+    "keepassxc-cli merge is used so concurrent edits merge (union) rather than clobber; uploads are guarded by a dufs ?hash compare-and-swap.",
+    "The consolidator folds a stray only if it opens with the same master password, backs up first, never removes the canonical, and NEVER touches the dufs serve-path (the remote store).",
+    "Only the dufs server password (not the vault key) is cached in the keyring; no secret is written to the repo.",
+    "Same unified installer + open command on PC and laptop (no role flag)."
+  ],
+  "out_of_scope": [
+    "Android app changes (the phone uses KeePassDX natively)",
+    "A background/continuous sync daemon (sync rides on open/close by design)",
+    "Phases 2-4 (downloads-to-cloud, web gallery, mobile app)"
+  ],
+  "verifier": "shellcheck -x + bash -n on all four scripts; keepass_sync.sh (8) + keepass_consolidate.sh incl. serve-path exclusion (14) + setup_keepass_sync.sh unified (8) assertion suites on throwaway vaults; real PC apply with live WebDAV GET=200 and ?hash==sha256; documented in docs/superpowers/evidence/keepass-multidevice-sync-2026-07-12.json"
+}

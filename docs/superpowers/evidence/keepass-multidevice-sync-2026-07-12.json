@@ -1,0 +1,64 @@
+{
+  "intent": "One KeePass vault, synced across PC + Ubuntu laptop + phone with an IDENTICAL flow on every device: you open the vault with a single `keepass-open` command that pulls+merges the latest, opens KeePassXC on ~/Keepass/Passwords.kdbx, and publishes your edits on close. The vault master password is never stored — it is typed at open and held only in memory. Exactly one working vault per machine; strays are folded in.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/keepass_sync.sh (bidirectional merge-safe reconcile over WebDAV or local file)",
+    "linux_configuration/scripts/single_use/features/keepass_consolidate.sh (fold stray *.kdbx into the one vault)",
+    "linux_configuration/scripts/single_use/features/keepass-open.sh (the one open command: prompt → consolidate → pull+merge → launch → push)",
+    "linux_configuration/scripts/single_use/features/setup_keepass_sync.sh (single unified installer — no pc/laptop flag)",
+    "Non-goals: no stored master password, no background daemon, no systemd units; the phone uses KeePassDX (same workflow, different app)"
+  ],
+  "changes": [
+    "Unified model: every Linux device keeps a local ~/Keepass/Passwords.kdbx and syncs it to the canonical copy on the dufs server over WebDAV — the PC included (it talks to its own dufs over the public URL). One command, no role flag; the installer caches only the dufs *server* password in the keyring and bootstraps the local vault via an authenticated WebDAV GET.",
+    "Reconcile engine (keepass_sync.sh): master password from KP_MASTER_PW (in-memory, never on disk); download remote, back up local, `keepassxc-cli merge --same-credentials` so local becomes the union, then upload guarded by a dufs ?hash compare-and-swap so a concurrent remote change is retried, never clobbered. flock-guarded, idempotent, self-contained (Arch + Ubuntu).",
+    "Consolidator: `fd`-sweeps for strays; a stray is merged+removed ONLY if it opens with the same master password (different-password DBs are reported and left untouched); canonical never removed; both backed up first; --dry-run supported.",
+    "Fixed a pipefail bug: unit detection used `systemctl list-unit-files | grep -q`, which reports failure under set -o pipefail (grep -q closes the pipe → systemctl SIGPIPE) even on a match; switched to pipe-free `systemctl is-enabled/is-active`.",
+    "Fixed a data-safety bug found on the first real run: the consolidator treated the dufs serve-path (~/cloud/Keepass, i.e. the REMOTE store) as a stray and removed it every open (the sync re-published it, so no data was lost, but it was wrong/churny). It now auto-excludes the dufs serve-path (parsed from ~/.config/dufs/dufs.yaml) plus any --exclude/KP_EXCLUDE dirs."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck -x --severity=warning + bash -n on all four scripts",
+      "result": "pass",
+      "evidence": "all four scripts syntax-OK and shellcheck-clean."
+    },
+    {
+      "command": "keepass_sync.sh end-to-end (real keepassxc-cli/secret-tool/dufs, throwaway DBs)",
+      "result": "pass",
+      "evidence": "8/8: file- and webdav-mode divergent vaults converge (both entries, identical after); idempotent re-run reports 'already in sync'; bootstrap seeds a missing local; a WRONG password refuses to touch the DB."
+    },
+    {
+      "command": "keepass_consolidate.sh safety tests (throwaway dirs)",
+      "result": "pass",
+      "evidence": "10/10: same-password stray merged+removed; DIFFERENT-password stray NOT deleted and intact; canonical never deleted; backup-dir kdbx ignored; backups created; --dry-run inert."
+    },
+    {
+      "command": "setup_keepass_sync.sh unified, against a scratchpad dufs (fake HOME, throwaway keyring, stubbed sudo/systemctl)",
+      "result": "pass",
+      "evidence": "8/8: writes webdav config with LOCAL_DB=~/Keepass/Passwords.kdbx; caches the dufs password in the keyring; bootstraps the local vault via WebDAV GET (opens + has the server entry); installs keepass-open + keepass-consolidate; idempotent re-run detects the existing vault."
+    },
+    {
+      "command": "dufs serve-path exclusion (the data-safety fix), throwaway dirs + real dufs.yaml parse",
+      "result": "pass",
+      "evidence": "4/4: with a dufs.yaml serve-path, the served store under it is NOT deleted and stays intact while a genuine stray elsewhere is still folded in and removed; real ~/.config/dufs/dufs.yaml parses to /home/kuhy/cloud and ~/cloud/Keepass is correctly matched as excluded."
+    },
+    {
+      "command": "Real PC apply + live transport",
+      "result": "pass",
+      "evidence": "setup_keepass_sync.sh ran on the PC: deps ok, dufs password cached, config written, ~/Keepass bootstrapped, old one-way unit disabled+inactive, both commands installed. Live WebDAV GET=200 and remote ?hash == local sha256. keepass-open opened KeePassXC and the close-push uploaded (both files identical, throwaway entry preserved). Data confirmed safe after the consolidator bug."
+    },
+    {
+      "command": "Laptop apply + phone KeePassDX round-trip",
+      "result": "pending",
+      "evidence": "Laptop is a manual user run of the same installer; phone round-trip deferred (phone in night-mode curfew). To confirm when available."
+    }
+  ],
+  "risks": [
+    "Master password is prompted each open and lives only in process memory; only the dufs *server* password (not the vault key) is cached in the keyring.",
+    "Concurrent WebDAV writes are made safe by the ?hash compare-and-swap + commutative keepassxc-cli merge (retries, never clobbers); a closed device picks up others' edits at its next open.",
+    "The PC's earlier direct-served-file setup is replaced: the installer re-bootstraps ~/Keepass/Passwords.kdbx and you open via keepass-open on every device (backups retained under ~/Keepass/.backup_*)."
+  ],
+  "rollback": [
+    "rm ~/.config/keepass-sync/ ~/.local/bin/keepass-open ~/.local/bin/keepass-consolidate; secret-tool clear service keepass-sync key dufs.",
+    "Re-enable the old one-way sync if desired: sudo systemctl enable --now keepass-cloud-sync.path.",
+    "Restore any vault from the timestamped ~/Keepass/.backup_* directories."
+  ]
+}
