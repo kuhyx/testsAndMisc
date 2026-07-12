@@ -1,0 +1,17 @@
+{
+  "title": "Extract dufs cloud (web + app + scripts) to github.com/kuhyx/dufs-cloud",
+  "objective": "Move the dufs web gallery, the Flutter mobile app, and the dufs/cloud setup scripts out of this monorepo into a new public repo with preserved git history, CI, 100% coverage and aggressive linting for both apps, then remove them here and leave a pointer, without breaking the live media-cloud-sync systemd units.",
+  "acceptance_criteria": [
+    "New public repo github.com/kuhyx/dufs-cloud exists with web/, app/, scripts/ and preserved history (original dufs commits present).",
+    "CI at .github/workflows/ci.yml runs web (lint + 100% vitest coverage + build) and app (flutter analyze --fatal-infos + test + 100% line-coverage gate).",
+    "The live media-cloud-sync.service and its thumbnails drop-in run the scripts from ~/dufs-cloud/scripts/ and the service still succeeds.",
+    "cloud_gallery/ and the 6 scripts are git rm'd from testsAndMisc; CLAUDE.md and the phone_focus_mode comment point to the new repo.",
+    "No active unit or executed script in testsAndMisc still references the removed files."
+  ],
+  "out_of_scope": [
+    "KeePass sync scripts (separate feature, stay in testsAndMisc)",
+    "Deleting the old ~/dufs_client checkout",
+    "The Phase B media filter/sort/move/multi-download features (done after this)"
+  ],
+  "verifier": "flutter analyze --fatal-infos + flutter test --coverage (100%); pnpm lint + coverage + build; systemctl re-point verification (ExecMainStatus=0); gh repo view (PUBLIC); grep for dangling references"
+}

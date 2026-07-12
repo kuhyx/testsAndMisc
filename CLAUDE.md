@@ -12,6 +12,12 @@ Extracted to their own repos:
 - [`screen-locker`](https://github.com/kuhyx/screen-locker)
 - [`diet-guard`](https://github.com/kuhyx/diet-guard)
 - [`wake-alarm`](https://github.com/kuhyx/wake-alarm)
+- [`dufs-cloud`](https://github.com/kuhyx/dufs-cloud) — self-hosted dufs cloud:
+  React web gallery (`web/`), Flutter app (`app/`), and the dufs/media setup
+  scripts (`scripts/`). Extracted from `cloud_gallery/` + the
+  `linux_configuration` dufs scripts + the standalone `dufs_client` repo. The
+  live `media-cloud-sync` systemd units now run the scripts from
+  `~/dufs-cloud/scripts/`.
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).

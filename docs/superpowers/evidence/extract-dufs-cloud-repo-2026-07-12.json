@@ -1,0 +1,38 @@
+{
+  "intent": "Extract the dufs web gallery, the Flutter app, and the dufs/cloud setup scripts into a new public repo github.com/kuhyx/dufs-cloud (with history), then remove them from this monorepo, leaving a pointer.",
+  "scope": [
+    "Remove cloud_gallery/ and the 6 dufs/cloud scripts + dufs.service template",
+    "Update phone_focus_mode/config.sh comment and CLAUDE.md pointer",
+    "Non-goal: KeePass sync scripts stay (separate feature)"
+  ],
+  "changes": [
+    "git rm cloud_gallery/ and linux_configuration/.../{setup_dufs_cloud,setup_cloud_gallery,setup_media_cloud_sync,generate_thumbnails,sync_media_to_cloud,import_media_archives}.sh + features/systemd/dufs.service.",
+    "These now live (with full git history) in github.com/kuhyx/dufs-cloud under web/, app/, scripts/; the live media-cloud-sync systemd units were re-pointed to ~/dufs-cloud/scripts/.",
+    "phone_focus_mode/config.sh: dufs_client whitelist comment now points at the new repo.",
+    "CLAUDE.md: added dufs-cloud to the extracted-repos list."
+  ],
+  "verification": [
+    {
+      "command": "systemctl (re-pointed units)",
+      "result": "pass",
+      "evidence": "media-cloud-sync.service ExecStart=/home/kuhy/dufs-cloud/scripts/sync_media_to_cloud.sh; ran once with ExecMainStatus=0; timer+path active"
+    },
+    {
+      "command": "new repo CI locally (web + app)",
+      "result": "pass",
+      "evidence": "web: 62 tests 100% cov, lint clean, build ok; app: 36 tests 100% line cov, flutter analyze --fatal-infos clean"
+    },
+    {
+      "command": "grep remaining references",
+      "result": "pass",
+      "evidence": "only comments/docs (historical HTML, inactive legacy keepass templates) reference the removed names"
+    }
+  ],
+  "risks": [
+    "The live media-cloud-sync units depend on ~/dufs-cloud being present; if that checkout is deleted, the timer's ExecStart fails (path watcher/timer stay, sync no-ops).",
+    "The docs/explanations HTML still references the old script paths (historical record, left intentionally)."
+  ],
+  "rollback": [
+    "git revert this commit restores the scripts in the monorepo; re-point the systemd units back with sed to the testsAndMisc paths and daemon-reload."
+  ]
+}
