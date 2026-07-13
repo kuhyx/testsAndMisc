@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Adding SyncYomi to a one-edge home server</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1b1f24; --muted: #5b6470; --card: #f6f8fa;
+    --border: #d8dee4; --accent: #4f46e5; --accent-soft: #eef0ff;
+    --ok: #1a7f37; --ok-soft: #e6f4ea; --bad: #b42318; --bad-soft: #fdecea;
+    --code: #0b1020; --code-fg: #e6e6e6; --pill: #eaeef2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #9aa5b1; --card: #161b22;
+      --border: #2a323c; --accent: #a5b4fc; --accent-soft: #1c2030;
+      --ok: #4ac776; --ok-soft: #12261a; --bad: #ff7b72; --bad-soft: #2a1615;
+      --code: #010409; --code-fg: #e6edf3; --pill: #1c2430;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #9aa5b1; --card: #161b22;
+    --border: #2a323c; --accent: #a5b4fc; --accent-soft: #1c2030;
+    --ok: #4ac776; --ok-soft: #12261a; --bad: #ff7b72; --bad-soft: #2a1615;
+    --code: #010409; --code-fg: #e6edf3; --pill: #1c2430;
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --fg: #1b1f24; --muted: #5b6470; --card: #f6f8fa;
+    --border: #d8dee4; --accent: #4f46e5; --accent-soft: #eef0ff;
+    --ok: #1a7f37; --ok-soft: #e6f4ea; --bad: #b42318; --bad-soft: #fdecea;
+    --code: #0b1020; --code-fg: #e6e6e6; --pill: #eaeef2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px;
+  }
+  .wrap { max-width: min(48rem, 92vw); margin: 0 auto; padding: 2.2rem 0 5rem; }
+  h1 { font-size: 1.85rem; line-height: 1.2; margin: 0 0 .3rem; }
+  h2 { font-size: 1.35rem; margin: 2.6rem 0 .7rem; padding-top: .4rem; }
+  h3 { font-size: 1.05rem; margin: 1.6rem 0 .4rem; }
+  p { margin: .7rem 0; }
+  a { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 1.02rem; margin-top: 0; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: .88em;
+    background: var(--pill); padding: .1em .38em; border-radius: 5px; }
+  pre { background: var(--code); color: var(--code-fg); border-radius: 10px;
+    padding: 1rem 1.1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+    font-size: .82rem; line-height: 1.55; border: 1px solid var(--border); }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1rem 1.2rem; margin: 1.6rem 0; }
+  .toc ol { margin: .3rem 0 0; padding-left: 1.2rem; }
+  .toc li { margin: .2rem 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.2rem; margin: 1.1rem 0; }
+  .note { border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 10px 10px 0; padding: .7rem 1rem; margin: 1.1rem 0; }
+  .pill { display: inline-block; background: var(--pill); border: 1px solid var(--border);
+    border-radius: 999px; padding: .12em .7em; font-size: .8rem; color: var(--muted);
+    margin: .15rem .2rem .15rem 0; font-family: ui-monospace, monospace; }
+  /* diagram */
+  .diagram { display: flex; flex-direction: column; gap: .55rem; align-items: stretch;
+    margin: 1rem 0; }
+  .row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .box { border: 1px solid var(--border); border-radius: 10px; padding: .55rem .8rem;
+    background: var(--bg); font-size: .86rem; }
+  .box b { display: block; font-size: .8rem; }
+  .box small { color: var(--muted); font-family: ui-monospace, monospace; }
+  .edge { border-color: var(--accent); background: var(--accent-soft); }
+  .new { border-color: var(--ok); background: var(--ok-soft); }
+  .arrow { color: var(--muted); font-weight: 700; }
+  /* router widget */
+  .router { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.2rem; margin: 1.2rem 0; }
+  .router label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: .3rem; }
+  .router select, .router button { font-size: .95rem; padding: .5rem .7rem; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--fg); }
+  .router button { background: var(--accent); color: #fff; border: none; cursor: pointer; font-weight: 600; }
+  .router button:hover { filter: brightness(1.08); }
+  .trace { margin-top: 1rem; display: flex; flex-direction: column; gap: .4rem; }
+  .step { opacity: 0; transform: translateY(4px); transition: opacity .35s, transform .35s;
+    border: 1px solid var(--border); border-radius: 9px; padding: .5rem .75rem; font-size: .87rem;
+    background: var(--bg); }
+  .step.show { opacity: 1; transform: none; }
+  .step.hit { border-color: var(--ok); background: var(--ok-soft); }
+  .step.miss { border-color: var(--bad); background: var(--bad-soft); }
+  .step small { color: var(--muted); font-family: ui-monospace, monospace; }
+  /* quiz */
+  .q { border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.2rem; margin: 1rem 0;
+    background: var(--card); }
+  .q .stem { font-weight: 600; margin-bottom: .6rem; }
+  .opt { display: block; width: 100%; text-align: left; border: 1px solid var(--border);
+    background: var(--bg); color: var(--fg); border-radius: 9px; padding: .6rem .8rem;
+    margin: .4rem 0; cursor: pointer; font-size: .93rem; line-height: 1.4; }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .opt:disabled { cursor: default; }
+  .why { margin-top: .5rem; font-size: .87rem; color: var(--muted); display: none; }
+  .why.show { display: block; }
+  .score { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--border);
+    padding: .6rem 0; font-weight: 600; }
+  .foot { color: var(--muted); font-size: .85rem; margin-top: 3rem; border-top: 1px solid var(--border);
+    padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Adding SyncYomi to a one-edge home server</h1>
+  <p class="sub">How <code>setup_syncyomi.sh</code> stands up a manga-sync server that a phone can reach over the public internet — by slotting into infrastructure that already existed, rather than building a new stack.</p>
+
+  <div class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#background">Background — the pieces already on the box</a></li>
+      <li><a href="#intuition">Intuition — one door, three rooms</a></li>
+      <li><a href="#code">Code — a walkthrough by concern</a></li>
+      <li><a href="#quiz">Quiz — check your understanding</a></li>
+    </ol>
+  </div>
+
+  <h2 id="background">1 · Background</h2>
+
+  <p><strong>SyncYomi</strong> is a small self-hosted server. The manga reader app <strong>TachiyomiSY</strong> on a phone talks to it to keep its library and reading progress in sync across devices — the phone uploads a blob of its library, the server stores it, and other devices download it. The phone authenticates with a single <em>API key</em>, and it needs to reach the server from anywhere, including mobile data.</p>
+
+  <p>The interesting part isn't SyncYomi itself — it's that this PC was <em>already</em> a public server for two other things, and the new script had to fit into that without disturbing them. Three existing facts shaped every decision:</p>
+
+  <div class="card">
+    <h3>a. There is exactly one front door</h3>
+    <p>A single <strong>Caddy</strong> container (named <code>gitea-caddy</code>) owns the public ports <code>80</code> and <code>443</code>. It terminates TLS and forwards each request to a small backend that listens only on <code>127.0.0.1</code> (loopback — unreachable from the network). Two tenants already live behind it:</p>
+    <p>
+      <span class="pill">kuhy.duckdns.org → 127.0.0.1:3000 (Gitea)</span>
+      <span class="pill">kuhy-cloud.duckdns.org → 127.0.0.1:5000 (dufs)</span>
+    </p>
+    <p>Caddy tells them apart by the <em>hostname</em> in the request. It also fetches and renews a free Let's Encrypt TLS certificate for each hostname automatically.</p>
+  </div>
+
+  <div class="card">
+    <h3>b. DuckDNS gives every service the same public IP</h3>
+    <p>The home connection has one changing public IP. A cron job (<code>~/.joplin-server/duckdns-update.sh</code>) tells DuckDNS "these labels all point at my current IP". Adding a service means adding its label to that one updater — not creating a second updater.</p>
+  </div>
+
+  <div class="card">
+    <h3>c. The firewall silently kills bridged containers</h3>
+    <p>This host's <code>nftables</code> has a default-drop <em>FORWARD</em> chain. A normal Docker bridge network routes through FORWARD, so a bridged container's traffic gets dropped with no error. The existing services dodge this by using <code>network_mode: host</code> and binding to <code>127.0.0.1</code>. The new service must do the same.</p>
+  </div>
+
+  <p>So the change is not "install a server." It's "add a third tenant to a shared, hostname-routed edge, reusing its TLS, its DNS updater, and its firewall posture."</p>
+
+  <h2 id="intuition">2 · Intuition — one door, three rooms</h2>
+
+  <p>Picture the whole public surface as a single reception desk. Everything from the outside world arrives at that one desk (port 443 on <code>gitea-caddy</code>). The desk reads the name on the envelope — the hostname — and walks it to the right internal room. The rooms themselves have no external doors at all.</p>
+
+  <div class="diagram">
+    <div class="row">
+      <div class="box"><b>📱 Phone</b><small>https://kuhy-sync.duckdns.org</small></div>
+      <span class="arrow">→</span>
+      <div class="box edge"><b>gitea-caddy</b><small>:443 · TLS · host-net</small></div>
+    </div>
+    <div class="row" style="padding-left:1rem">
+      <span class="arrow">routes by hostname ↓</span>
+    </div>
+    <div class="row" style="padding-left:1rem">
+      <div class="box"><b>Gitea</b><small>127.0.0.1:3000</small></div>
+      <div class="box"><b>dufs</b><small>127.0.0.1:5000</small></div>
+      <div class="box new"><b>SyncYomi ⭐ new</b><small>127.0.0.1:8282</small></div>
+    </div>
+  </div>
+
+  <p>Adding SyncYomi is therefore four small edits, not a new stack:</p>
+  <ul>
+    <li><strong>A new room:</strong> a SyncYomi container on <code>127.0.0.1:8282</code>.</li>
+    <li><strong>A new name plate at the desk:</strong> one <code>kuhy-sync.duckdns.org { … }</code> block appended to the shared Caddyfile.</li>
+    <li><strong>A new label on the DNS updater</strong> so the name resolves to home.</li>
+    <li><strong>An API key,</strong> minted automatically so you can hand it to the phone.</li>
+  </ul>
+
+  <div class="note">
+    <strong>Why loopback matters.</strong> If SyncYomi listened on <code>0.0.0.0</code>, it would have an external door of its own — bypassing the TLS desk entirely and serving your library in plaintext. Binding <code>127.0.0.1</code> forces every request to go through Caddy. SyncYomi actually defaults to <code>0.0.0.0</code>, so the script <em>rewrites</em> that after first launch.</p>
+  </div>
+
+  <h3>Try it: how the desk routes a request</h3>
+  <p>Pick a hostname and watch Caddy decide where it goes. This mirrors the real site blocks in <code>~/gitea/Caddyfile</code>.</p>
+
+  <div class="router">
+    <label for="host">Incoming request hostname</label>
+    <div class="row">
+      <select id="host">
+        <option value="kuhy-sync.duckdns.org">kuhy-sync.duckdns.org</option>
+        <option value="kuhy.duckdns.org">kuhy.duckdns.org</option>
+        <option value="kuhy-cloud.duckdns.org">kuhy-cloud.duckdns.org</option>
+        <option value="kuhy-unknown.duckdns.org">kuhy-unknown.duckdns.org</option>
+      </select>
+      <button id="routeBtn" type="button">Route it →</button>
+    </div>
+    <div class="trace" id="trace"></div>
+  </div>
+
+  <h2 id="code">3 · Code — a walkthrough by concern</h2>
+  <p>The script is one file, <code>setup_syncyomi.sh</code>, with <code>setup</code> / <code>status</code> / <code>help</code> subcommands. Here are the parts that carry the design, grouped by what they achieve.</p>
+
+  <h3>Reuse, don't rebuild: preflight</h3>
+  <p>It refuses to invent infrastructure. It hard-requires the existing edge to be present and bails with a pointer if not — so it can never accidentally spin up a competing proxy.</p>
+<pre><code>has_cmd docker || die "docker not found — run setup_gitea.sh first."
+docker ps --format '{{.Names}}' | grep -qx "${CADDY_CONTAINER}" ||
+    die "Caddy container '${CADDY_CONTAINER}' not running — run setup_gitea.sh first."
+[[ -f ${CADDYFILE} ]]       || die "Caddyfile ${CADDYFILE} missing — run setup_gitea.sh first."
+[[ -x ${DUCKDNS_UPDATER} ]] || die "DuckDNS updater missing — run install_joplin.sh first."</code></pre>
+
+  <h3>The container: host networking, loopback bind</h3>
+  <p><code>network_mode: host</code> sidesteps the FORWARD-chain trap; the loopback bind (enforced just below) keeps it private.</p>
+<pre><code>services:
+  syncyomi:
+    image: ghcr.io/syncyomi/syncyomi:v1.1.11   # pinned, not :latest
+    restart: unless-stopped                     # ← survives reboot
+    network_mode: host
+    volumes: [ ./config:/config ]</code></pre>
+  <p><code>restart: unless-stopped</code> plus the enabled Docker service is the entire "auto-start after reboot" story — no bespoke systemd unit needed.</p>
+
+  <h3>Readiness + the loopback rewrite</h3>
+  <p>SyncYomi v1.1.x has <em>no</em> public health route (<code>/api/healthz</code> is a 404). The script instead treats <code>GET /api/auth/onboard</code> as "up" — it answers <code>204</code> when no account exists yet, or <code>403</code> once one does. Either means the API is serving.</p>
+<pre><code>syncyomi_ready() {
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "${base}/api/auth/onboard" ...)"
+  [[ ${code} == "204" || ${code} == "403" ]]
+}</code></pre>
+  <p>Once it's up, the script patches the generated config from the insecure default and restarts:</p>
+<pre><code>sed -i -E 's|^\s*host\s*=.*|host = "127.0.0.1"|' "${CONFIG_TOML}"   # was 0.0.0.0</code></pre>
+
+  <h3>Minting the API key — the deliverable</h3>
+  <p>This is the part that lets the script hand you a key instead of making you click through a web UI. It onboards the first account (only if none exists), logs in for a session cookie, then reuses or creates a key. Two gotchas discovered live are baked in:</p>
+  <ul>
+    <li>It <strong>reuses</strong> an existing <code>tachiyomisy</code> key so repeated runs don't pile up keys.</li>
+    <li>The create call <strong>must send a non-empty <code>scopes</code></strong> array — SyncYomi returns <code>HTTP 500</code> on a null.</li>
+  </ul>
+<pre><code>key="$(curl -sS -b "${jar}" "${SYNCYOMI_LOCAL}/api/keys" \
+      | jq -r '[.[] | select(.name=="tachiyomisy")][0].key // empty')"
+if [[ -z ${key} ]]; then
+  key="$(curl -sS -b "${jar}" \
+        -d '{"name":"tachiyomisy","scopes":["read","write"]}' \
+        "${SYNCYOMI_LOCAL}/api/keys" | jq -r '.key // empty')"
+fi</code></pre>
+
+  <h3>Joining the shared edge: Caddy + DuckDNS</h3>
+  <p>One site block appended to the shared Caddyfile, then an in-container reload. Caddy issues the TLS cert on its own once the name resolves.</p>
+<pre><code>printf '\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' \
+    "${SYNCYOMI_SUBDOMAIN}" "${SYNCYOMI_PORT}" >>"${CADDYFILE}"
+docker exec "${CADDY_CONTAINER}" caddy reload --config "${CADDYFILE_IN_CONTAINER}"</code></pre>
+  <p>And one label spliced into the existing updater's <code>domains=</code> list — no second cron job:</p>
+<pre><code>sed -i -E "s|(domains=)([^&\"']*)|\1\2,${label}|" "${DUCKDNS_UPDATER}"</code></pre>
+
+  <div class="note">
+    <strong>The one fragility.</strong> That Caddy block lives in a file <em>owned</em> by <code>setup_gitea.sh</code>, which rewrites it from scratch when re-run. If that happens, SyncYomi's block vanishes — the fix is simply to re-run <code>setup_syncyomi.sh setup</code>, which idempotently re-appends it. This is a known, documented trade-off inherited from the sibling <code>setup_dufs_cloud.sh</code>.
+  </div>
+
+  <h2 id="quiz">4 · Quiz</h2>
+  <p>Five questions on the <em>reasoning</em> behind the change. Click an option to check it.</p>
+  <div id="quiz"></div>
+  <div class="score" id="score">Score: 0 / 0</div>
+
+  <div class="foot">
+    Generated by <code>/explain-diff</code> for commit <code>59430f9</code> ·
+    <code>linux_configuration/scripts/single_use/features/setup_syncyomi.sh</code>
+  </div>
+</div>
+
+<script>
+// ---------- router micro-world ----------
+const ROUTES = {
+  "kuhy.duckdns.org":       { port: 3000, name: "Gitea" },
+  "kuhy-cloud.duckdns.org": { port: 5000, name: "dufs" },
+  "kuhy-sync.duckdns.org":  { port: 8282, name: "SyncYomi" },
+};
+const traceEl = document.getElementById("trace");
+function step(html, cls) {
+  const d = document.createElement("div");
+  d.className = "step " + (cls || "");
+  d.innerHTML = html;
+  traceEl.appendChild(d);
+  requestAnimationFrame(() => setTimeout(() => d.classList.add("show"), 10));
+  return d;
+}
+document.getElementById("routeBtn").addEventListener("click", () => {
+  traceEl.innerHTML = "";
+  const host = document.getElementById("host").value;
+  const seq = [
+    () => step(`DNS: <b>${host}</b> resolves to the home public IP <small>(one IP for all labels)</small>`),
+    () => step(`Arrives at <b>gitea-caddy</b> on <small>:443</small>, TLS terminated`, "edge"),
+    () => {
+      const r = ROUTES[host];
+      if (r) return step(`Host matches a site block → forward to <b>127.0.0.1:${r.port}</b> <small>(${r.name})</small>`, "hit");
+      return step(`No site block matches <b>${host}</b> → Caddy has no cert/route, TLS alert <small>(request refused)</small>`, "miss");
+    },
+  ];
+  seq.forEach((fn, i) => setTimeout(fn, i * 480));
+});
+
+// ---------- quiz ----------
+// correct positions chosen to span A/B/C/D: [B, A, C, D, B]
+const QUIZ = [
+  {
+    stem: "Why does the SyncYomi container bind to 127.0.0.1:8282 rather than 0.0.0.0?",
+    options: [
+      "Because Docker host networking is unable to bind to the 0.0.0.0 wildcard address.",
+      "So every request must pass through Caddy, which terminates TLS for the service.",
+      "Because the Gitea container is already holding on to TCP port 8282 on this host.",
+      "To make SyncYomi skip writing its generated config.toml file on first boot.",
+    ],
+    correct: 1,
+    why: "A 0.0.0.0 bind would expose an external door with no TLS, bypassing Caddy and serving the library in plaintext.",
+  },
+  {
+    stem: "Why must the create-key request send a non-empty scopes array?",
+    options: [
+      "SyncYomi's store rejects a null scopes value and answers with HTTP 500.",
+      "TachiyomiSY on the phone will not accept a key that grants no permissions.",
+      "Caddy strips any scopes field out of the body before SyncYomi receives it.",
+      "The onboarding call consumes the default scopes, leaving none for the key.",
+    ],
+    correct: 0,
+    why: "Discovered live: POST /api/keys with no scopes returned 500; adding [\"read\",\"write\"] returned 201 with the key.",
+  },
+  {
+    stem: "Why doesn't the script start its own Caddy container for SyncYomi?",
+    options: [
+      "Because DuckDNS permits only a single reverse proxy per user account.",
+      "Because a Caddy instance can serve at most one TLS certificate at a time.",
+      "Because Gitea's Caddy already owns ports 80 and 443; a second would collide.",
+      "Because SyncYomi already bundles its own reverse proxy that Caddy would duplicate.",
+    ],
+    correct: 2,
+    why: "One host has one :443. The design is a single shared edge that routes to many loopback backends by hostname.",
+  },
+  {
+    stem: "What does the script poll to decide SyncYomi is 'up', and why that?",
+    options: [
+      "The container's exit code, which turns non-zero only after startup fails.",
+      "GET /api/healthz, the documented health endpoint that returns 200 when ready.",
+      "A TLS handshake against the public subdomain to confirm the cert is live.",
+      "GET /api/auth/onboard, because v1.1.x exposes no public health route.",
+    ],
+    correct: 3,
+    why: "/api/healthz is a 404 in v1.1.x; onboard answers 204 (no user) or 403 (user exists), both meaning the API serves.",
+  },
+  {
+    stem: "If setup_gitea.sh is re-run later, what happens to SyncYomi's exposure?",
+    options: [
+      "Nothing: each service keeps its exposure in a separate, private Caddyfile.",
+      "Its Caddy block is wiped, so re-running setup_syncyomi.sh restores it.",
+      "The kuhy-sync DuckDNS label is deleted and must be registered again by hand.",
+      "SyncYomi's container is stopped until the Gitea setup finishes running.",
+    ],
+    correct: 1,
+    why: "setup_gitea.sh regenerates the shared Caddyfile from scratch; the appended block is lost until setup_syncyomi.sh re-adds it idempotently.",
+  },
+];
+
+const quizEl = document.getElementById("quiz");
+const scoreEl = document.getElementById("score");
+let answered = 0, correctCount = 0;
+
+QUIZ.forEach((q, qi) => {
+  const card = document.createElement("div");
+  card.className = "q";
+  const stem = document.createElement("div");
+  stem.className = "stem";
+  stem.textContent = (qi + 1) + ". " + q.stem;
+  card.appendChild(stem);
+  const why = document.createElement("div");
+  why.className = "why";
+  why.textContent = "Why: " + q.why;
+  let done = false;
+  q.options.forEach((opt, oi) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.type = "button";
+    b.textContent = opt;
+    b.addEventListener("click", () => {
+      if (done) return;
+      done = true;
+      answered++;
+      const isRight = oi === q.correct;
+      if (isRight) correctCount++;
+      Array.from(card.querySelectorAll(".opt")).forEach((el, ei) => {
+        el.disabled = true;
+        if (ei === q.correct) el.classList.add("correct");
+        else if (ei === oi) el.classList.add("wrong");
+      });
+      why.classList.add("show");
+      scoreEl.textContent = `Score: ${correctCount} / ${answered}`;
+    });
+    card.appendChild(b);
+  });
+  card.appendChild(why);
+  quizEl.appendChild(card);
+});
+</script>
+</body>
+</html>
