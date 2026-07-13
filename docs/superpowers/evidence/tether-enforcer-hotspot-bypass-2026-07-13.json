@@ -1,0 +1,34 @@
+{
+  "intent": "Close the focus-mode bypass where enabling bl-9000's WiFi hotspot lets a second phone browse freely on the phone's mobile data, since no existing layer filters forwarded/tethered traffic.",
+  "scope": [
+    "phone_focus_mode/tether_enforcer.sh (new always-on enforcer)",
+    "phone_focus_mode/config.sh, focus_ctl.sh, magisk_service.sh, deploy.sh, README.md (wiring)",
+    "Non-goal: filtering the tethered device's DNS (full cutoff instead); no companion-app button; no persistent package-disable (BL9000 MTK bootloop risk)"
+  ],
+  "changes": [
+    "tether_enforcer.sh: self-gates on focus mode (MODE_FILE == focus) or a force-test file; converges three levers each tick: disable Android tether offload (settings global tether_offload_disabled=1, snapshot/restore), blanket REJECT of the FORWARD chain on iptables+ip6tables (chain FOCUS_TETHER_BLOCK, rebuilt only when tampered via chain_intact gate to avoid netd fork-storm), and best-effort 'cmd wifi stop-softap' (Android 11+). Reverts offload + tears down FORWARD on transition away from home / on SIGTERM.",
+    "config.sh: TETHER_ENFORCER_ENABLED/CHECK_INTERVAL/LOG/STATE/OFFLOAD_KEY/OFFLOAD_SNAP/IPT_CHAIN/STOP_SOFTAP_ENABLED/OVERRIDE_FILE/FORCE_FILE.",
+    "focus_ctl.sh: tether-status/start/stop/log/test-on/test-off commands + tether_enforcer_pid helper + case/usage entries.",
+    "magisk_service.sh: chmod + setsid autostart at boot. deploy.sh: push/cp/chmod/log-touch/kill/restart wiring."
+  ],
+  "verification": [
+    {
+      "command": "local run harness with stubbed settings/iptables/ip6tables/cmd/getprop, driving the daemon through away/force-on/revert/focus/override",
+      "result": "pass",
+      "evidence": "18/18 assertions pass: gate correct in all 5 scenarios; offload snapshot(null)->set(1)->restore(delete); FORWARD jump pinned+torn down on v4+v6; exactly 1 REJECT rule (no rebuild loop); stop-softap invoked."
+    },
+    {
+      "command": "on-device (BL9000, Android 13, USB adb+Magisk su): install + focus_ctl.sh tether-start + tether-status + iptables -S FORWARD",
+      "result": "pass",
+      "evidence": "Enforcer RUNNING; block ACTIVE at home. 'iptables -S FORWARD' shows '-A FORWARD -j FOCUS_TETHER_BLOCK' ABOVE '-A FORWARD -j tetherctrl_FORWARD' (our REJECT precedes Android's tether-accept). tether_offload_disabled=1. FOCUS_TETHER_BLOCK REJECT present on v4+v6. 'cmd wifi stop-softap' -> 'Soft AP stopped successfully'."
+    }
+  ],
+  "risks": [
+    "Hardware/BPF tether offload could bypass the FORWARD rule on some ROMs; mitigated by disabling offload (key confirmed present on this ROM) and by actively stopping the softAP (confirmed working). Definitive second-phone end-to-end check is the on-device validation step.",
+    "Blocks legitimate at-home tethering (e.g. a work laptop) by design (user chose 'block whenever at home'); escape hatch is focus_ctl.sh tether-stop over ADB or a tether_override file."
+  ],
+  "rollback": [
+    "focus_ctl.sh tether-stop tears down the FORWARD chain and restores offload; set TETHER_ENFORCER_ENABLED=0 in config.sh and redeploy to disable permanently.",
+    "After rollback validate: iptables -S FORWARD shows no FOCUS_TETHER_BLOCK jump; a tethered device reaches the internet again."
+  ]
+}

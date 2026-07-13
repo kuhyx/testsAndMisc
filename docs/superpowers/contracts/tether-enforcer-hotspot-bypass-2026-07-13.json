@@ -1,0 +1,18 @@
+{
+  "title": "Block hotspot/tethering to close the phone-focus second-phone bypass",
+  "objective": "Add a tether_enforcer to phone_focus_mode that stops a tethered second phone from bypassing focus mode. Nothing filtered forwarded/NAT'd traffic before; the enforcer cuts it off while focus mode is ON at home. Success = a second phone on bl-9000's hotspot cannot reach the internet while at home, and the phone's own connectivity is unaffected.",
+  "acceptance_criteria": [
+    "tether_enforcer.sh self-gates on focus mode (MODE_FILE == focus) or a force-test file, and no-ops away from home.",
+    "While active it disables tether offload, pins a blanket REJECT on the FORWARD chain (iptables + ip6tables) above Android's tetherctrl_FORWARD, and best-effort stops the softAP.",
+    "The FORWARD chain is rebuilt only when tampered (chain_intact gate) so it does not fork iptables every tick.",
+    "On transition away from home / SIGTERM it restores the offload snapshot and tears down the FORWARD chain.",
+    "Wired into config.sh, focus_ctl.sh (tether-* commands), magisk_service.sh autostart, and deploy.sh push/cp/restart."
+  ],
+  "out_of_scope": [
+    "Filtering the tethered device's DNS/hosts (full cutoff is used instead).",
+    "A companion-app (focus_status_app) button.",
+    "Persistent pm disable of any package (BL9000 MTK bootloop risk).",
+    "Fixing the pre-existing stale lib/tests/test_dns_enforcer.sh / test_magisk_service.sh mismatch."
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_tether_enforcer.sh (17 assertions) + pre-commit + on-device: focus_ctl.sh tether-status / iptables -S FORWARD on BL9000"
+}
