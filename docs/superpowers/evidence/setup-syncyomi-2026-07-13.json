@@ -1,0 +1,44 @@
+{
+  "intent": "Add a self-contained setup_syncyomi.sh that stands up a self-hosted SyncYomi manga-sync server (for TachiyomiSY) reachable from a mobile network, auto-starting after reboot, and hands back the host address + API key.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_syncyomi.sh (new)",
+    "Non-goal: no second reverse proxy, no second DuckDNS cron, no hand-edited nftables — reuses the existing gitea-caddy edge + DuckDNS updater",
+    "Runtime side effects (live host): ~/syncyomi/ data dir, one appended block in the shared ~/gitea/Caddyfile, kuhy-sync added to ~/.joplin-server/duckdns-update.sh"
+  ],
+  "changes": [
+    "SyncYomi runs as a Docker container (ghcr.io/syncyomi/syncyomi:v1.1.11), network_mode: host, patched to bind 127.0.0.1:8282 only (dodges the default-drop nftables FORWARD chain and stays behind Caddy).",
+    "Public HTTPS by appending a kuhy-sync.duckdns.org site block to the shared gitea-caddy Caddyfile and reloading in-container; Caddy auto-issues the Let's Encrypt cert.",
+    "Auto-generates a stored 0600 credential set, then onboards the first account and mints/reuses a 'tachiyomisy' API key over the local REST API (scopes required non-empty), printing host + key.",
+    "Extends the existing DuckDNS updater with the kuhy-sync label; ensures 80/443 open via setup_wireguard_ssh.sh allow-web; idempotent setup/status/help subcommands."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck -x setup_syncyomi.sh; shfmt -d setup_syncyomi.sh",
+      "result": "pass",
+      "evidence": "shellcheck clean; shfmt no diff."
+    },
+    {
+      "command": "pre-commit run --files linux_configuration/scripts/single_use/features/setup_syncyomi.sh",
+      "result": "pass",
+      "evidence": "All hooks Passed (shellcheck, AI-evidence, secret scans); Python hooks skipped (no .py)."
+    },
+    {
+      "command": "./setup_syncyomi.sh setup && ./setup_syncyomi.sh status",
+      "result": "pass",
+      "evidence": "Container up (restart=unless-stopped), local API 403, Caddy block present, kuhy-sync resolves, external HTTPS 403 after Let's Encrypt cert obtained. Gitea(3000)/dufs(5000) unaffected. Re-runs idempotent."
+    },
+    {
+      "command": "sqlite3 ~/syncyomi/config/syncyomi.db 'SELECT length(data),updated_at FROM sync_data;'",
+      "result": "pass",
+      "evidence": "After a TachiyomiSY sync over cellular: sync_data row = 13914937 bytes, updated_at 2026-07-13 17:17:06 — library round-tripped and is stored server-side."
+    }
+  ],
+  "risks": [
+    "The SyncYomi block lives in the shared ~/gitea/Caddyfile, which setup_gitea.sh regenerates from scratch; re-running that drops the block. Mitigation: re-run setup_syncyomi.sh setup to restore it (documented in-code, same as setup_dufs_cloud.sh).",
+    "Docker json-file logs at SyncYomi's default DEBUG level grow over time; not bounded by this script."
+  ],
+  "rollback": [
+    "docker compose -f ~/syncyomi/docker-compose.yml down; rm -rf ~/syncyomi; remove the kuhy-sync.duckdns.org block from ~/gitea/Caddyfile and 'docker exec gitea-caddy caddy reload --config /etc/caddy/Caddyfile'; drop kuhy-sync from ~/.joplin-server/duckdns-update.sh.",
+    "Validate after rollback: ./setup_syncyomi.sh status shows no container; Gitea and dufs still reachable (curl 127.0.0.1:3000 / :5000)."
+  ]
+}
