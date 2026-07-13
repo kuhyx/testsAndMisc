@@ -1,0 +1,63 @@
+{
+  "intent": "Serve a minimalistic personal website (live GitHub projects showcase + CV with live-computed job durations) at https://kuhy.duckdns.org/, moving Gitea to gitea.kuhy.duckdns.org, all behind the existing shared gitea-caddy edge.",
+  "scope": [
+    "React 19 + Vite 6 + TypeScript SPA, extracted into its own standalone repo github.com/kuhyx/personal-website (~/personal-website); testsAndMisc keeps only the deploy/edge glue",
+    "New setup_personal_website.sh feature script (setup/status/help) reusing the DuckDNS/firewall/Caddy edge patterns",
+    "Refactor setup_gitea.sh: move GITEA_DOMAIN to gitea.kuhy.duckdns.org and switch the shared Caddyfile to a per-service sites/*.caddy import (fixes latent clobber of dufs/syncyomi blocks)",
+    "CV repo (~/CV): add cv.json single source of truth and render build_cv.py + the website from it",
+    "Non-goals: no new systemd unit (reboot survival via docker restart:unless-stopped); no DuckDNS change (wildcard already resolves)"
+  ],
+  "changes": [
+    "personal_website/: src/lib/duration.ts + github.ts + markup.tsx (pure, fully tested), components hero/projects/project-card/experience-item/cv-section, data/cv.ts typed view of cv.json; mirrors bucket_catch tooling",
+    "Projects feed is a single client-side GET /users/kuhyx/repos?per_page=100&sort=pushed, filtering archived+forks (no per-repo fan-out); CV durations computed live from ISO start/end dates",
+    "setup_gitea.sh write_compose_files now mounts ./sites and writes root Caddyfile as 'import /etc/caddy/sites/*.caddy' plus sites/gitea.caddy",
+    "setup_personal_website.sh: preflight -> migrate existing Caddy blocks into snippets -> relocate gitea -> copy cv.json -> pnpm build -> loopback caddy container on 127.0.0.1:8088 -> website.caddy snippet -> reload -> firewall -> report; status subcommand self-diagnoses",
+    "The website's loopback caddy sets `admin off`: with host networking it would otherwise share the admin API (:2019) with gitea-caddy, so a `caddy reload` aimed at gitea-caddy was applied to the website caddy — it grabbed 80/443 and ran ACME, blanking the site. admin off fixes it",
+    "CV: cv.json authored from the LaTeX; build_cv.py datafied with latex_escape + **bold** markup renderer + bilingual compute_duration/format_duration; finished jobs pin durationPl/durationEn (Delta 1.5 years, Radioactive 1 year), only the ongoing AI Clearing computes live",
+    "UI refinements from review: dropped repo star counts; SVG favicon (KR monogram); Skills rendered as an aligned two-column grid; contact row shows the full email (mailto) + GitHub + LinkedIn + Discord (discord.com/users/<id>); CV 'Download PDF' button serving /cv.pdf (staged from the CV repo, gitignored binary)",
+    "Projects feed curated: NEVER_SHOW drops testsAndMisc-archive; ALWAYS_SHOW force-includes ARAI + WUT_Computer_Science (archived) since they're referenced in the CV; FALLBACK_DESCRIPTIONS fill cards whose GitHub description is empty",
+    "Each card shows the full language mix (top 6 by bytes) via one /repos/<name>/languages call per shown repo, run in parallel; degrades to the primary language if a call is rate-limited. Trade-off: ~11 unauth GitHub calls per page load vs the 60/hr-per-IP limit",
+    "Extracted the SPA out of testsAndMisc into github.com/kuhyx/personal-website; setup_personal_website.sh now builds ~/personal-website and serves it from ~/personal-website-serve (renamed runtime dir); testsAndMisc retains setup_gitea.sh, setup_personal_website.sh, and this evidence"
+  ],
+  "verification": [
+    {
+      "command": "cd personal_website && pnpm run lint && pnpm run coverage",
+      "result": "pass",
+      "evidence": "tsc + eslint clean; 38 tests pass; coverage 100% statements/branches/functions/lines (71/71, 52/52, 32/32, 70/70)"
+    },
+    {
+      "command": "cd personal_website && pnpm run build",
+      "result": "pass",
+      "evidence": "vite build ok: dist/index.html + assets (js 211kB, css 2.3kB)"
+    },
+    {
+      "command": "curl -s 'https://api.github.com/users/kuhyx/repos?per_page=100&sort=pushed' | jq filter",
+      "result": "pass",
+      "evidence": "9 showable (non-archived, non-fork) repos returned with name/language/stars/pushed_at fields the feed maps"
+    },
+    {
+      "command": "python3 ~/CV/generic/build_cv.py",
+      "result": "pass",
+      "evidence": "cv-en.pdf (96,549 B) + cv-pl.pdf (99,582 B) build; durations computed (2 years and 1 month / 1 year and 8 months / 11 months), bold tech tags + LINK hrefs preserved"
+    },
+    {
+      "command": "bash -n + shellcheck -S warning setup_gitea.sh setup_personal_website.sh; migration parser unit-tested on a mock Caddyfile",
+      "result": "pass",
+      "evidence": "both scripts syntax-OK and shellcheck-clean; parser preserves kuhy-cloud+kuhy-sync snippets, drops the old gitea-at-root block, idempotent on re-run"
+    },
+    {
+      "command": "live deploy + browser verification of https://kuhy.duckdns.org/",
+      "result": "pass",
+      "evidence": "public 200 with valid production Let's Encrypt cert; hero + 9 live GitHub repos + CV render; durations June 2024-present 2 years and 1 month (live), Delta 1.5 years, Radioactive 1 year; gitea->200 at gitea.kuhy.duckdns.org, dufs 401 (auth), syncyomi 200 — no regression"
+    }
+  ],
+  "risks": [
+    "Live `setup` moves Gitea and rewrites the shared Caddyfile; ordering (migrate snippets -> relocate gitea -> add website snippet -> single reload) is load-bearing and must not be reordered",
+    "Ended-job durations in the PDF change from hand-written labels (1.5 years) to computed values (1 year and 8 months) — more accurate but different wording",
+    "CV repo (~/CV) is a separate repo; its cv.json/build_cv.py/PDF changes must be committed there separately"
+  ],
+  "rollback": [
+    "Website: docker compose -f ~/personal-website/docker-compose.yml down; rm ~/gitea/sites/website.caddy; caddy reload",
+    "Gitea move: revert GITEA_DOMAIN in setup_gitea.sh to kuhy.duckdns.org and re-run; validate https://kuhy.duckdns.org serves Gitea and dufs/syncyomi subdomains still respond"
+  ]
+}

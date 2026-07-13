@@ -31,12 +31,16 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # shellcheck source=../../lib/common.sh
 source "$SCRIPT_DIR/../../lib/common.sh"
 
-readonly GITEA_DOMAIN="kuhy.duckdns.org"
+readonly GITEA_DOMAIN="gitea.kuhy.duckdns.org"
 readonly GITEA_ADMIN_USER="kuhyx"
 readonly GITEA_ADMIN_EMAIL="krzysztofrudnicki0@gmail.com"
 readonly GITEA_DATA_DIR="${HOME}/gitea"
 readonly COMPOSE_FILE="${GITEA_DATA_DIR}/docker-compose.yml"
 readonly CADDYFILE="${GITEA_DATA_DIR}/Caddyfile"
+# Per-service Caddy site blocks live here as individual *.caddy snippets so
+# adding/removing a service never clobbers another's block (see the root
+# Caddyfile's `import` below). Every service on this edge owns one file.
+readonly SITES_DIR="${GITEA_DATA_DIR}/sites"
 readonly ADMIN_PASSWORD_FILE="${GITEA_DATA_DIR}/.admin_password"
 readonly ADMIN_TOKEN_FILE="${GITEA_DATA_DIR}/.admin_token"
 readonly WIREGUARD_SCRIPT="${SCRIPT_DIR}/setup_wireguard_ssh.sh"
@@ -82,6 +86,7 @@ services:
     network_mode: host
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
       - caddy-data:/data
       - caddy-config:/config
 
@@ -90,12 +95,23 @@ volumes:
   caddy-config:
 EOF
 
-	cat >"$CADDYFILE" <<EOF
+	# The root Caddyfile only imports per-service snippets; every service
+	# (gitea, dufs, syncyomi, the personal website, ...) owns its own file in
+	# sites/ so re-running any one setup script never drops another's block.
+	ensure_dir "$SITES_DIR"
+	cat >"$CADDYFILE" <<'EOF'
+# Managed by setup_gitea.sh — do not edit by hand.
+# Each service on this edge owns one snippet in sites/*.caddy.
+import /etc/caddy/sites/*.caddy
+EOF
+
+	cat >"${SITES_DIR}/gitea.caddy" <<EOF
+# Managed by setup_gitea.sh — do not edit by hand.
 ${GITEA_DOMAIN} {
 	reverse_proxy 127.0.0.1:3000
 }
 EOF
-	log_ok "Wrote ${COMPOSE_FILE} and ${CADDYFILE}."
+	log_ok "Wrote ${COMPOSE_FILE}, ${CADDYFILE}, and ${SITES_DIR}/gitea.caddy."
 }
 
 start_containers() {
