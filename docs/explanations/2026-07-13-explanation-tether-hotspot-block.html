@@ -1,0 +1,453 @@
+<title>Explaining: the hotspot / tethering block</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1c20; --muted: #5b6270; --card: #f6f7f9;
+    --border: #e2e5ea; --accent: #2f6fed; --ok: #1a7f4b; --bad: #c0362c;
+    --ok-bg: #e7f5ee; --bad-bg: #fbeae8; --code: #f0f2f5; --chain: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --fg: #e6e8ec; --muted: #9aa2b1; --card: #1c1f25;
+      --border: #2b2f38; --accent: #6ea0ff; --ok: #52c98a; --bad: #ff7a6e;
+      --ok-bg: #14301f; --bad-bg: #3a1815; --code: #1a1d23; --chain: #1a1e26;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --fg: #1a1c20; --muted: #5b6270; --card: #f6f7f9;
+    --border: #e2e5ea; --accent: #2f6fed; --ok: #1a7f4b; --bad: #c0362c;
+    --ok-bg: #e7f5ee; --bad-bg: #fbeae8; --code: #f0f2f5; --chain: #eef1f6;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --fg: #e6e8ec; --muted: #9aa2b1; --card: #1c1f25;
+    --border: #2b2f38; --accent: #6ea0ff; --ok: #52c98a; --bad: #ff7a6e;
+    --ok-bg: #14301f; --bad-bg: #3a1815; --code: #1a1d23; --chain: #1a1e26;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px;
+  }
+  .wrap { max-width: min(48rem, 92vw); margin: 0 auto; padding: 2rem 0 5rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .3rem; }
+  h2 { font-size: 1.4rem; margin: 2.6rem 0 .8rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.08rem; margin: 1.6rem 0 .5rem; }
+  p, li { color: var(--fg); }
+  .sub { color: var(--muted); margin: 0 0 1.6rem; }
+  a { color: var(--accent); }
+  code { background: var(--code); padding: .12em .4em; border-radius: 4px; font-size: .88em;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 8px;
+    padding: .9rem 1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .82rem; line-height: 1.5; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: .8rem 1.1rem; margin: 1.4rem 0 0; }
+  .toc ol { margin: .3rem 0; padding-left: 1.3rem; }
+  .toc a { text-decoration: none; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .muted { color: var(--muted); }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .03em;
+    text-transform: uppercase; padding: .12em .5em; border-radius: 5px; border: 1px solid var(--border);
+    color: var(--muted); }
+  /* diagram */
+  .flow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; margin: 1rem 0; }
+  .node { flex: 1 1 150px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 9px; padding: .7rem .8rem; min-width: 140px; }
+  .node .h { font-weight: 700; font-size: .92rem; margin-bottom: .2rem; }
+  .node .d { font-size: .8rem; color: var(--muted); }
+  .node.ok { border-color: var(--ok); }
+  .node.bad { border-color: var(--bad); }
+  .arrow { align-self: center; color: var(--muted); font-size: 1.3rem; padding: 0 .1rem; }
+  /* chain sim */
+  .sim { border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.2rem; margin: 1.4rem 0;
+    background: var(--card); }
+  .sim .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .9rem; align-items: center; }
+  .btn { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg); color: var(--fg); padding: .45rem .8rem; border-radius: 8px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:active { transform: translateY(1px); }
+  .toggle { display: inline-flex; align-items: center; gap: .4rem; font-size: .9rem; margin-left: auto; }
+  .chain { display: flex; flex-direction: column; gap: .35rem; margin: .6rem 0; }
+  .rule { display: flex; align-items: center; gap: .6rem; border: 1px solid var(--border);
+    border-radius: 8px; padding: .45rem .7rem; background: var(--chain); font-size: .85rem;
+    font-family: ui-monospace, Menlo, monospace; transition: background .15s, border-color .15s; }
+  .rule .verdict { margin-left: auto; font-size: .74rem; font-family: -apple-system, sans-serif;
+    color: var(--muted); }
+  .rule.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--chain)); }
+  .rule.hit-ok { border-color: var(--ok); background: var(--ok-bg); }
+  .rule.hit-bad { border-color: var(--bad); background: var(--bad-bg); }
+  .rule.skipped { opacity: .45; }
+  .packet { font-size: .9rem; margin: .3rem 0 .2rem; }
+  .result { font-weight: 700; margin-top: .5rem; font-size: .95rem; }
+  .result.ok { color: var(--ok); }
+  .result.bad { color: var(--bad); }
+  /* quiz */
+  .q { border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .6rem; }
+  .opt { display: block; width: 100%; text-align: left; font: inherit; font-size: .92rem;
+    border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+    padding: .55rem .75rem; border-radius: 8px; margin: .4rem 0; cursor: pointer; }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { border-color: var(--ok); background: var(--ok-bg); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+  .opt:disabled { cursor: default; }
+  .rationale { font-size: .85rem; color: var(--muted); margin-top: .5rem; display: none; }
+  .rationale.show { display: block; }
+  .score { position: sticky; top: 0; background: var(--bg); padding: .5rem 0; z-index: 5;
+    border-bottom: 1px solid var(--border); font-size: .9rem; }
+  .themebtn { float: right; font-size: .8rem; }
+  kbd { background: var(--code); border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 .35em; font-size: .82em; }
+</style>
+
+<div class="wrap">
+  <button class="btn themebtn" id="themebtn" title="Toggle theme">◐ theme</button>
+  <span class="tag">phone_focus_mode · shell / netfilter</span>
+  <h1>Closing the hotspot bypass</h1>
+  <p class="sub">How a new <code>tether_enforcer.sh</code> stops a second phone on the hotspot from walking straight around focus mode — and why it lives in the <code>FORWARD</code> chain, not <code>OUTPUT</code>.</p>
+
+  <nav class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#background">Background — what focus mode already blocked</a></li>
+      <li><a href="#intuition">Intuition — the blind spot, and the fix</a></li>
+      <li><a href="#sim">Play — walk a packet through <code>FORWARD</code></a></li>
+      <li><a href="#code">Code — the gate, the three levers, the wiring</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="background">1 · Background</h2>
+  <p><strong>phone_focus_mode</strong> is a location-gated app blocker for a rooted Android phone (Magisk). When the phone is within ~150&nbsp;m of home it enters <em>focus mode</em>: a daemon <code>pm disable-user</code>s every app that isn't whitelisted, and several always-on "enforcer" daemons harden the phone further. The change lives entirely in this subsystem.</p>
+
+  <p>Three of those enforcers are about the <em>network</em>, and all three share a hidden assumption. To see it you need one idea from the Linux firewall (<code>netfilter</code>): every IP packet the kernel handles passes through one of a few <strong>chains</strong>, depending on where it's going.</p>
+
+  <div class="flow">
+    <div class="node"><div class="h">OUTPUT</div><div class="d">Packets this phone <em>originates</em> — its own apps talking to the internet.</div></div>
+    <div class="node"><div class="h">INPUT</div><div class="d">Packets addressed <em>to</em> this phone.</div></div>
+    <div class="node ok"><div class="h">FORWARD</div><div class="d">Packets merely <em>routed through</em> this phone — the tethering / NAT path.</div></div>
+  </div>
+
+  <p>Here is what each existing layer actually inspects, straight from the scripts:</p>
+  <ul>
+    <li><code>hosts_enforcer.sh</code> locks <code>/system/etc/hosts</code> — but that file is only consulted by <em>this phone's</em> system resolver.</li>
+    <li><code>dns_enforcer.sh</code> blocks DoH/DoT by adding rules to the <code>OUTPUT</code> chain.</li>
+    <li>the curfew net layer in <code>curfew_enforcer.sh</code> is a per-UID allow-list, also on <code>OUTPUT</code>.</li>
+  </ul>
+  <p>Every one of them filters traffic the phone <em>sends on its own behalf</em>. None of them touches <code>FORWARD</code>. That is the seam the bug slips through.</p>
+
+  <h2 id="intuition">2 · Intuition</h2>
+  <p>Turn the phone into a Wi-Fi hotspot and connect a second phone to it. Now the second phone's packets don't <em>originate</em> on your phone — they arrive over Wi-Fi, get NAT'd, and leave over mobile data. They are <strong>forwarded</strong>, so they travel the <code>FORWARD</code> chain, which nobody was guarding. The second phone browses YouTube freely on your data while your own phone sits there dutifully blocked.</p>
+
+  <div class="card">
+    <span class="tag">before</span>
+    <div class="flow" style="margin-top:.7rem">
+      <div class="node bad"><div class="h">📱 2nd phone</div><div class="d">wants youtube.com</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="h">🔁 FORWARD</div><div class="d">no rules here — packet sails through</div></div>
+      <div class="arrow">→</div>
+      <div class="node bad"><div class="h">🌐 internet</div><div class="d">reached. bypass complete.</div></div>
+    </div>
+  </div>
+
+  <p>The fix is a fourth enforcer, <code>tether_enforcer.sh</code>. While focus mode is on (i.e. you're home), it does three things every few seconds, and it's careful to be reversible the moment you leave:</p>
+
+  <div class="flow">
+    <div class="node ok"><div class="h">1 · offload off</div><div class="d">Disable Android's tether hardware offload so forwarded packets actually reach netfilter.</div></div>
+    <div class="node ok"><div class="h">2 · FORWARD reject</div><div class="d">Insert a blanket <code>REJECT</code> at the <em>top</em> of <code>FORWARD</code>.</div></div>
+    <div class="node ok"><div class="h">3 · stop softAP</div><div class="d">Best-effort tear the hotspot down so it visibly flips off.</div></div>
+  </div>
+
+  <div class="card">
+    <span class="tag">after</span>
+    <div class="flow" style="margin-top:.7rem">
+      <div class="node"><div class="h">📱 2nd phone</div><div class="d">wants youtube.com</div></div>
+      <div class="arrow">→</div>
+      <div class="node ok"><div class="h">🔁 FORWARD</div><div class="d"><code>FOCUS_TETHER_BLOCK</code> is rule&nbsp;#1 → REJECT</div></div>
+      <div class="arrow">→</div>
+      <div class="node ok"><div class="h">🚫 dropped</div><div class="d">no internet. bypass closed.</div></div>
+    </div>
+  </div>
+
+  <p>Two subtleties make or break this, and both are addressed in the code:</p>
+  <ul>
+    <li><strong>Ordering.</strong> Android's own tethering machinery adds an <em>accept</em> rule to <code>FORWARD</code> (<code>tetherctrl_FORWARD</code>). Our reject only wins if it's evaluated first — so it's inserted at position&nbsp;1, above Android's rules. Verified on-device: our jump sits on line 2 of <code>FORWARD</code>, Android's on line 6.</li>
+    <li><strong>Offload.</strong> Modern phones can shove forwarded traffic through a hardware/BPF fast path that <em>skips netfilter entirely</em>. If we only added the reject rule, it might never fire. Setting <code>tether_offload_disabled=1</code> forces the slow path so the rule bites.</li>
+  </ul>
+
+  <h2 id="sim">3 · Play: walk a packet through <code>FORWARD</code></h2>
+  <p>Pick who is sending, toggle focus mode, and step the packet down the chain. Notice that the <em>phone's own</em> traffic never enters <code>FORWARD</code> at all — which is exactly why a blanket reject here is safe.</p>
+
+  <div class="sim" id="sim">
+    <div class="controls">
+      <button class="btn" id="src-own">📱 phone's own packet</button>
+      <button class="btn primary" id="src-teth">📶 tethered phone's packet</button>
+      <label class="toggle"><input type="checkbox" id="focus" checked> focus mode ON (home)</label>
+    </div>
+    <div class="packet" id="packet"></div>
+    <div class="chain" id="chain"></div>
+    <div class="result" id="result"></div>
+    <div style="margin-top:.7rem; display:flex; gap:.5rem;">
+      <button class="btn primary" id="step">Step ▸</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+    <p class="muted" style="font-size:.8rem; margin:.7rem 0 0">The <code>FOCUS_TETHER_BLOCK</code> rule only exists while focus mode is on — that's the <code>should_act</code> gate. Turn focus off and the chain reverts to Android's defaults.</p>
+  </div>
+
+  <h2 id="code">4 · Code</h2>
+  <p>~690 lines across 9 files, but it groups into four concerns. The heart is the new <code>tether_enforcer.sh</code>; everything else wires it into the existing machinery.</p>
+
+  <h3>a · The gate — when to act</h3>
+  <p>Like the curfew enforcer, this daemon runs forever but only <em>acts</em> under specific conditions. The gate mirrors <code>curfew_enforcer.sh::should_act</code>, but keyed on focus mode instead of the clock:</p>
+  <pre>should_act() {
+    [ "${TETHER_ENFORCER_ENABLED:-0}" = "1" ] || return 1
+    [ -e "$TETHER_OVERRIDE_FILE" ] && return 1     # escape hatch: suspend
+    [ -e "$TETHER_FORCE_FILE" ] && return 0         # daytime test hook
+    at_home                                          # MODE_FILE == "focus"
+}</pre>
+  <p>An <code>override</code> file lets you suspend it without killing the daemon (tethering a laptop at home); a <code>force</code> file lets you validate the whole stack in daylight without waiting to be home.</p>
+
+  <h3>b · The three levers</h3>
+  <p><strong>Offload</strong> is snapshotted before we touch it, so leaving home restores whatever value you had (mirrors the curfew enforcer's grayscale snapshot/restore):</p>
+  <pre>apply_offload_off() {
+    cur="$(settings get global "$TETHER_OFFLOAD_KEY" 2>/dev/null)"
+    [ "$cur" != "1" ] && settings put global "$TETHER_OFFLOAD_KEY" 1 ...
+}</pre>
+  <p><strong>The FORWARD block</strong> pins one jump at the top of <code>FORWARD</code> and fills a single-rule reject chain. Crucially, it only <em>rebuilds</em> when something has tampered with it — a lesson paid for in the curfew net layer, where flushing every tick pegged <code>netd</code> and overheated the phone:</p>
+  <pre>chain_intact() {                      # cheap check: jump present + exactly 1 rule
+    iptw "$ipt" -C FORWARD -j "$TETHER_IPT_CHAIN" >/dev/null 2>&1 || return 1
+    actual="$(iptw "$ipt" -S "$TETHER_IPT_CHAIN" | grep -c '^-A')"
+    [ "$actual" = "1" ]
+}
+apply_forward_block() {
+    if chain_intact iptables; then :;      # already good — do nothing, no fork
+    elif ensure_chain iptables && fill_chain iptables icmp-port-unreachable; then
+        log "iptables (v4) FORWARD block rebuilt (was missing/tampered)"
+    fi
+    # ... same for ip6tables
+}</pre>
+  <p><strong>Stopping the softAP</strong> is best-effort and version-gated — <code>cmd wifi stop-softap</code> only exists on Android 11+:</p>
+  <pre>stop_softap() {
+    major="$(_android_major "$(getprop ro.build.version.release)")"
+    [ "$major" -ge 11 ] && cmd wifi stop-softap >/dev/null 2>&1 || true
+}</pre>
+
+  <h3>c · Orchestration — reversible by construction</h3>
+  <p>A state marker file means the "engage" work logs once, not every tick, and the "revert" only runs on a real transition. On <code>SIGTERM</code> the cleanup path reverts too, so <code>tether-stop</code> is a clean escape hatch:</p>
+  <pre>enter_block() {  # apply all three levers; snapshot offload on first entry
+    [ -e "$TETHER_ENFORCER_STATE" ] || snapshot_offload
+    apply_offload_off; apply_forward_block; stop_softap
+}
+exit_block() {   # restore offload, tear down the chain — only if we had applied
+    [ -e "$TETHER_ENFORCER_STATE" ] || return 0
+    restore_offload; teardown_forward_block
+}
+main() { while true; do
+    if should_act; then enter_block; else exit_block; fi
+    sleep "$TETHER_CHECK_INTERVAL"
+done }</pre>
+
+  <h3>d · Wiring &amp; proof</h3>
+  <p>The rest slots the daemon into the existing lifecycle, following each file's own pattern: <code>config.sh</code> flags; <code>focus_ctl.sh</code> gains <code>tether-status/start/stop/log/test-on/off</code>; <code>magisk_service.sh</code> launches it at boot; <code>deploy.sh</code> pushes, installs and restarts it. Finally <code>lib/tests/test_tether_enforcer.sh</code> runs the real daemon against <em>stubbed</em> Android tools and drives it through all five gate states — 17 assertions, and it's the working sibling of the repo's older, now-stale enforcer tests.</p>
+
+  <h2 id="quiz">5 · Quiz</h2>
+  <div class="score" id="score">Score: 0 / 0</div>
+  <div id="quiz"></div>
+
+  <p class="muted" style="margin-top:2.5rem; font-size:.82rem">Generated as an <code>/explain-diff</code> walkthrough of commit range <code>HEAD~2..HEAD</code> in <code>testsAndMisc</code>. 2026-07-13.</p>
+</div>
+
+<script>
+(function () {
+  // ---------- theme toggle ----------
+  var root = document.documentElement;
+  document.getElementById('themebtn').addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light'
+      : cur === 'light' ? 'dark'
+      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark');
+    root.setAttribute('data-theme', next);
+  });
+
+  // ---------- FORWARD chain simulator ----------
+  var src = 'teth';       // 'own' | 'teth'
+  var focusOn = true;
+  var step = -1;
+
+  function rules() {
+    // The chain as it exists for this scenario. Phone's own traffic never
+    // enters FORWARD, so there is no chain to walk in that case.
+    var r = [];
+    if (focusOn) r.push({ t: '-A FORWARD -j FOCUS_TETHER_BLOCK', kind: 'ours' });
+    r.push({ t: '-A FORWARD -j oem_fwd', kind: 'sys' });
+    r.push({ t: '-A FORWARD -j tetherctrl_FORWARD', kind: 'accept' });
+    return r;
+  }
+
+  var packetEl = document.getElementById('packet');
+  var chainEl = document.getElementById('chain');
+  var resultEl = document.getElementById('result');
+
+  function render() {
+    if (src === 'own') {
+      packetEl.innerHTML = '<strong>📱 phone’s own app</strong> → dns.google. This packet is <em>originated</em> here, so the kernel sends it via <strong>OUTPUT</strong> — it never enters FORWARD.';
+      chainEl.innerHTML = '<div class="rule ' + (step >= 0 ? 'hit-ok' : '') + '">OUTPUT chain (dns_enforcer / curfew handle this)<span class="verdict">not a FORWARD packet</span></div>';
+      resultEl.className = 'result' + (step >= 0 ? ' ok' : '');
+      resultEl.textContent = step >= 0 ? '✓ Unaffected by the tether block — the phone’s own traffic is a different chain.' : '';
+      return;
+    }
+    packetEl.innerHTML = '<strong>📶 tethered phone</strong> → youtube.com. NAT’d and <em>forwarded</em>, so it walks the <strong>FORWARD</strong> chain top to bottom:';
+    var rs = rules();
+    var reachedReject = false;
+    chainEl.innerHTML = rs.map(function (rule, i) {
+      var cls = 'rule';
+      if (i === step) cls += ' active';
+      var verdict = '';
+      if (i <= step) {
+        if (rule.kind === 'ours') {
+          cls = i === step ? 'rule hit-bad' : 'rule hit-bad';
+          verdict = 'REJECT → stop';
+          reachedReject = true;
+        } else if (rule.kind === 'accept') {
+          cls = 'rule hit-ok'; verdict = 'ACCEPT → forwarded';
+        } else {
+          cls = 'rule'; verdict = 'no match, continue';
+        }
+      }
+      // grey out rules below a reject we already hit
+      if (reachedReject && i > rs.findIndex(function (x) { return x.kind === 'ours'; })) cls += ' skipped';
+      return '<div class="' + cls + '">' + rule.t + '<span class="verdict">' + verdict + '</span></div>';
+    }).join('');
+
+    var rejectIdx = rs.findIndex(function (x) { return x.kind === 'ours'; });
+    var acceptIdx = rs.findIndex(function (x) { return x.kind === 'accept'; });
+    if (focusOn && step >= rejectIdx) {
+      resultEl.className = 'result bad';
+      resultEl.textContent = '✕ REJECTed at rule #1 — the second phone gets no internet. Bypass closed.';
+    } else if (!focusOn && step >= acceptIdx) {
+      resultEl.className = 'result ok';
+      resultEl.textContent = '✓ ACCEPTed — no FOCUS_TETHER_BLOCK rule exists (focus off), so the old bypass is back.';
+    } else {
+      resultEl.className = 'result';
+      resultEl.textContent = '';
+    }
+  }
+
+  function setSrc(s) {
+    src = s; step = -1;
+    document.getElementById('src-own').classList.toggle('primary', s === 'own');
+    document.getElementById('src-teth').classList.toggle('primary', s === 'teth');
+    render();
+  }
+  document.getElementById('src-own').addEventListener('click', function () { setSrc('own'); });
+  document.getElementById('src-teth').addEventListener('click', function () { setSrc('teth'); });
+  document.getElementById('focus').addEventListener('change', function (e) {
+    focusOn = e.target.checked; step = -1; render();
+  });
+  document.getElementById('step').addEventListener('click', function () {
+    var max = src === 'own' ? 0 : rules().length - 1;
+    if (step < max) step++;
+    render();
+  });
+  document.getElementById('reset').addEventListener('click', function () { step = -1; render(); });
+  render();
+
+  // ---------- quiz ----------
+  var QUIZ = [
+    {
+      stem: 'Before this change, why could a second phone on the hotspot reach sites the phone itself blocks?',
+      options: [
+        'Android turns off the hosts file automatically whenever a hotspot is active on the device',
+        'The existing filters watch OUTPUT and the resolver, but tethered traffic crosses FORWARD',
+        'The curfew network layer only runs between 23:00 and 05:00, leaving daytime unguarded',
+        'The second phone relied on DNS-over-HTTPS to slip past the dns_enforcer block rules'
+      ],
+      correct: 1,
+      why: 'Every prior net layer inspected the phone’s own traffic (OUTPUT / resolver). Forwarded packets travel FORWARD, which nothing guarded.'
+    },
+    {
+      stem: 'What does inserting the jump at position 1 of the FORWARD chain accomplish?',
+      options: [
+        'It rewrites the NAT table so tethered clients receive a private, unroutable IP address',
+        'It prevents the phone’s own apps from opening any brand-new outbound network sockets',
+        'Our REJECT is evaluated before Android’s tetherctrl_FORWARD accept rules run',
+        'It causes the hotspot password to rotate on every tick of the enforcer loop'
+      ],
+      correct: 2,
+      why: 'Android’s tethering adds an ACCEPT to FORWARD. Chains are top-to-bottom, so our REJECT must sit above it to win — hence position 1.'
+    },
+    {
+      stem: 'Why does the enforcer also disable Android’s tether offload?',
+      options: [
+        'Offload can shunt forwarded packets around netfilter, so the FORWARD rule might never fire',
+        'Offload keeps the CPU awake through the night and drains the phone’s battery too quickly',
+        'Switching offload off is the actual mechanism that stops the Wi-Fi hotspot from starting',
+        'It frees the xtables lock so that netd stops rewriting the whole filter table so frequently'
+      ],
+      correct: 0,
+      why: 'A hardware/BPF fast path can bypass netfilter entirely. Disabling offload forces the slow path so the REJECT rule actually applies.'
+    },
+    {
+      stem: 'Why rebuild the FORWARD chain only when chain_intact reports it was tampered with?',
+      options: [
+        'Because ip6tables and iptables are not allowed to hold the same chain name at once',
+        'Flushing and refilling on every tick pegs netd and overheats the phone over time',
+        'The chain must be completely torn down first before the offload snapshot is restored',
+        'Rebuilding would wipe the heartbeat counter that the status command reads each run'
+      ],
+      correct: 1,
+      why: 'The curfew net layer proved that flushing every tick pins netd’s CPU and overheats the device. The intact-check skips redundant rebuilds.'
+    },
+    {
+      stem: 'When the phone leaves home and current_mode is no longer "focus", the enforcer:',
+      options: [
+        'keeps the FORWARD block pinned in place until the next full device reboot clears it',
+        'leaves all of its rules applied but writes a warning line telling you that you are away',
+        'disables focus mode itself and re-enables every app the daemon had previously blocked',
+        'restores the snapshotted offload value and tears the FORWARD chain down'
+      ],
+      correct: 3,
+      why: 'should_act returns false, so exit_block runs: it restores the offload snapshot and removes the chain, leaving tethering usable again.'
+    }
+  ];
+
+  var quizEl = document.getElementById('quiz');
+  var scoreEl = document.getElementById('score');
+  var answered = 0, correct = 0;
+  QUIZ.forEach(function (q, qi) {
+    var box = document.createElement('div');
+    box.className = 'q';
+    var stem = document.createElement('div');
+    stem.className = 'stem';
+    stem.textContent = (qi + 1) + '. ' + q.stem;
+    box.appendChild(stem);
+    var done = false;
+    q.options.forEach(function (opt, oi) {
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.textContent = opt;
+      b.addEventListener('click', function () {
+        if (done) return;
+        done = true; answered++;
+        var buttons = box.querySelectorAll('.opt');
+        buttons.forEach(function (bb, bi) {
+          bb.disabled = true;
+          if (bi === q.correct) bb.classList.add('correct');
+          else if (bi === oi) bb.classList.add('wrong');
+        });
+        if (oi === q.correct) correct++;
+        var rat = box.querySelector('.rationale');
+        rat.classList.add('show');
+        rat.textContent = (oi === q.correct ? '✓ Correct. ' : '✕ Not quite. ') + q.why;
+        scoreEl.textContent = 'Score: ' + correct + ' / ' + answered;
+      });
+      box.appendChild(b);
+    });
+    var rat = document.createElement('div');
+    rat.className = 'rationale';
+    box.appendChild(rat);
+    quizEl.appendChild(box);
+  });
+})();
+</script>
