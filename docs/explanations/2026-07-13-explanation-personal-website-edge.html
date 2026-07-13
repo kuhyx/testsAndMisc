@@ -1,0 +1,487 @@
+<h1>One domain, one edge, and the day two Caddies fought over it</h1>
+
+<p class="lede">
+  How a personal website took the root of <code>kuhy.duckdns.org</code> — moving
+  Gitea aside, teaching a shared reverse proxy to stop overwriting itself, and
+  keeping a second Caddy from stealing the ports.
+</p>
+
+<nav class="toc" aria-label="Contents">
+  <a href="#background">1 · Background</a>
+  <a href="#intuition">2 · Intuition</a>
+  <a href="#code">3 · Code</a>
+  <a href="#quiz">4 · Quiz</a>
+</nav>
+
+<section id="background">
+  <h2>1 · Background — one server, many front doors</h2>
+
+  <p>
+    This home server hosts several things at once: a self-hosted
+    <strong>Gitea</strong> (a GitHub-like git host), a <strong>dufs</strong>
+    file cloud, a <strong>SyncYomi</strong> manga-sync service — and now a
+    personal website. They all share a single public IP and a single pair of
+    open ports (<code>80</code>/<code>443</code>).
+  </p>
+
+  <p>
+    The trick that lets one IP serve many sites is a <strong>reverse
+    proxy</strong>. One program — here, a <strong>Caddy</strong> container
+    called <code>gitea-caddy</code> — owns ports 80/443, terminates HTTPS, and
+    routes each incoming request to the right backend based on the
+    <em>hostname</em> the visitor asked for:
+  </p>
+
+  <div class="diagram">
+    <div class="edge-row">
+      <div class="cloud">🌐 Internet<br /><span>request for a hostname</span></div>
+      <div class="arrow">→</div>
+      <div class="proxy">
+        <strong>gitea-caddy</strong>
+        <span>owns :80 / :443<br />auto-HTTPS</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="backcol">
+        <div class="back">gitea → <code>127.0.0.1:3000</code></div>
+        <div class="back">dufs → <code>127.0.0.1:5000</code></div>
+        <div class="back">syncyomi → <code>127.0.0.1:8282</code></div>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Caddy reads a config file, the <strong>Caddyfile</strong>. Each service is
+    one block: a hostname, then where to send its traffic.
+  </p>
+
+  <div class="code"><pre>kuhy.duckdns.org      { reverse_proxy 127.0.0.1:3000 }   # Gitea (the root!)
+kuhy-cloud.duckdns.org{ reverse_proxy 127.0.0.1:5000 }   # dufs
+kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
+
+  <p>
+    Two details matter for this change. First, the bare root
+    <code>kuhy.duckdns.org</code> was <strong>Gitea's</strong> — and the goal
+    was to give that root to a new website. Second, every container runs with
+    <code>network_mode: host</code>: instead of Docker's private network, each
+    container shares the host's network directly. (The home firewall drops
+    Docker's normal bridge forwarding, so host networking is the reliable way to
+    reach the internet for TLS renewals.) Host networking will come back to bite
+    us in section 2.
+  </p>
+
+  <p>
+    Finally, that Caddyfile isn't hand-written — it's <em>generated</em> by
+    <code>setup_gitea.sh</code>. SyncYomi and dufs each <em>appended</em> their
+    block to the same file from their own setup scripts. Hold that thought.
+  </p>
+</section>
+
+<section id="intuition">
+  <h2>2 · Intuition — two ways a shared edge bites back</h2>
+
+  <h3>Problem A — the self-overwriting config file</h3>
+  <p>
+    <code>setup_gitea.sh</code> is meant to be safe to re-run. But its way of
+    writing the Caddyfile was <code>cat &gt; Caddyfile</code> — it
+    <strong>regenerated the whole file from scratch, containing only Gitea's
+    block.</strong> dufs and SyncYomi had appended <em>their</em> blocks later.
+    So every time you re-ran the Gitea setup, those blocks silently vanished and
+    two live services went dark. A latent trap, waiting for the next re-run.
+  </p>
+
+  <p>
+    The fix is the shape of the change: instead of one big file that one script
+    owns, the root Caddyfile becomes a single line —
+    <code>import /etc/caddy/sites/*.caddy</code> — and <em>each service owns its
+    own snippet file</em> in a <code>sites/</code> folder. Now re-running any one
+    setup script only touches its own snippet. Nothing can clobber a neighbour.
+  </p>
+
+  <div class="microworld" id="mw">
+    <p class="mw-title">Play: re-run the Gitea setup and watch what survives.</p>
+    <div class="mw-modes">
+      <button data-mode="mono" class="mw-mode active">Before: one shared file</button>
+      <button data-mode="snip" class="mw-mode">After: per-service snippets</button>
+    </div>
+    <div class="mw-services" id="mw-services"></div>
+    <div class="mw-actions">
+      <button id="mw-rerun">▶ Re-run setup_gitea.sh</button>
+      <button id="mw-reset" class="secondary">↺ Reset</button>
+    </div>
+    <p class="mw-log" id="mw-log">All four services are up. Now re-run the Gitea setup…</p>
+  </div>
+
+  <h3>Problem B — two Caddies, one admin port</h3>
+  <p>
+    The website is served by a <em>second</em> tiny Caddy container, listening
+    only on loopback <code>127.0.0.1:8088</code>, with
+    <code>gitea-caddy</code> proxying the root domain to it. But both Caddies use
+    host networking — so they <strong>share every port on the host, including
+    Caddy's admin API on <code>:2019</code></strong>. When the deploy ran
+    <code>caddy reload</code> against <code>gitea-caddy</code>, the reload was
+    delivered over <code>:2019</code>… and sometimes landed on the
+    <em>website's</em> Caddy instead. That Caddy then adopted the edge config,
+    grabbed 80/443, started failing to issue certificates, and abandoned 8088 —
+    the site went blank.
+  </p>
+
+  <div class="diagram">
+    <div class="collide">
+      <div class="mini">reload → <code>:2019</code></div>
+      <div class="arrow">↘ ↙</div>
+      <div class="two">
+        <div class="caddybox good">gitea-caddy<br /><span>should receive it</span></div>
+        <div class="caddybox bad">website caddy<br /><span>must NOT — <code>admin off</code></span></div>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    The one-word fix: give the website's Caddy <code>admin off</code>. With no
+    admin endpoint, it can never be reconfigured from outside — it stays a plain
+    static server on 8088, and reloads only reach <code>gitea-caddy</code>.
+  </p>
+</section>
+
+<section id="code">
+  <h2>3 · Code — the change, by concern</h2>
+
+  <h3>a. Move Gitea off the root</h3>
+  <p>
+    One constant flips. It flows into Gitea's <code>DOMAIN</code>,
+    <code>ROOT_URL</code>, and its Caddy block — freeing the bare root for the
+    website. The DuckDNS wildcard already resolves the new subdomain, so no DNS
+    work is needed.
+  </p>
+  <div class="code"><pre>-readonly GITEA_DOMAIN="kuhy.duckdns.org"
++readonly GITEA_DOMAIN="gitea.kuhy.duckdns.org"</pre></div>
+
+  <h3>b. Turn the monolith into per-service snippets</h3>
+  <p>
+    The generated root Caddyfile stops holding blocks and just imports a folder;
+    Gitea writes its own snippet; the Caddy container mounts that folder.
+  </p>
+  <div class="code"><pre>     volumes:
+       - ./Caddyfile:/etc/caddy/Caddyfile:ro
++      - ./sites:/etc/caddy/sites:ro          # mount the snippet folder
+
+-	cat >"$CADDYFILE" &lt;&lt;EOF
+-${GITEA_DOMAIN} { reverse_proxy 127.0.0.1:3000 }
+-EOF
++	ensure_dir "$SITES_DIR"
++	cat >"$CADDYFILE" &lt;&lt;'EOF'          # root file: just an import
++import /etc/caddy/sites/*.caddy
++EOF
++	cat >"${SITES_DIR}/gitea.caddy" &lt;&lt;EOF   # Gitea owns ONE file
++${GITEA_DOMAIN} { reverse_proxy 127.0.0.1:3000 }
++EOF</pre></div>
+
+  <h3>c. The new deploy script — ordering is load-bearing</h3>
+  <p>
+    <code>setup_personal_website.sh</code> orchestrates the whole cutover. The
+    <strong>order</strong> is the safety property: existing blocks are migrated
+    into snippets <em>before</em> the root file is switched to the import line —
+    otherwise dufs and SyncYomi would blink out during the migration itself.
+  </p>
+  <div class="code"><pre>preflight            # deps, docker up, gitea-caddy present
+migrate_caddy_snippets   # split TODAY's Caddyfile → sites/*.caddy (keep dufs, sync)
+relocate_gitea       # re-run setup_gitea.sh (now writes import + gitea.caddy)
+build_website        # pnpm build → ~/personal-website/dist
+write_website_stack  # loopback caddy compose + inner Caddyfile
+write_website_snippet# sites/website.caddy → kuhy.duckdns.org
+start_website        # container up on 127.0.0.1:8088
+reload_caddy         # single reload, now that every snippet exists
+ensure_firewall      # 80/443 already open — idempotent</pre></div>
+
+  <h3>d. The one word that keeps the site alive</h3>
+  <p>
+    The website's inner Caddyfile disables the admin API so a reload aimed at the
+    edge can never hijack it (Problem B).
+  </p>
+  <div class="code"><pre>{
+	admin off          # host networking shares :2019 with gitea-caddy
+}
+:8088 {
+	root * /srv
+	try_files {path} /index.html   # SPA fallback
+	file_server
+}</pre></div>
+
+  <p class="aside">
+    The React site itself was later extracted to its own repo
+    (<code>github.com/kuhyx/personal-website</code>); this commit is the
+    <em>edge + deploy</em> half that lives in <code>testsAndMisc</code>.
+  </p>
+</section>
+
+<section id="quiz">
+  <h2>4 · Quiz</h2>
+  <p class="quiz-intro">Five questions on the <em>why</em>. Score: <span id="score">0</span> / 5.</p>
+  <div id="quiz"></div>
+</section>
+
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1e22; --muted: #5c636e; --accent: #2f5cff;
+    --border: #e5e7eb; --card: #f7f8fa; --code-bg: #f2f3f6;
+    --ok: #1a7f47; --bad: #c22f3d; --okbg: #e7f6ee; --badbg: #fbe9eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --fg: #e8eaed; --muted: #9aa1ac; --accent: #7f9bff;
+      --border: #2a2e35; --card: #1b1e24; --code-bg: #12141a;
+      --ok: #4ecb82; --bad: #f0808d; --okbg: #16281e; --badbg: #2a1719;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  h1, h2, h3, p, section, nav, .diagram, .microworld { max-width: min(48rem, 92vw); }
+  h1, h2, h3, p, .diagram, .microworld, #quiz, .quiz-intro { margin-left: auto; margin-right: auto; }
+  h1 { padding: 2rem 1rem 0.4rem; font-size: clamp(1.5rem, 4vw, 2.1rem); }
+  .lede { color: var(--muted); padding: 0 1rem 1rem; font-size: 1.05rem; }
+  h2 { margin-top: 3rem; padding: 0 1rem; border-bottom: 1px solid var(--border); }
+  h3 { margin-top: 1.8rem; padding: 0 1rem; font-size: 1.1rem; }
+  p, .quiz-intro { padding: 0 1rem; }
+  code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  .toc {
+    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem;
+    max-width: min(48rem, 92vw); margin: 1rem auto; padding: 0.6rem 1rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 0.6rem;
+  }
+  .toc a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.92rem; }
+  .toc a:hover { text-decoration: underline; }
+  .code {
+    max-width: min(48rem, 92vw); margin: 0.8rem auto; padding: 0 1rem;
+  }
+  .code pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 0.5rem;
+    padding: 0.9rem 1rem; margin: 0; white-space: pre-wrap; overflow-x: auto;
+    font-size: 0.86rem; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .aside { color: var(--muted); font-size: 0.95rem; }
+
+  .diagram { padding: 0.5rem 1rem 0; }
+  .edge-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .cloud, .proxy, .back, .caddybox, .mini {
+    border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.6rem 0.8rem;
+    background: var(--card); font-size: 0.85rem; text-align: center;
+  }
+  .cloud span, .proxy span, .caddybox span { color: var(--muted); font-size: 0.75rem; }
+  .proxy { border-color: var(--accent); }
+  .backcol { display: flex; flex-direction: column; gap: 0.4rem; }
+  .back { text-align: left; }
+  .arrow { color: var(--muted); font-size: 1.2rem; }
+  .collide { text-align: center; }
+  .collide .two { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; margin-top: 0.4rem; }
+  .caddybox.good { border-color: var(--ok); }
+  .caddybox.bad { border-color: var(--bad); }
+
+  .microworld {
+    margin: 1.2rem auto; padding: 1rem; background: var(--card);
+    border: 1px solid var(--border); border-radius: 0.7rem;
+  }
+  .mw-title { padding: 0; font-weight: 600; margin: 0 0 0.7rem; }
+  .mw-modes { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+  .mw-mode {
+    flex: 1; min-width: 12rem; padding: 0.5rem; border-radius: 0.5rem; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg); color: var(--fg); font-weight: 600;
+  }
+  .mw-mode.active { border-color: var(--accent); color: var(--accent); }
+  .mw-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; }
+  .svc {
+    border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; text-align: center;
+    transition: all 0.25s ease;
+  }
+  .svc .name { font-weight: 700; font-size: 0.9rem; }
+  .svc .host { color: var(--muted); font-size: 0.72rem; }
+  .svc .state { font-size: 0.78rem; margin-top: 0.35rem; font-weight: 600; }
+  .svc.up { background: var(--okbg); border-color: var(--ok); }
+  .svc.up .state { color: var(--ok); }
+  .svc.down { background: var(--badbg); border-color: var(--bad); opacity: 0.85; }
+  .svc.down .state { color: var(--bad); }
+  .mw-actions { display: flex; gap: 0.6rem; margin-top: 0.9rem; flex-wrap: wrap; }
+  .mw-actions button, .mw-mode { font-family: inherit; }
+  #mw-rerun {
+    background: var(--accent); color: #fff; border: none; padding: 0.55rem 1rem;
+    border-radius: 0.5rem; font-weight: 700; cursor: pointer;
+  }
+  .secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    padding: 0.55rem 1rem; border-radius: 0.5rem; cursor: pointer; }
+  .mw-log { padding: 0; margin: 0.8rem 0 0; font-size: 0.88rem; color: var(--muted); min-height: 2.4em; }
+
+  .q { background: var(--card); border: 1px solid var(--border); border-radius: 0.6rem;
+    padding: 1rem; margin: 0 auto 1rem; max-width: min(48rem, 92vw); }
+  .q .stem { font-weight: 600; margin-bottom: 0.7rem; }
+  .opt { display: block; width: 100%; text-align: left; margin: 0.4rem 0; padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border); border-radius: 0.5rem; background: var(--bg); color: var(--fg);
+    cursor: pointer; font: inherit; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt.correct { background: var(--okbg); border-color: var(--ok); }
+  .opt.wrong { background: var(--badbg); border-color: var(--bad); }
+  .rationale { margin-top: 0.6rem; font-size: 0.88rem; color: var(--muted);
+    border-left: 3px solid var(--accent); padding-left: 0.7rem; display: none; }
+  .rationale.show { display: block; }
+  footer { max-width: min(48rem, 92vw); margin: 2rem auto 3rem; padding: 0 1rem;
+    color: var(--muted); font-size: 0.82rem; }
+</style>
+
+<footer>Generated by the <code>explain-diff</code> skill · testsAndMisc @ 0bdaecd</footer>
+
+<script>
+  // ---- Micro-world: the Caddyfile clobber ----
+  const SERVICES = [
+    { key: "gitea", name: "Gitea", host: "gitea.kuhy…:3000" },
+    { key: "dufs", name: "dufs", host: "kuhy-cloud…:5000" },
+    { key: "sync", name: "SyncYomi", host: "kuhy-sync…:8282" },
+    { key: "web", name: "Website", host: "kuhy…:8088" },
+  ];
+  let mode = "mono";
+  let state = {};
+  const elServices = document.getElementById("mw-services");
+  const elLog = document.getElementById("mw-log");
+
+  function resetState() {
+    SERVICES.forEach((s) => (state[s.key] = true));
+    render();
+    elLog.textContent = "All four services are up. Now re-run the Gitea setup…";
+  }
+  function render() {
+    elServices.innerHTML = "";
+    SERVICES.forEach((s) => {
+      const up = state[s.key];
+      const div = document.createElement("div");
+      div.className = "svc " + (up ? "up" : "down");
+      div.innerHTML =
+        '<div class="name">' + s.name + "</div>" +
+        '<div class="host">' + s.host + "</div>" +
+        '<div class="state">' + (up ? "● serving" : "✕ gone dark") + "</div>";
+      elServices.appendChild(div);
+    });
+  }
+  function rerun() {
+    if (mode === "mono") {
+      // Regenerates the whole Caddyfile with ONLY the gitea block.
+      SERVICES.forEach((s) => (state[s.key] = s.key === "gitea"));
+      render();
+      elLog.innerHTML =
+        "<strong style='color:var(--bad)'>Clobbered.</strong> The whole Caddyfile was rewritten with only Gitea's block — dufs, SyncYomi and the website disappeared.";
+    } else {
+      // Only touches gitea.caddy; imports leave the rest intact.
+      SERVICES.forEach((s) => (state[s.key] = true));
+      render();
+      elLog.innerHTML =
+        "<strong style='color:var(--ok)'>All safe.</strong> Only <code>sites/gitea.caddy</code> was rewritten; the import picks up every other snippet untouched.";
+    }
+  }
+  document.querySelectorAll(".mw-mode").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".mw-mode").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      mode = b.dataset.mode;
+      resetState();
+    });
+  });
+  document.getElementById("mw-rerun").addEventListener("click", rerun);
+  document.getElementById("mw-reset").addEventListener("click", resetState);
+  resetState();
+
+  // ---- Quiz (debiased: correct never the longest; positions spread) ----
+  const QUIZ = [
+    {
+      stem: "Before this change, why did re-running setup_gitea.sh drop the SyncYomi and dufs blocks?",
+      options: [
+        "Docker restarted the Caddy container, which cleared its in-memory config.",
+        "It rewrote the entire Caddyfile from scratch, keeping only Gitea's block.",
+        "The DuckDNS updater removed their subdomains from the tracked domain list.",
+        "Their TLS certificates expired, so Caddy quietly stopped serving them.",
+      ],
+      correct: 1,
+      why: "cat > Caddyfile regenerated the whole file with just Gitea; appended blocks were lost.",
+    },
+    {
+      stem: "What does the new root Caddyfile line, import /etc/caddy/sites/*.caddy, accomplish?",
+      options: [
+        "It makes Caddy reload itself every few minutes from the sites folder.",
+        "It merges all snippets into one file that Gitea then overwrites again.",
+        "It disables automatic HTTPS for every service block that gets imported.",
+        "Each service owns a separate snippet, so no script can clobber another.",
+      ],
+      correct: 3,
+      why: "Per-service files mean re-running one setup only rewrites that service's own snippet.",
+    },
+    {
+      stem: "Why does the website's loopback Caddy set admin off?",
+      options: [
+        "Both Caddies share the host's admin API, so a reload could hit the wrong one.",
+        "Turning the admin API off is what makes Caddy serve static files faster here.",
+        "It stops outside visitors from reaching the Caddy admin endpoint on the host.",
+        "Without it, Caddy refuses to boot a second instance on the very same machine.",
+      ],
+      correct: 0,
+      why: "Host networking shares :2019; a reload aimed at gitea-caddy could reconfigure the site's Caddy.",
+    },
+    {
+      stem: "Why must the snippet migration run before setup_gitea.sh regenerates the root Caddyfile?",
+      options: [
+        "Because Docker needs the sites folder mounted before any container can start.",
+        "So the firewall opens ports 80 and 443 ahead of the very first TLS handshake.",
+        "Once the root file becomes the import line, the old inline blocks are gone.",
+        "The DuckDNS wildcard has to resolve before Caddy can request certificates.",
+      ],
+      correct: 2,
+      why: "The migration must copy dufs/SyncYomi out of the old monolith before it's overwritten.",
+    },
+    {
+      stem: "Why is the site served by a separate loopback container fronted by gitea-caddy, not binding 80/443 itself?",
+      options: [
+        "A static file server cannot obtain its own TLS certificate through Caddy.",
+        "gitea-caddy already holds 80/443, so the site sits behind it on port 8088.",
+        "Docker never allows two host-networked containers to run at the same time.",
+        "Binding 80 and 443 twice would corrupt the shared ACME certificate storage.",
+      ],
+      correct: 1,
+      why: "The edge Caddy owns the public ports; the website is just another loopback backend.",
+    },
+  ];
+
+  let score = 0;
+  const quizEl = document.getElementById("quiz");
+  const scoreEl = document.getElementById("score");
+  QUIZ.forEach((q, qi) => {
+    const card = document.createElement("div");
+    card.className = "q";
+    const stem = document.createElement("div");
+    stem.className = "stem";
+    stem.textContent = qi + 1 + ". " + q.stem;
+    card.appendChild(stem);
+    let answered = false;
+    q.options.forEach((opt, oi) => {
+      const btn = document.createElement("button");
+      btn.className = "opt";
+      btn.textContent = opt;
+      btn.addEventListener("click", () => {
+        if (answered) return;
+        answered = true;
+        const rat = card.querySelector(".rationale");
+        card.querySelectorAll(".opt").forEach((b, bi) => {
+          b.disabled = true;
+          if (bi === q.correct) b.classList.add("correct");
+        });
+        if (oi === q.correct) score++;
+        else btn.classList.add("wrong");
+        scoreEl.textContent = score;
+        rat.classList.add("show");
+      });
+      card.appendChild(btn);
+    });
+    const rat = document.createElement("div");
+    rat.className = "rationale";
+    rat.textContent = q.why;
+    card.appendChild(rat);
+    quizEl.appendChild(card);
+  });
+</script>
