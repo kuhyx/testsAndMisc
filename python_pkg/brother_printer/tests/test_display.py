@@ -10,6 +10,7 @@ import pytest
 from python_pkg.brother_printer.data_classes import (
     NetworkResult,
     PageCountEstimate,
+    PageDeliveryCheck,
     SupplyReadings,
     USBPortStatus,
     USBResult,
@@ -21,6 +22,7 @@ from python_pkg.brother_printer.display import (
     _display_consumables_reference,
     _display_cups_fallback_note,
     _display_page_count_estimate,
+    _display_page_delivery_warning,
     _display_pjl_status,
     _display_report_header,
     _display_supply_levels,
@@ -50,6 +52,41 @@ class TestDisplayPageCountEstimate:
         with patch("sys.stdout", new_callable=StringIO) as out:
             _display_page_count_estimate()
             assert out.getvalue() == ""
+
+    @patch(f"{MOD}.estimate_consumable_life")
+    def test_printer_count_passed_through(self, mock_est: MagicMock) -> None:
+        mock_est.return_value = PageCountEstimate(total_pages=2017)
+        with patch("sys.stdout", new_callable=StringIO):
+            _display_page_count_estimate(2017)
+        mock_est.assert_called_once_with(2017)
+
+    @patch(f"{MOD}.estimate_consumable_life")
+    def test_approximate_is_labelled(self, mock_est: MagicMock) -> None:
+        """A CUPS-log figure must not be presented as the printer's own count."""
+        mock_est.return_value = PageCountEstimate(
+            total_pages=1658,
+            toner_pages=250,
+            drum_pages=1658,
+            approximate=True,
+        )
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            _display_page_count_estimate(0)
+        assert "Approximate" in out.getvalue()
+
+    @patch(f"{MOD}.estimate_consumable_life")
+    def test_printer_count_is_not_labelled_approximate(
+        self,
+        mock_est: MagicMock,
+    ) -> None:
+        mock_est.return_value = PageCountEstimate(
+            total_pages=2017,
+            toner_pages=250,
+            drum_pages=2017,
+            approximate=False,
+        )
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            _display_page_count_estimate(2017)
+        assert "Approximate" not in out.getvalue()
 
     @patch(f"{MOD}.estimate_consumable_life")
     def test_healthy(self, mock_est: MagicMock) -> None:
@@ -436,3 +473,37 @@ class TestDisplaySupplyLevels:
             _display_supply_levels(result)
             text = out.getvalue()
             assert "ACTION NEEDED" in text
+
+
+class TestDisplayPageDeliveryWarning:
+    """Surfacing pages the printer dropped without telling anyone."""
+
+    @patch(f"{MOD}.check_page_delivery")
+    def test_warns_with_actionable_fix(self, mock_check: MagicMock) -> None:
+        mock_check.return_value = PageDeliveryCheck(
+            cups_pages=63,
+            printer_pages=3,
+            dropped=60,
+            suspected=True,
+        )
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            _display_page_delivery_warning(2087, queue_idle=True)
+        printed = out.getvalue()
+        assert "60 pages did not print" in printed
+        assert "63" in printed
+        # Useless without telling the reader what to actually do about it.
+        assert "Resolution=300dpi" in printed
+
+    @patch(f"{MOD}.check_page_delivery")
+    def test_silent_when_healthy(self, mock_check: MagicMock) -> None:
+        mock_check.return_value = PageDeliveryCheck(suspected=False)
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            _display_page_delivery_warning(2087, queue_idle=True)
+        assert out.getvalue() == ""
+
+    @patch(f"{MOD}.check_page_delivery")
+    def test_passes_queue_state_through(self, mock_check: MagicMock) -> None:
+        mock_check.return_value = PageDeliveryCheck(suspected=False)
+        with patch("sys.stdout", new_callable=StringIO):
+            _display_page_delivery_warning(2087, queue_idle=False)
+        mock_check.assert_called_once_with(2087, queue_idle=False)

@@ -11,6 +11,7 @@ import pytest
 from python_pkg.brother_printer.check_brother_printer import (
     _discover_network_printer,
     _no_printer_found,
+    _reset_consumable_from_printer,
     _run_network_mode,
     _run_usb_mode,
     main,
@@ -209,3 +210,66 @@ class TestMain:
             pytest.raises(SystemExit),
         ):
             main(["1.2.3.4"])
+
+
+class TestResetConsumableFromPrinter:
+    """Resetting a baseline must use the printer's own counter, or refuse.
+
+    Baselines live on the printer's lifetime-counter scale. Recording one from
+    any other source skews every later estimate, so a printer that cannot be
+    read is a hard error rather than a silent fallback.
+    """
+
+    @patch(f"{MOD}.reset_consumable")
+    @patch(f"{MOD}.query_usb_pjl")
+    def test_uses_printer_page_count(
+        self,
+        mock_query: MagicMock,
+        mock_reset: MagicMock,
+    ) -> None:
+        mock_query.return_value = USBResult(page_count="2017")
+        _reset_consumable_from_printer("toner")
+        mock_reset.assert_called_once_with("toner", 2017)
+
+    @patch(f"{MOD}._out")
+    @patch(f"{MOD}.reset_consumable")
+    @patch(f"{MOD}.query_usb_pjl")
+    def test_refuses_without_page_count(
+        self,
+        mock_query: MagicMock,
+        mock_reset: MagicMock,
+        mock_out: MagicMock,
+    ) -> None:
+        mock_query.return_value = USBResult(page_count="")
+        with pytest.raises(SystemExit):
+            _reset_consumable_from_printer("toner")
+        mock_reset.assert_not_called()
+
+    @patch(f"{MOD}._out")
+    @patch(f"{MOD}.reset_consumable")
+    @patch(f"{MOD}.query_usb_pjl")
+    def test_reports_underlying_error(
+        self,
+        mock_query: MagicMock,
+        mock_reset: MagicMock,
+        mock_out: MagicMock,
+    ) -> None:
+        mock_query.return_value = USBResult(page_count="", error="device busy")
+        with pytest.raises(SystemExit):
+            _reset_consumable_from_printer("drum")
+        printed = " ".join(str(c) for c in mock_out.call_args_list)
+        assert "device busy" in printed
+
+    @patch(f"{MOD}._out")
+    @patch(f"{MOD}.reset_consumable")
+    @patch(f"{MOD}.query_usb_pjl")
+    def test_non_numeric_page_count_refused(
+        self,
+        mock_query: MagicMock,
+        mock_reset: MagicMock,
+        mock_out: MagicMock,
+    ) -> None:
+        mock_query.return_value = USBResult(page_count="???")
+        with pytest.raises(SystemExit):
+            _reset_consumable_from_printer("toner")
+        mock_reset.assert_not_called()

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from python_pkg.brother_printer.constants import (
+    DERIVED_TONER_END,
+    DERIVED_TONER_LOW,
+)
 from python_pkg.brother_printer.cups_service import (
     query_usb_via_cups,
 )
@@ -103,7 +107,7 @@ class TestQueryUsbViaCups:
             ),
         ):
             result = query_usb_via_cups()
-            assert result.status_code == "40302"
+            assert result.status_code == "41000"
             assert result.online == "FALSE"
 
     def test_port_ok_toner_exhausted(self) -> None:
@@ -142,7 +146,7 @@ class TestQueryUsbViaCups:
             ),
         ):
             result = query_usb_via_cups()
-            assert result.status_code == "40310"
+            assert result.status_code == DERIVED_TONER_END
             assert "Toner End" in result.display
 
     def test_port_ok_toner_low(self) -> None:
@@ -181,7 +185,7 @@ class TestQueryUsbViaCups:
             ),
         ):
             result = query_usb_via_cups()
-            assert result.status_code == "30010"
+            assert result.status_code == DERIVED_TONER_LOW
             assert "Toner Low" in result.display
 
     def test_port_ok_normal(self) -> None:
@@ -251,6 +255,6 @@ class TestQueryUsbViaCups:
             ),
         ):
             result = query_usb_via_cups()
-            assert result.status_code == "40000"
+            assert result.status_code == "40022"
             assert result.product == "HL-1110"
             assert result.online == "TRUE"

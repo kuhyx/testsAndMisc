@@ -3,21 +3,25 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
 from python_pkg.brother_printer.cups_service import (
+    STATE_SCHEMA_CUPS_SCALE,
+    _cups_is_busy,
     _ensure_cups_running,
     _get_cups_total_pages,
     _get_pyusb_device_info,
     _load_consumable_state,
+    _port_status_via_usblp,
     _query_usb_port_status_raw,
     _save_consumable_state,
-    _stop_cups,
     is_cups_scheduler_running,
     reset_consumable,
     start_cups,
 )
+from python_pkg.brother_printer.data_classes import USBPortStatus
 
 MOD = "python_pkg.brother_printer.cups_service"
 
@@ -84,37 +88,6 @@ class TestGetPyusbDeviceInfo:
         with patch.dict(_sys.modules, {"usb": mock_usb, "usb.core": mock_usb.core}):
             result = _get_pyusb_device_info()
             assert result == {}
-
-
-class TestStopCups:
-    @patch(f"{MOD}.shutil.which", return_value=None)
-    def test_no_systemctl(self, m: MagicMock) -> None:
-        assert _stop_cups() is False
-
-    @patch(f"{MOD}.time.sleep")
-    @patch(f"{MOD}.subprocess.run")
-    @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_success(self, w: MagicMock, mock_run: MagicMock, s: MagicMock) -> None:
-        mock_run.return_value = MagicMock()
-        assert _stop_cups() is True
-
-    @patch(f"{MOD}.subprocess.run")
-    @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_timeout(self, w: MagicMock, mock_run: MagicMock) -> None:
-        mock_run.side_effect = subprocess.TimeoutExpired("systemctl", 15)
-        assert _stop_cups() is False
-
-    @patch(f"{MOD}.subprocess.run")
-    @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_called_process_error(self, w: MagicMock, mock_run: MagicMock) -> None:
-        mock_run.side_effect = subprocess.CalledProcessError(1, "systemctl")
-        assert _stop_cups() is False
-
-    @patch(f"{MOD}.subprocess.run")
-    @patch(f"{MOD}.shutil.which", return_value="/usr/bin/systemctl")
-    def test_oserror(self, w: MagicMock, mock_run: MagicMock) -> None:
-        mock_run.side_effect = OSError("fail")
-        assert _stop_cups() is False
 
 
 class TestIsCupsSchedulerRunning:
@@ -210,53 +183,98 @@ class TestEnsureCupsRunning:
         assert _ensure_cups_running() is False
 
 
-class TestQueryUsbPortStatusRaw:
-    def test_import_error(self) -> None:
-        with (
-            patch(f"{MOD}._stop_cups"),
-            # Simulate ImportError for usb.core
-            patch.dict(
-                "sys.modules", {"usb": None, "usb.core": None, "usb.util": None}
-            ),
-        ):
-            result = _query_usb_port_status_raw()
-            assert result is None
+class TestPortStatusViaUsblp:
+    """The zero-side-effect path: read the status byte from /dev/usb/lp*."""
 
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=False)
-    def test_stop_cups_fails(self, st: MagicMock, s: MagicMock) -> None:
+    @patch(f"{MOD}.Path")
+    def test_no_dev_dir(self, mock_path: MagicMock) -> None:
+        mock_path.return_value.is_dir.return_value = False
+        assert _port_status_via_usblp() is None
+
+    @patch(f"{MOD}.Path")
+    def test_no_devices(self, mock_path: MagicMock) -> None:
+        mock_path.return_value.is_dir.return_value = True
+        mock_path.return_value.glob.return_value = []
+        assert _port_status_via_usblp() is None
+
+    @patch(f"{MOD}.os.close")
+    @patch(f"{MOD}.fcntl.ioctl")
+    @patch(f"{MOD}.os.open", return_value=7)
+    @patch(f"{MOD}.Path")
+    def test_success(
+        self,
+        mock_path: MagicMock,
+        mock_open: MagicMock,
+        mock_ioctl: MagicMock,
+        mock_close: MagicMock,
+    ) -> None:
+        mock_path.return_value.is_dir.return_value = True
+        mock_path.return_value.glob.return_value = ["/dev/usb/lp0"]
+
+        def fill(fd: int, req: int, buf: bytearray) -> None:
+            buf[0] = 0x18
+
+        mock_ioctl.side_effect = fill
+        result = _port_status_via_usblp()
+        assert result is not None
+        assert result.online is True
+        assert result.error is False
+        assert result.paper_empty is False
+        # Must never block: the printer may be mid-job.
+        assert mock_open.call_args[0][1] & os.O_NONBLOCK
+        mock_close.assert_called_once_with(7)
+
+    @patch(f"{MOD}.os.open", side_effect=OSError("busy"))
+    @patch(f"{MOD}.Path")
+    def test_open_fails(self, mock_path: MagicMock, mock_open: MagicMock) -> None:
+        mock_path.return_value.is_dir.return_value = True
+        mock_path.return_value.glob.return_value = ["/dev/usb/lp0"]
+        assert _port_status_via_usblp() is None
+
+
+class TestQueryUsbPortStatusRaw:
+    @patch(f"{MOD}._port_status_via_usblp", return_value=USBPortStatus(raw_byte=0x18))
+    def test_prefers_usblp(self, m: MagicMock) -> None:
+        """The free path wins; pyusb is never touched."""
+        result = _query_usb_port_status_raw("idle")
+        assert result is not None
+        assert result.raw_byte == 0x18
+
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_never_probes_while_printing(self, m: MagicMock) -> None:
+        """Regression: probing mid-job used to stop CUPS and kill the print."""
         import sys as _sys
 
         mock_usb = MagicMock()
-        mock_usb.core.find.return_value = MagicMock()
         with patch.dict(
             _sys.modules,
             {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
         ):
-            result = _query_usb_port_status_raw()
-            assert result is None
+            assert _query_usb_port_status_raw("processing") is None
+        mock_usb.core.find.assert_not_called()
 
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_dev_none_after_reset(self, st: MagicMock, s: MagicMock) -> None:
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_import_error(self, m: MagicMock) -> None:
+        with patch.dict(
+            "sys.modules", {"usb": None, "usb.core": None, "usb.util": None}
+        ):
+            assert _query_usb_port_status_raw("idle") is None
+
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_dev_none(self, m: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
-        mock_dev = MagicMock()
-        mock_usb.core.find.side_effect = [mock_dev, None]
-        with (
-            patch.dict(
-                _sys.modules,
-                {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
-            ),
-            patch(f"{MOD}.time.sleep"),
+        mock_usb.core.find.return_value = None
+        with patch.dict(
+            _sys.modules,
+            {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
         ):
-            result = _query_usb_port_status_raw()
-            assert result is None
+            assert _query_usb_port_status_raw("idle") is None
 
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_success(self, stop: MagicMock, start: MagicMock) -> None:
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_success_reattaches_driver(self, m: MagicMock) -> None:
+        """usblp must get its device back, or every later run hits the fallback."""
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -265,20 +283,18 @@ class TestQueryUsbPortStatusRaw:
         mock_dev.ctrl_transfer.return_value = [0x18]
         mock_usb.core.find.return_value = mock_dev
         mock_usb.core.USBError = type("USBError", (Exception,), {})
-        with (
-            patch.dict(
-                _sys.modules,
-                {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
-            ),
-            patch(f"{MOD}.time.sleep"),
+        with patch.dict(
+            _sys.modules,
+            {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
         ):
-            result = _query_usb_port_status_raw()
-            assert result is not None
-            assert result.online is True
+            result = _query_usb_port_status_raw("idle")
+        assert result is not None
+        assert result.online is True
+        mock_dev.reset.assert_not_called()
+        mock_dev.attach_kernel_driver.assert_called_once_with(0)
 
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_kernel_driver_not_active(self, stop: MagicMock, start: MagicMock) -> None:
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_kernel_driver_not_active(self, m: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -287,19 +303,17 @@ class TestQueryUsbPortStatusRaw:
         mock_dev.ctrl_transfer.return_value = [0x18]
         mock_usb.core.find.return_value = mock_dev
         mock_usb.core.USBError = type("USBError", (Exception,), {})
-        with (
-            patch.dict(
-                _sys.modules,
-                {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
-            ),
-            patch(f"{MOD}.time.sleep"),
+        with patch.dict(
+            _sys.modules,
+            {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
         ):
-            result = _query_usb_port_status_raw()
-            assert result is not None
+            result = _query_usb_port_status_raw("idle")
+        assert result is not None
+        # Nothing was detached, so nothing should be re-attached.
+        mock_dev.attach_kernel_driver.assert_not_called()
 
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_kernel_driver_usberror(self, stop: MagicMock, start: MagicMock) -> None:
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_kernel_driver_usberror(self, m: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -309,19 +323,14 @@ class TestQueryUsbPortStatusRaw:
         mock_dev.ctrl_transfer.return_value = [0x18]
         mock_usb.core.find.return_value = mock_dev
         mock_usb.core.USBError = usb_error_cls
-        with (
-            patch.dict(
-                _sys.modules,
-                {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
-            ),
-            patch(f"{MOD}.time.sleep"),
+        with patch.dict(
+            _sys.modules,
+            {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
         ):
-            result = _query_usb_port_status_raw()
-            assert result is not None
+            assert _query_usb_port_status_raw("idle") is not None
 
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_oserror_during_transfer(self, stop: MagicMock, start: MagicMock) -> None:
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_oserror_during_transfer(self, m: MagicMock) -> None:
         import sys as _sys
 
         mock_usb = MagicMock()
@@ -330,29 +339,42 @@ class TestQueryUsbPortStatusRaw:
         mock_usb.core.find.return_value = mock_dev
         mock_usb.core.USBError = type("USBError", (Exception,), {})
         mock_usb.util.claim_interface.side_effect = OSError("usb fail")
-        with (
-            patch.dict(
-                _sys.modules,
-                {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
-            ),
-            patch(f"{MOD}.time.sleep"),
-        ):
-            result = _query_usb_port_status_raw()
-            assert result is None
-
-    @patch(f"{MOD}.start_cups")
-    @patch(f"{MOD}._stop_cups", return_value=True)
-    def test_dev_none_initial(self, stop: MagicMock, start: MagicMock) -> None:
-        import sys as _sys
-
-        mock_usb = MagicMock()
-        mock_usb.core.find.return_value = None
         with patch.dict(
             _sys.modules,
             {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
         ):
-            result = _query_usb_port_status_raw()
-            assert result is None
+            assert _query_usb_port_status_raw("idle") is None
+
+    @patch(f"{MOD}._port_status_via_usblp", return_value=None)
+    def test_attach_failure_is_survivable(self, m: MagicMock) -> None:
+        import sys as _sys
+
+        mock_usb = MagicMock()
+        mock_dev = MagicMock()
+        mock_dev.is_kernel_driver_active.return_value = True
+        mock_dev.ctrl_transfer.return_value = [0x18]
+        mock_dev.attach_kernel_driver.side_effect = OSError("cannot reattach")
+        mock_usb.core.find.return_value = mock_dev
+        mock_usb.core.USBError = type("USBError", (Exception,), {})
+        with patch.dict(
+            _sys.modules,
+            {"usb": mock_usb, "usb.core": mock_usb.core, "usb.util": mock_usb.util},
+        ):
+            assert _query_usb_port_status_raw("idle") is not None
+
+
+class TestCupsIsBusy:
+    def test_processing(self) -> None:
+        assert _cups_is_busy("processing") is True
+
+    def test_printing_text(self) -> None:
+        assert _cups_is_busy("now printing Brother-98") is True
+
+    def test_idle(self) -> None:
+        assert _cups_is_busy("idle") is False
+
+    def test_empty(self) -> None:
+        assert _cups_is_busy("") is False
 
 
 class TestGetCupsTotalPages:
@@ -389,7 +411,13 @@ class TestLoadConsumableState:
     def test_no_file(self, mock_file: MagicMock) -> None:
         mock_file.exists.return_value = False
         result = _load_consumable_state()
-        assert result == {"toner_replaced_at": 0, "drum_replaced_at": 0}
+        assert result == {
+            "toner_replaced_at": 0,
+            "drum_replaced_at": 0,
+            "schema": STATE_SCHEMA_CUPS_SCALE,
+            "last_printer_count": 0,
+            "last_cups_total": 0,
+        }
 
     @patch(f"{MOD}.CONSUMABLE_STATE_FILE")
     def test_valid_file(self, mock_file: MagicMock) -> None:
@@ -452,3 +480,22 @@ class TestResetConsumable:
         reset_consumable("toner")
         saved_state = mock_save.call_args[0][0]
         assert saved_state["toner_replaced_at"] == 500
+
+
+class TestPortStatusViaUsblpIoctlFailure:
+    @patch(f"{MOD}.os.close")
+    @patch(f"{MOD}.fcntl.ioctl", side_effect=OSError("not supported"))
+    @patch(f"{MOD}.os.open", return_value=7)
+    @patch(f"{MOD}.Path")
+    def test_ioctl_failure_still_closes_fd(
+        self,
+        mock_path: MagicMock,
+        mock_open: MagicMock,
+        mock_ioctl: MagicMock,
+        mock_close: MagicMock,
+    ) -> None:
+        """A failed ioctl must not leak the fd, or usblp stays busy."""
+        mock_path.return_value.is_dir.return_value = True
+        mock_path.return_value.glob.return_value = ["/dev/usb/lp0"]
+        assert _port_status_via_usblp() is None
+        mock_close.assert_called_once_with(7)

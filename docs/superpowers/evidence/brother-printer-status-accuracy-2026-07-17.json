@@ -1,0 +1,73 @@
+{
+  "intent": "Make brother_printer report the truth: run ./run.sh standalone, stop reporting a sleeping printer as a critical paper jam, base consumable estimates on the printer's own page counter, never hang or destroy a print job while reading status, and surface pages the printer silently drops.",
+  "scope": [
+    "python_pkg/brother_printer/run.sh, __main__.py: standalone entry point",
+    "python_pkg/brother_printer/constants.py: PJL status table rebuilt from the HP PJL Technical Reference Manual, Appendix D",
+    "python_pkg/brother_printer/usb_query.py: non-blocking device access, @PJL INFO PAGECOUNT",
+    "python_pkg/brother_printer/cups_service.py: non-destructive port status, state migration, dropped-page detection",
+    "python_pkg/brother_printer/display.py, data_classes.py: reporting",
+    "Non-goal: queue default stays 600dpi (user's choice); the 300dpi workaround is documented, not enforced",
+    "Non-goal: no lpadmin/CUPS configuration changes"
+  ],
+  "changes": [
+    "run.sh: resolve REPO_ROOT and pass PYTHONPATH as a sudo argument (sudo env_reset strips an exported one), running the package via -m; fixes ModuleNotFoundError: No module named 'python_pkg'. __main__.py: correct the import prefix and guard main() behind __name__.",
+    "constants.py: rebuild BROTHER_STATUS_CODES from the HP PJL reference. 40000 is SLEEP MODE (the reference explicitly flags it 'not an error'), previously reported as a critical Paper Jam; the real jam code 40022 was absent entirely. 10006 is TONER LOW, previously rendered as a benign 'Processing'. Nine codes present in no reference (40310, 40300, 40302, 40309, 42000, 41000, 41001, 30038, 40201, 30201) are dropped and now fall back to 'Unknown status - check printer display' rather than asserting an invented meaning. Only 2 of the original 25 entries were correct.",
+    "constants.py: add a range rule for the 41xyy 'foreground paper loading' family, because the HL-1110 reports 41213 for an empty tray and its x/yy digits do not decode per HP's tray/media tables.",
+    "constants.py: CUPS-derived and self-inferred states no longer borrow PJL numbers. media-jam mapped to 40000, which after the rebuild would have reported a genuine jam as 'Sleep'; it now maps to 40022. Page-count estimates and unidentified errors use explicit non-PJL tags (estimate:toner-end, cups:error).",
+    "usb_query.py: send @PJL INFO PAGECOUNT and record it on USBResult. cups_service.py/display.py: derive consumable life from the printer's lifetime counter instead of the CUPS page log, which only sees jobs CUPS logged and counts pages the printer never printed.",
+    "cups_service.py: migrate replacement baselines from the CUPS scale onto the printer's scale once (schema v2), shifting by the measured gap so percentages do not jump. Zero baselines mean 'never replaced' and are left alone. reset_consumable records the printer's counter; check_brother_printer refuses to reset without it rather than writing a mis-scaled baseline.",
+    "usb_query.py: open the device O_NONBLOCK and deadline-bound every write. A blocking open() hung forever whenever the printer was not ready - the exact moment a status report is wanted. EBUSY/EACCES now produce actionable messages.",
+    "cups_service.py: _query_usb_port_status_raw no longer stops CUPS or calls dev.reset() to read a status byte; that destroyed the in-flight job and then misreported the damage as a printer error. It reads the same byte via the free usblp LPGETSTATUS ioctl, skips the probe entirely while a job is printing, and re-attaches the kernel driver so /dev/usb/lp* stops disappearing. Removed the now-orphaned _stop_cups helper.",
+    "cups_service.py/display.py: add check_page_delivery, comparing pages CUPS logged against the printer's counter between jobs. The HL-1110 silently discards pages whose 600dpi raster exceeds its ~1MB memory while staying READY, and CUPS reports the job successful, so this comparison is the only available signal. Reports the gap and the lp -o Resolution=300dpi workaround.",
+    "cups_service.py: express a CUPS-log figure on the printer's scale in fallback mode. Comparing the raw CUPS total against a printer-scale baseline went negative and clamped to zero, reporting a part-used cartridge as ~100% full."
+  ],
+  "verification": [
+    {
+      "command": "./run.sh (real Brother HL-1110, USB)",
+      "result": "pass",
+      "evidence": "Sleeping printer now reports '. Sleep (standby) / Printer is healthy' with CODE=40000, previously '. Paper Jam (critical)'. Page count 2087 from the printer vs 1778 from the CUPS log; toner 68%, drum 80%."
+    },
+    {
+      "command": "PJL status codes induced on real hardware and compared against the HP reference",
+      "result": "pass",
+      "evidence": "Six states verified, all matching the reference and none matching the old table: 10001 READY, 10003 WARMING UP, 10023 PRINTING, 40000 SLEEP, 40021 TOP COVER OPEN, 41213 NO PAPER."
+    },
+    {
+      "command": "query_usb_pjl() with /dev/usb/lp0 held by another process",
+      "result": "pass",
+      "evidence": "Returned in 0.0s with '/dev/usb/lp0 is busy: another process (usually the CUPS backend mid-job) holds the printer.' Previously hung indefinitely."
+    },
+    {
+      "command": "check_page_delivery replaying the observed failure",
+      "result": "pass",
+      "evidence": "Printer counter static while CUPS logged 63 pages -> cups_pages=63, printer_pages=0, dropped=63, suspected=True. Silent when queue_idle=False."
+    },
+    {
+      "command": "estimate_consumable_life(0) after the scale fix",
+      "result": "pass",
+      "evidence": "Reports 68% matching the authoritative reading, instead of the ~100% the raw CUPS total produced."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/brother_printer/tests/ --cov=python_pkg/brother_printer",
+      "result": "pass",
+      "evidence": "402 passed; 100% statement and branch coverage across all 11 modules."
+    },
+    {
+      "command": "pre-commit run --files <17 changed files>",
+      "result": "pass",
+      "evidence": "42 hooks passed/skipped, 0 failed (ruff, ruff format, mypy, pylint, bandit, shellcheck, codespell, pytest coverage enforcement)."
+    }
+  ],
+  "risks": [
+    "The status table is transcribed from the HP reference and verified for six states on one HL-1110. Codes we could not induce are spec-derived but unverified on this device; wrong entries now degrade to an honest 'Unknown status' rather than a confident wrong answer.",
+    "The baseline migration assumes the pages the CUPS log never saw were printed before the last toner replacement. Unknowable in principle; the user chose this over discarding their replacement history. It runs once (schema v2) and preserved the reported toner percentage across the switch.",
+    "check_page_delivery could false-positive if a job finishes exactly as the check runs. Mitigated by skipping while the queue is non-empty and by a 5-page threshold; it reports a suspicion with a suggested action, never a certainty.",
+    "The pyusb port-status path still claims the USB interface, but only when CUPS is idle, and it re-attaches the kernel driver afterwards.",
+    "Fallback-mode percentages remain approximate (shifted by the last measured gap) and are labelled as such in the report."
+  ],
+  "rollback": [
+    "git revert <commit>; the package is self-contained and no CUPS or system configuration was modified.",
+    "state.json gains schema/last_printer_count/last_cups_total keys. Older code ignores unknown keys but would read the migrated printer-scale baselines as CUPS-scale ones, understating pages since replacement; to fully revert, restore toner_replaced_at to 1408 and delete the added keys.",
+    "After rollback, validate with ./run.sh: expect the total to fall back to the CUPS page-log figure and the sleeping printer to be misreported as a paper jam again."
+  ]
+}

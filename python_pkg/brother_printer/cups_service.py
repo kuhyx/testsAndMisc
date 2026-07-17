@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import importlib
 import json
 import logging
+import os
 from pathlib import Path
 import re
 import shutil
@@ -23,14 +26,19 @@ from python_pkg.brother_printer.constants import (
     BROTHER_USB_VENDOR_ID,
     CONSUMABLE_STATE_DIR,
     CUPS_PAGE_LOG_PATH,
+    DERIVED_CUPS_ERROR,
+    DERIVED_TONER_END,
+    DERIVED_TONER_LOW,
     DRUM_RATED_PAGES,
     GREEN,
+    PAGE_DROP_WARN_THRESHOLD,
     RESET,
     TONER_RATED_PAGES,
     _out,
 )
 from python_pkg.brother_printer.data_classes import (
     PageCountEstimate,
+    PageDeliveryCheck,
     USBPortStatus,
     USBResult,
 )
@@ -42,6 +50,17 @@ logger = logging.getLogger(__name__)
 
 CUPS_PAGE_LOG = Path(CUPS_PAGE_LOG_PATH)
 CONSUMABLE_STATE_FILE = Path.home() / CONSUMABLE_STATE_DIR / "state.json"
+
+# state.json schema versions. Version 1 (implicit, no "schema" key) recorded
+# replacement baselines as CUPS page-log counts; version 2 records them on the
+# printer's own lifetime counter. See _migrate_state_to_printer_scale.
+STATE_SCHEMA_CUPS_SCALE = 1
+STATE_SCHEMA_PRINTER_SCALE = 2
+
+# Directory holding the usblp device nodes, and the ioctl that reads the
+# printer's IEEE 1284 status byte from one without disturbing the device.
+USB_PRINTER_DEV_GLOB_DIR = "/dev/usb"
+LPGETSTATUS = 0x060B
 
 
 def _import_or_raise(name: str) -> types.ModuleType:
@@ -73,23 +92,6 @@ def _get_pyusb_device_info() -> dict[str, str]:
 
 
 # ── CUPS service control ────────────────────────────────────────────
-
-
-def _stop_cups() -> bool:
-    """Stop CUPS service and sockets. Returns True on success."""
-    systemctl = shutil.which("systemctl")
-    if not systemctl:
-        return False
-    try:
-        subprocess.run(
-            [systemctl, "stop", "cups.service", "cups.socket", "cups.path"],
-            timeout=15,
-            check=True,
-        )
-        time.sleep(2)
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
-        return False
-    return True
 
 
 def is_cups_scheduler_running() -> bool:
@@ -142,12 +144,75 @@ def _ensure_cups_running() -> bool:
 # ── USB port status via pyusb ────────────────────────────────────────
 
 
-def _query_usb_port_status_raw() -> USBPortStatus | None:
-    """Query USB printer port status via pyusb control transfer.
+def _port_status_from_byte(port_byte: int) -> USBPortStatus:
+    """Decode a USB printer-class port status byte."""
+    return USBPortStatus(
+        paper_empty=bool(port_byte & 0x20),
+        online=bool(port_byte & 0x10),
+        # nFault is active low: the bit is set when there is NO fault.
+        error=not bool(port_byte & 0x08),
+        raw_byte=port_byte,
+    )
 
-    Requires root and temporarily stops CUPS to access the USB device.
-    Returns None if the query fails.
+
+def _port_status_via_usblp() -> USBPortStatus | None:
+    """Read port status through the usblp device node. No side effects.
+
+    The LPGETSTATUS ioctl returns the same byte as the USB control transfer
+    but costs nothing: no stopping CUPS, no device reset, no driver detach.
+    Returns None when the node is absent or busy.
     """
+    dev_path = Path(USB_PRINTER_DEV_GLOB_DIR)
+    devices = sorted(dev_path.glob("lp*")) if dev_path.is_dir() else []
+    if not devices:
+        return None
+    try:
+        # O_NONBLOCK: never hang here, the printer may be mid-job.
+        fd = os.open(str(devices[0]), os.O_RDONLY | os.O_NONBLOCK)
+    except OSError:
+        logger.debug("opening %s failed", devices[0], exc_info=True)
+        return None
+    try:
+        buf = bytearray(4)
+        fcntl.ioctl(fd, LPGETSTATUS, buf)
+    except OSError:
+        logger.debug("usblp LPGETSTATUS failed", exc_info=True)
+        return None
+    finally:
+        os.close(fd)
+    return _port_status_from_byte(int.from_bytes(buf, "little") & 0xFF)
+
+
+def _cups_is_busy(cups_state: str) -> bool:
+    """Report whether CUPS is currently driving the printer."""
+    return "processing" in cups_state.lower() or "printing" in cups_state.lower()
+
+
+def _query_usb_port_status_raw(cups_state: str = "") -> USBPortStatus | None:
+    """Query the printer's port status without disturbing it.
+
+    Prefers the usblp ioctl, which is free. Falls back to a pyusb control
+    transfer only when CUPS is idle: claiming the USB interface mid-job kills
+    the print, and an earlier version of this function did exactly that - it
+    stopped CUPS and reset the device just to read a status byte, destroying
+    the job it was trying to report on.
+
+    Args:
+        cups_state: CUPS printer-state text, used to detect an active job.
+
+    Returns:
+        The port status, or None when it cannot be read harmlessly.
+    """
+    status = _port_status_via_usblp()
+    if status is not None:
+        return status
+
+    if _cups_is_busy(cups_state):
+        # A job is running and owns the device. Reading the status is not worth
+        # killing the job for; the caller falls back to what CUPS reports.
+        logger.debug("skipping USB probe: CUPS is printing")
+        return None
+
     try:
         usb_core = _import_or_raise("usb.core")
         usb_util = _import_or_raise("usb.util")
@@ -158,19 +223,12 @@ def _query_usb_port_status_raw() -> USBPortStatus | None:
     if dev is None:
         return None
 
-    if not _stop_cups():
-        return None
-
+    detached = False
     try:
-        dev.reset()
-        time.sleep(2)
-        dev = usb_core.find(idVendor=BROTHER_USB_VENDOR_ID)
-        if dev is None:
-            return None
-
         try:
             if dev.is_kernel_driver_active(0):
                 dev.detach_kernel_driver(0)
+                detached = True
         except (usb_core.USBError, NotImplementedError):
             pass
 
@@ -178,21 +236,18 @@ def _query_usb_port_status_raw() -> USBPortStatus | None:
         try:
             # USB Printer Class GET_PORT_STATUS (bRequest=0x01)
             raw = dev.ctrl_transfer(0xA1, 0x01, 0, 0, 1, timeout=5000)
-            port_byte = raw[0]
-            return USBPortStatus(
-                paper_empty=bool(port_byte & 0x20),
-                online=bool(port_byte & 0x10),
-                error=not bool(port_byte & 0x08),
-                raw_byte=port_byte,
-            )
+            return _port_status_from_byte(raw[0])
         finally:
             usb_util.release_interface(dev, 0)
+            if detached:
+                # Give usblp its device back, or /dev/usb/lp* stays missing and
+                # every later run is stuck in this fallback path.
+                with contextlib.suppress(Exception):
+                    dev.attach_kernel_driver(0)
             usb_util.dispose_resources(dev)
     except (OSError, ValueError):
         logger.debug("USB port status query failed", exc_info=True)
         return None
-    finally:
-        start_cups()
 
 
 # ── Consumable state management ──────────────────────────────────────
@@ -218,7 +273,16 @@ def _get_cups_total_pages() -> int:
 
 def _load_consumable_state() -> dict[str, int]:
     """Load consumable replacement state from disk."""
-    defaults: dict[str, int] = {"toner_replaced_at": 0, "drum_replaced_at": 0}
+    defaults: dict[str, int] = {
+        "toner_replaced_at": 0,
+        "drum_replaced_at": 0,
+        "schema": STATE_SCHEMA_CUPS_SCALE,
+        # Snapshot of both counters at the last successful printer read, used to
+        # spot dropped pages and to place a CUPS-log figure on the printer's
+        # scale when the printer cannot be reached.
+        "last_printer_count": 0,
+        "last_cups_total": 0,
+    }
     if not CONSUMABLE_STATE_FILE.exists():
         return defaults
     try:
@@ -228,9 +292,48 @@ def _load_consumable_state() -> dict[str, int]:
         return {
             "toner_replaced_at": int(data.get("toner_replaced_at", 0)),
             "drum_replaced_at": int(data.get("drum_replaced_at", 0)),
+            "schema": int(data.get("schema", STATE_SCHEMA_CUPS_SCALE)),
+            "last_printer_count": int(data.get("last_printer_count", 0)),
+            "last_cups_total": int(data.get("last_cups_total", 0)),
         }
     except (OSError, json.JSONDecodeError, ValueError, TypeError):
         return defaults
+
+
+def _migrate_state_to_printer_scale(
+    state: dict[str, int],
+    printer_total: int,
+) -> dict[str, int]:
+    """Rebase replacement baselines from the CUPS page log onto the printer's counter.
+
+    Baselines written before this migration counted pages the CUPS log had seen,
+    which undercounts the printer's own lifetime counter by however many pages
+    were printed without CUPS logging them.  Shift each baseline by the gap
+    measured now, so "pages since replacement" - and therefore the reported
+    percentages - stay put across the switch.
+
+    A zero baseline means "never replaced" rather than "replaced at page zero",
+    so it is left alone: on the printer's scale it already means "as old as the
+    printer", which is the truthful reading.
+
+    Args:
+        state: Loaded state, possibly still on the CUPS page-log scale.
+        printer_total: Lifetime page count from the printer's own counter.
+
+    Returns:
+        State on the printer's scale, migrated at most once.
+    """
+    if state.get("schema", STATE_SCHEMA_CUPS_SCALE) >= STATE_SCHEMA_PRINTER_SCALE:
+        return state
+    offset = printer_total - _get_cups_total_pages()
+    migrated = dict(state)
+    migrated["schema"] = STATE_SCHEMA_PRINTER_SCALE
+    if offset > 0:
+        for key in ("toner_replaced_at", "drum_replaced_at"):
+            if state[key] > 0:
+                migrated[key] = state[key] + offset
+    _save_consumable_state(migrated)
+    return migrated
 
 
 def _save_consumable_state(state: dict[str, int]) -> None:
@@ -242,23 +345,131 @@ def _save_consumable_state(state: dict[str, int]) -> None:
     )
 
 
-def reset_consumable(name: str) -> None:
-    """Record current page count as replacement point for a consumable."""
-    total = _get_cups_total_pages()
+def reset_consumable(name: str, printer_total: int = 0) -> None:
+    """Record current page count as replacement point for a consumable.
+
+    Args:
+        name: Consumable to reset, "toner" or "drum".
+        printer_total: Lifetime count from the printer's own counter. Falls back
+            to the CUPS page log when zero, i.e. the printer was unreachable.
+    """
+    total = printer_total if printer_total > 0 else _get_cups_total_pages()
     state = _load_consumable_state()
     key = f"{name}_replaced_at"
     state[key] = total
+    # Baselines written here are already on the printer's scale, so mark the
+    # state migrated to stop the rebase shifting them a second time.
+    if printer_total > 0:
+        state["schema"] = STATE_SCHEMA_PRINTER_SCALE
     _save_consumable_state(state)
     _out(f"{GREEN}✓ {name.capitalize()} counter reset at page count {total}.{RESET}")
     _out(f"  State saved to {CONSUMABLE_STATE_FILE}")
 
 
-def estimate_consumable_life() -> PageCountEstimate:
-    """Estimate toner/drum life from CUPS page count since last replacement."""
-    total = _get_cups_total_pages()
+def _cups_total_on_printer_scale(state: dict[str, int]) -> int:
+    """Express the CUPS page-log count on the printer's counter scale.
+
+    Replacement baselines are stored against the printer's lifetime counter, so
+    comparing a raw CUPS figure against them subtracts two different scales. The
+    CUPS log runs behind the printer (it only sees jobs it printed itself), so
+    the raw number reads too low - low enough to go negative and clamp to zero,
+    which reported a spent cartridge as 100% full.
+
+    Shift by the gap measured at the last successful printer read. It is an
+    approximation, which is why callers flag the estimate as approximate.
+
+    Args:
+        state: Loaded consumable state holding the last counter snapshot.
+
+    Returns:
+        The CUPS total shifted onto the printer's scale, or the raw total when
+        no snapshot exists to shift it by.
+    """
+    cups_total = _get_cups_total_pages()
+    if cups_total <= 0:
+        return 0
+    offset = state["last_printer_count"] - state["last_cups_total"]
+    if state["last_printer_count"] <= 0 or offset <= 0:
+        return cups_total
+    return cups_total + offset
+
+
+def check_page_delivery(printer_total: int, *, queue_idle: bool) -> PageDeliveryCheck:
+    """Compare pages CUPS logged against pages the printer actually counted.
+
+    Only meaningful between jobs: mid-job, CUPS has logged pages the printer has
+    not yet pulled off the wire, which would look identical to dropping them.
+    Records a fresh snapshot of both counters whenever it runs cleanly.
+
+    Args:
+        printer_total: Lifetime count from the printer's own counter.
+        queue_idle: False when a job is queued or printing, which makes any
+            comparison meaningless.
+
+    Returns:
+        The comparison. suspected is True only when CUPS claims materially more
+        pages than the printer recorded.
+    """
+    check = PageDeliveryCheck()
+    if printer_total <= 0 or not queue_idle:
+        return check
+    state = _load_consumable_state()
+    cups_total = _get_cups_total_pages()
+    last_printer = state["last_printer_count"]
+    last_cups = state["last_cups_total"]
+
+    _snapshot_counters(state, printer_total, cups_total)
+
+    if last_printer <= 0 or last_cups <= 0:
+        # No baseline yet: this run establishes one.
+        return check
+    printer_delta = printer_total - last_printer
+    cups_delta = cups_total - last_cups
+    if printer_delta < 0 or cups_delta < 0:
+        # Counter reset or the page log rotated; nothing to conclude.
+        return check
+    check.cups_pages = cups_delta
+    check.printer_pages = printer_delta
+    check.dropped = cups_delta - printer_delta
+    check.suspected = check.dropped >= PAGE_DROP_WARN_THRESHOLD
+    return check
+
+
+def _snapshot_counters(
+    state: dict[str, int],
+    printer_total: int,
+    cups_total: int,
+) -> None:
+    """Persist where both counters stood, for the next run to compare against."""
+    if (
+        state["last_printer_count"] == printer_total
+        and state["last_cups_total"] == cups_total
+    ):
+        return
+    updated = dict(state)
+    updated["last_printer_count"] = printer_total
+    updated["last_cups_total"] = cups_total
+    _save_consumable_state(updated)
+
+
+def estimate_consumable_life(printer_total: int = 0) -> PageCountEstimate:
+    """Estimate toner/drum life from pages printed since the last replacement.
+
+    Args:
+        printer_total: Lifetime count from @PJL INFO PAGECOUNT. When zero the
+            printer could not be asked, so the CUPS page log stands in and the
+            estimate is flagged approximate.
+
+    Returns:
+        The estimate; total_pages is zero when no counter could be read at all.
+    """
+    approximate = printer_total <= 0
+    state = _load_consumable_state()
+    total = _cups_total_on_printer_scale(state) if approximate else printer_total
     if total <= 0:
         return PageCountEstimate()
-    state = _load_consumable_state()
+    if not approximate:
+        state = _migrate_state_to_printer_scale(state, total)
     toner_pages = max(0, total - state["toner_replaced_at"])
     drum_pages = max(0, total - state["drum_replaced_at"])
     toner_pct = max(0, 100 - (toner_pages * 100 // TONER_RATED_PAGES))
@@ -269,6 +480,7 @@ def estimate_consumable_life() -> PageCountEstimate:
         drum_pages=drum_pages,
         toner_pct_remaining=toner_pct,
         drum_pct_remaining=drum_pct,
+        approximate=approximate,
         toner_exhausted=toner_pages >= TONER_RATED_PAGES,
         toner_low=toner_pages >= TONER_RATED_PAGES * 80 // 100,
         drum_near_end=drum_pages >= DRUM_RATED_PAGES * 90 // 100,
@@ -339,7 +551,12 @@ def _cups_reasons_to_error(cups_reasons: str) -> tuple[str, str]:
     for keywords, code, display in _ERROR_REASON_MAP:
         if any(kw in reasons_lower for kw in keywords):
             return code, display
-    return "42000", "Printer Error"
+    # Nothing recognised. Show what CUPS actually said rather than a bare
+    # "Printer Error", which tells the reader nothing they can act on.
+    detail = cups_reasons.strip()
+    if detail and detail.lower() not in {"none", ""}:
+        return DERIVED_CUPS_ERROR, f"Printer Error (CUPS reports: {detail})"
+    return DERIVED_CUPS_ERROR, "Printer Error (CUPS gave no reason)"
 
 
 def _port_status_to_status_code(
@@ -347,14 +564,13 @@ def _port_status_to_status_code(
     cups_reasons: str,
 ) -> tuple[str, str]:
     """Map USB port status + CUPS reasons to (status_code, display)."""
-    if ps.error and ps.paper_empty:
-        return "40302", "No Paper"
-    if ps.error and not ps.online:
-        return "41000", "Cover Open"
+    # The port status exposes only paper_empty/error/online bits, so anything
+    # more specific than "out of paper" has to come from the CUPS reasons -
+    # an error bit alone does not tell us the cover is open.
+    if ps.paper_empty:
+        return "41000", "No Paper"
     if ps.error:
         return _cups_reasons_to_error(cups_reasons)
-    if ps.paper_empty:
-        return "40302", "No Paper"
     if not ps.online:
         return "10002", "Offline / Sleep"
     return "", ""
@@ -408,7 +624,7 @@ def query_usb_via_cups() -> USBResult:
     reasons = ipp.get("printer-state-reasons", "none")
     result.economode = _get_cups_economode(printer_name)
 
-    port_status = _query_usb_port_status_raw()
+    port_status = _query_usb_port_status_raw(state)
     if port_status is not None:
         result.port_status = port_status
         hw_code, hw_display = _port_status_to_status_code(
@@ -422,12 +638,12 @@ def query_usb_via_cups() -> USBResult:
             return result
         estimate = estimate_consumable_life()
         if estimate.toner_exhausted:
-            result.status_code = "40310"
+            result.status_code = DERIVED_TONER_END
             result.display = "Toner End (estimated from page count)"
             result.online = "TRUE"
             return result
         if estimate.toner_low:
-            result.status_code = "30010"
+            result.status_code = DERIVED_TONER_LOW
             result.display = "Toner Low (estimated from page count)"
             result.online = "TRUE"
             return result

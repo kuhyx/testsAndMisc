@@ -63,6 +63,31 @@ def _discover_network_printer() -> str:
     return ""
 
 
+def _reset_consumable_from_printer(name: str) -> None:
+    """Reset a consumable baseline against the printer's own page counter.
+
+    Baselines are stored on the printer's lifetime-counter scale, so recording
+    one from any other source (such as the CUPS page log, which undercounts)
+    would silently skew every later estimate. Refuse rather than guess.
+
+    Args:
+        name: Consumable to reset, "toner" or "drum".
+    """
+    result = query_usb_pjl()
+    printer_total = int(result.page_count) if result.page_count.isdigit() else 0
+    if printer_total <= 0:
+        _out(
+            f"{RED}Could not read the printer's page counter"
+            f" (@PJL INFO PAGECOUNT).{RESET}",
+        )
+        _out("The printer must be powered on and connected via USB to reset a")
+        _out("consumable, so the new baseline is recorded on the right scale.")
+        if result.error:
+            _out(f"  {result.error}")
+        sys.exit(1)
+    reset_consumable(name, printer_total)
+
+
 def _run_network_mode(printer_ip: str) -> None:
     """Handle explicit network/SNMP mode."""
     if not shutil.which("snmpwalk"):

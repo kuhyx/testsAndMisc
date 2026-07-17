@@ -1,0 +1,23 @@
+{
+  "title": "brother_printer: report the truth about printer state",
+  "objective": "./run.sh must run standalone from any cwd, and every status it reports must be traceable to something the printer or the HP PJL reference actually says. The tool previously failed to start at all, and once patched to start, reported a sleeping printer as a critical paper jam from a status table whose meanings were invented. Reading status must never hang the tool or destroy an in-flight print job, and the report must surface pages the printer silently discards - a failure mode that CUPS, the printer's error bit, and the LEDs all report as success. Success: the sleeping printer reads healthy, an open cover reads critical, consumable estimates derive from the printer's own counter, and a dropped-page run names both the gap and the workaround.",
+  "acceptance_criteria": [
+    "./run.sh works from the package directory and from an unrelated cwd, with no PYTHONPATH or venv setup by the user",
+    "Every status code in the table is transcribed from the HP PJL Technical Reference Manual, Appendix D; codes absent from it report 'Unknown status - check printer display' instead of an invented meaning",
+    "Codes verified on the real HL-1110 decode correctly: 10001 READY, 10003 WARMING UP, 10023 PRINTING, 40000 SLEEP (severity ok, not a jam), 40021 TOP COVER OPEN (critical), 41213 NO PAPER (critical)",
+    "CUPS-derived and self-inferred states never borrow a PJL code to describe themselves",
+    "Consumable estimates use @PJL INFO PAGECOUNT; stored baselines migrate onto that scale exactly once, preserving the reported percentages across the switch",
+    "query_usb_pjl never blocks indefinitely: an unavailable printer produces an actionable message within seconds",
+    "Reading status never stops CUPS, never resets the USB device, and never runs the pyusb probe while a job is printing",
+    "A run after pages were dropped reports the gap between CUPS's claim and the printer's counter, and names the lp -o Resolution=300dpi workaround",
+    "402 tests pass with 100% statement and branch coverage; pre-commit clean with no suppressions"
+  ],
+  "out_of_scope": [
+    "Changing the CUPS queue default resolution (user chose to keep 600dpi and pass -o Resolution=300dpi per job)",
+    "Any lpadmin, CUPS, or system configuration change",
+    "Identifying the original transient yellow '!' warning, which cleared before it could be read and was not reproduced",
+    "Verifying PJL codes that could not be induced on the hardware; those are spec-derived and marked as such",
+    "The network/SNMP path, which is untouched"
+  ],
+  "verifier": "./run.sh against the real Brother HL-1110 (USB) for each induced printer state; python3 -m pytest python_pkg/brother_printer/tests/ --cov=python_pkg/brother_printer (402 tests, 100% branch coverage); pre-commit run --files <changed files> (ruff, ruff format, mypy, pylint, bandit, shellcheck, codespell, coverage enforcement)"
+}

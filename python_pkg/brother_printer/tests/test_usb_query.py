@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import errno
+import os
 from unittest.mock import MagicMock, patch
 
 from python_pkg.brother_printer.data_classes import USBResult
 from python_pkg.brother_printer.usb_query import (
     _drain_buffer,
     _init_usb_result,
+    _parse_pagecount,
     _parse_status,
     _parse_variables,
     _read_nonblocking,
     _retry_pjl_query,
     _run_pjl_queries,
     _wait_for_pjl_response,
+    _write_with_deadline,
     find_brother_usb,
     find_usb_printer_dev,
     pjl_query,
@@ -99,22 +103,14 @@ class TestFindUsbPrinterDev:
 
 class TestDrainBuffer:
     @patch(f"{MOD}.os.read")
-    @patch(f"{MOD}.fcntl.fcntl")
-    def test_drain(self, mock_fcntl: MagicMock, mock_read: MagicMock) -> None:
-        mock_fcntl.return_value = 0
+    def test_drain(self, mock_read: MagicMock) -> None:
         mock_read.side_effect = [b"data", OSError("done")]
         _drain_buffer(42)
         assert mock_read.called
 
     @patch(f"{MOD}.os.read")
-    @patch(f"{MOD}.fcntl.fcntl")
-    def test_drain_empty_buffer(
-        self,
-        mock_fcntl: MagicMock,
-        mock_read: MagicMock,
-    ) -> None:
-        """Buffer is already empty — os.read returns b'' immediately."""
-        mock_fcntl.return_value = 0
+    def test_drain_empty_buffer(self, mock_read: MagicMock) -> None:
+        """Buffer is already empty - os.read returns b'' immediately."""
         mock_read.return_value = b""
         _drain_buffer(42)
         mock_read.assert_called_once()
@@ -122,24 +118,65 @@ class TestDrainBuffer:
 
 class TestReadNonblocking:
     @patch(f"{MOD}.os.read")
-    @patch(f"{MOD}.fcntl.fcntl")
-    def test_reads_chunks(self, mock_fcntl: MagicMock, mock_read: MagicMock) -> None:
-        mock_fcntl.return_value = 0
+    def test_reads_chunks(self, mock_read: MagicMock) -> None:
         mock_read.side_effect = [b"hello", b"", OSError]
-        result = _read_nonblocking(42, 0)
-        assert result == b"hello"
+        assert _read_nonblocking(42) == b"hello"
 
     @patch(f"{MOD}.os.read")
-    @patch(f"{MOD}.fcntl.fcntl")
-    def test_oserror_suppressed(
-        self,
-        mock_fcntl: MagicMock,
-        mock_read: MagicMock,
-    ) -> None:
-        mock_fcntl.return_value = 0
+    def test_oserror_suppressed(self, mock_read: MagicMock) -> None:
         mock_read.side_effect = OSError("would block")
-        result = _read_nonblocking(42, 0)
-        assert result == b""
+        assert _read_nonblocking(42) == b""
+
+
+class TestWriteWithDeadline:
+    """Writes must never block forever on a printer that is not listening."""
+
+    @patch(f"{MOD}.os.write", return_value=5)
+    @patch(f"{MOD}.time.time", return_value=0.0)
+    def test_writes_all(self, t: MagicMock, mock_write: MagicMock) -> None:
+        assert _write_with_deadline(42, b"hello", 10.0) is True
+
+    @patch(f"{MOD}.os.write")
+    @patch(f"{MOD}.time.time", return_value=0.0)
+    def test_partial_writes_resume(self, t: MagicMock, mock_write: MagicMock) -> None:
+        mock_write.side_effect = [2, 3]
+        assert _write_with_deadline(42, b"hello", 10.0) is True
+        assert mock_write.call_count == 2
+
+    @patch(f"{MOD}.time.time")
+    def test_deadline_already_passed(self, mock_time: MagicMock) -> None:
+        mock_time.return_value = 20.0
+        assert _write_with_deadline(42, b"hello", 10.0) is False
+
+    @patch(f"{MOD}.select.select", return_value=([], [], []))
+    @patch(f"{MOD}.os.write", side_effect=BlockingIOError())
+    @patch(f"{MOD}.time.time")
+    def test_blocked_until_deadline(
+        self,
+        mock_time: MagicMock,
+        mock_write: MagicMock,
+        mock_select: MagicMock,
+    ) -> None:
+        """A printer that never accepts data times out instead of hanging."""
+        mock_time.side_effect = [0.0, 1.0, 20.0]
+        assert _write_with_deadline(42, b"hello", 10.0) is False
+
+    @patch(f"{MOD}.select.select", return_value=([], [42], []))
+    @patch(f"{MOD}.os.write")
+    @patch(f"{MOD}.time.time", return_value=0.0)
+    def test_blocked_then_writable(
+        self,
+        t: MagicMock,
+        mock_write: MagicMock,
+        mock_select: MagicMock,
+    ) -> None:
+        mock_write.side_effect = [BlockingIOError(), 5]
+        assert _write_with_deadline(42, b"hello", 10.0) is True
+
+    @patch(f"{MOD}.os.write", side_effect=OSError("gone"))
+    @patch(f"{MOD}.time.time", return_value=0.0)
+    def test_oserror_gives_up(self, t: MagicMock, mock_write: MagicMock) -> None:
+        assert _write_with_deadline(42, b"hello", 10.0) is False
 
 
 class TestWaitForPjlResponse:
@@ -155,8 +192,7 @@ class TestWaitForPjlResponse:
         mock_time.side_effect = [0.0, 0.5, 1.0]
         mock_select.return_value = ([42], [], [])
         mock_read.return_value = b"CODE=10001"
-        result = _wait_for_pjl_response(42, 0, 5.0)
-        assert b"CODE=10001" in result
+        assert b"CODE=10001" in _wait_for_pjl_response(42, 5.0)
 
     @patch(f"{MOD}._read_nonblocking")
     @patch(f"{MOD}.select.select")
@@ -170,8 +206,7 @@ class TestWaitForPjlResponse:
         mock_time.side_effect = [0.0, 0.5, 1.0]
         mock_select.return_value = ([42], [], [])
         mock_read.return_value = b"@PJL INFO"
-        result = _wait_for_pjl_response(42, 0, 5.0)
-        assert b"@PJL" in result
+        assert b"@PJL" in _wait_for_pjl_response(42, 5.0)
 
     @patch(f"{MOD}.select.select")
     @patch(f"{MOD}.time.time")
@@ -181,8 +216,7 @@ class TestWaitForPjlResponse:
         mock_select: MagicMock,
     ) -> None:
         mock_time.side_effect = [10.0, 11.0]
-        result = _wait_for_pjl_response(42, 0, 5.0)
-        assert result == b""
+        assert _wait_for_pjl_response(42, 5.0) == b""
 
     @patch(f"{MOD}._read_nonblocking")
     @patch(f"{MOD}.select.select")
@@ -195,8 +229,7 @@ class TestWaitForPjlResponse:
     ) -> None:
         mock_time.side_effect = [0.0, 0.5, 6.0]
         mock_select.return_value = ([], [], [])
-        result = _wait_for_pjl_response(42, 0, 5.0)
-        assert result == b""
+        assert _wait_for_pjl_response(42, 5.0) == b""
 
     @patch(f"{MOD}._read_nonblocking")
     @patch(f"{MOD}.select.select")
@@ -209,8 +242,7 @@ class TestWaitForPjlResponse:
     ) -> None:
         """Inner remaining check triggers break."""
         mock_time.side_effect = [0.0, 6.0, 6.0]
-        result = _wait_for_pjl_response(42, 0, 5.0)
-        assert result == b""
+        assert _wait_for_pjl_response(42, 5.0) == b""
         mock_select.assert_not_called()
 
     @patch(f"{MOD}._read_nonblocking")
@@ -222,30 +254,38 @@ class TestWaitForPjlResponse:
         mock_select: MagicMock,
         mock_read: MagicMock,
     ) -> None:
-        """Data read but no '=' or '@PJL' → continues loop then times out."""
+        """Data read but no '=' or '@PJL' -> continues loop then times out."""
         mock_time.side_effect = [0.0, 0.5, 1.0, 6.0]
         mock_select.return_value = ([42], [], [])
         mock_read.return_value = b"garbage"
-        result = _wait_for_pjl_response(42, 0, 5.0)
-        assert result == b"garbage"
+        assert _wait_for_pjl_response(42, 5.0) == b"garbage"
 
 
 class TestPjlQuery:
     @patch(f"{MOD}._wait_for_pjl_response")
-    @patch(f"{MOD}.os.write")
-    @patch(f"{MOD}.fcntl.fcntl")
+    @patch(f"{MOD}._write_with_deadline", return_value=True)
     @patch(f"{MOD}.time.time", return_value=100.0)
     def test_query(
         self,
         t: MagicMock,
-        mock_fcntl: MagicMock,
         mock_write: MagicMock,
         mock_wait: MagicMock,
     ) -> None:
-        mock_fcntl.return_value = 0
         mock_wait.return_value = b"CODE=10001"
-        result = pjl_query(42, "@PJL INFO STATUS")
-        assert "CODE=10001" in result
+        assert "CODE=10001" in pjl_query(42, "@PJL INFO STATUS")
+
+    @patch(f"{MOD}._wait_for_pjl_response")
+    @patch(f"{MOD}._write_with_deadline", return_value=False)
+    @patch(f"{MOD}.time.time", return_value=100.0)
+    def test_write_timeout_returns_empty(
+        self,
+        t: MagicMock,
+        mock_write: MagicMock,
+        mock_wait: MagicMock,
+    ) -> None:
+        """If we cannot even send the command, do not wait for a reply."""
+        assert pjl_query(42, "@PJL INFO STATUS") == ""
+        mock_wait.assert_not_called()
 
 
 class TestParseStatus:
@@ -331,8 +371,8 @@ class TestRunPjlQueries:
     @patch(f"{MOD}._retry_pjl_query")
     @patch(f"{MOD}.time.sleep")
     @patch(f"{MOD}._drain_buffer")
-    @patch(f"{MOD}.os.write")
-    def test_runs_both_queries(
+    @patch(f"{MOD}._write_with_deadline")
+    def test_runs_status_pagecount_and_variables(
         self,
         mock_write: MagicMock,
         d: MagicMock,
@@ -341,7 +381,27 @@ class TestRunPjlQueries:
     ) -> None:
         result = USBResult()
         _run_pjl_queries(42, result, 2)
-        assert mock_retry.call_count == 2
+        assert mock_retry.call_count == 3
+        queried = [call.args[1] for call in mock_retry.call_args_list]
+        assert "@PJL INFO PAGECOUNT" in queried
+
+
+class TestParsePagecount:
+    def test_found(self) -> None:
+        result = USBResult()
+        assert _parse_pagecount("PAGECOUNT=2014\n", result) is True
+        assert result.page_count == "2014"
+
+    def test_not_found(self) -> None:
+        result = USBResult()
+        assert _parse_pagecount("nothing\n", result) is False
+        assert result.page_count == ""
+
+    def test_non_numeric_rejected(self) -> None:
+        """A garbled reply must not become a page count."""
+        result = USBResult()
+        assert _parse_pagecount("PAGECOUNT=???\n", result) is False
+        assert result.page_count == ""
 
 
 class TestInitUsbResult:
@@ -366,14 +426,19 @@ class TestQueryUsbPjl:
             patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0"),
             patch(f"{MOD}._init_usb_result") as mock_init,
             patch(f"{MOD}.os.access", return_value=True),
-            patch(f"{MOD}.os.open", return_value=10),
-            patch(f"{MOD}.fcntl.fcntl", return_value=0),
+            patch(f"{MOD}.os.open", return_value=10) as mock_open,
             patch(f"{MOD}._run_pjl_queries"),
             patch(f"{MOD}.os.close"),
         ):
-            mock_init.return_value = USBResult(device="/dev/usb/lp0")
+            mock_init.return_value = USBResult(
+                device="/dev/usb/lp0",
+                status_code="10001",
+            )
             result = query_usb_pjl()
             assert result.device == "/dev/usb/lp0"
+            assert result.error == ""
+        # The whole point: a blocking open() hangs on an unwell printer.
+        assert mock_open.call_args[0][1] & os.O_NONBLOCK
 
     @patch(f"{MOD}.find_usb_printer_dev", return_value=None)
     def test_no_dev_falls_back_to_cups(self, f: MagicMock) -> None:
@@ -397,18 +462,46 @@ class TestQueryUsbPjl:
         result = query_usb_pjl()
         assert "Permission denied" in result.error
 
-    def test_oserror_on_open(self) -> None:
+    def test_silent_printer_is_reported_not_hidden(self) -> None:
+        """A printer that answers nothing must say so, not look healthy."""
         with (
             patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0"),
             patch(f"{MOD}._init_usb_result") as mock_init,
             patch(f"{MOD}.os.access", return_value=True),
             patch(f"{MOD}.os.open", return_value=10),
-            patch(f"{MOD}.fcntl.fcntl", side_effect=OSError("bad fd")),
+            patch(f"{MOD}._run_pjl_queries"),
             patch(f"{MOD}.os.close"),
         ):
             mock_init.return_value = USBResult(device="/dev/usb/lp0")
             result = query_usb_pjl()
-            assert result.error != ""
+        assert "did not answer" in result.error
+
+    def test_busy_device_explains_why(self) -> None:
+        """EBUSY means CUPS holds the printer mid-job; say that."""
+        exc = OSError("busy")
+        exc.errno = errno.EBUSY
+        with (
+            patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0"),
+            patch(f"{MOD}._init_usb_result") as mock_init,
+            patch(f"{MOD}.os.access", return_value=True),
+            patch(f"{MOD}.os.open", side_effect=exc),
+        ):
+            mock_init.return_value = USBResult(device="/dev/usb/lp0")
+            result = query_usb_pjl()
+        assert "busy" in result.error.lower()
+
+    def test_eacces_suggests_sudo(self) -> None:
+        exc = OSError("denied")
+        exc.errno = errno.EACCES
+        with (
+            patch(f"{MOD}.find_usb_printer_dev", return_value="/dev/usb/lp0"),
+            patch(f"{MOD}._init_usb_result") as mock_init,
+            patch(f"{MOD}.os.access", return_value=True),
+            patch(f"{MOD}.os.open", side_effect=exc),
+        ):
+            mock_init.return_value = USBResult(device="/dev/usb/lp0")
+            result = query_usb_pjl()
+        assert "sudo" in result.error
 
     @patch(f"{MOD}.os.open", side_effect=OSError("no device"))
     @patch(f"{MOD}.os.access", return_value=True)
@@ -421,7 +514,7 @@ class TestQueryUsbPjl:
         a: MagicMock,
         o: MagicMock,
     ) -> None:
-        """os.open raises OSError before fd is set → fd stays None."""
+        """os.open raises OSError before fd is set -> fd stays None."""
         mock_init.return_value = USBResult(device="/dev/usb/lp0")
         result = query_usb_pjl()
-        assert result.error == "no device"
+        assert "no device" in result.error

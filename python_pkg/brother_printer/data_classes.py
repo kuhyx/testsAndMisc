@@ -29,7 +29,7 @@ class CUPSQueueStatus:
 
 @dataclass
 class PageCountEstimate:
-    """Estimated consumable life based on CUPS page count."""
+    """Estimated consumable life based on the printer's lifetime page count."""
 
     total_pages: int = 0
     toner_pages: int = 0
@@ -39,6 +39,27 @@ class PageCountEstimate:
     toner_exhausted: bool = False
     toner_low: bool = False
     drum_near_end: bool = False
+    # True when total_pages came from the CUPS page log instead of the
+    # printer's own counter.  The log only sees jobs CUPS itself printed, so
+    # it undercounts and the percentages read optimistically high.
+    approximate: bool = False
+
+
+@dataclass
+class PageDeliveryCheck:
+    """Pages CUPS claims it sent versus pages the printer's counter recorded.
+
+    CUPS reports a job as successful once the data leaves the machine, so a page
+    the printer silently drops still shows up as "printed". The HL-1110 does
+    exactly that when a page's 600 dpi raster overflows its ~1 MB of memory: it
+    discards the page, stays READY, and reports no error anywhere. Comparing the
+    two counters is the only way to notice.
+    """
+
+    cups_pages: int = 0
+    printer_pages: int = 0
+    dropped: int = 0
+    suspected: bool = False
 
 
 @dataclass
@@ -64,6 +85,10 @@ class USBResult:
     online: str = ""
     economode: str = ""
     error: str = ""
+    # Lifetime page count from @PJL INFO PAGECOUNT: the printer's own counter,
+    # and the authoritative one.  Empty when the printer could not be asked
+    # (CUPS fallback mode), which forces the estimate onto the CUPS page log.
+    page_count: str = ""
     port_status: USBPortStatus | None = None
 
 

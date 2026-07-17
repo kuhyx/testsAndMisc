@@ -26,7 +26,10 @@ from python_pkg.brother_printer.cups_queue import (
     display_cups_queue_status,
     get_cups_queue_status,
 )
-from python_pkg.brother_printer.cups_service import estimate_consumable_life
+from python_pkg.brother_printer.cups_service import (
+    check_page_delivery,
+    estimate_consumable_life,
+)
 from python_pkg.brother_printer.data_classes import (
     NetworkResult,
     SupplyStatus,
@@ -45,9 +48,43 @@ def _display_report_header() -> None:
     _out()
 
 
-def _display_page_count_estimate() -> None:
-    """Show estimated consumable life based on CUPS page count."""
-    estimate = estimate_consumable_life()
+def _display_page_delivery_warning(printer_total: int, *, queue_idle: bool) -> None:
+    """Warn when CUPS claims more pages than the printer actually counted.
+
+    Args:
+        printer_total: Lifetime count from the printer's own counter.
+        queue_idle: False while a job is queued or printing, when the two
+            counters legitimately disagree.
+    """
+    check = check_page_delivery(printer_total, queue_idle=queue_idle)
+    if not check.suspected:
+        return
+    _out(f"{BOLD}── Dropped Pages ──{RESET}")
+    _out()
+    _out(
+        f"  {RED}{BOLD}⚠  {check.dropped} pages did not print.{RESET}"
+        f"  {RED}CUPS sent {check.cups_pages} pages since the last check;"
+        f" the printer's own counter advanced by"
+        f" {check.printer_pages}.{RESET}"
+    )
+    _out()
+    _out(
+        f"  {DIM}The printer discards pages whose 600 dpi raster does not fit"
+        f" its memory, stays READY, and reports no error - and CUPS still calls"
+        f" the job successful. Reprint at a lower resolution:{RESET}"
+    )
+    _out(f"  {DIM}  lp -o Resolution=300dpi <file>{RESET}")
+    _out()
+
+
+def _display_page_count_estimate(printer_total: int = 0) -> None:
+    """Show estimated consumable life based on the printer's page count.
+
+    Args:
+        printer_total: Lifetime count from the printer's own counter, or zero
+            when it could not be read and the CUPS page log has to stand in.
+    """
+    estimate = estimate_consumable_life(printer_total)
     if estimate.total_pages <= 0:
         return
     _out(f"{BOLD}── Page Count Estimate ──{RESET}")
@@ -57,6 +94,12 @@ def _display_page_count_estimate() -> None:
         f"  (toner: {estimate.toner_pages} since replacement,"
         f" drum: {estimate.drum_pages} since replacement)"
     )
+    if estimate.approximate:
+        _out(
+            f"  {YELLOW}Approximate: counted from the CUPS log, not the"
+            f" printer's own counter, so it misses pages CUPS never saw"
+            f" and reads high.{RESET}"
+        )
     _out()
     # Toner bar
     toner_pct = estimate.toner_pct_remaining
@@ -236,10 +279,12 @@ def display_usb_results(result: USBResult) -> None:
         _display_cups_fallback_note(result)
 
     _out()
-    _display_page_count_estimate()
+    printer_total = int(result.page_count) if result.page_count.isdigit() else 0
+    queue = get_cups_queue_status()
+    _display_page_delivery_warning(printer_total, queue_idle=not queue.jobs)
+    _display_page_count_estimate(printer_total)
     _display_consumables_reference()
 
-    queue = get_cups_queue_status()
     display_cups_queue_status(queue)
 
 
