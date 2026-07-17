@@ -1,0 +1,17 @@
+{
+  "title": "focus_mode_daemon: bring back under the 500-line limit",
+  "objective": "focus_mode_daemon.py has been 509 lines since commit 22e22c1, breaching the repo's 500-line cap. It went unnoticed because the Python-tests workflow only triggers on python_pkg/** changes, so that commit never ran CI; the first later commit touching python_pkg/ exposed it and main is red. Split the file along a real seam with no behaviour change, and keep the live focus-mode.service working throughout.",
+  "acceptance_criteria": [
+    "No tracked Python file exceeds 500 lines",
+    "The split follows a real responsibility boundary, with the dependency running one way and no import cycle",
+    "The daemon still runs through /usr/local/bin/focus-mode-daemon, the symlink systemd uses",
+    "focus-mode.service restarts cleanly and resumes enforcing Steam/browser mutual exclusion",
+    "Process detection behaviour is unchanged",
+    "No behaviour change of any kind: this is a structural split"
+  ],
+  "out_of_scope": [
+    "Any change to the daemon's mutual-exclusion policy, whitelist behaviour, or poll interval",
+    "The brother_printer work in a12e696/69242e4"
+  ],
+  "verifier": "ruff check; /usr/local/bin/focus-mode-daemon --help and status compared against the pre-split version from git; systemctl --user restart focus-mode.service plus journal inspection; wc -l over tracked *.py; CI (Python tests)"
+}

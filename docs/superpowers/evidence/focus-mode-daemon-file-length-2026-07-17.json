@@ -1,0 +1,49 @@
+{
+  "intent": "Get main's CI green by bringing focus_mode_daemon.py (509 lines) under the repo's 500-line limit, without changing the behaviour of a daemon that is actively running.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py: 509 -> 320 lines",
+    "linux_configuration/.../_focus_mode_lib.py: new, 227 lines",
+    "linux_configuration/.../__init__.py: new, following the existing system-maintenance/bin precedent",
+    "Non-goal: any behavioural change to focus mode"
+  ],
+  "changes": [
+    "Extract configuration, logging, desktop notification, /proc process inspection, and the process killers into _focus_mode_lib.py. The daemon keeps the policy: whitelist handling, the FocusMode state machine, status output, and main(). The dependency runs one way (daemon imports lib), so there is no cycle - which is why log/notify moved with the process code that calls them rather than being left behind.",
+    "Add __init__.py to satisfy ruff INP001, matching the existing linux_configuration/scripts/periodic_background/system-maintenance/bin/__init__.py precedent."
+  ],
+  "verification": [
+    {
+      "command": "Symlink resolution test before relying on a sibling import",
+      "result": "pass",
+      "evidence": "Ran a script through a symlink: sys.path[0] resolved to the real directory and the sibling import succeeded. This matters because systemd runs the daemon via /usr/local/bin/focus-mode-daemon -> repo path, and install_focus_mode_daemon.sh uses ln -sfn (not cp), so the sibling is always reachable on fresh installs too."
+    },
+    {
+      "command": "/usr/local/bin/focus-mode-daemon --help / status (the exact symlink systemd uses)",
+      "result": "pass",
+      "evidence": "Argument parsing and subcommands work through the symlink. 'status' output compared byte-for-byte against the pre-split version from git HEAD: both silent with no whitelist active, so the silence is pre-existing behaviour, not a regression."
+    },
+    {
+      "command": "focus_mode_lib.get_running_processes / is_steam_running / is_browser_running",
+      "result": "pass",
+      "evidence": "455 processes read from /proc; browser correctly detected as running, Steam as not - matching the machine's actual state."
+    },
+    {
+      "command": "systemctl --user restart focus-mode.service",
+      "result": "pass",
+      "evidence": "active (running); journal shows 'Focus Mode Daemon starting...' then 'Browser detected - entering BROWSING mode'. No import errors."
+    },
+    {
+      "command": "ruff check + wc -l over tracked *.py",
+      "result": "pass",
+      "evidence": "All checks passed. No tracked Python file exceeds 500 lines."
+    }
+  ],
+  "risks": [
+    "The daemon now depends on a sibling module at runtime. Verified through the real symlink and a service restart; the installer symlinks rather than copies, so the sibling travels with it.",
+    "Structural split only - no logic changed, no function bodies edited. Behaviour compared against the pre-split version where observable.",
+    "This file has no unit tests, so verification is by running the real daemon rather than by test coverage."
+  ],
+  "rollback": [
+    "git revert <commit>, then systemctl --user restart focus-mode.service.",
+    "After rollback, validate the service is active and the 500-line test fails again on focus_mode_daemon.py."
+  ]
+}
