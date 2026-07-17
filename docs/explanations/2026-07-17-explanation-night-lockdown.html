@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night lockdown: keeping the servers up through the curfew</title>
+<style>
+  :root {
+    --bg: #fdfdfc; --fg: #1c1c1a; --muted: #5f5f58; --rule: #e2e2dd;
+    --card: #f6f6f3; --accent: #7a4b1e; --accent-bg: #f5ead9;
+    --good: #1e6b3a; --good-bg: #e3f3e8; --bad: #a32b2b; --bad-bg: #fbe6e6;
+    --code-bg: #f2f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a; --fg: #e6e6e3; --muted: #9d9d96; --rule: #2e3035;
+      --card: #1e2024; --accent: #e0a367; --accent-bg: #2c2318;
+      --good: #7fd0a0; --good-bg: #16301f; --bad: #ef8b8b; --bad-bg: #331a1a;
+      --code-bg: #202226;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem 5rem; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px;
+  }
+  main { max-width: min(48rem, 92vw); margin: 0 auto; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 .4rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.4rem; margin: 3rem 0 .8rem; padding-top: .6rem; border-top: 1px solid var(--rule); letter-spacing: -.01em; }
+  h3 { font-size: 1.08rem; margin: 1.8rem 0 .5rem; }
+  p, li { color: var(--fg); }
+  .sub { color: var(--muted); margin: 0 0 1.6rem; font-size: 1.02rem; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; font-size: .87em; }
+  pre {
+    background: var(--code-bg); padding: .9rem 1rem; border-radius: 8px;
+    border: 1px solid var(--rule); white-space: pre-wrap; overflow-x: auto; font-size: .82rem; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .del { color: var(--bad); } .ins { color: var(--good); }
+  nav.toc {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    padding: .9rem 1.1rem; margin: 0 0 2rem;
+  }
+  nav.toc ol { margin: .3rem 0 0; padding-left: 1.2rem; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  .callout {
+    background: var(--accent-bg); border-left: 3px solid var(--accent);
+    padding: .8rem 1rem; border-radius: 0 8px 8px 0; margin: 1.2rem 0;
+  }
+  .callout p:first-child { margin-top: 0; } .callout p:last-child { margin-bottom: 0; }
+  figure { margin: 1.6rem 0; }
+  figcaption { color: var(--muted); font-size: .85rem; margin-top: .5rem; text-align: center; }
+
+  /* diagrams */
+  .flow { display: flex; align-items: stretch; gap: .5rem; flex-wrap: wrap; }
+  .box {
+    flex: 1 1 8rem; min-width: 7rem; background: var(--card); border: 1px solid var(--rule);
+    border-radius: 8px; padding: .6rem .7rem; font-size: .84rem;
+  }
+  .box b { display: block; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: .2rem; }
+  .box.kill { border-color: var(--bad); background: var(--bad-bg); }
+  .box.live { border-color: var(--good); background: var(--good-bg); }
+  .arrow { align-self: center; color: var(--muted); font-size: 1.2rem; padding: 0 .1rem; }
+  .stack { display: grid; gap: .4rem; }
+  .layer {
+    border: 1px solid var(--rule); border-radius: 6px; padding: .45rem .7rem;
+    font-size: .84rem; background: var(--card);
+  }
+  .layer.guard { border-style: dashed; border-color: var(--accent); background: var(--accent-bg); }
+
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; margin: 1rem 0; }
+  th, td { border: 1px solid var(--rule); padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: var(--card); font-weight: 600; }
+  .scroller { overflow-x: auto; }
+
+  /* micro-world */
+  .sim { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem; margin: 1.5rem 0; }
+  .sim-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-bottom: .8rem; }
+  .sim label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: .2rem; }
+  .sim select, .sim input[type=range] { font: inherit; font-size: .9rem; }
+  .sim input[type=range] { width: min(20rem, 60vw); }
+  .clock { font-family: ui-monospace, monospace; font-size: 1.5rem; font-weight: 600; letter-spacing: .02em; }
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin-top: .7rem; }
+  .verdict { border: 1px solid var(--rule); border-radius: 8px; padding: .6rem .75rem; background: var(--bg); }
+  .verdict b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: .25rem; }
+  .tag { display: inline-block; padding: .12rem .5rem; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+  .tag.lock { background: var(--bad-bg); color: var(--bad); }
+  .tag.skip { background: var(--good-bg); color: var(--good); }
+  .diverge { margin-top: .7rem; padding: .55rem .75rem; border-radius: 8px; font-size: .85rem; }
+  .diverge.on { background: var(--bad-bg); color: var(--bad); border: 1px solid var(--bad); }
+  .diverge.off { background: var(--card); color: var(--muted); border: 1px solid var(--rule); }
+  .jump { background: none; border: 1px solid var(--rule); border-radius: 6px; padding: .3rem .6rem; font: inherit; font-size: .8rem; cursor: pointer; color: var(--fg); }
+  .jump:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* quiz */
+  .q { border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.1rem; margin: 1rem 0; background: var(--card); }
+  .q p.stem { margin: 0 0 .7rem; font-weight: 600; }
+  .opt {
+    display: block; width: 100%; text-align: left; font: inherit; font-size: .9rem;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 7px;
+    padding: .5rem .7rem; margin-bottom: .4rem; cursor: pointer; color: var(--fg);
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; opacity: .95; }
+  .opt.correct { background: var(--good-bg); border-color: var(--good); color: var(--good); font-weight: 600; }
+  .opt.wrong { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+  .why { font-size: .84rem; color: var(--muted); margin: .5rem 0 0; display: none; }
+  .why.show { display: block; }
+  #score { font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Night lockdown: keeping the servers up through the curfew</h1>
+<p class="sub">How a self-discipline shutdown stopped killing seven services every night — and the four bugs that surfaced on the way there. <br><code>3ebb56c</code> · 2026-07-17 · <code>linux_configuration/scripts/periodic_background/digital_wellbeing/</code></p>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#background">Background</a> — the curfew, the fortress, and the servers</li>
+    <li><a href="#intuition">Intuition</a> — decoupling the lockout from the power switch</li>
+    <li><a href="#code">Code</a> — what actually changed</li>
+    <li><a href="#quiz">Quiz</a> — five questions</li>
+  </ol>
+</nav>
+
+<h2 id="background">1. Background</h2>
+
+<p>This machine leads a double life. By day it is a desktop. Around the clock it is a small server: <strong>Gitea</strong>, a public <strong>Caddy</strong> TLS edge on ports 80/443, <strong>SyncYomi</strong>, a personal website, <strong>Open WebUI</strong>, <strong>Joplin</strong>, <strong>dufs</strong>, plus <code>ollama</code>, <code>dnsmasq</code>, <code>wg-quick@wg0</code>, <code>nftables</code> and <code>sshd</code>.</p>
+
+<p>It also runs a <em>digital-wellbeing curfew</em>: a deliberately hard-to-defeat system that stopped you using the PC late at night. It is built as a fortress, and the distinction between its parts is the key to this whole change:</p>
+
+<figure>
+  <div class="stack">
+    <div class="layer guard"><strong>Config</strong> — <code>/etc/shutdown-schedule.conf</code>: the hours. Immutable (<code>chattr +i</code>), mirrored to a canonical copy, watched by a path unit that restores it if touched.</div>
+    <div class="layer guard"><strong>Ratchet</strong> — re-running the installer with a <em>more lenient</em> schedule is refused. Stricter is always allowed.</div>
+    <div class="layer guard"><strong>Monitor + watchdog</strong> — a root daemon with <code>RefuseManualStop=true</code> re-enables the timer if you disable it; a watchdog restarts the monitor.</div>
+    <div class="layer"><strong>Timer</strong> — <code>day-specific-shutdown.timer</code>, firing every 30 minutes across the window.</div>
+    <div class="layer"><strong>Check script</strong> — <code>/usr/local/bin/day-specific-shutdown-check.sh</code>: decides if <em>now</em> is inside the window, then performs <strong>the action</strong>.</div>
+  </div>
+  <figcaption>The fortress. Everything above the last row guards <em>when</em>. Only the last row decides <em>what happens</em>.</figcaption>
+</figure>
+
+<p>The action, until this change, was to power the machine off — or, on nights before a wake-alarm day, to arm an RTC timer and hibernate:</p>
+
+<pre><code>tomorrow_dow=$(date -d "tomorrow" +%u)
+case "$tomorrow_dow" in
+    1|5|6|7)   # tomorrow is Mon/Fri/Sat/Sun
+        wake_epoch=$(( $(printf '%(%s)T' -1) + 8 * 3600 ))
+        /usr/bin/sudo /usr/sbin/rtcwake -m no -t "$wake_epoch"
+        /usr/bin/systemctl hibernate -i
+        ;;
+    *)  /usr/bin/systemctl poweroff -i ;;
+esac</code></pre>
+
+<p>That worked perfectly as self-discipline and was a disaster for the servers: at 21:00 every night, Gitea and everything beside it went dark for eight hours.</p>
+
+<div class="callout">
+  <p><strong>The subtle part.</strong> That <code>rtcwake</code> branch was not only a shutdown. It was also, invisibly, the <em>only</em> thing that started the morning alarm. The alarm has no timer of its own — it is launched by a <code>systemd-sleep</code> hook that runs on <strong>resume</strong>. No hibernate, no resume; no resume, no alarm. Hold onto this; it becomes a bug in section 2.</p>
+</div>
+
+<h2 id="intuition">2. Intuition</h2>
+
+<p>The old design conflated two things that only <em>looked</em> like one:</p>
+
+<figure>
+  <div class="flow">
+    <div class="box"><b>Goal</b>You cannot use the PC after 21:00</div>
+    <div class="arrow">+</div>
+    <div class="box"><b>Mechanism</b>Cut the power</div>
+    <div class="arrow">→</div>
+    <div class="box kill"><b>Side effect</b>Seven services die with it</div>
+  </div>
+  <figcaption>Powering off achieves the goal, but it is a blunt instrument: it takes the whole machine, not just the human interface.</figcaption>
+</figure>
+
+<p>But “you cannot use the PC” never actually required the power to be off. It required the <em>human interface</em> to be gone. A server has no interface — it is a process listening on a socket. So the two can be separated:</p>
+
+<figure>
+  <div class="flow">
+    <div class="box kill"><b>Torn down at 21:00</b>lightdm → X → i3<br>TTY logins (<code>getty@</code> masked)<br>console (blanked)<br>RGB (black)<br>audio (muted)</div>
+    <div class="arrow">|</div>
+    <div class="box live"><b>Untouched, all night</b>Docker: gitea, caddy, syncyomi, website, open-webui, joplin, dufs<br><code>ollama</code>, <code>dnsmasq</code>, <code>wg-quick@wg0</code>, <code>nftables</code>, <code>sshd</code></div>
+  </div>
+  <figcaption>The dividing line: everything on the left needs a graphical session; nothing on the right does. That is why the split is clean rather than a compromise.</figcaption>
+</figure>
+
+<p>This is exactly why the change is small. The fortress guards <em>the schedule</em>. The action was always just the last few lines of a generated script. Swap those lines and the curfew keeps every one of its guarantees, while the servers never notice:</p>
+
+<pre><code><span class="del">-  systemctl poweroff -i        # or rtcwake + hibernate -i</span>
+<span class="ins">+  DRY_RUN="${DRY_RUN:-}" /usr/local/bin/night-lockdown-enter.sh</span></code></pre>
+
+<h3>A wrinkle: the reversal must outlive the fortress</h3>
+
+<p>Power-off had one accidental virtue — it was <em>atomic</em>. It either happened or it did not. The new action is a multi-step teardown, and a teardown can fail halfway: getty masked, lightdm stopped, and no way back in. So the unlock deliberately lives <strong>outside</strong> the fortress: not immutable, not guarded by the monitor, on its own timer with five staggered triggers (05:00, 05:15, 05:30, 06:00, 07:00) and <code>Persistent=true</code>. A bug in the lock path must never be able to take the recovery path down with it.</p>
+
+<h3>The alarm bug, made concrete</h3>
+
+<p>Recall that the alarm rides on a resume event. Remove hibernate and this happens — silently, with no error anywhere:</p>
+
+<figure>
+  <div class="flow">
+    <div class="box"><b>Before</b>21:00 hibernate<br>+ RTC wake 8h</div>
+    <div class="arrow">→</div>
+    <div class="box"><b>05:00</b>machine resumes</div>
+    <div class="arrow">→</div>
+    <div class="box live"><b>sleep hook</b>fires on <code>post</code><br>→ alarm rings</div>
+  </div>
+  <div class="flow" style="margin-top:.5rem">
+    <div class="box"><b>After (naive)</b>21:00 lockdown<br>machine stays on</div>
+    <div class="arrow">→</div>
+    <div class="box"><b>05:00</b>never suspended</div>
+    <div class="arrow">→</div>
+    <div class="box kill"><b>no resume</b>hook never runs<br>→ <strong>silence</strong></div>
+  </div>
+  <figcaption>A second-order consequence: nothing in the alarm's code changed, yet the alarm stopped working. This is what makes it dangerous — no failure, just an absence.</figcaption>
+</figure>
+
+<p>There is a second trap hiding inside the first. The <em>which days</em> logic lived in the deleted branch (<code>case 1|5|6|7</code>), not in the alarm. The alarm's own gate fires <strong>every day</strong>. So a naive “just start it from a timer” fix would ring on Tuesdays too. The unlock therefore re-implements the Mon/Fri/Sat/Sun gate itself.</p>
+
+<h3>Play with the schedule rule</h3>
+
+<p>The check script compares <em>now</em> against two thresholds. One character in that comparison — <code>-le</code> versus <code>-lt</code> — decides whether 05:00 belongs to the night or the morning. Drive the clock to <strong>05:00</strong> and watch the two verdicts disagree:</p>
+
+<div class="sim">
+  <div class="sim-row">
+    <div>
+      <label for="day">Day</label>
+      <select id="day">
+        <option value="1">Monday</option><option value="2">Tuesday</option>
+        <option value="3">Wednesday</option><option value="4">Thursday</option>
+        <option value="5" selected>Friday</option><option value="6">Saturday</option>
+        <option value="7">Sunday</option>
+      </select>
+    </div>
+    <div>
+      <label for="t">Time — <span class="clock" id="clock">05:00</span></label>
+      <input type="range" id="t" min="0" max="1439" step="30" value="300">
+    </div>
+    <div>
+      <label>Jump to</label>
+      <button class="jump" data-t="1230">20:30</button>
+      <button class="jump" data-t="1260">21:00</button>
+      <button class="jump" data-t="270">04:30</button>
+      <button class="jump" data-t="300">05:00</button>
+    </div>
+  </div>
+
+  <div class="verdicts">
+    <div class="verdict">
+      <b>Old rule <code>-le</code></b>
+      <code style="font-size:.75rem">t &gt;= 1260 || t &lt;= 300</code>
+      <div style="margin-top:.4rem"><span class="tag" id="oldTag">—</span></div>
+    </div>
+    <div class="verdict">
+      <b>New rule <code>-lt</code></b>
+      <code style="font-size:.75rem">t &gt;= 1260 || t &lt; 300</code>
+      <div style="margin-top:.4rem"><span class="tag" id="newTag">—</span></div>
+    </div>
+    <div class="verdict">
+      <b>Resulting state</b>
+      <div style="margin-top:.4rem"><span class="tag" id="stateTag">—</span></div>
+      <div id="stateWhy" style="font-size:.78rem;color:var(--muted);margin-top:.3rem"></div>
+    </div>
+  </div>
+
+  <div class="diverge off" id="diverge">Move the slider to 05:00 to find the one minute where the rules disagree.</div>
+</div>
+
+<p>At 05:00 the old rule still said <em>lock</em>, while the unlock timer was firing at that same instant — the 30-minute tick and the unlock racing each other over the same minute. Making the boundary strict (<code>-lt</code>) means the last lock tick is 04:30, 05:00 is a clean no-op, and the unlock owns the morning uncontested.</p>
+
+<h2 id="code">3. Code</h2>
+
+<p>Grouped by concern rather than by file. The new installer <code>setup_night_lockdown.sh</code> generates two scripts (<code>night-lockdown-enter.sh</code>, <code>night-lockdown-unlock.sh</code>), a config, an unlock timer family and a boot-time RGB service; <code>setup_midnight_shutdown.sh</code> only had its action swapped.</p>
+
+<h3>3.1 The swap, and the boundary</h3>
+
+<p>Both edits are in the heredoc that <em>generates</em> the check script, so they take effect when the installer regenerates it. The action becomes a delegation, with <code>DRY_RUN</code> passed through so the whole path is testable without locking:</p>
+
+<pre><code><span class="del">-    tomorrow_dow=$(date -d "tomorrow" +%u)
+-    case "$tomorrow_dow" in
+-        1|5|6|7) ... rtcwake ... systemctl hibernate -i ;;
+-        *)       ... systemctl poweroff -i ;;
+-    esac</span>
+<span class="ins">+    logger -t day-specific-shutdown "Entering night lockdown (servers stay up)"
++    DRY_RUN="${DRY_RUN:-}" /usr/local/bin/night-lockdown-enter.sh</span></code></pre>
+
+<pre><code>  # both day branches — the off-by-one from the micro-world
+<span class="del">-  if [[ $current_time_minutes -ge $shutdown_start ]] || [[ $current_time_minutes -le $morning_end_minutes ]]</span>
+<span class="ins">+  if [[ $current_time_minutes -ge $shutdown_start ]] || [[ $current_time_minutes -lt $morning_end_minutes ]]</span></code></pre>
+
+<h3>3.2 Ordering: persist intent before you destroy your own session</h3>
+
+<p>The lock script runs <em>inside</em> the session it is about to kill. If it wrote its state afterwards, a kill mid-teardown would leave <code>state=UNLOCKED</code> while the machine was, in fact, locked — and the unlock no-ops when it reads <code>UNLOCKED</code>. That combination strands the machine until 05:00. So the intent is persisted first:</p>
+
+<pre><code>if [[ "$DRY_RUN" != "1" ]]; then
+    echo LOCKED &gt;"$STATE_FILE"     # &lt;- before, not after
+fi
+run systemctl mask getty@.service   # only getty@: autovt@ is an ALIAS of it,
+run systemctl stop 'getty@*.service'  #   and `mask autovt@` errors on the existing symlink
+run systemctl stop lightdm.service  # &lt;- this kills the session running this script
+blank_console</code></pre>
+
+<p>The same reasoning gives the lock its order overall: hardware and user-session work first (RGB, audio, tray apps), then the login surface is masked <em>before</em> lightdm stops so <code>logind</code> cannot spawn a getty into the gap, and only then the GUI goes.</p>
+
+<h3>3.3 Darkness, without killing a monitor</h3>
+
+<p>Stopping lightdm hands the VT back to <code>fbcon</code>, which unblanks it and prints kernel and systemd messages — a bright wall of log spam rather than a dark screen. Two sources are silenced, then the console is blanked:</p>
+
+<pre><code>silence_console() {
+    run kill -s RTMIN+21 1                  # systemd status messages off (RTMIN+20 re-enables)
+    cat /proc/sys/kernel/printk &gt;"$STATE_DIR/printk.prev"   # saved for the unlock
+    run sysctl -q -w "kernel.printk=1 4 1 4"
+}</code></pre>
+
+<div class="callout">
+  <p><strong>Why not just power the display down?</strong> The first attempt used <code>FB_BLANK_POWERDOWN</code> (<code>4</code>), the obvious “monitor off” choice. HDMI tolerated it. <strong>DisplayPort did not</strong>: DP drops its link when powered down, the GPU then reports the connector disconnected and never re-trains it — the 4K primary vanished from <code>xrandr</code> and needed the cable physically re-plugged. <code>FB_BLANK_NORMAL</code> (<code>1</code>) gives an equally black screen while leaving the link up.</p>
+</div>
+
+<p>The darkness matters for a reason beyond aesthetics, which is worth stating because it is not obvious: a lit screen invites you to switch the monitors off by hand — and the monitor's HDMI speaker is one of only two audio sinks the alarm has. A bright console at 21:00 is, indirectly, a silent alarm at 05:00.</p>
+
+<h3>3.4 Re-firing the alarm the lockdown displaced</h3>
+
+<p>The unlock restores the login surface and the GUI, then — on alarm days only — starts the routine that the vanished resume event used to start. The day gate is re-implemented here because the alarm's own gate fires every day:</p>
+
+<pre><code>maybe_start_morning_alarm() {
+    dow="$(date +%u)"                       # 1=Mon .. 7=Sun
+    for d in $ALARM_DAYS_DOW; do [[ "$d" == "$dow" ]] &amp;&amp; today_is_alarm_day=true; done
+    [[ "$today_is_alarm_day" == true ]] || { logg "not an alarm day (dow=$dow)"; return 0; }
+
+    for ((i = 0; i &lt; 60; i++)); do          # bounded wait: lightdm -&gt; autologin -&gt; session
+        sudo -u "$LOCK_USER" env "XDG_RUNTIME_DIR=/run/user/$LOCK_UID" \
+            systemctl --user is-active graphical-session.target &gt;/dev/null 2&gt;&amp;1 &amp;&amp; break
+        sleep 1
+    done
+    run sudo -u "$LOCK_USER" env "XDG_RUNTIME_DIR=/run/user/$LOCK_UID" \
+        systemctl --user start --no-block "$MORNING_ROUTINE_UNIT"
+}</code></pre>
+
+<p>It is called after the state token flips to <code>UNLOCKED</code>, so the four later unlock triggers dedupe on the token and cannot double-start it during the 60-second wait.</p>
+
+<h3>3.5 RGB, and a lesson about exit codes</h3>
+
+<p>The RGB step originally gated on a device list and always found zero devices, so it silently did nothing while reporting success. The cause was not the hardware but the build: <code>openrgb-git 0.9.2148</code>'s CLI returned in ~70 ms, before its asynchronous detection (~1.9 s) had populated anything — so <em>every</em> invocation acted on an empty device list <strong>and still exited 0</strong>. Stable <code>openrgb 1.0rc3</code> waits properly. Two device quirks then remained:</p>
+
+<div class="scroller">
+<table>
+  <tr><th>Device</th><th>Quirk</th><th>Consequence</th></tr>
+  <tr><td>ZOTAC RTX 3090</td><td>exposes no <code>Off</code> mode at all</td><td rowspan="2"><code>--mode off</code> could never work; <strong>static + black</strong> is the one form all four accept</td></tr>
+  <tr><td>ASRock B650M Pro RS</td><td>lists <code>Off</code> but silently ignores it (stayed on <code>Rainbow</code>)</td></tr>
+  <tr><td>2× ENE DRAM</td><td>honour <code>Off</code> correctly</td><td>—</td></tr>
+</table>
+</div>
+
+<p>Because the preference is simply <em>no lighting, ever</em>, the unlock re-asserts black rather than restoring anything, and a <code>rgb-off.service</code> re-applies it at every boot — the board firmware lights everything back up on power-on, and nothing else would turn it off again until the next 21:00.</p>
+
+<h3>3.6 A guard against a bug that bit twice</h3>
+
+<p>The config heredoc must stay <strong>unquoted</strong>, because it interpolates the detected user, uid and ALSA cards. That means any stray backtick or <code>$</code> anywhere inside it — <em>including inside a comment</em> — is executed or expanded at write time. It happened twice; the second time it ran <code>openrgb</code> mid-write and pasted its stderr into the config, producing invalid shell. The lock script then failed to source it and skipped every configured step, silently. The fix is to make that class of mistake loud:</p>
+
+<pre><code>if ! bash -n "$CONF_FILE" 2>/dev/null; then
+    log_error "Generated $CONF_FILE is not valid shell — refusing to continue."
+    exit 1
+fi</code></pre>
+
+<h3>3.7 One line that is not about lockdown</h3>
+
+<p><code>SCHEDULE_THU_SUN_HOUR</code> moved 22 → 21. This is not a policy change: <code>screen_locker</code>'s sick-day feature had ratcheted the canonical schedule to 21 back on 2026-07-03, and the ratchet only permits same-or-stricter. The script's own constant of 22 therefore read as <em>relaxing</em> the schedule, and the installer refused to run at all — meaning the check script could not be regenerated. Aligning the source with the schedule already in force unblocked it.</p>
+
+<h2 id="quiz">4. Quiz</h2>
+<p style="color:var(--muted);font-size:.9rem">Five questions on the reasoning behind the change. Score: <span id="score">0 / 0</span></p>
+<div id="quiz"></div>
+
+<script>
+(function () {
+  // ---- micro-world: the schedule decision ----
+  var SHUTDOWN_START = 21 * 60;  // 21:00 on every day, post-alignment
+  var MORNING_END    = 5 * 60;   // 05:00
+
+  var day = document.getElementById('day');
+  var t = document.getElementById('t');
+  var clock = document.getElementById('clock');
+  var oldTag = document.getElementById('oldTag');
+  var newTag = document.getElementById('newTag');
+  var stateTag = document.getElementById('stateTag');
+  var stateWhy = document.getElementById('stateWhy');
+  var diverge = document.getElementById('diverge');
+
+  function fmt(mins) {
+    var h = String(Math.floor(mins / 60)).padStart(2, '0');
+    var m = String(mins % 60).padStart(2, '0');
+    return h + ':' + m;
+  }
+  function oldRule(x) { return x >= SHUTDOWN_START || x <= MORNING_END; }
+  function newRule(x) { return x >= SHUTDOWN_START || x < MORNING_END; }
+
+  function tag(el, locks) {
+    el.textContent = locks ? 'LOCK' : 'skip';
+    el.className = 'tag ' + (locks ? 'lock' : 'skip');
+  }
+
+  function render() {
+    var x = parseInt(t.value, 10);
+    clock.textContent = fmt(x);
+    var o = oldRule(x), n = newRule(x);
+    tag(oldTag, o); tag(newTag, n);
+
+    // What the machine ends up doing under the NEW code.
+    var unlockWindow = (x >= MORNING_END && x < SHUTDOWN_START);
+    if (n) {
+      stateTag.textContent = 'LOCKED';
+      stateTag.className = 'tag lock';
+      stateWhy.textContent = 'check tick calls night-lockdown-enter.sh (no-op if already locked)';
+    } else if (x === MORNING_END) {
+      stateTag.textContent = 'UNLOCKED';
+      stateTag.className = 'tag skip';
+      stateWhy.textContent = 'unlock timer fires; check tick skips — no race';
+    } else {
+      stateTag.textContent = 'UNLOCKED';
+      stateTag.className = 'tag skip';
+      stateWhy.textContent = unlockWindow ? 'daytime: outside the window entirely' : 'outside the window';
+    }
+
+    if (o !== n) {
+      diverge.className = 'diverge on';
+      diverge.textContent = '⚠ ' + fmt(x) + ': the old rule says LOCK while the unlock timer is firing — '
+        + 'the 30-minute tick would re-lock the machine against its own recovery. This exact minute is the bug the -lt fix removes.';
+    } else {
+      diverge.className = 'diverge off';
+      diverge.textContent = 'Rules agree at ' + fmt(x) + '. Only the boundary minute 05:00 differs — try it.';
+    }
+  }
+
+  day.addEventListener('change', render);
+  t.addEventListener('input', render);
+  Array.prototype.forEach.call(document.querySelectorAll('.jump'), function (b) {
+    b.addEventListener('click', function () { t.value = b.dataset.t; render(); });
+  });
+  render();
+
+  // ---- quiz ----
+  var QS = [
+    {
+      q: 'Why was it safe to swap the fortress’s terminal action without weakening the curfew?',
+      opts: [
+        'The monitor daemon watches only the config file, so other scripts may be edited freely.',
+        'The ratchet re-checks the action each time the shutdown timer happens to fire.',
+        'The guards protect the schedule and timer, not the action the check script runs.',
+        'The chattr flag on the config also extends to the generated check script body.'
+      ],
+      a: 2,
+      why: 'The immutability, ratchet, monitor and watchdog all defend when the lock happens. The action was always just the tail of a generated script.'
+    },
+    {
+      q: 'The morning comparison changed from -le to -lt. What went wrong at exactly 05:00 before?',
+      opts: [
+        '05:00 still counted as inside the window, so it re-locked against the unlock.',
+        'The unlock timer fired twice, and its second run re-masked getty on the console.',
+        'The check skipped 04:30 entirely, leaving a half-hour gap with no lock at all.',
+        'The timer’s OnCalendar list omitted 05:00, so nothing ran at that exact minute.'
+      ],
+      a: 0,
+      why: 'With -le, minute 300 satisfied the window test, so the 05:00 tick locked at the same moment the unlock timer was restoring the desktop.'
+    },
+    {
+      q: 'Why must the lock script write LOCKED before it stops lightdm, rather than after?',
+      opts: [
+        'The unlock timer reads the state file before the lock service has even started.',
+        'systemd requires oneshot units to persist their state before ExecStop runs.',
+        'The getty mask cannot be applied until the state file already reads LOCKED.',
+        'Stopping lightdm kills the script’s own session; a later write could be lost.'
+      ],
+      a: 3,
+      why: 'A kill mid-teardown would leave state=UNLOCKED on a locked machine — and the unlock no-ops on UNLOCKED, stranding it until 05:00.'
+    },
+    {
+      q: 'Why did dropping the hibernate branch silently break the morning alarm?',
+      opts: [
+        'The alarm reads the RTC wake timestamp and refuses to run without one set.',
+        'The alarm was started only by a resume event from the systemd-sleep hook.',
+        'morning-routine.service is WantedBy graphical-session and was never enabled.',
+        'Hibernate flushed the dismissal marker that the alarm needs in order to arm.'
+      ],
+      a: 1,
+      why: 'The alarm has no timer of its own. An always-on machine never resumes, so the hook never ran — no error, just silence.'
+    },
+    {
+      q: 'Why is the console blanked with FB_BLANK_NORMAL instead of FB_BLANK_POWERDOWN?',
+      opts: [
+        'The nvidia framebuffer rejects any blank value above 1 with an I/O error.',
+        'Powerdown is ignored by fbcon whenever consoleblank=0 is set on the cmdline.',
+        'DisplayPort drops its link on powerdown and the GPU will not re-train it.',
+        'Powerdown also kills the HDMI audio sink that the alarm relies on at 05:00.'
+      ],
+      a: 2,
+      why: 'HDMI tolerated powerdown; DP did not — the 4K primary disappeared from xrandr until the cable was physically re-plugged. Blanking is just as dark.'
+    }
+  ];
+
+  var asked = 0, right = 0;
+  var scoreEl = document.getElementById('score');
+  var root = document.getElementById('quiz');
+
+  QS.forEach(function (item, qi) {
+    var d = document.createElement('div');
+    d.className = 'q';
+    var p = document.createElement('p');
+    p.className = 'stem';
+    p.textContent = (qi + 1) + '. ' + item.q;
+    d.appendChild(p);
+
+    var why = document.createElement('p');
+    why.className = 'why';
+
+    item.opts.forEach(function (text, oi) {
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.textContent = text;
+      b.addEventListener('click', function () {
+        if (d.dataset.done) return;
+        d.dataset.done = '1';
+        asked++;
+        if (oi === item.a) right++;
+        Array.prototype.forEach.call(d.querySelectorAll('.opt'), function (btn, bi) {
+          btn.disabled = true;
+          if (bi === item.a) btn.classList.add('correct');
+          else if (bi === oi) btn.classList.add('wrong');
+        });
+        why.textContent = (oi === item.a ? '✓ ' : '✗ ') + item.why;
+        why.classList.add('show');
+        scoreEl.textContent = right + ' / ' + asked;
+      });
+      d.appendChild(b);
+    });
+
+    d.appendChild(why);
+    root.appendChild(d);
+  });
+})();
+</script>
+
+</main>
+</body>
+</html>
