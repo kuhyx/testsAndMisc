@@ -57,6 +57,19 @@ warn() { printf "${YELLOW}[!]${NC} %s\n" "$*"; }
 err() { printf "${RED}[✗]${NC} %s\n" "$*"; }
 header() { printf "\n${CYAN}=== %s ===${NC}\n" "$*"; }
 
+# A MISSING repair script means THIS TOOL is broken: it silently stops repairing
+# the thing it exists to repair. That is exactly how the 2026-05-15 reorg left a
+# stale $CONFIG_DIR/hosts path here — check_hosts detected the disabled guards
+# every run, failed to find setup_hosts_guard.sh, printed one line among a
+# hundred, and still exited 0. Five months of dead self-repair, zero symptoms.
+# So: record it, log at journal ERROR priority, and exit non-zero with a banner.
+declare -a MISSING_SCRIPTS=()
+err_missing_script() {
+	err "$*"
+	logger -t check-and-enable-services -p user.err "MISSING REPAIR SCRIPT: $*"
+	MISSING_SCRIPTS+=("$*")
+}
+
 run() {
 	if [[ $DRY_RUN -eq 1 ]]; then
 		echo -e "${YELLOW}DRY-RUN:${NC} $*"
@@ -172,7 +185,7 @@ report_and_fix() {
 					_status="ok"
 				fi
 			else
-				err "Setup script not found: $setup_script"
+				err_missing_script "Setup script not found: $setup_script"
 			fi
 		fi
 	fi
@@ -247,7 +260,7 @@ check_pacman_wrapper() {
 					status="ok"
 				fi
 			else
-				err "Installer script not found: $PACMAN_WRAPPER_INSTALL"
+				err_missing_script "Installer script not found: $PACMAN_WRAPPER_INSTALL"
 			fi
 		fi
 	fi
@@ -326,7 +339,7 @@ check_makepkg_wrapper() {
 					status="ok"
 				fi
 			else
-				err "Installer script not found: $MAKEPKG_WRAPPER_INSTALL"
+				err_missing_script "Installer script not found: $MAKEPKG_WRAPPER_INSTALL"
 			fi
 		fi
 	fi
@@ -770,7 +783,7 @@ check_hosts() {
 					run bash "$HOSTS_INSTALL_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else
-					err "Hosts install script not found: $HOSTS_INSTALL_SCRIPT"
+					err_missing_script "Hosts install script not found: $HOSTS_INSTALL_SCRIPT"
 				fi
 			fi
 
@@ -788,7 +801,7 @@ check_hosts() {
 					run bash "$HOSTS_GUARD_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else
-					err "Hosts guard script not found: $HOSTS_GUARD_SCRIPT"
+					err_missing_script "Hosts guard script not found: $HOSTS_GUARD_SCRIPT"
 				fi
 			fi
 
@@ -799,7 +812,7 @@ check_hosts() {
 					run bash "$HOSTS_PACMAN_HOOKS_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else
-					err "Pacman hooks script not found: $HOSTS_PACMAN_HOOKS_SCRIPT"
+					err_missing_script "Pacman hooks script not found: $HOSTS_PACMAN_HOOKS_SCRIPT"
 				fi
 			fi
 
@@ -926,7 +939,7 @@ check_focus_mode() {
 				run sudo -u "$user" bash "$FOCUS_MODE_SCRIPT" install
 				((FIXES_APPLIED++)) || true
 			else
-				err "Install script not found: $FOCUS_MODE_SCRIPT"
+				err_missing_script "Install script not found: $FOCUS_MODE_SCRIPT"
 			fi
 		fi
 	fi
@@ -984,7 +997,7 @@ check_compulsive_blocker() {
 				run bash "$COMPULSIVE_BLOCK_SCRIPT" install
 				((FIXES_APPLIED++)) || true
 			else
-				err "Install script not found: $COMPULSIVE_BLOCK_SCRIPT"
+				err_missing_script "Install script not found: $COMPULSIVE_BLOCK_SCRIPT"
 			fi
 		fi
 	fi
@@ -1074,7 +1087,7 @@ check_leechblock() {
 				run sudo -u "$user" bash "$LEECHBLOCK_SCRIPT"
 				((FIXES_APPLIED++)) || true
 			else
-				err "Install script not found: $LEECHBLOCK_SCRIPT"
+				err_missing_script "Install script not found: $LEECHBLOCK_SCRIPT"
 			fi
 		fi
 	fi
@@ -1126,7 +1139,7 @@ check_guest_mode_removal() {
 				run bash "$REMOVE_GUEST_MODE_SCRIPT"
 				((FIXES_APPLIED++)) || true
 			else
-				err "Script not found: $REMOVE_GUEST_MODE_SCRIPT"
+				err_missing_script "Script not found: $REMOVE_GUEST_MODE_SCRIPT"
 			fi
 		fi
 	fi
@@ -1167,7 +1180,7 @@ check_vbox_hosts() {
 				run bash "$VBOX_HOSTS_SCRIPT"
 				((FIXES_APPLIED++)) || true
 			else
-				err "Script not found: $VBOX_HOSTS_SCRIPT"
+				err_missing_script "Script not found: $VBOX_HOSTS_SCRIPT"
 			fi
 		fi
 	fi
@@ -1226,7 +1239,7 @@ check_workout_locker() {
 					status="ok"
 				fi
 			else
-				err "Install script not found: $WORKOUT_LOCKER_INSTALL_SCRIPT"
+				err_missing_script "Install script not found: $WORKOUT_LOCKER_INSTALL_SCRIPT"
 			fi
 		fi
 	fi
@@ -1310,3 +1323,25 @@ main() {
 }
 
 main
+
+######################################################################
+# A missing repair script means this tool cannot do the one job it exists for.
+# Exiting 0 there is indistinguishable from "everything is fine" — which is how
+# it hid dead hosts self-repair for five months. Make it impossible to miss.
+######################################################################
+if [[ ${#MISSING_SCRIPTS[@]} -gt 0 ]]; then
+	printf "\n${RED}"
+	printf '=%.0s' {1..74}
+	printf "\n  SELF-REPAIR IS BROKEN — %d repair script(s) MISSING\n" "${#MISSING_SCRIPTS[@]}"
+	printf '=%.0s' {1..74}
+	printf "${NC}\n"
+	for missing in "${MISSING_SCRIPTS[@]}"; do
+		err "$missing"
+	done
+	printf "${RED}The services above are NOT being repaired — this tool found the\n"
+	printf "problem and then could not run the fix. Correct these paths first.${NC}\n"
+	printf "${CYAN}Also logged at error priority: journalctl -p err -t check-and-enable-services${NC}\n\n"
+	exit 2
+fi
+
+exit 0

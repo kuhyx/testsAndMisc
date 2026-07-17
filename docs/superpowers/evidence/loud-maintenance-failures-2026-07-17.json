@@ -1,0 +1,34 @@
+{
+  "intent": "Make periodic-maintenance and self-repair failures impossible to miss. Both tools swallowed failures: execute_with_log appended one line to a log nobody reads and returned 0, so the systemd oneshot reported SUCCESS; check_and_enable_services printed one err line among ~100 and exited 0. That combination is why the 2026-05-15 repo reorg silently killed the pacman-wrapper and hosts self-repair for five months with zero visible symptoms — check_hosts detected the disabled hosts guards on every run, failed to find setup_hosts_guard.sh at the stale $CONFIG_DIR/hosts path, and still exited 0.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/system-maintenance/bin/periodic-system-maintenance.sh (driver template)",
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh",
+    "Non-goals: enabling the currently-disabled hosts guards (separate decision); the author's in-flight night-lockdown WIP in setup_midnight_shutdown.sh"
+  ],
+  "changes": [
+    "Driver: added fail_loudly() -> journal at ERROR priority via `logger -p user.err`; collects ALL failures instead of aborting on the first; on any failure writes /var/lib/periodic-system-maintenance/LAST_RUN_FAILED, sends a critical desktop notification (-t 0, never auto-dismisses) to the graphical user via their session bus, and exits 1 so systemd marks the oneshot FAILED (visible in `systemctl --failed` and the timer status) instead of green.",
+    "Driver: `bash script || rc=$?` so set -e cannot abort the run and every step is still attempted/reported.",
+    "check_and_enable_services: added err_missing_script() which records + logs at journal ERROR priority; rerouted all 12 'script not found' err() call sites to it; added a terminal banner and `exit 2` when any repair script is missing (a missing repair script means the tool itself is broken).",
+    "Healthy runs still exit 0 and clear the breadcrumb."
+  ],
+  "verification": [
+    {
+      "command": "driver template substituted with nonexistent script paths, temp-redirected LOG_FILE/STATE_DIR, run directly",
+      "result": "pass",
+      "evidence": "exit 1; stderr listed all 3 failures; /state/LAST_RUN_FAILED contained all 3; `journalctl -t periodic-system-maintenance -p err` showed 3 FAILURE entries. All four signals fired."
+    },
+    {
+      "command": "sudo bash setup_periodic_system.sh; sudo /usr/local/bin/periodic-system-maintenance.sh; sudo bash check_and_enable_services.sh --status; shellcheck --severity=warning",
+      "result": "pass",
+      "evidence": "live driver regenerated with the loud code; healthy run rc=0 with all 3 steps ✓ and no breadcrumb; checker rc=0 with no banner; shellcheck clean; bash -n clean."
+    }
+  ],
+  "risks": [
+    "The hourly oneshot will now genuinely FAIL (red in systemctl --failed) when a repair script is missing or a repair errors — that is the intent, but it makes previously-invisible breakage visible and may surface pre-existing failures.",
+    "notify_user targets the first graphical session from `loginctl list-sessions`; on a headless boot it silently no-ops (the journal/exit-code/breadcrumb signals still fire)."
+  ],
+  "rollback": [
+    "git revert the commit and re-run `sudo bash setup_periodic_system.sh` to regenerate the previous (silent) driver.",
+    "Validate after rollback: /usr/local/bin/periodic-system-maintenance.sh no longer contains fail_loudly; the unit reports success again regardless of failures."
+  ]
+}
