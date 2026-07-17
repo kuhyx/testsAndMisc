@@ -1,0 +1,33 @@
+{
+  "intent": "Clear every remaining error and warning in check_and_enable_services.sh and actually install the missing services. Three of the four remaining items were caused by scripts hardcoding paths/assumptions that stopped being true, not by real drift.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh",
+    "Non-goals: installing VirtualBox (deliberately blocked by pacman policy); the author's night-lockdown WIP"
+  ],
+  "changes": [
+    "hosts (phantom warning): check_hosts looked for 10-unlock-etc-hosts.hook / 90-relock-etc-hosts.hook, which have not existed since the hosts guard migrated to guard-lib's generic unlock-all/relock-all hooks. Added hosts_pacman_hooks_installed() matching what pacman_wrapper.sh treats as authoritative (guard-lib pair, legacy pair accepted as fallback). hosts -> ok.",
+    "focus_mode (never installable): install_focus_mode_daemon.sh runs `systemctl --user`, but check_and_enable_services invokes it via `sudo -u <user>` from root, which grants no session — XDG_RUNTIME_DIR/DBUS_SESSION_BUS_ADDRESS unset, so it died at daemon-reload on every automated run. The installer now derives both from the effective UID. focus-mode.service installed, enabled and active.",
+    "guest_mode_removal: ran remove_guest_mode.sh; policy applied at /etc/chromium/policies/managed/99-disable-guest-mode.json.",
+    "compulsive_blocker (discord never limited): REAL_BINARIES hardcoded /opt/discord/Discord — a different discord package's layout. This `discord` package ships only /usr/bin/discord, a bootstrap that downloads the app into ~/.config/discord/ and execs ~/.config/discord/Discord (a version symlink its updater maintains), so install_wrapper's `[[ -x $real_binary ]]` gate failed forever. Now execs the preserved LAUNCHER (/usr/bin/discord.orig) so Discord's bootstrap/self-update still runs. Required two supporting fixes: (a) the gate now skips the -x check when the exec target IS the wrapper's own .orig (chicken-and-egg — the wrap creates it); (b) added PROCESS_MATCH, because the launcher exec()s away into ~/.config/discord/<app>/Discord and pgrep -f on '.orig' would match nothing — auto-close/kill/running-state would have silently no-opped.",
+    "vbox_hosts: relabelled skipped -> n/a with a reason. VirtualBox is absent AND blocked by pacman policy (pacman_blocked_keywords.txt lists virtualbox/vbox as 'can bypass /etc/hosts restrictions'), so the check is genuinely not applicable rather than ducked."
+  ],
+  "verification": [
+    {
+      "command": "sudo bash check_and_enable_services.sh --status; systemctl --user is-enabled/is-active focus-mode.service; sudo bash block_compulsive_opening.sh install; bash -n; shellcheck --severity=warning",
+      "result": "pass",
+      "evidence": "Final status: every service ok (pacman_wrapper, makepkg_wrapper, midnight_shutdown, startup_monitor, periodic_systems, hosts, focus_mode, compulsive_blocker, thorium_startup, leechblock, guest_mode_removal, workout_locker) with vbox_hosts = n/a. Zero errors, zero warnings. focus-mode.service enabled+active. discord: /usr/bin/discord.orig preserved (1085 bytes, the #!/bin/sh bootstrap with 2 updater_bootstrap refs), wrapper installed and its exec target is /usr/bin/discord.orig. parse OK, shellcheck clean on all three files."
+    }
+  ],
+  "risks": [
+    "discord is now limited to one launch per hour with a 10-minute auto-close (the global default; beeper/signal use 20). Recover the raw launcher any time via /usr/bin/discord.orig.",
+    "focus-mode enforces Steam/browser mutual exclusion from now on — whichever starts first wins. It was installed while neither was running.",
+    "Guest mode is disabled in Chromium-based browsers via managed policy (remove_guest_mode.sh --undo reverts).",
+    "PROCESS_MATCH for discord matches ~/.config/discord/ — kill_app uses pkill -f on it, so it will match any process whose cmdline contains that path."
+  ],
+  "rollback": [
+    "git revert the commit; sudo bash block_compulsive_opening.sh uninstall (restores /usr/bin/discord from .orig); sudo -u <user> bash install_focus_mode_daemon.sh uninstall; sudo bash remove_guest_mode.sh --undo.",
+    "Validate after rollback: /usr/bin/discord has no block-compulsive-opening marker; focus-mode.service gone; guest-mode policy JSON removed."
+  ]
+}

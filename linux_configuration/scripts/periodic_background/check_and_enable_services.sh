@@ -95,6 +95,21 @@ user_systemctl() { # <user> <systemctl args...>
 	systemctl --user --machine="${u}@.host" "$@"
 }
 
+# Are the pacman hooks that unlock/relock the guarded hosts files installed?
+# The hosts guard migrated to guard-lib's GENERIC unlock-all/relock-all hooks
+# (which cover every registered file-guard: hosts, nsswitch, resolved, ...), and
+# the old per-file 10-unlock-etc-hosts.hook / 90-relock-etc-hosts.hook names have
+# not existed since. This check was never updated, so it reported a phantom
+# "Pacman hooks not installed" warning forever. pacman_wrapper.sh treats the
+# guard-lib pair as authoritative (see pacman_hooks_manage_guard_lib) — match it,
+# while still accepting the legacy pair if an older install is present.
+hosts_pacman_hooks_installed() {
+	{ [[ -f /etc/pacman.d/hooks/10-guard-lib-unlock-all.hook ]] &&
+		[[ -f /etc/pacman.d/hooks/90-guard-lib-relock-all.hook ]]; } ||
+		{ [[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]] &&
+			[[ -f /etc/pacman.d/hooks/90-relock-etc-hosts.hook ]]; }
+}
+
 run() {
 	if [[ $DRY_RUN -eq 1 ]]; then
 		echo -e "${YELLOW}DRY-RUN:${NC} $*"
@@ -603,7 +618,7 @@ check_hosts() {
 	fi
 
 	# Check pacman hooks
-	if [[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]] && [[ -f /etc/pacman.d/hooks/90-relock-etc-hosts.hook ]]; then
+	if hosts_pacman_hooks_installed; then
 		msg "Pacman hooks installed"
 	else
 		issues+=("Pacman hooks not installed")
@@ -830,7 +845,7 @@ check_hosts() {
 			fi
 
 			# Install pacman hooks if missing
-			if [[ ! -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]]; then
+			if ! hosts_pacman_hooks_installed; then
 				note "Installing pacman hooks..."
 				if [[ -f $HOSTS_PACMAN_HOOKS_SCRIPT ]]; then
 					run bash "$HOSTS_PACMAN_HOOKS_SCRIPT"
@@ -851,7 +866,7 @@ check_hosts() {
 					[[ -f /usr/local/share/locked-hosts ]] &&
 					[[ -f /usr/local/share/locked-nsswitch.conf ]] &&
 					[[ -f /usr/local/share/locked-resolved.conf ]] &&
-					[[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]]; then
+					hosts_pacman_hooks_installed; then
 					# Downgrade to warning if only minor issues remain (immutable attr, etc.)
 					status="ok"
 				fi
@@ -1125,10 +1140,16 @@ check_vbox_hosts() {
 	local status="ok"
 	local issues=()
 
-	# Only check if VirtualBox is installed
+	# Only check if VirtualBox is installed.
+	# This is NOT "skipped" in the sense of ducking a check: VirtualBox is absent
+	# AND deliberately blocked by pacman policy — pacman_blocked_keywords.txt lists
+	# virtualbox/vbox with the comment "can bypass /etc/hosts restrictions", which
+	# is the very thing this check enforces. With no VirtualBox there are no VMs to
+	# enforce /etc/hosts inside, so the check is genuinely not applicable. Report
+	# n/a so it reads as deliberate rather than something that got ducked.
 	if ! command -v VBoxManage &>/dev/null; then
-		note "VirtualBox not installed, skipping"
-		SERVICE_STATUS["vbox_hosts"]="skipped"
+		note "VirtualBox not installed (blocked by pacman policy) — not applicable"
+		SERVICE_STATUS["vbox_hosts"]="n/a"
 		return
 	fi
 
@@ -1232,7 +1253,7 @@ print_summary() {
 		ok) color=$GREEN ;;
 		warning) color=$YELLOW ;;
 		error) color=$RED ;;
-		skipped) color=$BLUE ;;
+		"n/a" | skipped) color=$BLUE ;;
 		*) color=$NC ;;
 		esac
 		printf "%-25s ${color}%s${NC}\n" "$service" "$status"
