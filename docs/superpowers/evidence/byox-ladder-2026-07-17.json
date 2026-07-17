@@ -1,0 +1,39 @@
+{
+  "intent": "Add python_pkg/byox_ladder: a generator that ranks the build-your-own-x projects by difficulty and produces two offline HTML ladders (per-guide and per-category), committed as runnable pages.",
+  "scope": [
+    "python_pkg/byox_ladder/ (new package: parse_guides.py, build_pages.py, templates, built HTML, tests)",
+    "docs/superpowers/contracts + evidence artifacts for this change",
+    "No changes to existing packages, tooling, or the unrelated working-tree edits (i3 config, feedback-appimage)"
+  ],
+  "changes": [
+    "parse_guides.py parses the upstream README into guides.json; a guide inherits its category tier, language only nudges within-tier order",
+    "build_pages.py inlines guides.json into the guide template and wraps both pages in a standalone HTML skeleton",
+    "Makefile drives fetch -> parse -> build; byox-readme.md and guides.json are gitignored derived artifacts",
+    "tests/ cover both modules to 100% branch coverage"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/byox_ladder/tests --cov=python_pkg.byox_ladder --cov-branch",
+      "result": "pass",
+      "evidence": "21 passed; coverage 100.00% (parse_guides.py 69 stmts/16 branches, build_pages.py 32 stmts/4 branches, __init__ 0) with 0 missing"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/byox_ladder/*.py python_pkg/byox_ladder/tests/*.py",
+      "result": "pass",
+      "evidence": "ruff, ruff-format, mypy, pylint, bandit, codespell, check-python-location, and pytest-coverage all reported Passed"
+    },
+    {
+      "command": "make -C python_pkg/byox_ladder build",
+      "result": "pass",
+      "evidence": "wrote guides.json (359 guides); wrote guide-ladder.html and category-ladder.html, both starting with <!doctype html>"
+    }
+  ],
+  "risks": [
+    "Upstream README format drift could break the regex parser; parse_guides.py exits non-zero and the committed HTML stays valid until regenerated",
+    "Difficulty tiers are a subjective judgment; within-tier order is approximate by design"
+  ],
+  "rollback": [
+    "git rm -r python_pkg/byox_ladder and delete the two docs/superpowers artifacts, then commit",
+    "After rollback, run pre-commit run --all-files to confirm the tree is still green"
+  ]
+}

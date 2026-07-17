@@ -1,0 +1,17 @@
+{
+  "title": "Add byox_ladder difficulty-ladder generator",
+  "objective": "Add a self-contained tool that ranks the codecrafters build-your-own-x projects by difficulty and emits two offline HTML pages: a per-guide ladder (~360 tutorials) and a per-category ladder (30 categories), grouped into Beginner/Intermediate/Advanced/Expert tiers plus an Unsorted bucket.",
+  "acceptance_criteria": [
+    "python_pkg/byox_ladder parses the upstream README into guides.json via parse_guides.py",
+    "build_pages.py emits standalone guide-ladder.html and category-ladder.html that open via file:// with no network",
+    "make build regenerates the whole pipeline (fetch -> parse -> build)",
+    "Tests reach 100% branch coverage on parse_guides.py and build_pages.py",
+    "All pre-commit hooks pass (ruff ALL, mypy, pylint, bandit, codespell, check-python-location)"
+  ],
+  "out_of_scope": [
+    "Vendoring the upstream README (fetched at build time, gitignored)",
+    "Any change to existing python_pkg packages or repo tooling",
+    "A per-guide exact 1..N ranking (difficulty is tier-based by design)"
+  ],
+  "verifier": "pre-commit run --all-files (pre-push stage) and python3 -m pytest python_pkg/byox_ladder/tests"
+}
