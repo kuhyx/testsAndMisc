@@ -1,0 +1,53 @@
+{
+  "intent": "Stop focus mode from entering GAMING mode and killing browsers when no Steam is running. The daemon was flapping in and out of GAMING mode every few seconds against a Steam that had been uninstalled since 2026-07-04.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py",
+    "Non-goal: the Steam/enforcer coexistence conflict. A healthy enforcer keeps a headless Steam alive permanently, which focus mode would correctly read as GAMING and lock browsers out for good. Only relevant if Steam is reinstalled, and needs its own decision (GAMING = client alive vs GAMING = a game actually running).",
+    "Non-goal: reinstalling Steam. User chose to leave it uninstalled.",
+    "Companion fix in the separate steam-backlog-enforcer repo (commit d54df3a) removes the zombie source itself."
+  ],
+  "changes": [
+    "get_running_processes() reads /proc/*/stat instead of /proc/*/comm and skips processes in state Z (zombie). Both cost one read per PID, so the poll loop stays fork-free, but stat also carries the process state.",
+    "Added _parse_stat(), which extracts (name, state) using rpartition(')') because a process name may itself contain spaces and ')' - splitting on whitespace would corrupt such names. Names are truncated to 15 chars in stat exactly as in comm, so STEAM_PATTERNS and STEAM_GAME_PREFIX match unchanged.",
+    "Added the ZOMBIE_STATE constant.",
+    "Root cause: a total gaming block on 2026-07-04 purged the Steam client; the enforcer kept trying to launch it via an orphaned /usr/local/bin/steam wrapper pointing at the deleted /usr/bin/steam. Each failed launch left an unreaped zombie still named 'steam', which this daemon counted as a running Steam."
+  ],
+  "verification": [
+    {
+      "command": "probe get_running_processes() against live /proc while a real steam zombie was present",
+      "result": "pass",
+      "evidence": "zombies on system now: ['steam'] | OLD (/proc/*/comm) sees 'steam': True | NEW (zombie-filtered) sees 'steam': False | is_steam_running(NEW): False | dropped by filter: ['steam']. Reproduced across 6 consecutive polls."
+    },
+    {
+      "command": "non-regression: synthetic non-zombie process sets through is_steam_running()",
+      "result": "pass",
+      "evidence": "synthetic live 'steam' -> True; synthetic game 'steam_app_29687' -> True. Proves the filter skips zombies, not Steam."
+    },
+    {
+      "command": "focus-mode-daemon (the deployed command, run for 12s)",
+      "result": "pass",
+      "evidence": "'Focus Mode Daemon starting...' then 'Browser detected - entering BROWSING mode'. No 'Steam detected - entering GAMING mode' lines at all; browsers untouched. Before the fix the same command flapped GAMING on/off every ~15s."
+    },
+    {
+      "command": "sudo install -m 755 focus_mode_daemon.py /usr/local/bin/focus-mode-daemon; diff -q",
+      "result": "pass",
+      "evidence": "Deployed copy was STALE (grep -c ZOMBIE_STATE = 0) because install_focus_mode_daemon.sh copies rather than symlinks. Reinstalled; deployed file now byte-identical to source."
+    },
+    {
+      "command": "pre-commit run --files <this file + focus_mode_daemon.py> (in a clean worktree)",
+      "result": "pass",
+      "evidence": "Run from a temporary git worktree because the main tree carries unrelated uncommitted brother_printer work whose tests fail; with brother_printer at its committed state the suite is 340 passed."
+    }
+  ],
+  "risks": [
+    "Reading /proc/*/stat instead of /proc/*/comm is a wider parse surface; mitigated by rpartition(')') handling names containing ')' or spaces, which naive whitespace splitting would break.",
+    "A process that is genuinely running is never skipped - only state Z is filtered - so real Steam and real games are still detected.",
+    "install_focus_mode_daemon.sh copies rather than symlinks, so editing the repo file alone does not change what runs. Any future change must be re-installed to /usr/local/bin/focus-mode-daemon.",
+    "The removed /usr/local/bin/steam wrapper carried GPU workaround flags: exec /usr/bin/steam -cef-disable-gpu -cef-disable-gpu-compositing \"$@\" . Restore them if a Steam reinstall brings back GPU trouble."
+  ],
+  "rollback": [
+    "git revert the commit, then re-run: sudo install -m 755 focus_mode_daemon.py /usr/local/bin/focus-mode-daemon (reverting the repo file alone does NOT change the deployed daemon).",
+    "After rollback, expect focus mode to once again count zombie processes as running; verify with the probe that /proc/*/comm-based detection returns True for a 'steam' zombie.",
+    "The enforcer fix (steam-backlog-enforcer d54df3a) is independent and removes the zombie source, so rolling this back alone should not resurrect the symptom unless the enforcer is also reverted."
+  ]
+}
