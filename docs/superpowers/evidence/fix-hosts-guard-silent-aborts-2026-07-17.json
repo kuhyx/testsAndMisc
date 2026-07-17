@@ -1,0 +1,26 @@
+{
+  "intent": "setup_hosts_guard.sh aborted partway on every run under `set -euo pipefail`, silently leaving the hosts guards half-configured or disabled. hosts-guard.path, hosts-bind-mount.service and nsswitch-guard.path were installed 2026-02-02 but disabled, and resolved-guard.path/enforce-resolved.sh were never installed at all — so /etc/hosts had no watcher to restore it if tampered. Make the installer run to completion so all four guards actually get enabled.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/hosts/guard/setup_hosts_guard.sh",
+    "Non-goals: blocklist content, dnsmasq config, the other drifted services (thesis_tracker, focus_mode, guest_mode_removal, workout_locker) which the author will repair separately"
+  ],
+  "changes": [
+    "Added `|| true` to the ReadEtcHosts and DNSOverTLS detection assignments. grep exits 1 when a key is absent; with set -euo pipefail that aborted the whole script — silently skipping the very fix-if-missing branch below it. DNSOverTLS is absent from a default resolved.conf, so the run died there on EVERY invocation, right before resolved-guard.path was enabled. (check_and_enable_services.sh already guarded its copy of the same grep with `|| true`; this brings the installer in line.)",
+    "Guarded the final `systemctl restart systemd-resolved`: systemd-resolved is MASKED on this host (dnsmasq serves DNS), so restarting it failed and set -e aborted the script on its last step — after everything was already configured, making a successful run report failure. Now skips with a note when resolved is masked/disabled."
+  ],
+  "verification": [
+    {
+      "command": "sudo bash setup_hosts_guard.sh; systemctl is-enabled/is-active for the four guard units; getent ahosts on blocked domains; bash -n + shellcheck --severity=warning",
+      "result": "pass",
+      "evidence": "Before: exit 1, resolved-guard.path disabled/inactive, nsswitch-guard.path failed (unit-start-limit-hit). After: exit 0, and hosts-guard.path / hosts-bind-mount.service / nsswitch-guard.path / resolved-guard.path are all enabled+active. DNS still resolves (dnsmasq untouched); getent ahosts doubleclick.net / googlesyndication.com / facebook.com all return 0.0.0.0; /etc/hosts still immutable with 176888 lines. parse OK, shellcheck clean."
+    }
+  ],
+  "risks": [
+    "The guards are now actually live: /etc/hosts has a read-only bind mount and a path watcher that reverts edits, and nsswitch.conf/resolved.conf are enforced against canonical snapshots. Editing those files now requires the documented unlock path (sudo unlock-hosts) or `setup_hosts_guard.sh --uninstall`.",
+    "nsswitch-guard hit 'unit-start-limit-hit' once during the first run (the enforcement rewrites the file it watches, re-triggering itself). It settled to active, but a rapid drift/restore cycle could trip systemd's start limit again."
+  ],
+  "rollback": [
+    "sudo bash setup_hosts_guard.sh --uninstall (disables the units and removes them; canonical snapshots are left in place).",
+    "Validate after rollback: the four units are gone/disabled, /etc/hosts is no longer bind-mounted (findmnt /etc/hosts is empty), and DNS still resolves."
+  ]
+}
