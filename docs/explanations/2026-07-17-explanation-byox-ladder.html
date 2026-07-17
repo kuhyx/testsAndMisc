@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explaining: the byox_ladder difficulty generator</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --panel2:#eef1f6; --bd:#dce1ea;
+    --ink:#1a2230; --mut:#5a6675; --faint:#8a94a3;
+    --acc:#0e7490; --acc-soft:#0e749014;
+    --t1:#1a7f37; --t2:#1f6feb; --t3:#9a6700; --t4:#cf222e; --t5:#7a8698;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1117; --panel:#161b22; --panel2:#1c232d; --bd:#2b333d;
+      --ink:#c9d4e0; --mut:#8b96a5; --faint:#6b7684;
+      --acc:#38bdf8; --acc-soft:#38bdf814;
+      --t1:#3fb950; --t2:#58a6ff; --t3:#d29922; --t4:#f85149; --t5:#8b96a5;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);
+    line-height:1.62;font-size:16px}
+  .wrap{max-width:min(48rem,92vw);margin:0 auto;padding:34px 0 80px}
+  h1{font-family:var(--mono);font-size:clamp(1.5rem,4.4vw,2.1rem);line-height:1.12;
+    letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+  h1 .x{color:var(--acc)}
+  .sub{color:var(--mut);margin:0 0 8px}
+  .meta{font-family:var(--mono);font-size:.76rem;color:var(--faint);letter-spacing:.02em}
+  h2{font-family:var(--mono);font-size:1.28rem;margin:38px 0 12px;scroll-margin-top:64px;
+    padding-top:10px;border-top:1px solid var(--bd)}
+  h3{font-size:1.02rem;margin:22px 0 6px}
+  p{margin:12px 0}
+  a{color:var(--acc)}
+  code{font-family:var(--mono);font-size:.87em;background:var(--panel2);
+    padding:1px 5px;border-radius:5px}
+  strong{font-weight:650}
+  /* TOC */
+  nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(6px);border-bottom:1px solid var(--bd);margin:18px 0 0;
+    padding:9px 0;display:flex;gap:6px;flex-wrap:wrap;font-family:var(--mono);font-size:.8rem}
+  nav.toc a{text-decoration:none;color:var(--mut);padding:4px 10px;border-radius:7px}
+  nav.toc a:hover{background:var(--acc-soft);color:var(--acc)}
+  /* cards / callouts */
+  .card{background:var(--panel);border:1px solid var(--bd);border-radius:12px;
+    padding:16px 18px;margin:16px 0}
+  .note{border-left:4px solid var(--acc);background:var(--acc-soft);border-radius:8px;
+    padding:10px 14px;margin:16px 0;font-size:.95rem}
+  pre{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:13px 15px;
+    overflow-x:auto;margin:14px 0}
+  pre code{background:none;padding:0;font-size:.8rem;white-space:pre-wrap;word-break:break-word}
+  .kw{color:var(--acc)} .cm{color:var(--faint);font-style:italic}
+  /* diagram */
+  .flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:16px 0}
+  .box{flex:1 1 130px;min-width:120px;background:var(--panel);border:1px solid var(--bd);
+    border-radius:10px;padding:10px 12px;font-size:.82rem}
+  .box b{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--faint);display:block;margin-bottom:4px}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:1.3rem}
+  /* tier scale */
+  .scale{display:flex;border-radius:9px;overflow:hidden;border:1px solid var(--bd);
+    font-family:var(--mono);font-size:.66rem;margin:14px 0 6px}
+  .scale span{padding:7px 4px;text-align:center;color:#fff;flex:1}
+  .b1{background:var(--t1)} .b2{background:var(--t2)} .b3{background:var(--t3)}
+  .b4{background:var(--t4)} .b5{background:var(--t5)}
+  /* widget */
+  .w{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:18px;margin:18px 0}
+  .w-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .w-row label{flex:1 1 190px;font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--faint)}
+  select{width:100%;margin-top:5px;font-family:var(--body);font-size:.92rem;color:var(--ink);
+    background:var(--panel2);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+  .formula{font-family:var(--mono);font-size:.95rem;background:var(--panel2);border-radius:8px;
+    padding:11px 13px;margin:6px 0;overflow-x:auto;white-space:nowrap}
+  .badge{display:inline-block;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;
+    letter-spacing:.07em;padding:3px 9px;border-radius:999px;color:#fff}
+  .track{position:relative;height:34px;border-radius:8px;margin:16px 0 4px;overflow:hidden;
+    display:flex;border:1px solid var(--bd)}
+  .track .seg{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+    font-size:.6rem;color:#fff;opacity:.85}
+  .pin{position:absolute;top:-6px;width:2px;height:46px;background:var(--ink);z-index:3}
+  .pin::after{content:"";position:absolute;top:-5px;left:-4px;width:10px;height:10px;border-radius:50%;
+    background:var(--ink)}
+  .order{list-style:none;padding:0;margin:12px 0 0;font-family:var(--mono);font-size:.8rem;
+    max-height:250px;overflow-y:auto}
+  .order li{display:flex;justify-content:space-between;padding:5px 9px;border-radius:6px;
+    border:1px solid transparent}
+  .order li.hit{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+  .order li .s{color:var(--faint)}
+  /* quiz */
+  .q{margin:18px 0;padding:15px 17px;border:1px solid var(--bd);border-radius:12px;background:var(--panel)}
+  .q .stem{font-weight:600;margin-bottom:10px}
+  .opt{display:block;width:100%;text-align:left;font:inherit;color:var(--ink);cursor:pointer;
+    background:var(--panel2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;margin:7px 0;
+    transition:border-color .12s,background .12s}
+  .opt:hover{border-color:var(--acc)}
+  .opt.ok{border-color:var(--t1);background:color-mix(in srgb,var(--t1) 16%,transparent)}
+  .opt.no{border-color:var(--t4);background:color-mix(in srgb,var(--t4) 14%,transparent)}
+  .rat{font-size:.86rem;color:var(--mut);margin:8px 2px 0;display:none}
+  .rat.show{display:block}
+  .score{position:sticky;bottom:0;background:var(--panel);border:1px solid var(--bd);
+    border-radius:10px;padding:9px 14px;margin-top:16px;font-family:var(--mono);font-size:.85rem;
+    text-align:center}
+  .foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--bd);color:var(--faint);
+    font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Building a <span class="x">difficulty ladder</span> generator</h1>
+  <p class="sub">How <code>python_pkg/byox_ladder</code> turns the build-your-own-x README into two ranked, offline HTML pages.</p>
+  <p class="meta">commit 6342eaf · testsAndMisc · 2026-07-17</p>
+
+  <nav class="toc">
+    <a href="#background">1 · Background</a>
+    <a href="#intuition">2 · Intuition</a>
+    <a href="#code">3 · Code</a>
+    <a href="#quiz">4 · Quiz</a>
+  </nav>
+
+  <h2 id="background">1 · Background</h2>
+  <p><a href="https://github.com/codecrafters-io/build-your-own-x" target="_blank" rel="noopener">build-your-own-x</a>
+  is a hugely popular README: a curated list of ~360 step-by-step tutorials for re-creating technologies
+  from scratch — a 3D renderer, a Git, a database, an operating system. The README groups guides under
+  30 category headings like <code>#### Build your own `Regex Engine`</code>, and each guide is one bullet:</p>
+  <pre><code>* [**Go**: _Building a BitTorrent client from the ground up_](https://blog.jse.li/posts/torrent/)</code></pre>
+  <p>The task was to sort all of this from <em>easiest to hardest</em>. This commit adds a small,
+  self-contained tool that does exactly that and emits two browsable pages: a <strong>category ladder</strong>
+  (the 30 headings) and a <strong>guide ladder</strong> (every individual tutorial), each grouped into four
+  difficulty tiers — Beginner, Intermediate, Advanced, Expert — plus an <strong>Unsorted</strong> bucket.</p>
+  <p>It lives in <code>testsAndMisc</code>, a monorepo with strict gates: all Python must sit under
+  <code>python_pkg/</code>, hit <strong>100% branch coverage</strong>, and pass <code>ruff (select=ALL)</code>,
+  mypy, pylint 10/10, and bandit. Those gates shaped the design as much as the feature did — more on that in
+  the Code section.</p>
+
+  <h2 id="intuition">2 · Intuition</h2>
+  <p>The heart of the change is one question: <em>how do you assign a difficulty to a single guide?</em>
+  The naïve answer — give every guide a unique rank from 1 to 360 — is a trap. There's no honest signal that
+  says tutorial #147 is harder than #148. So the design deliberately refuses that false precision and uses a
+  two-part rule instead:</p>
+
+  <div class="flow">
+    <div class="box"><b>1 · Category</b>The guide's category sets its <strong>tier</strong> and a base rank
+      (1–30). This is the dominant signal.</div>
+    <div class="arrow">→</div>
+    <div class="box"><b>2 · Language</b>The language adds a tiny <strong>nudge</strong> (0.2–0.9). Lower-level
+      languages nudge higher.</div>
+    <div class="arrow">→</div>
+    <div class="box"><b>3 · Score</b><code>rank×10 + nudge</code>. Sorting by score keeps whole tiers
+      contiguous.</div>
+  </div>
+
+  <p>Because the nudge is always under 1 and the tier gap is 10 per rank, <strong>language can reorder guides
+  inside a tier but can never move one across a tier line</strong>. An operating-system guide is Expert whether
+  it's written in C or Python; the language just decides which OS guide you might reach for first.</p>
+
+  <div class="scale" aria-hidden="true">
+    <span class="b1">Beginner 10–59</span><span class="b2">Intermediate 60–129</span>
+    <span class="b3">Advanced 130–229</span><span class="b4">Expert 230–309</span><span class="b5">Unsorted 990+</span>
+  </div>
+  <p class="meta">Score bands. Rank 1–5 → Beginner, 6–12 → Intermediate, 13–22 → Advanced, 23–30 → Expert.</p>
+
+  <h3>Play with the rule</h3>
+  <p>Pick a category and a language. Watch the score, the tier, and where this guide lands among the other
+  languages in the same category. Notice the tier badge only changes when the <em>category</em> changes.</p>
+
+  <div class="w">
+    <div class="w-row">
+      <label>Category<select id="cat"></select></label>
+      <label>Language<select id="lang"></select></label>
+    </div>
+    <div class="formula" id="formula">score = …</div>
+    <div>Tier: <span class="badge" id="tierBadge">—</span></div>
+    <div class="track" id="track" aria-hidden="true"></div>
+    <p class="meta" id="pinNote"></p>
+    <h3 style="margin-top:16px">Within-category order (by score, easiest first)</h3>
+    <ol class="order" id="order"></ol>
+  </div>
+  <p class="note">This widget runs the <em>real</em> scoring logic from <code>parse_guides.py</code> —
+  the same <code>CATEGORIES</code> and <code>LANG_EFFORT</code> tables, the same
+  <code>min()</code>-of-languages nudge, the same <code>rank×10 + nudge</code> score.</p>
+
+  <h2 id="code">3 · Code</h2>
+
+  <h3>a · The scoring transform — <code>parse_guides.py</code></h3>
+  <p>The parser walks the README line by line, tracking the current category header, and turns each guide
+  bullet into a record. Two small pure functions carry the difficulty model:</p>
+  <pre><code><span class="kw">def</span> lang_effort(langs):
+    <span class="cm"># the EASIEST listed language wins — you'd pick your best one</span>
+    values = [LANG_EFFORT.get(l.lower(), DEFAULT_EFFORT) <span class="kw">for</span> l <span class="kw">in</span> langs]
+    <span class="kw">return</span> min(values) <span class="kw">if</span> values <span class="kw">else</span> DEFAULT_EFFORT
+
+<span class="cm"># inside parse_guide_line(...):</span>
+rank, tier = CATEGORIES.get(category, (UNSORTED_RANK, <span class="kw">"unsorted"</span>))
+score = round(rank * 10 + lang_effort(langs), 2)</code></pre>
+  <p>A guide with an unknown category falls through to <code>UNSORTED_RANK = 99</code> and the
+  <code>"unsorted"</code> tier — that's how the repo's own "Uncategorized" bucket is kept honest instead of
+  being force-fit into a difficulty tier.</p>
+
+  <h3>b · From data to a runnable page — <code>build_pages.py</code></h3>
+  <p>The guide page is a template with a placeholder. The builder inlines the parsed data as a JS constant and
+  wraps everything in a minimal HTML skeleton so the file opens straight from disk:</p>
+  <pre><code>payload = json.dumps(guides, separators=(<span class="kw">","</span>, <span class="kw">":"</span>)).replace(<span class="kw">"&lt;/"</span>, <span class="kw">"&lt;\\/"</span>)
+content = template.replace(MARKER, <span class="kw">f"const GUIDES = {payload};"</span>)
+<span class="kw">return</span> standalone(content)   <span class="cm"># adds &lt;!doctype html&gt;…&lt;/html&gt;</span></code></pre>
+  <p>The <code>replace("&lt;/", "&lt;\\/")</code> guard matters: the data is dropped inside a
+  <code>&lt;script&gt;</code> tag, and any literal <code>&lt;/script&gt;</code> in a tutorial title would
+  otherwise close the block early. Everything is inlined — no fonts, no CDN, no network — so the page works
+  offline and in your OS light/dark theme.</p>
+
+  <h3>c · Reproducible, not hand-built</h3>
+  <p>A <code>Makefile</code> chains the pipeline; the fetched README and <code>guides.json</code> are
+  gitignored derived artifacts, while the built <code>*-ladder.html</code> pages are committed as the runnable
+  output. Re-running <code>make build</code> reproduces byte-identical HTML — the sign of a deterministic build.</p>
+  <pre><code>build: guides.json
+	python3 build_pages.py
+guides.json: byox-readme.md parse_guides.py
+	python3 parse_guides.py
+byox-readme.md:
+	curl -fsSL "$(README_URL)" -o byox-readme.md</code></pre>
+
+  <h3>d · Tests to 100% branch coverage</h3>
+  <p>Because the code lives under <code>python_pkg/</code>, the repo's <code>fail_under=100</code> gate applies.
+  The two functions with branches — <code>lang_effort</code> (empty vs non-empty) and the parse/build error
+  paths — are each exercised from both sides. <code>lang_effort([])</code> is called directly to cover the
+  <code>else</code> branch that normal input can't reach.</p>
+
+  <h3>e · Governance artifacts</h3>
+  <p>The monorepo rejects any code commit that lacks a validated <strong>evidence</strong> JSON (intent, scope,
+  verification with real command output, rollback), and a <strong>contract</strong> JSON once a change spans
+  four or more code files. One line was also added to <code>.pre-commit-config.yaml</code> to exclude the
+  generated guide page from codespell, since it inlines upstream titles verbatim — including a genuine
+  spelling slip carried over from one of the upstream tutorial titles.</p>
+
+  <h2 id="quiz">4 · Quiz</h2>
+  <p class="sub">Five questions on the reasoning behind the change. Click to reveal.</p>
+  <div id="quiz"></div>
+  <div class="score" id="scoreBar">Score: 0 / 0</div>
+
+  <div class="foot">Generated by <code>/explain-diff</code> · adapts Geoffrey Litt's "understanding is the
+  bottleneck" idea. Diagrams and the widget run the change's real logic.</div>
+</div>
+
+<script>
+// ---- real tables copied from parse_guides.py ----
+const CATEGORIES = {
+  "Command-Line Tool":[1,"beginner"],"Bot":[2,"beginner"],"Template Engine":[3,"beginner"],
+  "Text Editor":[4,"beginner"],"Git":[5,"beginner"],"Shell":[6,"intermediate"],
+  "Web Server":[7,"intermediate"],"Search Engine":[8,"intermediate"],"BitTorrent Client":[9,"intermediate"],
+  "Front-end Framework / Library":[10,"intermediate"],"Regex Engine":[11,"intermediate"],"Game":[12,"intermediate"],
+  "Programming Language":[13,"advanced"],"Emulator / Virtual Machine":[14,"advanced"],"Neural Network":[15,"advanced"],
+  "Memory Allocator":[16,"advanced"],"Blockchain / Cryptocurrency":[17,"advanced"],"Database":[18,"advanced"],
+  "3D Renderer":[19,"advanced"],"Physics Engine":[20,"advanced"],"Docker":[21,"advanced"],"Voxel Engine":[22,"advanced"],
+  "Network Stack":[23,"expert"],"AI Model":[24,"expert"],"Visual Recognition System":[25,"expert"],
+  "Augmented Reality":[26,"expert"],"Web Browser":[27,"expert"],"Processor":[28,"expert"],
+  "Operating System":[29,"expert"],"Distributed Systems":[30,"expert"]
+};
+const LANG_EFFORT = {assembly:0.9,c:0.8,"c++":0.8,rust:0.75,zig:0.75,nim:0.6,haskell:0.6,go:0.55,
+  "c#":0.5,java:0.5,swift:0.5,clojure:0.45,elixir:0.4,typescript:0.35,php:0.35,dart:0.35,
+  javascript:0.3,"node.js":0.3,ruby:0.3,python:0.3,lua:0.3,pseudocode:0.2};
+const DEFAULT_EFFORT = 0.5;
+const TIER = {beginner:["Beginner","var(--t1)"],intermediate:["Intermediate","var(--t2)"],
+  advanced:["Advanced","var(--t3)"],expert:["Expert","var(--t4)"],unsorted:["Unsorted","var(--t5)"]};
+const BANDS = [["beginner",10,59],["intermediate",60,129],["advanced",130,229],["expert",230,309]];
+
+const catSel=document.getElementById("cat"), langSel=document.getElementById("lang");
+Object.keys(CATEGORIES).forEach(c=>catSel.appendChild(new Option(`${c} (rank ${CATEGORIES[c][0]})`,c)));
+Object.keys(LANG_EFFORT).forEach(l=>langSel.appendChild(new Option(l,l)));
+catSel.value="Emulator / Virtual Machine"; langSel.value="python";
+
+function scoreOf(cat,lang){
+  const [rank,tier]=CATEGORIES[cat];
+  const eff=LANG_EFFORT[lang]??DEFAULT_EFFORT;
+  return {rank,tier,eff,score:Math.round((rank*10+eff)*100)/100};
+}
+function render(){
+  const cat=catSel.value, lang=langSel.value;
+  const {rank,tier,eff,score}=scoreOf(cat,lang);
+  document.getElementById("formula").textContent=`score = ${rank}×10 + ${eff.toFixed(2)} = ${score.toFixed(2)}`;
+  const badge=document.getElementById("tierBadge");
+  badge.textContent=TIER[tier][0]; badge.style.background=TIER[tier][1];
+  // track bands
+  const track=document.getElementById("track"); track.innerHTML="";
+  BANDS.forEach(([t,lo,hi])=>{const s=document.createElement("div");s.className="seg";
+    s.style.background=TIER[t][1];s.textContent=TIER[t][0][0];track.appendChild(s);});
+  const pin=document.createElement("div");pin.className="pin";
+  const pct=Math.max(0,Math.min(100,((score-10)/(309-10))*100));
+  pin.style.left=`calc(${pct}% - 1px)`;track.appendChild(pin);
+  document.getElementById("pinNote").textContent=
+    `The pin sits deep in the ${TIER[tier][0]} band — changing the language slides it a hair, never out of the band.`;
+  // within-category order
+  const langs=Object.keys(LANG_EFFORT).map(l=>({l,s:scoreOf(cat,l).score}))
+    .sort((a,b)=>a.s-b.s||a.l.localeCompare(b.l));
+  const ol=document.getElementById("order"); ol.innerHTML="";
+  langs.forEach((row,i)=>{const li=document.createElement("li");
+    if(row.l===lang){li.className="hit";li.scrollIntoView=li.scrollIntoView||function(){};}
+    li.innerHTML=`<span>${i+1}. ${row.l}</span><span class="s">${row.s.toFixed(2)}</span>`;ol.appendChild(li);});
+}
+catSel.onchange=render; langSel.onchange=render; render();
+
+// ---- quiz ----
+const QUIZ=[
+  {stem:"Why does a guide inherit its category's tier instead of getting a unique rank from 1 to 360?",
+   opts:[
+     "Computing 360 pairwise comparisons is far too slow to run at build time",
+     "The upstream README already lists every guide strictly by difficulty",
+     "A unique per-guide rank fakes a precision the signal can't support",
+     "Each category in the repo happens to contain exactly one guide"],
+   correct:2, why:"There's no honest signal separating guide #147 from #148, so the design refuses that false precision."},
+  {stem:"What role does the programming language play in a guide's final score?",
+   opts:[
+     "It selects which of the two HTML templates the guide renders into",
+     "It nudges order within a tier but never crosses a tier boundary",
+     "It overrides the category tier whenever the language is low-level",
+     "It decides whether the guide is placed in the Unsorted bucket"],
+   correct:1, why:"The nudge is always < 1 while each rank step is 10, so language only reorders within a tier."},
+  {stem:"Guides in the Unsorted bucket aren't given a difficulty tier. Why not?",
+   opts:[
+     "They failed to parse cleanly and are placeholders awaiting a fix later",
+     "They are sourced from a completely different repository than the rest",
+     "They are all video tutorials, which the scorer is unable to rank",
+     "The repo files them outside its categories, and they span all levels"],
+   correct:3, why:"The 'Uncategorized' bucket mixes trivial and brutal projects, so forcing one tier would lie."},
+  {stem:"Why is the built guide-ladder.html committed even though a script generates it?",
+   opts:[
+     "So the page runs offline from the repo with no build step needed",
+     "Because git is fundamentally unable to ignore files by extension",
+     "To make codespell scan every inlined upstream tutorial title string",
+     "Because the package's test suite imports the HTML file directly"],
+   correct:0, why:"The committed HTML is the runnable deliverable; the scripts just let you regenerate it."},
+  {stem:"Why did the Python land under python_pkg/ with a full test suite rather than a neutral folder?",
+   opts:[
+     "So the generator could import shared helpers from other python_pkg code",
+     "A hook forces Python into python_pkg/, which carries a 100%-coverage gate",
+     "Because pytest is only able to discover test files at the repository root",
+     "Because the HTML templates are required to sit beside the package init file"],
+   correct:1, why:"check-python-location mandates python_pkg/, and that tree has fail_under=100 — hence the tests."}
+];
+let asked=0, right=0;
+const quiz=document.getElementById("quiz"), bar=document.getElementById("scoreBar");
+QUIZ.forEach((q,qi)=>{
+  const card=document.createElement("div");card.className="q";
+  const stem=document.createElement("div");stem.className="stem";stem.textContent=`${qi+1}. ${q.stem}`;
+  card.appendChild(stem);
+  const rat=document.createElement("div");rat.className="rat";rat.textContent=q.why;
+  let done=false;
+  q.opts.forEach((o,oi)=>{
+    const b=document.createElement("button");b.className="opt";b.textContent=o;
+    b.onclick=()=>{
+      if(done)return; done=true; asked++;
+      if(oi===q.correct){b.classList.add("ok");right++;}
+      else{b.classList.add("no");
+        card.querySelectorAll(".opt")[q.correct].classList.add("ok");}
+      rat.classList.add("show");
+      bar.textContent=`Score: ${right} / ${asked}`;
+    };
+    card.appendChild(b);
+  });
+  card.appendChild(rat); quiz.appendChild(card);
+});
+</script>
+</body>
+</html>
