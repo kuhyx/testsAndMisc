@@ -1,0 +1,38 @@
+{
+  "intent": "Stop `makepkg -i` (and thus ~/todo/install_arch.sh) from hanging forever on an orphaned /var/lib/pacman/db.lck. Vendored makepkg's run_pacman() waits on file-existence only, with no timeout, before pacman is ever called, so the existing pacman wrapper's stale-lock cleanup never runs. Fix system-wide by wrapping makepkg, mirroring the pacman-wrapper pattern.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/ (new: pacman_lock_lib.sh, makepkg_wrapper.sh, install_makepkg_wrapper.sh, rewrap_pkg_managers.sh, 96-restore-pkg-wrappers.hook; edit: pacman_wrapper.sh, install_pacman_wrapper.sh, README_FOR_LLM.md)",
+    "linux_configuration/scripts/periodic_background/ (edit: check_and_enable_services.sh, setup_periodic_system.sh, system-maintenance/bin/periodic-system-maintenance.sh)",
+    "linux_configuration/tests/ (new: test_makepkg_wrapper.sh; edit: test_pacman_wrapper_security.sh)",
+    "Non-goals: editing vendored /usr/bin/makepkg; changing pacman policy/challenge behaviour"
+  ],
+  "changes": [
+    "Extracted stale-lock helpers into shared pacman_lock_lib.sh (single source of truth); pacman_wrapper.sh now sources it AFTER integrity verification, and the lib is added to the SHA256 integrity manifest.",
+    "New makepkg_wrapper.sh: for install-bound invocations clears an orphaned lock (best-effort) then execs real makepkg; bypasses on FAKEROOTKEY/non-install; FAILS OPEN if lib missing so it can never brick makepkg.",
+    "Added cross-user pacman_process_running() (pgrep -x) guard: unprivileged makepkg can still detect a root pacman that its own fuser cannot see, preventing wrongful removal of a live lock.",
+    "Upgrade survival: install_makepkg_wrapper.sh + rewrap_pkg_managers.sh + PostTransaction hook (Install/Upgrade only); drift verifier check_makepkg_wrapper() in check_and_enable_services.sh; both wrappers wired into the hourly periodic driver.",
+    "Fixed pre-existing reorg path bugs: stale ~/linux-configuration path in the periodic driver, $CONFIG_DIR/hosts -> $CONFIG_DIR/scripts/periodic_background/hosts in setup + check scripts, and the test's WRAPPER_DIR path.",
+    "Fixed .orig-staleness bug in both installers (refresh backup only when target is not our symlink)."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_makepkg_wrapper.sh; bash linux_configuration/tests/test_pacman_wrapper_security.sh",
+      "result": "pass",
+      "evidence": "test_makepkg_wrapper.sh: 18 passed, 0 failed. test_pacman_wrapper_security.sh: All Tests Passed. shellcheck --severity=warning clean on all shell files."
+    },
+    {
+      "command": "deploy + real-system: sudo touch db.lck; makepkg -i --noconfirm",
+      "result": "pass",
+      "evidence": "Deployed wrapper cleared orphaned lock ('Stale pacman lock detected... Removing it automatically') and ran real makepkg; a running root 'pacman' process was respected (lock kept). sudo pacman -S licenses (real txn) rc=0 after hook Operation fix."
+    }
+  ],
+  "risks": [
+    "Wrapper sits in front of makepkg system-wide; mitigated by fail-open source guard + isolation/real-system tests.",
+    "A rare hung/zombie process literally named 'pacman' can block stale-lock removal (safety over a rare re-hang).",
+    "pacman-git upgrade briefly clobbers the symlink until the PostTransaction hook/drift verifier restores it."
+  ],
+  "rollback": [
+    "Restore stock binaries: sudo cp -f /usr/bin/pacman.orig /usr/bin/pacman; sudo cp -f /usr/bin/makepkg.orig /usr/bin/makepkg; sudo rm -f /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook",
+    "Validate after rollback: 'pacman -Q' and 'makepkg --version' work; a real 'sudo pacman -S --noconfirm licenses' transaction completes with no hook errors."
+  ]
+}

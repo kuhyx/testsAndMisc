@@ -19,7 +19,8 @@ CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Define paths
 PACMAN_WRAPPER_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh"
 PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
-HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/hosts/install.sh"
+MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
+HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
 
 echo ""
 echo "Configuration directory: $CONFIG_DIR"
@@ -60,6 +61,10 @@ verify_files() {
 
   if [[ ! -f $PACMAN_WRAPPER_INSTALL ]]; then
     missing_files+=("$PACMAN_WRAPPER_INSTALL")
+  fi
+
+  if [[ ! -f $MAKEPKG_WRAPPER_INSTALL ]]; then
+    missing_files+=("$MAKEPKG_WRAPPER_INSTALL")
   fi
 
   if [[ ! -f $HOSTS_INSTALL_SCRIPT ]]; then
@@ -106,6 +111,7 @@ create_execution_script() {
   # Install from template with path substitutions
   sed \
     -e "s|__PACMAN_WRAPPER_INSTALL__|$PACMAN_WRAPPER_INSTALL|g" \
+    -e "s|__MAKEPKG_WRAPPER_INSTALL__|$MAKEPKG_WRAPPER_INSTALL|g" \
     -e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g" \
     "$TEMPLATE_MAINT_SCRIPT" > "$exec_script"
 

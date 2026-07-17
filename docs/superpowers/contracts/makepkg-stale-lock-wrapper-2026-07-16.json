@@ -1,0 +1,20 @@
+{
+  "title": "Wrap makepkg so an orphaned pacman db.lck cannot hang `makepkg -i` (system-wide)",
+  "objective": "Vendored makepkg's run_pacman() waits on /var/lib/pacman/db.lck existence with no timeout and no owner check, BEFORE it ever invokes pacman — so an orphaned lock hangs `makepkg -i` (and therefore ~/todo/install_arch.sh) forever, and the pacman wrapper's existing stale-lock cleanup never gets a turn. Fix this system-wide by wrapping /usr/bin/makepkg (mirroring the pacman-wrapper pattern, since makepkg is vendored and must not be edited), clearing an orphaned lock before makepkg's own wait, while never removing a lock a live pacman holds.",
+  "acceptance_criteria": [
+    "With an orphaned /var/lib/pacman/db.lck and no pacman running, `makepkg -i --noconfirm` clears the lock and proceeds instead of looping on 'Pacman is currently in use, please wait...'.",
+    "With a real (root) pacman process running, the wrapper does NOT remove the lock — detection works cross-user, since makepkg runs unprivileged and its own fuser cannot see a root process's fds.",
+    "makepkg still works for non-install invocations and inside the fakeroot build sandbox (FAKEROOTKEY), and FAILS OPEN: a missing/unreadable shared lib must never break makepkg or pacman.",
+    "Stale-lock logic lives in exactly one shared library (pacman_lock_lib.sh) used by both wrappers, sourced only after integrity verification and covered by the SHA256 integrity manifest.",
+    "Wrapper symlinks survive a pacman-git upgrade via a PostTransaction hook plus a drift verifier; the hook must use only valid alpm Operation values (an invalid one aborts every pacman transaction).",
+    "`sudo pacman -S <pkg>` (a real transaction) still succeeds end-to-end with the hook installed.",
+    "shellcheck --severity=warning clean; test_makepkg_wrapper.sh and test_pacman_wrapper_security.sh pass; pre-commit green."
+  ],
+  "out_of_scope": [
+    "Editing vendored /usr/bin/makepkg (overwritten on pacman-git upgrades)",
+    "Changing pacman policy/blocklist/greylist/challenge behaviour",
+    "Broader hosts-guard subsystem work beyond correcting the reorg-stale $CONFIG_DIR/hosts paths that blocked the periodic regeneration",
+    "AUR helpers (yay/paru) that invoke pacman internally"
+  ],
+  "verifier": "bash linux_configuration/tests/test_makepkg_wrapper.sh (18 checks) + bash linux_configuration/tests/test_pacman_wrapper_security.sh; shellcheck --severity=warning; real-system: sudo touch /var/lib/pacman/db.lck then `makepkg -i --noconfirm` clears it, a root pacman process is respected, and `sudo pacman -S --noconfirm licenses` completes with no hook errors; check_and_enable_services.sh --status reports pacman_wrapper=ok and makepkg_wrapper=ok"
+}

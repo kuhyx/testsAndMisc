@@ -31,12 +31,13 @@ CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Script paths
 PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
+MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
 MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
 STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
 PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/scripts/periodic_background/setup_periodic_system.sh"
-HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/hosts/install.sh"
-HOSTS_GUARD_SCRIPT="$CONFIG_DIR/hosts/guard/setup_hosts_guard.sh"
-HOSTS_PACMAN_HOOKS_SCRIPT="$CONFIG_DIR/hosts/guard/install_pacman_hooks.sh"
+HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
+HOSTS_GUARD_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/setup_hosts_guard.sh"
+HOSTS_PACMAN_HOOKS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/install_pacman_hooks.sh"
 THESIS_TRACKER_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_thesis_work_tracker.sh"
 FOCUS_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh"
 COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
@@ -252,6 +253,85 @@ check_pacman_wrapper() {
 	fi
 
 	SERVICE_STATUS["pacman_wrapper"]=$status
+}
+
+check_makepkg_wrapper() {
+	header "Makepkg Wrapper"
+
+	local status="ok"
+	local issues=()
+
+	# Wrapper symlink
+	if [[ -L /usr/bin/makepkg ]]; then
+		local target
+		target=$(readlink -f /usr/bin/makepkg)
+		if [[ $target == "/usr/local/bin/makepkg_wrapper" ]]; then
+			msg "Makepkg symlink points to wrapper"
+		else
+			issues+=("Makepkg symlink points to: $target (expected /usr/local/bin/makepkg_wrapper)")
+			status="error"
+		fi
+	else
+		issues+=("Makepkg is not a symlink (wrapper not installed)")
+		status="error"
+	fi
+
+	# Original makepkg backup
+	if [[ -f /usr/bin/makepkg.orig ]]; then
+		msg "Original makepkg backed up at /usr/bin/makepkg.orig"
+	else
+		issues+=("Original makepkg backup not found at /usr/bin/makepkg.orig")
+		status="error"
+	fi
+
+	# Wrapper, shared lib, rewrap helper, survival hook
+	if [[ -f /usr/local/bin/makepkg_wrapper ]]; then
+		msg "Wrapper script exists at /usr/local/bin/makepkg_wrapper"
+	else
+		issues+=("Wrapper script not found at /usr/local/bin/makepkg_wrapper")
+		status="error"
+	fi
+	if [[ -f /usr/local/bin/pacman_lock_lib.sh ]]; then
+		msg "Shared lock library exists at /usr/local/bin/pacman_lock_lib.sh"
+	else
+		issues+=("Shared lock library not found at /usr/local/bin/pacman_lock_lib.sh")
+		status="error"
+	fi
+	if [[ -f /usr/local/bin/rewrap_pkg_managers.sh ]]; then
+		msg "Rewrap helper exists at /usr/local/bin/rewrap_pkg_managers.sh"
+	else
+		issues+=("Rewrap helper not found at /usr/local/bin/rewrap_pkg_managers.sh")
+		status="error"
+	fi
+	if [[ -f /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook ]]; then
+		msg "Upgrade-survival hook installed"
+	else
+		issues+=("Upgrade-survival hook not installed at /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook")
+		status="error"
+	fi
+
+	# Report and fix
+	if [[ $status == "error" ]]; then
+		for issue in "${issues[@]}"; do
+			err "$issue"
+		done
+		((ISSUES_FOUND++)) || true
+
+		if [[ $STATUS_ONLY -eq 0 ]]; then
+			note "Installing makepkg wrapper..."
+			if [[ -f $MAKEPKG_WRAPPER_INSTALL ]]; then
+				run bash "$MAKEPKG_WRAPPER_INSTALL"
+				((FIXES_APPLIED++)) || true
+				if [[ $DRY_RUN -eq 0 ]] && [[ -L /usr/bin/makepkg ]] && [[ -f /usr/bin/makepkg.orig ]] && [[ -f /usr/local/bin/makepkg_wrapper ]]; then
+					status="ok"
+				fi
+			else
+				err "Installer script not found: $MAKEPKG_WRAPPER_INSTALL"
+			fi
+		fi
+	fi
+
+	SERVICE_STATUS["makepkg_wrapper"]=$status
 }
 
 check_midnight_shutdown() {
@@ -1160,7 +1240,7 @@ print_summary() {
 	printf "%-25s %s\n" "Service" "Status"
 	printf "%-25s %s\n" "-------" "------"
 
-	for service in pacman_wrapper midnight_shutdown startup_monitor periodic_systems hosts thesis_tracker focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
+	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts thesis_tracker focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
 		local status="${SERVICE_STATUS[$service]:-unknown}"
 		local color
 		case "$status" in
@@ -1212,6 +1292,7 @@ main() {
 	fi
 
 	check_pacman_wrapper
+	check_makepkg_wrapper
 	check_midnight_shutdown
 	check_startup_monitor
 	check_periodic_systems
