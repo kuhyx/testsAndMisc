@@ -1,0 +1,27 @@
+{
+  "intent": "Stop hosts/install.sh from chattr +i'ing its own git-tracked source and generate_hosts_file.sh. Immutable tracked files break git tooling: the pre-push ci-mirror gate runs `pre-commit run --all-files`, whose end-of-file-fixer opens every file rb+ and dies with 'PermissionError: [Errno 1] Operation not permitted', so no push from a normal checkout can succeed (every push had to be routed through a throwaway git worktree, where a fresh checkout has new, non-immutable inodes). The same immutability also breaks pre-commit's unstaged-changes stash and silently reverts unrelated edits.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/hosts/install.sh (remove the self-lock block only)",
+    "Cleared the immutable bit on hosts/install.sh and hosts/generate_hosts_file.sh so no tracked repo file is immutable",
+    "Non-goals: any change to hosts blocklist content, generation logic, or the runtime guard stack"
+  ],
+  "changes": [
+    "Removed the `chattr +i` self-lock of install.sh and generate_hosts_file.sh, replaced with a comment explaining why it must not be reintroduced.",
+    "Runtime hosts enforcement is unaffected and independent: /etc/hosts is itself chattr +i, hosts-guard.path watches and re-enforces it via enforce-hosts.sh against the /usr/local/share/locked-hosts canonical snapshot, and hosts-bind-mount.service pins it. Editing the sources changes nothing until install.sh is re-run as root, which regenerates the guarded artifacts.",
+    "Companion to the same fix in setup_midnight_shutdown.sh (commit 6e3d61d)."
+  ],
+  "verification": [
+    {
+      "command": "bash -n + shellcheck --severity=warning on hosts/install.sh; git ls-files | xargs lsattr; git push origin main from the normal checkout",
+      "result": "pass",
+      "evidence": "parse OK; shellcheck CLEAN; no removed vars (INSTALL_SCRIPT/GEN_SCRIPT/SCRIPT_DIR) referenced later; no tracked repo file reports the immutable bit; push from main succeeds without a worktree and pre-commit logs 'Restored changes from ...' (the restore step that previously never ran)."
+    }
+  ],
+  "risks": [
+    "Removes one speed bump: the hosts source scripts can now be edited without first running `sudo chattr -i`. The guarded /etc/hosts, the path watcher, the canonical snapshot and the bind mount remain the substantive controls."
+  ],
+  "rollback": [
+    "git revert the commit and re-run `sudo bash linux_configuration/scripts/periodic_background/hosts/install.sh` to restore the self-locks.",
+    "Validate after rollback: lsattr shows the 'i' bit on both scripts; note that pushes from main will again fail the ci-mirror gate and require a worktree."
+  ]
+}
