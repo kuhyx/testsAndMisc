@@ -1,0 +1,26 @@
+{
+  "intent": "Stop setup_midnight_shutdown.sh from chattr +i'ing its own git-tracked source. An immutable tracked file with uncommitted edits breaks every git commit/push: pre-commit clears unstaged changes with `git checkout -- .`, the unlink fails with 'Operation not permitted', the context manager aborts, and the restore never runs — silently reverting the user's OTHER unstaged edits (observed twice: it reverted an unrelated i3/config WIP, recovered from pre-commit's rescue patch).",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh (remove the self-lock block only)",
+    "Non-goals: the in-flight night-lockdown WIP in the same file (left unstaged for the author to finish — it references /usr/local/bin/night-lockdown-enter.sh, installed by the still-untracked setup_night_lockdown.sh); the other immutable tracked files (hosts/generate_hosts_file.sh, hosts/install.sh) which are currently unmodified and therefore not armed"
+  ],
+  "changes": [
+    "Removed the `chattr +i \"$this_script\"` self-lock from enable_midnight_shutdown(), replaced with a comment explaining why it must not be reintroduced.",
+    "Runtime enforcement is unaffected and independent: /etc/shutdown-schedule.conf remains chattr +i, guard-lib keeps a canonical snapshot + path watcher that re-enforces it, the monitor service protects the timer, and screen_locker's ratchet only accepts same-or-stricter values. Editing the source changes nothing until setup is re-run as root, which rewrites the guarded config anyway."
+  ],
+  "verification": [
+    {
+      "command": "bash -n + shellcheck --severity=warning on setup_midnight_shutdown.sh; lsattr on the file; git commit/push with unstaged edits present",
+      "result": "pass",
+      "evidence": "parse OK; shellcheck CLEAN; attrs now '--------------e-------' (immutable bit cleared); commit/push no longer trip pre-commit's staged_files_only stash-restore, and unstaged edits survive the run."
+    }
+  ],
+  "risks": [
+    "Removes one speed bump: the schedule constants in this source can now be edited without first running `sudo chattr -i`. The ratchet + guarded config + monitor service remain the substantive controls.",
+    "hosts/generate_hosts_file.sh and hosts/install.sh are still immutable and tracked — latent instances of the same trap if they are ever edited."
+  ],
+  "rollback": [
+    "git revert the commit and re-run `sudo bash setup_midnight_shutdown.sh enable` to restore the self-lock.",
+    "Validate after rollback: lsattr shows the 'i' bit; note that committing while the file is modified will again require a worktree-based commit."
+  ]
+}
