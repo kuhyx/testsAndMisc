@@ -18,6 +18,10 @@ Extracted to their own repos:
   `linux_configuration` dufs scripts + the standalone `dufs_client` repo. The
   live `media-cloud-sync` systemd units now run the scripts from
   `~/dufs-cloud/scripts/`.
+- [`build-your-x`](https://github.com/kuhyx/build-your-x) — build-your-own-x
+  difficulty ladder + `byox` progress tracker (crdt_sync-backed) and the builds
+  themselves (`builds/`). Extracted from `python_pkg/byox_ladder/` + the
+  standalone `~/build_your_x` builds. Lives at `~/build_your_x`.
 
 Archived / unmaintained projects live in the sibling repository
 [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).

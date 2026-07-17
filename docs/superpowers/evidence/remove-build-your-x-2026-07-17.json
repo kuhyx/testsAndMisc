@@ -1,0 +1,34 @@
+{
+  "intent": "Remove byox_ladder from the monorepo after extracting it to its own GitHub repo (kuhyx/build-your-x), where it gained a byox progress tracker + crdt_sync sync alongside the builds.",
+  "scope": [
+    "Delete python_pkg/byox_ladder/ (moved to https://github.com/kuhyx/build-your-x with full git history)",
+    "Update CLAUDE.md 'Extracted to their own repos' list",
+    "Drop the now-stale byox_ladder codespell exclude in .pre-commit-config.yaml",
+    "Non-goal: no behaviour change to any remaining monorepo package"
+  ],
+  "changes": [
+    "git rm -r python_pkg/byox_ladder (generator + tests + built pages)",
+    "CLAUDE.md: add build-your-x to the extracted-repos list",
+    ".pre-commit-config.yaml: remove the guide-ladder.html codespell exclude + its stale comment"
+  ],
+  "verification": [
+    {
+      "command": "grep -rn byox_ladder --include=*.py --include=*.toml --include=*.yaml . (excluding the package)",
+      "result": "pass",
+      "evidence": "No remaining references to byox_ladder anywhere in the monorepo after removal."
+    },
+    {
+      "command": "new repo: python -m pytest byox_ladder/tests/ --cov=byox_ladder --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "71 passed, 100.00% branch coverage in kuhyx/build-your-x (pre-push gate)."
+    }
+  ],
+  "risks": [
+    "byox_ladder had no cross-package imports, so no remaining package depends on it.",
+    "Derived, gitignored artifacts (guides.json, byox-readme.md) were regenerable and copied into the new repo's checkout."
+  ],
+  "rollback": [
+    "Clone https://github.com/kuhyx/build-your-x and restore byox_ladder/ under python_pkg/ with imports rewritten back to python_pkg.byox_ladder.*",
+    "Validate: pytest python_pkg/byox_ladder/tests/ passes at 100%."
+  ]
+}

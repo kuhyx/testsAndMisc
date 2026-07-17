@@ -293,9 +293,7 @@ repos:
         args:
           - --skip=*.json,*.lock,*-lock.yaml,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
           - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,bloc,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph,iif
-        # guide-ladder.html inlines upstream build-your-own-x tutorial titles
-        # verbatim (third-party data, incl. real source typos) — not authored text.
-        exclude: ^(Bash/ffmpeg-build/|LaTeX/|.*\.geojson$|python_pkg/byox_ladder/guide-ladder\.html$)
+        exclude: ^(Bash/ffmpeg-build/|LaTeX/|.*\.geojson$)
 
   # ===========================================================================
   # DOCFORMATTER - Format docstrings (disabled - causes recursion errors)
