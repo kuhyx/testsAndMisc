@@ -1,0 +1,489 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporting the truth: brother_printer status accuracy</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1a1a1a; --muted: #666; --rule: #e2e2df;
+    --card: #ffffff; --accent: #1f6feb; --accent-soft: #ddeaff;
+    --good: #1a7f37; --good-bg: #e6f4ea; --bad: #cf222e; --bad-bg: #ffebe9;
+    --warn: #9a6700; --warn-bg: #fff8c5; --code-bg: #f4f4f2; --code-fg: #24292f;
+    --add-bg: #e6ffec; --add-fg: #116329; --del-bg: #ffebe9; --del-fg: #82071e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --fg: #e6e6e6; --muted: #9aa0a6; --rule: #2b2f36;
+      --card: #1b1e24; --accent: #4d9fff; --accent-soft: #17324f;
+      --good: #4ac26b; --good-bg: #12261a; --bad: #ff7b72; --bad-bg: #2a1416;
+      --warn: #d9b400; --warn-bg: #2a2410; --code-bg: #0f1115; --code-fg: #d7dbe0;
+      --add-bg: #0f2417; --add-fg: #6fdc8c; --del-bg: #2a1416; --del-fg: #ff9d95;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #fbfbfa; --fg: #1a1a1a; --muted: #666; --rule: #e2e2df;
+    --card: #ffffff; --accent: #1f6feb; --accent-soft: #ddeaff;
+    --good: #1a7f37; --good-bg: #e6f4ea; --bad: #cf222e; --bad-bg: #ffebe9;
+    --warn: #9a6700; --warn-bg: #fff8c5; --code-bg: #f4f4f2; --code-fg: #24292f;
+    --add-bg: #e6ffec; --add-fg: #116329; --del-bg: #ffebe9; --del-fg: #82071e;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --fg: #e6e6e6; --muted: #9aa0a6; --rule: #2b2f36;
+    --card: #1b1e24; --accent: #4d9fff; --accent-soft: #17324f;
+    --good: #4ac26b; --good-bg: #12261a; --bad: #ff7b72; --bad-bg: #2a1416;
+    --warn: #d9b400; --warn-bg: #2a2410; --code-bg: #0f1115; --code-fg: #d7dbe0;
+    --add-bg: #0f2417; --add-fg: #6fdc8c; --del-bg: #2a1416; --del-fg: #ff9d95;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px;
+  }
+  .wrap { max-width: min(48rem, 92vw); margin: 0 auto; padding: 2.5rem 0 6rem; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .3rem; letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; margin: 3rem 0 1rem; padding-top: .6rem; border-top: 1px solid var(--rule); letter-spacing: -0.01em; }
+  h3 { font-size: 1.15rem; margin: 2rem 0 .6rem; }
+  p, li { color: var(--fg); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .sub { color: var(--muted); font-size: 1.05rem; margin: 0 0 1.6rem; }
+  .meta { color: var(--muted); font-size: .85rem; margin-bottom: 2rem; font-variant-numeric: tabular-nums; }
+  code { background: var(--code-bg); color: var(--code-fg); padding: .12em .38em; border-radius: 5px; font-size: .88em;
+    font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem 1.1rem; border-radius: 10px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: .82rem; line-height: 1.55;
+    border: 1px solid var(--rule); }
+  pre code { background: none; padding: 0; }
+  .toc { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 1rem 1.3rem; margin: 2rem 0; }
+  .toc strong { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .toc ol { margin: .5rem 0 0; padding-left: 1.2rem; }
+  .toc li { margin: .2rem 0; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 1.2rem 1.4rem; margin: 1.4rem 0; }
+  .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0;
+    padding: .8rem 1.1rem; margin: 1.4rem 0; }
+  .callout.bad { border-color: var(--bad); background: var(--bad-bg); }
+  .callout.good { border-color: var(--good); background: var(--good-bg); }
+  .callout.warn { border-color: var(--warn); background: var(--warn-bg); }
+  .callout p { margin: .3rem 0; }
+  .tag { display: inline-block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    padding: .1rem .5rem; border-radius: 20px; vertical-align: middle; }
+  .tag.old { background: var(--del-bg); color: var(--del-fg); }
+  .tag.new { background: var(--add-bg); color: var(--add-fg); }
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .9rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  td.mono, th.mono { font-family: "SF Mono", ui-monospace, monospace; font-size: .84rem; white-space: nowrap; }
+  .diff { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; margin: 1.2rem 0; }
+  .diff-head { background: var(--code-bg); padding: .4rem .9rem; font-size: .76rem; color: var(--muted);
+    border-bottom: 1px solid var(--rule); font-family: ui-monospace, monospace; }
+  .diff pre { border: 0; border-radius: 0; margin: 0; }
+  .diff .l-add { display: block; background: var(--add-bg); color: var(--add-fg); }
+  .diff .l-del { display: block; background: var(--del-bg); color: var(--del-fg); }
+  .diff .l-ctx { display: block; color: var(--muted); }
+  /* diagram */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; margin: 1.4rem 0; }
+  .node { flex: 1 1 120px; min-width: 120px; background: var(--card); border: 1px solid var(--rule);
+    border-radius: 10px; padding: .7rem .8rem; font-size: .82rem; }
+  .node .n-t { font-weight: 700; font-size: .78rem; }
+  .node .n-d { color: var(--muted); font-size: .74rem; margin-top: .2rem; }
+  .arrow { align-self: center; color: var(--muted); font-size: 1.3rem; }
+  /* micro-world */
+  .mw { background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 1.3rem 1.4rem; margin: 1.6rem 0; }
+  .mw h3 { margin-top: 0; }
+  .mw-controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .8rem 0 1.1rem; }
+  .mw input[type=text] { font-family: ui-monospace, monospace; font-size: 1rem; padding: .5rem .7rem;
+    border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--fg); width: 8rem; }
+  .mw button { font: inherit; font-size: .85rem; padding: .5rem .9rem; border: 1px solid var(--rule);
+    border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
+  .mw button.ghost { background: transparent; color: var(--accent); }
+  .mw button:hover { filter: brightness(1.05); }
+  .mw-chip { font-family: ui-monospace, monospace; font-size: .8rem; padding: .3rem .55rem; border-radius: 7px;
+    background: var(--code-bg); border: 1px solid var(--rule); cursor: pointer; }
+  .mw-chip:hover { border-color: var(--accent); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: 1rem; }
+  @media (max-width: 30rem) { .verdict { grid-template-columns: 1fr; } }
+  .verdict .col { border-radius: 10px; padding: .8rem 1rem; border: 1px solid var(--rule); }
+  .verdict .col.old { background: var(--del-bg); }
+  .verdict .col.new { background: var(--add-bg); }
+  .verdict .col h4 { margin: 0 0 .4rem; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+  .verdict .sev { font-weight: 800; font-size: 1.05rem; }
+  .verdict .txt { font-size: .9rem; }
+  .verdict .spec { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+  .mw-note { font-size: .82rem; color: var(--muted); margin-top: 1rem; }
+  /* quiz */
+  .q { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 1.1rem 1.3rem; margin: 1.1rem 0; }
+  .q .qn { font-weight: 650; margin: 0 0 .8rem; }
+  .opt { display: block; width: 100%; text-align: left; font: inherit; font-size: .92rem; padding: .6rem .8rem;
+    margin: .35rem 0; border: 1px solid var(--rule); border-radius: 9px; background: var(--bg); color: var(--fg); cursor: pointer; }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { background: var(--good-bg); border-color: var(--good); }
+  .opt.wrong { background: var(--bad-bg); border-color: var(--bad); }
+  .opt:disabled { cursor: default; }
+  .rationale { font-size: .86rem; margin: .6rem 0 0; padding: .55rem .8rem; border-radius: 8px;
+    background: var(--code-bg); display: none; }
+  .rationale.show { display: block; }
+  .score { position: sticky; bottom: 0; background: var(--card); border: 1px solid var(--rule); border-radius: 12px;
+    padding: .7rem 1.1rem; margin-top: 1.4rem; font-weight: 650; text-align: center; }
+  .themetoggle { position: fixed; top: .8rem; right: .8rem; font-size: .75rem; padding: .35rem .6rem; border-radius: 8px;
+    border: 1px solid var(--rule); background: var(--card); color: var(--fg); cursor: pointer; z-index: 10; }
+</style>
+
+<button class="themetoggle" onclick="(function(r){var d=r.getAttribute('data-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light');r.setAttribute('data-theme',d==='dark'?'light':'dark');})(document.documentElement)">◑ theme</button>
+
+<div class="wrap">
+
+<h1>Reporting the truth</h1>
+<p class="sub">How <code>brother_printer</code> stopped inventing what the printer was doing — and learned to say only what the hardware actually reports.</p>
+<p class="meta">Commit <code>a12e696</code> · 2026-07-17 · python_pkg/brother_printer · +1263 / −407</p>
+
+<div class="toc">
+  <strong>What's inside</strong>
+  <ol>
+    <li><a href="#background">Background — the status pipeline</a></li>
+    <li><a href="#intuition">Intuition — a table full of fiction</a></li>
+    <li><a href="#playground">Playground — decode a status code</a></li>
+    <li><a href="#code">Code — the five moving parts</a></li>
+    <li><a href="#quiz">Quiz — check your understanding</a></li>
+  </ol>
+</div>
+
+<h2 id="background">1 · Background</h2>
+
+<p><code>brother_printer</code> is a small command-line tool that answers one question: <em>is my Brother HL-1110 laser printer okay?</em> You run <code>./run.sh</code> and it prints a status report — online or not, toner and drum estimates, whether anything needs attention.</p>
+
+<p>To answer that, it talks to the printer three ways. The important one here is <strong>PJL</strong> (Printer Job Language): a plain-text control protocol you speak over the USB character device <code>/dev/usb/lp0</code>. Send <code>@PJL INFO STATUS</code>, and the printer answers with a numeric code and a display string:</p>
+
+<pre><code>@PJL INFO STATUS
+CODE=40000
+DISPLAY="SLEEP           "
+ONLINE=TRUE</code></pre>
+
+<p>The tool's job is to turn that <code>CODE=40000</code> into a human sentence. It does that with a lookup table, <code>BROTHER_STATUS_CODES</code>, mapping each code to a <em>(severity, short text, suggested action)</em> triple. The report's headline — healthy, warning, or "action required" — comes straight from that severity.</p>
+
+<div class="flow">
+  <div class="node"><div class="n-t">Printer</div><div class="n-d">USB / PJL</div></div>
+  <div class="arrow">→</div>
+  <div class="node"><div class="n-t">CODE=40000</div><div class="n-d">raw reply</div></div>
+  <div class="arrow">→</div>
+  <div class="node"><div class="n-t">lookup table</div><div class="n-d">code → meaning</div></div>
+  <div class="arrow">→</div>
+  <div class="node"><div class="n-t">Report</div><div class="n-d">what you read</div></div>
+</div>
+
+<p>The whole report is only as truthful as that table. And that turned out to be the problem.</p>
+
+<h2 id="intuition">2 · Intuition</h2>
+
+<p>Before this change, two things were broken at once. First, <code>./run.sh</code> didn't run at all — it crashed with <code>ModuleNotFoundError: No module named 'python_pkg'</code> before printing a single line. Once that was fixed, the report it produced was worse than no report: a printer sitting quietly <strong>asleep</strong> was announced as a <strong>critical paper jam</strong>.</p>
+
+<div class="callout bad">
+<p><strong>The core bug in one line.</strong> The lookup table said <code>40000 → Paper Jam (critical)</code>. The printer's own manual says <code>40000 → SLEEP MODE (STANDBY)</code>, with a footnote in the spec that reads, verbatim: <em>"This is not an error. The printer is waiting for data."</em></p>
+</div>
+
+<p>Where did the wrong table come from? Its comment cited a "Brother PJL Technical Reference" that nobody could locate. When each code was checked against the real authority — the <strong>HP PJL Technical Reference Manual, Appendix D</strong>, which Brother printers actually follow — only <strong>2 of the 25 entries were correct</strong>. The table wasn't transcribed; it looked generated, plausible-sounding numbers attached to plausible-sounding meanings.</p>
+
+<p>To be sure the HP manual really applied to <em>this</em> printer, six states were induced on the actual HL-1110 and the wire codes recorded:</p>
+
+<table>
+  <thead><tr><th class="mono">CODE</th><th>Printer display</th><th>HP spec says</th><th>Old table said</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">40000</td><td>SLEEP</td><td>Sleep — <em>not an error</em></td><td><span class="tag old">Paper Jam · critical</span></td></tr>
+    <tr><td class="mono">40021</td><td>TOP COVER OPEN</td><td>Printer open / close cover</td><td><em>absent</em> (claimed 41000)</td></tr>
+    <tr><td class="mono">10003</td><td>WARMING UP</td><td>Warming up</td><td><span class="tag old">Self-test / Calibrating</span></td></tr>
+    <tr><td class="mono">10006</td><td>—</td><td>Toner Low</td><td><span class="tag old">Processing · benign</span></td></tr>
+    <tr><td class="mono">41213</td><td>NO PAPER</td><td>Out of paper (41xyy family)</td><td><em>absent</em></td></tr>
+    <tr><td class="mono">10001</td><td>READY</td><td>Ready</td><td><span class="tag new">Ready ✓</span></td></tr>
+  </tbody>
+</table>
+
+<p>All six matched the spec. None but <code>10001</code> matched the old table. Notice the failure cuts <em>both</em> ways: <code>40000</code> cried wolf (calm printer → critical alarm), while <code>10006</code> did the opposite — a genuine <strong>toner-low warning</strong> was dressed up as a harmless "Processing" and would never reach you.</p>
+
+<h3>The principle that came out of it</h3>
+
+<p>The fix isn't just "correct the numbers." It's a rule about honesty: <strong>never assert a meaning the hardware didn't give you.</strong> Three consequences follow from that:</p>
+
+<div class="card">
+<p><span class="tag new">rebuilt</span> Codes are transcribed from the HP manual, verbatim. <code>40000</code> is Sleep (severity <em>ok</em>); the real paper-jam code, <code>40022</code>, was added — it wasn't even in the old table.</p>
+<p><span class="tag new">dropped</span> Nine codes that appear in <em>no</em> reference (like the invented <code>40310</code>, <code>42000</code>) were deleted. Ask for one now and you get an honest <em>"Unknown status (code X) — check printer display"</em> instead of a confident lie.</p>
+<p><span class="tag new">ranged</span> The HL-1110 reports <code>41213</code> for an empty tray, but its last three digits don't decode per the spec's sub-tables. So the <code>41xyy</code> family matches as a family — right about "out of paper," silent about details it can't trust.</p>
+</div>
+
+<div class="callout warn">
+<p><strong>The same lie had a second home.</strong> CUPS (the print system) reports its own reasons, which the tool maps to PJL codes. That map sent <code>media-jam → 40000</code>. After the rebuild, <code>40000</code> means Sleep — so a <em>real</em> jam detected via CUPS would have been reported as "Sleep." Fixing the table without fixing this map would have just moved the bug. Both were corrected together (<code>media-jam → 40022</code>).</p>
+</div>
+
+<h2 id="playground">3 · Playground — decode a status code</h2>
+
+<p>Type a PJL code (or tap one of the states induced on the real printer) and watch the two tables disagree. The left column is what the old code would have told you; the right is what the new code says, next to what the HP manual actually documents.</p>
+
+<div class="mw">
+  <h3>PJL status decoder <span class="tag old">old</span> vs <span class="tag new">new</span></h3>
+  <div class="mw-controls">
+    <input id="mw-in" type="text" value="40000" inputmode="numeric" aria-label="PJL status code">
+    <button onclick="mwDecode()">Decode</button>
+    <span id="mw-chips"></span>
+  </div>
+  <div class="verdict">
+    <div class="col old">
+      <h4>Old table</h4>
+      <div class="sev" id="old-sev">—</div>
+      <div class="txt" id="old-txt">—</div>
+    </div>
+    <div class="col new">
+      <h4>New code</h4>
+      <div class="sev" id="new-sev">—</div>
+      <div class="txt" id="new-txt">—</div>
+      <div class="spec" id="new-spec"></div>
+    </div>
+  </div>
+  <p class="mw-note" id="mw-note"></p>
+</div>
+
+<h2 id="code">4 · Code — the five moving parts</h2>
+
+<p>The change touches five files, but it's cleaner to read it as five <em>concerns</em>. Only the hunks that carry the idea are shown.</p>
+
+<h3>a. Make <code>./run.sh</code> actually start</h3>
+<p>Every module imports absolutely (<code>python_pkg.brother_printer.*</code>), so the repo root must be importable. The script ran the file by path, which only puts the <em>package</em> dir on the path. And <code>sudo</code> wipes the environment, so exporting <code>PYTHONPATH</code> first wouldn't survive. The fix passes it as a sudo argument and runs the package as a module.</p>
+<div class="diff">
+  <div class="diff-head">python_pkg/brother_printer/run.sh</div>
+<pre><code><span class="l-del">-if [[ $EUID -ne 0 ]]; then</span>
+<span class="l-del">-    exec sudo python3 "$SCRIPT_DIR/check_brother_printer.py" "$@"</span>
+<span class="l-del">-fi</span>
+<span class="l-del">-exec python3 "$SCRIPT_DIR/check_brother_printer.py" "$@"</span>
+<span class="l-add">+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"</span>
+<span class="l-add">+if [[ $EUID -ne 0 ]]; then</span>
+<span class="l-add">+    exec sudo PYTHONPATH="$REPO_ROOT" python3 -m python_pkg.brother_printer "$@"</span>
+<span class="l-add">+fi</span>
+<span class="l-add">+exec env PYTHONPATH="$REPO_ROOT" python3 -m python_pkg.brother_printer "$@"</span></code></pre>
+</div>
+
+<h3>b. Rebuild the status table from the spec</h3>
+<p>The heart of the change. <code>40000</code> flips from a critical jam to a benign sleep; <code>40022</code> becomes the real jam; unknown codes fall through to an honest message rather than a fabricated one.</p>
+<div class="diff">
+  <div class="diff-head">python_pkg/brother_printer/constants.py</div>
+<pre><code><span class="l-del">-    40000: ("critical", "Paper Jam", "Clear the paper jam and close all covers."),</span>
+<span class="l-add">+    # 40000 is flagged in the reference as "not an error - waiting for data".</span>
+<span class="l-add">+    40000: ("ok", "Sleep (standby)", ""),</span>
+<span class="l-add">+    40022: ("critical", "Paper Jam", "Clear the paper jam and close all covers."),</span>
+<span class="l-ctx"> </span>
+<span class="l-add">+def _unknown_status(code: str) -> tuple[str, str, str]:</span>
+<span class="l-add">+    """Describe a code that is not in the PJL reference. Never guesses."""</span>
+<span class="l-add">+    return ("info", f"Unknown status (code {code})",</span>
+<span class="l-add">+            "Check printer display for details.")</span></code></pre>
+</div>
+
+<h3>c. Read the printer's own page counter</h3>
+<p>Toner and drum estimates came from CUPS's page log, which only counts jobs CUPS itself printed — it undercounts. The printer knows its true lifetime count via <code>@PJL INFO PAGECOUNT</code>. Reading it meant sending one more PJL query and migrating the stored "replaced at" baseline onto the printer's scale <em>once</em>, so the reported percentages don't visibly jump.</p>
+<div class="diff">
+  <div class="diff-head">python_pkg/brother_printer/usb_query.py</div>
+<pre><code><span class="l-ctx"> _retry_pjl_query(fd, "@PJL INFO STATUS", _parse_status, result, max_retries)</span>
+<span class="l-add">+_retry_pjl_query(fd, "@PJL INFO PAGECOUNT", _parse_pagecount, result, max_retries)</span>
+<span class="l-ctx"> _retry_pjl_query(fd, "@PJL INFO VARIABLES", _parse_variables, result, max_retries)</span></code></pre>
+</div>
+
+<h3>d. Reading status must never hang or destroy a job</h3>
+<p>Two latent defects surfaced during verification. The device was opened <em>blocking</em>, so an unwell printer froze the tool forever — exactly when you want a status report. And the port-status probe stopped CUPS and reset the USB device just to read one byte, killing any in-flight print and then misreporting the damage as a printer error. The open became non-blocking; the probe now reads the same byte via a free <code>ioctl</code> and skips entirely while a job is printing.</p>
+<div class="diff">
+  <div class="diff-head">python_pkg/brother_printer/usb_query.py · cups_service.py</div>
+<pre><code><span class="l-del">-fd = os.open(dev_path, os.O_RDWR)</span>
+<span class="l-add">+# O_NONBLOCK or this open() hangs forever on an unwell printer.</span>
+<span class="l-add">+fd = os.open(dev_path, os.O_RDWR | os.O_NONBLOCK)</span>
+<span class="l-ctx"> </span>
+<span class="l-del">-    dev.reset()          # destroyed the in-flight job</span>
+<span class="l-del">-    ... claim interface, stop CUPS ...</span>
+<span class="l-add">+status = _port_status_via_usblp()   # free ioctl, no side effects</span>
+<span class="l-add">+if status is not None: return status</span>
+<span class="l-add">+if _cups_is_busy(cups_state): return None   # never fight a running job</span></code></pre>
+</div>
+
+<h3>e. Notice pages the printer silently drops</h3>
+<p>The HL-1110 has ~1 MB of memory. A page whose 600 dpi raster overflows it is <em>discarded</em> — the printer stays <code>READY</code>, CUPS reports success, and nothing anywhere flags the loss. The only witness is the gap between what CUPS claims it sent and how far the printer's own counter advanced.</p>
+<div class="diff">
+  <div class="diff-head">python_pkg/brother_printer/cups_service.py</div>
+<pre><code><span class="l-add">+def check_page_delivery(printer_total, *, queue_idle):</span>
+<span class="l-add">+    # Only meaningful between jobs; mid-job the counters differ legitimately.</span>
+<span class="l-add">+    cups_delta   = cups_total   - state["last_cups_total"]</span>
+<span class="l-add">+    printer_delta = printer_total - state["last_printer_count"]</span>
+<span class="l-add">+    check.dropped   = cups_delta - printer_delta</span>
+<span class="l-add">+    check.suspected = check.dropped >= PAGE_DROP_WARN_THRESHOLD</span></code></pre>
+</div>
+<div class="callout good">
+<p>When it fires, the report reads: <em>"60 pages did not print. CUPS sent 63 pages since the last check; the printer's own counter advanced by 3. Reprint at <code>lp -o Resolution=300dpi</code>."</em> — the answer that took a long debugging session to find, now surfaced in one run.</p>
+</div>
+
+<h2 id="quiz">5 · Quiz</h2>
+<p>Five questions on the <em>reasoning</em> behind the change. Click an option to check it.</p>
+<div id="quiz"></div>
+<div class="score" id="score">Score: 0 / 0</div>
+
+</div>
+
+<script>
+// ---- Micro-world: PJL status decoder --------------------------------------
+// The NEW table, transcribed (a representative slice) from the HP PJL manual.
+var NEW_EXACT = {
+  "10001": ["ok","Ready","10001 = 00 READY (online)"],
+  "10003": ["ok","Warming up","10003 = 02 WARMING UP"],
+  "10006": ["warn","Toner Low","10006 = 16 TONER LOW"],
+  "10023": ["info","Printing / processing job","10023 = PROCESSING JOB"],
+  "40000": ["ok","Sleep (standby)","40000 = SLEEP MODE (STANDBY) — flagged 'not an error'"],
+  "40010": ["critical","No Toner Cartridge","40010 = 14 NO EP CART / INSTALL TONER"],
+  "40021": ["critical","Cover Open","40021 = 12 PRINTER OPEN / CLOSE COVER"],
+  "40022": ["critical","Paper Jam","40022 = 13 PAPER JAM"],
+  "40038": ["warn","Toner Low","40038 = 16 LOW TONER"]
+};
+// The OLD table — the invented one this change replaced.
+var OLD_TABLE = {
+  "10001": ["ok","Ready"],
+  "10003": ["info","Self-test / Calibrating"],
+  "10006": ["info","Processing"],
+  "10023": ["info","Waiting"],
+  "40000": ["critical","Paper Jam"],
+  "40019": ["critical","Replace Drum"],
+  "40020": ["critical","Drum Stop"],
+  "40300": ["critical","No Paper / Tray Open"],
+  "40310": ["critical","Toner End"],
+  "41000": ["critical","Cover Open"],
+  "42000": ["critical","Machine Error"]
+};
+var SEV_LABEL = { ok:"✓ OK", info:"i INFO", warn:"⚡ WARNING", critical:"⚠ CRITICAL" };
+
+function newLookup(code){
+  if (NEW_EXACT[code]) return NEW_EXACT[code];
+  var n = parseInt(code,10);
+  if (!isNaN(n) && n>=41000 && n<=41999) return ["critical","Out of Paper","41xyy = foreground paper loading (matched as a family)"];
+  if (!isNaN(n) && n>=50000 && n<=50999) return ["critical","Hardware Error","50xxx = hardware error"];
+  return ["info","Unknown status (code "+code+")","not in the HP reference — reports honestly as unknown"];
+}
+function oldLookup(code){
+  if (OLD_TABLE[code]) return [OLD_TABLE[code][0], OLD_TABLE[code][1]];
+  return ["info","Unknown status (code "+code+")"];
+}
+function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+
+function mwDecode(){
+  var code = (document.getElementById('mw-in').value || '').trim();
+  var o = oldLookup(code), n = newLookup(code);
+  document.getElementById('old-sev').textContent = SEV_LABEL[o[0]] || o[0];
+  document.getElementById('old-txt').textContent = o[1];
+  document.getElementById('new-sev').textContent = SEV_LABEL[n[0]] || n[0];
+  document.getElementById('new-txt').textContent = n[1];
+  document.getElementById('new-spec').textContent = n[2] || '';
+  var note = '';
+  if (o[0] === 'critical' && n[0] === 'ok')
+    note = "The old table screamed CRITICAL at a printer that is perfectly fine. That is the headline bug — a sleeping printer reported as needing urgent action.";
+  else if (o[0] === 'info' && (n[0] === 'warn' || n[0] === 'critical'))
+    note = "The reverse failure: the old table hid a real problem behind a calm word. You would never have been warned.";
+  else if (o[1].indexOf('Unknown') === 0 && n[1].indexOf('Unknown') !== 0)
+    note = "The old table had nothing here; the new one recognises it from the HP reference or by code family.";
+  else if (n[1].indexOf('Unknown') === 0 && o[1].indexOf('Unknown') !== 0)
+    note = "The old table asserted a confident meaning for a code that appears in NO reference. The new code refuses to guess and says so.";
+  else if (o[0] === n[0] && o[1] === n[1])
+    note = "One of the two entries the old table got right.";
+  else
+    note = "Same severity band, but the wording changed to match what the printer's manual actually documents.";
+  document.getElementById('mw-note').textContent = note;
+}
+(function(){
+  var chips = ["40000","40021","10006","41213","40022","10001"];
+  var host = document.getElementById('mw-chips');
+  chips.forEach(function(c){
+    var b = document.createElement('button');
+    b.className = 'mw-chip'; b.textContent = c;
+    b.onclick = function(){ document.getElementById('mw-in').value = c; mwDecode(); };
+    host.appendChild(b);
+  });
+  mwDecode();
+})();
+
+// ---- Quiz -----------------------------------------------------------------
+// correctIndex chosen so the answer position spans 4 distinct slots (1,3,0,2,3)
+// and the longest option is the correct one at most once. See rationale below.
+var QUIZ = [
+  {
+    q: "The printer replied CODE=40000, DISPLAY=\"SLEEP\". Why did the old tool call this a critical paper jam?",
+    opts: [
+      "The printer's firmware genuinely emits code 40000 for both the sleep and the paper-jam states",
+      "Its lookup table mapped 40000 to \"Paper Jam\", yet the HP manual defines 40000 as sleep",
+      "CUPS overrode the live PJL code using a stale cached media-jam reason string here",
+      "The USB read was truncated, so 40000 arrived as a mangled partial status code value"
+    ],
+    correct: 1,
+    why: "The bug was purely in the local table: 40000 was mislabeled. The manual flags 40000 as sleep and 'not an error'."
+  },
+  {
+    q: "Checked against the HP PJL reference, how much of the old status table was correct?",
+    opts: [
+      "All of it was right, but every severity level had been miscalibrated upward",
+      "Roughly half of it — at least the common everyday codes were basically fine",
+      "Every single code was wrong, and not one of them matched the printed manual",
+      "Only 2 of the table's 25 entries actually matched the HP reference manual"
+    ],
+    correct: 3,
+    why: "Just 2 of 25 held up (10001 Ready, 40038 Toner Low). The table read as generated rather than transcribed."
+  },
+  {
+    q: "Why report \"Unknown status — check printer display\" instead of a best guess for codes not in the manual?",
+    opts: [
+      "Claiming a meaning the hardware never confirmed is the exact bug being fixed",
+      "It runs measurably faster than doing a full linear table lookup would ever run",
+      "Brother's licensing forbids third-party tools from naming those reserved codes",
+      "Those unknown codes only ever occur briefly during a printer firmware update"
+    ],
+    correct: 0,
+    why: "The whole change is a commitment to honesty: never claim more than the printer and the spec actually say."
+  },
+  {
+    q: "After the rebuild, why did the CUPS reason map also need media-jam pointed at 40022?",
+    opts: [
+      "40022 is rendered in red text where the code 40000 used to print in yellow",
+      "CUPS has fully deprecated and removed the media-jam reason string it once sent",
+      "Because 40000 now means sleep, a real jam via CUPS would have read as \"Sleep\"",
+      "The pyusb port-status probe needs 40022 present to reset the device safely"
+    ],
+    correct: 2,
+    why: "Same fiction, second home. Fixing the table without the map would have reported real jams as sleep."
+  },
+  {
+    q: "Your 63-page PDF prints 3 pages; the printer stays READY and CUPS reports success. How does the new tool catch this?",
+    opts: [
+      "It re-reads the printer's internal PJL error bit, which is reliably set when a page drops",
+      "It watches for CUPS to raise a media-error reason string partway through the job run",
+      "It automatically lowers the print resolution and silently retries the whole failed job",
+      "It compares CUPS's page count against the printer's own counter and flags the gap"
+    ],
+    correct: 3,
+    why: "Neither the error bit nor CUPS shows anything — both report success. Only the counter gap reveals the dropped pages."
+  }
+];
+
+(function(){
+  var host = document.getElementById('quiz');
+  var answered = 0, right = 0;
+  QUIZ.forEach(function(item, qi){
+    var card = document.createElement('div'); card.className = 'q';
+    var qn = document.createElement('p'); qn.className = 'qn';
+    qn.textContent = (qi+1) + '. ' + item.q; card.appendChild(qn);
+    var rat = document.createElement('p'); rat.className = 'rationale';
+    item.opts.forEach(function(text, oi){
+      var btn = document.createElement('button'); btn.className = 'opt';
+      btn.textContent = text;
+      btn.onclick = function(){
+        if (card.dataset.done) return;
+        card.dataset.done = '1'; answered++;
+        var buttons = card.querySelectorAll('.opt');
+        buttons.forEach(function(b){ b.disabled = true; });
+        buttons[item.correct].classList.add('correct');
+        if (oi === item.correct) { right++; }
+        else { btn.classList.add('wrong'); }
+        rat.textContent = (oi === item.correct ? '✓ ' : '✗ ') + item.why;
+        rat.classList.add('show');
+        document.getElementById('score').textContent = 'Score: ' + right + ' / ' + answered;
+      };
+      card.appendChild(btn);
+    });
+    card.appendChild(rat);
+    host.appendChild(card);
+  });
+})();
+</script>
