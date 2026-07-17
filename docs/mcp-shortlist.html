@@ -1,0 +1,370 @@
+<title>MCP Server Shortlist — Security Triage</title>
+<style>
+  :root{
+    --paper:#f5f6f8; --panel:#ffffff; --panel-2:#eef0f4;
+    --ink:#181b21; --ink-soft:#4a4f5b; --ink-faint:#767c8a;
+    --line:#e3e6eb;
+    --signal:#0f8f86; --signal-ink:#0a6b64;
+    --keep:#12876f; --keep-bg:#def2eb;
+    --hold:#a9741a; --hold-bg:#f6ecd6;
+    --skip:#6b7280; --skip-bg:#eaecf0;
+    --danger:#c0483f;
+    --shadow:0 1px 2px rgba(20,25,35,.05), 0 6px 18px rgba(20,25,35,.05);
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0f1218; --panel:#181c24; --panel-2:#1f2530;
+      --ink:#e6e9ef; --ink-soft:#a9b0be; --ink-faint:#7b8393;
+      --line:#2a303b;
+      --signal:#3fc3b6; --signal-ink:#5fd3c6;
+      --keep:#3fbfa0; --keep-bg:#12302a;
+      --hold:#d9a24a; --hold-bg:#33280f;
+      --skip:#8b93a1; --skip-bg:#222834;
+      --danger:#e2685e;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#f5f6f8; --panel:#ffffff; --panel-2:#eef0f4;
+    --ink:#181b21; --ink-soft:#4a4f5b; --ink-faint:#767c8a;
+    --line:#e3e6eb;
+    --signal:#0f8f86; --signal-ink:#0a6b64;
+    --keep:#12876f; --keep-bg:#def2eb;
+    --hold:#a9741a; --hold-bg:#f6ecd6;
+    --skip:#6b7280; --skip-bg:#eaecf0;
+    --danger:#c0483f;
+    --shadow:0 1px 2px rgba(20,25,35,.05), 0 6px 18px rgba(20,25,35,.05);
+  }
+  :root[data-theme="dark"]{
+    --paper:#0f1218; --panel:#181c24; --panel-2:#1f2530;
+    --ink:#e6e9ef; --ink-soft:#a9b0be; --ink-faint:#7b8393;
+    --line:#2a303b;
+    --signal:#3fc3b6; --signal-ink:#5fd3c6;
+    --keep:#3fbfa0; --keep-bg:#12302a;
+    --hold:#d9a24a; --hold-bg:#33280f;
+    --skip:#8b93a1; --skip-bg:#222834;
+    --danger:#e2685e;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:15px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 72px;}
+
+  /* ---- header ---- */
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--signal-ink);font-weight:600;margin:0 0 14px;}
+  h1{font-size:clamp(28px,4.4vw,42px);line-height:1.08;letter-spacing:-.02em;
+    font-weight:700;margin:0 0 12px;text-wrap:balance;max-width:20ch;}
+  .lede{font-size:17px;color:var(--ink-soft);margin:0;max-width:64ch;}
+  .lede b{color:var(--ink);font-weight:600;}
+
+  /* ---- verdict banner ---- */
+  .banner{margin:28px 0 30px;padding:20px 22px;border-radius:14px;
+    background:var(--panel);border:1px solid var(--line);
+    border-left:4px solid var(--signal);box-shadow:var(--shadow);
+    display:flex;gap:18px;align-items:flex-start;}
+  .banner .k{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--signal-ink);font-weight:600;
+    white-space:nowrap;padding-top:2px;}
+  .banner p{margin:0;color:var(--ink-soft);font-size:14.5px;}
+  .banner p b{color:var(--ink);font-weight:600;}
+
+  /* ---- stat tiles ---- */
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0 0 40px;}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .tile .num{font-family:var(--mono);font-variant-numeric:tabular-nums;
+    font-size:30px;font-weight:700;line-height:1;letter-spacing:-.02em;}
+  .tile .lab{font-size:11.5px;color:var(--ink-faint);margin-top:8px;
+    text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
+  .tile.keep .num{color:var(--keep)} .tile.hold .num{color:var(--hold)}
+  .tile.skip .num{color:var(--skip)} .tile.zero .num{color:var(--signal)}
+
+  /* ---- section headers ---- */
+  .sec{margin:44px 0 18px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;}
+  .sec .tag{font-family:var(--mono);font-size:12px;font-weight:700;
+    letter-spacing:.05em;padding:4px 10px;border-radius:6px;text-transform:uppercase;}
+  .sec.t1 .tag{background:var(--keep-bg);color:var(--keep)}
+  .sec.t2 .tag{background:var(--hold-bg);color:var(--hold)}
+  .sec.t3 .tag{background:var(--skip-bg);color:var(--skip)}
+  .sec h2{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em;}
+  .sec .desc{color:var(--ink-faint);font-size:13.5px;flex-basis:100%;margin-top:-2px;}
+
+  /* ---- repo cards ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:16px 17px 15px;box-shadow:var(--shadow);position:relative;
+    border-left:4px solid var(--line);transition:transform .14s ease, box-shadow .14s ease;}
+  .card.keep{border-left-color:var(--keep)} .card.hold{border-left-color:var(--hold)}
+  @media (hover:hover){.card:hover{transform:translateY(-2px);
+    box-shadow:0 2px 4px rgba(20,25,35,.06),0 14px 30px rgba(20,25,35,.10);}}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .repo{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:-.01em;
+    word-break:break-word;}
+  .repo .own{color:var(--ink-faint);font-weight:500;}
+  .chip{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;padding:3px 8px;border-radius:5px;white-space:nowrap;}
+  .chip.keep{background:var(--keep-bg);color:var(--keep)}
+  .chip.hold{background:var(--hold-bg);color:var(--hold)}
+  .meta{display:flex;flex-wrap:wrap;gap:5px 12px;margin:9px 0 10px;
+    font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);
+    font-variant-numeric:tabular-nums;}
+  .meta .star{color:var(--ink-soft)}
+  .desc-t{font-size:13.5px;color:var(--ink-soft);margin:0 0 10px;}
+  .desc-t b{color:var(--ink);font-weight:600;}
+  .note{font-size:12.5px;line-height:1.5;color:var(--ink-faint);
+    padding-top:9px;border-top:1px dashed var(--line);display:flex;gap:7px;}
+  .note .glyph{font-family:var(--mono);font-weight:700;flex:none;}
+  .note.ok .glyph{color:var(--keep)} .note.warn .glyph{color:var(--hold)}
+  .note.risk .glyph{color:var(--danger)}
+  .note b{color:var(--ink-soft);font-weight:600;}
+
+  /* ---- tier 3 dense list ---- */
+  .skipwrap{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    box-shadow:var(--shadow);overflow:hidden;}
+  .skipgroup{padding:6px 0;}
+  .skipgroup + .skipgroup{border-top:1px solid var(--line);}
+  .skiphead{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--ink-faint);padding:12px 18px 6px;}
+  .row{display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:10px 18px;
+    padding:8px 18px;align-items:baseline;}
+  .row + .row{border-top:1px solid var(--line);}
+  .row .r-name{font-family:var(--mono);font-size:12.5px;font-weight:600;word-break:break-word;}
+  .row .r-name .own{color:var(--ink-faint);font-weight:500;}
+  .row .r-why{font-size:12.5px;color:var(--ink-soft);}
+  .row .r-why .em{color:var(--ink);font-weight:600;}
+
+  /* ---- legend / footer ---- */
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:34px 0 0;padding:16px 18px;
+    background:var(--panel-2);border-radius:12px;font-size:12.5px;color:var(--ink-soft);}
+  .legend .li{display:flex;align-items:center;gap:8px;}
+  .dot{width:11px;height:11px;border-radius:3px;flex:none;}
+  .dot.keep{background:var(--keep)} .dot.hold{background:var(--hold)} .dot.skip{background:var(--skip)}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);
+    color:var(--ink-faint);font-size:12.5px;line-height:1.65;}
+  footer b{color:var(--ink-soft);font-weight:600;}
+  footer code{font-family:var(--mono);font-size:11.5px;background:var(--panel-2);
+    padding:1px 5px;border-radius:4px;}
+
+  @media (max-width:720px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .banner{flex-direction:column;gap:8px;}
+    .row{grid-template-columns:1fr;gap:3px;}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">MCP Server Triage · 2026-07-17</p>
+  <h1>33 MCP servers, sorted by trust &amp; fit</h1>
+  <p class="lede">A security-first shortlist of the repos you pasted — evaluated on
+    <b>trust-surface</b> first, then maintenance, then fit to a Python/Go/Flutter/dev-tooling
+    workflow. Popularity was only a tiebreaker. A local MCP server runs with your
+    filesystem &amp; network rights and can inject into the model's context, so this is a
+    security call, not a star count.</p>
+
+  <div class="banner">
+    <span class="k">Null result</span>
+    <p><b>No malware or supply-chain traps in any of the 33.</b> No npm
+      <code style="font-family:var(--mono)">postinstall</code> hooks, no typosquats, no telemetry,
+      no obfuscation; all non-forks, pushed within ~4 months. The scary-handled
+      <b>lacausecrypto/mcp-sports-hub</b> was in fact the most hardened server in its bucket.
+      The real differentiator is <b>relevance × trust-surface</b> — which is why reading source
+      beats judging by name or stars.</p>
+  </div>
+
+  <div class="stats">
+    <div class="tile"><div class="num">33</div><div class="lab">Evaluated</div></div>
+    <div class="tile keep"><div class="num">5</div><div class="lab">Tier 1 · Keep</div></div>
+    <div class="tile hold"><div class="num">7</div><div class="lab">Tier 2 · Conditional</div></div>
+    <div class="tile skip"><div class="num">21</div><div class="lab">Tier 3 · Skip</div></div>
+    <div class="tile zero"><div class="num">0</div><div class="lab">Malware found</div></div>
+  </div>
+
+  <!-- TIER 1 -->
+  <div class="sec t1">
+    <span class="tag">Tier 1 · Keep</span>
+    <h2>Install-worthy — high fit, clean audited source</h2>
+    <span class="desc">Local, auditable, pip/cargo, no API keys. Source read end-to-end for these.</span>
+  </div>
+  <div class="grid">
+
+    <div class="card keep">
+      <div class="top"><span class="repo"><span class="own">nickclyde/</span>duckduckgo-mcp-server</span>
+        <span class="chip keep">Keep</span></div>
+      <div class="meta"><span>Python</span><span>MIT</span><span class="star">★ 1341</span><span>2026-07</span></div>
+      <p class="desc-t">Zero-config web search + page fetch, no API key. The safe default search server.</p>
+      <div class="note ok"><span class="glyph">✓</span><span>Hits only <b>html.duckduckgo.com</b>. No secrets, no shell. Most-adopted repo on the list.</span></div>
+    </div>
+
+    <div class="card keep">
+      <div class="top"><span class="repo"><span class="own">riponcm/</span>projectmem</span>
+        <span class="chip keep">Keep</span></div>
+      <div class="meta"><span>Python</span><span>MIT</span><span class="star">★ 187</span><span>2026-07</span></div>
+      <p class="desc-t">Coding-agent memory — decisions, bugs &amp; gotchas carried across sessions.</p>
+      <div class="note ok"><span class="glyph">✓</span><span><b>Best trust evidence of the list:</b> zero network calls, read-only git, and it <b>redacts API keys/tokens before storing</b> (<code style="font-family:var(--mono)">redaction.py</code>).</span></div>
+    </div>
+
+    <div class="card keep">
+      <div class="top"><span class="repo"><span class="own">lyonzin/</span>knowledge-rag</span>
+        <span class="chip keep">Keep</span></div>
+      <div class="meta"><span>Python</span><span>MIT</span><span class="star">★ 232</span><span>2026-07</span></div>
+      <p class="desc-t">Local RAG over your own PDFs / markdown / code (BM25 + semantic + rerank).</p>
+      <div class="note ok"><span class="glyph">✓</span><span>Audited: no outbound calls, <b>127.0.0.1-only</b>; subprocess use is benign (<code style="font-family:var(--mono)">nvidia-smi</code>, one-time model download).</span></div>
+    </div>
+
+    <div class="card keep">
+      <div class="top"><span class="repo"><span class="own">reflex-search/</span>reflex</span>
+        <span class="chip keep">Keep</span></div>
+      <div class="meta"><span>Rust</span><span>MIT</span><span class="star">★ 67</span><span>2026-07</span></div>
+      <p class="desc-t">Sub-100ms <b>offline</b> code/symbol search for agents — <code style="font-family:var(--mono)">search_code</code>, <code style="font-family:var(--mono)">find_references</code>.</p>
+      <div class="note ok"><span class="glyph">✓</span><span>Core server fully local; the only network path (<b>ask/LLM</b>) is opt-in and unconfigured by default.</span></div>
+    </div>
+
+    <div class="card keep">
+      <div class="top"><span class="repo"><span class="own">ymw0407/</span>auth-fetch-mcp</span>
+        <span class="chip keep">Keep</span></div>
+      <div class="meta"><span>TypeScript</span><span>MIT</span><span class="star">★ 31</span><span>2026-07</span></div>
+      <p class="desc-t">Login-gated fetch: opens Chromium so you authenticate, returns cleaned HTML. <i>(The one you pasted first.)</i></p>
+      <div class="note ok"><span class="glyph">✓</span><span>Above-average security — full <b>SSRF blocklist</b> re-validated on every request; sessions stay on local disk.</span></div>
+    </div>
+
+  </div>
+
+  <!-- TIER 2 -->
+  <div class="sec t2">
+    <span class="tag">Tier 2 · Conditional</span>
+    <h2>Strong, but a real cost or caveat gates them</h2>
+    <span class="desc">Worth it once a specific need, key, or trust decision is in place.</span>
+  </div>
+  <div class="grid">
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">konippi/</span>servo-fetch</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>Rust</span><span>Apache-2.0</span><span class="star">★ 131</span><span>2026-07</span></div>
+      <p class="desc-t">Most polished fetch — Servo engine → Markdown, respects robots.txt.</p>
+      <div class="note warn"><span class="glyph">!</span><span>Heavyweight build; large JS-rendering attack surface by nature.</span></div>
+    </div>
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">mikechao/</span>brave-search-mcp</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>TypeScript</span><span>GPL-3.0</span><span class="star">★ 121</span><span>2026-05</span></div>
+      <p class="desc-t">Capable multi-type search with built-in auth/audit interceptors.</p>
+      <div class="note warn"><span class="glyph">!</span><span>Needs a <b>Brave API key</b> and is <b>GPL-3.0</b>. DDG already covers the zero-config case.</span></div>
+    </div>
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">sitbon/</span>toolport</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>Rust</span><span>MIT</span><span class="star">★ 91</span><span>2026-07</span></div>
+      <p class="desc-t">Local MCP <b>gateway</b> — one port fronts all servers, secrets in OS keychain, SSRF guard, approval broker, rug-pull detection.</p>
+      <div class="note warn"><span class="glyph">!</span><span>Security-<i>positive</i> design, but it's a central chokepoint <b>holding all your secrets</b> and very young. Read its source before it becomes your secret store.</span></div>
+    </div>
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">samvallad33/</span>vestige</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>Rust</span><span>AGPL-3.0</span><span class="star">★ 585</span><span>2026-07</span></div>
+      <p class="desc-t">Novel "causal backward-reach" memory; real 166-file codebase.</p>
+      <div class="note warn"><span class="glyph">!</span><span>Blessed install runs an <b>opaque prebuilt npm binary</b>, not the source. Watch/experiment via <code style="font-family:var(--mono)">cargo</code> build-from-source only.</span></div>
+    </div>
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">whw23/</span>searxng_http_mcp</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>Python</span><span>MIT</span><span class="star">★ 10</span><span>2026-07</span></div>
+      <p class="desc-t">Wrapper over a self-hosted SearXNG metasearch (OpenSSF badges, constant-time auth).</p>
+      <div class="note warn"><span class="glyph">!</span><span>Clean, but only worth the heavier setup if you want self-hosted privacy metasearch.</span></div>
+    </div>
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">drolosoft/</span>go-docs-mcp</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>Go</span><span>MIT</span><span class="star">★ 9</span><span>2026-05</span></div>
+      <p class="desc-t">Dir-locked local document reader (PDF/DOCX/CSV/images, OCR).</p>
+      <div class="note risk"><span class="glyph">▲</span><span><code style="font-family:var(--mono)">read_url</code> does an <b>unguarded <code style="font-family:var(--mono)">http.Get</code></b> (no SSRF guard). Fine if you set <code style="font-family:var(--mono)">DOCS_MCP_DIR</code> and skip <code style="font-family:var(--mono)">read_url</code>.</span></div>
+    </div>
+
+    <div class="card hold">
+      <div class="top"><span class="repo"><span class="own">back1ply/</span>agent-skill-loader</span>
+        <span class="chip hold">Cond.</span></div>
+      <div class="meta"><span>TypeScript</span><span>MIT</span><span class="star">★ 14</span><span>2026-04</span></div>
+      <p class="desc-t">Surfaces your <code style="font-family:var(--mono)">SKILL.md</code> skills to any MCP client as prompts/tools.</p>
+      <div class="note risk"><span class="glyph">▲</span><span>Reads skill files as prompt text → <b>prompt-injection vector</b>. Safe only pointed at your own trusted skill dirs.</span></div>
+    </div>
+
+  </div>
+
+  <!-- TIER 3 -->
+  <div class="sec t3">
+    <span class="tag">Tier 3 · Skip</span>
+    <h2>Not worth running — with the reason why</h2>
+    <span class="desc">Mostly off-stack or off-domain. Several are fine software; a few carry worse trade-offs.</span>
+  </div>
+  <div class="skipwrap">
+
+    <div class="skipgroup">
+      <div class="skiphead">Off-stack — game / creative / media</div>
+      <div class="row"><span class="r-name"><span class="own">ahujasid/</span>blender-mcp</span><span class="r-why">24k★ and canonical, but no 3D work here — and it <span class="em">runs Python inside Blender</span> by design.</span></div>
+      <div class="row"><span class="r-name"><span class="own">IvanMurzak/</span>Unity-MCP</span><span class="r-why">3.6k★, reputable; executes C# in the Unity editor. Off-stack.</span></div>
+      <div class="row"><span class="r-name"><span class="own">diivi/</span>aseprite-mcp</span><span class="r-why">Solid pixel-art tool; no pixel-art workflow.</span></div>
+      <div class="row"><span class="r-name"><span class="own">Erodenn/</span>godot-mcp-runtime</span><span class="r-why"><span class="em">Cleaner of the two Godot servers</span> (arg-array spawn, path-validation, zero deps) — keep in mind <i>if</i> Godot ever.</span></div>
+      <div class="row"><span class="r-name"><span class="own">n24q02m/</span>better-godot-mcp</span><span class="r-why">Richer tools but leans on an external <span class="em">beta</span> <code style="font-family:var(--mono)">mcp-core</code> dep — extra trust hop.</span></div>
+      <div class="row"><span class="r-name"><span class="own">NAJEMWEHBE/</span>unreal-ai-connection</span><span class="r-why">143 Unreal editor tools over a local socket. Off-stack.</span></div>
+      <div class="row"><span class="r-name"><span class="own">guimatheus92/</span>mcp-video-analyzer</span><span class="r-why">Video → transcript/frames/OCR; heavy deps (browser+ffmpeg). MAYBE only on a concrete need.</span></div>
+      <div class="row"><span class="r-name"><span class="own">j-east/</span>pixel-surgeon-mcp</span><span class="r-why">Gemini image gen/repair; 5★, committed <code style="font-family:var(--mono)">dist/</code>. Off-stack.</span></div>
+      <div class="row"><span class="r-name"><span class="own">cfpramod/</span>open-museum-mcp</span><span class="r-why">Lowest-risk in its bucket, but a niche domain with no tie to your work.</span></div>
+    </div>
+
+    <div class="skipgroup">
+      <div class="skiphead">Off-domain — misc</div>
+      <div class="row"><span class="r-name"><span class="own">lacausecrypto/</span>mcp-sports-hub</span><span class="r-why"><span class="em">Most hardened server in its bucket</span> (127.0.0.1 bind, DNS-rebind protection) — just no use here.</span></div>
+      <div class="row"><span class="r-name"><span class="own">PaSympa/</span>discord-mcp</span><span class="r-why">Full Discord control; broad bot-token scope not worth it absent a need.</span></div>
+      <div class="row"><span class="r-name"><span class="own">jkiley129/</span>steam-mcp</span><span class="r-why">Game-library trivia; committed tarball (build from source if ever).</span></div>
+      <div class="row"><span class="r-name"><span class="own">afshinator/</span>mcp-server-pexels</span><span class="r-why">Clean stock-media search; irrelevant unless the notes app needs stock imagery.</span></div>
+      <div class="row"><span class="r-name"><span class="own">arikusi/</span>nakkas</span><span class="r-why">Animated-SVG generator; off-topic.</span></div>
+    </div>
+
+    <div class="skipgroup">
+      <div class="skiphead">Over-engineered or licensing</div>
+      <div class="row"><span class="r-name"><span class="own">l33tdawg/</span>sage</span><span class="r-why">Memory run through a <span class="em">BFT consensus node</span> + federation — massive attack surface for solo use.</span></div>
+      <div class="row"><span class="r-name"><span class="own">sheawinkler/</span>ContextLattice</span><span class="r-why"><span class="em">BSL-1.1 — source-available, not OSS</span>, with paid tiers and cross-machine network surface.</span></div>
+      <div class="row"><span class="r-name"><span class="own">fabio-rovai/</span>open-ontologies</span><span class="r-why">Well-made OWL/RDF ontology engineering — outside your workflow.</span></div>
+    </div>
+
+    <div class="skipgroup">
+      <div class="skiphead">Right category, wrong fit</div>
+      <div class="row"><span class="r-name"><span class="own">gamosoft/</span>NoteDiscovery</span><span class="r-why">2.6k★, but <span class="em">overlaps your own Flutter notes app</span> — a competitor, not a tool.</span></div>
+      <div class="row"><span class="r-name"><span class="own">HasanJahidul/</span>git-insight-mcp</span><span class="r-why">On-topic (semantic git queries) but only 2★ — audit source before trusting.</span></div>
+    </div>
+
+    <div class="skipgroup">
+      <div class="skiphead">Different job — reconsider if the need arises</div>
+      <div class="row"><span class="r-name"><span class="own">sitbon/</span>magg</span><span class="r-why">MCP aggregator that lets the <span class="em">model auto-install servers</span> — privilege-escalation surface; only with auto-add disabled.</span></div>
+      <div class="row"><span class="r-name"><span class="own">hidai25/</span>eval-view</span><span class="r-why">Agent regression/snapshot testing — genuinely useful <i>if</i> you build agents.</span></div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <span class="li"><span class="dot keep"></span> <b style="color:var(--ink)">Keep</b> — run today, clean &amp; high-fit</span>
+    <span class="li"><span class="dot hold"></span> <b style="color:var(--ink)">Conditional</b> — gated by a key, setup, or trust call</span>
+    <span class="li"><span class="dot skip"></span> <b style="color:var(--ink)">Skip</b> — off-stack or worse trade-off</span>
+    <span class="li"><span style="font-family:var(--mono);color:var(--danger);font-weight:700">▲</span> source-level security caveat</span>
+  </div>
+
+  <footer>
+    <b>Run today, low-risk:</b> duckduckgo-mcp-server · projectmem · knowledge-rag · reflex — all local, no API keys.<br>
+    <b>Method:</b> 3 read-only agents pulled <code>gh api</code> metadata + READMEs for every repo, then read actual server source for the plausible/relevant ones. Claims like "no network calls" came from reading source (projectmem, knowledge-rag, auth-fetch-mcp, toolport); README-only judgments are flagged as such. Stars &amp; dates as of 2026-07-17.<br>
+    <b>Before installing anything:</b> do a line-by-line source audit of that specific server, on the exact commit you install — these are fast-moving, young repos.
+  </footer>
+
+</div>
