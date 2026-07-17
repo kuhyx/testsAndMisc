@@ -1,0 +1,71 @@
+{
+  "intent": "Replace the digital-wellbeing midnight power-off with a 'night lockdown' that keeps the machine ON so the 24/7 self-hosted servers keep serving, while tearing down the user GUI, masking the TTY login surface, and blanking the console so the machine is unusable and the room is dark. A morning timer restores the desktop at 05:00 and, on alarm days, re-fires the wake alarm that the removed hibernate/resume cycle used to trigger.",
+  "scope": [
+    "NEW linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh (installer)",
+    "EDIT linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh (terminal action swap, morning off-by-one, Thu-Sun constant 22->21)",
+    "Installed: /usr/local/bin/night-lockdown-{enter,unlock}.sh; /etc/night-lockdown.conf; /var/lib/night-lockdown/; night-lockdown-unlock.{service,timer}; /etc/modules-load.d/night-lockdown-i2c.conf",
+    "Non-goals: night fan quieting deferred (BIOS SmartFan retained); nftables untouched (investigated, not broken -- it is a Type=oneshot unit whose 'inactive (dead)' state is normal, and its ruleset is enforcing)"
+  ],
+  "changes": [
+    "setup_midnight_shutdown.sh: terminal action swapped from rtcwake/hibernate/poweroff to a call to night-lockdown-enter.sh (DRY_RUN passthrough), so the curfew no longer takes the servers down with it.",
+    "setup_midnight_shutdown.sh: morning boundary -le -> -lt on both day branches, so 05:00 evaluates as OUTSIDE the window and cannot race the unlock timer.",
+    "setup_midnight_shutdown.sh: SCHEDULE_THU_SUN_HOUR 22->21 to match the canonical schedule screen_locker's sick-day feature ratcheted in on 2026-07-03; the ratchet only permits same/stricter, so the script was otherwise un-re-runnable and the check script could not be regenerated. User authorized this alignment.",
+    "Lock action: RGB-off (best-effort) -> ALSA mute -> stop GUI-bound user units/tray procs -> silence console -> mask getty@ -> stop lightdm -> blank console. Persists state=LOCKED BEFORE the session-killing teardown so a kill mid-teardown cannot leave state=UNLOCKED and defeat the unlock (which no-ops on UNLOCKED).",
+    "Mask getty@.service ONLY: autovt@.service is an alias symlink to it, so masking getty@ makes autovt@ttyN resolve to masked; passing autovt@ to `systemctl mask` fails ('File /etc/systemd/system/autovt@.service already exists and is a symlink'), which produced a nightly WARN. Guarded the tray-proc pkill with pgrep so a not-running app stops logging a false WARN.",
+    "Console darkening: stopping lightdm hands the VT back to fbcon, which unblanks and prints kernel/systemd log spam instead of darkness (consoleblank=0 means it never blanks on its own). Lock now sends RTMIN+21 to PID 1 (systemd status off), lowers kernel.printk to '1 4 1 4' (saved for restore), and blanks via fbN/blank + setterm. Unlock restores all of it first, so the console can never be left permanently muted.",
+    "Console blank uses FB_BLANK_NORMAL(1), NOT FB_BLANK_POWERDOWN(4): DisplayPort drops its link on powerdown and the GPU never re-trains it (DP-0 vanished from xrandr and needed a physical cable re-plug); HDMI tolerates it. Exposed as CONSOLE_BLANK_MODE with the hazard documented.",
+    "Morning unlock re-fires the wake alarm the always-on model displaced: on alarm days (date %u in ALARM_DAYS_DOW='1 5 6 7' = Mon/Fri/Sat/Sun) it waits <=60s for graphical-session.target then starts morning-routine.service. The day-gate is re-implemented here because wake_alarm's own gate fires every day; the Mon/Fri/Sat/Sun restriction previously lived only in the removed rtcwake branch.",
+    "Recovery: setup_night_lockdown.sh unlock restores the GUI immediately over SSH and prints the shutdown-override-manager.sh command to hold unlocked till morning, so staying up keeps the deliberate confirm-phrase friction rather than becoming a friction-free nightly bypass.",
+    "RGB now actually works (it previously self-reported 'no controllers' and silently no-op'd). Root cause: the installed openrgb-git 0.9.2148 build had a broken CLI -- every invocation returned in ~70ms, before async detection completed (~1700ms), so --list-devices printed nothing, `--device N` errored 'Empty device ID', and `--mode X` silently applied to an empty device list while still exiting 0. Fixed by replacing openrgb-git with stable openrgb 1.0rc3-1 from extra, whose CLI detects (~1.9s) before acting. All 4 controllers are detected on 1.0rc3, including the ZOTAC (the 'Unrecognized controller version' line comes from a second Zotac detector; another one registers it), so no capability was lost in the swap.",
+    "Lights-off uses static+black, NOT the 'off' mode: the ZOTAC RTX 3090 exposes no Off mode at all, and the ASRock B650M Pro RS lists Off but silently ignores it (its active mode stayed Rainbow), while static+black moves it to Static. All 4 devices support Static, so 'openrgb --mode static --color 000000' is the one form that works everywhere -- verified by readback showing ACTIVE: Static on all four.",
+    "RGB policy is simply OFF AT ALL TIMES (user preference), so there is no pre-lock lighting to remember: RGB_RESTORE_MODE=off keeps the morning unlock dark, and a new rgb-off.service (Type=oneshot, RemainAfterExit, WantedBy=multi-user.target) re-applies `openrgb --mode off` at every boot -- without it the board firmware re-lights RAM/board/GPU on power-on and they would only go dark again at the next 21:00 lock. This also sidesteps openrgb --save-profile being broken in this build (reports success while writing a profile with only {profile_name, profile_version} and no device state).",
+    "RGB_HOME pins openrgb's HOME to /root: openrgb keeps config/profiles under $HOME, and systemd (HOME=/root) vs sudo (HOME=/home/kuhy) would otherwise disagree about where that state lives.",
+    "write_config() now runs `bash -n` on the generated /etc/night-lockdown.conf and aborts if invalid. The config heredoc must stay UNQUOTED (it interpolates the detected user/uid/ALSA cards), which means any stray backtick or $ ANYWHERE in it -- including inside a comment -- is executed/expanded and its output injected into the file. That happened twice during development; the second time it ran openrgb mid-write and pasted its stderr into the config, producing invalid shell that made the lock script fail to source it and silently skip every configured step. The syntax check turns that class of bug into a loud install-time failure."
+  ],
+  "verification": [
+    {
+      "command": "PRODUCTION: overnight run 2026-07-16 21:00 -> 2026-07-17 05:00",
+      "result": "pass",
+      "evidence": "journalctl: lightdm 'Stopping' 21:00:04 -> 'Started' 05:00:00 (GUI down the full 8h). All 7 docker containers 'Up 14 hours' and docker/ollama/dnsmasq/wg-quick@wg0/sshd active since 17:15 -- servers ran straight THROUGH the lockdown, no restart; gitea/syncyomi/personal-website/HTTPS edge all 200. Ticks 21:30-04:30 all 'already LOCKED - nothing to do'. 05:00 check: 'Time 05:00 is outside shutdown window' (off-by-one fix). 05:00 unlock: 'alarm day (dow=5) - starting morning-routine.service' (alarm regression fix fired for real). 05:15/05:30/06:00/07:00 'already UNLOCKED'."
+    },
+    {
+      "command": "sudo systemd-run --unit=nl-test --collect <live lock/unlock test>",
+      "result": "pass",
+      "evidence": "WARN-free run (autovt@ mask + pkill warnings gone). Lock 07:57:54 -> unlock 07:58:06 (~10s dark). 'not an alarm day (dow=5) - skipping morning alarm' with the gate suppressed, so the workout locker was not triggered; ALARM_DAYS_DOW restored to '1 5 6 7' by the trap. User confirmed screen was completely black and the GUI returned. REGRESSION FOUND: FB_BLANK_POWERDOWN killed DP-0 (needed cable re-plug); HDMI unaffected -- fixed by switching to FB_BLANK_NORMAL."
+    },
+    {
+      "command": "sudo <scratchpad>/nl_console_test.sh (VT-switch test, does not stop lightdm)",
+      "result": "pass",
+      "evidence": "DP-0 'connected primary 3840x2160' BEFORE and AFTER the blank -- no link loss, no re-plug. HDMI-0 unaffected. All state restored: VT 7, fb0 blank=0, printk '4 4 1 4', ShowStatus=yes, getty@ enabled. User confirmed VT6 was actually black. GUI/Claude sessions survived (test never stops lightdm)."
+    },
+    {
+      "command": "sudo env HOME=/root openrgb --mode off ; systemctl status rgb-off.service",
+      "result": "pass",
+      "evidence": "openrgb --mode off rc=0 in ~1073ms (vs the broken --list-devices at ~73ms); observed live: RAM/board lights go off, and come back with `--mode 'spectrum cycle'`, so control is real in both directions. OpenRGB server-mode log confirms 4 controllers registered: 2x 'ENE DRAM', 'ASRock B650M Pro RS', 'ZOTAC GAMING GeForce RTX 3090 Trinity'; client mode lists modes incl. 'Off'. rgb-off.service: enabled, 'active (exited)', ExecStart status=0/SUCCESS -- lights off immediately on install and on every boot thereafter."
+    },
+    {
+      "command": "shellcheck + bash -n on installer and generated enter/unlock scripts",
+      "result": "pass",
+      "evidence": "All clean. shellcheck (SC1073) caught a real bug: backticks and $HOME inside the UNQUOTED config heredoc were being command-substituted/expanded at config-write time (the written comment had lost its backticked text and $HOME had become /home/kuhy). Reworded to avoid backticks and $ in that heredoc. Installer idempotent; verify_install reports all artifacts present, unlock timer enabled, and 'day-specific-shutdown-check.sh calls the lockdown action'."
+    },
+    {
+      "command": "Component checks (reversible, live)",
+      "result": "pass",
+      "evidence": "amixer -c 3 Master mute->[off]/unmute->[on]; getty@ mask->masked/unmask->enabled and 'systemctl start autovt@tty4' -> 'Unit is masked' (proves VT login blocked by masking getty@ alone); RTMIN+21 -> ShowStatus=no, RTMIN+20 -> yes; kernel.printk 4->1->restored; check_active_override still runs before the lock call after regeneration."
+    }
+  ],
+  "risks": [
+    "Hard lockout's only recovery is SSH (WireGuard/LAN sshd); a bug in the lock path can lock the physical machine out until 05:00. Mitigated by state-before-teardown ordering and 5 staggered Persistent unlock triggers on units outside the shutdown fortress.",
+    "getty masks are /dev/null symlinks persisting across reboot; recovery must unmask, never rely on a reboot. Booting inside the window stays locked by design.",
+    "Monitors now stay awake showing black rather than dropping to standby (DP link safety); slightly more backlight glow than true-off.",
+    "The alarm's only outputs are the G27Q HDMI speaker (ALARM_AUDIO_SINK) and the analog RGB speakers. Powering BOTH off by hand leaves the alarm literally no sink -- which is how the first night's alarm went silent. The darkness fix removes the reason to do that; a Tapo P110 plug is supported by wake_alarm but not configured.",
+    "SCHEDULE_THU_SUN_HOUR 22->21 is now the permanent source default; if screen_locker's sick-day 21 was meant to be temporary this bakes it in (user authorized).",
+    "The installed openrgb-git 0.9.2148 build has a broken CLI (--list-devices races; --save-profile writes empty profiles). Stable openrgb 1.0rc3-1 exists in extra and would likely fix both, but the swap was deliberately NOT made: its only benefit was true profile save/restore, which an always-off policy does not need, and it is unverified whether 1.0rc3 still supports the ZOTAC 30/40-series GPU controller.",
+    "The speakers' RGB is NOT controllable: they expose no data device (lsusb shows only webcam/mouse/keyboard/BT/phone/ASRock LED controller), so their light is wired to their power. If that glow is what prompts switching them off by hand, only cutting their power would fix it -- and switching them off removes the analog sink, leaving the alarm dependent on the G27Q HDMI sink (so the monitors must stay powered)."
+  ],
+  "rollback": [
+    "sudo chattr -i setup_midnight_shutdown.sh; git checkout the file; sudo ./setup_midnight_shutdown.sh enable (answer y) to regenerate the poweroff/hibernate check script.",
+    "sudo systemctl disable --now night-lockdown-unlock.timer; rm /usr/local/bin/night-lockdown-*.sh /etc/night-lockdown.conf /etc/modules-load.d/night-lockdown-i2c.conf; rm -rf /var/lib/night-lockdown; rm /etc/systemd/system/night-lockdown-unlock.{service,timer}; systemctl daemon-reload.",
+    "Validate after rollback: at a window time, DRY_RUN /usr/local/bin/day-specific-shutdown-check.sh and confirm it logs the poweroff/hibernate path; confirm getty@ is not masked and lightdm is active."
+  ]
+}
