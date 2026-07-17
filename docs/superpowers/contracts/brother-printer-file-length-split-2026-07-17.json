@@ -1,0 +1,16 @@
+{
+  "title": "brother_printer: satisfy the 500-line limit and make the entry-point test order-independent",
+  "objective": "The previous commit (a12e696) turned CI red: four brother_printer files grew past the repo's 500-line ceiling, and the __main__ entry-point test only passed when it ran before the test that imports the module. Both were missed locally because the suite was run for the brother_printer package alone, while the file-length test scans the whole repo and CI randomises test order. Split the oversized files along real seams rather than arbitrary cuts, and make the entry-point test independent of ordering. Success: the full suite passes in any order with 100% coverage, and no file this change owns exceeds 500 lines.",
+  "acceptance_criteria": [
+    "No file owned by this change exceeds 500 lines",
+    "Consumable life tracking lives in its own module, split at a real responsibility boundary and with no import cycle",
+    "test_main_entry passes regardless of test execution order, with pytest's filterwarnings=error in force",
+    "The full python_pkg suite passes with 100% statement and branch coverage",
+    "No behaviour change: this is a structural split plus one test fix"
+  ],
+  "out_of_scope": [
+    "linux_configuration/.../focus_mode_daemon.py (509 lines), which breached the limit in commit 22e22c1 and is not owned by this change",
+    "Any change to the reporting behaviour verified against the printer in a12e696"
+  ],
+  "verifier": "python3 -m pytest python_pkg/ (full suite, random order, 100% coverage); wc -l over tracked *.py; ./run.sh against the real HL-1110; pre-commit run --files <changed files>"
+}

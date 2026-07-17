@@ -1,0 +1,52 @@
+{
+  "intent": "Fix the CI failure introduced by a12e696: bring files back under the repo's 500-line limit and make the entry-point test order-independent, with no behaviour change.",
+  "scope": [
+    "python_pkg/brother_printer/consumables.py: new module holding consumable life tracking",
+    "python_pkg/brother_printer/cups_service.py: 659 -> 414 lines",
+    "python_pkg/brother_printer/tests/: split test_consumables, test_display_part3, test_usb_query_part2",
+    "python_pkg/brother_printer/tests/test_main_entry.py: order-independence fix",
+    "Non-goal: any behaviour change; a12e696's verified reporting is untouched",
+    "Non-goal: focus_mode_daemon.py (509 lines, breached in 22e22c1, different package)"
+  ],
+  "changes": [
+    "Extract page counters, replacement baselines, the scale migration, and dropped-page detection from cups_service.py into consumables.py. The seam is real: none of it depends on CUPS service control, and cups_service only needs estimate_consumable_life for its fallback query, so the dependency runs one way with no cycle. cups_service.py 659 -> 414 lines, consumables.py 281.",
+    "Split the test files along the same seams: test_consumables.py (state/estimates/resets) and test_consumables_part2.py (counter scales and dropped pages); move page-count and dropped-page display tests to test_display_part3.py; move the PJL wire-protocol tests to test_usb_query_part2.py.",
+    "test_main_entry: pop python_pkg.brother_printer.__main__ from sys.modules before runpy.run_module. runpy emits a RuntimeWarning when the module is already imported, pytest is configured with filterwarnings=error, and the suite runs in random order - so the test passed or failed depending on whether the sibling import test ran first."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/ (full suite, as CI runs it)",
+      "result": "pass",
+      "evidence": "692 passed; Required test coverage of 100.0% reached. Total coverage: 100.00%. The only local failure is test_file_length hitting a UnicodeDecodeError on an untracked .ci-mirror-venv/ file absent from CI's checkout."
+    },
+    {
+      "command": "pytest test_main_entry ordered import-first (the order CI hit)",
+      "result": "pass",
+      "evidence": "Previously reproduced the CI failure exactly: RuntimeWarning: '...__main__' found in sys.modules after import of package. Now passes in either order."
+    },
+    {
+      "command": "wc -l over tracked *.py",
+      "result": "pass",
+      "evidence": "No file owned by this change exceeds 500 lines. Only linux_configuration/.../focus_mode_daemon.py (509) remains, from commit 22e22c1."
+    },
+    {
+      "command": "./run.sh against the real Brother HL-1110",
+      "result": "pass",
+      "evidence": "Unchanged after the split: '. Sleep (standby)' CODE=40000, total 2087 pages, toner 68%, drum 80%."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All hooks pass (ruff, ruff format, mypy, pylint, bandit, coverage enforcement)."
+    }
+  ],
+  "risks": [
+    "Import churn: display.py and check_brother_printer.py now import consumables directly. Verified no cycle, and the full suite plus a real run exercise both paths.",
+    "The split is structural only; no logic moved between functions. Coverage remained at 100% throughout, so no branch lost its test.",
+    "CI will stay red until focus_mode_daemon.py (509 lines) is addressed. That breach predates this change and belongs to another package; it lay latent because the Python-tests workflow only triggers on python_pkg/** changes."
+  ],
+  "rollback": [
+    "git revert <commit> restores the single-module layout; a12e696's behaviour is unaffected either way.",
+    "After rollback, validate with ./run.sh and expect the 500-line test to fail again on cups_service.py."
+  ]
+}

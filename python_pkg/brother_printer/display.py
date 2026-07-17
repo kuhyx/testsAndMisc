@@ -22,13 +22,13 @@ from python_pkg.brother_printer.constants import (
     _out,
     get_status_info,
 )
+from python_pkg.brother_printer.consumables import (
+    check_page_delivery,
+    estimate_consumable_life,
+)
 from python_pkg.brother_printer.cups_queue import (
     display_cups_queue_status,
     get_cups_queue_status,
-)
-from python_pkg.brother_printer.cups_service import (
-    check_page_delivery,
-    estimate_consumable_life,
 )
 from python_pkg.brother_printer.data_classes import (
     NetworkResult,

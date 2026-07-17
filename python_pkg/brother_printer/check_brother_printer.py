@@ -35,7 +35,7 @@ import sys
 
 from python_pkg.brother_printer._query import run_command_text
 from python_pkg.brother_printer.constants import CYAN, RED, RESET, _out
-from python_pkg.brother_printer.cups_service import reset_consumable
+from python_pkg.brother_printer.consumables import reset_consumable
 from python_pkg.brother_printer.display import (
     display_network_results,
     display_usb_results,

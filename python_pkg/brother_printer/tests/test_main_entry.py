@@ -12,6 +12,10 @@ class TestMain:
     def test_main_called_when_run_as_module(self) -> None:
         """python3 -m python_pkg.brother_printer runs main()."""
         mock_main = MagicMock()
+        # runpy warns if __main__ is already imported, and the suite runs tests
+        # in a random order, so another test may have imported it first. The
+        # warning is an error here, so drop it and let runpy execute it fresh.
+        sys.modules.pop("python_pkg.brother_printer.__main__", None)
         with patch(
             "python_pkg.brother_printer.check_brother_printer.main",
             mock_main,
