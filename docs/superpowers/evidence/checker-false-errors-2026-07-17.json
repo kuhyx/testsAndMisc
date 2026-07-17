@@ -1,0 +1,27 @@
+{
+  "intent": "check_and_enable_services.sh reported red 'error' for services that were healthy, and still tracked a service the author no longer uses. Make its report truthful: fix the workout-locker paths left behind by the screen-locker repo extraction, fix user-service queries that could never work from root, and drop thesis_tracker.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh",
+    "Non-goals: focus_mode and guest_mode_removal (their 'error' status is GENUINE — focus-mode.service is not-found and the guest-mode policies are absent); installing/enabling anything"
+  ],
+  "changes": [
+    "workout_locker paths: pointed at ~/screen-locker (install_systemd.sh, screen_locker/screen_lock.py) instead of the monorepo python_pkg/screen_locker/ path, which stopped existing when screen-locker was extracted to its own repo. The real user's home is resolved via SUDO_USER + getent, since the script re-execs itself under sudo ($HOME would be /root).",
+    "Added user_systemctl(): queries a USER unit from root via `systemctl --user --machine=<user>@.host`. The previous `sudo -u <user> systemctl --user ...` has no XDG_RUNTIME_DIR/DBUS_SESSION_BUS_ADDRESS, so it always failed with 'Failed to connect to user scope bus' and reported EVERY user service as not-enabled. Rerouted all 6 call sites (focus-mode x2, thorium x1, workout-locker x3).",
+    "Removed thesis_tracker entirely (variable, check function, main() call, summary row, help entry) — the author does not use it; the unit was not-found and the tracker script was never installed. Renumbered the help list."
+  ],
+  "verification": [
+    {
+      "command": "systemctl --user is-enabled/is-active workout-locker.service (as the user) vs the checker's report; sudo bash check_and_enable_services.sh --status; bash -n; shellcheck --severity=warning",
+      "result": "pass",
+      "evidence": "Ground truth as kuhy: workout-locker.service enabled+active; focus-mode.service not-found. Before: checker said 'workout-locker.service is not enabled' (false) and screen_lock.py missing. After: workout_locker reports ok with all three checks ✓ (screen_lock.py exists at ~/screen-locker/screen_locker/screen_lock.py, enabled, active); thesis_tracker gone from the summary; focus_mode/guest_mode_removal still correctly error. exit 0; parse OK; shellcheck clean."
+    }
+  ],
+  "risks": [
+    "user_systemctl relies on systemd-machined / --machine=<user>@.host; if that is unavailable the user-service checks degrade to reporting not-enabled again (the previous behaviour).",
+    "The workout-locker path assumes the extracted repo is checked out at ~/screen-locker; if it moves, the check reports missing (now loudly, via err_missing_script)."
+  ],
+  "rollback": [
+    "git revert the commit.",
+    "Validate after rollback: check_and_enable_services --status again reports workout_locker as error despite the service being enabled+active."
+  ]
+}

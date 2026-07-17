@@ -38,15 +38,26 @@ PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/scripts/periodic_background/setup_periodic_s
 HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
 HOSTS_GUARD_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/setup_hosts_guard.sh"
 HOSTS_PACMAN_HOOKS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/install_pacman_hooks.sh"
-THESIS_TRACKER_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_thesis_work_tracker.sh"
 FOCUS_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh"
 COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
 THORIUM_STARTUP_SCRIPT="$CONFIG_DIR/scripts/single_use/setup_thorium_startup.sh"
 LEECHBLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_leechblock.sh"
 REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/remove_guest_mode.sh"
 VBOX_HOSTS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
-WORKOUT_LOCKER_INSTALL_SCRIPT="$(dirname "$CONFIG_DIR")/python_pkg/screen_locker/install_systemd.sh"
-WORKOUT_LOCKER_SCRIPT="$(dirname "$CONFIG_DIR")/python_pkg/screen_locker/screen_lock.py"
+# screen-locker was EXTRACTED out of this monorepo into its own repo
+# (github.com/kuhyx/screen-locker, checked out at ~/screen-locker), so these
+# paths deliberately live outside testsAndMisc. They used to point at
+# python_pkg/screen_locker/, which stopped existing at extraction time — the
+# result was check_workout_locker reporting a red "error" for a service that was
+# installed and enabled the whole time, while its "fix" silently did nothing.
+# Resolve the invoking user's home: this script re-execs itself via sudo, so
+# $HOME would be /root here.
+REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
+REAL_HOME="$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f6)"
+[[ -n $REAL_HOME ]] || REAL_HOME="/home/$REAL_USER"
+WORKOUT_LOCKER_REPO="$REAL_HOME/screen-locker"
+WORKOUT_LOCKER_INSTALL_SCRIPT="$WORKOUT_LOCKER_REPO/install_systemd.sh"
+WORKOUT_LOCKER_SCRIPT="$WORKOUT_LOCKER_REPO/screen_locker/screen_lock.py"
 
 ######################################################################
 # Helpers
@@ -68,6 +79,20 @@ err_missing_script() {
 	err "$*"
 	logger -t check-and-enable-services -p user.err "MISSING REPAIR SCRIPT: $*"
 	MISSING_SCRIPTS+=("$*")
+}
+
+# Query a USER systemd unit from root.
+# `sudo -u <user> systemctl --user ...` does NOT work here: sudo gives it no
+# XDG_RUNTIME_DIR / DBUS_SESSION_BUS_ADDRESS, so it cannot reach the user bus and
+# fails with "Failed to connect to user scope bus via local transport". Every
+# check using it therefore reported EVERY user service as "not enabled" — a false
+# error for services that were enabled and running (workout-locker was reported
+# broken for months while working fine). systemd's own error suggests the fix:
+# --machine=<user>@.host connects to another user's bus correctly.
+user_systemctl() { # <user> <systemctl args...>
+	local u="$1"
+	shift
+	systemctl --user --machine="${u}@.host" "$@"
 }
 
 run() {
@@ -105,14 +130,13 @@ Services checked:
   3. Startup monitor      - PC startup time monitoring service
   4. Periodic systems     - Hourly maintenance timer and hosts monitor
   5. Hosts and guards     - /etc/hosts blocking and protection layers
-  6. Thesis work tracker  - Work quota enforcement with distraction blocking
-  7. Focus mode daemon    - Steam/Browser mutual exclusion (user service)
-  8. Compulsive blocker   - Limits messaging apps to one launch per hour
-  9. Thorium startup      - Auto-launch Thorium with Fitatu on boot
- 10. LeechBlock           - Browser extension for site blocking
- 11. Guest mode removal   - Disable Chromium guest mode via policy
- 12. VirtualBox hosts     - Enforce /etc/hosts inside VMs
- 13. Workout lock screen  - Requires workout logging to unlock screen (user service)
+  6. Focus mode daemon    - Steam/Browser mutual exclusion (user service)
+  7. Compulsive blocker   - Limits messaging apps to one launch per hour
+  8. Thorium startup      - Auto-launch Thorium with Fitatu on boot
+  9. LeechBlock           - Browser extension for site blocking
+ 10. Guest mode removal   - Disable Chromium guest mode via policy
+ 11. VirtualBox hosts     - Enforce /etc/hosts inside VMs
+ 12. Workout lock screen  - Requires workout logging to unlock screen (user service)
 EOF
 }
 
@@ -838,58 +862,6 @@ check_hosts() {
 	SERVICE_STATUS["hosts"]=$status
 }
 
-check_thesis_tracker() {
-	header "Thesis Work Tracker"
-
-	local status="ok"
-	local issues=()
-	local user="${SUDO_USER:-$USER}"
-
-	# Check service
-	if systemctl is-enabled "thesis-work-tracker@${user}.service" &>/dev/null; then
-		msg "thesis-work-tracker@${user}.service is enabled"
-	else
-		issues+=("thesis-work-tracker@${user}.service is not enabled")
-		status="error"
-	fi
-
-	if systemctl is-active "thesis-work-tracker@${user}.service" &>/dev/null; then
-		msg "thesis-work-tracker@${user}.service is active"
-	else
-		issues+=("thesis-work-tracker@${user}.service is not active")
-		if [[ $status != "error" ]]; then status="warning"; fi
-	fi
-
-	# Check tracker script
-	if [[ -f /usr/local/bin/thesis_work_tracker.sh ]]; then
-		msg "Tracker script exists at /usr/local/bin/thesis_work_tracker.sh"
-	else
-		issues+=("thesis_work_tracker.sh not found in /usr/local/bin")
-		status="error"
-	fi
-
-	# Check status script
-	if [[ -f /usr/local/bin/thesis_work_status.sh ]]; then
-		msg "Status script exists at /usr/local/bin/thesis_work_status.sh"
-	else
-		issues+=("thesis_work_status.sh not found in /usr/local/bin")
-		if [[ $status != "error" ]]; then status="warning"; fi
-	fi
-
-	# Check state directory
-	if [[ -d /var/lib/thesis-work-tracker ]]; then
-		msg "State directory exists"
-	else
-		issues+=("State directory /var/lib/thesis-work-tracker missing")
-		status="error"
-	fi
-
-	report_and_fix issues status "thesis_tracker" \
-		"Setting up thesis work tracker..." \
-		"$THESIS_TRACKER_SCRIPT" \
-		"thesis-work-tracker@${user}.service"
-}
-
 check_focus_mode() {
 	header "Focus Mode Daemon (Steam/Browser Mutual Exclusion)"
 
@@ -908,14 +880,14 @@ check_focus_mode() {
 	fi
 
 	# Check user service (must run as actual user)
-	if sudo -u "$user" systemctl --user is-enabled focus-mode.service &>/dev/null 2>&1; then
+	if user_systemctl "$user" is-enabled focus-mode.service &>/dev/null 2>&1; then
 		msg "focus-mode.service is enabled (user service)"
 	else
 		issues+=("focus-mode.service is not enabled (user service)")
 		status="error"
 	fi
 
-	if sudo -u "$user" systemctl --user is-active focus-mode.service &>/dev/null 2>&1; then
+	if user_systemctl "$user" is-active focus-mode.service &>/dev/null 2>&1; then
 		msg "focus-mode.service is active"
 	else
 		issues+=("focus-mode.service is not active")
@@ -1017,7 +989,7 @@ check_thorium_startup() {
 	else
 		# Check user service as fallback
 		local user="${SUDO_USER:-$USER}"
-		if sudo -u "$user" systemctl --user is-enabled thorium-fitatu-startup.service &>/dev/null 2>&1; then
+		if user_systemctl "$user" is-enabled thorium-fitatu-startup.service &>/dev/null 2>&1; then
 			msg "thorium-fitatu-startup.service is enabled (user service)"
 		else
 			issues+=("thorium-fitatu-startup.service is not enabled")
@@ -1204,7 +1176,7 @@ check_workout_locker() {
 	fi
 
 	# Check user service is enabled
-	if sudo -u "$user" systemctl --user is-enabled workout-locker.service &>/dev/null 2>&1; then
+	if user_systemctl "$user" is-enabled workout-locker.service &>/dev/null 2>&1; then
 		msg "workout-locker.service is enabled (user service)"
 	else
 		issues+=("workout-locker.service is not enabled (user service)")
@@ -1212,7 +1184,7 @@ check_workout_locker() {
 	fi
 
 	# Check user service is active (advisory — it only runs at login)
-	if sudo -u "$user" systemctl --user is-active workout-locker.service &>/dev/null 2>&1; then
+	if user_systemctl "$user" is-active workout-locker.service &>/dev/null 2>&1; then
 		msg "workout-locker.service is active"
 	else
 		issues+=("workout-locker.service is not active (expected at login time)")
@@ -1235,7 +1207,7 @@ check_workout_locker() {
 				run sudo -u "$user" bash "$WORKOUT_LOCKER_INSTALL_SCRIPT"
 				((FIXES_APPLIED++)) || true
 				# Re-verify
-				if [[ $DRY_RUN -eq 0 ]] && sudo -u "$user" systemctl --user is-enabled workout-locker.service &>/dev/null 2>&1; then
+				if [[ $DRY_RUN -eq 0 ]] && user_systemctl "$user" is-enabled workout-locker.service &>/dev/null 2>&1; then
 					status="ok"
 				fi
 			else
@@ -1253,7 +1225,7 @@ print_summary() {
 	printf "%-25s %s\n" "Service" "Status"
 	printf "%-25s %s\n" "-------" "------"
 
-	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts thesis_tracker focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
+	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
 		local status="${SERVICE_STATUS[$service]:-unknown}"
 		local color
 		case "$status" in
@@ -1310,7 +1282,6 @@ main() {
 	check_startup_monitor
 	check_periodic_systems
 	check_hosts
-	check_thesis_tracker
 	check_focus_mode
 	check_compulsive_blocker
 	check_thorium_startup
