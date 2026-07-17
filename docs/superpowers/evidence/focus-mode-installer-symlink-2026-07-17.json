@@ -1,0 +1,56 @@
+{
+  "intent": "Make editing focus_mode_daemon.py actually change what runs. The installer copied the script to /usr/local/bin/focus-mode-daemon, so the deployed daemon silently went stale the moment the repo file was edited - a fix for phantom Steam detection (commit 22e22c1) sat in the repo while a months-old copy kept killing browsers.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh",
+    "Non-goal: any change to focus_mode_daemon.py itself (done separately in 22e22c1).",
+    "Non-goal: the other install scripts in this tree that may copy rather than link; not audited here."
+  ],
+  "changes": [
+    "install_daemon(): replaced `install -m 755 <src> <dst>` with `ln -sfn <src> <dst>`, so /usr/local/bin/focus-mode-daemon is a symlink into the checkout and editing the repo file IS deploying it.",
+    "Added `chmod +x` on the source, since a symlink takes its executability from the target rather than from an install mode.",
+    "uninstall_daemon(): widened the removal guard from `[[ -f ]]` to `[[ -e || -L ]]`. -f and -e both follow symlinks and report false for a link whose target is gone, which is exactly the case (repo moved or deleted) where a stale link most needs clearing.",
+    "Documented in-comment why a link and not a copy, and noted that the target lives in the user's checkout - acceptable because focus-mode runs as a systemd *user* service and so crosses no privilege boundary."
+  ],
+  "verification": [
+    {
+      "command": "./install_focus_mode_daemon.sh install",
+      "result": "pass",
+      "evidence": "'Linking /usr/local/bin/focus-mode-daemon -> /home/kuhy/testsAndMisc/.../focus_mode_daemon.py'. ls -la confirms lrwxrwxrwx pointing at the checkout; before the change it was '-rwxr-xr-x root root 15760' (a copy)."
+    },
+    {
+      "command": "stat -L -c '%i %n' /usr/local/bin/focus-mode-daemon focus_mode_daemon.py",
+      "result": "pass",
+      "evidence": "Both report inode 92274745 - the deployed command IS the repo file. (Note: plain `stat` without -L reports the symlink's own inode and appears to disagree; -L is required.)"
+    },
+    {
+      "command": "staleness canary: append a marker to the repo file, grep the deployed path, revert",
+      "result": "pass",
+      "evidence": "grep -c marker /usr/local/bin/focus-mode-daemon -> 1 immediately after the edit, 0 after revert; git diff --stat clean afterwards. Proves an edit deploys with no reinstall step."
+    },
+    {
+      "command": "focus-mode-daemon (deployed command, 8s)",
+      "result": "pass",
+      "evidence": "'Focus Mode Daemon starting...' then 'Browser detected - entering BROWSING mode'. Runs correctly through the symlink."
+    },
+    {
+      "command": "dangling-link guard check",
+      "result": "pass",
+      "evidence": "For a link to a nonexistent target: [[ -f ]] is false (old code would leave the stale link behind), [[ -e || -L ]] is true (now removed)."
+    },
+    {
+      "command": "pre-commit run --files <changed files> (in a clean worktree)",
+      "result": "pass",
+      "evidence": "Run from a temporary git worktree because the main tree carries unrelated uncommitted brother_printer work whose tests fail."
+    }
+  ],
+  "risks": [
+    "/usr/local/bin/focus-mode-daemon now resolves into a user-writable checkout, so anything invoking it as root would execute user-writable code. Acceptable here: focus-mode runs as a systemd user service. Do not copy this pattern for anything root runs.",
+    "The link breaks if the repo is moved, renamed, or deleted; re-run the installer after any such move. Uninstall now clears a dangling link rather than skipping it.",
+    "Running the installer to verify also enabled and started focus-mode.service, which had not previously been running. User confirmed on 2026-07-17 to leave it enabled."
+  ],
+  "rollback": [
+    "git revert this commit and re-run ./install_focus_mode_daemon.sh install to return to a copied binary.",
+    "After rollback, remember the staleness footgun is back: every future edit to focus_mode_daemon.py requires re-running the installer before the change takes effect.",
+    "Verify with: ls -la /usr/local/bin/focus-mode-daemon (expect a regular file, not a symlink)."
+  ]
+}
