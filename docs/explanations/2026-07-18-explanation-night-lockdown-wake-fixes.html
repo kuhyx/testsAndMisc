@@ -1,0 +1,510 @@
+<meta charset="utf-8">
+<title>Night-Lockdown: Closing the Console-Blank Race, DP Recovery, and a Wake Alarm That Actually Waits</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1f24; --muted: #5b6470; --card: #f4f6f8;
+    --border: #e0e4e9; --accent: #2f6fed; --accent-bg: #eaf1ff;
+    --good: #1a7f4e; --good-bg: #e8f7ef; --bad: #b8291f; --bad-bg: #fdecea;
+    --code-bg: #0f1420; --code-fg: #d9e0ea; --code-accent: #7ec3ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --fg: #e7ebf0; --muted: #9aa4b2; --card: #1c2129;
+      --border: #2b323d; --accent: #6ea8ff; --accent-bg: #1c2a44;
+      --good: #4fd88a; --good-bg: #142a1f; --bad: #ff8078; --bad-bg: #331615;
+      --code-bg: #0b0e14; --code-fg: #d9e0ea; --code-accent: #7ec3ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1.25rem 6rem; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 16.5px;
+  }
+  .page { max-width: min(48rem, 92vw); margin: 0 auto; }
+  h1 { font-size: 1.7rem; line-height: 1.3; margin-bottom: .3rem; }
+  .subtitle { color: var(--muted); margin-top: 0; margin-bottom: 2rem; font-size: 1.02rem; }
+  h2 { font-size: 1.35rem; margin-top: 3rem; padding-top: .5rem; border-top: 1px solid var(--border); scroll-margin-top: 5rem; }
+  h3 { font-size: 1.08rem; margin-top: 1.8rem; }
+  p { margin: 0.9rem 0; }
+  a { color: var(--accent); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; background: var(--card); padding: .1em .35em; border-radius: 4px; }
+  pre {
+    background: var(--code-bg); color: var(--code-fg); padding: 1rem 1.1rem; border-radius: 10px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: .86rem; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .toc {
+    position: sticky; top: 0; z-index: 20; background: var(--bg);
+    border-bottom: 1px solid var(--border); padding: .8rem 0 .9rem; margin: 0 0 1rem;
+  }
+  .toc ul { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem 1rem; padding: 0; margin: 0; }
+  .toc a {
+    text-decoration: none; font-weight: 600; font-size: .88rem; color: var(--fg);
+    background: var(--card); border: 1px solid var(--border); padding: .35rem .7rem; border-radius: 999px;
+  }
+  .toc a:hover { border-color: var(--accent); color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; margin: 1.2rem 0; }
+  .badge { display: inline-block; font-size: .74rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+    padding: .15rem .55rem; border-radius: 999px; margin-right: .4rem; }
+  .b-bug { background: var(--bad-bg); color: var(--bad); }
+  .b-fix { background: var(--good-bg); color: var(--good); }
+  .b-note { background: var(--accent-bg); color: var(--accent); }
+
+  /* diagrams */
+  .timeline { display: flex; flex-wrap: wrap; align-items: stretch; gap: .35rem; margin: 1rem 0; }
+  .tl-node { flex: 1 1 5.5rem; min-width: 5.2rem; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); padding: .55rem .5rem; text-align: center; position: relative; }
+  .tl-node .time { font-weight: 700; font-size: .92rem; }
+  .tl-node .label { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+  .tl-node.skip { opacity: .55; }
+  .tl-node.fire { border-color: var(--good); background: var(--good-bg); }
+  .tl-node.dyn { border-style: dashed; border-color: var(--accent); }
+  .tl-node.dyn.fire { border-color: var(--good); background: var(--good-bg); }
+  .arrowrow { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: .8rem; }
+
+  .stack { display: flex; flex-direction: column; gap: .5rem; margin: 1rem 0; }
+  .row { display: grid; grid-template-columns: 8.5rem 1fr; gap: .75rem; align-items: center; }
+  .row .tag { font-size: .78rem; font-weight: 700; color: var(--muted); text-align: right; }
+  .bar { height: 2.1rem; border-radius: 8px; display: flex; align-items: center; padding: 0 .6rem;
+    font-size: .82rem; font-weight: 600; border: 1px solid var(--border); }
+  .bar.gap { background: var(--bad-bg); color: var(--bad); }
+  .bar.blank { background: var(--good-bg); color: var(--good); }
+  .bar.stop { background: var(--card); color: var(--fg); }
+
+  .micro { border: 1px solid var(--border); border-radius: 14px; padding: 1.2rem; background: var(--card); }
+  .micro label { display: block; font-size: .85rem; font-weight: 600; margin: .6rem 0 .3rem; }
+  .micro input[type=range] { width: 100%; }
+  .micro .readout { font-size: .95rem; margin: .5rem 0 1rem; }
+  .micro button {
+    background: var(--accent); color: white; border: none; padding: .55rem 1.1rem; border-radius: 8px;
+    font-weight: 700; cursor: pointer; font-size: .9rem;
+  }
+  .micro button:hover { filter: brightness(1.08); }
+  .micro .result { margin-top: 1rem; font-size: .92rem; }
+
+  .quiz-q { border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.2rem; margin: 1.2rem 0; background: var(--card); }
+  .quiz-q h4 { margin: 0 0 .8rem; font-size: 1rem; }
+  .opt { display: block; width: 100%; text-align: left; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: .6rem .8rem; margin: .4rem 0; cursor: pointer; font-size: .9rem; color: var(--fg); }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { border-color: var(--good); background: var(--good-bg); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+  .rationale { font-size: .85rem; color: var(--muted); margin-top: .6rem; display: none; }
+  .rationale.show { display: block; }
+  #score { font-weight: 700; }
+  .fnote { color: var(--muted); font-size: .85rem; }
+</style>
+
+<div class="page">
+  <h1>Night-Lockdown: Closing the Console-Blank Race, DP Recovery, and a Wake Alarm That Actually Waits</h1>
+  <p class="subtitle">Two commits fixing three live bugs in the always-on screen lockdown, plus a follow-up that
+  makes the wake-alarm floor correct for <em>any</em> shutdown time — not just the ones the fixed schedule happened to cover.</p>
+
+  <nav class="toc">
+    <ul>
+      <li><a href="#background">Background</a></li>
+      <li><a href="#intuition">Intuition</a></li>
+      <li><a href="#code">Code</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+    </ul>
+  </nav>
+
+  <section id="background">
+    <h2>Background</h2>
+    <p>This machine never actually shuts down at night anymore. Instead of powering off, a script called
+    <strong>night-lockdown</strong> tears the GUI down and blanks the screen while every background server
+    (sync jobs, media services, etc.) keeps running. Two generated scripts do the work:</p>
+
+    <div class="card">
+      <p><strong><code>night-lockdown-enter.sh</code></strong> — runs at the configured shutdown hour. Mutes
+      audio, turns RGB lighting off, masks the login prompt, stops the display manager (<code>lightdm</code>),
+      and forces the text console black.</p>
+      <p><strong><code>night-lockdown-unlock.sh</code></strong> — runs on a morning timer. Restores audio and
+      RGB state, unmasks the login prompt, restarts <code>lightdm</code>, and — on days you've configured an
+      alarm — starts the morning wake-alarm routine.</p>
+    </div>
+
+    <p>Both scripts are idempotent against a single state file (<code>LOCKED</code> / <code>UNLOCKED</code>),
+    and the unlock side runs on a fixed staggered schedule: <code>05:00, 05:15, 05:30, 06:00, 07:00</code>. The
+    idea was redundancy — if the 05:00 run fails for some reason, a later trigger catches it, but since the
+    action is idempotent, only the first one to actually run does anything.</p>
+
+    <h3>Blanking the console</h3>
+    <p>Making the screen go black turned out to be more subtle than it sounds. This machine has exactly one
+    console framebuffer, <code>nvidia-drmdrmfb</code>, owned by the discrete NVIDIA GPU that drives both
+    connected monitors. The original code went to some trouble to <em>not</em> power the DisplayPort output
+    down (only <code>FB_BLANK_NORMAL</code>, not <code>FB_BLANK_POWERDOWN</code>) because powering it down had
+    previously dropped the DP link so hard the cable needed a physical replug:</p>
+    <pre><code># Force the console dark — black screen, but WITHOUT DPMS power management.
+# Powering the output down ... makes DisplayPort drop its link ...
+blank_console() {
+  local fb
+  for fb in /sys/class/graphics/fb*/blank; do
+    [[ -e "$fb" ]] || continue
+    echo "$CONSOLE_BLANK_MODE" >"$fb" 2>/dev/null || logg "WARN: could not blank $fb"
+  done
+  setterm --term linux --blank force --powersave off >"$CONSOLE_TTY" 2>/dev/null || ...
+}</code></pre>
+    <p>And the lockdown-entry flow called it only <em>after</em> the display manager had fully stopped:</p>
+    <pre><code># 7. Stop the GUI. This hands the VT back to fbcon, which unblanks it.
+run systemctl stop lightdm.service
+
+# 8. Now that fbcon owns the VT again, force it dark (DPMS off -> standby).
+blank_console</code></pre>
+
+    <h3>The morning alarm</h3>
+    <p>The unlock script also re-fires a "morning routine" service (wake alarm + workout lock) on configured
+    alarm days, but only as the very last step of the same idempotent run that restores the GUI:</p>
+    <pre><code>maybe_start_morning_alarm() {
+  [[ -n "$LOCK_USER" && -n "$LOCK_UID" && -n "$MORNING_ROUTINE_UNIT" ]] || return 0
+  ... # alarm-day check only
+  logg "alarm day (dow=$dow) — starting $MORNING_ROUTINE_UNIT"
+  run sudo -u "$LOCK_USER" ... systemctl --user start --no-block "$MORNING_ROUTINE_UNIT"
+}</code></pre>
+    <p>Nothing in this function knew or cared what time lockdown had actually started the night before.</p>
+  </section>
+
+  <section id="intuition">
+    <h2>Intuition</h2>
+
+    <h3 id="bug1">Bug 1 — a flash of old console text before black</h3>
+    <p>The comment in the original code says stopping <code>lightdm</code> "hands the VT back to fbcon, which
+    unblanks it." That's the key fact: switching a virtual console active is not a passive handoff — the kernel
+    redraws it, showing whatever was already in that console's text buffer (old kernel/systemd log lines).
+    <code>systemctl stop lightdm.service</code> is one blocking call that can take a real one-to-a-few seconds
+    to fully finish (session cleanup, PAM, etc.), and the VT switch can happen at any point <em>during</em> that
+    call — not only at the very end. Blanking only <em>after</em> the whole call returns leaves that window
+    completely exposed:</p>
+
+    <div class="stack">
+      <div class="row"><span class="tag">before</span>
+        <div class="bar stop">systemctl stop lightdm.service — running…</div></div>
+      <div class="row"><span class="tag"></span>
+        <div class="bar gap">← VT switches mid-way here; console redraws OLD text, nothing is blanking it →</div></div>
+      <div class="row"><span class="tag">before</span>
+        <div class="bar blank">blank_console() — only now, once stop() has fully returned</div></div>
+    </div>
+    <p>The fix keeps a background loop calling <code>blank_console</code> every 100&nbsp;ms for the <em>whole</em>
+    duration of the stop, so whichever moment the VT switch actually happens, something is re-darkening it within
+    a tenth of a second:</p>
+    <div class="stack">
+      <div class="row"><span class="tag">after</span>
+        <div class="bar blank">background poller: blank_console() every 0.1s ⟷ systemctl stop lightdm.service</div></div>
+      <div class="row"><span class="tag">after</span>
+        <div class="bar blank">blank_console() once more, guaranteed, after stop() returns</div></div>
+    </div>
+
+    <h3 id="bug2">Bug 2 — the second monitor didn't come back</h3>
+    <p>There was simply no step anywhere in the unlock flow that touched display configuration. If the
+    DisplayPort link didn't cleanly re-negotiate the instant <code>lightdm</code> restarted, nothing ever asked
+    it to. The fix adds a short retry loop calling <code>autorandr --change</code> — using a profile you save
+    once, in advance, while both monitors are connected correctly — right after <code>lightdm</code> restarts.</p>
+
+    <h3 id="bug3">Bug 3 — the alarm fired only 6 hours after a late lockdown</h3>
+    <p>Lockdown entered at 23:00. The unlock schedule's first trigger, 05:00, ran the whole idempotent
+    unlock-and-alarm sequence in one go — 6 hours later, not the intended 8. The first fix added a floor: record
+    the real lockdown-entry timestamp, and don't start the alarm until <code>entry + 8h</code> — but the alarm
+    check still only ever got <em>re-evaluated</em> by whichever of the five fixed triggers happened to run
+    next.</p>
+    <p>That's fine as long as the floor lands inside <code>05:00–07:00</code>. But the shutdown hour itself is
+    a config value (<code>/etc/shutdown-schedule.conf</code>) that already changes dynamically — a "sick day"
+    feature had pushed it to 23:00 the very night this bug was reported. Push it just a little later, say
+    23:30, and the floor lands at 07:30 — <em>past every remaining trigger</em>. Nothing left in the fixed
+    schedule ever checks again, so the alarm silently never fires that morning at all:</p>
+
+    <p><strong>Toy example — lockdown at 23:30, floor = entry + 8h = 07:30:</strong></p>
+    <div class="timeline">
+      <div class="tl-node skip"><div class="time">05:00</div><div class="label">too soon</div></div>
+      <div class="tl-node skip"><div class="time">05:15</div><div class="label">too soon</div></div>
+      <div class="tl-node skip"><div class="time">05:30</div><div class="label">too soon</div></div>
+      <div class="tl-node skip"><div class="time">06:00</div><div class="label">too soon</div></div>
+      <div class="tl-node skip"><div class="time">07:00</div><div class="label">too soon</div></div>
+      <div class="tl-node dyn fire"><div class="time">07:30</div><div class="label">dynamic one-shot: FIRES</div></div>
+    </div>
+    <p>Every fixed trigger says "too soon" and nothing runs again after 07:00 — <em>unless</em> something is
+    scheduled specifically for 07:30. The follow-up fix computes that exact moment when lockdown begins and
+    schedules a one-shot <code>systemd-run --on-calendar</code> timer for it, so the alarm gets a guaranteed,
+    correctly-timed chance no matter what the shutdown hour was that night. Play with the exact same rule
+    yourself below.</p>
+
+    <div class="card b-note" style="margin-top:1.5rem;">
+      <span class="badge b-note">Also fixed</span> DRY_RUN is a pure logger — it never really stops
+      <code>lightdm</code> or calls <code>autorandr</code>, so it can prove the alarm-floor arithmetic works but
+      it structurally <em>cannot</em> prove bugs 1 or 2 are fixed. Both scripts now print an explicit
+      <code>DRY_RUN NOTE</code> saying exactly that, so a clean dry run is never mistaken for a real one.
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>Code walkthrough</h2>
+    <p>Grouped by concern, not by file order.</p>
+
+    <h3>1. Console-blank timing race</h3>
+    <pre><code>if [[ "$DRY_RUN" != "1" ]]; then
+  (
+    while :; do
+      blank_console
+      sleep 0.1
+    done
+  ) &
+  BLANK_POLLER_PID=$!
+fi
+run systemctl stop lightdm.service
+if [[ -n "${BLANK_POLLER_PID:-}" ]]; then
+  kill "$BLANK_POLLER_PID" 2>/dev/null || true
+  wait "$BLANK_POLLER_PID" 2>/dev/null || true
+  unset BLANK_POLLER_PID
+fi
+
+# Final guaranteed blank now that the GUI is fully down.
+blank_console</code></pre>
+    <p>A background subshell keeps re-blanking every 100&nbsp;ms while the (blocking, possibly slow)
+    <code>systemctl stop lightdm.service</code> runs, then gets killed and a final blank runs once more for
+    good measure. Cheap and idempotent — <code>blank_console</code> was already safe to call repeatedly.</p>
+
+    <h3>2. DisplayPort recovery</h3>
+    <pre><code># 2. Start the GUI — lightdm autologins back into i3/dwm.
+run systemctl start lightdm.service
+
+# 2a. Reconnect/reconfigure displays ...
+if [[ -n "$LOCK_USER" && -n "$LOCK_UID" ]] && command -v autorandr >/dev/null 2>&1; then
+  autorandr_ok=false
+  for ((i = 0; i < 15; i++)); do
+    if sudo -u "$LOCK_USER" env "XDG_RUNTIME_DIR=/run/user/$LOCK_UID" DISPLAY=:0 \
+      autorandr --change --default "$AUTORANDR_PROFILE" >/dev/null 2>&1; then
+      autorandr_ok=true; break
+    fi
+    sleep 1
+  done
+  ...
+fi</code></pre>
+    <p>Runs as the real desktop user (not root), retries for up to 15 seconds to give X time to re-enumerate
+    the link, and falls back to the saved <code>default</code> profile if nothing matches. Requires a one-time,
+    manual <code>autorandr --save default</code> while both monitors are connected correctly.</p>
+
+    <h3>3. Wake-alarm floor + its own daily dedup</h3>
+    <pre><code>today="$(date +%F)"
+if [[ "$(cat "$STATE_DIR/alarm_started_date" 2>/dev/null || echo '')" == "$today" ]]; then
+  logg "morning alarm already started today — skipping"
+  return 0
+fi
+locked_at="$(cat "$STATE_DIR/locked_at_epoch" 2>/dev/null || echo 0)"
+now="$(date +%s)"
+min_wake=$((locked_at + MIN_WAKE_AFTER_LOCKDOWN_HOURS * 3600))
+if ((locked_at > 0 && now < min_wake)); then
+  logg "too soon since lockdown entry (...m remaining) — skipping alarm this trigger"
+  return 0
+fi
+...
+echo "$today" >"$STATE_DIR/alarm_started_date"</code></pre>
+    <p>The dedup marker matters because the alarm check is no longer gated by the same LOCKED/UNLOCKED flag
+    that gates the GUI restore — it now runs from <em>both</em> branches of the unlock script, including the
+    already-unlocked early exit:</p>
+    <pre><code>if [[ "$(cat "$STATE_FILE" ...) " == "UNLOCKED" ]]; then
+  maybe_start_morning_alarm   # still gets a chance, even though restore already happened
+  logg "already UNLOCKED — nothing else to do"
+  exit 0
+fi</code></pre>
+
+    <h3>4. The dynamic wake-floor trigger</h3>
+    <pre><code>if [[ "$DRY_RUN" != "1" ]]; then
+  echo LOCKED >"$STATE_FILE"
+  lockdown_epoch="$(date +%s)"
+  echo "$lockdown_epoch" >"$STATE_DIR/locked_at_epoch"
+
+  floor_epoch=$((lockdown_epoch + MIN_WAKE_AFTER_LOCKDOWN_HOURS * 3600))
+  floor_cal="$(date -d "@$floor_epoch" '+%Y-%m-%d %H:%M:%S')"
+  run systemd-run --unit=night-lockdown-wake-floor --collect \
+    --on-calendar="$floor_cal" /usr/local/bin/night-lockdown-unlock.sh
+fi</code></pre>
+    <p>At the exact moment lockdown begins, this schedules a one-off, self-cleaning
+    (<code>--collect</code>) systemd timer for precisely <code>entry + 8h</code>, whatever that turns out to
+    be, and simply re-runs the unlock script when it fires. Because the unlock script is already idempotent and
+    the alarm has its own dedup, re-running it is always safe — it either restores a GUI that's already up (no-op)
+    and/or fires the alarm exactly once if it hasn't already.</p>
+  </section>
+
+  <section id="intuition-play">
+    <h2 id="micro-heading">Try it: when does the alarm actually fire?</h2>
+    <p>Move the slider to set the lockdown-entry time, then step through the same schedule the real script
+    checks: five fixed triggers, plus the one dynamic trigger scheduled precisely at <code>entry + floor
+    hours</code>.</p>
+    <div class="micro">
+      <label for="entryTime">Lockdown entry time: <strong id="entryReadout">23:00</strong></label>
+      <input type="range" id="entryTime" min="1200" max="1440" step="15" value="1380">
+      <label for="floorHours">Minimum hours before waking: <strong id="floorReadout">8</strong>h</label>
+      <input type="range" id="floorHours" min="6" max="10" step="1" value="8">
+      <button id="simBtn">Step through tonight's triggers</button>
+      <div class="result" id="simResult"></div>
+    </div>
+  </section>
+
+  <section id="quiz">
+    <h2>Quiz</h2>
+    <div id="quizRoot"></div>
+    <p class="fnote">Score: <span id="score">0</span> / 5</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- micro-world: trigger scheduler simulator ----------
+  var entryEl = document.getElementById("entryTime");
+  var entryReadout = document.getElementById("entryReadout");
+  var floorEl = document.getElementById("floorHours");
+  var floorReadout = document.getElementById("floorReadout");
+  var simBtn = document.getElementById("simBtn");
+  var simResult = document.getElementById("simResult");
+
+  function fmt(mins) {
+    mins = ((mins % 1440) + 1440) % 1440;
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+  function updateReadouts() {
+    entryReadout.textContent = fmt(parseInt(entryEl.value, 10));
+    floorReadout.textContent = floorEl.value;
+  }
+  entryEl.addEventListener("input", updateReadouts);
+  floorEl.addEventListener("input", updateReadouts);
+  updateReadouts();
+
+  var STATIC_TRIGGERS = [300, 315, 330, 360, 420]; // minutes-of-day: 05:00,05:15,05:30,06:00,07:00
+
+  function simulate() {
+    var entry = parseInt(entryEl.value, 10);          // minutes of day, e.g. 1380 = 23:00
+    var floorHours = parseInt(floorEl.value, 10);
+    var floorAbs = entry + floorHours * 60;            // may exceed 1440 (past midnight)
+    var floorNextDayMinutes = floorAbs % 1440;          // where it lands the following morning
+
+    var html = '<div class="timeline">';
+    var firedAt = null;
+    for (var i = 0; i < STATIC_TRIGGERS.length; i++) {
+      var t = STATIC_TRIGGERS[i]; // these are always "next morning" times
+      var tooSoon = t < floorNextDayMinutes;
+      var cls = tooSoon ? "tl-node skip" : "tl-node fire";
+      html += '<div class="' + cls + '"><div class="time">' + fmt(t) + '</div><div class="label">' +
+        (tooSoon ? "too soon" : "FIRES here") + '</div></div>';
+      if (!tooSoon && firedAt === null) firedAt = t;
+    }
+    // Dynamic one-shot, always exactly at the floor moment.
+    var dynCls = "tl-node dyn" + (firedAt === null ? " fire" : "");
+    html += '<div class="' + dynCls + '"><div class="time">' + fmt(floorNextDayMinutes) +
+      '</div><div class="label">dynamic one-shot' + (firedAt === null ? ": FIRES (rescue)" : " (redundant)") +
+      '</div></div>';
+    html += '</div>';
+
+    var verdict;
+    if (firedAt !== null) {
+      verdict = 'A fixed trigger at <strong>' + fmt(firedAt) +
+        '</strong> already clears the floor, so the alarm fires there. The dynamic one-shot at ' +
+        fmt(floorNextDayMinutes) + ' would just re-confirm it (dedup makes that a no-op).';
+    } else {
+      verdict = '<strong>Every</strong> fixed trigger is still too soon — without the dynamic one-shot, the ' +
+        'alarm would silently never fire this morning. The one-shot scheduled for exactly ' +
+        fmt(floorNextDayMinutes) + ' is the only thing that catches it.';
+    }
+    simResult.innerHTML = html + "<p>" + verdict + "</p>";
+  }
+  simBtn.addEventListener("click", simulate);
+  simulate();
+
+  // ---------- quiz ----------
+  var QUESTIONS = [
+    {
+      q: "Why did the console briefly show old kernel/systemd text before going black?",
+      opts: [
+        "blank_console() silently failed to write to the framebuffer blank file used by this exact GPU model",
+        "The VT redraws its old buffer the moment it activates, before lightdm's stop call even returns",
+        "CONSOLE_BLANK_MODE was left at the DPMS power-down value instead of the safe normal value",
+        "The RTMIN+21 signal reached systemd before kernel.printk had actually been lowered first"
+      ],
+      correct: 1,
+      rationale: "The write to the framebuffer's blank file always succeeded; the bug was purely about timing — nothing re-blanked during the VT-switch window mid-stop, not that blanking itself was broken."
+    },
+    {
+      q: "Why can't a clean DRY_RUN=1 run prove the console-blank or autorandr fixes actually work?",
+      opts: [
+        "DRY_RUN mode exists only in the unlock script, and was somehow never added to the enter script",
+        "DRY_RUN requires elevated system privileges that this particular test environment currently lacks",
+        "run(), blank_console(), and autorandr only log \"would do X\" under DRY_RUN, nothing real happens",
+        "DRY_RUN skips the alarm-floor arithmetic entirely, so no timestamp ever actually gets read"
+      ],
+      correct: 2,
+      rationale: "DRY_RUN is genuinely log-only across both scripts, including the alarm-floor math (which it does exercise faithfully) — what it never exercises is any command with a real side effect, like stopping lightdm or calling autorandr."
+    },
+    {
+      q: "Why does maybe_start_morning_alarm() now need its own alarm_started_date marker, separate from the LOCKED/UNLOCKED state file?",
+      opts: [
+        "It now runs from both unlock branches, including the already-unlocked exit, so it needs its own dedup",
+        "The LOCKED/UNLOCKED state file gets silently deleted by the RGB-off step before the alarm routine ever runs",
+        "systemd timers configured on this host don't guarantee only one instance ever runs at a time",
+        "ALARM_DAYS_DOW somehow stopped reliably identifying which day of the week it currently is"
+      ],
+      correct: 0,
+      rationale: "The console-restore idempotency check only protects against redoing the GUI restore; once the alarm function is reachable from multiple triggers per morning, it needs its own daily marker or it would re-fire the alarm unit on every later staggered trigger."
+    },
+    {
+      q: "Why wasn't the entry-time-plus-floor calculation enough on its own, without also scheduling a dynamic one-shot timer?",
+      opts: [
+        "date +%s returns unreliable timestamps right after a VT switch on this specific hardware",
+        "The fixed trigger list is a static ceiling a late shutdown hour can push the floor past",
+        "MIN_WAKE_AFTER_LOCKDOWN_HOURS can't be read correctly from the config file under systemd",
+        "The alarm_started_date marker would otherwise get written under entirely the wrong day"
+      ],
+      correct: 1,
+      rationale: "The floor math was already correct; the gap was that nothing besides the fixed trigger list ever re-evaluated it, and that list has a hard ceiling (07:00) that a late shutdown hour can exceed."
+    },
+    {
+      q: "What one-time manual step does the DisplayPort recovery fix depend on?",
+      opts: [
+        "Running xrandr --output DP-0 --auto once, then rebooting so the layout is remembered",
+        "Setting AUTORANDR_PROFILE to the exact xrandr output name rather than a profile name",
+        "Disabling nvidia-drm modeset entirely so fbcon stops competing with X for the framebuffer",
+        "Saving the layout once via autorandr --save default while both monitors are connected"
+      ],
+      correct: 3,
+      rationale: "autorandr --change matches the currently detected outputs against saved profiles; without a saved 'default' profile there's nothing for the unlock-time retry loop to reapply."
+    }
+  ];
+
+  var root = document.getElementById("quizRoot");
+  var scoreEl = document.getElementById("score");
+  var score = 0;
+
+  QUESTIONS.forEach(function (item, qi) {
+    var card = document.createElement("div");
+    card.className = "quiz-q";
+    var h4 = document.createElement("h4");
+    h4.textContent = (qi + 1) + ". " + item.q;
+    card.appendChild(h4);
+
+    var answered = false;
+    item.opts.forEach(function (optText, oi) {
+      var btn = document.createElement("button");
+      btn.className = "opt";
+      btn.textContent = optText;
+      btn.addEventListener("click", function () {
+        if (answered) return;
+        answered = true;
+        var buttons = card.querySelectorAll(".opt");
+        buttons.forEach(function (b, bi) {
+          if (bi === item.correct) b.classList.add("correct");
+          else if (bi === oi) b.classList.add("wrong");
+        });
+        if (oi === item.correct) score++;
+        scoreEl.textContent = score;
+        var rat = document.createElement("div");
+        rat.className = "rationale show";
+        rat.textContent = (oi === item.correct ? "Correct. " : "Not quite. ") + item.rationale;
+        card.appendChild(rat);
+      });
+      card.appendChild(btn);
+    });
+    root.appendChild(card);
+  });
+})();
+</script>
