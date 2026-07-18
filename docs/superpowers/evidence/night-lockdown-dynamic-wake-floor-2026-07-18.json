@@ -1,0 +1,42 @@
+{
+  "intent": "Make the morning wake-alarm floor (lockdown-entry + MIN_WAKE_AFTER_LOCKDOWN_HOURS) correct for ANY shutdown time, not just the shutdown hours the static 05:00/05:15/05:30/06:00/07:00 unlock triggers happen to cover.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh (enter-script generator section only)",
+    "Non-goal: did not remove or resize the existing staggered unlock triggers, which still handle console/GUI restore and remain a redundant fallback for the alarm in the common case"
+  ],
+  "changes": [
+    "Identified a gap in the earlier same-day fix: shutdown time is dynamically configurable (/etc/shutdown-schedule.conf, changed by the screen_locker sick-day feature) and can, in principle, be any hour. If a lockdown started late enough that entry+8h fell after the last static trigger (07:00), the alarm would silently never fire that morning -- confirmed via isolated arithmetic test (23:30 lockdown -> 07:30 floor, past every static trigger).",
+    "Enter script now schedules a transient one-shot systemd-run --on-calendar timer, computed at lockdown-entry time, that fires at exactly lockdown_epoch + MIN_WAKE_AFTER_LOCKDOWN_HOURS and re-runs the (idempotent, self-dedup'd) unlock script -- guaranteeing the alarm gets a correctly-timed chance to fire regardless of what time lockdown actually started.",
+    "Added MIN_WAKE_AFTER_LOCKDOWN_HOURS to the enter-script's own config default-fallback block (previously only the unlock script had it)."
+  ],
+  "verification": [
+    {
+      "command": "bash -n setup_night_lockdown.sh; shellcheck -s bash setup_night_lockdown.sh (plus extracted enter-script heredoc body)",
+      "result": "pass",
+      "evidence": "Only pre-existing SC1091 info notice; no new warnings."
+    },
+    {
+      "command": "sudo systemd-run --unit=night-lockdown-wake-floor-test --collect --on-calendar=\"<+20s>\" logger ...; wait; journalctl -t ...",
+      "result": "pass",
+      "evidence": "Transient one-shot timer fired at the exact scheduled second and self-removed via --collect (systemctl status afterward: 'could not be found')."
+    },
+    {
+      "command": "sudo setup_night_lockdown.sh setup; sudo DRY_RUN=1 night-lockdown-enter.sh",
+      "result": "pass",
+      "evidence": "Redeployed cleanly; DRY_RUN log now includes 'would schedule a one-shot wake-floor trigger ~8h from now'; real STATE_FILE untouched (still UNLOCKED)."
+    },
+    {
+      "command": "Isolated arithmetic check with a scratch STATE_DIR, simulating a 23:30 lockdown",
+      "result": "pass",
+      "evidence": "floor computed as 2026-07-19 07:30:00 -- correctly past the last static 07:00 trigger, demonstrating why the dynamic one-shot is necessary and that the math is correct."
+    }
+  ],
+  "risks": [
+    "Real end-to-end behavior (does the scheduled one-shot actually re-run the unlock script and start the alarm at the exact floor moment during a genuine overnight cycle) is not yet confirmed live -- deferred to the next real lockdown cycle.",
+    "systemd-run --unit name is static (night-lockdown-wake-floor); a stale leftover transient unit with the same name from a crashed prior run could in theory cause this scheduling call to fail. It runs through the existing run() wrapper, which logs a WARN and continues rather than aborting lockdown, and the static triggers remain a fallback for shutdown hours they do cover."
+  ],
+  "rollback": [
+    "git revert this commit and re-run 'sudo setup_night_lockdown.sh setup' to redeploy the prior script version.",
+    "Manually remove any lingering night-lockdown-wake-floor.timer/.service with 'systemctl stop/reset-failed' if one is ever left active after a revert."
+  ]
+}
