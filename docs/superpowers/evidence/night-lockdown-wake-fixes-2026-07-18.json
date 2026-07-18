@@ -1,0 +1,49 @@
+{
+  "intent": "Fix three live night-lockdown/wake bugs: (1) console briefly showed old kernel/systemd text instead of going black, (2) DP-0 did not reliably reconnect after wake, (3) the morning wake alarm could fire less than 8h after a late lockdown entry (23:00 lockdown -> 05:00 alarm).",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh",
+    "Deployed artifacts: /usr/local/bin/night-lockdown-{enter,unlock}.sh, /etc/night-lockdown.conf",
+    "One-time manual action: autorandr --save default (outside the script)",
+    "Non-goal: did not redesign the VT-blank approach to an X-stays-alive black overlay (deferred fallback if this smaller fix doesn't hold)"
+  ],
+  "changes": [
+    "Enter script: blank the console in a background poller for the full duration of 'systemctl stop lightdm.service' (plus a final guaranteed blank after), instead of a single blank call only once stop returns, closing the visible-text gap.",
+    "Enter script: stamp $STATE_DIR/locked_at_epoch when entering lockdown.",
+    "Unlock script: add step 2a — retry 'autorandr --change --default default' for up to 15s as the desktop user after lightdm restarts, to recover a DisplayPort link that didn't re-enumerate cleanly.",
+    "Unlock script: decouple maybe_start_morning_alarm() from the LOCKED/UNLOCKED idempotency gate (now also called from the already-UNLOCKED early-exit branch) so it can fire on a later staggered trigger (05:15/05:30/06:00/07:00) instead of only the first one.",
+    "maybe_start_morning_alarm(): add MIN_WAKE_AFTER_LOCKDOWN_HOURS (default 8) floor check against locked_at_epoch, and its own alarm_started_date daily dedup marker.",
+    "New config vars in /etc/night-lockdown.conf: MIN_WAKE_AFTER_LOCKDOWN_HOURS=8, AUTORANDR_PROFILE=default.",
+    "Added explicit DRY_RUN NOTE banners to both scripts stating DRY_RUN cannot validate the console-blank timing race or the autorandr reconnect (pure log-only mode), so a clean dry run is never mistaken for proof those specific fixes work."
+  ],
+  "verification": [
+    {
+      "command": "bash -n setup_night_lockdown.sh; shellcheck -s bash setup_night_lockdown.sh (plus extracted enter/unlock heredoc bodies)",
+      "result": "pass",
+      "evidence": "Only pre-existing SC1091 info notice (unrelated source of ../../lib/common.sh); no new warnings."
+    },
+    {
+      "command": "sudo setup_night_lockdown.sh setup",
+      "result": "pass",
+      "evidence": "Redeployed /usr/local/bin/night-lockdown-{enter,unlock}.sh and /etc/night-lockdown.conf; verification block reported all files present and timer enabled."
+    },
+    {
+      "command": "sudo DRY_RUN=1 night-lockdown-enter.sh / night-lockdown-unlock.sh, with locked_at_epoch temporarily set to 0h-ago and 9h-ago",
+      "result": "pass",
+      "evidence": "0h-ago logged 'too soon since lockdown entry (480m remaining) - skipping alarm this trigger'; 9h-ago proceeded to 'would wait for graphical session then start morning-routine.service'. Real STATE_FILE untouched under DRY_RUN and restored from backup after manual LOCKED-state tests."
+    },
+    {
+      "command": "autorandr --save default; autorandr --change --default default",
+      "result": "pass",
+      "evidence": "Saved profile matches current live DP-0 (3840x2160 primary) + HDMI-0 (2560x1440) layout; reapplication reports 'default (detected) (current)'."
+    }
+  ],
+  "risks": [
+    "Real-world effectiveness of the console-blank poller and the autorandr reconnect is NOT yet confirmed by a live (non-DRY_RUN) cycle -- user declined a live disruptive test during this session; verification deferred to tonight's real 23:00->05:00 cycle, to be checked via journalctl the next morning.",
+    "autorandr recovery depends on the one-time saved profile staying valid; if the monitor arrangement changes, the profile must be re-saved or the unlock step will WARN and require manual xrandr.",
+    "If the console-blank timing race turns out not to be fully fixed by reordering/hardening, the user has already agreed the fallback is a bigger redesign (X-stays-alive black overlay) rather than further patching this approach."
+  ],
+  "rollback": [
+    "git revert this commit and re-run 'sudo setup_night_lockdown.sh setup' to redeploy the prior script version.",
+    "After rollback, confirm /etc/night-lockdown.conf no longer references MIN_WAKE_AFTER_LOCKDOWN_HOURS/AUTORANDR_PROFILE and that a lockdown/unlock cycle still completes without error."
+  ]
+}
