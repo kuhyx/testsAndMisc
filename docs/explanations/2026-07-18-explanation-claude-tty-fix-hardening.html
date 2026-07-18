@@ -1,0 +1,407 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hardening claude-tty-fix.zsh — precmd heal, debug logging, on-demand MCP</title>
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#1a1a1a; --muted:#606060; --card:#ffffff; --border:#e3e3df;
+    --accent:#b5560f; --accent-soft:#f6e8dc; --ok:#1f7a3d; --ok-soft:#e3f2e7;
+    --bad:#b1233a; --bad-soft:#f8e2e5; --code-bg:#f4f2ee; --code-fg:#2a2a2a;
+    --kbd:#eceae4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#16171a; --fg:#e6e6e6; --muted:#9a9a9a; --card:#1d1f23; --border:#2f3237;
+      --accent:#e88a4d; --accent-soft:#3a2a1c; --ok:#66c187; --ok-soft:#1e3326;
+      --bad:#e0788a; --bad-soft:#3a2126; --code-bg:#121316; --code-fg:#d7d7d7;
+      --kbd:#2a2c31;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#16171a; --fg:#e6e6e6; --muted:#9a9a9a; --card:#1d1f23; --border:#2f3237;
+    --accent:#e88a4d; --accent-soft:#3a2a1c; --ok:#66c187; --ok-soft:#1e3326;
+    --bad:#e0788a; --bad-soft:#3a2126; --code-bg:#121316; --code-fg:#d7d7d7; --kbd:#2a2c31;
+  }
+  :root[data-theme="light"]{
+    --bg:#fbfbfa; --fg:#1a1a1a; --muted:#606060; --card:#ffffff; --border:#e3e3df;
+    --accent:#b5560f; --accent-soft:#f6e8dc; --ok:#1f7a3d; --ok-soft:#e3f2e7;
+    --bad:#b1233a; --bad-soft:#f8e2e5; --code-bg:#f4f2ee; --code-fg:#2a2a2a; --kbd:#eceae4;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--fg); margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; font-size:17px;
+  }
+  .wrap{max-width:min(48rem,92vw); margin:0 auto; padding:2.2rem 1rem 5rem}
+  h1{font-size:1.7rem; line-height:1.25; margin:.2rem 0 .4rem}
+  h2{font-size:1.32rem; margin:2.6rem 0 .6rem; padding-top:.4rem; border-top:1px solid var(--border)}
+  h3{font-size:1.06rem; margin:1.6rem 0 .3rem}
+  p{margin:.7rem 0}
+  a{color:var(--accent)}
+  .lede{color:var(--muted); font-size:1.05rem}
+  code{background:var(--code-bg); color:var(--code-fg); padding:.1em .35em; border-radius:4px;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.86em}
+  pre{background:var(--code-bg); color:var(--code-fg); padding:.9rem 1rem; border-radius:9px;
+    border:1px solid var(--border); overflow-x:auto; white-space:pre-wrap; word-break:break-word;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.82rem; line-height:1.5}
+  pre code{background:none; padding:0; font-size:inherit}
+  kbd{background:var(--kbd); border:1px solid var(--border); border-bottom-width:2px;
+    border-radius:5px; padding:.05em .45em; font-family:inherit; font-size:.82em}
+  .toc{background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:.8rem 1.1rem; margin:1.4rem 0}
+  .toc ol{margin:.3rem 0; padding-left:1.3rem}
+  .toc a{text-decoration:none}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:1rem 1.15rem; margin:1.1rem 0}
+  .pill{display:inline-block; font-size:.72rem; font-weight:600; letter-spacing:.03em;
+    text-transform:uppercase; padding:.13em .6em; border-radius:999px; background:var(--accent-soft);
+    color:var(--accent); vertical-align:middle}
+  /* diagram bits */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:.5rem; margin:1rem 0}
+  .box{flex:1 1 120px; min-width:120px; background:var(--card); border:1px solid var(--border);
+    border-radius:9px; padding:.6rem .7rem; font-size:.82rem}
+  .box .t{font-weight:600; font-size:.8rem; margin-bottom:.15rem}
+  .box .s{color:var(--muted); font-size:.76rem}
+  .box.good{border-color:var(--ok); background:var(--ok-soft)}
+  .box.bad{border-color:var(--bad); background:var(--bad-soft)}
+  .box.accent{border-color:var(--accent); background:var(--accent-soft)}
+  .arrow{align-self:center; color:var(--muted); font-size:1.2rem; padding:0 .1rem}
+  .mono-sm{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.78rem}
+  .garble{color:var(--bad); font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    word-break:break-all; font-size:.78rem}
+  /* micro-world */
+  .sim{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.1rem; margin:1.3rem 0}
+  .sim h4{margin:.1rem 0 .5rem; font-size:1rem}
+  .btnrow{display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0 .9rem}
+  button{font:inherit; cursor:pointer; border:1px solid var(--border); background:var(--card);
+    color:var(--fg); border-radius:8px; padding:.45rem .8rem; font-size:.86rem}
+  button:hover{border-color:var(--accent)}
+  button.sel{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .steps .step{display:flex; gap:.55rem; align-items:flex-start; padding:.4rem 0; border-top:1px dashed var(--border)}
+  .steps .step:first-child{border-top:none}
+  .dot{flex:0 0 1.35rem; height:1.35rem; border-radius:50%; display:grid; place-items:center;
+    font-size:.8rem; font-weight:700; margin-top:.1rem}
+  .dot.ok{background:var(--ok-soft); color:var(--ok)}
+  .dot.bad{background:var(--bad-soft); color:var(--bad)}
+  .dot.mut{background:var(--kbd); color:var(--muted)}
+  .verdict{margin-top:.7rem; padding:.6rem .8rem; border-radius:9px; font-size:.9rem}
+  .verdict.ok{background:var(--ok-soft); color:var(--ok)}
+  .verdict.bad{background:var(--bad-soft); color:var(--bad)}
+  /* quiz */
+  .q{margin:1.2rem 0; padding:1rem 1.1rem; background:var(--card); border:1px solid var(--border); border-radius:11px}
+  .q .qt{font-weight:600; margin-bottom:.6rem}
+  .opt{display:block; width:100%; text-align:left; margin:.35rem 0; padding:.55rem .75rem; border-radius:8px}
+  .opt.correct{background:var(--ok-soft); border-color:var(--ok); color:var(--fg)}
+  .opt.wrong{background:var(--bad-soft); border-color:var(--bad); color:var(--fg)}
+  .rat{margin-top:.5rem; font-size:.85rem; color:var(--muted); display:none}
+  .rat.show{display:block}
+  .score{position:sticky; bottom:.6rem; float:right; background:var(--accent); color:#fff;
+    border-radius:999px; padding:.3rem .8rem; font-size:.82rem; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.2)}
+  .foot{margin-top:2.5rem; color:var(--muted); font-size:.82rem; border-top:1px solid var(--border); padding-top:1rem}
+</style>
+
+<div class="wrap">
+  <span class="pill">change explanation</span>
+  <h1>Hardening <code>claude-tty-fix.zsh</code>: a precmd heal, always-on debug logging, and on-demand MCP</h1>
+  <p class="lede">Commit <code>b57a130</code> — the shell-side survivors of a three-bug hunt into why
+  <code>claude</code> kept “crashing” and spewing mouse-command garbage in the terminal.</p>
+
+  <div class="toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#background">Background — the wrapper and the bug it already fixed</a></li>
+      <li><a href="#intuition">Intuition — why the old fix had a blind spot</a></li>
+      <li><a href="#code">Code — the four things this diff adds</a></li>
+      <li><a href="#quiz">Quiz — check your understanding</a></li>
+    </ol>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="background">1 · Background</h2>
+
+  <p><strong>What this file is.</strong> <code>claude-tty-fix.zsh</code> is a small zsh file symlinked into
+  Oh-My-Zsh’s <code>custom/</code> directory, so every interactive shell auto-loads it. It defines a
+  <code>claude()</code> shell function that <em>wraps</em> the real <code>claude</code> binary to work around a
+  known Claude Code terminal bug.</p>
+
+  <p><strong>The bug it already fixed.</strong> When you launch <code>claude</code> and start typing during its
+  ~1&ndash;5&nbsp;second startup, the process can be hit by <code class="mono-sm">SIGTTIN</code> — the
+  “<code>suspended (tty input)</code>” job-control stop that happens when a process reads the terminal while it
+  isn’t the terminal’s foreground process group. Claude enables <em>mouse tracking</em>
+  (<code>\e[?1003h</code>) at startup; if it freezes mid-init, that mode is never turned off, so the terminal
+  starts echoing every mouse move as an escape sequence:</p>
+
+  <p class="garble">35;48;12M35;47;12M35;43;13M35;39;14M35;35;15M &nbsp;997;1n</p>
+
+  <p><strong>How the pre-existing <code>claude()</code> handled it</strong> — two levers:</p>
+  <div class="flow">
+    <div class="box accent"><div class="t">setopt nomonitor</div><div class="s">job control off → claude shares the shell’s <em>foreground</em> group → can’t take SIGTTIN</div></div>
+    <div class="arrow">+</div>
+    <div class="box accent"><div class="t">on-exit reset</div><div class="s">after claude returns, write mouse/cursor-reset escapes to <code>/dev/tty</code></div></div>
+  </div>
+
+  <p>That combination is real and it works — but only for the failure modes where <code>claude</code>
+  eventually <em>returns</em> to the function. That gap is what this change closes.</p>
+
+  <!-- ============================================================ -->
+  <h2 id="intuition">2 · Intuition</h2>
+
+  <h3>The blind spot: the reset runs <em>after</em> claude returns</h3>
+  <p>The heal code sits on the line <em>after</em> <code>command claude</code>. A shell function is a straight
+  line of execution — it cannot reach that line until <code>command claude</code> finishes. And there’s the
+  catch: a process that is <strong>suspended</strong> (stopped by SIGTTIN) has <em>not</em> finished. It’s
+  frozen, still alive. So the function stays blocked, the reset never fires, and the garble stays on screen at
+  your next prompt.</p>
+
+  <div class="flow">
+    <div class="box good"><div class="t">claude EXITS</div><div class="s">command returns → next line runs → reset fires → clean ✔</div></div>
+    <div class="box bad"><div class="t">claude SUSPENDS</div><div class="s">command never returns → reset line unreachable → garble persists ✘</div></div>
+  </div>
+
+  <h3>The fix: heal on every prompt, not on exit</h3>
+  <p>zsh runs a <code>precmd</code> hook right before it draws each prompt. If we disable mouse tracking there,
+  the garble is cleared on your <em>next</em> <kbd>Enter</kbd> — no matter how the previous <code>claude</code>
+  died, suspended or not. It’s a safety net stretched under the whole thing, independent of the function’s
+  control flow.</p>
+
+  <div class="flow">
+    <div class="box">any claude death<br><span class="s">exit · suspend · kill</span></div>
+    <div class="arrow">→</div>
+    <div class="box">you press <kbd>Enter</kbd></div>
+    <div class="arrow">→</div>
+    <div class="box accent"><div class="t">precmd fires</div><div class="s">mouse-disable → <code>/dev/tty</code></div></div>
+    <div class="arrow">→</div>
+    <div class="box good"><div class="t">clean prompt</div><div class="s">no more garble</div></div>
+  </div>
+
+  <h3 id="sim-anchor">Play with it: how did claude end?</h3>
+  <p>Pick an ending and watch which cleanup path fires. Notice that only the <code>precmd</code> heal survives
+  the suspend case.</p>
+
+  <div class="sim" id="sim">
+    <h4>Terminal cleanup simulator</h4>
+    <div class="btnrow" id="simBtns">
+      <button data-k="exit">claude exits cleanly</button>
+      <button data-k="suspend">claude SIGTTIN-suspends</button>
+      <button data-k="kill">killed while suspended</button>
+    </div>
+    <div class="steps" id="simSteps"></div>
+    <div class="verdict" id="simVerdict" style="display:none"></div>
+  </div>
+
+  <h3>Two more riders in the same commit</h3>
+  <p><strong>Always-on debug logging.</strong> The wrapper now passes <code>--debug-file</code> so every launch
+  writes a timestamped trace to <code>~/.claude/logs/</code> (auto-pruned to the last 20). This is what let the
+  investigation catch a failure <em>faithfully</em> — in the real shell, under the same <code>nomonitor</code>,
+  rather than through a <code>script</code> surrogate whose pseudo-terminal removes job control and hides the
+  very SIGTTIN we were chasing.</p>
+
+  <p><strong>On-demand MCP servers.</strong> Only ~9 broadly-useful MCP servers stay in the always-on global
+  config; the niche ones (RAG, travel, sports, media) moved into <code>~/.claude/mcp-optional/*.json</code> and
+  load only when you ask, via <code>--mcp-config</code> (which <em>merges</em> them into that one session):</p>
+
+  <div class="flow">
+    <div class="box good"><div class="t">global core (~9)</div><div class="s">dart · reflex · vestige · projectmem · i3wm · toolport · yay · servo-fetch · duckduckgo</div></div>
+    <div class="arrow">+</div>
+    <div class="box"><div class="t">claude-rag</div><div class="s">--mcp-config rag.json</div></div>
+    <div class="box"><div class="t">claude-travel</div><div class="s">travel.json</div></div>
+    <div class="box"><div class="t">claude-extras</div><div class="s">*.json (all)</div></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="code">3 · Code</h2>
+
+  <h3>a. The precmd heal — a net under the whole function</h3>
+  <pre><code>_claude_mouse_heal() {
+    [[ -t 2 ]] || return                     # only heal a real terminal
+    printf '\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?25h' &gt; /dev/tty 2>/dev/null
+}
+autoload -Uz add-zsh-hook 2>/dev/null && add-zsh-hook precmd _claude_mouse_heal</code></pre>
+  <p>It emits <em>only</em> mouse-disable and show-cursor escapes — deliberately <strong>not</strong> bracketed-paste
+  (<code>?2004l</code>), which zsh itself relies on, so it can’t disturb normal pasting. These sequences are
+  invisible no-ops when mouse mode is already off, so running them before every prompt costs nothing.</p>
+
+  <h3>b. Always-on <code>--debug-file</code> with self-pruning logs</h3>
+  <pre><code>local _dbg=""
+if [[ -z "${CLAUDE_DEBUG_LOG_OFF:-}" ]]; then
+    mkdir -p ~/.claude/logs 2>/dev/null
+    _dbg=~/.claude/logs/claude-$(date +%Y%m%d-%H%M%S)-$$.log
+    for f in ~/.claude/logs/claude-*.log(NOm[21,-1]); do rm -f -- "$f"; done
+fi
+[[ -n "$_dbg" ]] && command claude --debug-file "$_dbg" "$@" || command claude "$@"</code></pre>
+  <p>The pruning is a single zsh glob qualifier: <code>(NOm[21,-1])</code> means <em>N</em>ullglob,
+  <em>O</em>rder descending by <em>m</em>time (newest first), then take elements <code>[21,-1]</code> — i.e.
+  everything past the 20 newest — and delete them. No <code>ls | tail</code> pipeline, no subprocess.
+  A subtle correctness note: the timestamp uses <code>date</code>, because zsh’s <code>printf</code> has no
+  <code>%(...)T</code> strftime directive (that’s a bash-only feature — the first draft mis-used it).</p>
+
+  <h3>c. On-demand launchers that still inherit the fix</h3>
+  <pre><code>claude-rag()    { claude --mcp-config ~/.claude/mcp-optional/rag.json "$@"; }
+claude-travel() { claude --mcp-config ~/.claude/mcp-optional/travel.json "$@"; }
+claude-extras() { claude --mcp-config ~/.claude/mcp-optional/*.json "$@"; }</code></pre>
+  <p>Each calls <code>claude</code> — the <em>function</em>, not <code>command claude</code> — so an on-demand
+  session still gets <code>nomonitor</code> and the self-heal. They simply prepend a <code>--mcp-config</code>
+  file that merges the niche servers back in for that session only.</p>
+
+  <h3>d. <code>claude-debug</code> — the A/B probe that cracked it</h3>
+  <pre><code>claude-debug() {
+    local dbg=~/.claude/logs/claude-RAW-$(date +%Y%m%d-%H%M%S)-$$.log
+    command claude --debug-file "$dbg" "$@"   # RAW: bypasses the nomonitor wrapper
+}</code></pre>
+  <p>This runs the <em>raw</em> binary (no <code>nomonitor</code>) so you can compare: does the failure need the
+  wrapper, or happen on the bare binary too? Running it and watching it <code>suspended (tty input)</code> —
+  while the wrapped <code>claude</code> did not — is what proved <code>nomonitor</code> was doing its job.
+  The comment also records a hard-won lesson: don’t wrap this in <code>script</code>, whose pty strips the job
+  control the bug depends on.</p>
+
+  <!-- ============================================================ -->
+  <h2 id="quiz">4 · Quiz</h2>
+  <p class="lede">Five questions on the <em>reasoning</em> behind the change. Click to reveal.</p>
+  <div id="quiz"></div>
+  <div class="score" id="score">0 / 0</div>
+
+  <div class="foot">
+    Generated as an <code>/explain-diff</code> walkthrough of commit <code>b57a130</code> ·
+    <code>linux_configuration/zsh/claude-tty-fix.zsh</code>. Full root-cause writeup lives in the session memory
+    notes (<code>reference-claude-startup-tty</code>).
+  </div>
+</div>
+
+<script>
+// ---- theme: respect a data-theme override if a host sets one ----
+(function(){ /* no-op: CSS handles prefers-color-scheme + [data-theme] */ })();
+
+// ---------------- micro-world: cleanup simulator ----------------
+const SCEN = {
+  exit: {
+    label: "claude exits cleanly",
+    steps: [
+      ["ok","command claude returns (rc set)"],
+      ["ok","next line runs → on-exit reset writes to /dev/tty"],
+      ["ok","mouse tracking disabled by the on-exit reset"],
+      ["mut","precmd heal also runs next prompt (redundant, harmless)"]
+    ],
+    verdict:["ok","Clean either way — the original on-exit reset already covered this case."]
+  },
+  suspend: {
+    label: "claude SIGTTIN-suspends",
+    steps: [
+      ["bad","command claude is STOPPED — it never returns"],
+      ["bad","function is blocked; the on-exit reset line is unreachable"],
+      ["bad","mouse tracking left ON → terminal spews 35;48;12M…"],
+      ["ok","you hit Enter → precmd heal fires → mouse mode disabled"]
+    ],
+    verdict:["ok","This is the case the old fix missed. Only the precmd heal rescues it."]
+  },
+  kill: {
+    label: "killed while suspended",
+    steps: [
+      ["bad","process was stopped, then killed — function may return late or not cleanly"],
+      ["bad","if it never returned, the on-exit reset never ran"],
+      ["bad","mouse mode potentially still ON at the prompt"],
+      ["ok","precmd heal on the next prompt clears it regardless"]
+    ],
+    verdict:["ok","However it died, the next-prompt heal is the reliable backstop."]
+  }
+};
+const simSteps=document.getElementById('simSteps');
+const simVerdict=document.getElementById('simVerdict');
+function renderSim(k){
+  const s=SCEN[k];
+  [...document.querySelectorAll('#simBtns button')].forEach(b=>b.classList.toggle('sel',b.dataset.k===k));
+  simSteps.innerHTML=s.steps.map(([kind,txt])=>{
+    const sym=kind==='ok'?'✓':kind==='bad'?'✕':'•';
+    return `<div class="step"><span class="dot ${kind}">${sym}</span><span>${txt}</span></div>`;
+  }).join('');
+  simVerdict.style.display='block';
+  simVerdict.className='verdict '+s.verdict[0];
+  simVerdict.textContent=s.verdict[1];
+}
+document.querySelectorAll('#simBtns button').forEach(b=>b.addEventListener('click',()=>renderSim(b.dataset.k)));
+renderSim('suspend');
+
+// ---------------- quiz ----------------
+// correct indices span positions 1,2,3 (0-based:1,3,0,2,1); longest-is-correct == 0 by design.
+const QUIZ=[
+  {
+    q:"1. Why can't <code>claude()</code>'s on-exit reset clear the garble during a SIGTTIN suspend?",
+    o:[
+      "The reset goes to stdout, and a suspended job's stdout is detached from the terminal",
+      "claude() is stuck inside <code>command claude</code>, which never returns while claude is stopped",
+      "<code>setopt nomonitor</code> also disables the shell trap that would run the reset code",
+      "The terminal drops escape sequences that arrive while a background job is suspended"
+    ],
+    a:1,
+    r:"A stopped process hasn't exited, so the line after <code>command claude</code> is never reached."
+  },
+  {
+    q:"2. What does the <code>_claude_mouse_heal</code> precmd hook actually do?",
+    o:[
+      "It re-enables mouse tracking each prompt so Claude's next launch starts from a known clean state",
+      "It kills any suspended claude job so the terminal is handed back to the shell",
+      "It runs Claude inside a pseudo-terminal so that SIGTTIN can never reach it",
+      "It writes mouse-disable escapes to /dev/tty before each prompt, clearing leftover garble"
+    ],
+    a:3,
+    r:"It's a safety net that fires on the next prompt no matter how the previous claude died."
+  },
+  {
+    q:"3. Why capture failures with <code>--debug-file</code> instead of the <code>script</code> command?",
+    o:[
+      "<code>script</code> gives Claude a fresh pty with no zsh job control, hiding the SIGTTIN suspend",
+      "<code>script</code> cannot capture the output of an interactive full-screen terminal application at all",
+      "<code>--debug-file</code> is the only way to record which MCP servers connected at startup",
+      "<code>script</code> writes binary typescripts that grep can't search afterward"
+    ],
+    a:0,
+    r:"script's pseudo-terminal removes the job control the bug depends on, so it stops reproducing."
+  },
+  {
+    q:"4. With logging on every launch, what keeps <code>~/.claude/logs</code> from growing forever?",
+    o:[
+      "Each launch overwrites one fixed-name log file that is shared across all sessions",
+      "The logs live on a tmpfs that the operating system clears on every reboot",
+      "A zsh glob qualifier removes all but the 20 newest <code>claude-*.log</code> files at launch",
+      "A cron job prunes the directory nightly down to the twenty most recent files"
+    ],
+    a:2,
+    r:"<code>(NOm[21,-1])</code> orders files by mtime (newest first) and deletes from the 21st onward."
+  },
+  {
+    q:"5. Why does <code>claude-rag</code> call <code>claude</code> rather than <code>command claude</code>?",
+    o:[
+      "Because the <code>--mcp-config</code> flag only works when it is invoked through a function wrapper",
+      "So the on-demand session still gets the nomonitor TTY fix and self-heal from claude()",
+      "Because <code>command claude</code> is unable to accept the <code>--mcp-config</code> flag",
+      "So the extra MCP servers replace the global fleet instead of merging with it"
+    ],
+    a:1,
+    r:"Calling the function means on-demand sessions inherit the same TTY protection as normal ones."
+  }
+];
+let answered=0, correct=0;
+const quizEl=document.getElementById('quiz'), scoreEl=document.getElementById('score');
+QUIZ.forEach((item,qi)=>{
+  const d=document.createElement('div'); d.className='q';
+  d.innerHTML=`<div class="qt">${item.q}</div>`;
+  const rat=document.createElement('div'); rat.className='rat'; rat.innerHTML='<strong>Why:</strong> '+item.r;
+  let done=false;
+  item.o.forEach((txt,oi)=>{
+    const b=document.createElement('button'); b.className='opt'; b.innerHTML=txt;
+    b.addEventListener('click',()=>{
+      if(done) return; done=true; answered++;
+      const right=oi===item.a;
+      if(right){correct++; b.classList.add('correct');}
+      else{
+        b.classList.add('wrong');
+        d.querySelectorAll('.opt')[item.a].classList.add('correct');
+      }
+      rat.classList.add('show');
+      scoreEl.textContent=correct+' / '+answered;
+    });
+    d.appendChild(b);
+  });
+  d.appendChild(rat); quizEl.appendChild(d);
+});
+scoreEl.textContent='0 / 0';
+</script>
