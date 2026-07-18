@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surviving early keystrokes — the claude() tty-fix wrapper</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1a1a1a; --muted: #5b5b5b; --card: #ffffff;
+    --border: #e2e2df; --accent: #b5581f; --accent-soft: #f6e9df;
+    --ok: #1f7a4d; --ok-soft: #e3f3ea; --bad: #b3261e; --bad-soft: #fbe6e4;
+    --code-bg: #f3f1ee; --code-fg: #2a2a2a; --shadow: 0 1px 3px rgba(0,0,0,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a; --fg: #e6e6e4; --muted: #a2a2a0; --card: #1f2024;
+      --border: #33343a; --accent: #e08a4e; --accent-soft: #3a2a1c;
+      --ok: #63c58c; --ok-soft: #1c3327; --bad: #f0857c; --bad-soft: #3a201e;
+      --code-bg: #24262b; --code-fg: #dcdcda; --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16171a; --fg: #e6e6e4; --muted: #a2a2a0; --card: #1f2024;
+    --border: #33343a; --accent: #e08a4e; --accent-soft: #3a2a1c;
+    --ok: #63c58c; --ok-soft: #1c3327; --bad: #f0857c; --bad-soft: #3a201e;
+    --code-bg: #24262b; --code-fg: #dcdcda; --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"] {
+    --bg: #fbfbfa; --fg: #1a1a1a; --muted: #5b5b5b; --card: #ffffff;
+    --border: #e2e2df; --accent: #b5581f; --accent-soft: #f6e9df;
+    --ok: #1f7a4d; --ok-soft: #e3f3ea; --bad: #b3261e; --bad-soft: #fbe6e4;
+    --code-bg: #f3f1ee; --code-fg: #2a2a2a; --shadow: 0 1px 3px rgba(0,0,0,.07);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px;
+  }
+  .wrap { width: min(48rem, 92vw); margin: 0 auto; padding: 2.5rem 0 5rem; }
+  header.hero { padding-bottom: 1.2rem; border-bottom: 2px solid var(--accent); margin-bottom: 1.5rem; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: .72rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: .35rem 0 .5rem; }
+  .sub { color: var(--muted); font-size: 1rem; }
+  .meta { color: var(--muted); font-size: .82rem; margin-top: .8rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  h2 { font-size: 1.35rem; margin: 2.6rem 0 .8rem; padding-top: .4rem; scroll-margin-top: 1rem; }
+  h3 { font-size: 1.05rem; margin: 1.6rem 0 .4rem; }
+  p { margin: .7rem 0; }
+  a { color: var(--accent); }
+  nav.toc {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.2rem; box-shadow: var(--shadow); margin-bottom: 1rem;
+  }
+  nav.toc strong { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  nav.toc ol { margin: .5rem 0 0; padding-left: 1.2rem; }
+  nav.toc li { margin: .2rem 0; }
+  code { background: var(--code-bg); color: var(--code-fg); padding: .1em .35em; border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; }
+  pre {
+    background: var(--code-bg); color: var(--code-fg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; white-space: pre-wrap;
+    word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .84rem; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.2rem 1.3rem; box-shadow: var(--shadow); margin: 1.2rem 0; }
+  .callout { border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 8px 8px 0; padding: .8rem 1rem; margin: 1.2rem 0; font-size: .95rem; }
+  .callout.warn { border-left-color: var(--bad); background: var(--bad-soft); }
+  .ins { color: var(--accent); font-weight: 600; }
+  /* diagram */
+  .flow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; margin: 1rem 0; }
+  .node { flex: 1 1 8rem; min-width: 8rem; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: .7rem .8rem; font-size: .82rem; box-shadow: var(--shadow); }
+  .node .lab { font-weight: 700; display: block; margin-bottom: .2rem; font-size: .8rem; }
+  .node.good { border-color: var(--ok); background: var(--ok-soft); }
+  .node.bad { border-color: var(--bad); background: var(--bad-soft); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .pgrp { display:flex; gap:.5rem; flex-wrap:wrap; margin:.6rem 0; }
+  .pgbox { flex:1 1 10rem; border:1px dashed var(--border); border-radius:10px; padding:.6rem .7rem; }
+  .pgbox .t { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .chip { display:inline-block; padding:.15rem .5rem; border-radius:999px; font-size:.75rem; font-weight:600;
+    border:1px solid var(--border); margin:.15rem .2rem 0 0; }
+  .chip.fg { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+  .chip.bgp { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  /* simulator */
+  .sim { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.2rem; box-shadow: var(--shadow); margin: 1.4rem 0; }
+  .sim h3 { margin-top: 0; }
+  .toggle-row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin:.4rem 0 1rem; }
+  .btn { cursor:pointer; border:1px solid var(--border); background:var(--card); color:var(--fg);
+    border-radius:8px; padding:.5rem .9rem; font-size:.9rem; font-weight:600; box-shadow: var(--shadow); }
+  .btn.primary { background: var(--accent); color:#fff; border-color: var(--accent); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .seg button { border:none; background:var(--card); color:var(--fg); padding:.45rem .8rem; cursor:pointer; font-size:.85rem; font-weight:600; }
+  .seg button.on { background: var(--accent); color:#fff; }
+  .timeline { list-style:none; margin:.8rem 0 0; padding:0; }
+  .timeline li { padding:.55rem .7rem; border:1px solid var(--border); border-radius:8px; margin:.4rem 0;
+    font-size:.85rem; opacity:.4; transition:opacity .2s, border-color .2s, background .2s; }
+  .timeline li.active { opacity:1; border-color: var(--accent); background: var(--accent-soft); }
+  .timeline li.done { opacity:.9; }
+  .timeline li.stop { border-color: var(--bad); background: var(--bad-soft); }
+  .timeline li.win { border-color: var(--ok); background: var(--ok-soft); }
+  .verdict { margin-top:1rem; padding:.8rem 1rem; border-radius:10px; font-weight:600; font-size:.92rem; display:none; }
+  .verdict.show { display:block; }
+  .verdict.bad { background: var(--bad-soft); border:1px solid var(--bad); color: var(--bad); }
+  .verdict.good { background: var(--ok-soft); border:1px solid var(--ok); color: var(--ok); }
+  .term { font-family: ui-monospace, monospace; font-size:.8rem; background:#111; color:#ddd; border-radius:8px;
+    padding:.6rem .7rem; margin-top:.7rem; min-height:2.2rem; white-space:pre-wrap; word-break:break-word; }
+  /* quiz */
+  .q { border:1px solid var(--border); border-radius:12px; padding:1rem 1.2rem; margin:1rem 0; background:var(--card); box-shadow:var(--shadow); }
+  .q .qtext { font-weight:600; margin-bottom:.6rem; }
+  .opt { display:block; width:100%; text-align:left; border:1px solid var(--border); background:var(--bg);
+    color:var(--fg); border-radius:8px; padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-size:.9rem; line-height:1.4; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt.correct { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .opt:disabled { cursor:default; }
+  .rationale { font-size:.85rem; color:var(--muted); margin-top:.5rem; display:none; }
+  .rationale.show { display:block; }
+  .score { position:sticky; top:0; z-index:5; background:var(--accent); color:#fff; font-weight:700;
+    padding:.5rem .9rem; border-radius:0 0 10px 10px; font-size:.9rem; box-shadow:var(--shadow); display:inline-block; }
+  .themebtn { float:right; font-size:.75rem; padding:.25rem .6rem; }
+  footer { margin-top:3rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--muted); font-size:.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <button class="btn themebtn" onclick="toggleTheme()">◐ theme</button>
+    <div class="kicker">Change explanation · shell / terminals</div>
+    <h1>Surviving early keystrokes</h1>
+    <div class="sub">A tiny <code>claude()</code> wrapper that stops your terminal from freezing and spewing garbage when you type too fast at Claude Code's startup.</div>
+    <div class="meta">commit 4be57f0 · linux_configuration/zsh/claude-tty-fix.zsh · +58 lines</div>
+  </header>
+
+  <nav class="toc">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#background">Background — terminals, jobs, and who's listening</a></li>
+      <li><a href="#intuition">Intuition — two levers: prevent &amp; self-heal</a></li>
+      <li><a href="#sim">Play with it — the startup race simulator</a></li>
+      <li><a href="#code">Code — walking the wrapper</a></li>
+      <li><a href="#quiz">Quiz — check your understanding</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================ BACKGROUND ============================ -->
+  <h2 id="background">1 · Background</h2>
+
+  <p>When you run a program in a terminal, three separate things are quietly cooperating, and this bug lives in the seams between them. Let's meet them.</p>
+
+  <h3>The terminal is a two-way pipe</h3>
+  <p>A terminal (here, terminator) isn't just where text appears. It's a bidirectional channel. Your program writes characters <em>out</em> to be displayed, and your keystrokes flow <em>in</em>. Crucially, programs can also send the terminal <strong>control sequences</strong> — invisible commands that begin with an escape byte. One turns on the cursor, another sets the window title, and some <em>ask the terminal a question</em> and wait for a typed-back answer.</p>
+
+  <p>A modern text UI like Claude Code does exactly this at startup. It sends things like:</p>
+  <pre><code>\e[?1003h   → "start reporting every mouse movement to me"
+\e[?996n    → "are you in light or dark mode?"   (a question)</code></pre>
+  <p>The terminal answers the question by <em>typing back</em> a reply into the input stream — for the dark-mode query that reply is <code>\e[?997;1n</code>. Normally Claude reads that reply itself and you never see it. Remember this: <strong>the reply arrives as input</strong>, and mouse-movement reports (bytes like <code>35;44;41M</code>) also arrive as input, continuously, once mouse tracking is on.</p>
+
+  <h3>Process groups and the one "foreground" seat</h3>
+  <p>Only one program at a time is allowed to own the terminal's keyboard — the <strong>foreground</strong>. The kernel enforces this per <em>process group</em>: the terminal remembers a single "foreground process group," and that group gets the keystrokes. When your interactive zsh launches <code>claude</code> with <strong>job control</strong> turned on (its default, the <code>MONITOR</code> option), it does something specific: it puts <code>claude</code> in its <em>own</em> new process group and hands that group the foreground seat.</p>
+
+  <div class="pgrp">
+    <div class="pgbox"><div class="t">Terminal remembers</div>foreground group = <span class="chip fg">whoever holds the seat</span></div>
+    <div class="pgbox"><div class="t">With job control on</div>zsh <span class="chip">group A</span> · claude <span class="chip">group B (new)</span></div>
+  </div>
+
+  <h3>SIGTTIN — the "you're not allowed to listen" signal</h3>
+  <p>Here's the rule that bites us. If a process tries to <code>read()</code> the terminal while its group is <em>not</em> the foreground group, the kernel doesn't return the data — it sends the whole group <strong>SIGTTIN</strong>, whose default action is to <em>stop</em> (suspend) the process. That's the exact wording you saw:</p>
+  <pre><code>[1]  + 96758 suspended (tty input)</code></pre>
+  <p>It literally means "a background process tried to read your typing, so I paused it." Put these three facts together and the whole bug falls out — which is the next section.</p>
+
+  <div class="callout">
+    <span class="ins">★ Why it's not <em>your</em> config:</span> nothing in your zsh, terminator, or i3 setup turns on mouse tracking or fires those probes — that's Claude Code's own startup behavior. Anthropic has this filed and closed as "not planned"
+    (<a href="https://github.com/anthropics/claude-code/issues/7807">#7807</a>,
+    <a href="https://github.com/anthropics/claude-code/issues/11898">#11898</a>,
+    <a href="https://github.com/anthropics/claude-code/issues/23581">#23581</a>,
+    <a href="https://github.com/anthropics/claude-code/issues/50032">#50032</a>), and there is no flag or env var to disable the probes. So the fix has to live <em>outside</em> the binary — in the shell that launches it.
+  </div>
+
+  <!-- ============================ INTUITION ============================ -->
+  <h2 id="intuition">2 · Intuition</h2>
+
+  <p>The failure is a three-step chain. Follow one keystroke through it.</p>
+
+  <div class="flow">
+    <div class="node"><span class="lab">① claude starts</span>Turns on mouse tracking, fires probes. Still setting up its raw-mode input.</div>
+    <div class="node"><span class="lab">② you type</span>A keystroke lands in the terminal's input buffer while claude is mid-init.</div>
+    <div class="node bad"><span class="lab">③ read → SIGTTIN</span>claude reads stdin while <em>not</em> the foreground group → kernel stops it.</div>
+  </div>
+
+  <p>And because it was stopped <em>mid-init</em>, it never got to send the "turn mouse tracking off" sequence. So mouse mode stays on, the shell is now back in the foreground, and every mouse twitch plus that leftover dark-mode reply gets echoed as garbage:</p>
+
+  <div class="term">$ <span style="color:#f88">5;44;41M35;44;41M35;44;41M</span>
+<span style="color:#f88">997;1n</span>   ← mouse-move reports + the dark-mode probe reply, now landing on the shell</div>
+
+  <p>So there are really two separate problems to solve, and the wrapper attacks each with its own lever:</p>
+
+  <div class="flow">
+    <div class="node good"><span class="lab">Lever 1 — PREVENT</span>Keep claude in the foreground group so a <code>read</code> can never trip SIGTTIN. Do this by turning <em>off</em> job control (<code>nomonitor</code>) just for claude: with no job control, zsh does <strong>not</strong> give claude a separate group — it shares the shell's group, which already holds the seat.</div>
+    <div class="node good"><span class="lab">Lever 2 — SELF-HEAL</span>If a garble ever does happen, undo it on exit: send the "mouse off / cursor on" reset sequences and run <code>stty sane</code> so the terminal is clean the moment claude quits — no manual <code>reset</code> needed.</div>
+  </div>
+
+  <div class="pgrp">
+    <div class="pgbox"><div class="t">Default (job control on)</div>claude in <span class="chip bgp">its own group</span> → brief window where it isn't the foreground seat → <strong>read can stop it</strong></div>
+    <div class="pgbox"><div class="t">Wrapper (nomonitor)</div>claude shares <span class="chip fg">the shell's foreground group</span> → it always holds the seat → <strong>read never stops it</strong></div>
+  </div>
+
+  <div class="callout">
+    <span class="ins">★ The honest caveat baked into the code:</span> the exact reason the read lands in a non-foreground group is a startup race we can't observe from outside the binary — so lever 1 is a well-reasoned <em>hypothesis</em>, confirmed by testing (it worked). Lever 2 is the guarantee that always holds regardless. That's why the wrapper ships both.
+  </div>
+
+  <!-- ============================ SIMULATOR ============================ -->
+  <h2 id="sim">3 · Play with it</h2>
+  <p>Step one keystroke through Claude's startup. Flip job control on (the default) versus off (what the wrapper does) and watch where the <code>read</code> lands.</p>
+
+  <div class="sim">
+    <h3>Startup race simulator</h3>
+    <div class="toggle-row">
+      <span style="font-size:.85rem; color:var(--muted);">Job control:</span>
+      <span class="seg" role="group" aria-label="job control mode">
+        <button id="modeOn" class="on" onclick="setMode('on')">ON — default</button>
+        <button id="modeOff" onclick="setMode('off')">OFF — wrapper (nomonitor)</button>
+      </span>
+      <button class="btn primary" id="stepBtn" onclick="step()">Step ▶</button>
+      <button class="btn" onclick="resetSim()">Reset ↺</button>
+    </div>
+
+    <div class="pgrp">
+      <div class="pgbox"><div class="t">claude's process group</div><span id="pgState" class="mono">— not launched —</span></div>
+      <div class="pgbox"><div class="t">terminal's foreground seat</div><span id="fgState" class="mono">shell</span></div>
+    </div>
+
+    <ul class="timeline" id="tl"></ul>
+    <div class="term" id="simTerm">(terminal is calm)</div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <!-- ============================ CODE ============================ -->
+  <h2 id="code">4 · Code</h2>
+  <p>The whole change is one shell function that shadows the <code>claude</code> command. It auto-loads because it's symlinked into <code>~/.oh-my-zsh/custom/</code>, which oh-my-zsh sources for every shell — so <code>.zshrc</code> is never touched. Here's the function, grouped by concern.</p>
+
+  <h3>a. The escape sequences it will use to clean up</h3>
+  <pre><code>local -r _claude_tty_reset=$'\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1004l\e[?2004l\e[?25h'</code></pre>
+  <p>Each <code>?N<strong>l</strong></code> is the "<em>l</em>ow / disable" counterpart of the "<em>h</em>igh / enable" sequences Claude sent: mouse tracking (<code>1000/1002/1003/1006</code>), focus reporting (<code>1004</code>), bracketed paste (<code>2004</code>), and <code>25h</code> to make the cursor visible again. This string is the exact antidote to the modes a mid-init stop leaves on.</p>
+
+  <h3>b. An escape hatch</h3>
+  <pre><code>if [[ -n "${CLAUDE_TTY_FIX_OFF:-}" ]]; then
+    command claude "$@"
+    return $?
+fi</code></pre>
+  <p>Set <code>CLAUDE_TTY_FIX_OFF=1</code> and the wrapper steps aside entirely — handy for A/B testing the old behavior. <code>command claude</code> means "run the real binary on <code>PATH</code>, not this function," which is how the function avoids calling itself forever.</p>
+
+  <h3>c. Lever 1 — prevent the stop</h3>
+  <pre><code>setopt localoptions nomonitor
+command claude "$@"
+local -r rc=$?</code></pre>
+  <p><code>nomonitor</code> disables zsh job control; <code>localoptions</code> scopes that change to this function so the rest of your shell keeps job control. With monitoring off, zsh launches claude <em>without</em> carving out a new process group — claude shares the shell's group, which already owns the foreground seat, so a <code>read</code> can't trip SIGTTIN. We capture the exit code in <code>rc</code> because cleanup comes next and we must return claude's real status, not <code>stty</code>'s.</p>
+
+  <h3>d. Lever 2 — self-heal, but only a real terminal</h3>
+  <pre><code>if [[ -t 1 || -t 2 ]]; then
+    printf '%s' "$_claude_tty_reset" &gt; /dev/tty 2>/dev/null
+    stty sane &lt; /dev/tty 2>/dev/null
+fi
+return $rc</code></pre>
+  <p>Two deliberate choices here:</p>
+  <ul>
+    <li><strong>Write to <code>/dev/tty</code>, not stdout.</strong> <code>/dev/tty</code> is always the real controlling terminal. If we printed the reset codes to stdout, a piped run like <code>claude -p '…' | jq</code> would get escape bytes injected into the data going to <code>jq</code> — corrupting it. Routing to <code>/dev/tty</code> heals the <em>screen</em> without polluting the <em>pipe</em>.</li>
+    <li><strong>Guard with <code>[[ -t 1 || -t 2 ]]</code>.</strong> Only bother cleaning up if claude was actually attached to a terminal. In a fully headless/cron context there's no screen to heal, so we skip it silently.</li>
+  </ul>
+
+  <div class="callout warn">
+    <span class="ins">Trade-off:</span> while lever 1 is active you can't <code>Ctrl-Z</code>-suspend a claude session (that's a job-control feature, and job control is what we turned off). In practice nobody suspends an interactive claude, so this is a cheap price. Opt back out any time with <code>CLAUDE_TTY_FIX_OFF=1</code>.
+  </div>
+
+  <!-- ============================ QUIZ ============================ -->
+  <h2 id="quiz">5 · Quiz</h2>
+  <div class="score" id="score">Score: 0 / 0</div>
+  <div id="quiz"></div>
+
+  <footer>
+    Generated as a change-explanation doc · <code>docs/explanations/</code> · terminator + zsh + Claude Code 2.1.214.
+  </footer>
+</div>
+
+<script>
+/* ---------- theme toggle ---------- */
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const now = cur ? cur : (sysDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', now === 'dark' ? 'light' : 'dark');
+}
+
+/* ---------- simulator ---------- */
+const STEPS = [
+  { txt: "zsh launches claude", pg: (m)=> m==='on' ? "new group B" : "shares shell's group A", fg: "shell (group A)" },
+  { txt: "claude enables mouse tracking (\\e[?1003h) + fires probes", pg: null, fg: null },
+  { txt: "you press a key → it enters the terminal's input buffer", pg: null, fg: null },
+  { txt: "claude calls read() on stdin", pg: null, fg: null },
+  { txt: "OUTCOME", pg: null, fg: null }
+];
+let mode = 'on';
+let idx = -1;
+
+function setMode(m){
+  mode = m;
+  document.getElementById('modeOn').classList.toggle('on', m==='on');
+  document.getElementById('modeOff').classList.toggle('on', m==='off');
+  resetSim();
+}
+function resetSim(){
+  idx = -1;
+  const tl = document.getElementById('tl');
+  tl.innerHTML = '';
+  STEPS.forEach((s,i)=>{
+    const li = document.createElement('li');
+    li.id = 'tl'+i;
+    li.textContent = (i+1)+'. '+ (s.txt==='OUTCOME' ? '…' : s.txt);
+    tl.appendChild(li);
+  });
+  document.getElementById('pgState').textContent = "— not launched —";
+  document.getElementById('fgState').textContent = "shell";
+  document.getElementById('simTerm').textContent = "(terminal is calm)";
+  document.getElementById('verdict').className = 'verdict';
+  document.getElementById('stepBtn').disabled = false;
+  document.getElementById('stepBtn').textContent = "Step ▶";
+}
+function step(){
+  if (idx >= STEPS.length-1) return;
+  idx++;
+  for (let i=0;i<STEPS.length;i++){
+    const li = document.getElementById('tl'+i);
+    li.classList.remove('active');
+    if (i < idx) li.classList.add('done');
+    if (i === idx) li.classList.add('active');
+  }
+  const s = STEPS[idx];
+  if (s.pg) document.getElementById('pgState').textContent = s.pg;
+  if (s.fg) document.getElementById('fgState').textContent = s.fg;
+
+  if (idx === 0){
+    document.getElementById('pgState').textContent = mode==='on' ? "new group B (job control)" : "shares shell's group A";
+    document.getElementById('fgState').textContent = mode==='on' ? "handoff in progress → group B" : "shell group A (also claude's)";
+  }
+  if (idx === STEPS.length-1){
+    const li = document.getElementById('tl'+idx);
+    const v = document.getElementById('verdict');
+    const term = document.getElementById('simTerm');
+    if (mode==='on'){
+      li.textContent = (idx+1)+". read() runs while claude's group B isn't the foreground seat → SIGTTIN → STOP";
+      li.classList.add('stop');
+      term.innerHTML = '[1]  + 96758 suspended (tty input)\n<span style="color:#f88">5;44;41M35;44;41M  997;1n</span>';
+      v.textContent = "❌ Suspended. Mouse mode was left on, so the shell now echoes mouse moves + the probe reply as garbage.";
+      v.className = 'verdict show bad';
+    } else {
+      li.textContent = (idx+1)+". read() runs while claude IS the foreground group → read succeeds, no signal";
+      li.classList.add('win');
+      term.textContent = "(claude reads your keystroke normally — no stop, no garble)";
+      v.textContent = "✅ No stop. claude shares the shell's foreground group, so the read is always allowed.";
+      v.className = 'verdict show good';
+    }
+    document.getElementById('stepBtn').disabled = true;
+    document.getElementById('stepBtn').textContent = "done";
+  }
+}
+
+/* ---------- quiz ---------- */
+const QUIZ = [
+  {
+    q: "Why does typing during Claude's startup stop the process with “suspended (tty input)”?",
+    opts: [
+      "The shell reads the fast keystrokes as a Ctrl-Z job-suspend request mid-command.",
+      "Claude reads stdin while it isn't the foreground group, so it gets SIGTTIN.",
+      "The terminal's input buffer overflows and asks the shell to pause the running job.",
+      "Mouse-tracking mode blocks all keyboard reads until a real click event arrives."
+    ],
+    correct: 1,
+    why: "A background-group read of the tty triggers SIGTTIN, whose default action stops the process."
+  },
+  {
+    q: "Once Claude is stopped, why does the terminal keep spamming sequences like 35;44;41M?",
+    opts: [
+      "The shell is trying to relaunch Claude and echoes its startup probes back.",
+      "Zsh prints a hex dump of the suspended process's memory to the screen.",
+      "Mouse tracking is still on, so mouse moves become reports the shell reads.",
+      "The kernel flushes Claude's unsent output buffer straight onto the terminal."
+    ],
+    correct: 2,
+    why: "Claude was stopped before it could disable mouse tracking, so mouse-move reports keep arriving as input."
+  },
+  {
+    q: "How does the wrapper try to prevent the stop from ever happening?",
+    opts: [
+      "It runs Claude with job control off, so it shares the shell's foreground group.",
+      "It sleeps for five seconds before launching Claude so its startup finishes first.",
+      "It discards any typed-ahead keystrokes from the tty buffer before Claude reads them.",
+      "It traps SIGTTIN inside the function and immediately resumes the stopped job."
+    ],
+    correct: 0,
+    why: "nomonitor stops zsh from giving claude its own group; sharing the shell's foreground group means read() never trips SIGTTIN."
+  },
+  {
+    q: "Why does the cleanup write escape codes to /dev/tty instead of stdout?",
+    opts: [
+      "/dev/tty is faster because it skips the shell's own output buffering layer entirely.",
+      "Stdout is already closed by the time the wrapper's cleanup code finally runs.",
+      "Writing reset codes to stdout would require root permissions on the tty device.",
+      "So a piped run like claude -p … | jq isn't polluted with escape codes."
+    ],
+    correct: 3,
+    why: "/dev/tty targets the real terminal; using stdout would inject the reset bytes into any pipe/redirect."
+  },
+  {
+    q: "What real capability do you give up while the wrapper's prevention is active?",
+    opts: [
+      "You can no longer scroll through Claude's output using the mouse wheel at all.",
+      "You can't Ctrl-Z-suspend the Claude session, because job control is off.",
+      "Claude can no longer spawn background subprocesses for its own tools.",
+      "Piped and headless claude -p runs stop working while the wrapper is on."
+    ],
+    correct: 1,
+    why: "Ctrl-Z suspend is a job-control feature, and job control is exactly what nomonitor turns off for claude."
+  }
+];
+
+let answered = 0, correctCount = 0;
+function renderQuiz(){
+  const root = document.getElementById('quiz');
+  QUIZ.forEach((item, qi)=>{
+    const div = document.createElement('div');
+    div.className = 'q';
+    const qt = document.createElement('div');
+    qt.className = 'qtext';
+    qt.textContent = (qi+1)+'. '+item.q;
+    div.appendChild(qt);
+    item.opts.forEach((opt, oi)=>{
+      const b = document.createElement('button');
+      b.className = 'opt';
+      b.textContent = opt;
+      b.onclick = ()=> pick(div, item, qi, oi, b);
+      div.appendChild(b);
+    });
+    const r = document.createElement('div');
+    r.className = 'rationale';
+    r.id = 'rat'+qi;
+    div.appendChild(r);
+    root.appendChild(div);
+  });
+  updateScore();
+}
+function pick(div, item, qi, oi, btn){
+  if (div.dataset.done) return;
+  div.dataset.done = '1';
+  answered++;
+  const opts = div.querySelectorAll('.opt');
+  opts.forEach((o,i)=>{
+    o.disabled = true;
+    if (i === item.correct) o.classList.add('correct');
+  });
+  if (oi === item.correct){ correctCount++; }
+  else { btn.classList.add('wrong'); }
+  const r = document.getElementById('rat'+qi);
+  r.textContent = (oi===item.correct ? '✓ ' : '✗ ') + item.why;
+  r.classList.add('show');
+  updateScore();
+}
+function updateScore(){
+  document.getElementById('score').textContent = 'Score: '+correctCount+' / '+answered;
+}
+
+resetSim();
+renderQuiz();
+</script>
+</body>
+</html>
