@@ -93,18 +93,30 @@ else
 	test_result "/etc/hosts is immutable" "skip" "File not found"
 fi
 
-# Test 2: hosts-guard.path is active
-if systemctl is-active --quiet hosts-guard.path 2>/dev/null; then
-	test_result "hosts-guard.path is active" "pass"
+# Test 2: the hosts file watcher is active
+# The 2026-07-17 guard-lib refactor replaced the standalone hosts-guard.path
+# with the templated guard-file@hosts.path. Accept either, so this passes on a
+# migrated host and on one still running the legacy unit. Checking only the old
+# name reported the protection as down when it was simply renamed.
+if systemctl is-active --quiet guard-file@hosts.path 2>/dev/null ||
+	systemctl is-active --quiet hosts-guard.path 2>/dev/null; then
+	test_result "hosts file watcher is active" "pass"
 else
-	test_result "hosts-guard.path is active" "fail" "Service not running"
+	test_result "hosts file watcher is active" "fail" \
+		"neither guard-file@hosts.path nor hosts-guard.path is running"
 fi
 
-# Test 3: hosts-bind-mount.service is active
-if systemctl is-active --quiet hosts-bind-mount.service 2>/dev/null; then
-	test_result "hosts-bind-mount.service is active" "pass"
+# Test 3: /etc/hosts is bind-mounted read-only
+# guard-bind-mount@hosts.service superseded hosts-bind-mount.service. The mount
+# itself is the thing that matters, so check that too — it is the real
+# invariant, independent of which unit established it.
+if systemctl is-active --quiet guard-bind-mount@hosts.service 2>/dev/null ||
+	systemctl is-active --quiet hosts-bind-mount.service 2>/dev/null ||
+	findmnt -no OPTIONS /etc/hosts 2>/dev/null | grep -q '\bro\b'; then
+	test_result "/etc/hosts bind-mounted read-only" "pass"
 else
-	test_result "hosts-bind-mount.service is active" "fail" "Service not running"
+	test_result "/etc/hosts bind-mounted read-only" "fail" \
+		"no bind-mount unit active and /etc/hosts is not mounted read-only"
 fi
 
 # Test 4: Canonical hosts copy exists
@@ -114,11 +126,17 @@ else
 	test_result "Canonical hosts copy exists" "fail" "Not found at /usr/local/share/locked-hosts"
 fi
 
-# Test 5: nsswitch-guard.path is active (NEW)
-if systemctl is-active --quiet nsswitch-guard.path 2>/dev/null; then
-	test_result "nsswitch-guard.path is active" "pass"
+# Test 5: the nsswitch watcher is active
+# guard-file@nsswitch.path superseded nsswitch-guard.path. The legacy unit is
+# left in a failed state on migrated hosts (it and the new watcher both
+# enforced the same file, so it retriggered itself into systemd's start
+# limit) — that is obsolete-unit noise, not a lapse in protection.
+if systemctl is-active --quiet guard-file@nsswitch.path 2>/dev/null ||
+	systemctl is-active --quiet nsswitch-guard.path 2>/dev/null; then
+	test_result "nsswitch watcher is active" "pass"
 else
-	test_result "nsswitch-guard.path is active" "fail" "Service not running"
+	test_result "nsswitch watcher is active" "fail" \
+		"neither guard-file@nsswitch.path nor nsswitch-guard.path is running"
 fi
 
 # Test 6: /etc/nsswitch.conf is immutable (NEW)
@@ -171,11 +189,26 @@ else
 	test_result "day-specific-shutdown.timer is active" "fail" "Timer not running"
 fi
 
-# Test 10: shutdown schedule guard is active
+# Test 10: shutdown schedule guard
+# The shutdown flow no longer powers the machine off — day-specific-shutdown
+# now hands over to night-lockdown-enter.sh, which tears down the GUI and masks
+# the TTY login while leaving the servers up. This guard was retired with the
+# old poweroff path, so a *disabled* unit is the intended state, not a fault.
+# An enabled-but-inactive unit would still mean something is wrong, so those
+# two cases are distinguished rather than both being tolerated.
+# `systemctl is-enabled` prints the state on stdout *and* exits non-zero when
+# that state is "disabled", so `|| echo disabled` would append a second line
+# and never compare equal. Capture stdout and discard the exit status instead.
+shutdown_guard_enabled=$(systemctl is-enabled shutdown-schedule-guard.path 2>/dev/null || true)
+[[ -n "$shutdown_guard_enabled" ]] || shutdown_guard_enabled=unknown
 if systemctl is-active --quiet shutdown-schedule-guard.path 2>/dev/null; then
 	test_result "shutdown-schedule-guard.path is active" "pass"
+elif [[ "$shutdown_guard_enabled" == "disabled" ]]; then
+	test_result "shutdown-schedule-guard.path is active" "skip" \
+		"intentionally retired with the old poweroff flow (night lockdown replaced it)"
 else
-	test_result "shutdown-schedule-guard.path is active" "fail" "Guard not running"
+	test_result "shutdown-schedule-guard.path is active" "fail" \
+		"unit is $shutdown_guard_enabled but not running"
 fi
 
 # Test 11: Unlock script has obscure name (no helpful path)

@@ -1,0 +1,39 @@
+{
+  "intent": "Stop test_security_hardening.sh reporting healthy protection as broken. It checked systemd units that the guard-lib refactor renamed, and treated a deliberately retired unit as a fault.",
+  "scope": [
+    "linux_configuration/tests/test_security_hardening.sh: guard unit checks and the shutdown-schedule guard check",
+    "Non-goal: any change to the guard units or system state. Nothing on the host was started, stopped, enabled or disabled."
+  ],
+  "changes": [
+    "Tests 2, 3 and 5 checked hosts-guard.path, hosts-bind-mount.service and nsswitch-guard.path. The 2026-07-17 guard-lib refactor replaced these with templated units: guard-file@hosts.path, guard-bind-mount@hosts.service and guard-file@nsswitch.path. Each check now accepts either generation, so it passes on a migrated host and on one still running the legacy units.",
+    "Test 3 additionally accepts the read-only bind mount on /etc/hosts itself. The mount is the actual invariant; which unit established it is an implementation detail.",
+    "Test 10 (shutdown-schedule-guard.path) now distinguishes disabled from enabled-but-inactive. The guard was retired along with the poweroff flow — day-specific-shutdown now hands over to night-lockdown-enter.sh — so disabled is the intended state and is reported as a skip. An enabled unit that is not running is still a failure.",
+    "Fixed a shell bug in that check: `systemctl is-enabled` prints the state on stdout AND exits non-zero when the state is 'disabled', so `$(... || echo disabled)` produced two lines and never compared equal."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh (real host)",
+      "result": "pass",
+      "evidence": "18 passed / 0 failed / 6 skipped, up from 15/4/5. The four reported failures were stale unit names plus one intentionally retired guard, not missing protection."
+    },
+    {
+      "command": "systemctl is-active on the guard-lib units, plus lsattr and findmnt",
+      "result": "pass",
+      "evidence": "guard-file@hosts.path, guard-file@nsswitch.path, guard-bind-mount@hosts.service and etc-hosts.mount are all active; /etc/hosts is mounted ro,noatime; /etc/hosts and /etc/nsswitch.conf both carry the immutable flag. Protection was intact the whole time."
+    },
+    {
+      "command": "negative check — fake the configured-host markers inside a container with no protection installed",
+      "result": "pass",
+      "evidence": "Reports 10 failures, confirming the suite still detects genuinely absent protection and has not been softened into always-green."
+    }
+  ],
+  "risks": [
+    "Accepting either unit generation means a half-migrated host — new unit running, legacy unit failed — passes. That is the current state of this machine and is harmless, but it does mean the suite will not flag leftover failed legacy units. Those remain visible in `systemctl --failed`.",
+    "The legacy nsswitch-guard.path and resolved-guard.path are still enabled and sit in a failed state after boot: they and the new guard-file@ watchers both enforced the same files, so each retriggered itself into systemd's start limit. Cosmetic, since the new watchers do the work, but disabling the obsolete units would clean up `systemctl --failed`. Not done here because it changes system state.",
+    "Test 10 keys off `is-enabled`. If the shutdown guard is ever re-enabled without being started, that correctly fails; if it is re-introduced under a new name, this check needs updating the same way tests 2/3/5 just did."
+  ],
+  "rollback": [
+    "git revert this commit: the suite returns to checking only the legacy unit names and reports 4 failures on this host despite protection being active.",
+    "Validate after rollback: bash test_security_hardening.sh prints FAIL for hosts-guard.path, hosts-bind-mount.service, nsswitch-guard.path and shutdown-schedule-guard.path."
+  ]
+}
