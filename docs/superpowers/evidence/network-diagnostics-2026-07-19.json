@@ -1,0 +1,49 @@
+{
+  "intent": "Add two reusable network diagnostic scripts that distinguish a slow link from an idle download client, so 'Steam is slow' can be answered with measurement instead of guesswork.",
+  "scope": [
+    "linux_configuration/scripts/diagnostics/ (new): steam-download-duty.sh, line-speed-probe.sh, install.sh",
+    "linux_configuration/tests/test_network_diagnostics.bats (new)",
+    "Non-goal: wiring shell tests into CI — no workflow runs .sh/.bats today, including the 4 pre-existing shell tests",
+    "Non-goal: changing any Steam or system configuration; these scripts only read counters"
+  ],
+  "changes": [
+    "steam-download-duty.sh samples /sys/class/net rx_bytes at 1s and reports duty cycle, burst rate and effective average separately. 5s averaging smears bursts and stalls into a plateau that does not exist; 1s resolution is what exposed the real behaviour.",
+    "line-speed-probe.sh reports burst vs sustained across single and parallel streams. Sustained deliberately means the mean of the second half, discarding TCP slow start and any ISP burst allowance.",
+    "Arithmetic and classification extracted into pure helpers (bytes_to_mbps, duty_pct, mean_of, classify, sustained_of, max_of, verdict_for); main() is guarded by a BASH_SOURCE check so tests can source the helpers without starting a measurement.",
+    "install.sh installs the bats test dependency and links both scripts into ~/.local/bin, idempotently.",
+    "30 bats tests covering boundary values, empty input and divide-by-zero guards."
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_network_diagnostics.bats",
+      "result": "pass",
+      "evidence": "1..30, all ok. One assertion initially failed and was correct to fail: sustained_of 10 20 30 returns 25, not 30 (odd counts drop only the first sample). The expectation was fixed, not the behaviour, since 25 matches the implementation that produced every measurement in the investigation."
+    },
+    {
+      "command": "pre-commit run --files <the 4 new files>",
+      "result": "pass",
+      "evidence": "41 hooks Passed/Skipped including shellcheck and codespell; ai-evidence-contract required this artifact."
+    },
+    {
+      "command": "bash linux_configuration/scripts/diagnostics/install.sh",
+      "result": "pass",
+      "evidence": "Idempotent re-run: detected existing bats 1.13.0, refreshed both ~/.local/bin symlinks."
+    },
+    {
+      "command": "steam-download-duty.sh 8 (via the ~/.local/bin symlink, post-refactor)",
+      "result": "pass",
+      "evidence": "Ran end to end and reported 0% duty / 0 Mbps correctly, the download having completed."
+    }
+  ],
+  "risks": [
+    "IFACE defaults to enp6s0; on a different NIC the scripts read a nonexistent /sys path and fail. Overridable via the IFACE environment variable.",
+    "Thresholds in classify() and verdict_for() (80% duty, 400/600/350 Mbps) are calibrated to this gigabit line and would need revisiting elsewhere.",
+    "line-speed-probe.sh pulls real ISOs to /dev/null and will consume bandwidth for its full duration if run carelessly.",
+    "The bats suite runs only when invoked manually; no CI workflow executes it."
+  ],
+  "rollback": [
+    "git revert the commit, then rm ~/.local/bin/{line-speed-probe.sh,steam-download-duty.sh} — both are symlinks into the repo, so reverting alone leaves them dangling.",
+    "Optionally: sudo pacman -Rns bats if the framework is not wanted (it is a new dependency introduced by this change).",
+    "Validate after rollback: which steam-download-duty.sh returns nothing and no repo test references the diagnostics directory."
+  ]
+}
