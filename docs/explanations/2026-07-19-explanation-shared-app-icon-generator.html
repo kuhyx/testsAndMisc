@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A shared launcher-icon generator for the Flutter apps</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1b1d21;
+    --muted: #5a6270;
+    --rule: #e2e6ec;
+    --card: #f6f8fa;
+    --code-bg: #f2f4f7;
+    --accent: #5c6bc0;
+    --ok: #1c7c54;
+    --bad: #b3261e;
+    --field: #1b1d21;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --fg: #e6e9ee;
+      --muted: #a0a8b4;
+      --rule: #2b3038;
+      --card: #1b1e24;
+      --code-bg: #1e222a;
+      --accent: #8f9bea;
+      --ok: #4ac48b;
+      --bad: #ef8279;
+      --field: #0e1013;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 2rem 1rem 6rem;
+    max-width: min(48rem, 92vw);
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 .4rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.35rem; margin: 3rem 0 .75rem; padding-top: .5rem; border-top: 1px solid var(--rule); }
+  h3 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
+  p, li { color: var(--fg); }
+  .lede { color: var(--muted); font-size: 1.05rem; margin-top: 0; }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); padding: .12em .35em; border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .88em;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px;
+    padding: .85rem 1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .84rem; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  nav.toc {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    padding: .85rem 1.1rem; margin: 1.5rem 0 2rem;
+  }
+  nav.toc ol { margin: .4rem 0 0; padding-left: 1.2rem; }
+  nav.toc li { margin: .15rem 0; }
+  .note {
+    background: var(--card); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: .7rem 1rem; margin: 1.2rem 0;
+  }
+  .note strong { color: var(--fg); }
+  figure { margin: 1.5rem 0; }
+  figcaption { color: var(--muted); font-size: .85rem; margin-top: .6rem; }
+  .scroller { overflow-x: auto; }
+  /* ---- icon-family strip ---- */
+  .strip { display: flex; gap: .7rem; flex-wrap: wrap; }
+  .tile { text-align: center; font-size: .72rem; color: var(--muted); }
+  .tile .art {
+    width: 84px; height: 84px; border-radius: 18px; background: var(--field);
+    display: grid; place-items: center; margin-bottom: .3rem;
+  }
+  .tile svg { width: 62px; height: 62px; }
+  /* ---- before/after ---- */
+  .cols { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+  @media (min-width: 34rem) { .cols { grid-template-columns: 1fr 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: .9rem 1rem; }
+  .panel h4 { margin: 0 0 .5rem; font-size: .9rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  /* ---- layer stack diagram ---- */
+  .stack { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .layer { text-align: center; font-size: .7rem; color: var(--muted); }
+  .layer .box {
+    width: 78px; height: 78px; border-radius: 14px; display: grid; place-items: center;
+    border: 1px solid var(--rule); margin-bottom: .25rem;
+  }
+  .plus { font-size: 1.4rem; color: var(--muted); }
+  .checker {
+    background-image:
+      linear-gradient(45deg, var(--rule) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--rule) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--rule) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--rule) 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  }
+  /* ---- micro-world ---- */
+  .world { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 1rem; margin: 1.5rem 0; }
+  .world-grid { display: grid; gap: 1rem; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 40rem) { .world-grid { grid-template-columns: minmax(0,300px) 1fr; } }
+  .stagebox { background: var(--field); border-radius: 14px; overflow: hidden; }
+  .stagebox svg { display: block; width: 100%; height: auto; }
+  .controls { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .7rem; }
+  button, select {
+    font: inherit; font-size: .85rem; padding: .4rem .75rem; border-radius: 7px;
+    border: 1px solid var(--rule); background: var(--bg); color: var(--fg); cursor: pointer;
+  }
+  button:hover:not(:disabled), select:hover { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .readout { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; line-height: 1.7; }
+  .readout .k { color: var(--muted); }
+  .step-label { font-size: .85rem; margin: .1rem 0 .6rem; min-height: 3.2em; }
+  .pill { display: inline-block; padding: .05rem .45rem; border-radius: 999px; font-size: .75rem; }
+  .pill.ok { background: rgba(28,124,84,.14); color: var(--ok); }
+  .pill.bad { background: rgba(179,38,30,.14); color: var(--bad); }
+  /* ---- quiz ---- */
+  .q { border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.1rem; margin: 1.1rem 0; background: var(--card); }
+  .q p.stem { margin: 0 0 .75rem; font-weight: 600; }
+  .opt {
+    display: block; width: 100%; text-align: left; margin: .35rem 0; padding: .55rem .8rem;
+    border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--fg);
+    font-size: .92rem; line-height: 1.45; cursor: pointer;
+  }
+  .opt:hover:not(.locked) { border-color: var(--accent); }
+  .opt.correct { border-color: var(--ok); background: rgba(28,124,84,.10); }
+  .opt.wrong { border-color: var(--bad); background: rgba(179,38,30,.10); }
+  .opt.locked { cursor: default; }
+  .why { font-size: .85rem; color: var(--muted); margin: .6rem 0 0; display: none; }
+  .why.show { display: block; }
+  #score { font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .swatch { display: inline-block; width: .8em; height: .8em; border-radius: 3px; margin-right: .35em; vertical-align: -1px; }
+</style>
+</head>
+<body>
+
+<h1>A shared launcher-icon generator for the Flutter apps</h1>
+<p class="lede">How five apps stopped shipping the stock Flutter icon — and why the
+interesting part is a measurement, not a drawing.</p>
+<p style="color:var(--muted);font-size:.85rem;margin-top:-.6rem">
+testsAndMisc <code>27f44ca</code> · adoption commits in dufs-cloud <code>18a18a4</code>,
+screen-locker <code>135545a</code>, wake-alarm <code>64c25e6</code>,
+diet-guard <code>f6abf80</code>, todo <code>0be0706</code>
+</p>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#background">Background — what was there before</a></li>
+    <li><a href="#intuition">Intuition — measure, then translate</a></li>
+    <li><a href="#code">Code — a walkthrough by concern</a></li>
+    <li><a href="#quiz">Quiz</a></li>
+  </ol>
+</nav>
+
+<h2 id="background">1. Background — what was there before</h2>
+
+<p>Five Flutter apps live across these repos: a file-server client
+(<code>dufs_client</code>), a gym tracker (<code>workout_app</code>), an alarm companion
+(<code>wake_alarm_sync</code>), a diet logger (<code>diet_guard_app</code>) and a notes app
+(<code>todo</code>). Each was scaffolded with <code>flutter create</code>, and none of them had
+ever been given an icon. That means every one of them shipped the identical stock
+Flutter artwork — five indistinguishable tiles on the same home screen.</p>
+
+<h3>What a Flutter project gives you by default</h3>
+
+<p>A fresh Android project contains only <em>legacy</em> icons: one PNG per density
+bucket, at <code>android/app/src/main/res/mipmap-{m,h,xh,xxh,xxxh}dpi/ic_launcher.png</code>.
+Nothing else. In particular there was no
+<code>mipmap-anydpi-v26/ic_launcher.xml</code> in any of the five repos — verified before
+starting.</p>
+
+<p>That file matters more than its obscure name suggests. Since Android 8, launchers
+prefer an <strong>adaptive icon</strong>: instead of one flat bitmap, you supply a
+background layer and a foreground layer, and the launcher composites them and applies
+its own mask — a circle on one device, a squircle on another, a teardrop on a third.
+Without that XML the system falls back to the legacy PNG and just crops it into a
+shape, which is why untouched Flutter apps look slightly wrong on modern launchers.
+Android 13 added a third optional layer, <code>&lt;monochrome&gt;</code>, which the system
+recolours to match the user's wallpaper-derived theme.</p>
+
+<h3>The constraint nobody tells you about</h3>
+
+<p>An adaptive icon's layers are larger than the visible result. The launcher is only
+guaranteed to show roughly the inner <strong>66%</strong> of the canvas; everything
+outside that can be masked away, and how much is device-dependent. So art that looks
+perfect at full size can lose a corner on a real phone.</p>
+
+<figure>
+  <div class="cols">
+    <div class="panel">
+      <h4>Before</h4>
+      <p style="margin:.2rem 0 .6rem;font-size:.9rem">Five identical stock tiles; legacy
+      PNGs only; no adaptive descriptor.</p>
+      <div class="strip">
+        <div class="tile"><div class="art" style="background:#4fc3f7">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="46" cy="18" r="8" fill="#ffe082"/><path d="M4 52 L26 22 L48 52 Z" fill="#81c784"/><path d="M20 52 L36 34 L54 52 Z" fill="#66bb6a"/></svg>
+        </div>stock ×5</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h4>After</h4>
+      <p style="margin:.2rem 0 .6rem;font-size:.9rem">One family: shared charcoal field,
+      per-app accent glyph, full adaptive layers.</p>
+      <div class="strip" id="familyStrip"></div>
+    </div>
+  </div>
+  <figcaption>The five apps before and after. Each accent is that app's own theme seed
+  colour, so the icon matches the first screen you see when the app opens.</figcaption>
+</figure>
+
+<h3>Why not just draw five icons?</h3>
+
+<p>Because "five icons" is a snapshot, and the sixth app is always coming. Hand-drawn
+one-offs drift: a slightly different stroke weight here, a different background there,
+and within a year there is no family left. The change therefore defines the family
+<em>once</em>, in code, and lets each app contribute only two things: an accent colour
+and a glyph.</p>
+
+<h2 id="intuition">2. Intuition — measure, then translate</h2>
+
+<p>The design rule is simple to state:</p>
+
+<div class="note">
+  <strong>One charcoal field (<code>#1B1D21</code>), one stroke weight (72px on a
+  1024px canvas), one glyph per app in that app's own theme accent.</strong>
+</div>
+
+<p>Stating it is easy. Making it <em>true</em> is where the interesting problem lives,
+and it is not a drawing problem — it is a measurement problem.</p>
+
+<h3>The problem: glyphs are not the same shape</h3>
+
+<p>Consider two glyphs drawn by hand on the same 1024×1024 canvas. A barbell is wide
+and short. A cloud-with-arrow is narrow and tall, and the author naturally drew the
+cloud near the top because that is where clouds go. Both are "roughly centred" in the
+sense that the author eyeballed them — but their <em>ink</em> sits at different heights.
+Put the finished icons in a launcher row and they visibly fail to line up.</p>
+
+<p>The naive fix is to nudge coordinates by hand until it looks right. That works for
+five glyphs and collapses at the sixth, and it silently rots the moment anyone edits a
+path.</p>
+
+<h3>The fix: let the renderer find the ink</h3>
+
+<p>Instead, the glyph is rendered <em>on its own</em> on a transparent canvas, and the
+bounding box of the actual non-transparent pixels is measured. The offset from that
+box's centre to the canvas centre is then applied as a translation. The author never
+positions anything; they only decide the shape.</p>
+
+<p>Two details make this work rather than merely sound clever:</p>
+
+<ul>
+  <li><strong>It measures rendered ink, not path geometry.</strong> A stroked line has
+  no area as a path, but 72px of width once drawn, plus round caps that extend past the
+  endpoints. Rasterising first means all of that is included automatically.</li>
+  <li><strong>It only ever translates — never scales.</strong> This is the load-bearing
+  restriction. Scaling a fragment to "fit" would scale its stroke too, so a small glyph
+  scaled up would render a fatter line than its neighbours, and the single shared stroke
+  weight — the thing that makes the icons feel like a family — would quietly break.
+  Translation is the only transform that preserves it.</li>
+</ul>
+
+<h3>Play with it</h3>
+
+<p>The widget below runs that pipeline step by step on the real glyph data from
+<code>glyphs.py</code>. Pick a glyph, then step through: draw it as authored, measure
+its ink box, compute the offset, apply it. Watch the safe-box verdict change as you go.</p>
+
+<div class="world">
+  <div class="world-grid">
+    <div>
+      <div class="stagebox">
+        <svg id="stage" viewBox="0 0 1024 1024" role="img" aria-label="Glyph centering simulation">
+          <g id="safeBoxG" opacity="0">
+            <rect x="232" y="232" width="560" height="560" fill="none"
+                  stroke="#7f8794" stroke-width="4" stroke-dasharray="18 14"/>
+            <text x="240" y="222" fill="#7f8794" font-size="30"
+                  font-family="ui-monospace, monospace">safe box 560</text>
+          </g>
+          <g id="crossG" opacity="0" stroke="#7f8794" stroke-width="3">
+            <line x1="512" y1="150" x2="512" y2="874"/>
+            <line x1="150" y1="512" x2="874" y2="512"/>
+          </g>
+          <g id="glyphWrap">
+            <g id="glyphG" fill="none" stroke="#8f9bea" stroke-width="72"
+               stroke-linecap="round" stroke-linejoin="round"></g>
+          </g>
+          <g id="inkG" opacity="0">
+            <rect id="inkRect" fill="none" stroke="#ffb74d" stroke-width="5" stroke-dasharray="14 10"/>
+            <circle id="inkDot" r="13" fill="#ffb74d"/>
+          </g>
+          <g id="arrowG" opacity="0">
+            <line id="offArrow" stroke="#ffb74d" stroke-width="6"/>
+            <circle cx="512" cy="512" r="13" fill="#4ac48b"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="controls">
+        <label class="sr" for="glyphPick" style="align-self:center;font-size:.85rem;color:var(--muted)">Glyph</label>
+        <select id="glyphPick">
+          <option value="barbell">barbell — wide and short</option>
+          <option value="cloud-down">cloud-down — tall, drawn high</option>
+          <option value="checklist">checklist — two rows</option>
+          <option value="clock">clock — nearly symmetric</option>
+          <option value="barbell-draft">barbell — careless draft (illustrative)</option>
+          <option value="cloud-oversized">cloud-down (pre-fix, oversized)</option>
+        </select>
+        <button id="stepBtn" class="primary">Step ▶</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <p class="step-label" id="stepLabel"></p>
+      <div class="readout" id="readout"></div>
+    </div>
+  </div>
+</div>
+
+<p>Three things are worth noticing while you play:</p>
+
+<ul>
+  <li><strong>The corrections on the shipped glyphs are small.</strong> Barbell and clock
+  need none at all; cloud-down shifts 6px and checklist 8px. That is the honest result,
+  and it is the kind of misalignment that is invisible in isolation, obvious in a row of
+  five, and impossible to hold by hand across future edits. The
+  <em>careless draft</em> option shows what happens with genuinely sloppy placement —
+  that one is illustrative, not a committed glyph.</li>
+  <li><strong>The ink box is bigger than the paths.</strong> Select the barbell: the box
+  starts left of <code>x=268</code>, the leftmost path coordinate, because 36px of stroke
+  half-width plus a round cap is real ink. This is precisely why the pipeline measures a
+  rasterised image instead of reading path geometry.</li>
+  <li><strong>Centring cannot rescue an oversized glyph.</strong> The last option is the
+  cloud <em>as first drawn</em>: 646px tall against a 560px budget. It fails the safe-box
+  check no matter where you put it, and the real fix was to redraw it smaller. The widget
+  reports it as over by 32×85px; the actual tool reported 33×86px.</li>
+</ul>
+
+<h3>Three layers out, not one</h3>
+
+<p>Once a glyph is centred, three separate images are written from the same fragment.
+They differ only in what is drawn behind and in what colour:</p>
+
+<figure>
+  <div class="stack">
+    <div class="layer"><div class="box" style="background:#1b1d21"></div>background<br>flat colour</div>
+    <div class="plus">+</div>
+    <div class="layer"><div class="box checker" id="fgBox"></div>foreground<br>glyph, transparent</div>
+    <div class="plus">=</div>
+    <div class="layer"><div class="box" style="background:#1b1d21" id="composedBox"></div>what you see<br>after masking</div>
+    <div class="plus" style="opacity:.5">·</div>
+    <div class="layer"><div class="box checker" id="monoBox"></div>monochrome<br>Android 13 themed</div>
+  </div>
+  <figcaption>The adaptive layers for <code>diet_guard_app</code>. The background is a
+  flat colour declared in <code>pubspec.yaml</code>, not an image, so it can never
+  mis-align with the foreground. The monochrome layer is the same glyph in white; the
+  system tints it.</figcaption>
+</figure>
+
+<h3>And on Linux, none of this applies</h3>
+
+<p>Two of the apps also build for Linux desktop, and there the whole Android mechanism
+is irrelevant — <code>flutter_launcher_icons</code> does not touch Linux at all. More
+surprisingly, Flutter's GTK runner never sets a window icon of its own: the generated
+<code>my_application.cc</code> sets a title and a default size and stops there, so the
+window inherits a generic placeholder.</p>
+
+<p>GTK's idiomatic answer is not "point at a PNG file" but "name an icon and let the
+theme resolve it". So the runner asks for an icon <em>by name</em>, and a small install
+script puts PNGs under that name into the user's hicolor icon theme:</p>
+
+<figure>
+  <div class="scroller">
+  <table>
+    <tr><th>Piece</th><th>Role</th></tr>
+    <tr><td><code>gtk_window_set_icon_name(window, "todo")</code></td>
+        <td>The running window asks the theme for an icon called <code>todo</code>.</td></tr>
+    <tr><td><code>linux/icons/&lt;size&gt;/todo.png</code></td>
+        <td>Pre-rendered and committed, so the installer needs no image tooling.</td></tr>
+    <tr><td><code>install_desktop_entry.sh</code></td>
+        <td>Copies those into <code>~/.local/share/icons/hicolor/</code> and writes a
+        <code>.desktop</code> entry.</td></tr>
+    <tr><td><code>StartupWMClass=dev.kuhy.todo</code></td>
+        <td>Links the running window back to the launcher entry — see the trap below.</td></tr>
+  </table>
+  </div>
+</figure>
+
+<div class="note">
+  <strong>A trap worth remembering.</strong> <code>StartupWMClass</code> must match the
+  window's actual <code>WM_CLASS</code>, and the natural guess — the binary name — is
+  wrong. Running the built app and inspecting it with
+  <code>xprop -id &lt;wid&gt; WM_CLASS</code> returned <code>"dev.kuhy.todo"</code>: GTK
+  derives it from the <em>GApplication id</em> in <code>linux/CMakeLists.txt</code>, not
+  from the executable. Guessing here fails silently — the launcher entry looks right and
+  the taskbar still shows a generic icon.
+</div>
+
+<h2 id="code">3. Code — a walkthrough by concern</h2>
+
+<p>The new package is <code>python_pkg/app_icons/</code>. Rather than walk the files
+alphabetically, here are the four concerns it separates.</p>
+
+<h3>Concern 1: the family, defined once</h3>
+
+<p><code>style.py</code> holds every number that makes the icons a set. Changing anything
+here restyles all five apps at once, which is the point:</p>
+
+<pre><code>CANVAS: Final[int] = 1024
+BACKGROUND: Final[str] = "#1B1D21"
+
+# Android masks an adaptive icon down to roughly the inner 66% of the canvas.
+SAFE_BOX: Final[int] = 560
+
+# Glyph negative space must stay at or above STROKE_WIDTH / 2, otherwise
+# adjacent strokes merge into a blob when scaled down to launcher size.
+STROKE_WIDTH: Final[int] = 72
+MIN_NEGATIVE_SPACE: Final[float] = STROKE_WIDTH / 2</code></pre>
+
+<p>That last constant encodes a mistake made during the work. The first fork glyph had
+its tines exactly 72px apart — one full stroke width — so the gaps between them closed
+to zero and the shape rendered as a solid blob. The rule is now written down next to the
+number that causes it.</p>
+
+<h3>Concern 2: measuring and drawing</h3>
+
+<p><code>render.py</code> is where the centring lives.
+<code>build_svg</code> assembles a document by wrapping the glyph fragment in a group
+that carries the shared attributes plus the computed translation:</p>
+
+<pre><code>f'&lt;g fill="none" stroke="{accent}" stroke-width="{style.STROKE_WIDTH}" '
+f'stroke-linecap="round" stroke-linejoin="round" '
+f'transform="translate({dx:g},{dy:g})"&gt;'</code></pre>
+
+<p>Because the shared attributes live on the wrapper, a glyph fragment is just paths —
+it inherits colour and weight and cannot accidentally disagree with the family. A
+fragment that genuinely needs something else (the filled cutlery silhouette) overrides
+locally and uses an <code>{{ACCENT}}</code> placeholder for its colour.</p>
+
+<p>Then the measurement itself. Note that it renders, measures, and returns a
+translation — it never touches scale:</p>
+
+<pre><code>def centre_offset(glyph: Glyph, accent: str) -&gt; tuple[float, float]:
+    probe = build_svg(glyph, accent, with_background=False)
+    with tempfile.TemporaryDirectory() as tmp:
+        png = Path(tmp) / "probe.png"
+        rasterise(probe, png, style.CANVAS)
+        width, height, x, y = _ink_bbox(png)
+    if width == 0 or height == 0:
+        raise EmptyGlyphError(glyph.name)
+    return style.CENTRE - (x + width / 2), style.CENTRE - (y + height / 2)</code></pre>
+
+<p>The probe is drawn <em>without</em> the background — a charcoal rectangle would fill
+the canvas and every measurement would return the canvas itself. <code>_ink_bbox</code>
+shells out to ImageMagick's <code>-trim</code> and parses the resulting geometry.</p>
+
+<p>The sibling function <code>safe_box_overflow</code> reuses the same measurement for a
+different question — not "where is the ink" but "is there too much of it":</p>
+
+<pre><code>return max(0, width - style.SAFE_BOX), max(0, height - style.SAFE_BOX)</code></pre>
+
+<p>This is what turned an invisible problem into a visible one. On the first real run it
+reported three overflows, the worst being the cloud at 86px too tall. None of them were
+apparent at full size; all three would have been clipped on a phone.</p>
+
+<h3>Concern 3: the registry, and a checkout that lied</h3>
+
+<p><code>apps.py</code> maps each app to its repo, accent and glyph. The accents are not
+invented — each is the app's own theme seed, so the launcher icon matches the app's UI:</p>
+
+<figure>
+  <div class="scroller">
+  <table>
+    <tr><th>App</th><th>Accent</th><th>Where it comes from</th><th>Glyph</th></tr>
+    <tr><td>dufs_client</td><td><span class="swatch" style="background:#5C6BC0"></span>#5C6BC0</td><td><code>colorSchemeSeed: Colors.indigo</code></td><td>cloud + arrow</td></tr>
+    <tr><td>workout_app</td><td><span class="swatch" style="background:#FF4444"></span>#FF4444</td><td>its own <code>Color(0xFFFF4444)</code></td><td>barbell</td></tr>
+    <tr><td>wake_alarm_sync</td><td><span class="swatch" style="background:#FFA726"></span>#FFA726</td><td><code>seedColor: Colors.orange</code></td><td>clock</td></tr>
+    <tr><td>diet_guard_app</td><td><span class="swatch" style="background:#26A69A"></span>#26A69A</td><td><code>colorSchemeSeed: Colors.teal</code></td><td>shield + cutlery</td></tr>
+    <tr><td>todo</td><td><span class="swatch" style="background:#7E57C2"></span>#7E57C2</td><td><code>seedColor: Colors.deepPurple</code></td><td>checklist</td></tr>
+  </table>
+  </div>
+  <figcaption>One collision had to be resolved: <code>dufs_client</code> and
+  <code>workout_app</code> both seed from <code>Colors.indigo</code>. The gym app already
+  defined its own crimson accent, so it took crimson and indigo stayed unique.</figcaption>
+</figure>
+
+<p>The registry entry for <code>dufs_client</code> carries a warning comment, and it is
+worth explaining why:</p>
+
+<pre><code>key="dufs_client",
+# The live app: ~/dufs_client is a stale, remote-less checkout that
+# was superseded when dufs-cloud absorbed it (see testsAndMisc
+# CLAUDE.md). Same package name, so it is easy to icon the wrong one.
+repo=_HOME / "dufs-cloud" / "app",</code></pre>
+
+<p>There were two checkouts with the same <code>name:</code>, the same
+<code>applicationId</code>, and the same directory layout. Only one had a git remote and
+recent commits. The first pass targeted the wrong one — and because it also built and
+installed an APK from there, the phone briefly received a five-week-old build of a live
+app. The stale checkout has since been deleted; the comment exists so the trap cannot be
+re-entered.</p>
+
+<h3>Concern 4: handing off to the platform</h3>
+
+<p><code>generate.py</code> writes the three layers, then delegates the fiddly part:</p>
+
+<pre><code>_LAYERS = (
+    ("icon", True, None),                    # field + glyph
+    ("icon_foreground", False, None),        # glyph only, transparent
+    ("icon_monochrome", False, style.MONOCHROME),  # glyph only, white
+)</code></pre>
+
+<p>Each layer is written as both SVG source and a 1024px PNG, so a build machine never
+needs <code>rsvg-convert</code>. <code>flutter_launcher_icons</code> then expands the PNGs
+into every density bucket and — the part worth outsourcing — writes the
+<code>mipmap-anydpi-v26/ic_launcher.xml</code> descriptor with all three layers wired up.
+Hand-rolling that for five apps is exactly the sort of repetitive work that goes wrong
+quietly.</p>
+
+<div class="note">
+  <strong>A verification note.</strong> Every external tool
+  (<code>rsvg-convert</code>, <code>magick</code>, <code>dart</code>) is mocked in the test
+  suite, so the package reaches 100% line and branch coverage without any of them
+  installed — but that also means the tests cannot tell you whether an icon
+  <em>looks</em> right. That is what the <code>preview</code> subcommand is for: it
+  renders a contact sheet with three rows — full size, circle-masked, and downscaled to
+  48dp — and the last word belongs to a screenshot of the actual phone launcher.
+</div>
+
+<h2 id="quiz">4. Quiz</h2>
+<p>Five questions on the reasoning behind the change. Click an option to check it.
+Score: <span id="score">0 / 0</span></p>
+<div id="quiz"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Real glyph fragments, transcribed from python_pkg/app_icons/glyphs.py ----
+  var GLYPHS = {
+    "barbell": {
+      note: "Wide and short; authored close to the canvas centre already.",
+      body: '<path d="M 268 512 L 756 512"/>' +
+            '<path d="M 364 356 L 364 668"/>' +
+            '<path d="M 660 356 L 660 668"/>' +
+            '<path d="M 268 432 L 268 592"/>' +
+            '<path d="M 756 432 L 756 592"/>'
+    },
+    "cloud-down": {
+      note: "Cloud drawn high with the arrow beneath; ink sits above centre.",
+      body: '<g transform="translate(296,196) scale(18)" stroke-width="4">' +
+            '<path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 ' +
+            '2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 ' +
+            '0-2.64-2.05-4.78-4.65-4.96z"/></g>' +
+            '<path d="M 512 628 L 512 744"/>' +
+            '<path d="M 444 676 L 512 744 L 580 676"/>'
+    },
+    "checklist": {
+      note: "Two ticked rows; the widest glyph in the family.",
+      body: '<path d="M 272 372 L 346 446 L 478 314"/>' +
+            '<path d="M 594 400 L 752 400"/>' +
+            '<path d="M 272 620 L 346 694 L 478 562"/>' +
+            '<path d="M 594 648 L 752 648"/>'
+    },
+    "clock": {
+      note: "A circle plus hands; already near-symmetric about the centre.",
+      body: '<circle cx="512" cy="512" r="244"/>' +
+            '<path d="M 512 512 L 512 350"/>' +
+            '<path d="M 512 512 L 636 512"/>'
+    },
+    "barbell-draft": {
+      note: "NOT a committed glyph - the barbell shifted up and left, to show what the pipeline does with genuinely careless placement.",
+      body: '<path d="M 208 392 L 696 392"/>' +
+            '<path d="M 304 236 L 304 548"/>' +
+            '<path d="M 600 236 L 600 548"/>' +
+            '<path d="M 208 312 L 208 472"/>' +
+            '<path d="M 696 312 L 696 472"/>'
+    },
+    "cloud-oversized": {
+      note: "The cloud as FIRST drawn, before the safe-box warning forced a redraw.",
+      body: '<g transform="translate(252,116) scale(21.67)" stroke-width="3.32">' +
+            '<path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 ' +
+            '2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 ' +
+            '0-2.64-2.05-4.78-4.65-4.96z"/></g>' +
+            '<path d="M 512 620 L 512 776"/>' +
+            '<path d="M 436 700 L 512 776 L 588 700"/>'
+    }
+  };
+
+  var CANVAS = 1024, CENTRE = 512, SAFE_BOX = 560, STROKE = 72;
+
+  // ---- Decorative family strip (Background section) ----
+  var FAMILY = [
+    { name: "dufs_client", accent: "#5C6BC0", g: "cloud-down" },
+    { name: "workout_app", accent: "#FF4444", g: "barbell" },
+    { name: "wake_alarm", accent: "#FFA726", g: "clock" },
+    { name: "diet_guard", accent: "#26A69A", g: "checklist" },
+    { name: "todo", accent: "#7E57C2", g: "checklist" }
+  ];
+
+  function glyphSvg(bodyHtml, accent, translate) {
+    var t = translate ? ' transform="translate(' + translate[0] + ',' + translate[1] + ')"' : "";
+    return '<svg viewBox="0 0 1024 1024" aria-hidden="true">' +
+           '<g fill="none" stroke="' + accent + '" stroke-width="' + STROKE +
+           '" stroke-linecap="round" stroke-linejoin="round"' + t + '>' +
+           bodyHtml + '</g></svg>';
+  }
+
+  var strip = document.getElementById("familyStrip");
+  if (strip) {
+    FAMILY.forEach(function (app) {
+      var d = document.createElement("div");
+      d.className = "tile";
+      d.innerHTML = '<div class="art">' + glyphSvg(GLYPHS[app.g].body, app.accent) + "</div>" +
+                    app.name;
+      strip.appendChild(d);
+    });
+  }
+
+  // Layer-stack diagram thumbnails
+  var teal = "#26A69A";
+  var fgBox = document.getElementById("fgBox");
+  if (fgBox) fgBox.innerHTML = glyphSvg(GLYPHS.checklist.body, teal).replace("<svg", '<svg style="width:64px;height:64px"');
+  var composed = document.getElementById("composedBox");
+  if (composed) composed.innerHTML = glyphSvg(GLYPHS.checklist.body, teal).replace("<svg", '<svg style="width:64px;height:64px"');
+  var mono = document.getElementById("monoBox");
+  if (mono) mono.innerHTML = glyphSvg(GLYPHS.checklist.body, "#ffffff").replace("<svg", '<svg style="width:64px;height:64px"');
+
+  // ---- Micro-world: the centring pipeline ----
+  var glyphG   = document.getElementById("glyphG");
+  var inkG     = document.getElementById("inkG");
+  var inkRect  = document.getElementById("inkRect");
+  var inkDot   = document.getElementById("inkDot");
+  var arrowG   = document.getElementById("arrowG");
+  var offArrow = document.getElementById("offArrow");
+  var crossG   = document.getElementById("crossG");
+  var safeBoxG = document.getElementById("safeBoxG");
+  var label    = document.getElementById("stepLabel");
+  var readout  = document.getElementById("readout");
+  var stepBtn  = document.getElementById("stepBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var picker   = document.getElementById("glyphPick");
+
+  var step = 0, measured = null;
+
+  // Approximates what the Python does: rasterise, then trim to non-transparent
+  // pixels. Here we take the geometric box and inflate by half a stroke width
+  // (plus the round cap), which is what the stroke actually adds to the ink.
+  function measureInk() {
+    var b = glyphG.getBBox();
+    var pad = STROKE / 2;
+    return {
+      x: Math.round(b.x - pad),
+      y: Math.round(b.y - pad),
+      w: Math.round(b.width + STROKE),
+      h: Math.round(b.height + STROKE)
+    };
+  }
+
+  function loadGlyph() {
+    glyphG.setAttribute("transform", "translate(0,0)");
+    glyphG.innerHTML = GLYPHS[picker.value].body;
+    measured = measureInk();
+    step = 0;
+    render();
+  }
+
+  function render() {
+    inkG.setAttribute("opacity", step >= 1 ? "1" : "0");
+    crossG.setAttribute("opacity", step >= 2 ? "1" : "0");
+    arrowG.setAttribute("opacity", step === 2 ? "1" : "0");
+    safeBoxG.setAttribute("opacity", step >= 3 ? "1" : "0");
+
+    var m = measured;
+    var dx = CENTRE - (m.x + m.w / 2);
+    var dy = CENTRE - (m.y + m.h / 2);
+
+    // Steps 0-2 show the glyph as authored; step 3 applies the translation.
+    var applied = step >= 3;
+    glyphG.setAttribute("transform", applied ? "translate(" + dx + "," + dy + ")" : "translate(0,0)");
+
+    var bx = applied ? m.x + dx : m.x;
+    var by = applied ? m.y + dy : m.y;
+    inkRect.setAttribute("x", bx); inkRect.setAttribute("y", by);
+    inkRect.setAttribute("width", m.w); inkRect.setAttribute("height", m.h);
+    inkDot.setAttribute("cx", bx + m.w / 2); inkDot.setAttribute("cy", by + m.h / 2);
+    offArrow.setAttribute("x1", m.x + m.w / 2); offArrow.setAttribute("y1", m.y + m.h / 2);
+    offArrow.setAttribute("x2", CENTRE); offArrow.setAttribute("y2", CENTRE);
+
+    var overW = Math.max(0, m.w - SAFE_BOX), overH = Math.max(0, m.h - SAFE_BOX);
+    var fits = (overW === 0 && overH === 0);
+
+    var LABELS = [
+      "<strong>Step 0 — as authored.</strong> The glyph fragment exactly as it appears in <code>glyphs.py</code>. Nobody positioned it carefully; the author only chose the shape.",
+      "<strong>Step 1 — measure the ink.</strong> Rendered alone on a transparent canvas, then trimmed to the non-transparent pixels. Note the box is bigger than the paths: stroke width and round caps count as ink.",
+      "<strong>Step 2 — compute the offset.</strong> The vector from the ink box's centre (orange) to the canvas centre (green). This is the whole of <code>centre_offset</code>'s return value.",
+      "<strong>Step 3 — translate.</strong> Applied as <code>transform=\"translate(dx,dy)\"</code>. The stroke width is untouched, which is the point: a scale here would break the family's shared weight."
+    ];
+    label.innerHTML = LABELS[step];
+
+    var rows =
+      '<div><span class="k">ink box&nbsp;&nbsp;</span> ' + m.w + " × " + m.h +
+      '&nbsp; at (' + m.x + ", " + m.y + ")</div>" +
+      '<div><span class="k">ink centre</span> (' + (m.x + m.w / 2) + ", " + (m.y + m.h / 2) + ")</div>" +
+      '<div><span class="k">canvas ctr</span> (512, 512)</div>' +
+      '<div><span class="k">offset&nbsp;&nbsp;&nbsp;&nbsp;</span> dx=' + dx + " dy=" + dy + "</div>" +
+      '<div><span class="k">safe box&nbsp;&nbsp;</span> 560 → ' +
+      (fits ? '<span class="pill ok">fits</span>'
+            : '<span class="pill bad">over by ' + overW + "×" + overH + "px</span>") +
+      "</div>" +
+      '<div style="margin-top:.5rem;color:var(--muted)">' + GLYPHS[picker.value].note + "</div>";
+    readout.innerHTML = rows;
+
+    stepBtn.disabled = step >= 3;
+    stepBtn.textContent = step >= 3 ? "Done" : "Step ▶";
+  }
+
+  if (stepBtn) {
+    stepBtn.addEventListener("click", function () { if (step < 3) { step++; render(); } });
+    resetBtn.addEventListener("click", function () { step = 0; render(); });
+    picker.addEventListener("change", loadGlyph);
+    loadGlyph();
+  }
+
+  // ---- Quiz ----
+  // Correct-answer positions below are 2, 0, 3, 1, 2 — spread across four
+  // distinct indices. Option lengths are kept within a narrow band and the
+  // correct option is never the longest in its question.
+  var QUESTIONS = [
+    {
+      stem: "Why does the centring step translate the glyph rather than scale it to fit?",
+      options: [
+        "Because an SVG group that already carries its own transform cannot be given a second one",
+        "Because scaling would push the glyph outside the safe box that the launcher mask guarantees",
+        "Because scaling changes the rendered stroke width, so icons would stop sharing one weight",
+        "Because scaling forces the rasteriser to resample, which visibly softens the glyph's edges"
+      ],
+      correct: 2,
+      why: "Stroke width scales with the fragment. The single shared stroke weight is what makes the five icons read as a family, so only translation is safe."
+    },
+    {
+      stem: "The probe used for measurement is rendered without the charcoal background. Why does that matter?",
+      options: [
+        "The background fills the whole canvas, so the measured box would just be the canvas",
+        "The background is a flat colour and rasterising it would noticeably slow every run",
+        "The background is declared in pubspec.yaml, so rendering it here would duplicate it",
+        "The background would tint the glyph's edge pixels and shift the measured box slightly"
+      ],
+      correct: 0,
+      why: "Trimming looks for non-transparent pixels. A full-canvas rectangle is non-transparent everywhere, so every glyph would measure 1024x1024 and no offset would ever be computed."
+    },
+    {
+      stem: "What problem does MIN_NEGATIVE_SPACE (half the stroke width) exist to prevent?",
+      options: [
+        "Glyph ink spilling past the safe box and being cropped by the launcher's mask",
+        "The monochrome layer losing contrast once the system recolours it for themed icons",
+        "Two apps in the same launcher row ending up with accents that are hard to tell apart",
+        "Nearby strokes closing the gap between them and merging into a blob when scaled down"
+      ],
+      correct: 3,
+      why: "It came from a real failure: a fork whose tines sat exactly one stroke width apart had zero gap left and rendered as a solid shape."
+    },
+    {
+      stem: "Why did the Linux desktop path require editing my_application.cc, when Android needed no runner changes?",
+      options: [
+        "Because the GTK runner loads its icon from a file path that differs per distribution",
+        "Because Flutter's GTK runner never sets a window icon at all, unlike the Android manifest",
+        "Because Linux icons must be embedded into the binary rather than read from a theme file",
+        "Because flutter_launcher_icons emits a Linux icon that the runner then has to register itself"
+      ],
+      correct: 1,
+      why: "The generated runner only sets a title and default size. Android reads the icon from resources declared in the manifest; GTK has to be told explicitly."
+    },
+    {
+      stem: "StartupWMClass was set to the GApplication id instead of the binary name. What made that necessary?",
+      options: [
+        "The .desktop specification requires a reverse-DNS style identifier in that particular field",
+        "The binary name collides with another package already installed in the hicolor theme",
+        "GTK derives the window's WM_CLASS from the application id, as xprop confirmed at runtime",
+        "The Flutter build renames the executable, so its name is not stable between releases"
+      ],
+      correct: 2,
+      why: "Checking the running window with xprop returned WM_CLASS = \"dev.kuhy.todo\". Guessing the binary name would fail silently: the entry looks fine but the taskbar icon stays generic."
+    }
+  ];
+
+  var quizEl = document.getElementById("quiz");
+  var answered = 0, right = 0;
+  var scoreEl = document.getElementById("score");
+
+  QUESTIONS.forEach(function (q, qi) {
+    var card = document.createElement("div");
+    card.className = "q";
+    var stem = document.createElement("p");
+    stem.className = "stem";
+    stem.textContent = (qi + 1) + ". " + q.stem;
+    card.appendChild(stem);
+
+    var why = document.createElement("p");
+    why.className = "why";
+
+    q.options.forEach(function (text, oi) {
+      var b = document.createElement("button");
+      b.className = "opt";
+      b.type = "button";
+      b.textContent = text;
+      b.addEventListener("click", function () {
+        if (card.dataset.done) return;
+        card.dataset.done = "1";
+        answered++;
+        if (oi === q.correct) right++;
+        Array.prototype.forEach.call(card.querySelectorAll(".opt"), function (o, i) {
+          o.classList.add("locked");
+          if (i === q.correct) o.classList.add("correct");
+          else if (i === oi) o.classList.add("wrong");
+        });
+        why.textContent = (oi === q.correct ? "Correct. " : "Not quite. ") + q.why;
+        why.classList.add("show");
+        scoreEl.textContent = right + " / " + answered;
+      });
+      card.appendChild(b);
+    });
+
+    card.appendChild(why);
+    quizEl.appendChild(card);
+  });
+})();
+</script>
+
+</body>
+</html>
