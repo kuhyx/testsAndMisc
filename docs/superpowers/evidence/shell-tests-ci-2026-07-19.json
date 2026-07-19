@@ -1,0 +1,40 @@
+{
+  "intent": "Run the repo's shell tests in CI instead of leaving them manual-only, and repair the ones broken by an earlier directory reorganisation so they can participate.",
+  "scope": [
+    ".github/workflows/shell-tests.yml (new): runs the bats suites plus the side-effect-free .sh tests on ubuntu-latest",
+    "linux_configuration/tests/test_android_guardian_service.sh, test_music_parallelism.sh, test_usage_monitoring_installer_efficiency.sh: stale path repairs",
+    "Non-goal: running the ~8 Arch-specific tests (pacman, /etc, systemd, adb). They need root and an Arch container; excluded with a comment in the workflow.",
+    "Non-goal: fixing the two efficiency regressions these repairs uncovered — those are bugs in the covered scripts, not in the tests."
+  ],
+  "changes": [
+    "New Shell tests workflow, mirroring the existing pre-commit.yml style: checkout, apt-install bats, run all *.bats, then run an explicit allowlist of side-effect-free .sh tests, accumulating failures so one bad test does not mask the rest.",
+    "test_music_parallelism.sh and test_usage_monitoring_installer_efficiency.sh pointed at scripts/<name>/ paths that moved under scripts/periodic_background/ in an earlier reorganisation; both now resolve.",
+    "test_android_guardian_service.sh created its temp worktree at scripts/single_use/utils/android_guardian while copying into scripts/periodic_background/utils/android_guardian, so the cp always failed. The mkdir now matches the cp target and the test passes."
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/*.bats",
+      "result": "pass",
+      "evidence": "1..30, all ok."
+    },
+    {
+      "command": "bash linux_configuration/tests/<each of the 4 allowlisted tests>",
+      "result": "pass",
+      "evidence": "test_android_guardian_post_fs_data.sh, test_android_guardian_service.sh, test_i3blocks_persist_common.sh, test_setup_dns_blocker.sh — 0 failures. Before this change test_android_guardian_service.sh failed with 'cp: cannot create regular file ... No such file or directory'."
+    },
+    {
+      "command": "local simulation of the workflow's two run steps",
+      "result": "pass",
+      "evidence": "Both steps exit 0, so the workflow should be green on first run."
+    }
+  ],
+  "risks": [
+    "Two repaired tests still fail and are deliberately excluded from CI, because they appear to catch genuine polling-efficiency regressions rather than being stale: test_music_parallelism.sh asserts idle mode waits IDLE_CHECK_INTERVAL (30s) but the daemon waits 15s — it wakes twice as often as intended when idle, contrary to the repo's polling guidance; test_usage_monitoring_installer_efficiency.sh asserts the logger template sleeps between day-rollover checks. Both need a fix in the scripts they cover. Until then the exclusion list hides two known-red tests, which is why it is commented in the workflow rather than left implicit.",
+    "The allowlist is manual: a new .sh test will not run in CI until someone adds it. Chosen over a glob because most tests in that directory cannot run on an Ubuntu runner.",
+    "Ubuntu's bats may lag the Arch version used locally (1.13.0); the suite uses only core bats features, no bats-assert or bats-support."
+  ],
+  "rollback": [
+    "git revert this commit: CI stops running shell tests and the three path repairs are undone, restoring the spurious 'No such file' failure in test_android_guardian_service.sh.",
+    "Validate after rollback: .github/workflows/shell-tests.yml is absent and the three tests reference their pre-reorganisation paths again."
+  ]
+}
