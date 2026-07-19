@@ -25,11 +25,11 @@ PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons \
 
 Per app, into `<repo>/assets/icon/`:
 
-| Layer | Purpose |
-| --- | --- |
-| `icon` | Charcoal field + glyph. Legacy square launcher icon and Linux icon. |
-| `icon_foreground` | Glyph only, transparent. Adaptive-icon foreground layer. |
-| `icon_monochrome` | Glyph only, white. Android 13+ themed icons. |
+| Layer             | Purpose                                                             |
+| ----------------- | ------------------------------------------------------------------- |
+| `icon`            | Charcoal field + glyph. Legacy square launcher icon and Linux icon. |
+| `icon_foreground` | Glyph only, transparent. Adaptive-icon foreground layer.            |
+| `icon_monochrome` | Glyph only, white. Android 13+ themed icons.                        |
 
 Both an `.svg` source and a 1024px `.png` are written for each, so a build
 never needs `rsvg-convert`. `flutter_launcher_icons` then turns the PNGs into
