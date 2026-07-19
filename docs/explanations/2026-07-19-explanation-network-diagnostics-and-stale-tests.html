@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duty cycles and stale tests — 2026-07-19</title>
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#22242a; --muted:#5d6470; --rule:#e3e3e0;
+    --card:#ffffff; --code-bg:#f4f4f2; --accent:#8a4b2a; --accent-soft:#f3e6de;
+    --ok:#2f6b45; --ok-soft:#e4f0e8; --bad:#a33a34; --bad-soft:#f7e5e4;
+    --burst:#3f6fa8; --stall:#d8d8d4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#16181c; --fg:#e2e3e6; --muted:#9aa1ad; --rule:#2c2f36;
+      --card:#1d2026; --code-bg:#212429; --accent:#d99a6c; --accent-soft:#33261d;
+      --ok:#7fc79b; --ok-soft:#1e2a22; --bad:#e08b85; --bad-soft:#2c1f1e;
+      --burst:#6f9fd8; --stall:#3a3d43;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; font-size:17px;
+  }
+  .wrap{width:min(48rem,92vw); margin:0 auto; padding:3rem 0 6rem}
+  h1{font-size:1.9rem; line-height:1.25; margin:0 0 .4rem}
+  h2{font-size:1.4rem; margin:3rem 0 .8rem; padding-top:.6rem; border-top:1px solid var(--rule)}
+  h3{font-size:1.08rem; margin:2rem 0 .5rem}
+  p,li{color:var(--fg)}
+  .sub{color:var(--muted); margin:0 0 2rem; font-size:.98rem}
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+       background:var(--code-bg); padding:.12em .35em; border-radius:4px}
+  pre{background:var(--code-bg); border:1px solid var(--rule); border-radius:8px;
+      padding:.9rem 1rem; overflow-x:auto; margin:1rem 0}
+  pre code{background:none; padding:0; white-space:pre-wrap; word-break:break-word}
+  .toc{background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:1rem 1.2rem; margin:2rem 0}
+  .toc ol{margin:.3rem 0 0; padding-left:1.2rem}
+  .toc a{text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .note{background:var(--accent-soft); border-left:3px solid var(--accent);
+        padding:.8rem 1rem; border-radius:0 8px 8px 0; margin:1.2rem 0}
+  .note strong{color:var(--accent)}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.94rem; display:block; overflow-x:auto}
+  th,td{border:1px solid var(--rule); padding:.45rem .6rem; text-align:left; vertical-align:top}
+  th{background:var(--code-bg); font-weight:600}
+  /* ---- diagrams ---- */
+  .diagram{background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:1.1rem; margin:1.4rem 0}
+  .diagram .cap{font-size:.85rem; color:var(--muted); margin-top:.7rem}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:.5rem}
+  .box{background:var(--code-bg); border:1px solid var(--rule); border-radius:7px;
+       padding:.5rem .7rem; font-size:.86rem; flex:1 1 8rem; min-width:7rem}
+  .box b{display:block; font-size:.95rem}
+  .arrow{color:var(--muted); font-size:1.2rem; flex:0 0 auto}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  .tag{display:inline-block; font-size:.72rem; padding:.1rem .45rem; border-radius:999px;
+       background:var(--code-bg); border:1px solid var(--rule); color:var(--muted); margin-left:.35rem}
+  /* ---- micro-world ---- */
+  .sim{background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:1.1rem; margin:1.5rem 0}
+  .ctrls{display:flex; flex-wrap:wrap; gap:1.1rem; margin-bottom:1rem}
+  .ctrl{flex:1 1 12rem}
+  .ctrl label{display:block; font-size:.85rem; color:var(--muted); margin-bottom:.25rem}
+  .ctrl input[type=range]{width:100%}
+  .track{display:flex; gap:1px; height:34px; margin:.5rem 0}
+  .track i{flex:1; border-radius:1px}
+  .track i.b{background:var(--burst)} .track i.s{background:var(--stall)}
+  .bars{display:flex; gap:3px; height:44px; align-items:flex-end; margin:.5rem 0}
+  .bars i{flex:1; background:var(--burst); border-radius:2px 2px 0 0; min-height:2px}
+  .lbl{font-size:.8rem; color:var(--muted); margin-top:.3rem}
+  .readout{display:flex; flex-wrap:wrap; gap:.8rem; margin-top:1rem}
+  .stat{flex:1 1 7rem; background:var(--code-bg); border:1px solid var(--rule);
+        border-radius:7px; padding:.5rem .7rem}
+  .stat b{display:block; font-size:1.25rem}
+  .stat span{font-size:.78rem; color:var(--muted)}
+  button{font:inherit; cursor:pointer; background:var(--card); color:var(--fg);
+         border:1px solid var(--rule); border-radius:7px; padding:.45rem .8rem}
+  button:hover{border-color:var(--accent)}
+  /* ---- quiz ---- */
+  .q{background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:1.1rem; margin:1.2rem 0}
+  .q p.stem{font-weight:600; margin:0 0 .8rem}
+  .opt{display:block; width:100%; text-align:left; margin:.35rem 0; padding:.55rem .75rem;
+       border:1px solid var(--rule); border-radius:7px; background:var(--bg); font-size:.94rem}
+  .opt:disabled{cursor:default; opacity:1}
+  .opt.correct{background:var(--ok-soft); border-color:var(--ok); color:var(--ok)}
+  .opt.wrong{background:var(--bad-soft); border-color:var(--bad); color:var(--bad)}
+  .why{font-size:.88rem; color:var(--muted); margin-top:.6rem; display:none}
+  .why.show{display:block}
+  #score{position:sticky; bottom:0; background:var(--card); border:1px solid var(--rule);
+         border-radius:10px; padding:.6rem 1rem; margin-top:1.5rem; font-size:.92rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Duty cycles and stale tests</h1>
+<p class="sub">
+  <code>testsAndMisc</code> · 9 commits, <code>836f4ef..5faed23</code> · 2026-07-19 ·
+  24 files, +1122 / −43
+</p>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#background">Background</a> — what these scripts do and why nothing tested them</li>
+    <li><a href="#intuition">Intuition</a> — the average that described no real second</li>
+    <li><a href="#code">Code</a> — the change, grouped by concern</li>
+    <li><a href="#quiz">Quiz</a> — five questions</li>
+  </ol>
+</div>
+
+<h2 id="background">1. Background</h2>
+
+<p>
+  <code>testsAndMisc</code> is a monorepo of personal automation. The part this change touches,
+  <code>linux_configuration/</code>, holds the shell scripts that run this Arch machine: a pacman
+  wrapper that blocks certain packages, guards that keep <code>/etc/hosts</code> immutable so a
+  blocklist can't be edited away, a daemon that stops music playing alongside focus apps, and a
+  scheduler that locks the desktop at night.
+</p>
+
+<p>
+  Alongside them sits <code>linux_configuration/tests/</code> — fourteen plain-bash test scripts
+  with hand-rolled <code>fail</code> and <code>assert_equals</code> helpers. They look like a test
+  suite. They had one problem: <strong>nothing ran them.</strong> The repo's CI had two workflows,
+  <code>pre-commit.yml</code> and <code>python-tests.yml</code>, and neither so much as globbed for
+  a <code>.sh</code> file. The tests existed, were committed, were never executed.
+</p>
+
+<p>
+  That matters because of what happened next. At some point <code>scripts/</code> was reorganised
+  and most things moved under a new <code>periodic_background/</code> directory. Nothing told the
+  tests. Four of them kept pointing at paths that no longer existed, and because no runner ever
+  invoked them, nobody found out.
+</p>
+
+<div class="note">
+  <strong>The starting question was unrelated.</strong> The session began with "why are my Steam
+  downloads slow?" — which produced a measurement tool, which needed tests, which needed a runner,
+  which is what finally executed the other fourteen. The diagnostic work and the test rot are
+  connected only by the CI job that ended up running both.
+</div>
+
+<h3>The thing being measured</h3>
+
+<p>
+  Throughput on this machine is read straight from the kernel's own byte counter,
+  <code>/sys/class/net/enp6s0/statistics/rx_bytes</code>. Sample it twice, subtract, divide by the
+  elapsed seconds, and you have a rate — no external tools, no forks in the loop. The only real
+  decision is <em>how often you sample</em>, and that decision turned out to be the whole story.
+</p>
+
+<h2 id="intuition">2. Intuition</h2>
+
+<p>
+  Start with the number everyone quotes: the download client said ~170 Mbps. Sampling the NIC every
+  five seconds agreed — a flat, believable plateau, the kind of figure you take to an ISP.
+</p>
+
+<p>
+  Sampling the same link every <em>one</em> second showed something else entirely. There was no
+  plateau. The link alternated between multi-hundred-Mbps bursts and seconds of complete silence:
+</p>
+
+<div class="diagram">
+  <div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">One second per cell · blue = transferring, grey = idle</div>
+  <div class="track">
+    <i class="b"></i><i class="b"></i><i class="b"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i>
+    <i class="b"></i><i class="b"></i><i class="s"></i><i class="s"></i><i class="s"></i>
+    <i class="b"></i><i class="b"></i><i class="b"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i>
+    <i class="b"></i><i class="b"></i><i class="s"></i><i class="s"></i>
+  </div>
+  <div class="cap">
+    Measured peak: <strong>986 Mbps</strong>. Measured average: <strong>~170 Mbps</strong>.
+    Both true. Neither describes a typical second.
+  </div>
+</div>
+
+<p>
+  The average was arithmetically correct and descriptively useless. It reported a rate that
+  <em>no individual second ever ran at</em>. Once you can see the shape, the quantity that matters
+  factors cleanly:
+</p>
+
+<div class="diagram">
+  <div class="flow">
+    <div class="box"><b>burst rate</b>how fast it moves while it is moving</div>
+    <div class="arrow">×</div>
+    <div class="box"><b>duty cycle</b>fraction of wall-clock spent moving</div>
+    <div class="arrow">=</div>
+    <div class="box"><b>effective rate</b>the number the UI shows you</div>
+  </div>
+  <div class="cap">
+    ~450 Mbps × 38% ≈ 170 Mbps. Two independent factors — and only one of them was the problem.
+  </div>
+</div>
+
+<p>
+  This reframes the diagnosis. A slow <em>burst rate</em> means a network problem: congestion,
+  peering, distance. A low <em>duty cycle</em> means something is choosing not to transfer, and no
+  amount of changing servers will help. Averaging collapses both into one number and throws away
+  the distinction — so every remedy aimed at the wrong factor looks equally ineffective, which is
+  exactly how the investigation had been going.
+</p>
+
+<h3>Play with it</h3>
+
+<p>
+  Drag the two factors. The top strip is what 1-second sampling sees; the bars below are the same
+  traffic averaged into 5-second buckets — the view that hid the problem.
+</p>
+
+<div class="sim">
+  <div class="ctrls">
+    <div class="ctrl">
+      <label>Burst rate: <strong id="vBurst">450</strong> Mbps <span class="tag">while transferring</span></label>
+      <input id="sBurst" type="range" min="100" max="1000" step="10" value="450">
+    </div>
+    <div class="ctrl">
+      <label>Duty cycle: <strong id="vDuty">38</strong>% <span class="tag">of wall-clock</span></label>
+      <input id="sDuty" type="range" min="5" max="100" step="1" value="38">
+    </div>
+  </div>
+
+  <div class="lbl">1-second sampling — the real shape</div>
+  <div class="track" id="track"></div>
+
+  <div class="lbl">5-second averaging — what the old sampling reported</div>
+  <div class="bars" id="bars"></div>
+
+  <div class="readout">
+    <div class="stat"><b id="oPeak">—</b><span>peak second</span></div>
+    <div class="stat"><b id="oEff">—</b><span>effective average</span></div>
+    <div class="stat"><b id="oSpread">—</b><span>5s bucket spread</span></div>
+    <div class="stat"><b id="oVerdict">—</b><span>classification</span></div>
+  </div>
+
+  <p style="font-size:.88rem;color:var(--muted);margin:.9rem 0 0">
+    Push duty toward 100% and the two views converge — averaging is only safe when the signal is
+    actually steady. Drop duty low and watch the 5-second bars flatten into a plateau that no
+    single second matches.
+  </p>
+  <p style="margin:.7rem 0 0"><button id="reset">Reset to measured values</button></p>
+</div>
+
+<h3>The second theme: tests that describe a world that moved</h3>
+
+<p>
+  Running the fourteen shell tests for the first time surfaced four distinct failures, and all four
+  were the same bug wearing different clothes — a test still naming something by its old name:
+</p>
+
+<table>
+  <thead><tr><th>What the test named</th><th>What it had become</th></tr></thead>
+  <tbody>
+    <tr><td><code>scripts/system-maintenance/…</code></td><td>moved under <code>periodic_background/</code></td></tr>
+    <tr><td><code>pacman_hooks_manage_hosts_guard()</code></td><td>renamed <code>…_guard_lib()</code></td></tr>
+    <tr><td><code>hosts-guard.path</code></td><td>replaced by <code>guard-file@hosts.path</code></td></tr>
+    <tr><td><code>grep -q 'sleep 60'</code></td><td>improved to sleep until midnight</td></tr>
+  </tbody>
+</table>
+
+<p>
+  The last row is worth pausing on. That test demanded a literal <code>sleep 60</code> polling loop.
+  The code had since been improved to sleep <em>once</em>, until the next day boundary, then block
+  on <code>wait</code> — strictly fewer wakeups. The test failed the code for getting better. A test
+  pinned to implementation text rather than the property it cares about will eventually do that.
+</p>
+
+<h3>The failure mode worth remembering</h3>
+
+<p>
+  One test failed in a way that looked nothing like a path bug. <code>test_music_parallelism.sh</code>
+  copies the daemon into a temporary worktree and drops a stub <code>common.sh</code> beside it, so
+  it can mock the desktop. The daemon resolves its library two levels up:
+</p>
+
+<pre><code>if [[ -f "$SCRIPT_DIR/../../lib/common.sh" ]]; then
+  source "$SCRIPT_DIR/../../lib/common.sh"
+elif [[ -f "/usr/local/lib/common.sh" ]]; then   # ← the trap
+  source "/usr/local/lib/common.sh"</code></pre>
+
+<p>
+  The reorganisation left the test building its worktree one directory too shallow. From there,
+  <code>../../lib/common.sh</code> resolved <em>outside</em> the worktree and missed the stub — so
+  the <code>elif</code> fired and the daemon quietly loaded the <strong>real, installed</strong>
+  library instead. The test then ran against the live machine, ignored its own mock, and reported
+  <code>expected 30, actual 15</code>: a confident, specific, entirely fictitious daemon bug.
+</p>
+
+<div class="diagram">
+  <div class="flow">
+    <div class="box"><b>worktree too shallow</b><code>scripts/digital_wellbeing/</code></div>
+    <div class="arrow">→</div>
+    <div class="box"><b>stub missed</b><code>../../lib</code> lands outside</div>
+    <div class="arrow">→</div>
+    <div class="box"><b>fallback fires</b>real <code>/usr/local/lib</code></div>
+    <div class="arrow">→</div>
+    <div class="box bad"><b>wrong verdict</b>healthy daemon blamed</div>
+  </div>
+  <div class="cap">
+    A fallback that exists for robustness in production became a silent correctness hole in test.
+  </div>
+</div>
+
+<p>
+  The fix does two things, and the second matters more. It <em>derives</em> the worktree path from
+  the script's real position, so the depth can never drift again — and it makes the stub write a
+  marker that every run asserts, so if the wrong library is ever loaded the test says
+  <em>so</em> instead of inventing a number. Fixing the instance would have lasted until the next
+  reorganisation; fixing the class ends it.
+</p>
+
+<h2 id="code">3. Code</h2>
+
+<h3>a. Making bash unit-testable</h3>
+
+<p>
+  The two new diagnostics live in <code>linux_configuration/scripts/diagnostics/</code>. Their
+  arithmetic — rate conversion, duty percentage, the mean of a sample window — is pulled out into
+  pure functions, with the measurement loop kept separate:
+</p>
+
+<pre><code>bytes_to_mbps() {
+    local delta="$1" secs="$2"
+    (( secs &gt; 0 )) || { printf '0'; return; }        # no divide-by-zero
+    printf '%d' $(( delta * 8 / secs / 1000000 ))
+}
+
+# ...
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi</code></pre>
+
+<p>
+  That last guard is what makes the whole thing testable. Executed directly, the script runs a
+  measurement; <em>sourced</em>, it defines its helpers and stops. The bats suite sources both
+  scripts in <code>setup()</code> and asserts on the functions — no sleeping, no live NIC, no mocks.
+</p>
+
+<p>
+  Thirty assertions cover the boundaries, and one of them earned its keep immediately: the
+  <code>sustained_of</code> test was written expecting <code>30</code> for a three-sample input and
+  got <code>25</code>. The code was right — odd counts drop only the first sample, keeping two of
+  three. The <em>expectation</em> was wrong, and it was fixed rather than the behaviour, because 25
+  is what produced every figure in the investigation.
+</p>
+
+<h3>b. Two CI jobs, split by what they need</h3>
+
+<p>
+  <code>.github/workflows/shell-tests.yml</code> runs the suite in two places, because the tests
+  divide cleanly:
+</p>
+
+<div class="diagram">
+  <div class="flow">
+    <div class="box"><b>shell-tests</b><code>ubuntu-latest</code><br>6 tests + 30 bats assertions<br><span class="tag">portable</span></div>
+    <div class="box"><b>arch-tests</b><code>archlinux:base-devel</code><br>8 tests, root in a container<br><span class="tag">pacman · /etc · strace</span></div>
+  </div>
+  <div class="cap">
+    The Arch job needs an Arch userland and root to exercise the pacman wrapper and hosts guards —
+    safe because the container is disposable.
+  </div>
+</div>
+
+<p>
+  Two details were found empirically rather than assumed. <code>archlinux:base-devel</code> ships no
+  <code>git</code>, so <code>actions/checkout</code> can't clone until it's installed; and the
+  i3blocks test counts <code>execve</code> calls with <code>strace</code>, which needs
+  <code>--cap-add=SYS_PTRACE</code>. The whole set was validated locally in Docker — including a
+  <code>--network=none</code> run, which proves the job's dependency list is complete rather than
+  quietly pulling something at runtime.
+</p>
+
+<h3>c. The stale-name repairs</h3>
+
+<p>
+  Mechanical, once identified: four tests had their source paths corrected, three renamed symbols
+  were updated, and three systemd unit checks were widened to accept either generation —
+</p>
+
+<pre><code>if systemctl is-active --quiet guard-file@hosts.path 2>/dev/null ||
+    systemctl is-active --quiet hosts-guard.path 2>/dev/null; then</code></pre>
+
+<p>
+  — with the bind-mount check also accepting the read-only mount on <code>/etc/hosts</code> itself,
+  since the mount is the actual invariant and which unit established it is an implementation detail.
+</p>
+
+<h3>d. A security test that works in both worlds</h3>
+
+<p>
+  <code>test_security_hardening.sh</code> is really two suites in one file: seven checks read
+  repository files, the rest inspect a configured machine (immutable flags, systemd units,
+  <code>/usr/local</code> payloads). In a container the second group can only fail. A
+  <code>LIVE_SECTION</code> flag now marks them, and off-host they report <em>skip</em> instead.
+</p>
+
+<div class="note">
+  <strong>The near-miss.</strong> The first version detected "am I on a configured host?" with
+  <code>systemctl is-system-running</code>. That command exits non-zero when the system is
+  <em>degraded</em> — which is precisely what a failed guard unit causes. On the real machine it
+  concluded "not a configured host" and downgraded all four genuine failures to skips. A detector
+  that switches itself off exactly when something is wrong is worse than no detector at all. It now
+  tests for <code>/run/systemd/system</code> plus the installed guard payload, neither of which
+  cares about unit health.
+</div>
+
+<p>
+  The safeguard against over-leniency is a negative test: faking the host markers inside a container
+  with no protection installed still produces ten failures. Green means protected, not permissive —
+  and that check is recorded in the evidence artifact as mandatory for any future change here.
+</p>
+
+<h3>e. Outcomes over mechanisms</h3>
+
+<p>
+  This section exists because of a wrong conclusion. Four guard units read as dead, and the obvious
+  reading — protection is down — was reported as such. It wasn't true. A refactor had replaced the
+  standalone units with templated ones, and the replacements were running the whole time. What
+  settled it was checking the <em>outcome</em> rather than the mechanism:
+</p>
+
+<pre><code>lsattr /etc/hosts          →  ----i---------e-------   # immutable
+findmnt -no OPTIONS /etc/hosts  →  ro,noatime          # read-only
+systemctl is-active guard-file@hosts.path  →  active</code></pre>
+
+<p>
+  Unit names are an implementation detail and they churn. The invariant — that the file cannot be
+  written — does not. Tests that assert the invariant survive refactors; tests that assert the
+  mechanism raise false alarms, and a false alarm on a security control is expensive in a way a
+  false alarm elsewhere is not.
+</p>
+
+<h2 id="quiz">4. Quiz</h2>
+<p class="sub" style="margin-bottom:1rem">Five questions on the reasoning, not the trivia. Click an option to reveal.</p>
+<div id="quiz"></div>
+<div id="score">Score: <strong id="scoreVal">0</strong> / 5</div>
+
+</div>
+
+<script>
+(function(){
+  // ---------- micro-world ----------
+  var SEC = 48, BUCKET = 5;
+  var sB = document.getElementById('sBurst'), sD = document.getElementById('sDuty');
+  var track = document.getElementById('track'), bars = document.getElementById('bars');
+
+  // Deterministic pattern: clump transferring seconds into runs so it looks like
+  // real burst/stall behaviour rather than random speckle.
+  function pattern(duty){
+    var on = Math.round(SEC * duty / 100), out = [], i;
+    for(i=0;i<SEC;i++) out.push(false);
+    var placed = 0, idx = 0, runLen = 3;
+    while(placed < on){
+      for(var k=0;k<runLen && placed<on;k++){
+        if(idx >= SEC) idx = 0;
+        if(!out[idx]){ out[idx] = true; placed++; }
+        idx++;
+      }
+      idx += 4;                       // gap between runs
+      if(idx >= SEC) idx = (idx % SEC) + 1;
+    }
+    return out;
+  }
+
+  function render(){
+    var burst = +sB.value, duty = +sD.value;
+    document.getElementById('vBurst').textContent = burst;
+    document.getElementById('vDuty').textContent = duty;
+
+    var pat = pattern(duty), samples = pat.map(function(on){ return on ? burst : 0; });
+
+    track.innerHTML = '';
+    pat.forEach(function(on){
+      var el = document.createElement('i');
+      el.className = on ? 'b' : 's';
+      track.appendChild(el);
+    });
+
+    // average into 5-second buckets — the view that hid the pattern
+    var buckets = [], j;
+    for(j=0;j<samples.length;j+=BUCKET){
+      var slice = samples.slice(j, j+BUCKET);
+      var sum = slice.reduce(function(a,b){ return a+b; }, 0);
+      buckets.push(Math.round(sum / slice.length));
+    }
+    var maxB = Math.max.apply(null, buckets.concat([1]));
+    bars.innerHTML = '';
+    buckets.forEach(function(v){
+      var el = document.createElement('i');
+      el.style.height = Math.max(2, Math.round(v / maxB * 44)) + 'px';
+      el.title = v + ' Mbps';
+      bars.appendChild(el);
+    });
+
+    var peak = Math.max.apply(null, samples);
+    var eff = Math.round(samples.reduce(function(a,b){ return a+b; },0) / samples.length);
+    var spread = maxB - Math.min.apply(null, buckets);
+
+    document.getElementById('oPeak').textContent = peak;
+    document.getElementById('oEff').textContent = eff;
+    document.getElementById('oSpread').textContent = spread;
+    var v = document.getElementById('oVerdict');
+    if(duty >= 80){ v.textContent = 'link-limited'; v.className = 'ok'; }
+    else if(burst >= 400){ v.textContent = 'client idle'; v.className = 'bad'; }
+    else { v.textContent = 'mixed'; v.className = ''; }
+  }
+  sB.addEventListener('input', render);
+  sD.addEventListener('input', render);
+  document.getElementById('reset').addEventListener('click', function(){
+    sB.value = 450; sD.value = 38; render();
+  });
+  render();
+
+  // ---------- quiz ----------
+  var QS = [
+    { stem: "Why did 5-second averaging send the diagnosis down the wrong path?",
+      opts: [
+        "It read the wrong interface counter from /sys entirely",
+        "It ignored outbound traffic and measured only inbound",
+        "No single second actually ran at the rate it reported",
+        "It truncated each sample, quietly discarding peak values"
+      ], correct: 2,
+      why: "The mean was arithmetically right but described no real second — it hid a burst/stall pattern behind a plateau." },
+
+    { stem: "What does guarding main() behind a BASH_SOURCE check buy the scripts?",
+      opts: [
+        "Tests can load its helpers without triggering a measurement",
+        "The script refuses to start unless given an absolute path",
+        "It blocks execution by any account other than the root user here",
+        "Sourcing it also runs the script's whole test suite first"
+      ], correct: 0,
+      why: "Executed directly it measures; sourced it only defines functions, so bats can assert on the arithmetic." },
+
+    { stem: "Why did test_music_parallelism.sh report a bug in a healthy daemon?",
+      opts: [
+        "The daemon had genuinely regressed and was reverted upstream",
+        "Its assertion compared against a hardcoded, outdated interval",
+        "The mock file was written only after the daemon had already started up",
+        "It sourced the real installed library rather than its own stub"
+      ], correct: 3,
+      why: "Its worktree was one level too shallow, so ../../lib missed the stub and the elif fallback loaded /usr/local/lib." },
+
+    { stem: "Why was `systemctl is-system-running` the wrong way to detect a configured host?",
+      opts: [
+        "It requires root privileges that the test suite does not hold",
+        "It exits non-zero when degraded — the very state being checked",
+        "It returns different strings on different systemd major versions",
+        "It is slow enough to time out the surrounding shell test harness"
+      ], correct: 1,
+      why: "A failed guard unit degrades the system, so the detector would switch itself off exactly when it was needed." },
+
+    { stem: "What finally exposed the false alarm that four hardening guards were down?",
+      opts: [
+        "Re-reading the journal entries around the moment of the boot",
+        "Comparing the unit names against the guard-lib refactor commit",
+        "Noticing the failed units had all been deliberately disabled earlier",
+        "Checking the outcomes — immutable flags and the read-only mount"
+      ], correct: 3,
+      why: "The invariant (file unwritable) held throughout; only the mechanism's names had changed." }
+  ];
+
+  var score = 0, host = document.getElementById('quiz');
+  QS.forEach(function(q, qi){
+    var card = document.createElement('div'); card.className = 'q';
+    var stem = document.createElement('p'); stem.className = 'stem';
+    stem.textContent = (qi+1) + '. ' + q.stem;
+    card.appendChild(stem);
+
+    var why = document.createElement('div'); why.className = 'why';
+    q.opts.forEach(function(text, oi){
+      var b = document.createElement('button');
+      b.className = 'opt'; b.type = 'button'; b.textContent = text;
+      b.addEventListener('click', function(){
+        if(card.dataset.done) return;
+        card.dataset.done = '1';
+        var all = card.querySelectorAll('.opt');
+        for(var i=0;i<all.length;i++){ all[i].disabled = true; }
+        all[q.correct].classList.add('correct');
+        if(oi !== q.correct){ b.classList.add('wrong'); }
+        else { score++; document.getElementById('scoreVal').textContent = score; }
+        why.textContent = (oi === q.correct ? 'Correct. ' : 'Not quite. ') + q.why;
+        why.classList.add('show');
+      });
+      card.appendChild(b);
+    });
+    card.appendChild(why);
+    host.appendChild(card);
+  });
+})();
+</script>
+</body>
+</html>
