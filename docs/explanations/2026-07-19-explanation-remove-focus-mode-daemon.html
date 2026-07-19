@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Removing the Focus-Mode Daemon</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5a5a5a;
+    --card: #f5f5f7;
+    --border: #d8d8dc;
+    --accent: #6d4aff;
+    --accent-soft: #efe9ff;
+    --good: #1a7f37;
+    --bad: #c62828;
+    --code-bg: #0f1117;
+    --code-fg: #e6e6e6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14141a;
+      --fg: #ecebf2;
+      --muted: #a3a2b0;
+      --card: #1d1d26;
+      --border: #33333f;
+      --accent: #b39dff;
+      --accent-soft: #29233f;
+      --good: #6bd08a;
+      --bad: #ff8a80;
+      --code-bg: #0a0a10;
+      --code-fg: #dcdce2;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+  }
+  .page {
+    max-width: min(48rem, 92vw);
+    margin: 0 auto;
+    padding: 2rem 0 5rem;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); margin-top: 0; margin-bottom: 2rem; }
+  h2 {
+    font-size: 1.3rem;
+    margin-top: 3rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  h3 { font-size: 1.05rem; margin-top: 1.75rem; }
+  p { margin: 0.9rem 0; }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
+  }
+  nav.toc ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin: 0;
+    padding: 0;
+  }
+  nav.toc a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  nav.toc a:hover { text-decoration: underline; }
+  code, pre, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  code {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    font-size: 0.88em;
+  }
+  .code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    margin: 0.9rem 0;
+  }
+  .code-block pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+  .code-block .rm { color: #ff8a80; }
+  .code-block .add { color: #6bd08a; }
+  .intent {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0.3rem 0 0.6rem;
+  }
+  .callout {
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    margin: 1.1rem 0;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+
+  /* --- state diagram --- */
+  .diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.4rem 0;
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .state {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    min-width: 7.5rem;
+    text-align: center;
+    background: var(--bg);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .state.active-none { border-color: var(--muted); }
+  .state.active-gaming { border-color: #ff9f43; color: #ff9f43; }
+  .state.active-browsing { border-color: #4aa3ff; color: #4aa3ff; }
+  .arrow {
+    color: var(--muted);
+    font-size: 1.3rem;
+  }
+  .arrow-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    max-width: 7rem;
+  }
+
+  /* --- micro-world --- */
+  .widget {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+    margin: 1.2rem 0;
+  }
+  .widget-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    align-items: center;
+    margin-bottom: 0.9rem;
+  }
+  .widget-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .widget button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .widget button.secondary {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  .widget-status {
+    display: flex;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    border: 2px solid var(--muted);
+  }
+  .badge.gaming { border-color: #ff9f43; color: #ff9f43; }
+  .badge.browsing { border-color: #4aa3ff; color: #4aa3ff; }
+  .log {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    max-height: 12rem;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .log div { padding: 0.15rem 0; border-bottom: 1px dashed var(--border); }
+  .log div:last-child { border-bottom: none; }
+  .log .kill { color: var(--bad); }
+  .log .enter { color: var(--accent); }
+  .log .exit { color: var(--good); }
+
+  table.summary {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+    margin: 0.8rem 0;
+  }
+  table.summary th, table.summary td {
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+  }
+  table.summary th { background: var(--card); }
+  .row-removed { text-decoration: line-through; color: var(--muted); }
+
+  /* --- quiz --- */
+  .quiz-q {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    margin: 1.1rem 0;
+  }
+  .quiz-q h4 { margin: 0 0 0.7rem; font-size: 0.98rem; }
+  .quiz-options { display: flex; flex-direction: column; gap: 0.5rem; }
+  .quiz-option {
+    text-align: left;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    color: var(--fg);
+  }
+  .quiz-option:hover { border-color: var(--accent); }
+  .quiz-option.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--bg)); }
+  .quiz-option.incorrect { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--bg)); }
+  .quiz-option[disabled] { cursor: default; }
+  .quiz-rationale {
+    font-size: 0.83rem;
+    color: var(--muted);
+    margin-top: 0.6rem;
+    display: none;
+  }
+  .quiz-rationale.shown { display: block; }
+  #quiz-score {
+    font-weight: 700;
+    margin-top: 1rem;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+</style>
+
+<div class="page">
+  <h1>Removing the Focus-Mode Daemon</h1>
+  <p class="subtitle">Commit <code>937c597</code> · digital_wellbeing/ · 2026-07-19</p>
+
+  <nav class="toc">
+    <ul>
+      <li><a href="#background">Background</a></li>
+      <li><a href="#intuition">Intuition</a></li>
+      <li><a href="#code">Code</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+    </ul>
+  </nav>
+
+  <section id="background">
+    <h2>Background</h2>
+
+    <p>
+      <code>digital_wellbeing/</code> is a folder of small personal-automation
+      daemons and installers that fight the author's own bad habits: a
+      compulsive-app-opening blocker, a LeechBlock installer, a pacman wrapper
+      that adds friction to installing distracting software, and — until this
+      change — a <strong>focus-mode daemon</strong>.
+    </p>
+
+    <p>
+      The idea behind focus-mode was simple: Steam (gaming) and web browsers
+      compete for the same attention, so let only one of them run at a time.
+      Concretely, <code>focus_mode_daemon.py</code> ran as a
+      <strong>systemd user service</strong> that polled <code>/proc</code>
+      every 2 seconds, and enforced a rule: whichever category — Steam or
+      browsers — started first "wins", and the daemon <code>pkill</code>s the
+      other one the moment it shows up. A companion
+      <code>whitelist</code> subcommand let the author temporarily allow
+      browsers during a gaming session, for things like a two-factor-auth
+      prompt that has to open in a browser.
+    </p>
+
+    <p>
+      This lived across four files: <code>focus_mode_daemon.py</code> (the
+      state machine and CLI), <code>_focus_mode_lib.py</code> (process
+      detection via <code>/proc/*/stat</code>, logging, and the actual
+      <code>pkill</code> calls), <code>install_focus_mode_daemon.sh</code>
+      (installs a <code>systemd --user</code> service), and a bare
+      <code>__init__.py</code> whose only content was a one-line docstring
+      naming the daemon.
+    </p>
+
+    <div class="callout">
+      <strong>Why remove it instead of fixing it?</strong> The installer's own
+      comments reveal it: <code>check_and_enable_services.sh</code> — the
+      script that audits and self-heals all the other daemons on this system —
+      repairs a broken service by running its installer as
+      <code>sudo -u &lt;user&gt; bash install_focus_mode_daemon.sh install</code>.
+      But <code>sudo -u</code> changes the UID without granting a login
+      session: <code>XDG_RUNTIME_DIR</code> and
+      <code>DBUS_SESSION_BUS_ADDRESS</code> stay unset, so every
+      <code>systemctl --user</code> call inside the installer died with
+      "Failed to connect to user scope bus". The installer tried to route
+      around this by deriving those paths from the effective UID — but by the
+      time this change landed, the daemon was confirmed <strong>not
+      installed and not running</strong> on the live system at all. A feature
+      that silently never actually deployed is exactly what "unusable in its
+      current state" means here.
+    </div>
+  </section>
+
+  <section id="intuition">
+    <h2>Intuition</h2>
+
+    <p>
+      Before removal, the daemon's core was a three-state machine. Read it as:
+      "no app category has claimed the screen yet, until one shows up — at
+      which point the other gets killed on sight."
+    </p>
+
+    <div class="diagram" aria-label="focus mode state diagram">
+      <div class="state active-none">No mode</div>
+      <div class="arrow">→</div>
+      <div>
+        <div class="arrow-label">Steam appears</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="state active-gaming">Gaming<br /><small>(browsers killed)</small></div>
+    </div>
+    <div class="diagram" aria-label="focus mode state diagram continued">
+      <div class="state active-none">No mode</div>
+      <div class="arrow">→</div>
+      <div>
+        <div class="arrow-label">Browser appears</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="state active-browsing">Browsing<br /><small>(Steam killed)</small></div>
+    </div>
+
+    <p>
+      The one subtlety worth internalizing — because it's easy to misread —
+      is what happened if <em>both</em> Steam and a browser were already
+      running the moment the daemon started, with no mode active yet. The
+      code didn't wait to see which one the user "meant" first: it directly
+      entered gaming mode and killed the browsers. Steam wins ties.
+    </p>
+
+    <h3>Play with the old state machine</h3>
+    <p>
+      This logic is gone from the repo now, but it's small enough to simulate.
+      Toggle which processes are "running", hit <strong>Tick</strong> to step
+      the daemon's <code>update()</code> once, and watch the mode and log
+      react exactly as the deleted code would have.
+    </p>
+
+    <div class="widget" id="focus-widget">
+      <div class="widget-controls">
+        <label><input type="checkbox" id="fw-steam" /> Steam running</label>
+        <label><input type="checkbox" id="fw-browser" /> Browser running</label>
+        <label><input type="checkbox" id="fw-whitelist" /> Whitelist active</label>
+      </div>
+      <div class="widget-status">
+        <span>Mode: <span class="badge" id="fw-mode">none</span></span>
+        <button id="fw-tick">Tick</button>
+        <button class="secondary" id="fw-reset">Reset</button>
+      </div>
+      <div class="log" id="fw-log"><div>Waiting for first tick…</div></div>
+    </div>
+
+    <p>
+      Try it: check both boxes, leave whitelist off, then hit Tick once from a
+      cold start — gaming mode wins and the log shows a browser kill. Now
+      reset, enter gaming mode with just Steam, turn on whitelist,
+      <em>then</em> check the browser box and Tick — no kill this time,
+      because the whitelist suppresses the enforcement while gaming mode is
+      already active.
+    </p>
+
+    <p>
+      With the daemon deleted, none of this runs anymore. The system-level
+      picture also gets simpler:
+    </p>
+
+    <table class="summary">
+      <tr><th></th><th>Before</th><th>After</th></tr>
+      <tr>
+        <td><code>check_and_enable_services.sh --status</code> row count</td>
+        <td>12 services, incl. <span class="row-removed">focus_mode</span></td>
+        <td>11 services</td>
+      </tr>
+      <tr>
+        <td><code>install_core_system.sh</code> secondary modules</td>
+        <td>8, incl. <span class="row-removed">Focus-mode daemon</span></td>
+        <td>7</td>
+      </tr>
+      <tr>
+        <td><code>test_security_hardening.sh</code> checks</td>
+        <td>27 tests, incl. <span class="row-removed">3 focus-mode tests</span></td>
+        <td>24 tests</td>
+      </tr>
+    </table>
+  </section>
+
+  <section id="code">
+    <h2>Code</h2>
+
+    <h3>1. Delete the daemon itself</h3>
+    <p class="intent">
+      All four files under <code>digital_wellbeing/</code> that made up the
+      daemon are gone: the 320-line state machine, the 227-line process/kill
+      library it imported, the 241-line systemd installer, and the
+      one-line package docstring.
+    </p>
+    <div class="code-block"><pre>- focus_mode_daemon.py           (320 lines: FocusMode state machine + CLI)
+- _focus_mode_lib.py             (227 lines: /proc scanning, pkill helpers)
+- install_focus_mode_daemon.sh   (241 lines: systemd --user unit + install/uninstall/status)
+- __init__.py                    (1 line: package docstring)</pre></div>
+
+    <h3>2. Stop offering to install it</h3>
+    <p class="intent">
+      <code>install_core_system.sh</code>'s secondary-module menu drops item
+      8 outright — it was the last entry, so no renumbering was needed for
+      the remaining seven.
+    </p>
+    <div class="code-block"><pre>-ask_install "Focus-mode daemon" \
+-    bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh" install
+-</pre></div>
+
+    <h3>3. Stop auditing and self-healing it</h3>
+    <p class="intent">
+      <code>check_and_enable_services.sh</code> is the script that checks all
+      12 (now 11) personal services and repairs anything broken. Its entire
+      <code>check_focus_mode()</code> function — the one whose repair path
+      hit the <code>sudo -u</code> session-bus bug described above — is
+      deleted, along with its variable, its slot in the summary table, and
+      its call site. The remaining services in the printed list shift down
+      by one number so item 8 (Thorium startup) doesn't leave a gap where 6
+      used to be.
+    </p>
+    <div class="code-block"><pre>-  6. Focus mode daemon    - Steam/Browser mutual exclusion (user service)
+-  7. Compulsive blocker   - Limits messaging apps to one launch per hour
++  6. Compulsive blocker   - Limits messaging apps to one launch per hour
++  7. Thorium startup      - Auto-launch Thorium with Fitatu on boot
+   ...
+-	for service in ... hosts focus_mode compulsive_blocker ...; do
++	for service in ... hosts compulsive_blocker ...; do
+   ...
+-	check_hosts
+-	check_focus_mode
+-	check_compulsive_blocker
++	check_hosts
++	check_compulsive_blocker</pre></div>
+
+    <h3>4. Drop the test coverage, keep the numbering sane</h3>
+    <p class="intent">
+      <code>test_security_hardening.sh</code> loses its three focus-mode
+      checks (daemon file exists, installer exists, service is active). The
+      tests that followed — for an unrelated screen-locker component — get
+      their comment numbers shifted down from 23–27 to 20–24, purely so the
+      numbering stays sequential. <code>test_result()</code> tallies
+      pass/fail/skip by counting calls, not by parsing these comments, so
+      this renumbering is cosmetic, not functional.
+    </p>
+    <div class="code-block"><pre>-# Test 20: Focus mode daemon script exists
+-if [[ -f "$focus_daemon" ]]; then ...
+-# Test 21: Focus mode installer exists
+-...
+-# Test 22: Focus mode daemon is running (user service)
+-...
+-
+-# Test 23: Screen locker exists
++# Test 20: Screen locker exists</pre></div>
+
+    <h3>5. Update the docs</h3>
+    <p class="intent">
+      <code>CLAUDE.md</code>'s directory map and "Key scripts" list both
+      drop their mentions of the daemon.
+    </p>
+    <div class="code-block"><pre>-│       ├── digital_wellbeing/      # Compulsive-opening blocker, focus daemon, LeechBlock
++│       ├── digital_wellbeing/      # Compulsive-opening blocker, LeechBlock
+ ...
+-- `scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py` — Linux digital-wellbeing daemon</pre></div>
+
+    <p>
+      Left untouched on purpose: <code>phone_focus_mode/</code> (a completely
+      separate GPS-based Android app-restriction system that just happens to
+      share the word "focus"), and the historical design docs
+      (<code>docs/SECURITY_HARDENING_ANALYSIS.md</code>,
+      <code>docs/superpowers/evidence|contracts</code>) that originally
+      proposed and tracked this daemon — those stay as append-only history of
+      what was tried.
+    </p>
+  </section>
+
+  <section id="quiz">
+    <h2>Quiz</h2>
+    <p>Five questions on the reasoning behind this change. Click an option to check it.</p>
+    <div id="quiz-root"></div>
+    <div id="quiz-score">Score: 0 / 5</div>
+  </section>
+
+  <footer>Generated explanation doc for commit 937c597 — see docs/explanations/index.html for the full archive.</footer>
+</div>
+
+<script>
+(function () {
+  // ---------- Focus-mode micro-world ----------
+  var mode = null; // null | 'gaming' | 'browsing'
+  var log = document.getElementById('fw-log');
+  var modeBadge = document.getElementById('fw-mode');
+
+  function addLog(text, cls) {
+    var line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = text;
+    log.insertBefore(line, log.firstChild);
+  }
+
+  function renderMode() {
+    modeBadge.textContent = mode || 'none';
+    modeBadge.className = 'badge' + (mode ? ' ' + mode : '');
+  }
+
+  function tick() {
+    var steam = document.getElementById('fw-steam').checked;
+    var browser = document.getElementById('fw-browser').checked;
+    var whitelist = document.getElementById('fw-whitelist').checked;
+
+    if (mode === null) {
+      if (steam && browser) {
+        addLog('Both Steam and browsers detected at startup — entering GAMING mode', 'enter');
+        addLog('Killing browser processes…', 'kill');
+        mode = 'gaming';
+      } else if (steam) {
+        addLog('Steam detected — entering GAMING mode', 'enter');
+        mode = 'gaming';
+      } else if (browser) {
+        addLog('Browser detected — entering BROWSING mode', 'enter');
+        mode = 'browsing';
+      } else {
+        addLog('Nothing running — no mode change');
+      }
+    } else if (mode === 'gaming') {
+      if (!steam) {
+        addLog('Steam closed — exiting GAMING mode', 'exit');
+        mode = null;
+      } else if (browser) {
+        if (whitelist) {
+          addLog('Browser detected during GAMING mode, but whitelist is active — no action');
+        } else {
+          addLog('Browser detected during GAMING mode — killing browsers', 'kill');
+        }
+      } else {
+        addLog('Still gaming, nothing changed');
+      }
+    } else if (mode === 'browsing') {
+      if (!browser) {
+        addLog('Browsers closed — exiting BROWSING mode', 'exit');
+        mode = null;
+      } else if (steam) {
+        addLog('Steam detected during BROWSING mode — killing Steam', 'kill');
+      } else {
+        addLog('Still browsing, nothing changed');
+      }
+    }
+    renderMode();
+  }
+
+  document.getElementById('fw-tick').addEventListener('click', tick);
+  document.getElementById('fw-reset').addEventListener('click', function () {
+    mode = null;
+    document.getElementById('fw-steam').checked = false;
+    document.getElementById('fw-browser').checked = false;
+    document.getElementById('fw-whitelist').checked = false;
+    log.innerHTML = '<div>Waiting for first tick…</div>';
+    renderMode();
+  });
+  renderMode();
+
+  // ---------- Quiz ----------
+  var questions = [
+    {
+      q: "The daemon started with no mode active and found Steam AND a browser already running. What happened?",
+      options: [
+        "It picked browsing mode by default and closed Steam right away.",
+        "It entered gaming mode directly and closed the running browsers.",
+        "It left both running and waited for one of them to exit first.",
+        "It checked the whitelist file first to decide which app stays open."
+      ],
+      correct: 1,
+      rationale: "_handle_no_mode() special-cased this: if both were already running at startup, it went straight to gaming mode and killed browsers — it didn't wait or consult the whitelist."
+    },
+    {
+      q: "What was the browser whitelist file actually for?",
+      options: [
+        "Permanently exempting certain browsers from ever being blocked.",
+        "Recording which browser process last triggered a kill signal.",
+        "Letting browsers run briefly during gaming mode, e.g. for 2FA logins.",
+        "Letting Steam run briefly during browsing mode instead of blocking it."
+      ],
+      correct: 2,
+      rationale: "activate_whitelist() set a timed expiry; while active, _handle_gaming() skipped killing browsers so things like two-factor auth flows could complete."
+    },
+    {
+      q: "Per the installer's own comments, why did the daemon often fail to actually get installed when auto-repaired?",
+      options: [
+        "sudo -u dropped the session bus, so systemctl --user calls failed.",
+        "The daemon crashed on startup due to a bug in process-name parsing.",
+        "Polling every 2 seconds for processes was too slow to catch anything.",
+        "Steam and browser process names collided, so neither was ever blocked."
+      ],
+      correct: 0,
+      rationale: "check_and_enable_services.sh repaired it via `sudo -u <user> bash install_focus_mode_daemon.sh install`, but sudo changes UID without a session — XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS stayed unset, so every systemctl --user call inside the installer died."
+    },
+    {
+      q: "Why were the screen-locker test comments renumbered from Test 23-27 down to Test 20-24 in this change?",
+      options: [
+        "Because coverage tooling requires sequential IDs across all shell tests.",
+        "Because the screen locker component itself was renamed in this change.",
+        "Because test_result() needs contiguous numbers to total pass/fail counts.",
+        "Because the three removed focus-mode tests sat right before them in the file."
+      ],
+      correct: 3,
+      rationale: "The numbers are just comments for humans reading the file top to bottom; test_result() tallies pass/fail/skip by counting calls, not by parsing these numbers, so this renumbering was cosmetic cleanup, not a functional requirement."
+    },
+    {
+      q: "Which sibling component's name looks related to this change but was explicitly confirmed unrelated and left untouched?",
+      options: [
+        "block_compulsive_opening.sh, the messaging-app launch limiter.",
+        "phone_focus_mode/, a GPS-based Android app-restriction system.",
+        "The pacman wrapper's friction-based blocked-keywords policy engine.",
+        "install_leechblock.sh, the browser-extension site blocker."
+      ],
+      correct: 1,
+      rationale: "phone_focus_mode/ lives at the repo root and enforces app restrictions on a rooted Android phone by GPS location — a completely different system that merely shares the word 'focus' in its name."
+    }
+  ];
+
+  var score = 0;
+  var root = document.getElementById('quiz-root');
+  var scoreEl = document.getElementById('quiz-score');
+
+  questions.forEach(function (item, qi) {
+    var qDiv = document.createElement('div');
+    qDiv.className = 'quiz-q';
+
+    var h4 = document.createElement('h4');
+    h4.textContent = (qi + 1) + '. ' + item.q;
+    qDiv.appendChild(h4);
+
+    var optsDiv = document.createElement('div');
+    optsDiv.className = 'quiz-options';
+
+    var rationale = document.createElement('div');
+    rationale.className = 'quiz-rationale';
+    rationale.textContent = item.rationale;
+
+    var answered = false;
+
+    item.options.forEach(function (optText, oi) {
+      var btn = document.createElement('button');
+      btn.className = 'quiz-option';
+      btn.textContent = optText;
+      btn.addEventListener('click', function () {
+        if (answered) return;
+        answered = true;
+        var buttons = optsDiv.querySelectorAll('.quiz-option');
+        buttons.forEach(function (b, bi) {
+          b.disabled = true;
+          if (bi === item.correct) b.classList.add('correct');
+        });
+        if (oi === item.correct) {
+          btn.classList.add('correct');
+          score++;
+        } else {
+          btn.classList.add('incorrect');
+        }
+        rationale.classList.add('shown');
+        scoreEl.textContent = 'Score: ' + score + ' / ' + questions.length;
+      });
+      optsDiv.appendChild(btn);
+    });
+
+    qDiv.appendChild(optsDiv);
+    qDiv.appendChild(rationale);
+    root.appendChild(qDiv);
+  });
+})();
+</script>
