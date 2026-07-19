@@ -1,0 +1,29 @@
+{
+  "intent": "Report the shutdown schedule as guarded rather than skipped, now that guard-file@shutdown-schedule.path is confirmed active.",
+  "scope": [
+    "linux_configuration/tests/test_security_hardening.sh: Test 10 only",
+    "Non-goal: system state — the legacy units were disabled by the user, not by this change"
+  ],
+  "changes": [
+    "Test 10 now accepts guard-file@shutdown-schedule.path, the guard-lib replacement that actually protects /etc/shutdown-schedule.conf today. Previously it only knew the retired shutdown-schedule-guard.path and reported a skip, which understated the real protection. The disabled-is-intentional branch is kept for hosts that have neither unit."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh (real host)",
+      "result": "pass",
+      "evidence": "19 passed / 0 failed / 5 skipped, up from 18/0/6: 'shutdown schedule is guarded' now PASSes instead of skipping. /etc/shutdown-schedule.conf carries the immutable flag and guard-file@shutdown-schedule.path is active."
+    },
+    {
+      "command": "docker run --network=none archlinux:base-devel <the suite>",
+      "result": "pass",
+      "evidence": "exit 0 — off-host behaviour unchanged."
+    }
+  ],
+  "risks": [
+    "Same pattern as the other guard checks: if the unit is renamed again, this reports a false skip rather than a failure. The disabled-is-intentional branch is what makes that possible, and it is the deliberate trade for not failing on a host that legitimately retired the guard."
+  ],
+  "rollback": [
+    "git revert this commit; Test 10 returns to skipping on this host.",
+    "Validate after rollback: the suite reports 18 passed / 6 skipped with 'shutdown-schedule-guard.path is active' skipped."
+  ]
+}

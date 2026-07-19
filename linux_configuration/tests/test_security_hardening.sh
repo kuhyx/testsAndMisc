@@ -201,8 +201,12 @@ fi
 # and never compare equal. Capture stdout and discard the exit status instead.
 shutdown_guard_enabled=$(systemctl is-enabled shutdown-schedule-guard.path 2>/dev/null || true)
 [[ -n "$shutdown_guard_enabled" ]] || shutdown_guard_enabled=unknown
-if systemctl is-active --quiet shutdown-schedule-guard.path 2>/dev/null; then
-	test_result "shutdown-schedule-guard.path is active" "pass"
+if systemctl is-active --quiet guard-file@shutdown-schedule.path 2>/dev/null ||
+	systemctl is-active --quiet shutdown-schedule-guard.path 2>/dev/null; then
+	# guard-file@shutdown-schedule.path is the guard-lib replacement and is the
+	# unit actually protecting the schedule today, so this is a pass, not a
+	# concession that the schedule went unguarded.
+	test_result "shutdown schedule is guarded" "pass"
 elif [[ "$shutdown_guard_enabled" == "disabled" ]]; then
 	test_result "shutdown-schedule-guard.path is active" "skip" \
 		"intentionally retired with the old poweroff flow (night lockdown replaced it)"
