@@ -54,38 +54,37 @@ jobs:
   # container is disposable.
   arch-tests:
     runs-on: ubuntu-latest
-    container: archlinux:base-devel
+    container:
+      image: archlinux:base-devel
+      # test_i3blocks_efficiency.sh counts execve calls with strace, which needs
+      # ptrace. Without these the trace file is never produced.
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
-      # base-devel ships no git, and actions/checkout needs it to clone.
-      - name: Install git
-        run: pacman -Sy --noconfirm --needed git
+      # base-devel ships neither git (actions/checkout needs it) nor strace.
+      - name: Install dependencies
+        run: pacman -Sy --noconfirm --needed git strace
 
       - uses: actions/checkout@v4
 
-      # Verified to pass in `docker run --network=none archlinux:base-devel`,
-      # so this list needs no package installs beyond git.
+      # The complete Arch-dependent set. All eight verified locally in
+      # `docker run --cap-add=SYS_PTRACE archlinux:base-devel`.
       #
-      # Deliberately excluded:
-      #   test_i3blocks_efficiency.sh
-      #       needs strace (and SYS_PTRACE) to count execve calls. Could not be
-      #       validated locally because this machine's containers have no DNS,
-      #       so pacman cannot install strace. Add it once someone can confirm
-      #       it passes in a container that can reach the mirrors.
-      #   test_hosts_guard_pacman_integration.sh
-      #       fails on a real assertion ('wrapper detects when pacman hooks
-      #       already manage hosts guard'), not a path or environment problem.
-      #   test_security_hardening.sh
-      #       asserts live machine state (e.g. '/etc/hosts is immutable'). It
-      #       validates a configured host, not the repo, so it can never pass
-      #       in a fresh container.
+      # test_security_hardening.sh inspects a configured machine (chattr flags,
+      # systemd guard units, /usr/local payloads). It detects that it is not on
+      # one and reports those checks as skipped, while still running its
+      # repository checks — so it is meaningful here AND on the real host,
+      # where it continues to fail loudly if a guard unit is down.
       - name: Run Arch-specific shell tests
         run: |
           set -euo pipefail
           tests=(
             test_hosts_file_monitor.sh
+            test_hosts_guard_pacman_integration.sh
+            test_i3blocks_efficiency.sh
             test_makepkg_capped.sh
             test_makepkg_wrapper.sh
             test_pacman_wrapper_security.sh
+            test_security_hardening.sh
             test_shutdown_timer_monitor.sh
           )
           failed=0

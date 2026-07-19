@@ -1,0 +1,41 @@
+{
+  "intent": "Bring the last three excluded shell tests into CI so all 14 run, without weakening what test_security_hardening.sh detects on the real host.",
+  "scope": [
+    ".github/workflows/shell-tests.yml: arch-tests gains strace, SYS_PTRACE, and the final three tests",
+    "linux_configuration/tests/test_hosts_guard_pacman_integration.sh: renamed-symbol assertions",
+    "linux_configuration/tests/test_security_hardening.sh: environment-aware live checks",
+    "Non-goal: repairing the four guard units found down on the host — reported separately, not silently fixed"
+  ],
+  "changes": [
+    "test_i3blocks_efficiency.sh needed strace plus ptrace. Earlier this could not be verified because Docker's bridge network has no DNS on this machine; --network=host works, so it was validated after all. The job installs strace and the container gains --cap-add=SYS_PTRACE.",
+    "test_hosts_guard_pacman_integration.sh asserted three symbols that the guard-lib refactor renamed: pacman_hooks_manage_hosts_guard -> pacman_hooks_manage_guard_lib, should_use_wrapper_hosts_guard_fallback -> should_use_wrapper_guard_lib_fallback, manual_hosts_guard=1 -> manual_guard_lib_fallback=1. The feature exists under the new names; only the assertions were stale.",
+    "test_security_hardening.sh now distinguishes live-host checks from repository checks via a LIVE_SECTION flag. Off-host the live ones report skip instead of fail, so the suite is green in a container while its repository checks still run. Two checks outside the contiguous live sections (/usr/bin/pacman symlink, /var/lib/pacman-wrapper/policy.sha256) are individually marked live."
+  ],
+  "verification": [
+    {
+      "command": "docker run --rm --network=host --cap-add=SYS_PTRACE -v $PWD:/repo:ro archlinux:base-devel <all 8 arch tests>",
+      "result": "pass",
+      "evidence": "All eight PASS, up from five."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh (on the real host)",
+      "result": "fail",
+      "evidence": "Correctly still reports 15 passed / 4 failed / 5 skipped, naming hosts-guard.path, hosts-bind-mount.service, nsswitch-guard.path and shutdown-schedule-guard.path as inactive. The container run of the same file exits 0 with 7 passed / 0 failed / 17 skipped."
+    },
+    {
+      "command": "coverage check: every test_*.sh listed in the workflow",
+      "result": "pass",
+      "evidence": "14 tests on disk, 14 listed in CI, none unlisted."
+    }
+  ],
+  "risks": [
+    "The first attempt at host detection used `systemctl is-system-running`, which exits non-zero when the system is degraded — exactly what a failed guard unit causes. That version silently downgraded all four real host failures to skips, i.e. it hid the problem the suite exists to find. It now tests for /run/systemd/system plus the installed guard payload, which are unaffected by unit health. Any future change to this detection must be re-checked against a degraded host, not just a healthy one.",
+    "LIVE_SECTION is positional: a new check added between the markers is treated as live and will be skipped off-host. Anyone adding a repository check inside the live sections must move it or toggle the flag.",
+    "The arch-tests container runs as root with SYS_PTRACE and seccomp unconfined. That is acceptable for a disposable CI container but is a wider capability set than the other job, so new tests added there should be reviewed for what they touch.",
+    "test_security_hardening.sh remains a host-health suite by nature; in CI it meaningfully verifies only its 7 repository checks."
+  ],
+  "rollback": [
+    "git revert this commit: the arch job drops back to five tests, the renamed assertions revert to the old symbols, and test_security_hardening.sh fails everywhere except a fully configured host.",
+    "Validate after rollback: the container run of test_security_hardening.sh exits non-zero again, and test_hosts_guard_pacman_integration.sh fails on 'wrapper detects when pacman hooks already manage hosts guard'."
+  ]
+}

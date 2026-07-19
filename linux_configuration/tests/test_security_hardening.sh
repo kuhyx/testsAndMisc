@@ -12,6 +12,24 @@ PASS=0
 FAIL=0
 SKIP=0
 
+# Roughly half this suite inspects a *configured machine* (chattr flags, systemd
+# guard units, /usr/local payloads) rather than the repository. Those checks
+# cannot pass in CI or a container, where none of it is installed — but the
+# repo-file checks further down can and should still run. So live checks are
+# reported as skipped off-host instead of failed, which keeps the suite
+# meaningful in both places rather than permanently red in one.
+# Detection must not consult `systemctl is-system-running`: it exits non-zero
+# when the system is *degraded*, which is exactly the state a failed guard unit
+# produces. Using it would make this suite skip the very failures it exists to
+# catch. Test instead for systemd being init plus the guard payload being
+# installed — both true on a configured host regardless of unit health.
+IS_CONFIGURED_HOST=0
+if [[ -d /run/systemd/system ]] && [[ -d /usr/local/share/hosts-guard ]]; then
+	IS_CONFIGURED_HOST=1
+fi
+# Set to 1 while inside the live-host sections, 0 for repository checks.
+LIVE_SECTION=0
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,6 +47,13 @@ test_result() {
 		((PASS++))
 		;;
 	fail)
+		if ((LIVE_SECTION == 1)) && ((IS_CONFIGURED_HOST == 0)); then
+			# Off-host: the mechanism being absent is expected, not a defect.
+			echo -e "${YELLOW}⏭️  SKIP${NC}: $name"
+			echo -e "         ${YELLOW}Reason: not a configured host (CI/container)${NC}"
+			((SKIP++))
+			return
+		fi
 		echo -e "${RED}❌ FAIL${NC}: $name"
 		[[ -n "$reason" ]] && echo -e "         ${RED}Reason: $reason${NC}"
 		((FAIL++))
@@ -54,6 +79,7 @@ echo ""
 # ==================================================================
 # HOSTS GUARD TESTS
 # ==================================================================
+LIVE_SECTION=1  # live-host checks begin
 echo "--- HOSTS GUARD ---"
 
 # Test 1: /etc/hosts is immutable
@@ -179,6 +205,8 @@ else
 	fi
 fi
 
+LIVE_SECTION=0  # repository checks from here on
+
 # Test 13: google-chrome is blocked
 blocked_file="$REPO_DIR/scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt"
 if [[ -f "$blocked_file" ]]; then
@@ -203,11 +231,15 @@ else
 fi
 
 # Test 15: Policy integrity file exists
+# Lives under /var on the configured host, so it is a live check despite
+# sitting among the repository ones.
+LIVE_SECTION=1
 if [[ -f /var/lib/pacman-wrapper/policy.sha256 ]]; then
 	test_result "Pacman policy integrity file exists" "pass"
 else
 	test_result "Pacman policy integrity file exists" "fail" "Not found"
 fi
+LIVE_SECTION=0
 
 # Test 16: LeechBlock auto-install function exists in wrapper
 wrapper_file="$REPO_DIR/scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh"
