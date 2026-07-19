@@ -1,0 +1,20 @@
+{
+  "title": "Run Arch-only shell tests in CI and harden worktree stubbing",
+  "objective": "The Arch-dependent shell tests (pacman wrapper, makepkg wrapper, hosts-guard hooks) have never run anywhere, so they rot unnoticed. Give them an archlinux:base-devel container job, repair the ones still pointing at pre-reorganisation paths, and remove the failure mode where test_music_parallelism.sh could silently source the real installed common.sh instead of its stub — which previously made a healthy daemon look broken. Success means CI runs every shell test that can meaningfully run, and any future path drift fails loudly with an explanatory message instead of masquerading as a behavioural bug.",
+  "acceptance_criteria": [
+    "A new arch-tests job runs test_hosts_file_monitor.sh, test_makepkg_capped.sh, test_makepkg_wrapper.sh, test_pacman_wrapper_security.sh and test_shutdown_timer_monitor.sh in archlinux:base-devel, and all five pass.",
+    "Those five pass with --network=none locally, proving the job needs no package installs beyond git.",
+    "test_music_parallelism.sh derives its temp-worktree path from the script's real location, so a future reorganisation cannot silently change the depth.",
+    "test_music_parallelism.sh fails with an explanatory message, not a wrong number, if the stub is unreachable: a pre-flight resolution check plus a marker the stub writes and every run asserts.",
+    "The existing ubuntu shell-tests job (6 tests + 30 bats assertions) still passes unchanged.",
+    "Every excluded test carries a comment in the workflow naming the specific reason it is excluded."
+  ],
+  "out_of_scope": [
+    "test_i3blocks_efficiency.sh — needs strace and SYS_PTRACE; could not be validated locally because containers on this machine have no DNS, so it is excluded rather than shipped unverified.",
+    "test_hosts_guard_pacman_integration.sh — after the path repair it fails a genuine assertion about pacman-hook detection; that is a real finding to investigate, not CI plumbing.",
+    "test_security_hardening.sh — asserts live host state such as an immutable /etc/hosts, so it can never pass in a fresh container.",
+    "Any change to the scripts under test. Every failure addressed here was in the tests or the workflow.",
+    "Fixing this machine's container DNS, which is what blocked validating the strace-dependent test."
+  ],
+  "verifier": "docker run --rm --network=none -v $PWD:/repo:ro -w /repo archlinux:base-devel bash -c '<five tests>' for the container set; bats linux_configuration/tests/*.bats plus the six ubuntu-set tests on the host; pre-commit run --all-files and the pre-push ci-mirror gate; finally the Shell tests workflow itself on GitHub Actions."
+}

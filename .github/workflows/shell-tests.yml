@@ -47,3 +47,58 @@ jobs:
             printf '\n%d shell test(s) failed\n' "$failed"
             exit 1
           fi
+
+  # Tests that assume Arch: they exercise the pacman wrapper, makepkg wrapper
+  # and hosts-guard hooks, so they need an Arch userland rather than Ubuntu.
+  # They run as root here, which is what lets them touch /etc safely — the
+  # container is disposable.
+  arch-tests:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      # base-devel ships no git, and actions/checkout needs it to clone.
+      - name: Install git
+        run: pacman -Sy --noconfirm --needed git
+
+      - uses: actions/checkout@v4
+
+      # Verified to pass in `docker run --network=none archlinux:base-devel`,
+      # so this list needs no package installs beyond git.
+      #
+      # Deliberately excluded:
+      #   test_i3blocks_efficiency.sh
+      #       needs strace (and SYS_PTRACE) to count execve calls. Could not be
+      #       validated locally because this machine's containers have no DNS,
+      #       so pacman cannot install strace. Add it once someone can confirm
+      #       it passes in a container that can reach the mirrors.
+      #   test_hosts_guard_pacman_integration.sh
+      #       fails on a real assertion ('wrapper detects when pacman hooks
+      #       already manage hosts guard'), not a path or environment problem.
+      #   test_security_hardening.sh
+      #       asserts live machine state (e.g. '/etc/hosts is immutable'). It
+      #       validates a configured host, not the repo, so it can never pass
+      #       in a fresh container.
+      - name: Run Arch-specific shell tests
+        run: |
+          set -euo pipefail
+          tests=(
+            test_hosts_file_monitor.sh
+            test_makepkg_capped.sh
+            test_makepkg_wrapper.sh
+            test_pacman_wrapper_security.sh
+            test_shutdown_timer_monitor.sh
+          )
+          failed=0
+          for t in "${tests[@]}"; do
+            printf '\n=== %s ===\n' "$t"
+            if bash "linux_configuration/tests/$t"; then
+              printf 'PASS %s\n' "$t"
+            else
+              printf 'FAIL %s\n' "$t"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            printf '\n%d shell test(s) failed\n' "$failed"
+            exit 1
+          fi

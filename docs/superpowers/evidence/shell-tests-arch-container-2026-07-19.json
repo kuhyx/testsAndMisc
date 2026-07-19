@@ -1,0 +1,43 @@
+{
+  "intent": "Bring the Arch-only shell tests into CI via a container job, and make test_music_parallelism.sh incapable of silently testing the wrong library after a future directory reorganisation.",
+  "scope": [
+    ".github/workflows/shell-tests.yml: new arch-tests job running archlinux:base-devel",
+    "linux_configuration/tests/test_music_parallelism.sh: derive the worktree path and assert the stub was sourced",
+    "linux_configuration/tests/{test_hosts_file_monitor,test_hosts_guard_pacman_integration,test_makepkg_capped,test_shutdown_timer_monitor}.sh: stale path repairs",
+    "Non-goal: three tests that cannot pass in a fresh container — see risks"
+  ],
+  "changes": [
+    "test_music_parallelism.sh now derives its temp-worktree path from TARGET_SCRIPT's position relative to REPO_DIR, so the copy automatically mirrors the real directory depth. Previously the depth was hardcoded and a reorganisation broke it silently.",
+    "Added two guards to the same test: a pre-flight check that ../../lib/common.sh from the copied script actually resolves to the stub, and a marker file the stub writes when sourced, asserted after every run. Either fires loudly instead of letting the script fall back to the real /usr/local/lib/common.sh and report a misleading behavioural failure.",
+    "Four more tests referenced pre-reorganisation paths (missing the periodic_background/ segment) and now resolve: hosts-file-monitor, hosts-guard pacman hooks, makepkg_capped, shutdown-timer-monitor.",
+    "New arch-tests job runs five Arch-dependent tests in archlinux:base-devel. git is installed first because base-devel does not ship it and actions/checkout needs it."
+  ],
+  "verification": [
+    {
+      "command": "docker run --rm --network=none -v $PWD:/repo:ro -w /repo archlinux:base-devel <5 tests>",
+      "result": "pass",
+      "evidence": "All five PASS with no network, so the job needs no package installs beyond git. Before the path repairs only two of these passed (test_makepkg_wrapper.sh, test_pacman_wrapper_security.sh)."
+    },
+    {
+      "command": "bash linux_configuration/tests/<6 ubuntu-set tests> and bats linux_configuration/tests/*.bats",
+      "result": "pass",
+      "evidence": "0 failures and 30/30 bats — the ubuntu job is unaffected by these edits."
+    },
+    {
+      "command": "drift-guard logic checked against three worktree layouts",
+      "result": "pass",
+      "evidence": "Correct depth reaches the stub; the old shallow depth that caused the original bug fires the guard; a hypothetical three-level layout also fires it."
+    }
+  ],
+  "risks": [
+    "test_i3blocks_efficiency.sh is excluded: it needs strace plus SYS_PTRACE to count execve calls. This could NOT be validated locally because containers on this machine have no DNS (pacman -Sy fails to resolve mirrors), so strace could not be installed. It may well pass on a GitHub runner, but shipping it unverified risked a red job, so it is left out with a comment.",
+    "test_hosts_guard_pacman_integration.sh is excluded: after the path repair it fails on a genuine assertion ('wrapper detects when pacman hooks already manage hosts guard'), which is a real finding needing investigation rather than a CI plumbing problem.",
+    "test_security_hardening.sh is excluded permanently: it asserts live machine state such as '/etc/hosts is immutable'. It validates a configured host, not the repository, so it can never pass in a fresh container.",
+    "The arch-tests job runs as root in a disposable container, which is what makes the pacman and /etc tests safe. Anything added to that list inherits root — worth checking a new test cannot reach outside the container before adding it.",
+    "The offline validation used --network=none; the real job has network, so a test that quietly depends on the network would pass locally and could behave differently in CI."
+  ],
+  "rollback": [
+    "git revert this commit: the arch-tests job disappears, the four path repairs revert, and test_music_parallelism.sh returns to hardcoded worktree paths without the stub guards.",
+    "Validate after rollback: the four reverted tests fail with 'cannot stat'/'No such file' again, and .github/workflows/shell-tests.yml contains only the shell-tests job."
+  ]
+}
