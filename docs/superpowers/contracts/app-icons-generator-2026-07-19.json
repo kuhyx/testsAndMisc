@@ -1,0 +1,18 @@
+{
+  "title": "Shared launcher-icon generator for the Flutter apps",
+  "objective": "Replace the stock Flutter 'beach' launcher icon on every Flutter/Dart app with an icon from one consistent family, and make the family reproducible so future apps inherit it instead of drifting. The family is a charcoal #1B1D21 field carrying a single glyph in that app's own theme accent, drawn at one stroke weight and optically centred so a row of the icons lines up. Success means the phone launcher shows five distinct, on-style icons and a new app can be given a matching icon by adding one glyph plus one registry entry.",
+  "acceptance_criteria": [
+    "python_pkg/app_icons exposes a CLI with list, preview and generate subcommands, runnable as PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons.",
+    "Glyphs are optically centred automatically: the renderer measures rendered ink and translates (never scales) the fragment, so stroke weight stays identical across the family.",
+    "generate warns when a glyph's ink exceeds the 560px adaptive-icon safe box, so no icon ships at risk of being clipped by a launcher mask.",
+    "Each app gets three layers - base icon, adaptive foreground, and Android 13 monochrome - as both SVG source and 1024px PNG.",
+    "The package passes ruff, mypy, pylint and bandit, and holds 100% line and branch coverage with all external tools mocked.",
+    "All five apps show their new icon in the phone app drawer, installed with adb install -r and with no app data wiped."
+  ],
+  "out_of_scope": [
+    "The per-app repositories (dufs-cloud, screen-locker, wake-alarm, diet-guard, todo) - their generated assets are committed separately in their own repos.",
+    "iOS, web, Windows and macOS icon targets - none of these apps configure those platforms.",
+    "Changing any app's android:label or in-app theme colours; this is icons only."
+  ],
+  "verifier": "pre-commit run --files <staged>; python3 -m pytest python_pkg/app_icons --cov=python_pkg.app_icons --cov-report=term-missing (100% required); plus on-device verification: adb install -r each app then screenshot the launcher."
+}

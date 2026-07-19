@@ -1,0 +1,53 @@
+{
+  "intent": "Give every Flutter/Dart app a launcher icon from one shared family (charcoal field + the app's own theme accent as a glyph) instead of the stock Flutter 'beach' icon, and make future apps inherit that style automatically.",
+  "scope": [
+    "python_pkg/app_icons/ (new package: style, glyphs, app registry, renderer, preview, CLI)",
+    "python_pkg/app_icons/tests/ (new test suite)",
+    "Non-goal: the per-app repositories themselves (dufs-cloud, screen-locker, wake-alarm, diet-guard, todo) are committed separately",
+    "Non-goal: iOS/web/Windows/macOS targets - none are configured on these apps"
+  ],
+  "changes": [
+    "style.py defines the family once (canvas 1024, charcoal #1B1D21, stroke 72, 560px adaptive safe box); every app contributes only an accent colour and a glyph.",
+    "render.centre_offset rasterises a glyph alone, measures its ink bounding box with ImageMagick, and translates (never scales) the fragment so all icons share one optical centre - this is what makes a row of icons line up.",
+    "render.safe_box_overflow warns when a glyph exceeds the adaptive-icon safe box; it caught three real overflows (cloud 646px tall, shield, checklist) that a launcher mask would have clipped.",
+    "generate.py writes three layers per app (icon, adaptive foreground, Android 13 monochrome) as SVG plus 1024px PNG, then drives flutter_launcher_icons for the Android mipmaps and mipmap-anydpi-v26 descriptor.",
+    "apps.py registry points dufs_client at ~/dufs-cloud/app: ~/dufs_client was a stale, remote-less checkout with the same package name that has since been deleted."
+  ],
+  "verification": [
+    {
+      "command": "ruff check python_pkg/app_icons",
+      "result": "pass",
+      "evidence": "All checks passed!"
+    },
+    {
+      "command": "mypy (pre-commit hook flags) python_pkg/app_icons",
+      "result": "pass",
+      "evidence": "exit 0, no diagnostics"
+    },
+    {
+      "command": "pylint python_pkg/app_icons",
+      "result": "pass",
+      "evidence": "Your code has been rated at 10.00/10"
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons --cov=python_pkg.app_icons --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "39 passed; every app_icons module at 100% line and branch coverage. External tools (rsvg-convert, magick, dart) are mocked, so the suite needs none installed."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --android (all 5 apps) then adb install -r + launcher screenshot",
+      "result": "pass",
+      "evidence": "All five apps show their new icon in the phone app drawer; no stock icon remains. Each install reported plain 'Success' with no 'Uninstalling old version' line, so no app data was wiped."
+    }
+  ],
+  "risks": [
+    "Editing style.py restyles every app at once - that is intended, but a careless change silently affects all five.",
+    "Glyph negative space below half the stroke weight merges into a blob at launcher size; the fork hit this and had to be redrawn as a filled fork-and-knife silhouette.",
+    "The generator writes into sibling repositories by absolute path, so a moved or renamed repo makes generate fail (or, worse, target a stale checkout - exactly what happened with dufs_client)."
+  ],
+  "rollback": [
+    "git rm -r python_pkg/app_icons and revert this evidence file; nothing else in testsAndMisc depends on the package.",
+    "Per app repository, git checkout the mipmap PNGs and pubspec.yaml, and delete assets/icon plus the generated drawable-*/mipmap-anydpi-v26 directories.",
+    "After rollback, rebuild and adb install -r each app and confirm the launcher shows the previous icon."
+  ]
+}
