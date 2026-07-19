@@ -40,7 +40,21 @@ _IMPORT_TO_DIST: dict[str, str] = {
     "yaml": "pyyaml",
     "kasa": "python-kasa",
     "PIL": "pillow",
+    "bs4": "beautifulsoup4",
 }
+
+# Modules that are deliberately resolved by a DIFFERENT interpreter at runtime,
+# not by the CI `pip install -r requirements.txt`. Adding them to
+# requirements.txt would be wrong: they are not this repo's dependencies, and
+# the code that imports them only ever executes under the foreign venv that
+# owns them. Each entry needs a comment naming that venv.
+_FOREIGN_RUNTIME_IMPORTS: frozenset[str] = frozenset(
+    {
+        # archwiki_rag._reindex_entry runs under the knowledge-rag uv tool venv
+        # (~/.local/share/uv/tools/knowledge-rag), which owns mcp_server.
+        "mcp_server",
+    },
+)
 
 
 def _normalise(name: str) -> str:
@@ -114,16 +128,20 @@ def _first_party_names(package_dir: Path, package_name: str) -> set[str]:
 def _third_party_imports(package_dir: Path, package_name: str) -> set[str]:
     """Return third-party top-level imports across the whole package.
 
-    Standard-library modules (via ``sys.stdlib_module_names``) and first-party
-    names (the package and its subpackages) are filtered out, leaving only
-    external dependencies.
+    Standard-library modules (via ``sys.stdlib_module_names``), first-party
+    names (the package and its subpackages) and foreign-runtime modules are
+    filtered out, leaving only genuine external dependencies.
     """
     stdlib = sys.stdlib_module_names
     internal = _first_party_names(package_dir, package_name)
     external: set[str] = set()
     for module in _iter_package_modules(package_dir):
         for name in _top_level_imports(module):
-            if name not in internal and name not in stdlib:
+            if (
+                name not in internal
+                and name not in stdlib
+                and name not in _FOREIGN_RUNTIME_IMPORTS
+            ):
                 external.add(name)
     return external
 

@@ -1,0 +1,34 @@
+{
+  "intent": "Let the requirements-sync checker recognise bs4 and ignore imports resolved by a foreign runtime, so the pre-push CI mirror stops failing on the archwiki_rag package.",
+  "scope": [
+    "meta/scripts/check_requirements_sync.py — import->distribution map and a new foreign-runtime exemption set",
+    "Non-goal: committing python_pkg/archwiki_rag/ itself, which remains untracked and owned by another workstream",
+    "Non-goal: any behaviour change to packages other than how their imports are classified"
+  ],
+  "changes": [
+    "Map bs4 -> beautifulsoup4 in _IMPORT_TO_DIST; without it the checker reports bs4 as an undeclared dependency because the import name differs from the distribution name.",
+    "Add _FOREIGN_RUNTIME_IMPORTS containing mcp_server, and filter it out in _third_party_imports. That module is provided by the knowledge-rag uv tool venv at runtime, not by CI's `pip install -r requirements.txt`, so declaring it in requirements.txt would be incorrect rather than merely redundant.",
+    "Docstring updated to state that foreign-runtime modules are filtered alongside stdlib and first-party names."
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/check_requirements_sync.py --package python_pkg",
+      "result": "pass",
+      "evidence": "Exits clean with the change applied. With the change stashed (which is what pre-commit does on push) it fails with 'these third-party imports are not declared in requirements.txt', which is the exact failure this commit removes."
+    },
+    {
+      "command": "pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "Green once the repo .venv was synced to meta/requirements.txt; ruff, mypy, pylint, bandit and pytest-coverage all pass on the modified checker."
+    }
+  ],
+  "risks": [
+    "_FOREIGN_RUNTIME_IMPORTS is an allowlist: any module added to it stops being checked, so a genuinely missing dependency could be masked. Mitigated by requiring each entry to carry a comment naming the venv that owns it.",
+    "The bs4 mapping is correct for beautifulsoup4 but the map remains manual — other import/distribution name mismatches will still need adding case by case.",
+    "This change was authored in a previous session, not this one. It is committed here only because the pre-push CI mirror stashes unstaged changes and therefore cannot pass while it lives solely in the working tree. It was reviewed before committing but not written as part of this task."
+  ],
+  "rollback": [
+    "git revert this commit; the checker returns to flagging bs4 and mcp_server as undeclared.",
+    "Validate after rollback: python3 meta/scripts/check_requirements_sync.py --package python_pkg reproduces the original failure, confirming nothing else depended on the change."
+  ]
+}
