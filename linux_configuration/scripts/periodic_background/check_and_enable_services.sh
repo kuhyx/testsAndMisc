@@ -38,7 +38,6 @@ PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/scripts/periodic_background/setup_periodic_s
 HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
 HOSTS_GUARD_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/setup_hosts_guard.sh"
 HOSTS_PACMAN_HOOKS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/install_pacman_hooks.sh"
-FOCUS_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh"
 COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
 THORIUM_STARTUP_SCRIPT="$CONFIG_DIR/scripts/single_use/setup_thorium_startup.sh"
 LEECHBLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_leechblock.sh"
@@ -145,13 +144,12 @@ Services checked:
   3. Startup monitor      - PC startup time monitoring service
   4. Periodic systems     - Hourly maintenance timer and hosts monitor
   5. Hosts and guards     - /etc/hosts blocking and protection layers
-  6. Focus mode daemon    - Steam/Browser mutual exclusion (user service)
-  7. Compulsive blocker   - Limits messaging apps to one launch per hour
-  8. Thorium startup      - Auto-launch Thorium with Fitatu on boot
-  9. LeechBlock           - Browser extension for site blocking
- 10. Guest mode removal   - Disable Chromium guest mode via policy
- 11. VirtualBox hosts     - Enforce /etc/hosts inside VMs
- 12. Workout lock screen  - Requires workout logging to unlock screen (user service)
+  6. Compulsive blocker   - Limits messaging apps to one launch per hour
+  7. Thorium startup      - Auto-launch Thorium with Fitatu on boot
+  8. LeechBlock           - Browser extension for site blocking
+  9. Guest mode removal   - Disable Chromium guest mode via policy
+ 10. VirtualBox hosts     - Enforce /etc/hosts inside VMs
+ 11. Workout lock screen  - Requires workout logging to unlock screen (user service)
 EOF
 }
 
@@ -877,63 +875,6 @@ check_hosts() {
 	SERVICE_STATUS["hosts"]=$status
 }
 
-check_focus_mode() {
-	header "Focus Mode Daemon (Steam/Browser Mutual Exclusion)"
-
-	local status="ok"
-	local issues=()
-
-	# This is a user service, so check as the actual user
-	local user="${SUDO_USER:-$USER}"
-
-	# Check if daemon script is installed
-	if [[ -f /usr/local/bin/focus-mode-daemon ]]; then
-		msg "Focus mode daemon installed at /usr/local/bin/focus-mode-daemon"
-	else
-		issues+=("focus-mode-daemon not found in /usr/local/bin")
-		status="error"
-	fi
-
-	# Check user service (must run as actual user)
-	if user_systemctl "$user" is-enabled focus-mode.service &>/dev/null 2>&1; then
-		msg "focus-mode.service is enabled (user service)"
-	else
-		issues+=("focus-mode.service is not enabled (user service)")
-		status="error"
-	fi
-
-	if user_systemctl "$user" is-active focus-mode.service &>/dev/null 2>&1; then
-		msg "focus-mode.service is active"
-	else
-		issues+=("focus-mode.service is not active")
-		if [[ $status != "error" ]]; then status="warning"; fi
-	fi
-
-	# Report and fix - focus mode install needs to run as user
-	if [[ $status != "ok" ]]; then
-		for issue in "${issues[@]}"; do
-			if [[ $status == "error" ]]; then
-				err "$issue"
-			else
-				warn "$issue"
-			fi
-		done
-		((ISSUES_FOUND++)) || true
-
-		if [[ $STATUS_ONLY -eq 0 && $status == "error" ]]; then
-			note "Installing focus mode daemon..."
-			if [[ -f $FOCUS_MODE_SCRIPT ]]; then
-				run sudo -u "$user" bash "$FOCUS_MODE_SCRIPT" install
-				((FIXES_APPLIED++)) || true
-			else
-				err_missing_script "Install script not found: $FOCUS_MODE_SCRIPT"
-			fi
-		fi
-	fi
-
-	SERVICE_STATUS["focus_mode"]=$status
-}
-
 check_compulsive_blocker() {
 	header "Compulsive Opening Blocker"
 
@@ -1246,7 +1187,7 @@ print_summary() {
 	printf "%-25s %s\n" "Service" "Status"
 	printf "%-25s %s\n" "-------" "------"
 
-	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts focus_mode compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
+	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
 		local status="${SERVICE_STATUS[$service]:-unknown}"
 		local color
 		case "$status" in
@@ -1303,7 +1244,6 @@ main() {
 	check_startup_monitor
 	check_periodic_systems
 	check_hosts
-	check_focus_mode
 	check_compulsive_blocker
 	check_thorium_startup
 	check_leechblock

@@ -11,7 +11,6 @@
 #   5. Pacman wrapper           – periodic_background/digital_wellbeing/pacman/
 #   6. i3 configuration         – periodic_background/i3-configuration/
 #   7. Compulsive opening block – block_compulsive_opening.sh
-#   8. Focus-mode daemon        – install_focus_mode_daemon.sh
 #
 # Usage:
 #   ./install_core_system.sh [--all | --none]
@@ -151,9 +150,6 @@ ask_install "i3 configuration" \
 
 ask_install "Compulsive opening blockade" \
     sudo bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh" install
-
-ask_install "Focus-mode daemon" \
-    bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh" install
 
 # ═══════════════════════════════════════════════════════════════════════════════
 print_summary

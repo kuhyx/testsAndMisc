@@ -1,0 +1,64 @@
+{
+  "intent": "Fully remove the unusable focus-mode daemon (Steam/browser mutual exclusion) and every reference to it, since it no longer works and the user asked for permanent removal.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/ (deleted daemon files)",
+    "linux_configuration/install_core_system.sh",
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh",
+    "linux_configuration/tests/test_security_hardening.sh",
+    "CLAUDE.md (repo root)",
+    "Non-goals: phone_focus_mode/ (unrelated GPS/Android component), historical docs (SECURITY_HARDENING_ANALYSIS.md, docs/superpowers/evidence|contracts) left untouched as append-only history"
+  ],
+  "changes": [
+    "Deleted focus_mode_daemon.py, _focus_mode_lib.py, install_focus_mode_daemon.sh, __init__.py, and stale __pycache__ entries",
+    "Removed leftover runtime state at ~/.local/state/focus-mode/",
+    "Removed the ask_install \"Focus-mode daemon\" step and its header-comment entry from install_core_system.sh",
+    "Removed FOCUS_MODE_SCRIPT var, check_focus_mode() function, its service-list entry, and its call from check_and_enable_services.sh; renumbered the help-text service list",
+    "Removed the FOCUS MODE DAEMON TESTS block (tests 20-22) from test_security_hardening.sh; renumbered remaining test comments for consistency",
+    "Removed focus-mode mentions from CLAUDE.md's directory layout and Key scripts list"
+  ],
+  "verification": [
+    {
+      "command": "systemctl --user is-active focus-mode.service; systemctl --user is-enabled focus-mode.service; ls /usr/local/bin/focus-mode-daemon; ls ~/.local/state/focus-mode",
+      "result": "pass",
+      "evidence": "inactive / not-found / No such file (both) — confirms nothing was live and cleanup is complete"
+    },
+    {
+      "command": "grep -rn -iE \"focus.mode.daemon|focus_mode_daemon|_focus_mode_lib\" . --include=*.sh --include=*.py --include=*.md",
+      "result": "pass",
+      "evidence": "Zero hits outside unrelated phone_focus_mode/ and untouched historical docs"
+    },
+    {
+      "command": "bash -n check_and_enable_services.sh && bash -n test_security_hardening.sh",
+      "result": "pass",
+      "evidence": "Both scripts parse cleanly after edits"
+    },
+    {
+      "command": "bash check_and_enable_services.sh --status",
+      "result": "pass",
+      "evidence": "Runs to completion; summary table has no focus_mode row; only pre-existing unrelated warnings (hosts, workout_locker) remain"
+    },
+    {
+      "command": "bash install_core_system.sh -h",
+      "result": "pass",
+      "evidence": "Help text no longer mentions Focus-mode daemon; secondary module list ends cleanly at item 7"
+    },
+    {
+      "command": "bash test_security_hardening.sh",
+      "result": "pass",
+      "evidence": "16 passed / 3 failed / 5 skipped — no FOCUS MODE DAEMON section present; the 3 failures (hosts-guard.path, hosts-bind-mount.service, shutdown-schedule-guard.path not running) and 5 skips (screen_locker extracted to its own repo) are pre-existing and unrelated to this change"
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All hooks passed: shellcheck, codespell, AI evidence check, workflow contract check, no leaked secrets, etc."
+    }
+  ],
+  "risks": [
+    "check_and_enable_services.sh renumbered its help-text service list (7->6 ... 12->11) — cosmetic only, no external script parses these numbers",
+    "test_security_hardening.sh test comments renumbered (23-27 -> 20-24) — cosmetic only, test_result() tracks by name/counter not by comment number"
+  ],
+  "rollback": [
+    "git revert the commit that removes the focus-mode daemon",
+    "After rollback, verify focus_mode_daemon.py and its installer are restored and check_and_enable_services.sh --status shows a focus_mode row again"
+  ]
+}

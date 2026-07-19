@@ -85,7 +85,7 @@ linux_configuration/
 │   │   ├── fixes/
 │   │   └── misc/
 │   └── periodic_background/        # Ongoing daemons / scheduled scripts
-│       ├── digital_wellbeing/      # Compulsive-opening blocker, focus daemon, LeechBlock
+│       ├── digital_wellbeing/      # Compulsive-opening blocker, LeechBlock
 │       ├── hosts/                  # DNS/hosts guard and generation
 │       ├── i3-configuration/       # i3 window manager config
 │       ├── system-maintenance/     # Usage reporting, system checks
@@ -96,7 +96,6 @@ linux_configuration/
 
 Key scripts:
 
-- `scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py` — Linux digital-wellbeing daemon
 - `scripts/periodic_background/hosts/generate_hosts_file.sh` — Generates `/etc/hosts` blocklist
 - `scripts/periodic_background/system-maintenance/bin/usage_report.py` — Daily usage report
 

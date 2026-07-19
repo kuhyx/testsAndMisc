@@ -272,51 +272,20 @@ fi
 echo ""
 
 # ==================================================================
-# FOCUS MODE DAEMON TESTS
-# ==================================================================
-echo "--- FOCUS MODE DAEMON ---"
-
-focus_daemon="$REPO_DIR/scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py"
-focus_installer="$REPO_DIR/scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh"
-
-# Test 20: Focus mode daemon script exists
-if [[ -f "$focus_daemon" ]]; then
-	test_result "Focus mode daemon script exists" "pass"
-else
-	test_result "Focus mode daemon script exists" "fail" "Not found at $focus_daemon"
-fi
-
-# Test 21: Focus mode installer exists
-if [[ -f "$focus_installer" ]]; then
-	test_result "Focus mode installer exists" "pass"
-else
-	test_result "Focus mode installer exists" "fail" "Not found at $focus_installer"
-fi
-
-# Test 22: Focus mode daemon is running (user service)
-if systemctl --user is-active --quiet focus-mode.service 2>/dev/null; then
-	test_result "Focus mode daemon is running" "pass"
-else
-	test_result "Focus mode daemon is running" "fail" "User service not running"
-fi
-
-echo ""
-
-# ==================================================================
 # SCREEN LOCKER TESTS
 # ==================================================================
 echo "--- SCREEN LOCKER ---"
 
 screen_locker="$HOME/testsAndMisc/python_pkg/screen_locker/screen_lock.py"
 
-# Test 23: Screen locker exists
+# Test 20: Screen locker exists
 if [[ -f "$screen_locker" ]]; then
 	test_result "Screen locker script exists" "pass"
 else
 	test_result "Screen locker script exists" "skip" "Not found at expected location"
 fi
 
-# Test 24: Running option removed
+# Test 21: Running option removed
 if [[ -f "$screen_locker" ]]; then
 	# Check that there's no "Running" button in ask_workout_type
 	if grep -A 20 "def ask_workout_type" "$screen_locker" | grep -q '"Running"'; then
@@ -328,7 +297,7 @@ else
 	test_result "Running workout option removed" "skip" "Script not found"
 fi
 
-# Test 25: Table tennis minimum sets validation
+# Test 22: Table tennis minimum sets validation
 if [[ -f "$screen_locker" ]]; then
 	if grep -q "MIN_TABLE_TENNIS_SETS" "$screen_locker"; then
 		test_result "Table tennis minimum sets validation exists" "pass"
@@ -339,7 +308,7 @@ else
 	test_result "Table tennis minimum sets validation exists" "skip" "Script not found"
 fi
 
-# Test 26: Table tennis verification question
+# Test 23: Table tennis verification question
 if [[ -f "$screen_locker" ]]; then
 	if grep -q "ask_table_tennis_verification" "$screen_locker"; then
 		test_result "Table tennis verification question exists" "pass"
@@ -350,7 +319,7 @@ else
 	test_result "Table tennis verification question exists" "skip" "Script not found"
 fi
 
-# Test 27: 60 second submit delay for table tennis
+# Test 24: 60 second submit delay for table tennis
 if [[ -f "$screen_locker" ]]; then
 	if grep -q "TABLE_TENNIS_SUBMIT_DELAY = 60" "$screen_locker"; then
 		test_result "Table tennis 60-second submit delay" "pass"
