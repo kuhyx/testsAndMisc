@@ -21,16 +21,7 @@ jobs:
       # Only the side-effect-free tests run here. The rest of
       # linux_configuration/tests/ drives pacman, /etc, systemd or adb and
       # cannot run on an Ubuntu runner without root and an Arch container --
-      # see docs note in the accompanying evidence artifact.
-      #
-      # Deliberately NOT in this list (both fail today, and both look like they
-      # are catching real polling-efficiency regressions rather than being
-      # stale -- they need a fix in the scripts they cover, not in the tests):
-      #   test_music_parallelism.sh
-      #       'idle mode uses the idle interval' expects 30s but the daemon
-      #       waits 15s, i.e. it wakes twice as often as intended when idle.
-      #   test_usage_monitoring_installer_efficiency.sh
-      #       'logger template must sleep between day rollover checks'.
+      # see the accompanying evidence artifacts for the full list.
       - name: Run side-effect-free shell tests
         run: |
           set -euo pipefail
@@ -38,7 +29,9 @@ jobs:
             test_android_guardian_post_fs_data.sh
             test_android_guardian_service.sh
             test_i3blocks_persist_common.sh
+            test_music_parallelism.sh
             test_setup_dns_blocker.sh
+            test_usage_monitoring_installer_efficiency.sh
           )
           failed=0
           for t in "${tests[@]}"; do

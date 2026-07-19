@@ -1,0 +1,35 @@
+{
+  "intent": "Repair the last two excluded shell tests so all six side-effect-free tests run in CI, after establishing that both failures were stale tests rather than regressions in the scripts they cover.",
+  "scope": [
+    "linux_configuration/tests/test_music_parallelism.sh: temp-worktree layout",
+    "linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh: one stale assertion replaced with three property assertions",
+    ".github/workflows/shell-tests.yml: allowlist grows from 4 tests to 6",
+    "Non-goal: any change to music_parallelism.sh or install_usage_monitoring.sh — both were found to be correct"
+  ],
+  "changes": [
+    "test_music_parallelism.sh built its temp worktree at scripts/digital_wellbeing/, but the script resolves its library as $SCRIPT_DIR/../../lib/common.sh — two levels up, correct for the real scripts/periodic_background/digital_wellbeing/ location. From the shallower path that resolved outside the worktree, so the stubbed common.sh was never sourced and the script silently fell through to the real /usr/local/lib/common.sh installed on the machine. The test was therefore exercising the live library and ignoring its own MOCK_FOCUS_ACTIVE, which is why idle mode appeared to wait 15s instead of 30s. The worktree now mirrors the real layout.",
+    "test_usage_monitoring_installer_efficiency.sh asserted the logger template contains a literal 'sleep 60'. The template no longer polls: it sleeps once until midnight via seconds_until_next_day and then blocks on wait for the pmon child, which is strictly fewer wakeups. Replaced with three assertions on that property — sleeps until the day boundary, defines seconds_until_next_day, and blocks on wait — so a regression back to polling still fails.",
+    "Workflow allowlist extended to all six side-effect-free tests; the comment about known-red exclusions is removed because none remain."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/<each of the 6 tests>",
+      "result": "pass",
+      "evidence": "All six PASS, up from four. Before: test_music_parallelism.sh failed 'idle mode uses the idle interval (expected 30, actual 15)'; test_usage_monitoring_installer_efficiency.sh failed 'logger template must sleep between day rollover checks'."
+    },
+    {
+      "command": "grep 'sleep \"$(seconds_until_next_day)\"' install_usage_monitoring.sh",
+      "result": "pass",
+      "evidence": "Confirmed the template sleeps exactly until midnight then blocks on `wait \"$pmon_pid\"`, with no busy-wait anywhere in the loop — better than the sleep-60 polling the old assertion demanded."
+    }
+  ],
+  "risks": [
+    "Both failures were initially reported as polling-efficiency regressions in the covered scripts. That was wrong in both cases, and no script was changed. The lesson is that a test which cannot find its own stub may silently fall back to a real installed library and still appear to run — worth checking first whenever a test's expectations look inexplicably wrong.",
+    "test_music_parallelism.sh now depends on the temp worktree mirroring the real directory depth. Another reorganisation of scripts/ will break it again in the same silent way; the failure will look like a behavioural assertion rather than a path problem.",
+    "The new assertions match on specific template text, so harmless rewording of the logger template would fail them even though behaviour is unchanged."
+  ],
+  "rollback": [
+    "git revert this commit: the two tests return to their stale expectations and CI's allowlist drops back to four tests.",
+    "Validate after rollback: both tests fail again with the original messages, and .github/workflows/shell-tests.yml lists four tests."
+  ]
+}
