@@ -87,6 +87,14 @@ APPS: Final[dict[str, AppIcon]] = {
             icon_name="todo",
             linux=True,
         ),
+        AppIcon(
+            key="habit_stack",
+            repo=_HOME / "habit_stack",
+            accent="#66BB6A",
+            glyph="chain-link",
+            icon_name="habit-stack",
+            linux=False,
+        ),
     )
 }
 

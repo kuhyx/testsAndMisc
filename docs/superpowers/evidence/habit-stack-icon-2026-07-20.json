@@ -1,0 +1,40 @@
+{
+  "intent": "Register a new app_icons entry for habit_stack (a new Flutter app) so it gets an on-style launcher icon from the shared family, and whitelist its package id in phone_focus_mode so the app isn't killed on-device.",
+  "scope": [
+    "python_pkg/app_icons/glyphs.py",
+    "python_pkg/app_icons/apps.py",
+    "phone_focus_mode/config.sh",
+    "No changes to any other package's behavior"
+  ],
+  "changes": [
+    "Added a new chain-link glyph (_CHAIN_LINK) to glyphs.py: two interlocking stadium-ring outlines, sized so the 72px stroke leaves a genuinely hollow interior at launcher size",
+    "Registered habit_stack in apps.py's APPS dict (accent #66BB6A matching the app's own ThemeData seedColor, glyph chain-link, icon_name habit-stack, linux=False)",
+    "Added com.kuhy.habit_stack to phone_focus_mode/config.sh in both places a companion-app package id needs to appear (the always-on productive-apps whitelist and the night/curfew health-tool whitelist), then redeployed to the phone"
+  ],
+  "verification": [
+    {
+      "command": "source .venv/bin/activate && python3 meta/scripts/pytest_changed_packages.py <changed files>",
+      "result": "pass",
+      "evidence": "877 passed in 1.91s; TOTAL coverage 100.00% (2816 stmts, 758 branches, 0 missed). Note: an earlier run against the pyenv global Python (not this repo's .venv) spuriously failed on a missing markdownify import in the unrelated archwiki_rag package -- confirmed pre-existing and environment-only, not a real gap; re-running via .venv resolved it."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons preview -o <scratch>/icon_sheet.png",
+      "result": "pass",
+      "evidence": "Visual review of the generated contact sheet (full size, circle-masked, 48dp) confirmed the chain-link glyph reads clearly as two interlocking rings at all three sizes, no safe-box warnings from the CLI"
+    },
+    {
+      "command": "ADB_SERIAL=BL9000EEA0000102 bash phone_focus_mode/deploy.sh",
+      "result": "pass",
+      "evidence": "Deploy completed successfully; config.sh (including the new com.kuhy.habit_stack entries) pushed to device and daemon restarted"
+    }
+  ],
+  "risks": [
+    "New glyph geometry was hand-derived (stroke width vs. ring interior hollow space); mitigated by visual review of the actual rendered preview sheet before committing to the design",
+    "phone_focus_mode/config.sh is a live-deployed config; a bad edit could affect other whitelisted apps -- mitigated by adding only new lines, never touching existing entries, and confirming via deploy.sh's own status output that other apps' whitelist state was unaffected"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Re-run PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app habit_stack --android is then a no-op since the app entry no longer exists; the habit_stack repo's already-generated assets/icon/ files are unaffected (that's a separate repo)",
+    "Redeploy phone_focus_mode (ADB_SERIAL=BL9000EEA0000102 bash phone_focus_mode/deploy.sh) to push the reverted config.sh back to the phone"
+  ]
+}

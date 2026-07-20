@@ -78,6 +78,20 @@ _CHECKLIST = """\
     <path d="M 272 620 L 346 694 L 478 562"/>
     <path d="M 594 648 L 752 648"/>"""
 
+# Two interlocking stadium (pill-ring) outlines, both rotated -45 deg and
+# offset along the anti-diagonal so their strokes overlap in the middle --
+# reads as both "habit-stacking" (linked items) and "don't break the chain".
+# Ring height is tall enough that the 72px stroke leaves a genuinely hollow
+# interior (height - 2*stroke-width well above MIN_NEGATIVE_SPACE); a
+# shorter ring's stroke fills the interior solid and reads as a blob.
+_CHAIN_LINK = """\
+    <g transform="translate(467,557) rotate(-45) translate(-150,-110)">
+      <rect x="0" y="0" width="300" height="220" rx="110" ry="110"/>
+    </g>
+    <g transform="translate(557,467) rotate(-45) translate(-150,-110)">
+      <rect x="0" y="0" width="300" height="220" rx="110" ry="110"/>
+    </g>"""
+
 
 GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
@@ -87,6 +101,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("clock", "Clock face with hands", _CLOCK),
         Glyph("shield-cutlery", "Shield guarding a fork and knife", _SHIELD_CUTLERY),
         Glyph("checklist", "Two ticked-off list rows", _CHECKLIST),
+        Glyph("chain-link", "Two interlocking chain links", _CHAIN_LINK),
     )
 }
 
