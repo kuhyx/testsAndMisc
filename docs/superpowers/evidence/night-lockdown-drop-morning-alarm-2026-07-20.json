@@ -1,0 +1,47 @@
+{
+  "intent": "The PC's wake alarm must fire at the time the phone synced, and only that time. night-lockdown-unlock.sh also started morning-routine.service on a fixed 05:00/05:15/05:30/06:00/07:00 ladder, so on 2026-07-20 the alarm went off at 07:00 while the phone said 08:00. Remove that second, phone-independent trigger.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh (generator for /usr/local/bin/night-lockdown-unlock.sh)",
+    "Non-goal: the lockdown's own job (console/GUI restore, unmute, login-surface unmask) is untouched",
+    "Non-goal: wake-alarm and screen-locker repos are unchanged by this commit"
+  ],
+  "changes": [
+    "Deleted maybe_start_morning_alarm() and both call sites from inside the UNLOCK_EOF heredoc, leaving a NOTE explaining that wake-alarm-trigger.timer now owns alarm firing.",
+    "Removed the config keys that went dead with it: ALARM_DAYS_DOW, MORNING_ROUTINE_UNIT, and the alarm_started_date dedup marker. MIN_WAKE_AFTER_LOCKDOWN_HOURS is kept — the wake-floor trigger still uses it."
+  ],
+  "verification": [
+    {
+      "command": "bash -n setup_night_lockdown.sh && shellcheck setup_night_lockdown.sh",
+      "result": "pass",
+      "evidence": "syntax OK; shellcheck reports only the pre-existing SC1091 info for the sourced lib/common.sh"
+    },
+    {
+      "command": "sudo bash setup_night_lockdown.sh setup",
+      "result": "pass",
+      "evidence": "All 7 'present:' checks OK, timer enabled, 'Night lockdown installed.' cmd_setup is install-only (writes config/scripts/units, daemon-reload, enable --now on the already-enabled timer and rgb-off oneshot) — it does not apply lockdown state."
+    },
+    {
+      "command": "grep -nE 'systemctl.*start.*morning|maybe_start_morning' /usr/local/bin/night-lockdown-unlock.sh",
+      "result": "pass",
+      "evidence": "No matches. The single remaining 'morning-routine' hit is the new explanatory comment on line 49."
+    },
+    {
+      "command": "sudo DRY_RUN=1 bash /usr/local/bin/night-lockdown-unlock.sh",
+      "result": "pass",
+      "evidence": "Ends at 'already UNLOCKED — nothing else to do' with no alarm start attempted."
+    },
+    {
+      "command": "grep -rl morning-routine /usr/local/bin /etc/systemd /usr/lib/systemd ~/.config/systemd/user",
+      "result": "pass",
+      "evidence": "Starters are now only wake-alarm-trigger.service (primary, per-minute, phone's time) and /usr/lib/systemd/system-sleep/wake-alarm.sh (resume backstop)."
+    }
+  ],
+  "risks": [
+    "If wake-alarm-trigger.timer is ever disabled or wake_alarm stops resolving the phone's alarm, there is no longer a fixed-hour fallback on an always-on PC — the alarm simply will not fire. Mitigated by wake_alarm's own FALLBACK_ALARM_HOUR and its stale-cache path.",
+    "Not observed end to end: no real lockdown-exit morning has happened since the change. Verified by dry-run and by enumerating starters, not by a live 05:00-07:00 unlock."
+  ],
+  "rollback": [
+    "git revert this commit, then re-run 'sudo bash setup_night_lockdown.sh setup' to regenerate /usr/local/bin/night-lockdown-unlock.sh with the alarm start restored.",
+    "After rollback, confirm with: grep -n maybe_start_morning_alarm /usr/local/bin/night-lockdown-unlock.sh (expect the function back), and expect the 07:00 double-fire to return."
+  ]
+}
