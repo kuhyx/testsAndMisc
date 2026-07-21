@@ -73,6 +73,47 @@ class TestWriteLinuxIcons:
         assert written[0] == tmp_path / "h" / "16" / "demo.png"
 
 
+def _write_pubspec(app: AppIcon, *, background: str = "#1B1D21") -> Path:
+    app.repo.mkdir(parents=True, exist_ok=True)
+    pubspec = app.repo / "pubspec.yaml"
+    pubspec.write_text(
+        "flutter_launcher_icons:\n"
+        '  image_path: "assets/icon/icon.png"\n'
+        f'  adaptive_icon_background: "{background}"\n'
+        '  adaptive_icon_foreground: "assets/icon/icon_foreground.png"\n',
+        encoding="utf-8",
+    )
+    return pubspec
+
+
+class TestSyncPubspecBackground:
+    def test_rewrites_a_stale_background(self, tmp_path: Path) -> None:
+        app = _app(tmp_path)
+        pubspec = _write_pubspec(app, background="#1B1D21")
+        changed = generate.sync_pubspec_background(app)
+        assert changed is True
+        assert f'adaptive_icon_background: "{style.BACKGROUND}"' in pubspec.read_text(
+            encoding="utf-8"
+        )
+
+    def test_leaves_other_lines_untouched(self, tmp_path: Path) -> None:
+        app = _app(tmp_path)
+        pubspec = _write_pubspec(app, background="#1B1D21")
+        before = pubspec.read_text(encoding="utf-8")
+        generate.sync_pubspec_background(app)
+        after = pubspec.read_text(encoding="utf-8")
+        assert before.splitlines()[0] == after.splitlines()[0]
+        assert 'adaptive_icon_foreground: "assets/icon/icon_foreground.png"' in after
+
+    def test_no_op_when_already_current(self, tmp_path: Path) -> None:
+        app = _app(tmp_path)
+        pubspec = _write_pubspec(app, background=style.BACKGROUND)
+        before_mtime = pubspec.stat().st_mtime_ns
+        changed = generate.sync_pubspec_background(app)
+        assert changed is False
+        assert pubspec.stat().st_mtime_ns == before_mtime
+
+
 class TestRunFlutterLauncherIcons:
     @patch(f"{MOD}.subprocess.run")
     @patch(f"{MOD}.render.resolve_tool", return_value="/usr/bin/dart")
@@ -80,6 +121,7 @@ class TestRunFlutterLauncherIcons:
         self, mock_tool: MagicMock, run: MagicMock, tmp_path: Path
     ) -> None:
         app = _app(tmp_path)
+        _write_pubspec(app)
         generate.run_flutter_launcher_icons(app)
         assert run.call_args.args[0] == [
             "/usr/bin/dart",
@@ -87,3 +129,15 @@ class TestRunFlutterLauncherIcons:
             "flutter_launcher_icons",
         ]
         assert run.call_args.kwargs["cwd"] == app.repo
+
+    @patch(f"{MOD}.subprocess.run")
+    @patch(f"{MOD}.render.resolve_tool", return_value="/usr/bin/dart")
+    def test_syncs_pubspec_background_before_invoking_dart(
+        self, mock_tool: MagicMock, run: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _app(tmp_path)
+        pubspec = _write_pubspec(app, background="#1B1D21")
+        generate.run_flutter_launcher_icons(app)
+        assert f'adaptive_icon_background: "{style.BACKGROUND}"' in pubspec.read_text(
+            encoding="utf-8"
+        )

@@ -1,0 +1,35 @@
+{
+  "intent": "Stop pubspec.yaml's adaptive_icon_background from drifting from style.BACKGROUND -- it just did, across all 6 apps, and the drift was invisible until a physical device check.",
+  "scope": [
+    "python_pkg/app_icons/generate.py",
+    "python_pkg/app_icons/tests/test_generate.py"
+  ],
+  "changes": [
+    "Added sync_pubspec_background(app): rewrites pubspec.yaml's adaptive_icon_background line in place to match style.BACKGROUND, called automatically from run_flutter_launcher_icons before invoking the dart tool",
+    "Root cause found during the warm-palette rollout: style.py's BACKGROUND was updated, but each app's pubspec.yaml carries its own independent adaptive_icon_background literal (flutter_launcher_icons' own config format) that nothing kept in sync -- all 6 apps stayed on the old value even though every generated PNG asset was correct. Android's actual home-screen icon is the adaptive icon (background color + foreground drawable), not the legacy ic_launcher.png mipmap, so this was invisible in file-byte checks and only showed up on the physical device"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests/ -q --no-cov",
+      "result": "pass",
+      "evidence": "43 passed (up from 39; 4 new tests for sync_pubspec_background)"
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests/ --cov=python_pkg.app_icons.generate --cov-branch --cov-report=term-missing --no-cov-on-fail",
+      "result": "pass",
+      "evidence": "python_pkg/app_icons/generate.py: 100% line, 100% branch"
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --android; grep adaptive_icon_background across all 6 pubspec.yaml",
+      "result": "pass",
+      "evidence": "All 6 now read #211D1B; diet-guard rebuilt + reinstalled on physical device, home-screen icon background pixel-sampled at (33,29,27) = #211D1B"
+    }
+  ],
+  "risks": [
+    "The regex-based line rewrite assumes flutter_launcher_icons' pubspec.yaml block keeps adaptive_icon_background on its own line in `key: \"#RRGGBB\"` form -- if that config format ever changes, the sync silently becomes a no-op rather than erroring (the function returns False for 'already matches' and 'pattern didn't match' identically). A follow-up could distinguish those two cases if this recurs."
+  ],
+  "rollback": [
+    "git revert this commit in testsAndMisc",
+    "Each app repo's own pubspec.yaml/icon-asset commit can be reverted independently"
+  ]
+}
