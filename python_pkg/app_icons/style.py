@@ -14,8 +14,10 @@ CANVAS: Final[int] = 1024
 CENTRE: Final[float] = CANVAS / 2
 
 # Charcoal field shared by all icons. Also used as adaptive_icon_background so
-# the adaptive foreground and background layers stay seamless.
-BACKGROUND: Final[str] = "#1B1D21"
+# the adaptive foreground and background layers stay seamless. Warm-tinted
+# (unified-design-system `ink`) — a byte-reversed mirror of the previous
+# cool-tinted #1B1D21, so relative lightness is unchanged.
+BACKGROUND: Final[str] = "#211D1B"
 
 # Android masks an adaptive icon down to roughly the inner 66% of the canvas.
 # Keeping every glyph inside this box means no launcher mask (circle, squircle,

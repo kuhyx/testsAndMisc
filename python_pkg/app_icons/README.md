@@ -1,8 +1,8 @@
 # app_icons — shared launcher icons for the Flutter apps
 
-One icon family across every Flutter/Dart app: a charcoal `#1B1D21` field with
-a single glyph in that app's own theme accent, drawn at one stroke weight and
-optically centred so a row of them lines up.
+One icon family across every Flutter/Dart app: a charcoal `#211D1B` field with
+a single glyph in the shared `unified-design-system` accent (`#B8862E`),
+drawn at one stroke weight and optically centred so a row of them lines up.
 
 ## Commands
 

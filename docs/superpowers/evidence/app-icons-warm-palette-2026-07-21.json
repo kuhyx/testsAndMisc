@@ -1,0 +1,39 @@
+{
+  "intent": "Warm-tint the shared app_icons family (charcoal field + accent) to match the unified-design-system palette rework, and fix the stale hex/prose left over from the accent-unification pass.",
+  "scope": [
+    "python_pkg/app_icons/style.py",
+    "python_pkg/app_icons/apps.py",
+    "python_pkg/app_icons/tests/test_registry.py",
+    "python_pkg/app_icons/README.md"
+  ],
+  "changes": [
+    "style.py: BACKGROUND charcoal #1B1D21 -> #211D1B (byte-reversed mirror, same relative lightness)",
+    "apps.py: all 6 apps' accent #4C7DF0 -> #B8862E; docstring hex updated to match",
+    "test_registry.py: test_accents_are_shared assertion updated to the new accent",
+    "README.md: stale charcoal hex and 'own theme accent' wording (already false before this change) corrected"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests/ -q --no-cov",
+      "result": "pass",
+      "evidence": "39 passed"
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons preview -o ...",
+      "result": "pass",
+      "evidence": "Visually reviewed contact sheet: all 6 icons render coherently with warm charcoal + warm gold"
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --android",
+      "result": "pass",
+      "evidence": "Wrote assets + regenerated Android mipmaps for all 6 consuming repos; diet-guard's rebuilt APK pixel-verified on a physical device"
+    }
+  ],
+  "risks": [
+    "5 of 6 consuming apps (all but diet-guard) had their icon source assets regenerated but their installed APKs were not rebuilt this session, so phone launcher icons for those apps remain stale until each is rebuilt/reinstalled separately"
+  ],
+  "rollback": [
+    "git revert this commit in testsAndMisc; each consuming repo's own icon-asset commit can be reverted independently since the generator only writes files, it doesn't couple repos together",
+    "After rollback, re-run 'python -m python_pkg.app_icons generate --android' to restore the old cool-palette assets everywhere"
+  ]
+}

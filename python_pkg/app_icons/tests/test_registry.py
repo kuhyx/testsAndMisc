@@ -34,9 +34,10 @@ class TestFamilyInvariants:
         for app in apps.APPS.values():
             assert app.glyph in glyphs.GLYPHS
 
-    def test_accents_are_unique(self) -> None:
-        accents = [app.accent for app in apps.APPS.values()]
-        assert len(set(accents)) == len(accents)
+    def test_accents_are_shared(self) -> None:
+        """Every app uses the one family accent; apps differ by glyph only."""
+        accents = {app.accent for app in apps.APPS.values()}
+        assert accents == {"#B8862E"}
 
     def test_accents_are_hex_triplets(self) -> None:
         for app in apps.APPS.values():
