@@ -1,7 +1,7 @@
 # KCD2 Dice Solver
 
 Pick which six dice and which badge to bring to a game of dice in
-*Kingdom Come: Deliverance II*. Enter what you own; the solver evaluates every
+_Kingdom Come: Deliverance II_. Enter what you own; the solver evaluates every
 loadout your inventory allows and reports the best one with the numbers behind
 it.
 
@@ -20,8 +20,8 @@ Three ways, all wired to the same state:
 
 - **Click** a die's row to add one.
 - **Scroll** the mouse wheel over its counter to step it up or down.
-- **Search** by name — a fuzzy match, so `wei` finds *Weighted die* and
-  `paintb` finds *Painter's die B*. The same box filters the badge list.
+- **Search** by name — a fuzzy match, so `wei` finds _Weighted die_ and
+  `paintb` finds _Painter's die B_. The same box filters the badge list.
 
 The inventory is saved to `localStorage`, so it survives a reload.
 
@@ -30,7 +30,7 @@ The inventory is saved to `localStorage`, so it survives a reload.
 **Scoring** (`src/core/scoring.ts`) is the wiki's table: 100 per one, 50 per
 five, `1000` for three ones and `100 × face` otherwise, doubled for each die
 beyond three, and 500/750/1500 for the three straights. A roll scores the best
-*partition* of its dice, which is a small memoised search.
+_partition_ of its dice, which is a small memoised search.
 
 **Expected value** (`src/core/evaluate.ts`) is exact, not sampled. Scoring
 depends only on the multiset of faces, so the six dice are convolved into a
@@ -43,9 +43,9 @@ against a naive full enumeration that shares none of that machinery.
 set's value is not the sum of its dice — ranking dice individually and taking
 the top six is simply wrong. Dice with identical distributions are pooled
 first (nine of the game's dice are plain uniform dice under different names).
-Small inventories are enumerated exhaustively and reported as *provably
-optimal*; larger ones use a multi-start steepest-ascent local search and are
-reported as *not proven*.
+Small inventories are enumerated exhaustively and reported as _provably
+optimal_; larger ones use a multi-start steepest-ascent local search and are
+reported as _not proven_.
 
 **Turn value** (`src/core/simulate.ts`) is a Monte Carlo simulation, and unlike
 the above it depends on how you play. The policy is stated explicitly in that

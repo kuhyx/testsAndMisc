@@ -1,6 +1,9 @@
 {
   "intent": "Add a run.sh to kcd2_dice_solver that installs dependencies and starts the dice solver's dev server with a single command.",
-  "scope": ["kcd2_dice_solver/run.sh (new file)", "No changes to app source, tests, or build config"],
+  "scope": [
+    "kcd2_dice_solver/run.sh (new file)",
+    "No changes to app source, tests, or build config"
+  ],
   "changes": [
     "run.sh ensures Node >=22 (installing the LTS via nvm if missing/too old) and pnpm (via corepack) if missing",
     "run.sh runs `pnpm install` then `exec pnpm dev` from the script's own directory"
@@ -27,6 +30,8 @@
       "evidence": "All applicable hooks Passed (shellcheck, executables-have-shebangs, ai-evidence-contract, etc.)"
     }
   ],
-  "risks": ["If nvm is not installed on a machine, run.sh exits with an explicit error instead of installing nvm itself (out of scope)"],
+  "risks": [
+    "If nvm is not installed on a machine, run.sh exits with an explicit error instead of installing nvm itself (out of scope)"
+  ],
   "rollback": ["Delete kcd2_dice_solver/run.sh", "No other files depend on it"]
 }
