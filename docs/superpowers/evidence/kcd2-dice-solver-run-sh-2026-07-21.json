@@ -1,0 +1,32 @@
+{
+  "intent": "Add a run.sh to kcd2_dice_solver that installs dependencies and starts the dice solver's dev server with a single command.",
+  "scope": ["kcd2_dice_solver/run.sh (new file)", "No changes to app source, tests, or build config"],
+  "changes": [
+    "run.sh ensures Node >=22 (installing the LTS via nvm if missing/too old) and pnpm (via corepack) if missing",
+    "run.sh runs `pnpm install` then `exec pnpm dev` from the script's own directory"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck kcd2_dice_solver/run.sh",
+      "result": "pass",
+      "evidence": "No warnings after fixing one SC2155 (declare/assign separately)"
+    },
+    {
+      "command": "./run.sh (foreground, timeout 25s)",
+      "result": "pass",
+      "evidence": "Installed deps, then 'VITE v6.4.3 ready in 132 ms' / Local: http://localhost:5174/"
+    },
+    {
+      "command": "./run.sh (background) + curl -s -o /dev/null -w '%{http_code}' http://localhost:5174/",
+      "result": "pass",
+      "evidence": "HTTP 200"
+    },
+    {
+      "command": "pre-commit run --files kcd2_dice_solver/run.sh",
+      "result": "pass",
+      "evidence": "All applicable hooks Passed (shellcheck, executables-have-shebangs, ai-evidence-contract, etc.)"
+    }
+  ],
+  "risks": ["If nvm is not installed on a machine, run.sh exits with an explicit error instead of installing nvm itself (out of scope)"],
+  "rollback": ["Delete kcd2_dice_solver/run.sh", "No other files depend on it"]
+}

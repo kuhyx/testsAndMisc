@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "esnext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "vitest/globals"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true
+
+    /* Deliberately NOT enabling noUncheckedIndexedAccess: every array index in
+       the solver is already bounds-derived, so the flag only forces `?? 0`
+       fallbacks and `if (!x) continue` guards on branches that cannot execute.
+       Those are untestable, and this project holds a 100% branch-coverage bar —
+       the flag would buy nothing but coverage pragmas. */
+  },
+  "include": ["src", "vite.config.ts"]
+}

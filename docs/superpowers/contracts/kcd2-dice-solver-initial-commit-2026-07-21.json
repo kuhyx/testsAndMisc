@@ -1,0 +1,15 @@
+{
+  "title": "Commit the KCD2 Dice Solver app and add run.sh",
+  "objective": "Bring the previously-untracked kcd2_dice_solver Vite/React/TypeScript app under git version control, and add a run.sh that installs its dependencies and starts its dev server with a single command.",
+  "acceptance_criteria": [
+    "kcd2_dice_solver/ source, tests, and config files are tracked in git (node_modules/dist/coverage remain ignored)",
+    "run.sh ensures Node >=22 and pnpm are available, runs `pnpm install`, then starts `pnpm dev`",
+    "run.sh is executable, shellcheck-clean, and verified to serve HTTP 200 on http://localhost:5174",
+    "pre-commit passes on all staged files"
+  ],
+  "out_of_scope": [
+    "No changes to the solver's game logic, scoring, or UI behavior",
+    "No CI workflow added for this app"
+  ],
+  "verifier": "pre-commit run --files <staged files>; manual run of ./run.sh with curl against http://localhost:5174"
+}
