@@ -1,0 +1,128 @@
+# Design audit — kcd2_dice_solver + bucket_catch frontend
+
+Generated against safe-design-rules (anthonyhobday.com/sideprojects/saferules).
+Report only — nothing in either app was changed by the audit itself.
+
+Contrast ratios and L* (perceptual lightness) values below were computed with
+the WCAG relative-luminance formula against each file's literal hex values —
+not measured from a rendered page.
+
+---
+
+## kcd2_dice_solver (`~/testsAndMisc/kcd2_dice_solver`, Vite/TS)
+
+Design tokens live in `src/index.css` (422 lines), a single `:root` block of
+CSS custom properties consumed by all 5 component files. This is the correct
+pattern — findings below are deviations from it, not an absence of it.
+
+Palette: `--bg:#17150f --panel:#201d16 --panel-2:#2a261d --line:#3a3428
+--text:#e8e0cf --muted:#9d947f --accent:#c8a24a --good:#7fb069 --bad:#c96b5b`
+(`src/index.css:2-10`), plus two hardcoded tier colors outside the token
+system (see Rule 4).
+
+### All 28 rules
+
+| # | Rule | Verdict | Evidence |
+|---|------|---------|----------|
+| 1 | Near-black/near-white | Pass | `--bg:#17150f`, `--text:#e8e0cf` — neither pure black nor pure white. `src/index.css:2,6` |
+| 2 | Saturate your neutrals | Pass | bg/panel/panel-2/line all carry R>G>B (warm brown/gold tint), not desaturated gray. `src/index.css:2-5` |
+| 3 | High contrast for important elements | Pass | `--accent` (7.58:1 vs `--bg`, computed) reserved for header title and key values. `src/index.css:8,36` (`header h1`), `:219` (`.die-tag`) |
+| 4 | Everything deliberate | **Violation** | `.tier-tin{color:#a8a196}` and `.tier-silver{color:#cfd4da}` are hardcoded hex, bypassing the custom-property system every other color in the file uses. `src/index.css:271,274` |
+| 5 | Optical alignment | N/A | No irregular/asymmetric glyphs; layout is rectangle/text based. |
+| 6 | Letter-spacing/line-height by size | **Violation** | `header h1` is the largest text (1.5rem) yet *adds* tracking (`letter-spacing:0.02em`) instead of tightening it; smaller labels correctly widen tracking as they shrink (`.tier` 0.8rem/+0.08em, `.stats dt` 0.7rem/+0.05em). `src/index.css:33-38` vs `:263-268,341-346` |
+| 7 | Border contrast with both surfaces | **Violation** | `--line:#3a3428` borders measure only 1.48:1 against `--bg` and 1.36:1 against `--panel` (computed) — well under a legible ~3:1 non-text-contrast floor. `src/index.css:5`, used e.g. `:62,87,107,147,156` |
+| 8 | Everything aligns with something | Pass | Consistent flex/grid: `.columns` (`:45-50`), `.toolbar` (`:77-81`), `.stepper` (`:244-248`); only `.die-face-label` uses absolute positioning, intentionally anchored to its own bar (`:224-232`). |
+| 9 | Distinct brightness values | **Violation** | `--accent` (L*≈68.5), `--good` (L*≈67.0) and hardcoded `.tier-tin` (L*≈66.5) are within 2 L* points of each other despite signaling 3 different things (highlight / positive stat / badge tier) — differentiated only by hue, not lightness. `src/index.css:8,9,271` |
+| 10 | Warm OR cool, not both | Pass | Every neutral and accent leans warm (brown/gold/olive/warm-red); no cool tone mixed in. `src/index.css:2-10` |
+| 11 | Mathematically related measurements | **Violation** | `:root font-size:15px` (`src/index.css:14`), not 16px, so the rem-based spacing scale (0.25/0.5/0.75/1/1.25/1.5rem, e.g. `:30,64,85,112,155`) resolves to 3.75/7.5/11.25/15/18.75/22.5px — off any clean 4- or 8-px grid. Border-radius values (3,4,6,8px at `:238,179,88,108,148,256,337,63`) also don't follow a consistent scale. |
+| 12 | Order by visual weight | N/A | Two side-by-side panels of comparable weight (inventory vs results); no dominant element to check edge-placement against. `src/App.tsx:127-195` |
+| 13 | 12-column grid | N/A | Simple 2-column grid sized for one breakpoint collapse, not a general layout grid. `src/index.css:45-50` |
+| 14 | Space between high-contrast points | N/A | Requires rendered-glyph inspection; unverifiable from CSS source alone. |
+| 15 | Closer elements lighter | Pass | `--bg`(L*6.8) → `--panel`(L*10.9) → `--panel-2`(L*15.3) → `--line`(L*22.0) increases monotonically with each more-elevated layer (computed). `src/index.css:2-5` |
+| 16 | Shadow blur ≈ 2x distance | N/A | Zero `box-shadow` declarations in `src/index.css` (grep-confirmed). |
+| 17 | Simple on complex / complex on simple | Pass | All surfaces are flat single colors; no background images/patterns anywhere. |
+| 18 | Container brightness limits (~12% dark) | Pass | Adjacent stack deltas are 4.07 L* (bg→panel) and 4.44 L* (panel→panel-2), computed — well inside the ~12-point dark-mode budget. |
+| 19 | Outer padding ≥ inner padding | Pass | `section.inventory` outer padding `1rem` (`:64`) vs nested `.die-row` `0.25rem 0.5rem` (`:155`) and `.stats div` `0.5rem 0.6rem` (`:338`) — inner always smaller. |
+| 20 | Body text ≥16px | **Violation** | `:root{font-size:15px}` (`src/index.css:14`); `.hint` (`:126-130`) and `.subtitle` (`:40-43`) inherit it uncorrected — under the 16px floor. |
+| 21 | Line length ~70 chars | N/A | Fluid width (`.app{max-width:1400px}`, `:28`), no fixed reading column; needs a rendered viewport to measure. |
+| 22 | Button padding: horizontal = 2× vertical | **Violation** | `.clear`/`.stepper-button` padding `0.4rem 0.7rem` (`:112`) → 1.75x ratio; `.search` padding `0.5rem 0.75rem` (`:85`) → 1.5x. Neither hits ~2x. |
+| 23 | Two typefaces max | Pass | Single monospace stack throughout (`"Iosevka","Cascadia Code",ui-monospace,...`). `src/index.css:13` |
+| 24 | Nest corners properly | **Violation** | `section.inventory` (8px radius, 1rem/16px padding, `:63-64`) contains `.search` (6px radius, `:88`) and `.die-list` (6px radius, `:148`); with 16px between outer/inner edges, nested radius should trend toward 0, not stay at 6-8px — corners read as mismatched, not concentric. |
+| 25 | Avoid adjacent hard divides | Pass | Every bordered region is separated by gap/padding (e.g. `.toolbar{gap:0.5rem}` `:79`), never abutting directly. |
+| 26 | No shadows in dark interfaces | Pass | `color-scheme:dark` (`:12`) and zero `box-shadow` usage anywhere. |
+| 27 | Don't mix depth techniques | Pass | Only borders are used for depth/separation throughout — one consistent technique. |
+| 28 | Lower icon contrast paired with text | N/A | No icon usage found anywhere (grep of `src/components/` and `App.tsx` found none) — pure text UI. |
+
+### Notes
+- The custom-property system in `src/index.css` is otherwise well-centralized — the two hardcoded tier colors (Rule 4) are the only leak, and fixing them also resolves part of Rule 9.
+- Rule 11 and Rule 20 share a root cause: `:root{font-size:15px}` (`src/index.css:14`). Bumping the base to 16px would fix the body-text floor and straighten out the rem-based spacing scale in one change.
+
+---
+
+## bucket_catch frontend (`~/testsAndMisc/bucket_catch/packages/frontend`, Vite/TS)
+
+**Confirmed: no shared design tokens exist.** `src/index.css` is a 12-line
+reset only (box-sizing + html/body/#root margin/font/background/color) — no
+`:root` custom properties, no theme module. All actual styling lives in 6
+independent per-component files, each with its own hardcoded hex values:
+
+- `src/components/DropZone.module.css` (165 lines)
+- `src/components/GameCanvas.module.css` (24 lines)
+- `src/components/ModeSelect.module.css` (157 lines)
+- `src/components/PuzzleCanvas.module.css` (25 lines)
+- `src/components/PuzzleResult.module.css` (86 lines)
+- `src/components/ScoreScreen.module.css` (157 lines)
+
+Across these, 19 distinct hex colors appear (`grep -roh '#[0-9a-fA-F]\{6\}' | sort | uniq -c`),
+including exact-duplicate literals copy-pasted across files: the page
+background `linear-gradient(135deg, #0f0c29, #302b63, #24243e)` appears
+verbatim in `DropZone.module.css:6`, `ModeSelect.module.css:8`,
+`ScoreScreen.module.css:9`, `PuzzleResult.module.css:9`; the heading gradient
+`linear-gradient(90deg, #818cf8, #f472b6)` appears in `DropZone.module.css:36`,
+`ModeSelect.module.css:16`, `ScoreScreen.module.css:25` — but
+`PuzzleResult.module.css:25` reverses the stop order
+(`#f472b6, #818cf8`), so even the copy-paste isn't consistent.
+
+**This absence is itself the Rule 4 finding**: there is no single place that
+enforces "every color/spacing/radius decision is deliberate" — each file can
+(and does) drift independently. It also makes **Rules 9 and 18** unverifiable
+as whole-palette checks (there is no one palette to check); both are marked
+N/A below with spot-checks noted instead.
+
+### All 28 rules
+
+| # | Rule | Verdict | Evidence |
+|---|------|---------|----------|
+| 1 | Near-black/near-white | Pass | bg gradient stops `#0f0c29/#302b63/#24243e` (not pure black), text `#e0e7ff` (not pure white). `src/index.css:10-11`, `DropZone.module.css:6` |
+| 2 | Saturate your neutrals | **Violation** | Text/bg are saturated navy/lavender, but the *muted-gray* set is 4 unrelated shades with no shared token: `#94a3b8`, `#4b5563`, `#6b7280`, `#64748b` — `ModeSelect.module.css:24,66,99,138`; `ScoreScreen.module.css:64,103`; `DropZone.module.css:44,75,107,145`. Not "one coherent palette," 4 independent picks. |
+| 3 | High contrast for important elements | Pass | Primary CTAs (`.browseBtn` `DropZone.module.css:58-68`, `.actionBtn` `ScoreScreen.module.css:114-124`, `.puzzleStart` `ModeSelect.module.css:142-153`) use bold gradient fill + white text, visually dominant over ghost/preset buttons (`.preset`, border-only, ~2.5:1, `DropZone.module.css:102-112`). |
+| 4 | Everything deliberate | **Violation (structural)** | No shared token file exists at all — see summary above. Duplicated/inconsistent gradient literals across `DropZone.module.css:6,36`, `ModeSelect.module.css:8,16`, `ScoreScreen.module.css:9,25`, `PuzzleResult.module.css:9,25`. |
+| 5 | Optical alignment | N/A | No irregular glyphs; emoji icons centered via flex (`DropZone.module.css:27-30`, `ModeSelect.module.css:55-57`), not manually aligned. |
+| 6 | Letter-spacing/line-height by size | Pass | `.divider` (0.8rem, +0.1em, `DropZone.module.css:74-79`) and `.listTitle` (1rem, +0.08em, `ScoreScreen.module.css:61-67`) correctly widen tracking as size shrinks; no large text adds positive tracking. |
+| 7 | Border contrast with both surfaces | **Violation** | `.preset` border `#4b5563` vs page bg `#0f0c29` measures 2.51:1 (computed); vs the lighter gradient stop `#24243e` it drops to 1.99:1 — under a legible border contrast. `DropZone.module.css:106`, `ModeSelect.module.css:99` |
+| 8 | Everything aligns with something | Pass | Every surface uses flex/grid with centered alignment (e.g. `.container` `ModeSelect.module.css:1-11`, `.cards` `:28-33`) — consistent system throughout. |
+| 9 | Distinct brightness values | N/A (whole-palette) | No shared palette to check (Rule 4). Spot-check: the two accents `#818cf8`/`#f472b6` are used together as an intentional gradient pair, not as competing solo swatches — not itself a violation. |
+| 10 | Warm OR cool, not both | Pass | Palette is entirely cool (navy/indigo/violet bg + slate grays), with magenta/pink as the one warmer accent, always paired consistently with violet in gradients — no clash. |
+| 11 | Mathematically related measurements | **Violation** | Most padding follows a 4px-multiple scale (`24px/16px` `DropZone.module.css:9`; `32px/40px` `ModeSelect.module.css:39`; `12px/32px` `ScoreScreen.module.css:115`), but small controls break it: `3px` vertical padding recurs (`DropZone.module.css:103,127`; `ModeSelect.module.css:96,120`) alongside off-grid gaps `5px` (`ModeSelect.module.css:89`), `10px` (`DropZone.module.css:24`), `3px` (`PuzzleResult.module.css:48`) — a second, uncoordinated scale. |
+| 12 | Order by visual weight | N/A | Simple centered vertical stacks (heading → content → actions); no competing elements to order. |
+| 13 | 12-column grid | N/A | No multi-column page layout; `PuzzleResult.module.css:46-55` `.grid` is a dynamic NxM puzzle-piece grid, not a layout grid. |
+| 14 | Space between high-contrast points | N/A | Unverifiable from CSS source without rendering. |
+| 15 | Closer elements lighter | Pass (single-level) | `.card` and `.fileItem` (both `rgba(30,27,75,0.7)`, `ModeSelect.module.css:35-48`, `ScoreScreen.module.css:79-87`) sit lighter than the darkest bg stop — directionally correct, though both reuse the identical translucent value regardless of nesting depth, so distinct elevation levels aren't distinguishable from each other. |
+| 16 | Shadow blur ≈ 2x distance | N/A | Zero `box-shadow` declarations found across all `*.module.css` (grep-confirmed). |
+| 17 | Simple on complex / complex on simple | Pass | Foreground text/controls sit on a flat gradient (no photographic noise); text on `.card`'s translucent fill is plain-on-plain. |
+| 18 | Container brightness limits | N/A (whole-palette) | No shared token system to audit (Rule 4). The one measurable stack — the page gradient itself (L*4.7→L*21.1→L*15.4 across its 3 stops, computed) — is decorative, not the container-on-container relationship this rule targets. |
+| 19 | Outer padding ≥ inner padding | Pass | `.container` `32px 16px` (`ScoreScreen.module.css:8`) > nested `.fileItem` `6px 12px` (`:85`); `.zone` `24px 16px` (`DropZone.module.css:9`) > any nested element's own padding. |
+| 20 | Body text ≥16px | **Violation** | `.cardDesc` (`ModeSelect.module.css:64-69`), the descriptive copy under each mode card, is `0.85rem` (13.6px) — under the 16px floor. (Small labels like `.divider`/`.gridLabel` are UI chrome, not flagged.) |
+| 21 | Line length ~70 chars | N/A | `.cardDesc` is width-constrained by its 220px `.card` parent (`ModeSelect.module.css:40`) to a few words per line — can't exceed ~70 chars; not a meaningful case to score. |
+| 22 | Button padding: horizontal = 2× vertical | **Violation** | `.browseBtn`/`.puzzleBtn` `8px 24px` (`DropZone.module.css:59,150`) → 3x ratio; `.actionBtn` `12px 32px` (`ScoreScreen.module.css:115`) → 2.67x; `.restartBtn` `10px 28px` (`:131`) → 2.8x; `.puzzleStart` `8px 20px` (`ModeSelect.module.css:144`) → 2.5x. None land near the ~2x target. |
+| 23 | Two typefaces max | Pass | Base sans-serif system stack (`src/index.css:9`) plus one intentional `monospace` override for filenames (`.fname`, `ScoreScreen.module.css:95`) — exactly 2, functionally justified. |
+| 24 | Nest corners properly | **Violation** | `.grid` (8px radius, 3px border, `overflow:hidden`, `PuzzleResult.module.css:46-55`) clips `.piece`/`.hole` children which have 0px radius (`:57-69`) — works only because `overflow:hidden` clips edge pieces; there's no deliberate inner-radius value (outer 8px − 3px border ≈ 5px expected, actual 0px). |
+| 25 | Avoid adjacent hard divides | Pass | No abutting borders/backgrounds found; bordered elements (`.card`, `.preset`, `.gridInput`) are separated by flex/grid gaps. |
+| 26 | No shadows in dark interfaces | Pass | Entire UI is dark-themed with zero `box-shadow` usage — compliant. |
+| 27 | Don't mix depth techniques | Pass | Depth conveyed only via translucent fills + borders — one consistent technique, no shadows/glows mixed in. |
+| 28 | Lower icon contrast paired with text | **Violation** | `.icon`/`.cardIcon` emoji render at full native contrast (`DropZone.module.css:27-30`, 52px; `ModeSelect.module.css:55-57`, 48px) directly above body text styled at reduced opacity/muted color (`.subtitle`, `.cardDesc`) — the icon is visually heavier than the text it's paired with; no opacity/contrast reduction applied to the icon itself. |
+
+### Notes
+- **Primary structural finding**: introduce a shared token source (CSS custom properties in a `src/theme.css` imported by `index.css`, or a TS `theme.ts`) before doing any rule-by-rule fix — otherwise each violation below has to be independently re-fixed per `*.module.css` file, and new files will keep reintroducing the same drift (as the reversed-gradient-stop-order bug on `PuzzleResult.module.css:25` already shows).
+- Once tokens exist, Rules 9 and 18 become checkable as whole-palette rules and should be re-audited.
+- The 4-gray inconsistency (Rule 2) and the duplicated-gradient literals (Rule 4) are the same underlying fix — collapsing to a `theme.css` resolves both simultaneously.
