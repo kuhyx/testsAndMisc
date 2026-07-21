@@ -1,0 +1,644 @@
+<title>run.sh for the KCD2 Dice Solver</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1b1d21;
+    --muted: #5b6270;
+    --card: #f4f5f7;
+    --border: #dde1e6;
+    --accent: #2f6feb;
+    --accent-bg: #eaf1ff;
+    --good: #1a7f37;
+    --bad: #c93131;
+    --code-bg: #f0f1f4;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --fg: #e7e9ee;
+      --muted: #9aa2b1;
+      --card: #1d2027;
+      --border: #2b2f38;
+      --accent: #6ea8fe;
+      --accent-bg: #182338;
+      --good: #4fd07a;
+      --bad: #ff6b6b;
+      --code-bg: #10131a;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+  }
+  main {
+    max-width: min(48rem, 92vw);
+    margin: 0 auto;
+    padding: 1.5rem 0 5rem;
+  }
+  h1 { font-size: 1.7rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.3rem; margin-top: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.75rem; }
+  .subtitle { color: var(--muted); margin-top: 0; }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0.7rem 0;
+    z-index: 10;
+    margin-bottom: 1rem;
+  }
+  nav.toc ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin: 0;
+    padding: 0;
+    font-size: 0.9rem;
+  }
+  nav.toc a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  nav.toc a:hover { text-decoration: underline; }
+  p { margin: 0.9rem 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
+    font-size: 0.88em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+  }
+  pre code { background: none; padding: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 1rem 1.2rem;
+    box-shadow: var(--shadow);
+    margin: 1.2rem 0;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1.2rem 0;
+  }
+  .step {
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+  .step .n {
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .arrow-down {
+    align-self: center;
+    color: var(--muted);
+    font-size: 1.1rem;
+  }
+  .branch-diagram {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+    margin: 1.2rem 0;
+  }
+  .branch-box {
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.7rem 1rem;
+  }
+  .branch-box.decision { background: var(--accent-bg); border-color: var(--accent); font-weight: 600; }
+  .branch-box.action { background: var(--card); }
+  .branch-box .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.3rem;
+    margin-right: 0.4rem;
+  }
+  .tag.yes { background: var(--good); color: white; }
+  .tag.no { background: var(--bad); color: white; }
+  .indent { margin-left: 1.4rem; }
+  table.compat {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  table.compat th, table.compat td {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.7rem;
+    text-align: left;
+  }
+  table.compat th { background: var(--card); }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-bg);
+    padding: 0.7rem 1rem;
+    border-radius: 0 0.4rem 0.4rem 0;
+    margin: 1.2rem 0;
+  }
+
+  /* Micro-world widget */
+  .sim {
+    border: 1px solid var(--border);
+    border-radius: 0.7rem;
+    padding: 1.1rem 1.2rem;
+    background: var(--card);
+    margin: 1.2rem 0;
+  }
+  .sim-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .sim-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.88rem;
+  }
+  .sim-group span.label { font-weight: 600; color: var(--muted); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.03em; }
+  .sim-group select {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+  }
+  button.run-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.1rem;
+    border-radius: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.run-btn:hover { opacity: 0.9; }
+  #sim-log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    min-height: 2rem;
+  }
+  .log-line {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.83rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.35rem;
+    background: var(--code-bg);
+    border-left: 3px solid var(--muted);
+    opacity: 0;
+    transform: translateY(-4px);
+    animation: fadein 0.25s forwards;
+  }
+  .log-line.ok { border-left-color: var(--good); }
+  .log-line.warn { border-left-color: var(--bad); }
+  @keyframes fadein { to { opacity: 1; transform: translateY(0); } }
+
+  /* Quiz */
+  .quiz-q {
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 1rem 1.1rem;
+    margin: 1.1rem 0;
+    background: var(--card);
+  }
+  .quiz-q p.qtext { font-weight: 600; margin-top: 0; }
+  .quiz-opts { display: flex; flex-direction: column; gap: 0.5rem; }
+  .quiz-opt {
+    text-align: left;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    padding: 0.55rem 0.8rem;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    font-size: 0.92rem;
+  }
+  .quiz-opt:hover { border-color: var(--accent); }
+  .quiz-opt.correct { background: var(--good); color: white; border-color: var(--good); }
+  .quiz-opt.incorrect { background: var(--bad); color: white; border-color: var(--bad); }
+  .quiz-rationale {
+    margin-top: 0.6rem;
+    font-size: 0.87rem;
+    color: var(--muted);
+    display: none;
+  }
+  .quiz-rationale.shown { display: block; }
+  #quiz-score {
+    font-weight: 700;
+    margin-top: 1.2rem;
+  }
+  footer {
+    margin-top: 3rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+</style>
+
+<main>
+  <h1>run.sh for the KCD2 Dice Solver</h1>
+  <p class="subtitle">How one script turns "clone and pray" into "clone and run" for a Vite/React app.</p>
+
+  <nav class="toc">
+    <ul>
+      <li><a href="#background">Background</a></li>
+      <li><a href="#intuition">Intuition</a></li>
+      <li><a href="#code">Code</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+    </ul>
+  </nav>
+
+  <section id="background">
+    <h2>Background</h2>
+    <p>
+      <code>kcd2_dice_solver</code> is a small Vite + React + TypeScript app: you tell it
+      which dice and badges you own in <em>Kingdom Come: Deliverance II</em>, and it
+      searches every loadout your inventory allows to recommend the best one. It's a
+      normal Node project &mdash; a <code>package.json</code> with scripts for <code>dev</code>,
+      <code>build</code>, <code>test</code>, and <code>lint</code>, run through <code>pnpm</code>.
+    </p>
+    <p>
+      Until now, running it meant reading the README and typing two commands by hand:
+    </p>
+    <pre><code>pnpm install
+pnpm dev</code></pre>
+    <p>
+      That's fine if you already have the right Node version and pnpm installed and you
+      remember the exact commands. It's not fine as a "just run it" entry point &mdash; which
+      is what this change adds: a <code>run.sh</code> that does the checking and installing
+      for you, then starts the dev server.
+    </p>
+  </section>
+
+  <section id="intuition">
+    <h2>Intuition</h2>
+    <p>
+      The interesting part of <code>run.sh</code> isn't the two commands above &mdash; it's
+      everything that has to happen <em>before</em> them so those two commands are safe to
+      run unconditionally. The script has to answer two questions about the machine it's
+      running on:
+    </p>
+    <div class="branch-diagram">
+      <div class="branch-box decision">Is Node installed, and is it &ge; v22?</div>
+      <div class="branch-box action indent"><span class="tag no">no</span> load <code>nvm</code>, install/switch to the LTS release</div>
+      <div class="branch-box action indent"><span class="tag yes">yes</span> leave it alone</div>
+      <div class="branch-box decision">Is <code>pnpm</code> on the PATH?</div>
+      <div class="branch-box action indent"><span class="tag no">no</span> enable Corepack, activate the latest pnpm</div>
+      <div class="branch-box action indent"><span class="tag yes">yes</span> leave it alone</div>
+    </div>
+    <p>
+      Only once both are true does it do the boring part: <code>pnpm install</code>, then
+      <code>pnpm dev</code>. The project's own <code>package.json</code> already states the
+      requirement (<code>"engines": {"node": "&gt;=22", "pnpm": "&gt;=10"}</code>) &mdash; the
+      script's job is to make that requirement <em>true</em> rather than just <em>documented</em>.
+    </p>
+    <div class="callout">
+      Play with the simulator below: pick a starting machine state and step through
+      exactly what <code>run.sh</code> would print and do.
+    </div>
+
+    <div class="sim">
+      <div class="sim-controls">
+        <div class="sim-group">
+          <span class="label">Node on this machine</span>
+          <select id="sim-node">
+            <option value="none">not installed</option>
+            <option value="old">v18 (too old)</option>
+            <option value="ok" selected>v24 (current)</option>
+          </select>
+        </div>
+        <div class="sim-group">
+          <span class="label">pnpm on this machine</span>
+          <select id="sim-pnpm">
+            <option value="none">not installed</option>
+            <option value="ok" selected>installed</option>
+          </select>
+        </div>
+        <div class="sim-group">
+          <span class="label">&nbsp;</span>
+          <button class="run-btn" id="sim-run">▶ Run ./run.sh</button>
+        </div>
+      </div>
+      <div id="sim-log"></div>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>Code</h2>
+
+    <h3>Guarding Node's version</h3>
+    <p>
+      <code>ensure_node</code> only reaches for <code>nvm</code> when it has to. If
+      <code>node</code> resolves and its major version already clears the bar, it returns
+      immediately &mdash; no network call, no reinstall, no surprise version switch on a
+      machine that's already fine.
+    </p>
+    <pre><code>ensure_node() {
+    if command -v node &gt;/dev/null 2&gt;&amp;1; then
+        local major
+        major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
+        if (( major &gt;= NODE_MIN_MAJOR )); then
+            return
+        fi
+        echo "Node $(node --version) is older than required v${NODE_MIN_MAJOR}; installing a newer version via nvm..."
+    else
+        echo "Node not found; installing via nvm..."
+    fi
+
+    if [[ ! -s "${NVM_DIR}/nvm.sh" ]]; then
+        echo "Error: nvm not found at ${NVM_DIR}/nvm.sh; install nvm first." &gt;&amp;2
+        exit 1
+    fi
+    source "${NVM_DIR}/nvm.sh"
+    nvm install --lts
+    nvm use --lts
+}</code></pre>
+    <p>
+      Two things worth noticing: it fails with a clear error rather than trying to
+      bootstrap <code>nvm</code> itself (installing a version manager is a bigger, riskier
+      step than the script should take silently), and it treats "too old" and "missing"
+      as the same recovery path &mdash; both end up at <code>nvm install --lts</code>.
+    </p>
+
+    <h3>Guarding pnpm</h3>
+    <p>
+      <code>ensure_pnpm</code> is the same shape, one level simpler: pnpm ships inside Node
+      via Corepack, so there's no version manager to bootstrap &mdash; just <code>corepack
+      enable</code> followed by pulling the latest pnpm release.
+    </p>
+    <pre><code>ensure_pnpm() {
+    if command -v pnpm &gt;/dev/null 2&gt;&amp;1; then
+        return
+    fi
+    echo "pnpm not found; enabling via corepack..."
+    corepack enable
+    corepack prepare pnpm@latest --activate
+}</code></pre>
+
+    <h3>Loading nvm before checking, not just before installing</h3>
+    <p>
+      One subtlety lives in <code>main</code>, not in <code>ensure_node</code>: <code>nvm.sh</code>
+      is sourced <em>before</em> <code>ensure_node</code> is even called.
+    </p>
+    <pre><code>main() {
+    if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
+        source "${NVM_DIR}/nvm.sh"
+    fi
+
+    ensure_node
+    ensure_pnpm
+
+    cd "$SCRIPT_DIR"
+    echo "Installing dependencies..."
+    pnpm install
+
+    echo "Starting dev server (http://localhost:5174)..."
+    exec pnpm dev
+}</code></pre>
+    <p>
+      A fresh, non-interactive shell (like the one a script runs in) doesn't source
+      <code>~/.bashrc</code>, so <code>nvm</code>'s shims for switching Node versions
+      wouldn't otherwise be in scope at all. Sourcing it up front means that if a later
+      run needs <code>nvm use --lts</code> inside <code>ensure_node</code>, the function
+      to call already exists.
+    </p>
+    <p>
+      The last line, <code>exec pnpm dev</code>, replaces the shell process with pnpm
+      instead of running it as a child. That means Ctrl-C in the terminal goes straight
+      to Vite's dev server rather than being caught by an intermediate <code>run.sh</code>
+      process &mdash; one less layer between you and the thing you're trying to stop.
+    </p>
+
+    <table class="compat">
+      <tr><th>Function</th><th>Checks</th><th>Recovery</th></tr>
+      <tr><td><code>ensure_node</code></td><td><code>node</code> present and &ge; v22</td><td><code>nvm install --lts</code> + <code>nvm use --lts</code></td></tr>
+      <tr><td><code>ensure_pnpm</code></td><td><code>pnpm</code> present</td><td><code>corepack enable</code> + <code>corepack prepare pnpm@latest --activate</code></td></tr>
+    </table>
+  </section>
+
+  <section id="quiz">
+    <h2>Quiz</h2>
+    <div id="quiz-root"></div>
+    <p id="quiz-score"></p>
+  </section>
+
+  <footer>
+    Generated explanation for the <code>kcd2_dice_solver/run.sh</code> change, 2026-07-21.
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Micro-world simulator ----
+  var runBtn = document.getElementById("sim-run");
+  var logEl = document.getElementById("sim-log");
+  var nodeSel = document.getElementById("sim-node");
+  var pnpmSel = document.getElementById("sim-pnpm");
+
+  function addLine(text, cls, delay) {
+    setTimeout(function () {
+      var div = document.createElement("div");
+      div.className = "log-line" + (cls ? " " + cls : "");
+      div.textContent = text;
+      logEl.appendChild(div);
+    }, delay);
+  }
+
+  runBtn.addEventListener("click", function () {
+    logEl.innerHTML = "";
+    var node = nodeSel.value;
+    var pnpm = pnpmSel.value;
+    var t = 0;
+    var step = 220;
+
+    addLine("$ ./run.sh", null, (t += 0));
+
+    if (node === "none") {
+      addLine("Node not found; installing via nvm...", "warn", (t += step));
+      addLine("source ~/.nvm/nvm.sh", null, (t += step));
+      addLine("nvm install --lts   (downloads + installs latest LTS)", "ok", (t += step));
+      addLine("nvm use --lts", "ok", (t += step));
+    } else if (node === "old") {
+      addLine("Node v18.x.x is older than required v22; installing a newer version via nvm...", "warn", (t += step));
+      addLine("source ~/.nvm/nvm.sh", null, (t += step));
+      addLine("nvm install --lts   (downloads + installs latest LTS)", "ok", (t += step));
+      addLine("nvm use --lts", "ok", (t += step));
+    } else {
+      addLine("node --version → v24.x.x, already ≥ v22 → ensure_node returns immediately", "ok", (t += step));
+    }
+
+    if (pnpm === "none") {
+      addLine("pnpm not found; enabling via corepack...", "warn", (t += step));
+      addLine("corepack enable", "ok", (t += step));
+      addLine("corepack prepare pnpm@latest --activate", "ok", (t += step));
+    } else {
+      addLine("command -v pnpm → found → ensure_pnpm returns immediately", "ok", (t += step));
+    }
+
+    addLine("cd kcd2_dice_solver && pnpm install", null, (t += step));
+    addLine("Installing dependencies... done", "ok", (t += step));
+    addLine("Starting dev server (http://localhost:5174)...", null, (t += step));
+    addLine("exec pnpm dev  →  VITE ready, Local: http://localhost:5174/", "ok", (t += step));
+  });
+
+  // ---- Quiz ----
+  var QUESTIONS = [
+    {
+      q: "A machine already has Node v24 and pnpm installed. What does run.sh do differently from a machine with neither?",
+      opts: [
+        "It re-installs Node from scratch regardless, just to guarantee a known-good version is running",
+        "It still calls corepack enable once anyway, purely as a defensive precaution before continuing further",
+        "Both ensure_node and ensure_pnpm simply return right away, then it proceeds straight to pnpm install",
+        "It skips pnpm install entirely too, assuming the dependencies are already present on disk"
+      ],
+      correct: 2,
+      rationale: "ensure_node and ensure_pnpm each check first and return early once their tool already satisfies the requirement — nothing gets reinstalled, re-enabled, or skipped unnecessarily."
+    },
+    {
+      q: "Why does run.sh treat a too-old Node version the same way as a missing Node install?",
+      opts: [
+        "Both cases fall through to the same recovery, nvm install --lts, needing no separate upgrade path",
+        "An old version instead triggers an immediate hard failure rather than any attempt at nvm install",
+        "Because pnpm itself supposedly requires reinstalling Node completely from scratch whenever its version is wrong",
+        "The script genuinely has no reliable way at all to distinguish between these two different machine states"
+      ],
+      correct: 0,
+      rationale: "Both branches — too old and missing entirely — fall through to the same nvm install --lts / nvm use --lts recovery; the script doesn't distinguish an upgrade from a fresh install."
+    },
+    {
+      q: "Why does main() source nvm.sh before calling ensure_node, rather than only inside ensure_node when an install is actually needed?",
+      opts: [
+        "Because sourcing nvm.sh is required just to make node --version resolve to anything at all",
+        "It's actually redundant, since ensure_node re-sources nvm.sh again anyway before every single install",
+        "So that pnpm itself can be located on PATH without needing corepack to run at all",
+        "So nvm's functions, like nvm use, are already loaded if ensure_node needs to call them"
+      ],
+      correct: 3,
+      rationale: "A script's shell doesn't source ~/.bashrc, so nvm's shims aren't in scope by default; sourcing nvm.sh up front makes nvm install/nvm use callable the moment ensure_node needs them."
+    },
+    {
+      q: "What happens if nvm itself isn't installed on the machine at all, and Node is missing?",
+      opts: [
+        "run.sh downloads and installs nvm automatically itself before continuing on with the rest of the setup",
+        "run.sh prints an error naming the missing nvm.sh path and exits with a non-zero status",
+        "run.sh falls back silently to the system's package manager in order to install Node instead",
+        "run.sh silently continues anyway and lets the later pnpm install command fail instead of it"
+      ],
+      correct: 1,
+      rationale: "ensure_node checks for ${NVM_DIR}/nvm.sh and exits non-zero with an explicit message if it's missing — bootstrapping a whole version manager is out of scope for this script."
+    },
+    {
+      q: "Why does main() end with exec pnpm dev instead of just calling pnpm dev?",
+      opts: [
+        "exec is required for Vite's hot-reload websocket connection to bind correctly to the browser",
+        "Without exec, pnpm install would silently run a second time right after pnpm dev exits",
+        "exec replaces the shell process with pnpm's, so Ctrl-C reaches the dev server directly",
+        "Without exec, pnpm dev would run in the background and the script would exit immediately"
+      ],
+      correct: 2,
+      rationale: "exec swaps the current process image for pnpm's rather than spawning a child, removing the intermediate run.sh process between the terminal and the dev server."
+    }
+  ];
+
+  var root = document.getElementById("quiz-root");
+  var score = 0;
+  var answered = 0;
+
+  QUESTIONS.forEach(function (item, qi) {
+    var wrap = document.createElement("div");
+    wrap.className = "quiz-q";
+
+    var qtext = document.createElement("p");
+    qtext.className = "qtext";
+    qtext.textContent = (qi + 1) + ". " + item.q;
+    wrap.appendChild(qtext);
+
+    var optsWrap = document.createElement("div");
+    optsWrap.className = "quiz-opts";
+
+    var rationale = document.createElement("div");
+    rationale.className = "quiz-rationale";
+    rationale.textContent = item.rationale;
+
+    var locked = false;
+
+    item.opts.forEach(function (optText, oi) {
+      var btn = document.createElement("button");
+      btn.className = "quiz-opt";
+      btn.textContent = optText;
+      btn.addEventListener("click", function () {
+        if (locked) { return; }
+        locked = true;
+        answered++;
+        var buttons = optsWrap.querySelectorAll(".quiz-opt");
+        buttons.forEach(function (b, bi) {
+          if (bi === item.correct) { b.classList.add("correct"); }
+        });
+        if (oi !== item.correct) {
+          btn.classList.add("incorrect");
+        } else {
+          score++;
+        }
+        rationale.classList.add("shown");
+        updateScore();
+      });
+      optsWrap.appendChild(btn);
+    });
+
+    wrap.appendChild(optsWrap);
+    wrap.appendChild(rationale);
+    root.appendChild(wrap);
+  });
+
+  function updateScore() {
+    var el = document.getElementById("quiz-score");
+    el.textContent = "Score: " + score + " / " + QUESTIONS.length + (answered === QUESTIONS.length ? "  —  quiz complete" : "");
+  }
+})();
+</script>
