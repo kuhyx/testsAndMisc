@@ -1,0 +1,49 @@
+{
+  "intent": "Retint kcd2_dice_solver/src/index.css to the frozen unified-design-system palette and fix every violation in the repo's own DESIGN_AUDIT_TODO.md entry for this app.",
+  "scope": [
+    "kcd2_dice_solver/src/index.css"
+  ],
+  "changes": [
+    "Root font-size 15px -> 16px (fixes body-text floor and straightens the rem-based spacing grid onto clean 4px multiples in one change, per the audit's own root-cause note)",
+    "New --tier-tin/--tier-silver custom properties replace hardcoded #a8a196/#cfd4da hex; tier-tin also darkened (was clustering within 2 L* points of --accent/--good) and tier-silver re-tinted warm (was the one cool-leaning hex in an otherwise all-warm palette)",
+    "--line darkened-neutral -> #736750 (was ~1.4:1 against bg/panel, now >=3:1 against both, computed)",
+    "header h1 letter-spacing 0.02em -> -0.01em (largest text was widening tracking instead of tightening it)",
+    "New --radius-sm(3px)/--radius-md(8px) tokens replace the ad-hoc 3/4/6/8px radii; nested elements (.search, .die-list, .die-main, .die-tag, .stepper-value, .stats div) now use the smaller radius since they sit well inside an 8px-radius, 16px-padding outer panel (nesting should trend toward 0, not stay equal to the outer radius)",
+    ".search and .clear/.stepper-button padding corrected to an exact 2x horizontal:vertical ratio (0.5rem 1rem); was 1.5x and 1.75x respectively",
+    ".hint font-size 0.85rem -> 1rem (flagged reading-content text under the 16px floor)"
+  ],
+  "verification": [
+    {
+      "command": "pnpm run lint",
+      "result": "pass",
+      "evidence": "tsc --noEmit && eslint src clean"
+    },
+    {
+      "command": "pnpm run coverage",
+      "result": "pass",
+      "evidence": "14 test files, 210 tests passed; 100% statements/branches/functions/lines"
+    },
+    {
+      "command": "pnpm run build",
+      "result": "pass",
+      "evidence": "vite build succeeded, dist/ regenerated"
+    },
+    {
+      "command": "isolated git worktree re-run of lint+coverage+build at the commit's parent HEAD",
+      "result": "pass",
+      "evidence": "identical results to the dirty-tree run"
+    },
+    {
+      "command": "pnpm run preview + headless-Chrome screenshot of the real production build",
+      "result": "pass",
+      "evidence": "visually reviewed: crisp visible borders on search/die-list/panels, tighter title tracking, distinct tin/silver/gold tier colors, no layout breakage"
+    }
+  ],
+  "risks": [
+    "No deploy target for this repo (local dev tool) — verification ceiling is the production build + preview, not a live check",
+    "Exact L*/contrast values were hand-computed with the standard sRGB->linear approximation (not the WCAG piecewise formula), same caveat the original audit itself carries; margins were kept generous (>=3.1:1 vs the 3:1 floor) to absorb the approximation error"
+  ],
+  "rollback": [
+    "git revert this commit — the change is a single CSS file, no other files coupled to it"
+  ]
+}

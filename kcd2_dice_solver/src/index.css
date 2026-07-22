@@ -2,16 +2,20 @@
   --bg: #17150f;
   --panel: #201d16;
   --panel-2: #2a261d;
-  --line: #3a3428;
+  --line: #736750;
   --text: #e8e0cf;
   --muted: #9d947f;
   --accent: #c8a24a;
   --good: #7fb069;
   --bad: #c96b5b;
+  --tier-tin: #8a8175;
+  --tier-silver: #d4cfc2;
+  --radius-sm: 3px;
+  --radius-md: 8px;
 
   color-scheme: dark;
   font-family: "Iosevka", "Cascadia Code", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 15px;
+  font-size: 16px;
   background: var(--bg);
   color: var(--text);
 }
@@ -34,7 +38,7 @@ header h1 {
   margin: 0;
   font-size: 1.5rem;
   color: var(--accent);
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
@@ -60,7 +64,7 @@ section.inventory,
 .caveats {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 1rem;
 }
 
@@ -82,10 +86,10 @@ section.inventory,
 
 .search {
   flex: 1;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 1rem;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font: inherit;
 }
@@ -105,11 +109,11 @@ section.inventory,
 .stepper-button {
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font: inherit;
   cursor: pointer;
-  padding: 0.4rem 0.7rem;
+  padding: 0.5rem 1rem;
 }
 
 .clear:disabled,
@@ -125,7 +129,7 @@ section.inventory,
 
 .hint {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 1rem;
   margin: 0.6rem 0;
 }
 
@@ -145,7 +149,7 @@ section.inventory,
   max-height: 46vh;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .die-row {
@@ -176,7 +180,7 @@ section.inventory,
   text-align: left;
   cursor: pointer;
   padding: 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   min-width: 0;
 }
 
@@ -235,7 +239,7 @@ section.inventory,
   font-size: 0.7rem;
   color: var(--bg);
   background: var(--accent);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 0 0.3rem;
 }
 
@@ -253,7 +257,7 @@ section.inventory,
   text-align: center;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font: inherit;
 }
@@ -268,10 +272,10 @@ section.inventory,
 }
 
 .tier-tin {
-  color: #a8a196;
+  color: var(--tier-tin);
 }
 .tier-silver {
-  color: #cfd4da;
+  color: var(--tier-silver);
 }
 .tier-gold {
   color: var(--accent);
@@ -334,7 +338,7 @@ section.inventory,
 
 .stats div {
   background: var(--panel-2);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0.5rem 0.6rem;
 }
 
