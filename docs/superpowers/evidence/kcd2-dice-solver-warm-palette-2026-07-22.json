@@ -1,8 +1,6 @@
 {
   "intent": "Retint kcd2_dice_solver/src/index.css to the frozen unified-design-system palette and fix every violation in the repo's own DESIGN_AUDIT_TODO.md entry for this app.",
-  "scope": [
-    "kcd2_dice_solver/src/index.css"
-  ],
+  "scope": ["kcd2_dice_solver/src/index.css"],
   "changes": [
     "Root font-size 15px -> 16px (fixes body-text floor and straightens the rem-based spacing grid onto clean 4px multiples in one change, per the audit's own root-cause note)",
     "New --tier-tin/--tier-silver custom properties replace hardcoded #a8a196/#cfd4da hex; tier-tin also darkened (was clustering within 2 L* points of --accent/--good) and tier-silver re-tinted warm (was the one cool-leaning hex in an otherwise all-warm palette)",
