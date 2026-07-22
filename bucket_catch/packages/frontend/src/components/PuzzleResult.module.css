@@ -5,9 +5,9 @@
   align-items: center;
   justify-content: center;
   gap: 28px;
-  padding: 32px 16px;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-  color: #e0e7ff;
+  padding: var(--space-5) var(--space-3);
+  background: var(--bg-gradient);
+  color: var(--color-text);
 }
 
 .scoreBox {
@@ -15,14 +15,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .grade {
   font-size: 6rem;
   font-weight: 900;
   line-height: 1;
-  background: linear-gradient(90deg, #f472b6, #818cf8);
+  /* Was reversed (pink->indigo) vs every other heading gradient in the
+     app (indigo->pink) — the bug DESIGN_AUDIT_TODO.md flagged. */
+  background: var(--gradient-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -31,7 +33,7 @@
 .pct {
   font-size: 2rem;
   font-weight: 700;
-  color: #a5b4fc;
+  color: var(--color-indigo-light);
 }
 
 .stats {
@@ -40,18 +42,18 @@
 }
 
 .caught {
-  color: #34d399;
+  color: var(--color-success);
 }
 
 .grid {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   max-width: min(480px, 90vw);
   width: 100%;
-  border: 3px solid rgba(129, 140, 248, 0.4);
-  border-radius: 8px;
+  border: 3px solid rgba(var(--color-indigo-rgb), 0.4);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: #1e1b4b;
+  background: var(--surface-solid);
 }
 
 .piece {
@@ -64,16 +66,16 @@
 .hole {
   width: 100%;
   aspect-ratio: 1;
-  background: rgba(30, 27, 75, 0.9);
-  border: 1px dashed rgba(129, 140, 248, 0.2);
+  background: rgba(var(--surface-rgb), 0.9);
+  border: 1px dashed rgba(var(--color-indigo-rgb), 0.2);
 }
 
 .restartBtn {
-  padding: 10px 28px;
-  border-radius: 999px;
+  padding: 14px 28px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  border: 2px solid #f472b6;
-  color: #f9a8d4;
+  border: 2px solid var(--color-pink);
+  color: var(--color-pink-light);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -81,6 +83,6 @@
 }
 
 .restartBtn:hover {
-  border-color: #818cf8;
-  color: #a5b4fc;
+  border-color: var(--color-indigo);
+  color: var(--color-indigo-light);
 }

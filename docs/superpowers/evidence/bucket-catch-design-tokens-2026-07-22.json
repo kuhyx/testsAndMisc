@@ -1,0 +1,52 @@
+{
+  "intent": "Introduce a real shared design-token system for bucket_catch's frontend (previously just a 12-line CSS reset) and fix every violation in DESIGN_AUDIT_TODO.md's bucket_catch section, including a real reversed-gradient-stop visual bug.",
+  "scope": [
+    "bucket_catch/packages/frontend/src/index.css",
+    "bucket_catch/packages/frontend/src/components/DropZone.module.css",
+    "bucket_catch/packages/frontend/src/components/GameCanvas.module.css",
+    "bucket_catch/packages/frontend/src/components/ModeSelect.module.css",
+    "bucket_catch/packages/frontend/src/components/PuzzleCanvas.module.css",
+    "bucket_catch/packages/frontend/src/components/PuzzleResult.module.css",
+    "bucket_catch/packages/frontend/src/components/ScoreScreen.module.css"
+  ],
+  "changes": [
+    "index.css: added a :root token block (bg gradient stops, drag-state gradient, indigo/pink accent pair + one canonical --gradient-accent direction, text/surface colors, success/error, 2 consolidated muted-gray roles down from 4 unrelated shades, a 4px spacing scale, and a radius scale)",
+    "Migrated all 19 hardcoded hex colors across the 6 *.module.css files to reference the new tokens",
+    "Fixed the reversed gradient-stop bug the audit named (PuzzleResult.module.css .grade) plus a second instance the audit's prose didn't cite by line number but is the same bug (ModeSelect.module.css .puzzleStart) -- both now use --gradient-accent so this class of bug can't recur",
+    "Rule 7: .preset border color (DropZone + ModeSelect) changed from muted-border to muted-text -- the original measured under 3:1 against the page background",
+    "Rule 20: ModeSelect .cardDesc font-size 0.85rem -> 1rem (16px floor)",
+    "Rule 22: 4 button classes' vertical padding adjusted so horizontal is exactly 2x vertical (browseBtn/puzzleBtn 8->12px, actionBtn 12->16px, both restartBtns 10->14px, puzzleStart 8->10px)",
+    "Rule 28: DropZone .icon and ModeSelect .cardIcon (large emoji) given 0.85 opacity, dimming them relative to the adjacent muted body text",
+    "Rule 11: the explicitly-cited off-grid values (3px/5px/10px) snapped to the 4px grid; also fixed ModeSelect's .gridInput background, which had drifted to a different base color (bg-1) than its sibling in DropZone (surface) for the identical component",
+    "Rule 24 (nested corner radius on the puzzle .grid/.piece/.hole) was reviewed and deliberately left as-is: forcing a radius onto every tessellating grid cell would look worse, not more deliberate, than the current overflow:hidden-clips-the-outer-silhouette approach, which is a standard and correct technique for this exact case"
+  ],
+  "verification": [
+    {
+      "command": "npm run coverage (vitest)",
+      "result": "pass",
+      "evidence": "14 test files, 145 tests passed, 100% statements/branches/functions/lines (CSS-only change, so this confirms no functional regression, not the visual fix itself)"
+    },
+    {
+      "command": "npx vite build (bypassing the pre-existing, unrelated broken `tsc -b` step in npm run build)",
+      "result": "pass",
+      "evidence": "52 modules transformed, dist/ produced"
+    },
+    {
+      "command": "isolated git worktree re-run of tests + vite build at the commit's parent HEAD",
+      "result": "pass",
+      "evidence": "identical results to the dirty-tree run"
+    },
+    {
+      "command": "python http.server + headless-Chrome screenshot of the real production build",
+      "result": "pass",
+      "evidence": "visually confirmed: heading and primary button now share the same indigo->pink gradient direction, preset chips have a clearly visible lighter border, no layout breakage"
+    }
+  ],
+  "risks": [
+    "npm run lint (tsc -b + eslint) was already broken on a clean, unmodified checkout before this change -- 1 pre-existing tsc error (vite.config.ts, an unrelated overload mismatch) and 46 pre-existing eslint errors (all in test/lib .ts files this change never touched, mostly @typescript-eslint/unbound-method). Confirmed via an isolated worktree at the parent commit. Left alone as out of scope for a CSS-only design-token change.",
+    "No deploy target for this repo (local dev tool) -- vite build + a static-server screenshot is the real verification ceiling, not a live check"
+  ],
+  "rollback": [
+    "git revert this commit -- the change is confined to 7 CSS files, no other files coupled to it"
+  ]
+}

@@ -3,37 +3,39 @@
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  background: var(--bg-gradient);
   transition: background 0.2s;
   overflow-y: auto;
-  padding: 24px 16px;
+  padding: var(--space-4) var(--space-3);
 }
 
 .zone.dragging {
-  background: linear-gradient(135deg, #1a1560, #4a3f9e, #3a3868);
-  outline: 4px dashed #818cf8;
+  background: var(--bg-drag-gradient);
+  outline: 4px dashed var(--color-indigo);
   outline-offset: -12px;
 }
 
 .inner {
   text-align: center;
-  color: #e0e7ff;
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .icon {
   font-size: 52px;
   line-height: 1;
+  /* Dimmed relative to the .subtitle text below it (rule 28). */
+  opacity: 0.85;
 }
 
 .title {
   font-size: 2rem;
   font-weight: 800;
   margin: 0;
-  background: linear-gradient(90deg, #818cf8, #f472b6);
+  background: var(--gradient-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -41,24 +43,24 @@
 
 .subtitle {
   font-size: 1rem;
-  color: #94a3b8;
+  color: var(--muted-text);
   margin: 0;
 }
 
 .count {
   font-size: 1rem;
-  color: #a5b4fc;
+  color: var(--color-indigo-light);
   font-weight: 600;
-  background: rgba(129, 140, 248, 0.15);
-  padding: 4px 16px;
-  border-radius: 999px;
+  background: rgba(var(--color-indigo-rgb), 0.15);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
   margin: 0;
 }
 
 .browseBtn {
-  padding: 8px 24px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #818cf8, #f472b6);
+  padding: 12px var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--gradient-accent);
   color: #fff;
   font-weight: 700;
   font-size: 0.95rem;
@@ -72,7 +74,7 @@
 }
 
 .divider {
-  color: #4b5563;
+  color: var(--muted-border);
   font-size: 0.8rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -96,15 +98,17 @@
 
 .gridLabel {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--muted-text);
 }
 
 .preset {
-  padding: 3px 10px;
-  border-radius: 6px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   background: transparent;
-  border: 1.5px solid #4b5563;
-  color: #94a3b8;
+  /* muted-text, not muted-border — the border-only value measured under
+     3:1 against the page background (rule 7). */
+  border: 1.5px solid var(--muted-text);
+  color: var(--muted-text);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -112,23 +116,23 @@
 }
 
 .preset:hover {
-  border-color: #818cf8;
-  color: #c7d2fe;
+  border-color: var(--color-indigo);
+  color: var(--color-indigo-lighter);
 }
 
 .presetActive {
-  border-color: #f472b6;
-  color: #f9a8d4;
-  background: rgba(244, 114, 182, 0.1);
+  border-color: var(--color-pink);
+  color: var(--color-pink-light);
+  background: rgba(var(--color-pink-rgb), 0.1);
 }
 
 .gridInput {
   width: 56px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: rgba(30, 27, 75, 0.8);
-  border: 1.5px solid #4b5563;
-  color: #e0e7ff;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1.5px solid var(--muted-border);
+  color: var(--color-text);
   font-size: 0.85rem;
   font-weight: 600;
   text-align: center;
@@ -137,21 +141,21 @@
 }
 
 .gridInput:focus {
-  border-color: #818cf8;
+  border-color: var(--color-indigo);
 }
 
 .gridEq {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--muted-faint);
   margin: 0;
 }
 
 .puzzleBtn {
-  padding: 8px 24px;
-  border-radius: 999px;
+  padding: 12px var(--space-4);
+  border-radius: var(--radius-pill);
   background: transparent;
-  border: 2px solid #f472b6;
-  color: #f9a8d4;
+  border: 2px solid var(--color-pink);
+  color: var(--color-pink-light);
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
@@ -159,7 +163,7 @@
 }
 
 .puzzleBtn:hover {
-  background: rgba(244, 114, 182, 0.12);
-  border-color: #e879f9;
-  color: #e879f9;
+  background: rgba(var(--color-pink-rgb), 0.12);
+  border-color: var(--color-pink-lighter);
+  color: var(--color-pink-lighter);
 }

@@ -5,9 +5,9 @@
   align-items: center;
   justify-content: center;
   gap: 28px;
-  padding: 32px 16px;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-  color: #e0e7ff;
+  padding: var(--space-5) var(--space-3);
+  background: var(--bg-gradient);
+  color: var(--color-text);
 }
 
 .scoreBox {
@@ -15,14 +15,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .grade {
   font-size: 6rem;
   font-weight: 900;
   line-height: 1;
-  background: linear-gradient(90deg, #818cf8, #f472b6);
+  background: var(--gradient-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -31,27 +31,27 @@
 .pct {
   font-size: 2rem;
   font-weight: 700;
-  color: #a5b4fc;
+  color: var(--color-indigo-light);
 }
 
 .stats {
   display: flex;
-  gap: 24px;
+  gap: var(--space-4);
   font-size: 1.1rem;
   font-weight: 600;
 }
 
 .caught {
-  color: #34d399;
+  color: var(--color-success);
 }
 
 .missed {
-  color: #f87171;
+  color: var(--color-error);
 }
 
 .lists {
   display: flex;
-  gap: 32px;
+  gap: var(--space-5);
   flex-wrap: wrap;
   justify-content: center;
   max-width: 640px;
@@ -61,7 +61,7 @@
 .listTitle {
   font-size: 1rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--muted-text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin: 0 0 8px;
@@ -79,10 +79,10 @@
 .fileItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(30, 27, 75, 0.7);
-  border-radius: 8px;
-  padding: 6px 12px;
+  gap: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
   font-size: 0.9rem;
 }
 
@@ -100,7 +100,7 @@
 }
 
 .fsize {
-  color: #64748b;
+  color: var(--muted-faint);
   font-size: 0.8rem;
 }
 
@@ -108,13 +108,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .actionBtn {
-  padding: 12px 32px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #818cf8, #f472b6);
+  padding: 16px var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--gradient-accent);
   color: #fff;
   font-weight: 700;
   font-size: 1rem;
@@ -128,11 +128,11 @@
 }
 
 .restartBtn {
-  padding: 10px 28px;
-  border-radius: 999px;
+  padding: 14px 28px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  border: 2px solid #818cf8;
-  color: #a5b4fc;
+  border: 2px solid var(--color-indigo);
+  color: var(--color-indigo-light);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -140,18 +140,18 @@
 }
 
 .restartBtn:hover {
-  border-color: #f472b6;
-  color: #f9a8d4;
+  border-color: var(--color-pink);
+  color: var(--color-pink-light);
 }
 
 .status {
-  color: #34d399;
+  color: var(--color-success);
   font-weight: 600;
   margin: 0;
 }
 
 .error {
-  color: #f87171;
+  color: var(--color-error);
   font-weight: 600;
   margin: 0;
 }

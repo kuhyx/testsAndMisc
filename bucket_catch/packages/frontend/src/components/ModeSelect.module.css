@@ -4,16 +4,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-  color: #e0e7ff;
+  gap: var(--space-4);
+  background: var(--bg-gradient);
+  color: var(--color-text);
 }
 
 .heading {
   font-size: 2rem;
   font-weight: 800;
   margin: 0;
-  background: linear-gradient(90deg, #818cf8, #f472b6);
+  background: var(--gradient-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -21,22 +21,22 @@
 
 .sub {
   font-size: 1.1rem;
-  color: #94a3b8;
+  color: var(--muted-text);
   margin: 0;
 }
 
 .cards {
   display: flex;
-  gap: 24px;
+  gap: var(--space-4);
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .card {
-  background: rgba(30, 27, 75, 0.7);
-  border: 2px solid #818cf8;
-  border-radius: 16px;
-  padding: 32px 40px;
+  background: var(--surface);
+  border: 2px solid var(--color-indigo);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
   width: 220px;
   display: flex;
   flex-direction: column;
@@ -44,16 +44,18 @@
   gap: 12px;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.15s;
-  color: #e0e7ff;
+  color: var(--color-text);
 }
 
 .card:hover {
-  border-color: #f472b6;
+  border-color: var(--color-pink);
   transform: translateY(-4px);
 }
 
 .cardIcon {
   font-size: 48px;
+  /* Dimmed relative to .cardDesc below it (rule 28). */
+  opacity: 0.85;
 }
 
 .cardTitle {
@@ -62,8 +64,9 @@
 }
 
 .cardDesc {
-  font-size: 0.85rem;
-  color: #94a3b8;
+  /* Was 0.85rem (13.6px), under the 16px reading floor (rule 20). */
+  font-size: 1rem;
+  color: var(--muted-text);
   text-align: center;
   line-height: 1.4;
 }
@@ -71,11 +74,11 @@
 .cardDisabled {
   opacity: 0.4;
   cursor: not-allowed;
-  border-color: #4b5563;
+  border-color: var(--muted-border);
 }
 
 .cardDisabled:hover {
-  border-color: #4b5563;
+  border-color: var(--muted-border);
   transform: none;
 }
 
@@ -86,18 +89,19 @@
 .gridRow {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   flex-wrap: wrap;
   justify-content: center;
   margin-top: 4px;
 }
 
 .preset {
-  padding: 3px 9px;
-  border-radius: 6px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   background: transparent;
-  border: 1.5px solid #4b5563;
-  color: #94a3b8;
+  /* muted-text, not muted-border — same rule 7 contrast fix as DropZone. */
+  border: 1.5px solid var(--muted-text);
+  color: var(--muted-text);
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -105,23 +109,28 @@
 }
 
 .preset:hover {
-  border-color: #818cf8;
-  color: #c7d2fe;
+  border-color: var(--color-indigo);
+  color: var(--color-indigo-lighter);
 }
 
 .presetActive {
-  border-color: #f472b6;
-  color: #f9a8d4;
-  background: rgba(244, 114, 182, 0.12);
+  border-color: var(--color-pink);
+  color: var(--color-pink-light);
+  /* 0.1, not 0.12 — matches DropZone's identical "active preset chip"
+     role; the two files had drifted to different alpha values. */
+  background: rgba(var(--color-pink-rgb), 0.1);
 }
 
 .gridInput {
   width: 52px;
-  padding: 3px 5px;
-  border-radius: 6px;
-  background: rgba(15, 12, 41, 0.8);
-  border: 1.5px solid #4b5563;
-  color: #e0e7ff;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  /* --surface, not a raw rgba(15,12,41,...) literal — DropZone's sibling
+     gridInput already used the surface color; this one had drifted to a
+     different base (bg-1) for the identical component. */
+  background: var(--surface);
+  border: 1.5px solid var(--muted-border);
+  color: var(--color-text);
   font-size: 0.82rem;
   font-weight: 600;
   text-align: center;
@@ -130,20 +139,24 @@
 }
 
 .gridInput:focus {
-  border-color: #818cf8;
+  border-color: var(--color-indigo);
 }
 
 .gridEq {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--muted-faint);
   margin: 2px 0 0;
 }
 
 .puzzleStart {
   margin-top: 6px;
-  padding: 8px 20px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #f472b6, #818cf8);
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  /* --gradient-accent, not the stops written out reversed — this button
+     was pink->indigo while every other primary gradient in the app is
+     indigo->pink (same underlying bug the audit flagged in
+     PuzzleResult.module.css, just not cited by this exact line). */
+  background: var(--gradient-accent);
   color: #fff;
   font-weight: 700;
   font-size: 0.9rem;
