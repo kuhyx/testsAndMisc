@@ -1,0 +1,57 @@
+{
+  "intent": "Reduce overnight power draw during night-lockdown without moving self-hosted services off the desktop, and harden dnsmasq (this PC's LAN DHCP/DNS server) against silently dying again after it was found dead with zero error logged.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh",
+    "linux_configuration/scripts/single_use/features/setup_dns_blocker.sh",
+    "phone_focus_mode/config.sh",
+    "Non-goal: migrating services to a Raspberry Pi (tried, abandoned mid-session per user decision after SSH auth failed)",
+    "Non-goal: full GPU PCI unbind is built but left disabled by default (GPU_UNBIND_ENABLE=0), not enabled in this change"
+  ],
+  "changes": [
+    "night-lockdown: new POWER_SAVE_ENABLE (default 1) caps CPU via amd-pstate-epp energy_performance_preference and GPU via nvidia-smi -pl during lockdown, restoring the exact pre-lockdown values at unlock",
+    "night-lockdown: prev-value capture guarded on the .prev file not already existing, and unlock deletes it after a successful restore -- closes a crash-safety hole where a kill between capture and LOCKED-state-write would have permanently corrupted the restore baseline on re-invocation",
+    "night-lockdown: nvidia-smi -pl calls (both cap and restore) wrapped in timeout 10, matching the existing timeout 20 guard already used for modprobe -r in the same file",
+    "night-lockdown: new GPU_UNBIND_ENABLE (default 0, left off) fully unbinds the GPU from the PCI bus as a more aggressive alternative; includes a re-blank_console call after unbind and a bounded driver-ready poll (replacing a fixed sleep) before lightdm restarts, in case it's ever enabled",
+    "night-lockdown: extended the existing DRY_RUN NOTE convention to cover the new EPP/nvidia-smi/GPU-unbind steps",
+    "setup_dns_blocker.sh: new dnsmasq-watchdog.timer/.service (5-min systemctl is-active check + restart + logger call), mirroring the existing shutdown-timer-monitor-watchdog pattern; enable call centralized in validate_and_enable() (after dnsmasq --test) rather than self-enabling in install_watchdog(), matching this file's own write-then-validate-then-enable convention",
+    "phone_focus_mode/config.sh: com.tplink.iot (Tapo) added to both WHITELIST and NIGHT_WHITELIST so the overnight power-draw baseline reading is checkable during the curfew window"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh linux_configuration/scripts/single_use/features/setup_dns_blocker.sh phone_focus_mode/config.sh",
+      "result": "pass",
+      "evidence": "All hooks passed including shellcheck, codespell, secret scan; no lint suppressions added"
+    },
+    {
+      "command": "bash test_setup_dns_blocker.sh (existing regression suite)",
+      "result": "pass",
+      "evidence": "PASS: test_setup_dns_blocker.sh -- unmodified, covers dispatch + firewall_is_loaded pipefail regression"
+    },
+    {
+      "command": "sudo DRY_RUN=1 /usr/local/bin/night-lockdown-enter.sh / -unlock.sh (real deployed scripts, redeployed via setup_night_lockdown.sh setup)",
+      "result": "pass",
+      "evidence": "Correct log output for CPU EPP writes, timeout-wrapped nvidia-smi -pl, new DRY_RUN NOTE lines; state file and no real .prev files touched"
+    },
+    {
+      "command": "Live dnsmasq incident (real, not simulated): found dead with zero error logged, mid-session",
+      "result": "pass",
+      "evidence": "Restarted (systemctl restart dnsmasq), confirmed listening on :53/:67, Tapo plug (P110) obtained a DHCP lease at 192.168.1.76 immediately after; watchdog timer deployed and confirmed active via systemctl list-timers"
+    },
+    {
+      "command": "5-agent code review (CLAUDE.md compliance, bug scan, git-history context, code-comment compliance) against the working diff",
+      "result": "pass",
+      "evidence": "2 bug-scan findings independently verified as false positives on live hardware (nvidia-smi accepts decimal -pl args on this driver version; set -euo pipefail already present, refuting the pipeline-exit-status concern); 3 real findings fixed (install_watchdog enable-ordering, prev-value crash-safety, missing nvidia-smi timeout); 2 gated-off findings (GPU-unbind console-blank race, fixed sleep vs driver-ready poll) fixed proactively since GPU_UNBIND_ENABLE is inert by default"
+    }
+  ],
+  "risks": [
+    "First real (non-DRY_RUN) lockdown cycle with POWER_SAVE_ENABLE=1 has not happened yet -- tonight's scheduled window is the first real-hardware validation",
+    "GPU_UNBIND_ENABLE stays default-off; if ever manually enabled, the first real run of that path is also its first real test (self-acknowledged in the config comment, cannot be safely rehearsed since it tears down the same GPU/X session running any interactive test)",
+    "Root cause of the dnsmasq death is still unknown (no crash logged) -- the watchdog mitigates recurrence but does not explain the original incident"
+  ],
+  "rollback": [
+    "Set POWER_SAVE_ENABLE=0 and/or GPU_UNBIND_ENABLE=0 in /etc/night-lockdown.conf, then re-run sudo ./setup_night_lockdown.sh setup to redeploy without the power-save steps",
+    "To remove the dnsmasq watchdog: systemctl disable --now dnsmasq-watchdog.timer, rm the two unit files, systemctl daemon-reload",
+    "git revert the commit; re-run both setup scripts' setup subcommand to redeploy the prior generated files",
+    "After any rollback, verify SSH/WireGuard access before closing the session -- setup_dns_blocker.sh setup reloads the whole nftables ruleset as a side effect"
+  ]
+}

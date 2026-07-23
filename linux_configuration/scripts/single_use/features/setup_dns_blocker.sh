@@ -40,6 +40,8 @@ readonly DNSMASQ_DROPIN_DIR="/etc/systemd/system/dnsmasq.service.d"
 readonly DNSMASQ_DROPIN="${DNSMASQ_DROPIN_DIR}/blocker.conf"
 readonly REFRESH_SERVICE="/etc/systemd/system/dns-blocklist-refresh.service"
 readonly REFRESH_TIMER="/etc/systemd/system/dns-blocklist-refresh.timer"
+readonly WATCHDOG_SERVICE="/etc/systemd/system/dnsmasq-watchdog.service"
+readonly WATCHDOG_TIMER="/etc/systemd/system/dnsmasq-watchdog.timer"
 # Optional DHCP-server mode (for routers that cannot advertise a custom DNS).
 readonly DHCP_CONF="/etc/dnsmasq.d/lan-dhcp.conf"
 readonly DHCP_LEASE="12h"
@@ -184,6 +186,38 @@ WantedBy=timers.target
 EOF
 }
 
+# The whole LAN's DHCP/DNS depends on this one process. Restart=always in the
+# drop-in only catches an actual crash; an incident on 2026-07-23 found
+# dnsmasq dead with ZERO error logged (no crash, no "Stopping"/"Stopped" line
+# either -- consistent with something issuing a plain stop, not a failure) and
+# it stayed down for hours, silently, until noticed by a phone unable to join
+# WiFi. Mirrors the existing shutdown-timer-monitor-watchdog pattern used
+# elsewhere in this repo: same 5-minute cadence, same is-active-or-start shape,
+# plus a logger call so a future incident leaves a trace instead of none.
+install_watchdog() {
+	cat >"$WATCHDOG_SERVICE" <<'EOF'
+[Unit]
+Description=Watchdog for dnsmasq (LAN DHCP/DNS)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'systemctl is-active --quiet dnsmasq || { logger -t dnsmasq-watchdog "dnsmasq was down -- restarting"; systemctl restart dnsmasq; }'
+EOF
+	cat >"$WATCHDOG_TIMER" <<'EOF'
+[Unit]
+Description=Watchdog Timer for dnsmasq
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+}
+
 validate_and_enable() {
 	log_info "Validating dnsmasq configuration..."
 	dnsmasq --test 2>&1 | tail -3
@@ -195,7 +229,8 @@ validate_and_enable() {
 	# apply config changes on idempotent re-runs.
 	systemctl restart dnsmasq
 	systemctl enable --now dns-blocklist-refresh.timer
-	log_ok "dnsmasq and the daily refresh timer are enabled."
+	systemctl enable --now dnsmasq-watchdog.timer
+	log_ok "dnsmasq, the daily refresh timer, and the watchdog are enabled."
 }
 
 # Open port 53 for LAN clients -- but only touch the firewall if it is already
@@ -272,6 +307,7 @@ cmd_setup() {
 	write_dnsmasq_conf
 	install_restart_dropin
 	install_refresh_timer
+	install_watchdog
 	validate_and_enable
 	configure_firewall
 	print_manual_steps
