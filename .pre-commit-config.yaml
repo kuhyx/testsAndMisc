@@ -252,6 +252,16 @@ repos:
         language: system
         pass_filenames: false
         files: ^(python_pkg/.*\.py|requirements\.txt)$
+      - id: session-autopsy-hook-mutations
+        name: session_autopsy hook tests are non-vacuous (mutation)
+        entry: python3 meta/scripts/mutate_session_autopsy_hooks.py
+        language: system
+        pass_filenames: false
+        require_serial: true
+        # Scoped to the two files that can invalidate the proof: the suite
+        # itself and the mutation definitions. Takes ~40s, so it must not run
+        # on unrelated commits. Skips itself where ~/.claude is absent (CI).
+        files: ^(linux_configuration/tests/test_session_autopsy_hooks\.py|meta/scripts/mutate_session_autopsy_hooks\.py)$
       - id: ci-mirror
         name: CI mirror (clean-venv install + --all-files + changed-pkg pytest)
         entry: bash meta/scripts/ci_mirror.sh
