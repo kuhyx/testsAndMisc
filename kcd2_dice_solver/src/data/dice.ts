@@ -37,6 +37,14 @@ export interface Die {
    * Empty for all but two dice.
    */
   readonly wildcardFaces: readonly Face[];
+  /**
+   * Whether this die's joker also scores when held on its own.
+   *
+   * True for Balatro's die ("picking it alone will count as if you threw 1"),
+   * false for the Devil's head ("never scoring on its own"). Meaningless, and so
+   * false, when `wildcardFaces` is empty.
+   */
+  readonly wildScoresAlone: boolean;
 }
 
 /**
@@ -63,6 +71,7 @@ interface RawDie {
   readonly description: string;
   readonly weights: Weights;
   readonly wildcardFaces?: readonly Face[];
+  readonly wildScoresAlone?: boolean;
 }
 
 const RAW_DICE: readonly RawDie[] = [
@@ -78,11 +87,25 @@ const RAW_DICE: readonly RawDie[] = [
     name: "Balatro's die",
     description:
       "A die crafted by the balatro Jimbo, marked with his grinning face. When it lands, you get to choose how it's counted!",
-    // The wiki lists no percentages for this die. Every face is a wildcard, so
-    // the face distribution is irrelevant to scoring: whichever face lands, the
-    // player chooses its value. Modelled as uniform with all six faces wild.
+    // Only ONE face is the joker — Jimbo's grinning face, visible on the item
+    // icon. The wiki's dice-effect table for this die is `{{Dice effect|d|d|d|d|
+    // d|d}}`: six *unfilled placeholders* that render as "d%", not six wildcards.
+    // Reading them as wildcards is what made this die look unbeatable.
+    //
+    // No source publishes its side weights (the wiki cells are the placeholders
+    // above and Inara omits the die entirely), so uniform is an assumption, kept
+    // as [1,1,1,1,1,1] rather than a fake "16.7" so it cannot be mistaken for a
+    // transcribed figure.
+    //
+    // The joker is modelled as replacing the one, like the Devil's head it is
+    // explicitly compared to, which is also why holding it alone counts as a 1.
+    // UNVERIFIED: if the die turns out to show a plain single pip in-game, the
+    // joker replaces some other face and this should move.
     weights: [1, 1, 1, 1, 1, 1],
-    wildcardFaces: [1, 2, 3, 4, 5, 6],
+    wildcardFaces: [1],
+    // "When it lands, you get to choose how it's counted!" — and, unlike the
+    // Devil's head, "picking it alone will count as if you threw 1".
+    wildScoresAlone: true,
   },
   {
     id: "cautious_cheater",
@@ -105,7 +128,9 @@ const RAW_DICE: readonly RawDie[] = [
     description:
       "A die that feels hot to the touch. In place of a one it has a devil's head, which is not something folk like to gaze upon…",
     // Face 1 is the devil's head, which the wiki scoring table marks "Subst" —
-    // it substitutes for any value.
+    // it substitutes for any value, but per the die's own page it "acts as a
+    // joker, matching any combination but never scoring on its own", so it
+    // cannot be the lone 1 or 5 that lets you hold a die.
     weights: [16.7, 16.7, 16.7, 16.7, 16.7, 16.7],
     wildcardFaces: [1],
   },
@@ -372,6 +397,7 @@ export const DICE: readonly Die[] = RAW_DICE.map((raw) => ({
   description: raw.description,
   weights: normalise(raw.weights),
   wildcardFaces: raw.wildcardFaces ?? [],
+  wildScoresAlone: raw.wildScoresAlone ?? false,
 })).sort((a, b) => a.name.localeCompare(b.name));
 
 /** Lookup from die id to die, for resolving saved inventories. */

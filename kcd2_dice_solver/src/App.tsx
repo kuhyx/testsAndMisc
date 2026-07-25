@@ -181,8 +181,10 @@ export function App({ createPort, storage }: AppProps = {}): JSX.Element {
                 other, not a prediction of a scoreline.
               </li>
               <li>
-                Balatro’s die is modelled as always counting in your favour, so it will
-                always be picked if you own it.
+                Balatro’s die has <strong>one</strong> joker face, not six, and the game
+                publishes <strong>no face probabilities</strong> for it. It is modelled as a
+                fair die whose 1 is replaced by the joker — the same shape as the Devil’s
+                head, but its joker also counts as a 1 when held alone.
               </li>
               <li>
                 The three “Advantage” formations and the Headstart leads have{" "}

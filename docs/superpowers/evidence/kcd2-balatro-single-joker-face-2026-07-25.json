@@ -1,0 +1,54 @@
+{
+  "intent": "Model Balatro's die correctly in the KCD2 dice solver: it has ONE joker face, not six, so the solver must stop treating it as an unbeatable die that always resolves in the player's favour. Also honour the fact that the game's two joker faces score differently.",
+  "scope": [
+    "kcd2_dice_solver/src/data/dice.ts - Balatro entry, Devil's head comment, new wildScoresAlone field",
+    "kcd2_dice_solver/src/core/{counts,scoring,distribution,simulate}.ts - two substitute slots instead of one",
+    "kcd2_dice_solver/README.md and src/App.tsx - the 'what the numbers are not' caveats",
+    "Non-goal: no change to any other die's published percentages, and no UI restyling"
+  ],
+  "changes": [
+    "Root cause: the wiki's dice-effect row for Balatro's die is {{Dice effect|d|d|d|d|d|d}} - six UNFILLED placeholder cells that render as 'd%'. A previous pass read those six 'd's as six wildcard faces. Verified against the page wikitext via the fandom api.php, Template:Dice effect, and the item icon (one grinning face of six).",
+    "Balatro's die: wildcardFaces 1-6 -> [1], weights left as uniform [1,1,1,1,1,1] with a comment stating outright that no source publishes its side weights (wiki cells are placeholders, Inara omits the die), so uniform is an assumption rather than a transcribed figure.",
+    "Joker face mapping: assumed to replace the one, matching the Devil's head die the game compares it to and 'picking it alone will count as if you threw 1'. Marked UNVERIFIED in the data; the in-game check is whether the die shows a plain single pip. Confirmed as the intended assumption by the user.",
+    "The two joker faces are no longer modelled identically. Devil's head: 'matching any combination but never scoring on its own'. Balatro: 'picking it alone will count as if you threw 1'. counts.ts now has two substitute slots (WILD_ALONE, WILD_COMBO), CATEGORIES 7 -> 8, and Scorer.moves() spends a Devil's head only inside the combination it completes instead of resolving it to a plain face - so it can never be the lone 1 or 5 that makes a hold legal.",
+    "Scorer.scoreFaces(faces, wildcards) -> scoreFaces(faces, {alone, combo}) so no call site can be ambiguous about which kind of substitute it means.",
+    "A substitute-free hand keeps the original single-pass combination code path, so the change costs nothing on the overwhelming majority of scoring states."
+  ],
+  "verification": [
+    {
+      "command": "node scratchpad/balatro_demo.ts (bundled with esbuild) - before vs after",
+      "result": "pass",
+      "evidence": "BEFORE: balatro wildFaces [1,2,3,4,5,6]; six-of-a-kind EV 8000.0, bust 0.00%; 'lone devil's head' scored 100; solver picked 6x balatro over 6x weighted (EV 8000 vs 2674). AFTER: balatro wildFaces [1]; EV 771.2, bust 3.09%; lone joker 100, lone devil's head 0; scoreUsingAll: joker alone 100, devil alone -Infinity (illegal hold), 1+devil -Infinity, 2,2+devil 200; simulated points/turn balatro 813.7 +/- 3.6 vs devils_head 808.3 +/- 3.7 vs ordinary 472.2; solver on {balatro:2, weighted:6, ordinary:6} now picks 6x weighted (EV 2674.6) instead of forcing balatro in."
+    },
+    {
+      "command": "node_modules/.bin/vitest run --coverage",
+      "result": "pass",
+      "evidence": "14 files, 222 tests passed. Coverage 100% statements / 100% branches (307/307) / 100% functions / 100% lines - the repo's fail_under=100 bar held without any new ignores. evaluate.test.ts's 'routes every Balatro face into the wildcard slot' - the test that enshrined the bug - was rewritten to assert 1/6 in the score-alone slot and 1/6 on each of faces 2-6."
+    },
+    {
+      "command": "node_modules/.bin/tsc --noEmit && node_modules/.bin/eslint src && pnpm build",
+      "result": "pass",
+      "evidence": "No type errors, no lint findings, vite build 43 modules -> dist in 599ms."
+    },
+    {
+      "command": "perf comparison against HEAD in a throwaway git worktree (whole-collection inventory, 2 of every die)",
+      "result": "pass",
+      "evidence": "Search 191ms (before) -> 718ms (after) looked like a 3.7x regression, but with Balatro's die excluded from the inventory the two are 498ms (before) vs 461ms (after). The old speed was an artifact of the broken die's 8000-point EV pruning the branch-and-bound; the new code is marginally faster on identical work. No code regression."
+    },
+    {
+      "command": "pre-commit run --files <13 changed files + this evidence file>",
+      "result": "pass",
+      "evidence": "Every applicable hook passed: binary-file block, AI evidence contract, workflow contract for multi-file code changes, append-only session logs, codespell, secret scans, line endings. Python/shell hooks skipped (no such files in the change)."
+    }
+  ],
+  "risks": [
+    "Which pip the joker replaces is UNVERIFIED - no published source states it. If the die shows a plain single pip in-game, the joker replaces some other face and dice.ts must move; the assumption is deliberately the weaker of the two candidates so the error direction is conservative.",
+    "Its side weights are an assumption (uniform). If Warhorse loaded this die, its EV is wrong by however much the loading is worth.",
+    "A combination made entirely of substitutes (three Devil's heads as a triple) is allowed. The wiki's examples always pair a joker with natural dice and do not say whether an all-joker set counts.",
+    "Devil's head EV drops slightly because its joker can no longer be held as a lone 1. That is a deliberate correction, not a side effect, but it does change previously reported numbers for that die."
+  ],
+  "rollback": [
+    "git revert the commit; the change is confined to kcd2_dice_solver/ and touches no shared tooling.",
+    "After rollback, re-run vitest (222 tests) and confirm the solver again reports Balatro's die at EV 8000 - i.e. that the bug is back - so it is obvious the revert restored the old behaviour rather than a third state."
+  ]
+}

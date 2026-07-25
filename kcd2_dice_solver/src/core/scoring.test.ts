@@ -7,11 +7,29 @@
 import { describe, expect, it } from "vitest";
 import { BASE_RULES, DEFAULT_FORMATION_VALUES } from "../data/badges.ts";
 import type { ScoringRules } from "../data/badges.ts";
-import { Scorer, ofAKindValue, tripleBase } from "./scoring.ts";
+import { CATEGORIES, Scorer, WILD_ALONE, WILD_COMBO, ofAKindValue, tripleBase } from "./scoring.ts";
+import type { WildCounts } from "./scoring.ts";
 
 const plain = (): Scorer => new Scorer(BASE_RULES);
 const withRules = (rules: Partial<ScoringRules>): Scorer =>
   new Scorer({ ...BASE_RULES, ...rules }, DEFAULT_FORMATION_VALUES);
+
+/**
+ * Build a count vector, for the calls that take one rather than a face list.
+ *
+ * @param faces - Natural face values in the hand.
+ * @param wilds - Substitutes of each kind in the hand.
+ * @returns The count vector those dice make.
+ */
+const countsOf = (faces: readonly number[], wilds: WildCounts = {}): number[] => {
+  const counts = new Array<number>(CATEGORIES).fill(0);
+  for (const face of faces) {
+    counts[face - 1] += 1;
+  }
+  counts[WILD_ALONE] = wilds.alone ?? 0;
+  counts[WILD_COMBO] = wilds.combo ?? 0;
+  return counts;
+};
 
 describe("wiki scoring table", () => {
   it("scores a single one and a single five", () => {
@@ -72,28 +90,76 @@ describe("wiki scoring table", () => {
   });
 });
 
-describe("wildcards", () => {
-  it("lets a wildcard complete a straight", () => {
-    // 2,3,4,5,6 plus one wildcard becomes the full 1-6 straight.
-    expect(plain().scoreFaces([2, 3, 4, 5, 6], 1)).toBe(1500);
+describe("substitutes", () => {
+  // Both joker faces substitute inside combinations, so these cases must come
+  // out the same whichever kind of substitute supplies the missing face.
+  for (const [kind, wilds] of [
+    ["Balatro joker", { alone: 1 }],
+    ["devil's head", { combo: 1 }],
+  ] as const) {
+    it(`lets a ${kind} complete a straight`, () => {
+      // 2,3,4,5,6 plus one substitute becomes the full 1-6 straight.
+      expect(plain().scoreFaces([2, 3, 4, 5, 6], wilds)).toBe(1500);
+    });
+
+    it(`lets a ${kind} complete a triple`, () => {
+      // 6,6 + substitute-as-6 is 600, but 2,3,4,6 + substitute-as-5 is the 2-6
+      // straight at 750 — the scorer must take the better of the two.
+      expect(plain().scoreFaces([6, 6, 2, 3, 4], wilds)).toBe(750);
+      // Without the 2-6 straight available, the triple is the best use.
+      expect(plain().scoreFaces([6, 6, 2, 2, 4], wilds)).toBe(600);
+    });
+
+    it(`extends an n-of-a-kind with a ${kind}`, () => {
+      // Three ones and a substitute are a quadruple, per the wiki's example.
+      expect(plain().scoreFaces([1, 1, 1, 2, 4], wilds)).toBe(2000);
+    });
+
+    it(`never makes a roll worse with a ${kind}`, () => {
+      expect(plain().scoreFaces([2, 2, 3, 3, 4], wilds)).toBeGreaterThan(0);
+    });
+  }
+
+  it("scores a lone Balatro joker as a one", () => {
+    // "Picking it alone will count as if you threw 1."
+    expect(plain().scoreFaces([], { alone: 1 })).toBe(100);
+    expect(plain().scoreFaces([2, 3], { alone: 1 })).toBe(100);
   });
 
-  it("lets a wildcard complete a triple", () => {
-    // 6,6 + wildcard-as-6 is 600, but 2,3,4,6 + wildcard-as-5 is the 2-6
-    // straight at 750 — the scorer must take the better of the two.
-    expect(plain().scoreFaces([6, 6, 2, 3, 4], 1)).toBe(750);
-    // Without the 2-6 straight available, the triple is the best use.
-    expect(plain().scoreFaces([6, 6, 2, 2, 4], 1)).toBe(600);
+  it("gives a lone devil's head nothing", () => {
+    // "Matching any combination but never scoring on its own."
+    expect(plain().scoreFaces([], { combo: 1 })).toBe(0);
+    expect(plain().scoreFaces([2, 3], { combo: 1 })).toBe(0);
+    // Nor may it ride along with a scoring die: a hold must be all scoring dice,
+    // and there is no combination for the devil's head to join here.
+    expect(plain().scoreUsingAll(countsOf([1], { combo: 1 }))).toBe(-Infinity);
+    expect(plain().scoreUsingAll(countsOf([], { alone: 1 }))).toBe(100);
   });
 
-  it("resolves six wildcards to the best possible roll", () => {
-    // Balatro's die: every face is a wildcard, so six of them are six ones.
-    expect(plain().scoreFaces([], 6)).toBe(8000);
+  it("resolves six substitutes to the best possible roll", () => {
+    // Six of either kind can form two triples of ones, since a combination may
+    // be made entirely of substitutes.
+    expect(plain().scoreFaces([], { alone: 6 })).toBe(8000);
+    expect(plain().scoreFaces([], { combo: 6 })).toBe(8000);
   });
 
-  it("never makes a roll worse", () => {
+  it("spends both kinds of substitute on one combination", () => {
+    // 2,2 + joker-as-2 + devil-as-2 is a four-of-a-kind, so both slots have to
+    // be reachable from the same combination.
+    expect(plain().scoreFaces([2, 2], { alone: 1, combo: 1 })).toBe(400);
+    expect(plain().scoreFaces([1, 1], { alone: 1, combo: 1 })).toBe(2000);
+  });
+
+  it("gives the joker every use the devil's head has, and one more", () => {
     const scorer = plain();
-    expect(scorer.scoreFaces([2, 2, 3, 3, 4], 1)).toBeGreaterThan(0);
+    for (const faces of [[2, 3], [2, 2], [6, 6, 2, 3, 4], [1, 1, 1, 2, 4], [2, 3, 4, 5, 6]]) {
+      expect(scorer.scoreFaces(faces, { alone: 1 })).toBeGreaterThanOrEqual(
+        scorer.scoreFaces(faces, { combo: 1 }),
+      );
+    }
+    // The one extra: scoring with no combination to join.
+    expect(scorer.scoreFaces([2, 3], { alone: 1 })).toBe(100);
+    expect(scorer.scoreFaces([2, 3], { combo: 1 })).toBe(0);
   });
 });
 
@@ -136,24 +202,29 @@ describe("badge scoring rules", () => {
 describe("scoreUsingAll", () => {
   it("requires every die to be part of a combination", () => {
     const scorer = plain();
-    expect(scorer.scoreUsingAll([1, 0, 0, 0, 0, 0, 0])).toBe(100);
+    expect(scorer.scoreUsingAll(countsOf([1]))).toBe(100);
     // A lone 2 cannot score, so no legal hold uses it.
-    expect(scorer.scoreUsingAll([0, 1, 0, 0, 0, 0, 0])).toBe(-Infinity);
+    expect(scorer.scoreUsingAll(countsOf([2]))).toBe(-Infinity);
     // A 1 plus a dead 2 is still illegal as a hold.
-    expect(scorer.scoreUsingAll([1, 1, 0, 0, 0, 0, 0])).toBe(-Infinity);
+    expect(scorer.scoreUsingAll(countsOf([1, 2]))).toBe(-Infinity);
   });
 
   it("scores an empty hold as zero", () => {
-    expect(plain().scoreUsingAll([0, 0, 0, 0, 0, 0, 0])).toBe(0);
+    expect(plain().scoreUsingAll(countsOf([]))).toBe(0);
   });
 
-  it("resolves wildcards in a hold", () => {
-    expect(plain().scoreUsingAll([0, 0, 0, 0, 0, 0, 1])).toBe(100);
+  it("resolves substitutes in a hold", () => {
+    // A Balatro joker is a legal hold on its own; a devil's head is not.
+    expect(plain().scoreUsingAll(countsOf([], { alone: 1 }))).toBe(100);
+    expect(plain().scoreUsingAll(countsOf([], { combo: 1 }))).toBe(-Infinity);
+    // Both may be held as part of a combination they complete.
+    expect(plain().scoreUsingAll(countsOf([2, 2], { combo: 1 }))).toBe(200);
+    expect(plain().scoreUsingAll(countsOf([2, 2], { alone: 1 }))).toBe(200);
   });
 
   it("memoises repeated queries", () => {
     const scorer = plain();
-    const first = scorer.scoreUsingAll([3, 0, 0, 0, 0, 0, 0]);
-    expect(scorer.scoreUsingAll([3, 0, 0, 0, 0, 0, 0])).toBe(first);
+    const first = scorer.scoreUsingAll(countsOf([1, 1, 1]));
+    expect(scorer.scoreUsingAll(countsOf([1, 1, 1]))).toBe(first);
   });
 });

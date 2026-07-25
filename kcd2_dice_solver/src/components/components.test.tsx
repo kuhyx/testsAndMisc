@@ -37,6 +37,7 @@ const ordinary: Die = {
   description: "An ordinary playing die.",
   weights: [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
   wildcardFaces: [],
+  wildScoresAlone: false,
 };
 
 describe("clampCount", () => {
@@ -155,7 +156,12 @@ describe("DieRow", () => {
   });
 
   it("tags the wildcard dice", () => {
-    const balatro: Die = { ...ordinary, id: "balatro", wildcardFaces: [1, 2, 3, 4, 5, 6] };
+    const balatro: Die = {
+      ...ordinary,
+      id: "balatro",
+      wildcardFaces: [1],
+      wildScoresAlone: true,
+    };
     render(<DieRow die={balatro} count={0} highlight={[]} onChange={vi.fn()} />);
     expect(screen.getByText("wild")).toBeInTheDocument();
   });

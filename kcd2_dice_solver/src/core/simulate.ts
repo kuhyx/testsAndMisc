@@ -21,7 +21,7 @@
 
 import type { Die } from "../data/dice.ts";
 import { categoryWeights } from "./distribution.ts";
-import { CATEGORIES, WILD } from "./scoring.ts";
+import { CATEGORIES } from "./scoring.ts";
 import type { Scorer } from "./scoring.ts";
 import { mulberry32 } from "../lib/rng.ts";
 import type { Random } from "../lib/rng.ts";
@@ -67,7 +67,7 @@ export const NO_CHARGES: BadgeCharges = {
 };
 
 /**
- * Sample one category (face index, or the wildcard slot) from a die.
+ * Sample one category (a face index, or one of the substitute slots) from a die.
  *
  * @param weights - Category weights summing to 1.
  * @param random - Seeded random source.
@@ -84,7 +84,7 @@ function sampleCategory(weights: readonly number[], random: Random): number {
       return slot;
     }
   }
-  return WILD;
+  return CATEGORIES - 1;
 }
 
 /**

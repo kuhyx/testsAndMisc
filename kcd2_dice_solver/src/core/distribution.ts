@@ -5,8 +5,8 @@
  * evaluates tens of thousands of candidate sets. But scoring depends only on the
  * *multiset* of faces, and the dice are independent, so we convolve them into a
  * distribution over count vectors instead. After six dice there are at most
- * C(12, 6) = 924 distinct count vectors — roughly fifty times less work, and,
- * unlike sampling, exact.
+ * C(13, 7) = 1,716 distinct count vectors — well over an order of magnitude less
+ * work, and, unlike sampling, exact.
  *
  * The count vectors stay packed as integers throughout (see `counts.ts`), so a
  * convolution step is an integer addition and the scorer can look the result up
@@ -14,7 +14,7 @@
  */
 
 import type { Die, Face } from "../data/dice.ts";
-import { CATEGORIES, SLOT_STEP, WILD, decode } from "./counts.ts";
+import { CATEGORIES, SLOT_STEP, WILD_ALONE, WILD_COMBO, decode } from "./counts.ts";
 
 /** One reachable outcome: a count vector and the probability of reaching it. */
 export interface Outcome {
@@ -31,19 +31,21 @@ export interface PackedDistribution {
 }
 
 /**
- * Collapse a die's face weights into the seven scoring categories.
+ * Collapse a die's face weights into the eight scoring categories.
  *
- * Faces flagged as wildcards contribute their probability to the wildcard slot
- * rather than to their printed face, because that is how they score.
+ * A joker face contributes its probability to one of the two substitute slots
+ * rather than to the face it replaces, because that is how it scores — and which
+ * of the two depends on whether the die's joker may be held on its own.
  *
  * @param die - The die to convert.
- * @returns A seven-element probability vector, faces 1-6 then wildcard.
+ * @returns An eight-element probability vector: faces 1-6 then the substitutes.
  */
 export function categoryWeights(die: Die): number[] {
   const weights = new Array<number>(CATEGORIES).fill(0);
+  const wildSlot = die.wildScoresAlone ? WILD_ALONE : WILD_COMBO;
   for (let face = 0; face < 6; face += 1) {
     const isWild = die.wildcardFaces.includes((face + 1) as Face);
-    const slot = isWild ? WILD : face;
+    const slot = isWild ? wildSlot : face;
     weights[slot] += die.weights[face];
   }
   return weights;

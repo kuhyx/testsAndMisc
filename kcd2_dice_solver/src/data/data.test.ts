@@ -59,8 +59,17 @@ describe("dice data", () => {
       "balatro",
       "devils_head",
     ]);
+    // Both replace the one with a joker face, and each has exactly one such face
+    // — Balatro's die is not "all six faces wild".
     expect(DICE_BY_ID.get("devils_head")?.wildcardFaces).toEqual([1]);
-    expect(DICE_BY_ID.get("balatro")?.wildcardFaces).toHaveLength(6);
+    expect(DICE_BY_ID.get("balatro")?.wildcardFaces).toEqual([1]);
+  });
+
+  it("lets only Balatro's joker score on its own", () => {
+    expect(DICE_BY_ID.get("balatro")?.wildScoresAlone).toBe(true);
+    expect(DICE_BY_ID.get("devils_head")?.wildScoresAlone).toBe(false);
+    // Nothing else claims the flag, so no plain die can slip past the scorer.
+    expect(DICE.filter((die) => die.wildScoresAlone).map((die) => die.id)).toEqual(["balatro"]);
   });
 
   it("keeps the dice with a zero-probability face", () => {

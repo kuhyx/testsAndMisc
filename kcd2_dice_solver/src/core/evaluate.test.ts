@@ -2,8 +2,8 @@
  * Cross-checks for the convolution.
  *
  * The whole speed story — packed integer keys, pooling identical dice, skipping
- * zero-weight faces, routing wildcards into a seventh slot — is exactly the kind
- * of optimisation that can produce subtly wrong probabilities while still
+ * zero-weight faces, routing joker faces into their own slots — is exactly the
+ * kind of optimisation that can produce subtly wrong probabilities while still
  * looking plausible. So the distribution is checked against a naive enumeration
  * of all 6^6 ordered outcomes, which shares none of that machinery.
  */
@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { BASE_RULES } from "../data/badges.ts";
 import { DICE, DICE_BY_ID } from "../data/dice.ts";
 import type { Die } from "../data/dice.ts";
-import { CATEGORIES, WILD } from "./counts.ts";
+import { CATEGORIES, WILD_ALONE, WILD_COMBO } from "./counts.ts";
 import { categoryWeights, packedDistribution, rollDistribution } from "./distribution.ts";
 import { evaluateQuick, evaluateSet, percentile, scoreDistribution } from "./evaluate.ts";
 import { Scorer } from "./scoring.ts";
@@ -135,16 +135,26 @@ describe("distribution mechanics", () => {
     }
   });
 
-  it("routes wildcard faces into the wildcard slot", () => {
+  it("routes the devil's head into the combination-only slot", () => {
     const weights = categoryWeights(die("devils_head"));
     // The devil's head replaces the one, so face 1 must be empty.
     expect(weights[0]).toBe(0);
-    expect(weights[WILD]).toBeCloseTo(1 / 6, 9);
+    expect(weights[WILD_COMBO]).toBeCloseTo(1 / 6, 9);
+    expect(weights[WILD_ALONE]).toBe(0);
   });
 
-  it("routes every Balatro face into the wildcard slot", () => {
+  it("routes Balatro's single joker face into the score-alone slot", () => {
     const weights = categoryWeights(die("balatro"));
-    expect(weights[WILD]).toBeCloseTo(1, 12);
+    // One face of six is the joker, not all six: the wiki's dice-effect row for
+    // this die is six unfilled `d` placeholders, which an earlier version of the
+    // data read as six wildcards.
+    expect(weights[WILD_ALONE]).toBeCloseTo(1 / 6, 9);
+    expect(weights[WILD_COMBO]).toBe(0);
+    // The joker replaces the one, so the remaining five faces are 2-6.
+    expect(weights[0]).toBe(0);
+    for (const face of [1, 2, 3, 4, 5]) {
+      expect(weights[face]).toBeCloseTo(1 / 6, 9);
+    }
   });
 
   it("decodes count vectors that sum to the number of dice", () => {

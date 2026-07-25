@@ -18,14 +18,31 @@
  *
  * A roll's score is the best partition of its dice into combinations; dice left
  * over simply score nothing. That maximisation is what `bestScore` computes.
+ *
+ * Two dice carry a joker face, and the wiki gives them *different* rules:
+ *
+ *   Devil's head  "acts as a joker, matching any combination but never scoring
+ *                  on its own"
+ *   Balatro       "you can choose how it's counted; it can fit into a straight
+ *                  or a triple. Picking it alone will count as if you threw 1"
+ *
+ * So a Balatro joker is a free choice of face, while a Devil's head may only be
+ * spent inside a multi-die combination — it can never be the single 1 or 5 that
+ * lets you hold a die. Hence the two substitute slots in `counts.ts`.
+ *
+ * Both are allowed to fill in for *any* face of a combination, including cases
+ * where every die of the combination is a substitute (three Devil's heads make a
+ * triple). The wiki's examples all pair a joker with natural dice and it does not
+ * say whether an all-joker set counts, so this is an assumption; it is the same
+ * assumption the substitution rule makes everywhere else.
  */
 
 import type { ScoringRules, FormationValues } from "../data/badges.ts";
 import { DEFAULT_FORMATION_VALUES } from "../data/badges.ts";
-import { CATEGORIES, FACES, WILD, decode, encode } from "./counts.ts";
+import { CATEGORIES, FACES, WILD_ALONE, WILD_COMBO, decode, encode } from "./counts.ts";
 import type { CountVector } from "./counts.ts";
 
-export { CATEGORIES, FACES, WILD } from "./counts.ts";
+export { CATEGORIES, FACES, WILD_ALONE, WILD_COMBO } from "./counts.ts";
 export type { CountVector } from "./counts.ts";
 
 /**
@@ -47,6 +64,14 @@ export function tripleBase(face: number): number {
  */
 export function ofAKindValue(face: number, n: number): number {
   return tripleBase(face) * 2 ** (n - 3);
+}
+
+/** The two kinds of substitute die, for {@link Scorer.scoreFaces}. */
+export interface WildCounts {
+  /** Balatro jokers, which may also be held on their own as a 1. */
+  readonly alone?: number;
+  /** Devil's heads, which only count inside a combination. */
+  readonly combo?: number;
 }
 
 /** Everything `bestScore` needs beyond the roll itself. */
@@ -113,15 +138,16 @@ export class Scorer {
    * Score a plain list of face values, for tests and the simulator.
    *
    * @param faces - Face values rolled, each 1-6.
-   * @param wildcards - How many of the dice are wildcards.
+   * @param wilds - How many substitutes of each kind are in the roll.
    * @returns The best achievable score.
    */
-  scoreFaces(faces: readonly number[], wildcards = 0): number {
+  scoreFaces(faces: readonly number[], wilds: WildCounts = {}): number {
     const counts = new Array<number>(CATEGORIES).fill(0);
     for (const face of faces) {
       counts[face - 1] += 1;
     }
-    counts[WILD] = wildcards;
+    counts[WILD_ALONE] = wilds.alone ?? 0;
+    counts[WILD_COMBO] = wilds.combo ?? 0;
     return this.score(counts);
   }
 
@@ -186,7 +212,7 @@ export class Scorer {
 
   /**
    * Every legal single step from a position: take one combination (or resolve
-   * one wildcard) and hand the leftovers back to the recursion.
+   * one Balatro joker) and hand the leftovers back to the recursion.
    *
    * Both scorers share this so the rules are stated exactly once.
    *
@@ -194,15 +220,16 @@ export class Scorer {
    * @returns Each move's point value and the dice left afterwards.
    */
   private moves(counts: CountVector): { value: number; rest: number[] }[] {
-    const wild = counts[WILD];
-    if (wild > 0) {
-      // A wildcard is free to become any face, so try each in turn. Resolving
-      // one at a time is sufficient: further wildcards are handled by the
-      // recursive call, and every assignment is reachable that way.
+    const alone = counts[WILD_ALONE];
+    if (alone > 0) {
+      // A Balatro joker is a free choice of face — including a lone 1 — so it
+      // can simply be resolved into each face and scored as that face from then
+      // on. Resolving one at a time is sufficient: further jokers are handled by
+      // the recursive call, and every assignment is reachable that way.
       const options: { value: number; rest: number[] }[] = [];
       for (let face = 0; face < FACES; face += 1) {
         const rest = counts.slice();
-        rest[WILD] = wild - 1;
+        rest[WILD_ALONE] = alone - 1;
         rest[face] += 1;
         options.push({ value: 0, rest });
       }
@@ -211,16 +238,54 @@ export class Scorer {
 
     const options: { value: number; rest: number[] }[] = [];
     const { rules, formationValues } = this.config;
+    // Devil's heads cannot be resolved the same way: once one became a plain
+    // face, nothing would stop it being held as a lone 1. They are instead spent
+    // inside the combination they complete, which is what `take` below does.
+    const substitutes = counts[WILD_COMBO];
 
+    /**
+     * Add every way of forming one combination out of distinct faces.
+     *
+     * Each required face is supplied either by a natural die or by a Devil's
+     * head, and each choice leaves a different remainder, so all of them are
+     * offered to the recursion.
+     *
+     * @param faces - The faces the combination needs, each at most once.
+     * @param value - What the combination scores.
+     */
     const take = (faces: readonly number[], value: number): void => {
       const rest = counts.slice();
-      for (const face of faces) {
-        if (rest[face - 1] === 0) {
+      if (substitutes === 0) {
+        // The common case by far — most hands hold no Devil's head at all — and
+        // worth its own branch: it is one pass with no recursion and no second
+        // copy of the vector, which is what keeps a full search fast.
+        for (const face of faces) {
+          if (rest[face - 1] === 0) {
+            return;
+          }
+          rest[face - 1] -= 1;
+        }
+        options.push({ value, rest });
+        return;
+      }
+      const fill = (index: number): void => {
+        if (index === faces.length) {
+          options.push({ value, rest: rest.slice() });
           return;
         }
-        rest[face - 1] -= 1;
-      }
-      options.push({ value, rest });
+        const slot = faces[index] - 1;
+        if (rest[slot] > 0) {
+          rest[slot] -= 1;
+          fill(index + 1);
+          rest[slot] += 1;
+        }
+        if (rest[WILD_COMBO] > 0) {
+          rest[WILD_COMBO] -= 1;
+          fill(index + 1);
+          rest[WILD_COMBO] += 1;
+        }
+      };
+      fill(0);
     };
 
     // Straights.
@@ -239,19 +304,33 @@ export class Scorer {
       take([1, 3, 5], formationValues.eye);
     }
 
-    // N-of-a-kind, for every face and every usable size.
+    // N-of-a-kind, for every face and every usable size. Counting substitutes
+    // by how many are spent rather than by which position they fill keeps this
+    // free of duplicate moves, which `take` cannot avoid for repeated faces.
     for (let face = 0; face < FACES; face += 1) {
       const available = counts[face];
-      for (let n = 3; n <= available; n += 1) {
-        const rest = counts.slice();
-        rest[face] = available - n;
-        options.push({ value: this.combinationValue(face + 1, n), rest });
+      for (let n = 3; n <= available + substitutes; n += 1) {
+        for (let spent = Math.max(0, n - available); spent <= Math.min(substitutes, n); spent += 1) {
+          const rest = counts.slice();
+          rest[face] = available - (n - spent);
+          rest[WILD_COMBO] = substitutes - spent;
+          options.push({ value: this.combinationValue(face + 1, n), rest });
+        }
       }
     }
 
-    // Singles: only ones and fives score on their own.
-    take([1], 100);
-    take([5], 50);
+    // Singles: only a natural one or five scores on its own. A Devil's head
+    // deliberately has no move here — that is the whole of "never scoring on its
+    // own", and it is why a lone one cannot be held.
+    const takeSingle = (face: number, value: number): void => {
+      if (counts[face - 1] > 0) {
+        const rest = counts.slice();
+        rest[face - 1] -= 1;
+        options.push({ value, rest });
+      }
+    };
+    takeSingle(1, 100);
+    takeSingle(5, 50);
 
     return options;
   }

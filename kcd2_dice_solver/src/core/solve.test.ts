@@ -60,9 +60,9 @@ describe("solve", () => {
     expect(result.inventorySize).toBe(9);
   });
 
-  it("solves an inventory containing the wildcard dice", () => {
-    // Balatro's die is six wildcards and the Devil's head die is one; both take
-    // a different path through the scorer and the simulator's sampler.
+  it("solves an inventory containing both substitute dice", () => {
+    // Each of the two joker faces takes its own path through the scorer and the
+    // simulator's sampler, and this inventory exercises both at once.
     const result = solve({
       diceCounts: { balatro: 3, devils_head: 3, ordinary: 6 },
       badgeIds: [],
@@ -70,7 +70,22 @@ describe("solve", () => {
     });
     expect(result.dice).toHaveLength(6);
     expect(result.simulation.meanPerTurn).toBeGreaterThan(0);
-    // Six wildcards always resolve to six ones, so nothing can beat Balatro.
+    // Both substitute dice are uniform with the one replaced by a joker, so each
+    // is strictly better than an ordinary die and all six get taken. Balatro's is
+    // the better of the two — its joker can also be held on its own — but with
+    // only three of each that never has to be decided.
+    expect(result.dice.filter((die) => die.id === "ordinary")).toHaveLength(0);
     expect(result.dice.filter((die) => die.id === "balatro")).toHaveLength(3);
+    expect(result.dice.filter((die) => die.id === "devils_head")).toHaveLength(3);
+  });
+
+  it("ties the two substitute dice on a single throw", () => {
+    // Both are uniform with the one replaced by a joker, so on one throw of six
+    // they are worth exactly the same: with five other dice there is always some
+    // combination for a substitute to join, and the joker's extra "may be held
+    // alone" only pays off later in a turn, once dice have been set aside.
+    const balatro = solve({ diceCounts: { balatro: 6 }, badgeIds: [], simulationTurns: 200 });
+    const devil = solve({ diceCounts: { devils_head: 6 }, badgeIds: [], simulationTurns: 200 });
+    expect(balatro.evaluation.ev).toBeCloseTo(devil.evaluation.ev, 9);
   });
 });

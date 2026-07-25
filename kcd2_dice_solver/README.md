@@ -64,9 +64,19 @@ every number here is reproducible.
 
 ## What the numbers are not
 
-- **Balatro's die** publishes no face probabilities. Every face is a wildcard
-  ("you get to choose how it's counted"), so it is modelled as always resolving
-  in your favour — which means it always wins if you own it.
+- **Balatro's die** publishes no face probabilities: the wiki's dice-effect row
+  for it is six unfilled `d` placeholders, and Inara does not list the die at
+  all. Exactly **one** of its faces is the joker (Jimbo's grinning face), so it
+  is modelled as a fair die whose 1 is replaced by that joker. Which pip the
+  joker replaces is unverified — the 1 is assumed, matching the Devil's head die
+  the game compares it to, and matching "picking it alone will count as if you
+  threw 1".
+- **The two joker faces score differently**, and the scorer keeps them apart. A
+  Devil's head "matches any combination but never scores on its own", so it can
+  never be the lone 1 or 5 that lets you hold a die; Balatro's joker can. Both
+  are assumed able to fill in for any face of a combination, including one made
+  entirely of jokers — the wiki's examples only ever pair a joker with natural
+  dice, so that part is an assumption.
 - **The three "Advantage" formations** (Carpenter's Cut, Executioner's Gallows,
   Priest's Eye) and the **Headstart** point leads have no published values. The
   constants used are marked `UNVERIFIED` in `src/data/badges.ts`. Correct them
