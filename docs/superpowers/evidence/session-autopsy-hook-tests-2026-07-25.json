@@ -1,0 +1,58 @@
+{
+  "intent": "Gate the two session_autopsy Claude Code hooks on their observable behaviour. The analyzer package reached 100% branch coverage in a83b5ab, but its only production entry points -- the SessionEnd and SessionStart hook scripts in ~/.claude/hooks -- were untracked, unlinted and untested: the same 'untracked means unlinted' shape a83b5ab's own message describes, one directory over.",
+  "scope": [
+    "linux_configuration/tests/test_session_autopsy_hooks.py (new, only file changed here)",
+    "Subjects under test: ~/.claude/hooks/session_autopsy_end.sh and session_autopsy_start.sh",
+    "Non-goal: changing hook behaviour. The hooks are unmodified.",
+    "Non-goal: re-auditing the 880 python_pkg tests committed in a83b5ab."
+  ],
+  "changes": [
+    "Added 12 behavioural tests. Both hooks end in an unconditional 'exit 0' by design, so exit status is a constant and asserting it is vacuous; every assertion is on a side effect instead.",
+    "SessionEnd: a 'setsid' shim on PATH records the launch argv rather than spawning an ingest. Asserts the ingest command, transcript path, --quiet, PYTHONPATH and 'timeout 120' on the happy path; asserts no launch at all for a missing key, empty path, nonexistent file and malformed JSON.",
+    "SessionStart: asserts exact stdout AND stderr. stderr matters because 'set -u' makes '(( count > 0 ))' on a non-numeric count raise an arithmetic error to stderr while stdout stays silent -- a stdout-only assertion misses a hook injecting bash noise into every session start.",
+    "Hooks are resolved via AUTOPSY_HOOKS_DIR (default ~/.claude/hooks) so the real deployed artifact is what gets tested, and so the mutation check can run the same suite against a broken copy without touching the live hooks. The suite skips where the hooks are not deployed (CI runners).",
+    "Test placement is deliberate: a pytest file, not a test_*.sh. Only .py in linux_configuration/tests is picked up by meta/scripts/pytest_changed_packages.py (the local pytest-coverage pre-commit hook); the .sh tests there are gated by the shell-tests CI workflow alone."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest linux_configuration/tests/test_session_autopsy_hooks.py",
+      "result": "pass",
+      "evidence": "12 passed"
+    },
+    {
+      "command": "python3 -m pytest (full testpaths, --cov=python_pkg --cov-branch)",
+      "result": "pass",
+      "evidence": "977 passed in 6.93s; TOTAL 3899 stmts, 0 miss, 1126 branch, 0 partial, 100%; 'Required test coverage of 100.0% reached'. Up from 965 -- the new file imports nothing from python_pkg, so the 100% gate is untouched."
+    },
+    {
+      "command": "mutation matrix: gut each hook body; drop the transcript guard; '(( count > 0 ))' -> '>= 0'; drop the numeric regex guard; drop the readability guard; always-announce; and the readability+always-announce compound",
+      "result": "pass",
+      "evidence": "12 tests, 12 killed by at least one mutation. Ran per-guard rather than as a single whole-body gutting: gutting alone kills only the 3 positive tests, and would have falsely branded the 9 negative ones vacuous."
+    },
+    {
+      "command": "shellcheck ~/.claude/hooks/session_autopsy_end.sh ~/.claude/hooks/session_autopsy_start.sh",
+      "result": "pass",
+      "evidence": "clean, no findings; hooks unmodified"
+    },
+    {
+      "command": "pre-commit run --files linux_configuration/tests/test_session_autopsy_hooks.py",
+      "result": "pass",
+      "evidence": "all hooks pass. One real mypy finding was fixed rather than suppressed: pytest.fail is not seen as NoReturn here, so _await_launch raised 'Missing return statement'; it now raises AssertionError. No noqa or type: ignore added."
+    },
+    {
+      "command": "live end-to-end: pipe a real SessionEnd payload into the deployed hook, first under an isolated HOME, then against the real store",
+      "result": "pass",
+      "evidence": "Isolated run ingested a real 9KB transcript into a scratch store with an empty hook.log. Live run: exit 0; sessions.jsonl rows 264 -> 264 and unreviewed_count 178 -> 178, with the session present exactly once, confirming store.py:117 upsert_records replaces by session_id rather than appending. The AttributeError tracebacks in hook.log are stale (last written 15:56, before a83b5ab); nothing was appended by this run."
+    }
+  ],
+  "risks": [
+    "The gate is local-pre-commit only. CI skips the suite (no ~/.claude on the runner), and pytest_changed_packages.py is types: [python], so it fires when this test file is in a testsAndMisc commit -- editing a hook inside ~/.claude, which has no .pre-commit-config.yaml, triggers nothing. Closing that means giving ~/.claude its own pre-commit config: a separate task.",
+    "The 'no launch' assertions sleep a 1s settle window because the hook detaches with 'setsid ... &'. Asserting absence the instant the parent exits would pass even against a hook whose guard had been deleted. Cost: about 4s of suite time, spent deliberately to keep those four tests non-vacuous.",
+    "test_unreadable_state relies on running as non-root; root bypasses the readability check, so it is skipped there. It must not be moved into the root arch-tests CI job.",
+    "Finding, not acted on: the start hook's '[[ ! -r \"$STATE\" ]]' guard is provably redundant -- deleting it kills zero tests, because jq's stderr is suppressed and an empty count already fails the arithmetic. Harmless defence in depth; left alone because hook behaviour changes were out of scope."
+  ],
+  "rollback": [
+    "git revert this commit, or delete linux_configuration/tests/test_session_autopsy_hooks.py -- no production code is touched, so reverting removes only test coverage.",
+    "After rollback, confirm 'python3 -m pytest' still reports 965 passed at 100% coverage and that both hooks remain executable and shellcheck-clean."
+  ]
+}
