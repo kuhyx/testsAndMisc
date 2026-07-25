@@ -97,10 +97,10 @@ const RAW_DICE: readonly RawDie[] = [
     // as [1,1,1,1,1,1] rather than a fake "16.7" so it cannot be mistaken for a
     // transcribed figure.
     //
-    // The joker is modelled as replacing the one, like the Devil's head it is
-    // explicitly compared to, which is also why holding it alone counts as a 1.
-    // UNVERIFIED: if the die turns out to show a plain single pip in-game, the
-    // joker replaces some other face and this should move.
+    // The joker replaces the one — confirmed by the player, who owns the game —
+    // like the Devil's head die it is explicitly compared to. That is also why
+    // holding it alone counts as a 1: the joker sits where the 1 used to be, so
+    // the die has no plain single pip at all.
     weights: [1, 1, 1, 1, 1, 1],
     wildcardFaces: [1],
     // "When it lands, you get to choose how it's counted!" — and, unlike the

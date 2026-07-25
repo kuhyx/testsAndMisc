@@ -67,10 +67,9 @@ every number here is reproducible.
 - **Balatro's die** publishes no face probabilities: the wiki's dice-effect row
   for it is six unfilled `d` placeholders, and Inara does not list the die at
   all. Exactly **one** of its faces is the joker (Jimbo's grinning face), so it
-  is modelled as a fair die whose 1 is replaced by that joker. Which pip the
-  joker replaces is unverified — the 1 is assumed, matching the Devil's head die
-  the game compares it to, and matching "picking it alone will count as if you
-  threw 1".
+  is modelled as a fair die whose 1 is replaced by that joker — the same face the
+  Devil's head die replaces, which is why holding it alone counts as a 1. Only
+  the uniform weights are an assumption; the joker's face is not.
 - **The two joker faces score differently**, and the scorer keeps them apart. A
   Devil's head "matches any combination but never scores on its own", so it can
   never be the lone 1 or 5 that lets you hold a die; Balatro's joker can. Both
