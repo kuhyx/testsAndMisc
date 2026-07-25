@@ -1,0 +1,41 @@
+{
+  "intent": "Make the session-autopsy surfacing honest and the compiled scripts reachable without Claude. The statusline badge counted all 182 candidates (nobody reviews 182 weak n-grams), and the compiled scripts had no zero-token entry point, so the deterministic 90% of each workflow still implied opening a Claude session.",
+  "scope": [
+    "python_pkg/session_autopsy/report.py (significant_ids + SIGNIFICANT_WEEKLY_TOKENS)",
+    "python_pkg/session_autopsy/cli.py (mark-reviewed uses the same filter)",
+    "python_pkg/session_autopsy/tests/test_report.py (updated expectations)",
+    "linux_configuration/zsh/token-savers.zsh (new; symlinked into ~/.oh-my-zsh/custom/)",
+    "docs/explanations/ (new explanation doc + refreshed index, via the newly compiled explain_diff.sh scaffold)",
+    "Non-goal: changing detector rankings or REPORT.md content; only what the badge counts."
+  ],
+  "changes": [
+    "state.json's unreviewed_count now counts only candidates with >=100k estimated weekly tokens (SIGNIFICANT_WEEKLY_TOKENS), so the badge went from a meaningless 182 to 7 items actually worth attention; the SessionStart one-liner and statusline badge inherit it for free since both read state.json.",
+    "report --mark-reviewed marks the same significant set, keeping dismiss/appear symmetric.",
+    "token-savers.zsh adds finish-gate / phone-deploy / autopsy / yay-clean shell functions so the deterministic halves run at zero LLM tokens; Claude enters only on failure triage."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/session_autopsy/tests/ -q",
+      "result": "pass",
+      "evidence": "81 passed; test_render_and_write_report now asserts unreviewed==1 with a mixed significant/insignificant corpus."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.session_autopsy report; jq .unreviewed_count ~/.claude/autopsy/state.json; statusline.sh pipe-test",
+      "result": "pass",
+      "evidence": "unreviewed_count 182 -> 7 on the real corpus; statusline renders '[Fable] ~ | ⚙7'."
+    },
+    {
+      "command": "zsh -c 'source ~/.oh-my-zsh/custom/token-savers.zsh && autopsy measure && yay-clean --dry-run corsix-th-git'",
+      "result": "pass",
+      "evidence": "Both functions execute the real scripts from a fresh zsh; shellcheck -s bash clean after adding '; }' brace style."
+    }
+  ],
+  "risks": [
+    "The 100k threshold is a judgment constant; a genuinely useful small candidate stays out of the badge (it remains in REPORT.md and candidates --json).",
+    "Shell functions shadow no existing commands today; a future binary named 'autopsy' or 'phone-deploy' on PATH would be shadowed by these functions in interactive shells."
+  ],
+  "rollback": [
+    "Revert the three python files to restore all-candidates counting; delete linux_configuration/zsh/token-savers.zsh and the ~/.oh-my-zsh/custom symlink.",
+    "After rollback, 'autopsy report' stops resolving and state.json returns to counting every candidate."
+  ]
+}

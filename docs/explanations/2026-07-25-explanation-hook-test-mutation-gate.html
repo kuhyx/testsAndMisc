@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hook test mutation gate</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1e21; --muted: #5f6672; --line: #d9dde3;
+    --card: #f4f6f8; --accent: #2563eb; --good: #16803c; --bad: #b42318;
+    --code-bg: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1d21; --fg: #e8eaed; --muted: #9aa1ac; --line: #33373e;
+      --card: #24272c; --accent: #7aa2ff; --good: #4ade80; --bad: #f87171;
+      --code-bg: #24272c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 1.5rem 1rem 4rem; max-width: min(48rem, 92vw);
+    background: var(--bg); color: var(--fg); line-height: 1.65;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 0.5rem 0 0.25rem; }
+  h2 { font-size: 1.25rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.05rem; }
+  .meta { color: var(--muted); font-size: 0.85rem; }
+  .lede { font-size: 1.05rem; color: var(--muted); margin: 0.75rem 0 1.25rem; }
+  a { color: var(--accent); }
+  .toc {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.8rem;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    position: sticky; top: 0.5rem; z-index: 5; font-size: 0.9rem;
+  }
+  .toc a { text-decoration: none; }
+  pre, code { font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size: 0.85em; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.75rem 0.9rem; white-space: pre-wrap; overflow-x: auto;
+  }
+  code { background: var(--code-bg); border-radius: 4px; padding: 0.1em 0.35em; }
+  pre code { background: none; padding: 0; }
+  .del { color: var(--bad); }
+  .add { color: var(--good); }
+  /* diagram vocabulary */
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 1rem 0; }
+  .node {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.5rem 0.75rem; font-size: 0.88rem; text-align: center;
+  }
+  .node .term { display: block; font-weight: 600; }
+  .node small { color: var(--muted); }
+  .arrow { color: var(--muted); font-size: 1.1rem; }
+  .arrow::after { content: "→"; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+  .chip {
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 0.15rem 0.7rem; font-size: 0.82rem;
+  }
+  .chip.on { border-color: var(--accent); color: var(--accent); }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 0.9rem; }
+  .panel h4 { margin: 0 0 0.4rem; font-size: 0.92rem; }
+  .verdict { font-weight: 600; }
+  .verdict.good { color: var(--good); }
+  .verdict.bad { color: var(--bad); }
+  .steps { counter-reset: step; padding-left: 0; margin: 1rem 0; list-style: none; }
+  .steps li { counter-increment: step; margin: 0.5rem 0; padding-left: 2.2rem; position: relative; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 0.1rem;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%; text-align: center;
+    line-height: 1.5rem; font-size: 0.8rem; font-weight: 600;
+    background: var(--accent); color: var(--bg);
+  }
+  /* quiz */
+  .q { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem 1rem; margin: 1rem 0; }
+  .q p { margin: 0 0 0.6rem; font-weight: 600; }
+  .q button {
+    display: block; width: 100%; text-align: left; margin: 0.35rem 0;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 0.5rem 0.7rem; font: inherit; font-size: 0.9rem; cursor: pointer;
+  }
+  .q button:hover:not(:disabled) { border-color: var(--accent); }
+  .q button.correct { border-color: var(--good); color: var(--good); font-weight: 600; }
+  .q button.wrong { border-color: var(--bad); color: var(--bad); }
+  .q .why { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; display: none; }
+  #score { font-weight: 600; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>hook test mutation gate</h1>
+<p class="meta">2026-07-25 · testsAndMisc</p>
+<p class="lede">The session-autopsy hook tests claimed to be non-vacuous; this commit turns that claim into a pre-commit gate that re-proves it by mutation, every time the proof could go stale.</p>
+
+<nav class="toc">
+  <a href="#background">Background</a>
+  <a href="#intuition">Intuition</a>
+  <a href="#code">Code</a>
+  <a href="#quiz">Quiz</a>
+</nav>
+
+<h2 id="background">Background</h2>
+<p>The session-autopsy system analyzes Claude Code transcripts after each session. Two small bash hooks wire it into the harness: <code>session_autopsy_end.sh</code> feeds the ended session's transcript to the analyzer, and <code>session_autopsy_start.sh</code> prints a one-line nudge when unreviewed automation candidates exist.</p>
+<p>Both hooks share an unusual contract: they <strong>always exit 0</strong>, deliberately, so a broken analyzer can never block a session from starting or ending. That contract has a testing consequence — any test that asserts the hook's exit status passes even if the hook's entire body is deleted. The twelve tests in <code>test_session_autopsy_hooks.py</code> therefore assert <em>side effects</em>: that the end hook launches the analyzer with the right transcript path (captured via a shimmed <code>setsid</code> on <code>PATH</code>), and that the start hook prints exactly the expected banner, or exactly nothing.</p>
+<p>"Asserts a side effect" is itself just a claim. The previous commit proved it once with a throwaway mutation harness in a session scratchpad — and that proof would have evaporated with the session, leaving an unfalsifiable assertion about tests whose whole purpose is to not be vacuous.</p>
+
+<h2 id="intuition">Intuition</h2>
+<p>Mutation testing asks: if I deliberately break the code, do the tests notice? A test that survives every plausible break is asserting nothing. The tool copies both hooks, breaks <strong>one guard per copy</strong>, points the suite at the broken copy through <code>AUTOPSY_HOOKS_DIR</code>, and records which tests fail:</p>
+<div class="flow">
+  <div class="node"><span class="term">copy hooks</span><small>deployed files untouched</small></div>
+  <span class="arrow"></span>
+  <div class="node"><span class="term">apply 1 of 8 mutations</span><small>e.g. drop the transcript guard</small></div>
+  <span class="arrow"></span>
+  <div class="node"><span class="term">run the 12 tests</span><small>AUTOPSY_HOOKS_DIR=copy</small></div>
+  <span class="arrow"></span>
+  <div class="node"><span class="term">record kills</span><small>survivor of all 8 ⇒ FAIL</small></div>
+</div>
+<p>The subtlety that shaped the design: <strong>gutting a whole hook is the wrong mutation</strong>. A gutted hook emits no launch and no output — which is exactly what the nine <em>negative</em> tests ("given junk input, stay silent") already expect. Gut-only mutation brands those nine tests vacuous when they are not:</p>
+<div class="cols">
+  <div class="panel"><h4>Gut the whole body</h4><p>Kills 3 positive tests. The 9 negative tests still pass — silence is what they wanted. <span class="verdict bad">Misleading</span></p></div>
+  <div class="panel"><h4>Break one guard at a time</h4><p>An always-announcing start hook, a dropped numeric check… each negative test dies to the mutation that removes the guard it exercises. <span class="verdict good">All 12 killed</span></p></div>
+</div>
+<p>One more failure mode is closed: mutations are string edits over the hook text, so a harmless rename inside a hook would make a mutation silently stop matching — testing nothing. The staleness guard makes that a loud error instead.</p>
+
+<h2 id="code">Code</h2>
+<p><strong>The tool</strong> — <code>meta/scripts/mutate_session_autopsy_hooks.py</code> (new, 253 lines). Eight named mutations, each a targeted string transform breaking one guard; a runner that copies the hooks, applies one mutation, and executes the suite against the copy; and a verdict that fails on any never-killed test:</p>
+<ol class="steps">
+  <li>Skip with exit 0 when <code>~/.claude/hooks</code> has no deployed hooks — a CI runner has nothing to mutate, and a skip must not fail the build.</li>
+  <li>Raise if a mutation leaves the hook text unchanged (staleness guard): a no-op mutation would quietly weaken the proof rather than report a survivor.</li>
+  <li>Gate, don't warn: survivors mean a non-zero exit, per the house rule that self-checks must fail, not print advice.</li>
+</ol>
+<p><strong>The wiring</strong> — one new local pre-commit hook, scoped by a <code>files:</code> regex to the only two files that can invalidate the proof: the test suite and the mutation definitions. The run costs ~40 seconds, so it must not fire on unrelated commits:</p>
+<pre><code>- id: session-autopsy-hook-mutations
+  entry: python3 meta/scripts/mutate_session_autopsy_hooks.py
+  files: ^(linux_configuration/tests/test_session_autopsy_hooks\.py|meta/scripts/mutate_session_autopsy_hooks\.py)$</code></pre>
+<p>Recorded honestly rather than papered over: the <code>start-no-readable-guard</code> mutation kills nothing on its own, because that guard is provably redundant (jq's stderr is muted and an empty count already fails the arithmetic) — only the compound always-announce mutation reaches those cases.</p>
+
+<h2 id="quiz">Quiz</h2>
+<p class="meta">Click an answer to check it — rationale appears after you pick.</p>
+<div id="quiz-root"></div>
+<p id="score"></p>
+
+<script>
+"use strict";
+// QUIZ shape: {q, opts: [4 strings], a: correctIndex, why}
+const QUIZ = [
+  {q: "Why does the tool mutate one guard at a time instead of gutting a whole hook body?",
+   opts: ["Gutting kills only positive tests; negative ones expect silence",
+          "Whole-body gutting would also delete the deployed hooks from ~/.claude on disk",
+          "Per-guard mutations run faster because fewer tests execute each round",
+          "pre-commit forbids entry points that rewrite more than one file"],
+   a: 0,
+   why: "A gutted hook emits nothing — exactly what the nine negative tests expect — so gut-only mutation falsely brands them vacuous."},
+  {q: "What does the staleness guard protect against?",
+   opts: ["The suite importing stale bytecode from a previous pytest run's cache",
+          "Hooks being edited concurrently while the mutation run is in flight",
+          "A mutation that stops matching the hook text becoming a no-op",
+          "The pre-commit cache replaying verdicts from an older commit's run"],
+   a: 2,
+   why: "A behaviour-preserving rename inside a hook would make a string-transform mutation match nothing — silently testing nothing. The guard raises instead."},
+  {q: "Why does the tool exit 0 when the hooks directory is absent?",
+   opts: ["exit 0 keeps pre-commit from ever blocking commits on laptops",
+          "CI runners have no deployed hooks, so nothing is there to prove",
+          "the hooks themselves always exit 0 and the tool mirrors that contract",
+          "a missing directory would make every mutation trivially kill all tests"],
+   a: 1,
+   why: "The gate runs in CI too, where ~/.claude doesn't exist; skipping there is correct, failing would be noise."},
+  {q: "start-no-readable-guard kills zero tests. Why is that recorded as a finding rather than fixed?",
+   opts: ["the mutation itself is broken and should be dropped from the matrix",
+          "no test could ever observe file readability from outside the hook process",
+          "the guard runs after the announce line, so no test can reach it",
+          "the guard is redundant: jq is muted and an empty count fails anyway"],
+   a: 3,
+   why: "The readability check duplicates protection that jq error suppression and the arithmetic already provide — a documented redundancy, not a test gap."},
+  {q: "What makes exit-status assertions vacuous for these two hooks?",
+   opts: ["bash hooks cannot propagate exit codes through the harness boundary",
+          "both hooks end in an unconditional exit 0, so status never varies",
+          "pytest treats nonzero exits from subprocesses as skipped tests",
+          "set -u converts every failure into a success at the shell level"],
+   a: 1,
+   why: "The always-exit-0 contract (never block a session) means a fully deleted hook body still 'passes' any status assertion — hence side-effect assertions plus this mutation gate."}
+];
+
+/* EXTRA_JS: optional micro-world widget code (may be empty) */
+
+(function renderQuiz() {
+  const root = document.getElementById("quiz-root");
+  let answered = 0, right = 0;
+  QUIZ.forEach(function (item, qi) {
+    const box = document.createElement("div");
+    box.className = "q";
+    const question = document.createElement("p");
+    question.textContent = (qi + 1) + ". " + item.q;
+    box.appendChild(question);
+    const why = document.createElement("div");
+    why.className = "why";
+    why.textContent = item.why;
+    const buttons = item.opts.map(function (opt, oi) {
+      const btn = document.createElement("button");
+      btn.textContent = opt;
+      btn.addEventListener("click", function () {
+        buttons.forEach(function (other) { other.disabled = true; });
+        buttons[item.a].classList.add("correct");
+        if (oi !== item.a) { btn.classList.add("wrong"); } else { right += 1; }
+        why.style.display = "block";
+        answered += 1;
+        document.getElementById("score").textContent =
+          "Score: " + right + "/" + answered + (answered === QUIZ.length ? " — done" : "");
+      });
+      box.appendChild(btn);
+      return btn;
+    });
+    box.appendChild(why);
+    root.appendChild(box);
+  });
+})();
+</script>
+</body>
+</html>
