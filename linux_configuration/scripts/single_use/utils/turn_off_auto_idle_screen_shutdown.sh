@@ -270,6 +270,14 @@ main() {
   persist_with_systemd_logind
 
   if [[ $watch_controller == true ]]; then
+    # Singleton. i3 re-execs its `exec` lines on `i3-msg restart`, and a second
+    # long-lived watcher would sit there holding a redundant inhibitor for the
+    # rest of the session. One lock, taken for as long as the watcher lives.
+    exec 8> "${XDG_RUNTIME_DIR:-/tmp}/idle-off-watch.lock"
+    if ! flock -n 8; then
+      log "Controller watcher already running; not starting a second one."
+      exit 0
+    fi
     log "Controller activity watcher enabled (idle-inhibitor mode)"
     # Blocks until terminated; releases the inhibitor on exit via its own trap.
     start_controller_watchers
