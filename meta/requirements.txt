@@ -81,4 +81,5 @@ types-python-dateutil>=2.8.0
 types-PyYAML>=6.0.0
 types-requests>=2.31.0
 types-setuptools>=69.0.0
+typing_extensions  # Self annotation on py310 target (session_autopsy store lock)
 websockets>=13.0
