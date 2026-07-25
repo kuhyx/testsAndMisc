@@ -1,0 +1,49 @@
+{
+  "intent": "Commit python_pkg/session_autopsy, the transcript analyzer behind /compile-candidate, which had been left untracked and mid-refactor: red tests, two files over the 500-line limit, and ten lint findings that no hook had ever seen because pre-commit only inspects files it is given.",
+  "scope": [
+    "python_pkg/session_autopsy/ - 11 modules and 11 test modules, newly tracked",
+    "The analyzer's heuristics, thresholds and scoring are NOT touched: the detectors' judgment belongs to the session that wrote them",
+    "The candidate store and REPORT.md stay outside the repo, under ~/.claude/autopsy"
+  ],
+  "changes": [
+    "Finished the interrupted accumulator refactor. _Accumulator had been moved onto the grouped records dataclasses (self.meta, self.counts), but three increment sites and parse_session still used flat attributes that no longer existed, so every parse raised AttributeError: '_Accumulator' object has no attribute 'first_timestamp'. parse_session now hands over acc.meta and acc.counts directly; only subagent_count is set from the file listing, since no transcript line carries it.",
+    "Split the two files over the 500-line limit along seams that already existed. signatures.py takes normalize_signature/command_signature — traces.py was already importing them from parse.py, so parse was acting as an accidental hub and now neither module imports the other. stats.py takes the pure number/time helpers (parse_timestamp, per_turn_avg, per_week, mean, mean_pairwise_similarity, slope). parse.py 521 -> 458 lines, detectors.py 559 -> 467.",
+    "Refactored the two structural lint findings rather than configuring them away. _counter_candidates took 8 arguments; the five describing which counter field to mine at what thresholds became a frozen _CounterSpec, so both call sites are now one line against _ERROR_SPEC/_PROMPT_SPEC. _extract_skill had 13 branches carrying in_span and span_lines as loop variables; a _SpanBuffer now owns the span state and the per-span budget, with _capture_results/_capture_block beside it, leaving the walk at four branches.",
+    "The record() test builder took 12 flat keyword arguments (PLR0913). Regrouped onto the record's own blocks — file/meta/counts/tokens/obs — with a session_meta() helper so a partial meta override keeps the standard timestamp; a bare SessionMeta(slug=...) would otherwise have nulled started_at and quietly changed the per-week arithmetic. All 36 call sites rewritten by an AST pass so none was missed.",
+    "tests/factories.py matched neither test_*.py nor the name-tests-test hook's exemptions; merged into conftest.py, which is where every other package here keeps shared builders (see code_tutor/tests/conftest.py), and rewired six test modules.",
+    "Remaining lint fixed at the source: six over-length lines in report.py, one each in cli.py and traces.py, cli.py's module docstring (it repeated PYTHONPATH=... on every usage line), RUF001/RUF002 ambiguous multiplication signs in two output strings and one docstring, codespell's 'resetted' in a fake prompt (the retry detector keys on 'limit' plus 'reset'/'continue', so the corrected wording exercises the same branch), and FBT003 boolean positionals in test_records.py (the bool is now bound to a named object, keeping the point of the assertion).",
+    "Added tests for the branch the _SpanBuffer refactor exposed: an end-to-end case for a content block that is neither tool_use nor text, plus direct unit tests for _capture_block's unrecognised-block handling, the in-span invariant, and the per-span budget reset."
+  ],
+  "verification": [
+    {
+      "command": "bash ~/.claude/scripts/finish.sh gate /home/kuhy/testsAndMisc python_pkg/session_autopsy/*.py python_pkg/session_autopsy/tests/*.py",
+      "result": "pass",
+      "evidence": "exit 0, risk: low. 965 passed; 'Required test coverage of 100.0% reached. Total coverage: 100.00%'. Earlier runs of the same gate returned exit 20 (11 failing tests) and then exit 10 (pylint/ruff/codespell/coverage) — this is the same command going green, not a narrowed one."
+    },
+    {
+      "command": "python -m pytest python_pkg -q (repo-wide, coverage gate on)",
+      "result": "pass",
+      "evidence": "880 passed, TOTAL 100% across 3899 statements and 1126 branches. session_autopsy/traces.py specifically: 180 statements, 100 branches, 100% with no partials."
+    },
+    {
+      "command": "pre-commit run ruff / ruff-format / mypy / pylint / bandit / codespell / name-tests-test --files <every package file>",
+      "result": "pass",
+      "evidence": "All pass. Zero suppressions added: no noqa, no type: ignore, no new per-file-ignores in meta/pyproject.toml."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python -m python_pkg.session_autopsy candidates && ... traces skill-finish",
+      "result": "pass",
+      "evidence": "candidates lists the real ranked corpus (skill-explain-diff 35x ~2.3M/wk, skill-finish 63x ~2.1M/wk, err-549ef470 528x ~437k/wk ...). traces skill-finish renders real spans from a 2026-07-23 transcript: 'TOOL Skill | finish', 'TOOL Bash | {\"command\": \"git diff --stat\"...}', 'RESULT | ...' — the refactored span walk working on actual data, not only under test."
+    }
+  ],
+  "risks": [
+    "This package was authored in another session and may still be edited there. Committing it does not conflict with that work — later edits simply stack on tracked files — but the refactors above changed module boundaries (signatures.py, stats.py) and the record() builder's signature, which a parallel edit would have to rebase onto.",
+    "The interrupted refactor's intent was inferred from the half-finished state (grouped dataclasses in __init__ and _note_metadata, flat attributes at the call sites). The direction is unambiguous, but the author may have wanted a different destination.",
+    "record() call sites were rewritten mechanically via AST. The 100% coverage gate and 880 passing tests are the check on that; nothing else asserts on the builder's shape.",
+    "Two output strings changed cosmetically: the CLI and report tables now print '12x / 3 sessions' rather than '12× / 3 sessions', because RUF001 flags the multiplication sign as ambiguous."
+  ],
+  "rollback": [
+    "git revert the commit; the package returns to untracked-and-red, so re-check with python -m pytest python_pkg/session_autopsy (expect the AttributeError on parse_session) to confirm the revert restored the prior state rather than a third one.",
+    "Nothing outside python_pkg/session_autopsy/ and the two docs artifacts is touched, so no other package needs revalidation."
+  ]
+}

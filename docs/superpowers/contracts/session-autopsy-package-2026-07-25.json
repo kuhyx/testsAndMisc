@@ -1,0 +1,18 @@
+{
+  "title": "Track the session-autopsy package",
+  "objective": "Bring python_pkg/session_autopsy — the transcript analyzer that ranks automation candidates and backs /compile-candidate — under version control. It was authored in an earlier session and left untracked mid-refactor, so it existed only in the working tree, was never linted (hooks only see files handed to them), and its tests were red. Success means the package is committed in a state that passes every repo gate on the first try.",
+  "acceptance_criteria": [
+    "The whole package (11 modules + 11 test modules) is tracked; no store, report or __pycache__ artifacts come with it — its data lives under ~/.claude/autopsy.",
+    "The interrupted accumulator refactor is finished: parse_session hands over acc.meta and acc.counts instead of rebuilding SessionMeta/ActivityCounts from flat attributes that no longer exist.",
+    "No module exceeds the repo's 500-line limit.",
+    "ruff, ruff-format, mypy --strict, pylint, bandit and codespell all pass on every file, with no new per-file-ignores, noqa or type: ignore anywhere.",
+    "pytest passes with 100% statement and branch coverage on the package.",
+    "The CLI runs for real: `candidates` lists ranked candidates and `traces skill-finish` renders spans from actual transcripts."
+  ],
+  "out_of_scope": [
+    "Any behaviour change to the analyzer's heuristics, thresholds or scoring — the detectors' judgment is the author's, and this commit does not touch it.",
+    "The two files over 500 lines were split, not rewritten: no detector logic moved semantics.",
+    "The candidate corpus itself (~/.claude/autopsy/REPORT.md and the store) stays outside the repo."
+  ],
+  "verifier": "bash ~/.claude/scripts/finish.sh gate <repo> python_pkg/session_autopsy/*.py python_pkg/session_autopsy/tests/*.py (exit 0, risk low); python -m pytest python_pkg -q (100% coverage gate); and a real run of `python -m python_pkg.session_autopsy candidates` plus `traces skill-finish`."
+}
