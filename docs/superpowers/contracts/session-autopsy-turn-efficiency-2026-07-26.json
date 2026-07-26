@@ -1,0 +1,17 @@
+{
+  "title": "Measure turn efficiency in session-autopsy",
+  "objective": "Session-autopsy priced tokens but never counted the API round-trips spending them. Cache read is charged per round-trip on the whole conversation so far, so a long session's cost is driven by turn count rather than message length — one measured session spent 267M cache-read against 856k output. Success is a report section that counts tool turns, their batching rate, and the subset that decided nothing (polling, lint/test, read-only VCS checks), priced in cache-read tokens.",
+  "acceptance_criteria": [
+    "A command classifier labels Bash commands poll / lint_test / vcs_check / substantive, and a turn is only mechanical when every command in it is",
+    "Batching is grouped by requestId, because one API response can span several transcript lines and per-line counting reports every turn as single-tool",
+    "SessionRecord carries TurnEfficiency; the schema bump is additive so pre-v3 records deserialize as zeros rather than failing",
+    "REPORT.md gains a Turn efficiency section pricing each mechanical kind at the measured average context re-read",
+    "100% branch coverage across the package, ruff + pylint + mypy clean, full pre-commit gate passes with no --no-verify"
+  ],
+  "out_of_scope": [
+    "Changing how any existing detector or candidate scores",
+    "Acting on the findings (scripting the polling loops) — this contract only measures",
+    "Classifying non-Bash tools; a turn that only ran Edit/Read counts as substantive"
+  ],
+  "verifier": "pre-commit run --files <changed>; pytest --cov=python_pkg.session_autopsy (100% gate); python -m python_pkg.session_autopsy scan --force && report, checked against the real 263-transcript store"
+}
