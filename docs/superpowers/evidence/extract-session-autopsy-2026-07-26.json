@@ -1,0 +1,38 @@
+{
+  "intent": "Remove from the monorepo two things that do not belong in it: a 12GB tree of third-party clones, and a self-contained analyzer package.",
+  "scope": [
+    "python_pkg/session_autopsy/ (26 tracked files) -> kuhyx/mcp-servers/session-autopsy/",
+    "third_party/mcp/ (12GB, untracked) -> ~/mcp-servers/servers/, gitignored",
+    "Non-goal: third_party/agent-skills, unrelated to MCP"
+  ],
+  "changes": [
+    "git subtree split preserved session_autopsy's history; it only ever imported itself, so the extraction needed nothing but python_pkg.session_autopsy -> session_autopsy.",
+    "The 12GB tree was moved by rename (same filesystem) and gitignored. What is tracked instead is servers.json - upstream URL, branch and exact commit for all 24 - plus an idempotent setup.sh that reconstructs the fleet. 20KB tracked in place of 12GB.",
+    "12 absolute-path references rewritten across ~/.claude.json and three mcp-optional configs."
+  ],
+  "verification": [
+    {
+      "command": "bash ~/.claude/hooks/session_autopsy_end.sh <real transcript>",
+      "result": "pass",
+      "evidence": "exit 0, hook.log empty, store grew to 275 sessions. An earlier run failed with an AttributeError that turned out to be a stale __pycache__ from before the restructure, not a code fault - a clean run ingests 1,026 assistant messages."
+    },
+    {
+      "command": "python3 -c '<assert every mcpServers command path exists>'",
+      "result": "pass",
+      "evidence": "5 servers now under mcp-servers/ all resolve (reflex, servo-fetch, vestige, toolport, go-docs-mcp); no broken command path in any config."
+    },
+    {
+      "command": "diff -r old new",
+      "result": "pass",
+      "evidence": "Every difference between the extracted and original copies mentions the package name - i.e. imports only."
+    }
+  ],
+  "risks": [
+    "MCP servers already running from the old path keep their old cwd until the session restarts; new sessions pick up the rewritten config.",
+    "servers/ binaries under target/ are build output: a fresh clone needs setup.sh plus a per-server build before the registrations work."
+  ],
+  "rollback": [
+    "git revert this commit restores the package; the clones can be moved back with a single mv and the config paths rewritten in reverse.",
+    "Config backups were taken to the session scratchpad before rewriting."
+  ]
+}

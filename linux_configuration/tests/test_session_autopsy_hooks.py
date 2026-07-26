@@ -144,11 +144,16 @@ class TestSessionEndHookLaunchesIngest:
             json.dumps({"transcript_path": str(transcript)}),
         )
         argv = _await_launch(record)
-        assert "python_pkg.session_autopsy" in argv
+        # session_autopsy was extracted from this monorepo to kuhyx/mcp-servers;
+        # the hook must launch it from there, not from a python_pkg that no longer
+        # exists here. This test reads the DEPLOYED hook, which is why it caught the
+        # move rather than passing against a stale copy.
+        assert "-m session_autopsy" in argv
+        assert "python_pkg" not in argv
         assert "ingest" in argv
         assert str(transcript) in argv
         assert "--quiet" in argv
-        assert f"PYTHONPATH={home}/testsAndMisc" in argv
+        assert f"PYTHONPATH={home}/mcp-servers/session-autopsy" in argv
         assert "timeout 120" in argv
 
     def test_creates_the_autopsy_home(self, tmp_path: Path) -> None:
