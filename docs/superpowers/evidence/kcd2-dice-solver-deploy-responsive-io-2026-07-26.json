@@ -1,0 +1,85 @@
+{
+  "intent": "Make the KCD2 dice solver reachable without a terminal (live at https://dice.kuhy.duckdns.org/), usable on a phone, showing all 43 dice on one screen at every width, and able to move an inventory between devices via JSON file, clipboard, or share link.",
+  "scope": [
+    "kcd2_dice_solver/src/index.css \u2014 container-query dice grid + full mobile responsiveness",
+    "kcd2_dice_solver/src/lib/inventoryIo.ts (new) \u2014 one validator behind localStorage, file, paste and link",
+    "kcd2_dice_solver/src/components/InventoryIo.tsx (new) \u2014 import/export panel",
+    "kcd2_dice_solver/src/App.tsx \u2014 share-link precedence, deferred persistence, Keep banner",
+    "kcd2_dice_solver/src/components/{DieRow,QuantityStepper,DiceList}.tsx \u2014 compact cell",
+    "kcd2_dice_solver/src/data/dice.ts \u2014 MAX_PER_DIE moved here so lib/ need not import a component",
+    "kcd2_dice_solver/deploy_build.sh (new) \u2014 inode-preserving publish",
+    "linux_configuration/scripts/single_use/features/setup_kcd2_dice_solver.sh (new) \u2014 deployment",
+    "Non-goal: changing the solver mathematics, the palette, or run.sh's role as the dev entry point"
+  ],
+  "changes": [
+    "Dice list is a CSS grid whose column count and size tier are chosen jointly from a container query on section.inventory, with an explicit two-column floor so the row count is capped at 22 at every width. Removed max-height:46vh/overflow-y. All 43 dice now fit above the fold with no inner scrollbar at 375x667, 423x845, 768x1024, 1366x768, 1000x800 and 1920x1080.",
+    "Compact tier is the baseline, not a phone-only fallback: below a ~256px cell the comfortable tier's wider bar strip and third button cost 64px, which buys fewer name characters than the smaller font loses. A min-height:900px rule prefers two wide columns over three narrow ones when the screen can hold 22 rows.",
+    "Removed the type-a-number input from QuantityStepper (28px of a ~155px cell; max is 6) in favour of an <output> readout; dropped the per-face numbered labels; rescaled the face bars x1.6 -> x3 for the shorter strip.",
+    "New src/lib/inventoryIo.ts holds STORAGE_KEY, SavedInventory, a sanitise-and-report parseInventory, base64url hash codec, and three injectable ports (clipboard, file download, URL) so the jsdom-hostile browser APIs stay testable without untestable optional chaining.",
+    "Share links never silently overwrite a saved inventory: persistence is deferred behind one boolean until Keep is pressed or anything is edited, and the fragment is cleared on mount.",
+    "deploy_build.sh builds into dist.staging and rsync --delete's into dist/, asserting the inode is unchanged \u2014 the serving container bind-mounts dist/ and a bind mount follows the inode.",
+    "setup_kcd2_dice_solver.sh deploys behind the existing gitea-caddy edge, installs a MemorySwapMax=0 systemd user unit plus a post-commit hook for auto-rebuild, and skips the nftables regeneration when 80/443 are already accepted.",
+    "Restructured the two-column layout on kuhy's feedback: the left column now holds the dice grid alone. The header, subtitle and search/count/Clear toolbar moved into a new section.controls on the right; BadgePicker is wrapped in a <details> collapsed by default; the 'scroll the wheel over its counter' hint was deleted outright. Stacked below 1000px the side column becomes display:contents so its children can be ordered independently \u2014 controls, then dice, then results. With the left column no longer carrying a header the two-wide-column rule's height threshold dropped from 900px to 640px, so a 1366x768 laptop now gets 13px type in two columns instead of 11px in three.",
+    "Sized the dice grid to FILL the height it owns rather than sit in a band at the top: --die-row is clamp(24px, (100dvh - 9rem)/22, 56px) and the type, buttons and bar strip are all fractions of it. A 2560x1296 screen goes from a 24px row / 13px type / 22px buttons using 526px of ~1300px, to a 52px row / 20px type / 44px buttons using 1194px. Type caps at 20px while the row runs to 56px \u2014 beyond that names truncate, whereas a taller row is pure click-target gain. .app max-width raised 1560px -> 2000px so a 2560px monitor is not 40% margin."
+  ],
+  "verification": [
+    {
+      "command": "pnpm exec vitest run --coverage",
+      "result": "pass",
+      "evidence": "280 tests, 15 files. Statements 100% (856/856), Branches 100% (373/373), Functions 100% (179/179), Lines 100% (804/804). Exit 0 against the repo's fail_under=100 thresholds."
+    },
+    {
+      "command": "pnpm run lint",
+      "result": "pass",
+      "evidence": "tsc --noEmit && eslint src (strictTypeChecked + stylisticTypeChecked) \u2014 no output, exit 0. No lint suppressions added."
+    },
+    {
+      "command": "Headless Chrome 138 via CDP: measure layout at 6 viewports (dev server, production preview, and the live HTTPS site)",
+      "result": "pass",
+      "evidence": "Every viewport: 43 rows rendered, innerScroll=false, list ends above the fold, no horizontal page scroll, and Painter's die B/G/R never clipped. Phone 423x845 (measured from adb: 1080px / (density 408/160)) -> 2 cols, list 460px ending at 556px of 845."
+    },
+    {
+      "command": "Headless Chrome: functional drive of the PRODUCTION bundle and then the live site",
+      "result": "pass",
+      "evidence": "Six clicks -> '6 dice'; solver (real module worker, which jsdom cannot host) returned loadout ['6x Weighted die'] EV 2,675. Share link round-trip: loads, Keep banner shown, fragment cleared, localStorage untouched until Keep, then written. Console clean."
+    },
+    {
+      "command": "curl -sI https://dice.kuhy.duckdns.org/ + openssl s_client",
+      "result": "pass",
+      "evidence": "HTTP/2 200, Let's Encrypt cert CN=dice.kuhy.duckdns.org valid to 2026-10-24. kuhy/gitea/kuhy-sync all still 200. Listener is 127.0.0.1:8089 only; LAN IP 192.168.1.43:8089 refused."
+    },
+    {
+      "command": "systemctl --user start kcd2-dice-build.service (auto-rebuild proof)",
+      "result": "pass",
+      "evidence": "Unit finished, 440.2M memory peak against MemoryMax=3G. dist inode 87041124 before and after. Live site then served the new asset hashes (index-CjacUXQ5.js, index-7hcb7ih-.css)."
+    },
+    {
+      "command": "shellcheck deploy_build.sh setup_kcd2_dice_solver.sh",
+      "result": "pass",
+      "evidence": "Only informational SC1091 (external source), SC2015 (the repo's existing status-line idiom) and SC2317."
+    },
+    {
+      "command": "Headless Chrome: re-measure all 6 viewports after the layout restructure, then re-drive the live site",
+      "result": "pass",
+      "evidence": "All viewports still fit with no inner scroll and no clipped Painter's names. 1366x768 improved from 3 cols/11px ending at 514px to 2 cols/13px ending at 567px; 1920x1080 list now ends at 567px (was 727px). Live site re-verified: 43 rows, solver EV 2,675, console clean. 283 tests, 100% coverage, lint clean."
+    },
+    {
+      "command": "Headless Chrome: measure 8 viewports incl. 2560x1296 and 2560x1440, on dev then the live site",
+      "result": "pass",
+      "evidence": "All 8 fit with no inner scroll and zero clipped names. 2560x1296: font 20px, row 52px, buttons 44px, list 1194px, 61px slack. 2560x1440: row 56px, list 1274px. 1920x1080: font 17px, row 43px. Phone and stacked layouts unchanged. Live site re-verified: 43 rows, solver EV 2,675, console clean. 283 tests, 100% coverage, lint clean."
+    }
+  ],
+  "risks": [
+    "Two bugs were found and fixed only because the live site was driven in a browser rather than curl'd: (1) a site address of '127.0.0.1:8089' made Caddy treat it as a hostname, enable automatic HTTPS and start an HTTP->HTTPS redirect listener that bound *:80 alongside the public edge \u2014 SO_REUSEPORT would then split inbound HTTP and intermittently break ACME for every domain on the host; (2) the same address created a Host matcher, so the edge's forwarded 'Host: dice.kuhy.duckdns.org' matched no route and served an empty 200 while the local health check passed. Both are now guarded: the health check sends the real Host header and requires a non-empty body, and setup asserts the container binds neither :80/:443 nor a wildcard address.",
+    "The auto-rebuild builds the working tree, not the commit, so an unrelated uncommitted edit present at rebuild time ships to the live site. Stated in the setup report and the README rather than fixed; a detached worktree would decouple them at the cost of a worktree to manage.",
+    ".git/hooks/post-commit is not version-controlled and is lost on a fresh clone. 'setup_kcd2_dice_solver.sh status' reports it and re-running setup restores it.",
+    "Sub-44px tap targets on phone (16px stepper buttons) are a deliberate, user-accepted trade for fitting 43 dice. Mitigated: the whole cell is an add target and '+' is hidden on narrow layouts because the cell supersedes it.",
+    "Three safe-design-rules are knowingly broken inside .die-list only: body text below 16px (11-13px names), square icon buttons rather than 2:1 padding, and sub-8px intra-cell gaps. 43 items with a name, a chart and a counter in one viewport is arithmetically incompatible with 16px.",
+    "The height scaling is scoped to @media (min-width: 1001px): applying it to the stacked layout overflowed the fold by ~100px at 768x1024 and 1000x800, because there the title and search box sit above the grid and the viewport height is not the grid's to claim. Caught by measurement, not by inspection."
+  ],
+  "rollback": [
+    "App: git revert the commit; run.sh and the dev server are untouched, and the old localStorage key/shape is unchanged so saved inventories survive a revert.",
+    "Deployment: 'docker rm -f kcd2-dice && rm ~/gitea/sites/dice.caddy' then 'docker exec gitea-caddy caddy validate --config /etc/caddy/Caddyfile && docker exec gitea-caddy caddy reload --config /etc/caddy/Caddyfile'. Also 'rm ~/.config/systemd/user/kcd2-dice-build.service ~/testsAndMisc/.git/hooks/post-commit && systemctl --user daemon-reload'.",
+    "After rollback validate: the other three sites (kuhy, gitea.kuhy, kuhy-sync) still return 200, and 'sudo ss -ltnp | grep -E :(80|443)' shows only the gitea-caddy pid."
+  ]
+}

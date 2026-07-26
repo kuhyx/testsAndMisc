@@ -28,7 +28,9 @@ export function DiceList({ query, counts, onChange }: DiceListProps): JSX.Elemen
   }
 
   return (
-    <ul className="die-list">
+    // `role="list"` is not redundant: the list-style:none needed for the grid
+    // layout makes Safari/VoiceOver drop list semantics entirely.
+    <ul className="die-list" role="list">
       {matches.map(({ item, indices }) => (
         <DieRow
           key={item.id}

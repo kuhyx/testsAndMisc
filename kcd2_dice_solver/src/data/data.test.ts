@@ -42,6 +42,16 @@ describe("dice data", () => {
     expect(new Set(DICE.map((die) => die.name)).size).toBe(DICE.length);
   });
 
+  it("uses only plain-ASCII ids", () => {
+    // Shared inventories are base64-encoded into the URL fragment, and `btoa`
+    // throws on any code point above 255. Ids are the only strings that reach
+    // it, so guarding them here removes the need for a runtime try/catch that
+    // could never be exercised.
+    for (const die of DICE) {
+      expect(die.id).toMatch(/^[a-z0-9_]+$/);
+    }
+  });
+
   it("indexes every die by id", () => {
     expect(DICE_BY_ID.size).toBe(DICE.length);
     expect(DICE_BY_ID.get("weighted")?.name).toBe("Weighted die");
@@ -87,6 +97,13 @@ describe("dice data", () => {
 });
 
 describe("badge data", () => {
+  it("uses only plain-ASCII ids", () => {
+    // Same reason as the dice: badge ids ride along in the shared-link payload.
+    for (const badge of BADGES) {
+      expect(badge.id).toMatch(/^[a-z0-9_]+$/);
+    }
+  });
+
   it("has all 33 badges from the wiki", () => {
     expect(BADGES).toHaveLength(33);
   });

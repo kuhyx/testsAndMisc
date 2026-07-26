@@ -10,8 +10,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { App, STORAGE_KEY, loadInventory } from "./App.tsx";
-import type { SavedInventory } from "./App.tsx";
+import { App } from "./App.tsx";
+import { STORAGE_KEY, encodeInventoryHash, toBase64Url } from "./lib/inventoryIo.ts";
+import type { SavedInventory, UrlHashPort } from "./lib/inventoryIo.ts";
 import { solve } from "./core/solve.ts";
 import type { SolverPort } from "./hooks/useSolver.ts";
 import type { WorkerReply, WorkerRequest } from "./worker/solver.worker.ts";
@@ -70,35 +71,34 @@ function readSaved(storage: Pick<Storage, "getItem">): SavedInventory {
   return JSON.parse(storage.getItem(STORAGE_KEY) ?? "{}") as SavedInventory;
 }
 
-const renderApp = (initial?: string) =>
-  render(<App createPort={createInlinePort} storage={memoryStorage(initial)} />);
+/**
+ * A URL port that reports a fragment without touching the real location.
+ *
+ * @param hash - The fragment the page was "opened with".
+ * @returns The port plus a record of whether the app cleared the fragment.
+ */
+function stubUrl(hash = ""): UrlHashPort & { cleared: () => number } {
+  let clears = 0;
+  return {
+    read: () => hash,
+    clear: () => {
+      clears += 1;
+    },
+    base: () => "https://dice.example/",
+    cleared: () => clears,
+  };
+}
 
-describe("loadInventory", () => {
-  it("starts empty when nothing is saved", () => {
-    expect(loadInventory(memoryStorage())).toEqual({ diceCounts: {}, badgeIds: [] });
-  });
-
-  it("restores a saved inventory", () => {
-    const saved = JSON.stringify({ diceCounts: { weighted: 3 }, badgeIds: ["tin_might"] });
-    expect(loadInventory(memoryStorage(saved))).toEqual({
-      diceCounts: { weighted: 3 },
-      badgeIds: ["tin_might"],
-    });
-  });
-
-  it("survives a corrupt entry rather than taking the page down with it", () => {
-    expect(loadInventory(memoryStorage("{not json"))).toEqual({ diceCounts: {}, badgeIds: [] });
-  });
-
-  it("survives an entry of the wrong shape", () => {
-    expect(loadInventory(memoryStorage("42"))).toEqual({ diceCounts: {}, badgeIds: [] });
-    expect(loadInventory(memoryStorage("null"))).toEqual({ diceCounts: {}, badgeIds: [] });
-    expect(loadInventory(memoryStorage('{"diceCounts":"nope","badgeIds":"nope"}'))).toEqual({
-      diceCounts: {},
-      badgeIds: [],
-    });
-  });
-});
+const renderApp = (initial?: string, urlHash: UrlHashPort = stubUrl()) =>
+  render(
+    <App
+      createPort={createInlinePort}
+      storage={memoryStorage(initial)}
+      urlHash={urlHash}
+      clipboard={{ writeText: () => Promise.resolve() }}
+      saveFile={() => undefined}
+    />,
+  );
 
 describe("App", () => {
   it("asks for dice before anything is entered", () => {
@@ -140,11 +140,11 @@ describe("App", () => {
     for (let i = 0; i < 6; i += 1) {
       fireEvent.wheel(stepper, { deltaY: -120 });
     }
-    expect(screen.getByLabelText("How many Weighted die")).toHaveValue(6);
+    expect(screen.getByLabelText("How many Weighted die")).toHaveTextContent("6");
     expect(screen.getByText("6 dice")).toBeInTheDocument();
 
     fireEvent.wheel(stepper, { deltaY: 120 });
-    expect(screen.getByLabelText("How many Weighted die")).toHaveValue(5);
+    expect(screen.getByLabelText("How many Weighted die")).toHaveTextContent("5");
     expect(screen.getByText("5 dice")).toBeInTheDocument();
   });
 
@@ -162,7 +162,7 @@ describe("App", () => {
         fireEvent.click(add);
       }
     });
-    expect(screen.getByLabelText("How many Weighted die")).toHaveValue(4);
+    expect(screen.getByLabelText("How many Weighted die")).toHaveTextContent("4");
 
     const stepper = screen.getByLabelText("How many Weighted die").parentElement;
     if (!stepper) {
@@ -173,7 +173,7 @@ describe("App", () => {
         fireEvent.wheel(stepper, { deltaY: -120 });
       }
     });
-    expect(screen.getByLabelText("How many Weighted die")).toHaveValue(6);
+    expect(screen.getByLabelText("How many Weighted die")).toHaveTextContent("6");
     expect(screen.getByText("6 dice")).toBeInTheDocument();
   });
 
@@ -294,5 +294,219 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText("solver exploded")).toBeInTheDocument();
     });
+  });
+});
+
+describe("shared links", () => {
+  const shared = encodeInventoryHash({ diceCounts: { weighted: 3 }, badgeIds: [] });
+
+  it("prefers a link over whatever this browser had saved", () => {
+    const mine = JSON.stringify({ diceCounts: { lucky: 1 }, badgeIds: [] });
+    renderApp(mine, stubUrl(shared));
+    expect(screen.getByText("3 dice")).toBeInTheDocument();
+  });
+
+  it("drops the fragment so a reload does not resurrect the link", () => {
+    const url = stubUrl(shared);
+    renderApp(undefined, url);
+    expect(url.cleared()).toBe(1);
+  });
+
+  it("leaves the URL alone when there was no link", () => {
+    const url = stubUrl();
+    renderApp(undefined, url);
+    expect(url.cleared()).toBe(0);
+  });
+
+  it("does not overwrite the saved inventory until the visitor commits", () => {
+    // Silently clobbering somebody's own loadout with a link they opened is
+    // unrecoverable, so nothing is written until they say so.
+    const storage = memoryStorage(JSON.stringify({ diceCounts: { lucky: 1 }, badgeIds: [] }));
+    render(
+      <App
+        createPort={createInlinePort}
+        storage={storage}
+        urlHash={stubUrl(shared)}
+        clipboard={{ writeText: () => Promise.resolve() }}
+        saveFile={() => undefined}
+      />,
+    );
+    expect(screen.getByText("3 dice")).toBeInTheDocument();
+    expect(readSaved(storage).diceCounts).toEqual({ lucky: 1 });
+  });
+
+  it("persists once Keep is pressed", async () => {
+    const storage = memoryStorage();
+    render(
+      <App
+        createPort={createInlinePort}
+        storage={storage}
+        urlHash={stubUrl(shared)}
+        clipboard={{ writeText: () => Promise.resolve() }}
+        saveFile={() => undefined}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Keep" }));
+    expect(readSaved(storage).diceCounts).toEqual({ weighted: 3 });
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+  });
+
+  it("persists as soon as the visitor edits anything, banner and all", async () => {
+    const storage = memoryStorage();
+    render(
+      <App
+        createPort={createInlinePort}
+        storage={storage}
+        urlHash={stubUrl(shared)}
+        clipboard={{ writeText: () => Promise.resolve() }}
+        saveFile={() => undefined}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("Search dice and badges"), "wei");
+    await userEvent.click(screen.getByLabelText("Remove one Weighted die"));
+    expect(readSaved(storage).diceCounts).toEqual({ weighted: 2 });
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+  });
+
+  it("shows no banner on an ordinary visit", () => {
+    renderApp();
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+  });
+
+  it("falls through to storage when the fragment carries no inventory", () => {
+    const mine = JSON.stringify({ diceCounts: { lucky: 1 }, badgeIds: [] });
+    renderApp(mine, stubUrl("#nothing=here"));
+    expect(screen.getByText("1 die")).toBeInTheDocument();
+  });
+
+  it("keeps the saved inventory when the link is damaged", () => {
+    const mine = JSON.stringify({ diceCounts: { lucky: 1 }, badgeIds: [] });
+    // "@" is not a base64 character, so decoding throws rather than yielding
+    // an inventory — the case a truncated or mangled URL actually produces.
+    renderApp(mine, stubUrl("#i=@@@"));
+    expect(screen.getByText("1 die")).toBeInTheDocument();
+    // Nothing was taken from the link, so there is nothing to accept or refuse.
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Discard" })).not.toBeInTheDocument();
+  });
+
+  it("reports what a shared link had to drop", () => {
+    const link = `#i=${toBase64Url(
+      JSON.stringify({ diceCounts: { weighted: 2, nosuchdie: 1 }, badgeIds: [] }),
+    )}`;
+    renderApp(undefined, stubUrl(link));
+    expect(screen.getByText("2 dice")).toBeInTheDocument();
+    expect(screen.getByText(/Unknown die/)).toBeInTheDocument();
+  });
+
+  it("replaces the whole inventory on import", async () => {
+    const storage = memoryStorage(JSON.stringify({ diceCounts: { lucky: 2 }, badgeIds: [] }));
+    render(
+      <App createPort={createInlinePort} storage={storage} urlHash={stubUrl()} />,
+    );
+    fireEvent.change(screen.getByLabelText("Inventory JSON"), {
+      target: { value: '{"diceCounts":{"weighted":4},"badgeIds":[]}' },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Import pasted" }));
+    expect(screen.getByText("4 dice")).toBeInTheDocument();
+    expect(readSaved(storage).diceCounts).toEqual({ weighted: 4 });
+  });
+});
+
+describe("layout", () => {
+  it("gives the left column to the dice and nothing else", () => {
+    renderApp();
+    const inventory = document.querySelector("section.inventory");
+    if (!inventory) {
+      throw new Error("no inventory section");
+    }
+    // The search box, the title and the badges all moved to the right column so
+    // the 43-row grid gets the whole vertical budget.
+    expect(inventory.querySelector(".die-list")).toBeInTheDocument();
+    expect(inventory.querySelector(".toolbar")).toBeNull();
+    expect(inventory.querySelector("h1")).toBeNull();
+    expect(inventory.querySelector(".badges")).toBeNull();
+  });
+
+  it("keeps the badges collapsed until asked for", () => {
+    renderApp();
+    const badges = document.querySelector("details.badges");
+    expect(badges).toBeInTheDocument();
+    expect(badges).not.toHaveAttribute("open");
+    // Still reachable — collapsed, not removed.
+    expect(within(badges as HTMLElement).getByText("Badges")).toBeInTheDocument();
+  });
+
+  it("no longer tells touch users to scroll a mouse wheel", () => {
+    renderApp();
+    expect(screen.queryByText(/scroll the wheel/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("shared links cannot destroy what is already saved", () => {
+  it("ignores a link that carries no dice or badges", () => {
+    // A count of zero parses cleanly, so "did the parser complain?" is the
+    // wrong question — this used to blank the inventory on screen, disable
+    // Clear, and leave Keep as the only enabled control, writing the emptiness
+    // over the visitor's own dice.
+    const mine = JSON.stringify({ diceCounts: { lucky: 4 }, badgeIds: [] });
+    const empty = encodeInventoryHash({ diceCounts: { weighted: 0 }, badgeIds: [] });
+    const storage = memoryStorage(mine);
+    render(
+      <App createPort={createInlinePort} storage={storage} urlHash={stubUrl(empty)} />,
+    );
+    expect(screen.getByText("4 dice")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+    expect(readSaved(storage).diceCounts).toEqual({ lucky: 4 });
+  });
+
+  it("restores the visitor's own inventory when a link is discarded", async () => {
+    const mine = JSON.stringify({ diceCounts: { lucky: 4 }, badgeIds: ["tin_might"] });
+    const link = encodeInventoryHash({ diceCounts: { weighted: 3 }, badgeIds: [] });
+    const storage = memoryStorage(mine);
+    render(
+      <App createPort={createInlinePort} storage={storage} urlHash={stubUrl(link)} />,
+    );
+    expect(screen.getByText("3 dice")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(screen.getByText("4 dice")).toBeInTheDocument();
+    expect(readSaved(storage)).toEqual({
+      diceCounts: { lucky: 4 },
+      badgeIds: ["tin_might"],
+    });
+  });
+
+  it("clears a fragment even when it decoded to nothing", () => {
+    // A fragment left in the bar is read again on the next reload, where it
+    // would land on top of whatever has been edited since.
+    for (const hash of ["#i=@@@", "#other=1", "#i="]) {
+      const url = stubUrl(hash);
+      renderApp(undefined, url);
+      expect(url.cleared()).toBe(1);
+    }
+  });
+});
+
+describe("a saved inventory that no longer parses cleanly", () => {
+  const stale = JSON.stringify({
+    diceCounts: { lucky: 4, future_patch_die: 6 },
+    badgeIds: [],
+  });
+
+  it("is not silently truncated in storage on load", () => {
+    const storage = memoryStorage(stale);
+    render(<App createPort={createInlinePort} storage={storage} urlHash={stubUrl()} />);
+    // Still the original text: nothing was written over it on first paint.
+    expect(readSaved(storage).diceCounts).toEqual({ lucky: 4, future_patch_die: 6 });
+  });
+
+  it("says what it could not read, and only commits once accepted", async () => {
+    const storage = memoryStorage(stale);
+    render(<App createPort={createInlinePort} storage={storage} urlHash={stubUrl()} />);
+    expect(screen.getByText(/Unknown die “future_patch_die”/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Keep" }));
+    expect(readSaved(storage).diceCounts).toEqual({ lucky: 4 });
   });
 });

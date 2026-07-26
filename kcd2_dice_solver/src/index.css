@@ -28,15 +28,20 @@ body {
   margin: 0;
 }
 
+/* Wide enough that a 2560px monitor is not 40% empty margin, but still capped:
+   past ~2000px the caveats column turns into unreadably long lines. The 1560px
+   floor of the old value mattered because the panel is 1.2/2.2 of the content
+   width and had to clear the 772px container query that unlocks the larger
+   type. */
 .app {
-  max-width: 1400px;
+  max-width: 2000px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: clamp(0.75rem, 3vw, 1.5rem);
 }
 
 header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: clamp(1.15rem, 4vw, 1.5rem);
   color: var(--accent);
   letter-spacing: -0.01em;
 }
@@ -53,27 +58,90 @@ header h1 {
   align-items: start;
 }
 
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
 @media (max-width: 1000px) {
   .columns {
     grid-template-columns: 1fr;
   }
+
+  /* Stacked, the side column's own children become the grid items, so they can
+     be ordered independently: title and search first, then the dice, then the
+     results. Without this the whole right column would land either entirely
+     above the dice (burying them) or entirely below (hiding the search box). */
+  .side {
+    display: contents;
+  }
+
+  .controls {
+    order: -1;
+  }
+
+  section.inventory {
+    order: 0;
+  }
+
+  .results {
+    order: 1;
+    /* Sticky in a stacked layout pins the panel over the page and puts the
+       caveats below it out of reach. */
+    position: static;
+  }
+}
+
+/* The subtitle is the block that costs the most vertical space for the least
+   value on a phone. */
+@media (max-width: 600px) {
+  .subtitle {
+    display: none;
+  }
+
+  header {
+    margin-bottom: 0.75rem;
+  }
 }
 
 section.inventory,
+section.controls,
 .result,
 .caveats {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  padding: 1rem;
+  padding: clamp(0.75rem, 2vw, 1rem);
 }
 
+/* The dice grid sizes itself against THIS panel, not the viewport: at a 1000px
+   viewport the panel is ~918px wide, and one pixel later the .columns split
+   engages and it drops to ~472px. A viewport media query would be wrong by
+   about a factor of two exactly where it matters. */
+section.inventory {
+  container-type: inline-size;
+  container-name: inv;
+}
+
+/* Not sticky any more: with the dice list alone on the left, the right column
+   is now the taller of the two, so there is nothing for it to stick against. */
 .results {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  position: sticky;
-  top: 1rem;
+  min-width: 0;
+}
+
+/* The two collapsible panels sit as siblings of .result, so they get the same
+   container treatment rather than looking like loose text between panels. */
+.badges,
+.io {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: clamp(0.75rem, 2vw, 1rem);
 }
 
 /* --- toolbar ---------------------------------------------------------- */
@@ -82,16 +150,19 @@ section.inventory,
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search {
-  flex: 1;
-  padding: 0.5rem 1rem;
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--text);
-  font: inherit;
+  font-family: inherit;
 }
 
 .search:focus {
@@ -101,7 +172,8 @@ section.inventory,
 
 .count {
   color: var(--muted);
-  min-width: 5rem;
+  min-width: 4rem;
+  font-size: 0.8125rem;
   text-align: right;
 }
 
@@ -111,9 +183,31 @@ section.inventory,
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--text);
-  font: inherit;
+  font-family: inherit;
   cursor: pointer;
-  padding: 0.5rem 1rem;
+}
+
+.clear {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8125rem;
+}
+
+/* Above phone width the toolbar has room to breathe again. */
+@media (min-width: 601px) {
+  .search {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+  }
+
+  .count {
+    min-width: 5rem;
+    font-size: 1rem;
+  }
+
+  .clear {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+  }
 }
 
 .clear:disabled,
@@ -127,10 +221,29 @@ section.inventory,
   border-color: var(--accent);
 }
 
-.hint {
+section.controls header {
+  margin-bottom: 0.75rem;
+}
+
+section.controls h1 {
+  margin-bottom: 0.15rem;
+}
+
+.subtitle {
+  margin: 0 0 0.75rem;
+}
+
+/* Badges are a secondary concern next to the dice and, open, they are the
+   tallest thing on the page — so they stay shut until asked for. */
+.badges > summary {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--muted);
-  font-size: 1rem;
-  margin: 0.6rem 0;
+}
+
+.badges[open] > summary {
+  margin-bottom: 0.5rem;
 }
 
 /* --- dice list -------------------------------------------------------- */
@@ -145,41 +258,184 @@ section.inventory,
   padding: 0;
 }
 
+/*
+ * All 43 dice on one screen, at every width, with no inner scrollbar.
+ *
+ * The column count is explicit (never `auto-fill`) because `auto-fill` cannot
+ * express "never fewer than two columns": below its track minimum it collapses
+ * to one column and 43 rows, roughly 1200px tall. A hard floor of two columns
+ * caps the row count at 22 at every width, which is what makes the total height
+ * bounded by construction rather than by luck.
+ *
+ * The baseline IS the compact tier. That looks backwards until you count the
+ * fixed cost per cell: comfortable spends 115px on the bar strip, the gaps and
+ * a three-button stepper; compact spends 51px. Below a cell width of ~256px
+ * that 64px difference buys more name characters than the larger font loses, so
+ * compact is the more readable tier on narrow layouts, not merely the smaller
+ * one.
+ *
+ * `minmax(0, 1fr)` rather than `1fr` so the ellipsised name can shrink below
+ * its min-content width instead of forcing the track wider.
+ */
 .die-list {
-  max-height: 46vh;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  /* --die-row drives everything else: the type, the buttons and the bar strip
+     are all fractions of it, so one number scales the whole row. */
+  --die-row: 20px;
+  --die-font: 0.6875rem;
+  --die-bar-w: 2px;
+  --die-bar-h: 11px;
+  --die-btn: 16px;
+  --die-pad-x: 3px;
+  --die-gap: 2px;
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
 }
 
+/* The whole cell is already an add button, so "+" is the first thing to go
+   when horizontal space is scarce; dropping it reclaims 24px for the name. */
+.die-list .stepper-add,
+.die-list .die-tag {
+  display: none;
+}
+
+@container inv (min-width: 472px) {
+  .die-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container inv (min-width: 772px) {
+  .die-list {
+    --die-font: 0.8125rem;
+    --die-bar-w: 5px;
+    --die-bar-h: 14px;
+    --die-btn: 22px;
+    --die-pad-x: 4px;
+    --die-gap: 6px;
+  }
+
+  .die-list .stepper-add {
+    display: inline-flex;
+  }
+
+  .die-list .die-tag {
+    display: inline;
+  }
+}
+
+@container inv (min-width: 1140px) {
+  .die-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * On a screen tall enough to hold all 22 rows of a two-column list, spend the
+ * space on wider cells rather than more columns. Three columns has to buy its
+ * shorter list with a narrower cell, which truncates the longer die names; two
+ * columns at the same container width fits every name in full AND affords the
+ * larger type. Must come last so it wins over the column rules above.
+ *
+ * 640px: 22 rows at a ~24px pitch is 526px, plus the panel and page padding.
+ * The threshold is this low only because the left column holds nothing but the
+ * grid — no title, no toolbar — so nearly the whole viewport height is its to
+ * spend.
+ */
+@media (min-height: 640px) {
+  @container inv (min-width: 514px) and (max-width: 1139px) {
+    .die-list {
+      --die-font: 0.8125rem;
+      --die-bar-w: 5px;
+      --die-bar-h: 14px;
+      --die-btn: 22px;
+      --die-row: 24px;
+      --die-pad-x: 4px;
+      --die-gap: 6px;
+
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .die-list .stepper-add {
+      display: inline-flex;
+    }
+
+    .die-list .die-tag {
+      display: inline;
+    }
+  }
+}
+
+/*
+ * Side by side, the dice column holds nothing but the grid — so give the grid
+ * the height instead of leaving it in a band at the top with 700px of dead
+ * space under it. 22 rows share whatever is left after the page and panel
+ * padding, which on a 1296px-tall screen is a 52px row and 20px type rather
+ * than a 24px row and 13px type.
+ *
+ * Deliberately NOT applied to the stacked layout: below 1001px the title and
+ * the search box sit above the grid, so the height is not the grid's to take —
+ * assuming otherwise overflowed the fold by ~100px at 768x1024 and 1000x800.
+ *
+ * The type caps at 20px while the row goes on to 56px: past that the names stop
+ * fitting the cell and start truncating, whereas a taller row is pure gain — a
+ * bigger click target, which is the point. The -/+ buttons reach 44px, the
+ * accessibility minimum this layout could not afford at phone width. 24px is
+ * the shortest row that still holds 13px text.
+ */
+@media (min-width: 1001px) and (min-height: 640px) {
+  @container inv (min-width: 514px) and (max-width: 1139px) {
+    .die-list {
+      --die-row: clamp(24px, calc((100dvh - 9rem) / 22), 56px);
+      --die-font: clamp(0.8125rem, calc(var(--die-row) * 0.4), 1.25rem);
+      --die-btn: clamp(22px, calc(var(--die-row) * 0.85), 44px);
+      --die-bar-h: clamp(14px, calc(var(--die-row) * 0.55), 28px);
+      --die-bar-w: clamp(5px, calc(var(--die-row) * 0.17), 10px);
+      --die-pad-x: 0.5rem;
+      --die-gap: 0.75rem;
+    }
+  }
+}
+
+/*
+ * No per-row divider and no border around the list. A hairline under each cell
+ * would sit right next to the 2px column gap, stacking two hard divides; and
+ * painting the gaps with a line colour would render the one-to-three empty
+ * trailing grid cells (43 never divides evenly into 2, 3 or 4) as solid blocks.
+ * Cells are transparent chips instead, and an owned one is marked by fill plus
+ * an accent edge.
+ */
 .die-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.die-row:last-child {
-  border-bottom: none;
+  gap: 0;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  min-width: 0;
 }
 
 .die-row.owned {
   background: var(--panel-2);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .die-main {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--die-gap);
   background: none;
   border: none;
   color: inherit;
-  font: inherit;
+  font-family: inherit;
+  font-size: var(--die-font);
   text-align: left;
   cursor: pointer;
-  padding: 0.35rem;
+  padding: 2px var(--die-pad-x);
+  /* The row's height is set, not merely implied by its contents — that is what
+     lets the list be sized to fill the viewport. */
+  min-height: var(--die-row);
   border-radius: var(--radius-sm);
   min-width: 0;
 }
@@ -190,6 +446,7 @@ section.inventory,
 
 .die-name {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -203,15 +460,15 @@ section.inventory,
 
 .die-faces {
   display: flex;
-  gap: 2px;
+  gap: 1px;
   align-items: flex-end;
-  height: 26px;
+  height: var(--die-bar-h);
+  flex: none;
 }
 
 .die-face {
-  width: 12px;
+  width: var(--die-bar-w);
   height: 100%;
-  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -225,22 +482,13 @@ section.inventory,
   max-height: 100%;
 }
 
-.die-face-label {
-  position: absolute;
-  bottom: -0.9rem;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 0.55rem;
-  color: var(--muted);
-}
-
 .die-tag {
   font-size: 0.7rem;
   color: var(--bg);
   background: var(--accent);
   border-radius: var(--radius-sm);
   padding: 0 0.3rem;
+  flex: none;
 }
 
 /* --- stepper ---------------------------------------------------------- */
@@ -248,18 +496,30 @@ section.inventory,
 .stepper {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 1px;
+  flex: none;
 }
 
+.stepper-button {
+  padding: 0;
+  width: var(--die-btn, 22px);
+  height: var(--die-btn, 22px);
+  line-height: 1;
+  font-size: calc(var(--die-font, 0.8125rem) + 1px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* A readout, not a field — the number input it replaced is gone. */
 .stepper-value {
-  width: 3rem;
-  padding: 0.35rem;
+  min-width: calc(var(--die-btn, 22px) - 3px);
   text-align: center;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  font-size: var(--die-font, 0.8125rem);
   color: var(--text);
-  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 /* --- badges ----------------------------------------------------------- */
@@ -289,13 +549,92 @@ section.inventory,
   cursor: pointer;
 }
 
+/* `column-width column-count` shorthand: at most three columns, but only as
+   many as fit a 14rem track — so it self-adjusts to one column on a phone
+   instead of always splitting in two. Multi-column is right here, unlike in the
+   dice grid, because the tier sections vary in height and have no height
+   budget to keep. */
 .badge-picker {
-  columns: 2;
+  columns: 14rem 3;
   column-gap: 1.5rem;
 }
 
 .badge-picker section {
   break-inside: avoid;
+}
+
+/* --- import / export -------------------------------------------------- */
+
+.io > summary {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.io-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.io-file {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.5rem 0;
+}
+
+.io-file input {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  max-width: 100%;
+}
+
+.io-text {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+.io-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--good);
+}
+
+.io-status.bad {
+  color: var(--bad);
+}
+
+/* Arrival banner: shown until a link-loaded inventory is kept or edited.
+   The .bad variant below reports what a link lost and stays for the visit. */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.6rem;
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* Something arrived damaged or incomplete — same shape, warning accent. */
+.notice.bad {
+  box-shadow: inset 2px 0 0 var(--bad);
 }
 
 /* --- results ---------------------------------------------------------- */
@@ -329,9 +668,11 @@ section.inventory,
   min-width: 2rem;
 }
 
+/* 8rem, not 9: two 128px tiles plus the gap still fit a ~295px panel, so the
+   stats stay side by side on a phone rather than stacking into four rows. */
 .stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.5rem;
   margin: 0.75rem 0;
 }
@@ -351,7 +692,7 @@ section.inventory,
 
 .stats dd {
   margin: 0.15rem 0 0;
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 3.5vw, 1.25rem);
   color: var(--good);
 }
 
@@ -369,13 +710,20 @@ section.inventory,
 
 .empty {
   margin: 0;
-  padding: 1rem 0;
+  padding: 0.75rem 0;
 }
 
 .alt-ev {
   color: var(--accent);
   display: inline-block;
-  min-width: 4rem;
+  min-width: 3.5rem;
+}
+
+/* Long die names must wrap rather than push the results panel wider than the
+   phone viewport. */
+.loadout-name,
+.caveats li {
+  overflow-wrap: anywhere;
 }
 
 .alternatives li,

@@ -3,12 +3,10 @@
  */
 
 import type { JSX } from "react";
+import { MAX_PER_DIE } from "../data/dice.ts";
 import type { Die } from "../data/dice.ts";
 import { QuantityStepper } from "./QuantityStepper.tsx";
 import type { CountUpdater } from "./QuantityStepper.tsx";
-
-/** Most of any single die the game lets you carry into one match. */
-export const MAX_PER_DIE = 6;
 
 export interface DieRowProps {
   readonly die: Die;
@@ -62,12 +60,21 @@ export function highlightName(name: string, highlight: readonly number[]): JSX.E
  */
 export function DieRow({ die, count, highlight, onChange }: DieRowProps): JSX.Element {
   const isWild = die.wildcardFaces.length > 0;
+  // One tooltip for the whole strip rather than one per bar. The per-face
+  // numbered labels that used to sit under the bars are gone: they cost a line
+  // of vertical space in every one of 43 rows, and the strip is now 11-14px
+  // tall, where a 0.55rem label would not have been legible anyway.
+  const facesTitle = die.weights
+    .map((weight, face) => `${face + 1}: ${(weight * 100).toFixed(1)}%`)
+    .join("  ");
   return (
     <li className={count > 0 ? "die-row owned" : "die-row"}>
       <button
         type="button"
         className="die-main"
-        title={die.description}
+        // The name is ellipsised in the narrow cells, so it goes in the tooltip
+        // too — otherwise a fuzzy match landing past the cut is unrecoverable.
+        title={`${die.name} — ${die.description}`}
         // The stepper's "+" already owns "Add one <die>"; this control needs a
         // distinct accessible name so the two are not ambiguous.
         aria-label={die.name}
@@ -76,15 +83,19 @@ export function DieRow({ die, count, highlight, onChange }: DieRowProps): JSX.El
         }}
       >
         <span className="die-name">{highlightName(die.name, highlight)}</span>
-        <span className="die-faces">
+        <span className="die-faces" title={facesTitle}>
           {die.weights.map((weight, face) => (
-            <span
-              className="die-face"
-              key={face}
-              title={`${face + 1}: ${(weight * 100).toFixed(1)}%`}
-            >
-              <span className="die-face-bar" style={{ height: `${weight * 100 * 1.6}%` }} />
-              <span className="die-face-label">{face + 1}</span>
+            <span className="die-face" key={face}>
+              {/*
+               * x3, not the old x1.6: that factor was tuned for a 26px strip.
+               * At 11-14px a uniform 1/6 face rendered under 4px and every die
+               * looked flat. At x3 a uniform face fills half the strip and a
+               * face weighted a third or more saturates.
+               */}
+              <span
+                className="die-face-bar"
+                style={{ height: `${Math.min(100, weight * 100 * 3)}%` }}
+              />
             </span>
           ))}
         </span>

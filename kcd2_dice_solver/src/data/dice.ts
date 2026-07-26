@@ -404,3 +404,12 @@ export const DICE: readonly Die[] = RAW_DICE.map((raw) => ({
 export const DICE_BY_ID: ReadonlyMap<string, Die> = new Map(
   DICE.map((die) => [die.id, die]),
 );
+
+/**
+ * Most of any single die the game lets you carry into one match.
+ *
+ * Lives here rather than in the row component because it is a rule about the
+ * dice, and both the inventory validator and the UI need it — the validator
+ * must not import a component to get at it.
+ */
+export const MAX_PER_DIE = 6;
