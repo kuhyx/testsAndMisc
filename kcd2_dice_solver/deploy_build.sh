@@ -62,14 +62,23 @@ ensure_toolchain() {
 # answers the question is what the CONTAINER sees.
 assert_mount_live() {
 	local running host_inode container_inode
-	command -v docker >/dev/null 2>&1 || return 0
+	if ! command -v docker >/dev/null 2>&1; then
+		echo "deploy_build: docker not found — mount NOT verified." >&2
+		return 0
+	fi
 	running="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
-	grep -qx "$CONTAINER" <<<"$running" || return 0
+	if ! grep -qx "$CONTAINER" <<<"$running"; then
+		echo "deploy_build: ${CONTAINER} not running — mount NOT verified." >&2
+		return 0
+	fi
 
 	host_inode="$(stat -c %i "$LIVE")"
+	# `docker exec` reports OCI runtime errors on STDOUT, so 2>/dev/null does not
+	# suppress them and a failure arrives as a long string rather than as empty
+	# output. Require an actual inode number instead of merely non-empty.
 	container_inode="$(docker exec "$CONTAINER" stat -c %i /srv 2>/dev/null || true)"
-	if [[ -z $container_inode ]]; then
-		echo "deploy_build: could not read /srv inode from ${CONTAINER}; skipping mount check." >&2
+	if [[ ! $container_inode =~ ^[0-9]+$ ]]; then
+		echo "deploy_build: could not read /srv inode from ${CONTAINER} — mount NOT verified." >&2
 		return 0
 	fi
 	if [[ $host_inode != "$container_inode" ]]; then
@@ -84,6 +93,21 @@ assert_mount_live() {
 }
 
 main() {
+	# Both entry points run this same script — setup_kcd2_dice_solver.sh calls it
+	# directly, and the post-commit hook starts a unit that runs it — so one lock
+	# closes the race between them. Without it, a second run's `vite --emptyOutDir`
+	# truncates dist.staging while the first run's rsync is still reading it:
+	# rsync exits 24, `set -e` stops the script before assert_mount_live, and dist/
+	# is left holding a fresh index.html that references assets which never
+	# arrived. Nothing downstream notices — `try_files` serves index.html for the
+	# missing chunks, so the browser is handed HTML where it expects JavaScript and
+	# no 404 reaches any log.
+	#
+	# Wait rather than fail: a rebuild that arrives during a setup run still needs
+	# to happen, and the unit has no start timeout.
+	exec 9>"${SCRIPT_DIR}/.deploy.lock"
+	flock -w 600 9 || die "another deploy_build is still running after 10 minutes."
+
 	ensure_toolchain
 	cd "$SCRIPT_DIR"
 
