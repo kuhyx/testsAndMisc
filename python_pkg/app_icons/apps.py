@@ -103,7 +103,7 @@ APPS: Final[dict[str, AppIcon]] = {
             accent="#B8862E",
             glyph="storage-box",
             icon_name="home-inventory",
-            linux=False,
+            linux=True,
         ),
     )
 }

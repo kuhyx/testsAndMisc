@@ -1,0 +1,37 @@
+{
+  "intent": "Let `app_icons generate --linux-out` emit hicolor PNGs for home_inventory, so its .desktop entry and launcher icon can be regenerated instead of being hand-kept.",
+  "scope": [
+    "python_pkg/app_icons/apps.py — the home_inventory registry entry only",
+    "Non-goal: no change to glyphs, palette, sizes or the CLI surface",
+    "Consumer: ~/home_inventory/desktop/{icons,install_desktop_entry.sh}"
+  ],
+  "changes": [
+    "home_inventory: linux=False -> linux=True. Its desktop app is a Chrome-wrapper around the Flutter web build and ships a .desktop entry + hicolor icon theme, so it genuinely has a Linux target; with the flag false cli.py skipped --linux-out for it silently, emitting nothing and reporting success.",
+    "No test change needed: test_cli.py's linux-out test asserts over todo (linux=True) and dufs_client (linux=False), neither of which this touches."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -m pytest python_pkg/app_icons/tests -q --cov=python_pkg.app_icons --cov-branch",
+      "result": "pass",
+      "evidence": "43 passed; every app_icons module at 100% line and branch coverage"
+    },
+    {
+      "command": "PYTHONPATH=. python3 -m python_pkg.app_icons generate --app home_inventory --linux-out ~/home_inventory/desktop/icons",
+      "result": "pass",
+      "evidence": "wrote 6 asset files + 8 hicolor PNGs (16..512); before this change the second line was absent"
+    },
+    {
+      "command": "bash ~/home_inventory/desktop/install_desktop_entry.sh",
+      "result": "pass",
+      "evidence": "installed home-inventory.png into ~/.local/share/icons/hicolor and home-inventory.desktop into ~/.local/share/applications"
+    }
+  ],
+  "risks": [
+    "Running `generate --linux-out <dir>` with no --app now also writes home_inventory PNGs into that directory; harmless, since icon_name namespaces the files (home-inventory.png).",
+    "The generated PNGs live in the consuming repo, not here, so a palette change there needs a regenerate step in that repo."
+  ],
+  "rollback": [
+    "Set linux=False on the home_inventory AppIcon entry and re-run the app_icons test suite.",
+    "After rollback, ~/home_inventory/desktop/icons is stale-but-valid: the committed PNGs keep working, only regeneration stops."
+  ]
+}
