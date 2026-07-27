@@ -93,6 +93,25 @@ _CHAIN_LINK = """\
     </g>"""
 
 
+# An isometric storage carton: hexagonal silhouette plus the three edges that
+# meet at the near-top corner (one down the front, two up the top face).
+#
+# A front-on rectangle with a lid seam was tried first and rejected — a seam
+# plus a divider reads as a browser window or a table header, not a box. The
+# isometric form has no such collision anywhere else in the family, and it is
+# the shape people already recognise as "a package of stuff".
+#
+# Geometry: a regular hexagon, centre (512,512), circumradius 240, pointy top
+# and bottom. Opposite faces sit 208px apart, leaving 136px of hollow once the
+# 72px stroke is drawn — comfortably past MIN_NEGATIVE_SPACE, so no face fills
+# in at 48dp. Rendered ink is 488x552, inside SAFE_BOX on both axes.
+_STORAGE_BOX = """\
+    <path d="M 512 272 L 720 392 L 720 632 L 512 752 L 304 632 L 304 392 Z"/>
+    <path d="M 512 512 L 512 752"/>
+    <path d="M 512 512 L 304 392"/>
+    <path d="M 512 512 L 720 392"/>"""
+
+
 GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
     for glyph in (
@@ -102,6 +121,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("shield-cutlery", "Shield guarding a fork and knife", _SHIELD_CUTLERY),
         Glyph("checklist", "Two ticked-off list rows", _CHECKLIST),
         Glyph("chain-link", "Two interlocking chain links", _CHAIN_LINK),
+        Glyph("storage-box", "Isometric storage carton", _STORAGE_BOX),
     )
 }
 

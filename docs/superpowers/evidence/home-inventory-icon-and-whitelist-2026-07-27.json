@@ -1,0 +1,52 @@
+{
+  "intent": "Let the new ~/home_inventory Flutter app get an on-style family launcher icon, and let it survive the phone focus daemon so it can be installed and used on BL9000EEA0000102.",
+  "scope": [
+    "python_pkg/app_icons/glyphs.py — new 'storage-box' glyph",
+    "python_pkg/app_icons/apps.py — new 'home_inventory' registry entry",
+    "phone_focus_mode/config.sh — WHITELIST entry com.kuhy.home_inventory",
+    "Non-goal: no change to the icon family's shared accent, canvas, stroke or safe-box constants",
+    "Non-goal: no change to any existing app's glyph"
+  ],
+  "changes": [
+    "Added _STORAGE_BOX: an isometric carton drawn as a regular hexagon (centre 512,512, circumradius 240) plus the three edges meeting at the near-top corner. Opposite faces sit 208px apart, leaving 136px hollow after the 72px stroke, so no face fills in at 48dp; rendered ink is 488x552, inside SAFE_BOX on both axes.",
+    "A first attempt drew a front-on rectangle with a lid seam and a tape line. Rejected after rendering the contact sheet: a seam plus a divider reads as a browser window or a table header, not a box. The isometric form collides with nothing else in the family.",
+    "Registered app_icons entry key='home_inventory', glyph='storage-box', icon_name='home-inventory', accent='#B8862E' (the one shared family accent — not a per-app colour), linux=False.",
+    "Added com.kuhy.home_inventory to the '--- User-requested productive apps ---' block of the focus-mode WHITELIST, beside the other com.kuhy.* apps."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files phone_focus_mode/config.sh python_pkg/app_icons/apps.py python_pkg/app_icons/glyphs.py",
+      "result": "pass",
+      "evidence": "All hooks Passed (ruff, ruff format, mypy, pylint, bandit, pytest-with-coverage, shellcheck, codespell, binary block, secret scan); three hooks Skipped for having no matching files."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons --cov=python_pkg.app_icons --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "43 passed. Every app_icons module at 100%: apps.py 24/24, glyphs.py 23/23, cli.py 60/60, generate.py 41/41, preview.py 41/41, render.py 48/48, style.py 11/11. The registry invariant tests iterate APPS/GLYPHS, so the new entries are covered by construction."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app home_inventory --android",
+      "result": "pass",
+      "evidence": "Wrote 6 asset files to ~/home_inventory/assets/icon and regenerated the Android mipmaps, with no safe-box warning. An earlier 500px-wide variant emitted 'glyph exceeds the 560px safe box by 12x0px' because STROKE_WIDTH adds 72px to each rendered dimension; the body was narrowed to 488px."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons preview -o /tmp/icon_sheet2.png",
+      "result": "pass",
+      "evidence": "Contact sheet read directly. The glyph reads as a 3D package at full size, circle-masked and 48dp, and is distinct from cloud-down, barbell, clock, shield-cutlery, checklist and chain-link."
+    },
+    {
+      "command": "adb -s BL9000EEA0000102 shell grep -c 'com.kuhy.home_inventory' /data/local/tmp/focus_mode/config.sh",
+      "result": "pass",
+      "evidence": "Returned 1 after pushing config.sh and running 'focus_ctl.sh restart' (Daemon stopped PID 6504, started PID 25811). The release APK then installed, launched and stayed running rather than being pm disable-user'd ~1s after launch."
+    }
+  ],
+  "risks": [
+    "The whitelist was pushed to the phone with the targeted three-command adb path rather than phone_focus_mode/deploy.sh, so the Magisk hosts module was deliberately not touched. If a future full deploy.sh run overwrites /data/local/tmp/focus_mode/config.sh from the repo, this entry is already committed here and survives.",
+    "app_icons/cli.py derives --app choices from sorted(apps.APPS), so anyone on an older checkout cannot regenerate this app's icon until they pull.",
+    "The glyph is tuned to the current STROKE_WIDTH of 72 and SAFE_BOX of 560; changing either would need the 488x440 body re-checked against the safe box."
+  ],
+  "rollback": [
+    "Revert this commit. The icon assets already written into ~/home_inventory/assets/icon and its android mipmaps live in that repo, so delete them there separately if the app is abandoned.",
+    "After rollback, re-run 'python3 -m pytest python_pkg/app_icons' to confirm the registry invariants still hold, and re-push phone_focus_mode/config.sh to the phone so its whitelist matches the repo again — otherwise the phone keeps whitelisting a package the repo no longer lists."
+  ]
+}
