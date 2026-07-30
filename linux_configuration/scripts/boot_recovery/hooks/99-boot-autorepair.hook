@@ -1,0 +1,22 @@
+# After a kernel transaction, verify the ESP actually received the new kernel
+# and repair it if it did not.
+#
+# This is auto-recovery rather than a warning: if mkinitcpio's own hook was
+# skipped (the ParallelDownloads segfault bug), this puts the kernel and
+# initramfs on the ESP before the machine is ever rebooted. If it cannot, it
+# exits non-zero so the transaction ends loudly instead of silently succeeding.
+#
+# Note: this hook is itself forked by alpm, so it is subject to the same
+# segfault bug it compensates for. That is why boot-repair also enforces
+# ParallelDownloads = 1 — belt and braces.
+
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Verifying the ESP received the new kernel...
+When = PostTransaction
+Exec = /usr/local/sbin/boot-repair --auto

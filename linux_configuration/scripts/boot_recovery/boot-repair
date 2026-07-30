@@ -1,0 +1,732 @@
+#!/bin/bash
+
+# ============================================================================
+# boot-repair — offline repair for a stale/unwritten EFI System Partition
+# ============================================================================
+#
+# The failure this fixes (seen 2026-07-30):
+#   A kernel upgrade replaced /usr/lib/modules/<old> with <new>, but the new
+#   kernel image never reached the ESP. The firmware kept booting the OLD
+#   vmlinuz, whose module tree no longer existed — so nothing modular could
+#   load after pivot-root. In particular `vfat` was gone, /boot itself could
+#   not be mounted, local-fs.target failed and systemd dropped to emergency
+#   mode. The upgrade was reported as successful.
+#
+#   Root cause on this machine: pacman-git with ParallelDownloads > 1 makes
+#   every forked alpm hook child segfault, silently skipping the
+#   90-mkinitcpio-install and depmod hooks.
+#
+# Design constraints (deliberate):
+#   * SELF-CONTAINED — no sourcing of repo libs. It must run from the systemd
+#     emergency shell where only the root filesystem is mounted.
+#   * FULLY OFFLINE — never touches the network. Missing kernel modules are
+#     recovered from /var/cache/pacman/pkg, nothing else.
+#   * Repairs by default. Use --dry-run to inspect without changing anything.
+#
+# Safety invariants:
+#   * Files under /boot are ONLY deleted while /boot is not a mountpoint AND
+#     contains no EFI/ or loader/ directory. Deleting them after mounting
+#     would destroy the real kernel and leave the machine unbootable.
+#   * EFI/ and loader/ on the ESP are never written or removed.
+#   * The running kernel's module tree is never deleted.
+# ============================================================================
+
+set -euo pipefail
+
+# Emergency shells can have a threadbare PATH.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+readonly SCRIPT_NAME="${0##*/}"
+readonly ESP_MOUNTPOINT="/boot"
+
+# Defaults
+ROOT="/"
+MODE="fix" # fix | dry-run | preflight | auto
+ESP_DEV_OVERRIDE=""
+PROBLEMS=0
+REPAIRS=0
+QUIET=0
+
+# ----------------------------------------------------------------------------
+# Output helpers
+# ----------------------------------------------------------------------------
+
+msg() { [[ $QUIET -eq 1 ]] || printf '%s\n' "$*"; }
+ok() { [[ $QUIET -eq 1 ]] || printf '  [ OK ] %s\n' "$*"; }
+info() { [[ $QUIET -eq 1 ]] || printf '  [INFO] %s\n' "$*"; }
+
+# A problem that was found. Counted so the exit status can reflect reality.
+problem() {
+  PROBLEMS=$((PROBLEMS + 1))
+  printf '  [FAIL] %s\n' "$*" >&2
+}
+
+warn() { printf '  [WARN] %s\n' "$*" >&2; }
+
+# A repair that was actually carried out.
+repaired() {
+  REPAIRS=$((REPAIRS + 1))
+  printf '  [FIXED] %s\n' "$*"
+}
+
+die() {
+  printf '%s: error: %s\n' "$SCRIPT_NAME" "$*" >&2
+  exit 2
+}
+
+# True when we are allowed to modify the system.
+acting() { [[ $MODE == "fix" || $MODE == "auto" ]]; }
+
+# Describe an action that dry-run would skip.
+would() { msg "  [DRY ] would $*"; }
+
+usage() {
+  cat << EOF
+Usage: $SCRIPT_NAME [OPTIONS]
+
+Repairs a stale EFI System Partition after a kernel upgrade failed to write
+it. Repairs by default; runs fully offline.
+
+Options:
+  --dry-run        Report problems, change nothing.
+  --preflight      Exit non-zero unless the ESP is mounted. For a pacman
+                   PreTransaction hook that gates kernel upgrades.
+  --auto           Quiet repair for a pacman PostTransaction hook. Prints
+                   only when it acts or fails.
+  --root DIR       Operate on an alternate root (testing, or an Arch ISO
+                   chroot). Live-only steps are skipped.
+  --esp DEVICE     Use DEVICE as the ESP instead of auto-detecting it.
+  -h, --help       Show this help.
+
+Exit status:
+  0  system consistent (or fully repaired)
+  1  problems remain / preflight gate failed
+  2  usage or environment error
+EOF
+  exit 0
+}
+
+# ----------------------------------------------------------------------------
+# Path helpers — everything is expressed relative to \$ROOT so the logic can be
+# exercised against a fixture tree without touching the real machine.
+# ----------------------------------------------------------------------------
+
+# Join $ROOT with an absolute path, avoiding a doubled leading slash.
+rpath() {
+  local p="$1"
+  if [[ $ROOT == "/" ]]; then
+    printf '%s' "$p"
+  else
+    printf '%s%s' "${ROOT%/}" "$p"
+  fi
+}
+
+# True when operating on the live system (so mount/modprobe are meaningful).
+is_live() { [[ $ROOT == "/" ]]; }
+
+# ----------------------------------------------------------------------------
+# Kernel discovery
+# ----------------------------------------------------------------------------
+
+# Read the version banner out of a kernel image. Works on a bare file with no
+# tooling beyond grep, which matters in a degraded emergency shell.
+# Usage: kernel_image_version <path> -> prints e.g. 7.1.5-arch1-2, or nothing
+kernel_image_version() {
+  local img="$1"
+  [[ -r $img ]] || return 1
+  grep -aoE '[0-9]+\.[0-9]+\.[0-9]+-arch[0-9]+-[0-9]+' "$img" 2> /dev/null | head -1
+}
+
+# A module tree is "complete" only if it has both the kernel image and actual
+# modules. The failure mode leaves behind a directory holding just the
+# modules.* metadata files, which must not be mistaken for a usable kernel.
+kernel_tree_complete() {
+  local dir="$1"
+  [[ -f $dir/vmlinuz ]] || return 1
+  [[ -d $dir/kernel ]] || return 1
+  return 0
+}
+
+# Newest complete module tree under $ROOT/usr/lib/modules, by version sort.
+newest_complete_kernel() {
+  local moddir kver best=""
+  moddir="$(rpath /usr/lib/modules)"
+  [[ -d $moddir ]] || return 1
+  while IFS= read -r kver; do
+    [[ -n $kver ]] || continue
+    kernel_tree_complete "$moddir/$kver" || continue
+    best="$kver"
+  done < <(find "$moddir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> /dev/null | sort -V)
+  [[ -n $best ]] || return 1
+  printf '%s' "$best"
+}
+
+# ----------------------------------------------------------------------------
+# ESP discovery
+# ----------------------------------------------------------------------------
+
+# The fstab spec for /boot (e.g. "UUID=8A14-F8A7"), if present.
+fstab_boot_spec() {
+  local fstab spec mnt
+  fstab="$(rpath /etc/fstab)"
+  [[ -r $fstab ]] || return 1
+  while read -r spec mnt _; do
+    [[ $spec == \#* ]] && continue
+    [[ -z ${spec:-} ]] && continue
+    if [[ $mnt == "$ESP_MOUNTPOINT" ]]; then
+      printf '%s' "$spec"
+      return 0
+    fi
+  done < "$fstab"
+  return 1
+}
+
+# The mount options field for /boot in fstab.
+fstab_boot_options() {
+  local fstab spec mnt opts
+  fstab="$(rpath /etc/fstab)"
+  [[ -r $fstab ]] || return 1
+  while read -r spec mnt _ opts _; do
+    [[ $spec == \#* ]] && continue
+    [[ -z ${spec:-} ]] && continue
+    if [[ $mnt == "$ESP_MOUNTPOINT" ]]; then
+      printf '%s' "$opts"
+      return 0
+    fi
+  done < "$fstab"
+  return 1
+}
+
+# Resolve the fstab spec to a block device. Prefers /dev/disk/by-uuid so it
+# works without blkid, which may be unavailable in a minimal shell.
+resolve_esp_device() {
+  local spec uuid dev
+  if [[ -n $ESP_DEV_OVERRIDE ]]; then
+    printf '%s' "$ESP_DEV_OVERRIDE"
+    return 0
+  fi
+  spec="$(fstab_boot_spec)" || return 1
+  case "$spec" in
+    UUID=*)
+      uuid="${spec#UUID=}"
+      if [[ -e /dev/disk/by-uuid/$uuid ]]; then
+        dev="$(readlink -f "/dev/disk/by-uuid/$uuid")"
+        printf '%s' "$dev"
+        return 0
+      fi
+      # Fall back to blkid when the by-uuid symlink is absent.
+      if command -v blkid > /dev/null 2>&1; then
+        dev="$(blkid -U "$uuid" 2> /dev/null)" && [[ -n $dev ]] && {
+          printf '%s' "$dev"
+          return 0
+        }
+      fi
+      return 1
+      ;;
+    /dev/*)
+      printf '%s' "$spec"
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# ----------------------------------------------------------------------------
+# Mount state
+# ----------------------------------------------------------------------------
+
+boot_is_mounted() {
+  is_live || return 1
+  findmnt -n "$ESP_MOUNTPOINT" > /dev/null 2>&1
+}
+
+# ----------------------------------------------------------------------------
+# Repair steps
+# ----------------------------------------------------------------------------
+
+# The root filesystem is sometimes left read-only after a failed boot; every
+# later step would fail confusingly without this.
+ensure_root_writable() {
+  is_live || return 0
+  local testfile
+  testfile="$(rpath /.boot-repair-write-test)"
+  if (: > "$testfile") 2> /dev/null; then
+    rm -f "$testfile"
+    return 0
+  fi
+  problem "root filesystem is read-only"
+  if acting; then
+    mount -o remount,rw / || die "could not remount / read-write"
+    repaired "remounted / read-write"
+  else
+    would "remount / read-write"
+  fi
+}
+
+# Restore just enough of the RUNNING kernel's module tree to mount a vfat ESP.
+# Without this the repair cannot even reach the ESP: mounting it needs vfat,
+# and vfat lives in the module tree the upgrade deleted.
+ensure_vfat() {
+  is_live || return 0
+  if modprobe -n vfat > /dev/null 2>&1 && modprobe vfat > /dev/null 2>&1; then
+    ok "vfat available"
+    return 0
+  fi
+
+  problem "vfat cannot be loaded for the running kernel ($(uname -r))"
+  if ! acting; then
+    would "restore fat/nls modules from the pacman cache"
+    return 1
+  fi
+
+  local kver pkgver cache pkg
+  kver="$(uname -r)"
+  # uname 7.0.5-arch1-1  ->  package 7.0.5.arch1-1
+  pkgver="${kver/-arch/.arch}"
+  cache="$(rpath /var/cache/pacman/pkg)"
+
+  pkg=""
+  if [[ -d $cache ]]; then
+    # Newest matching cached kernel package for the running version.
+    pkg="$(find "$cache" -maxdepth 1 -name "linux*-${pkgver}-*.pkg.tar.zst" 2> /dev/null | sort -V | tail -1)"
+  fi
+  if [[ -z $pkg ]]; then
+    problem "no cached package for the running kernel in $cache"
+    msg ""
+    msg "  Cannot restore vfat offline. Recover with an Arch ISO:"
+    msg "    mount /dev/<root> /mnt -o subvol=@ && arch-chroot /mnt"
+    msg "    pacman -S linux && $SCRIPT_NAME"
+    return 1
+  fi
+
+  info "restoring fat/nls modules from ${pkg##*/}"
+  local tmp
+  tmp="$(mktemp -d)" || die "mktemp failed"
+  # shellcheck disable=SC2064  # expand $tmp now, on purpose
+  trap "rm -rf '$tmp'" RETURN
+
+  # Extract only the filesystem modules needed to read a FAT32 ESP.
+  tar --zstd -xf "$pkg" -C "$tmp" --wildcards \
+    "usr/lib/modules/${kver}/kernel/fs/fat/*" \
+    "usr/lib/modules/${kver}/kernel/fs/nls/*" 2> /dev/null ||
+    {
+      problem "could not extract fat/nls modules from ${pkg##*/}"
+      return 1
+    }
+
+  local src dest
+  src="$tmp/usr/lib/modules/${kver}/kernel"
+  dest="$(rpath "/usr/lib/modules/${kver}")"
+  [[ -d $src ]] || {
+    problem "cached package did not contain fat/nls modules"
+    return 1
+  }
+  mkdir -p "$dest"
+  cp -a "$src" "$dest/"
+  depmod "$kver" 2> /dev/null || true
+  if modprobe vfat > /dev/null 2>&1; then
+    repaired "restored vfat for the running kernel"
+    return 0
+  fi
+  problem "vfat still will not load after restore"
+  return 1
+}
+
+# fstab must GATE on the ESP. `nofail` turns this failure into a silent boot of
+# a stale kernel, which is strictly worse: the machine looks fine until the
+# module tree disappears, one upgrade later.
+check_fstab_options() {
+  local opts fstab
+  fstab="$(rpath /etc/fstab)"
+  opts="$(fstab_boot_options)" || {
+    problem "no /boot entry in $fstab"
+    return 1
+  }
+  if [[ $opts != *noauto* && $opts != *nofail* ]]; then
+    ok "fstab gates on /boot ($opts)"
+    return 0
+  fi
+  problem "fstab has noauto/nofail on /boot ($opts) — failures would be silent"
+  if ! acting; then
+    would "rewrite the /boot options to 'defaults'"
+    return 1
+  fi
+  cp -a "$fstab" "${fstab}.bak-$(date +%Y%m%d-%H%M%S)"
+  # Rewrite only the options field of the /boot line.
+  awk -v mp="$ESP_MOUNTPOINT" '
+		/^[[:space:]]*#/ { print; next }
+		NF >= 4 && $2 == mp { $4 = "defaults"; print; next }
+		{ print }
+	' OFS='\t' "$fstab" > "${fstab}.new"
+  mv "${fstab}.new" "$fstab"
+  repaired "fstab /boot options reset to 'defaults'"
+  is_live && systemctl daemon-reload 2> /dev/null || true
+  return 0
+}
+
+# Orphaned kernel files written into the ROOT filesystem's /boot directory
+# while the ESP was unmounted. They shadow the real ESP and waste ~250 MB.
+#
+# This is the single most dangerous step in the script: doing it after mounting
+# would delete the real kernel. Hence the two hard guards below.
+clean_shadow_files() {
+  local bootdir
+  bootdir="$(rpath $ESP_MOUNTPOINT)"
+  [[ -d $bootdir ]] || return 0
+
+  # GUARD 1: never touch a mounted /boot.
+  if boot_is_mounted; then
+    return 0
+  fi
+  # GUARD 2: a real ESP always has EFI/ or loader/. If either is present in
+  # something we believe is unmounted, our mount detection is wrong — stop.
+  if [[ -d $bootdir/EFI || -d $bootdir/loader ]]; then
+    warn "unmounted $ESP_MOUNTPOINT contains EFI/ or loader/ — refusing to delete anything"
+    return 1
+  fi
+
+  local -a shadows=()
+  local f
+  while IFS= read -r f; do
+    [[ -n $f ]] && shadows+=("$f")
+  done < <(find "$bootdir" -maxdepth 1 -type f \
+    \( -name 'vmlinuz-*' -o -name 'initramfs-*.img' -o -name '*-ucode.img' \) 2> /dev/null)
+
+  [[ ${#shadows[@]} -gt 0 ]] || return 0
+
+  problem "${#shadows[@]} orphaned kernel file(s) in the unmounted $ESP_MOUNTPOINT (shadowing the ESP)"
+  if ! acting; then
+    would "delete: ${shadows[*]##*/}"
+    return 1
+  fi
+  rm -f "${shadows[@]}"
+  repaired "removed ${#shadows[@]} shadow file(s) from the root filesystem"
+  return 0
+}
+
+mount_esp() {
+  is_live || return 0
+  if boot_is_mounted; then
+    ok "$ESP_MOUNTPOINT mounted ($(findmnt -n -o SOURCE "$ESP_MOUNTPOINT"))"
+    return 0
+  fi
+  problem "$ESP_MOUNTPOINT is not mounted"
+  if ! acting; then
+    would "mount the ESP at $ESP_MOUNTPOINT"
+    return 1
+  fi
+  local dev
+  dev="$(resolve_esp_device)" || {
+    problem "could not determine the ESP device"
+    return 1
+  }
+  mkdir -p "$ESP_MOUNTPOINT"
+  mount -t vfat "$dev" "$ESP_MOUNTPOINT" || {
+    problem "mounting $dev at $ESP_MOUNTPOINT failed"
+    return 1
+  }
+  repaired "mounted $dev at $ESP_MOUNTPOINT"
+  return 0
+}
+
+# depmod output is what modprobe consults; the same skipped-hook bug that
+# leaves the ESP stale also leaves modules.dep missing for the new kernel.
+ensure_depmod() {
+  local kver dep
+  kver="$1"
+  dep="$(rpath "/usr/lib/modules/${kver}/modules.dep")"
+  if [[ -f $dep ]]; then
+    ok "modules.dep present for $kver"
+    return 0
+  fi
+  problem "modules.dep missing for $kver"
+  if ! acting; then
+    would "run depmod $kver"
+    return 1
+  fi
+  if is_live; then
+    depmod "$kver" || {
+      problem "depmod $kver failed"
+      return 1
+    }
+  else
+    depmod -b "${ROOT%/}" "$kver" || {
+      problem "depmod failed"
+      return 1
+    }
+  fi
+  repaired "generated modules.dep for $kver"
+  return 0
+}
+
+# The core repair: make the ESP's kernel image match the installed module tree.
+sync_kernel_image() {
+  local kver src dest have
+  kver="$1"
+  src="$(rpath "/usr/lib/modules/${kver}/vmlinuz")"
+  dest="$(rpath "${ESP_MOUNTPOINT}/vmlinuz-linux")"
+
+  [[ -f $src ]] || {
+    problem "no kernel image at $src"
+    return 1
+  }
+
+  if [[ -f $dest ]]; then
+    have="$(kernel_image_version "$dest" || true)"
+    if [[ $have == "$kver" ]]; then
+      ok "ESP kernel matches installed tree ($kver)"
+      return 0
+    fi
+    problem "ESP kernel is ${have:-unreadable} but installed tree is $kver"
+  else
+    problem "no kernel image on the ESP"
+  fi
+
+  if ! acting; then
+    would "install $kver to $dest"
+    return 1
+  fi
+  install -Dm644 "$src" "$dest"
+  repaired "installed kernel $kver to the ESP"
+  return 0
+}
+
+# Which kernel an initramfs was built for. Prefers lsinitcpio, but falls back
+# to scanning the image directly — lsinitcpio is not guaranteed to be present
+# in a degraded emergency shell.
+initramfs_version() {
+  local img="$1" v=""
+  [[ -r $img ]] || return 1
+  if command -v lsinitcpio > /dev/null 2>&1; then
+    v="$(lsinitcpio "$img" 2> /dev/null |
+      grep -oE 'modules/[0-9]+\.[0-9]+\.[0-9]+-arch[0-9]+-[0-9]+' |
+      head -1 | cut -d/ -f2 || true)"
+  fi
+  if [[ -z $v ]]; then
+    v="$(grep -aoE 'modules/[0-9]+\.[0-9]+\.[0-9]+-arch[0-9]+-[0-9]+' "$img" 2> /dev/null |
+      head -1 | cut -d/ -f2 || true)"
+  fi
+  [[ -n $v ]] || return 1
+  printf '%s' "$v"
+}
+
+# Rebuild every preset so the initramfs matches the kernel we just installed.
+rebuild_initramfs() {
+  local kver img have
+  kver="$1"
+  img="$(rpath "${ESP_MOUNTPOINT}/initramfs-linux.img")"
+
+  have="$(initramfs_version "$img" || true)"
+
+  if [[ -n $have && $have == "$kver" ]]; then
+    ok "initramfs matches $kver"
+    return 0
+  fi
+
+  problem "initramfs is ${have:-missing/unknown}, expected $kver"
+  if ! acting; then
+    would "run mkinitcpio -P"
+    return 1
+  fi
+  is_live || {
+    warn "skipping mkinitcpio (--root given)"
+    return 1
+  }
+  command -v mkinitcpio > /dev/null 2>&1 || {
+    problem "mkinitcpio is not installed"
+    return 1
+  }
+  mkinitcpio -P || {
+    problem "mkinitcpio -P failed"
+    return 1
+  }
+  repaired "rebuilt initramfs for $kver"
+  return 0
+}
+
+# The actual root cause on this machine. With ParallelDownloads > 1, pacman-git
+# segfaults every forked hook child, so mkinitcpio and depmod never run and the
+# transaction still reports success.
+check_parallel_downloads() {
+  local conf value
+  conf="$(rpath /etc/pacman.conf)"
+  [[ -r $conf ]] || return 0
+  value="$(grep -E '^[[:space:]]*ParallelDownloads[[:space:]]*=' "$conf" 2> /dev/null |
+    tail -1 | sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')"
+  [[ -n $value ]] || {
+    ok "ParallelDownloads not set (pacman default is serial)"
+    return 0
+  }
+  if [[ $value == "1" ]]; then
+    ok "ParallelDownloads = 1"
+    return 0
+  fi
+  problem "ParallelDownloads = $value — forked alpm hooks segfault, silently skipping mkinitcpio"
+  if ! acting; then
+    would "set ParallelDownloads = 1 in $conf"
+    return 1
+  fi
+  cp -a "$conf" "${conf}.bak-$(date +%Y%m%d-%H%M%S)"
+  sed -i -E 's/^([[:space:]]*ParallelDownloads[[:space:]]*=[[:space:]]*).*/\11/' "$conf"
+  repaired "set ParallelDownloads = 1"
+  return 0
+}
+
+# ----------------------------------------------------------------------------
+# Modes
+# ----------------------------------------------------------------------------
+
+# PreTransaction gate: refuse a kernel upgrade when the ESP is not mounted,
+# because that upgrade would write the kernel into the root filesystem instead.
+run_preflight() {
+  if boot_is_mounted; then
+    printf 'boot-repair: ESP mounted at %s — proceeding.\n' "$ESP_MOUNTPOINT"
+    exit 0
+  fi
+  cat >&2 << EOF
+
+  ==> boot-repair: ABORTING TRANSACTION
+
+  $ESP_MOUNTPOINT is not mounted. Installing a kernel now would write it into
+  the root filesystem, leaving the firmware booting a stale image whose
+  modules this upgrade is about to delete.
+
+  Fix it, then retry:
+      sudo mount $ESP_MOUNTPOINT
+      sudo $SCRIPT_NAME
+
+EOF
+  exit 1
+}
+
+run_checks() {
+  local kver
+
+  ensure_root_writable
+
+  msg "Kernel / ESP consistency"
+  check_fstab_options || true
+  clean_shadow_files || true
+  ensure_vfat || true
+  mount_esp || true
+
+  if ! kver="$(newest_complete_kernel)"; then
+    problem "no complete kernel module tree found under $(rpath /usr/lib/modules)"
+    msg ""
+    msg "  Recover the kernel package first (offline, from cache):"
+    msg "    pacman -U /var/cache/pacman/pkg/linux-*.pkg.tar.zst"
+    return 1
+  fi
+  info "target kernel: $kver"
+
+  ensure_depmod "$kver" || true
+
+  # Only meaningful once the ESP is actually mounted; otherwise these would
+  # write into the root filesystem — the very bug being repaired.
+  if boot_is_mounted || ! is_live; then
+    sync_kernel_image "$kver" || true
+    rebuild_initramfs "$kver" || true
+  else
+    problem "ESP still unmounted — cannot sync the kernel image"
+  fi
+
+  msg ""
+  msg "Upgrade safety"
+  check_parallel_downloads || true
+  return 0
+}
+
+# ----------------------------------------------------------------------------
+# Argument parsing
+# ----------------------------------------------------------------------------
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      MODE="dry-run"
+      shift
+      ;;
+    --preflight)
+      MODE="preflight"
+      shift
+      ;;
+    --auto)
+      MODE="auto"
+      QUIET=1
+      shift
+      ;;
+    --root)
+      [[ $# -ge 2 ]] || die "--root requires a directory"
+      ROOT="$2"
+      shift 2
+      ;;
+    --esp)
+      [[ $# -ge 2 ]] || die "--esp requires a device"
+      ESP_DEV_OVERRIDE="$2"
+      shift 2
+      ;;
+    -h | --help) usage ;;
+    *) die "unknown option: $1 (try --help)" ;;
+  esac
+done
+
+[[ -d $ROOT ]] || die "root directory does not exist: $ROOT"
+
+if [[ $MODE == "preflight" ]]; then
+  run_preflight
+fi
+
+# Root is required to modify the live system, but not to repair a tree handed
+# to us via --root (a fixture, or a chroot where we are already root).
+if acting && is_live && [[ $EUID -ne 0 ]]; then
+  die "must run as root (try: sudo $SCRIPT_NAME)"
+fi
+
+[[ $QUIET -eq 1 ]] || {
+  msg "=== boot-repair (${MODE}${ROOT:+, root=$ROOT}) ==="
+  msg ""
+}
+
+run_checks || true
+
+# ----------------------------------------------------------------------------
+# Report
+# ----------------------------------------------------------------------------
+
+# In --auto (post-transaction hook) stay silent unless something happened.
+if [[ $MODE == "auto" ]]; then
+  if [[ $REPAIRS -gt 0 ]]; then
+    printf 'boot-repair: repaired %d boot inconsistency/ies after this transaction.\n' "$REPAIRS"
+  fi
+  if [[ $PROBLEMS -gt $REPAIRS ]]; then
+    printf 'boot-repair: UNRESOLVED boot problems remain — do NOT reboot. Run: sudo %s\n' "$SCRIPT_NAME" >&2
+    exit 1
+  fi
+  exit 0
+fi
+
+msg ""
+if [[ $PROBLEMS -eq 0 ]]; then
+  msg "=== consistent: nothing to repair ==="
+  exit 0
+fi
+
+if [[ $MODE == "dry-run" ]]; then
+  msg "=== $PROBLEMS problem(s) found — rerun without --dry-run to repair ==="
+  exit 1
+fi
+
+if [[ $REPAIRS -ge $PROBLEMS ]]; then
+  msg "=== repaired $REPAIRS problem(s) ==="
+  msg ""
+  msg "Verify before rebooting:"
+  msg "    findmnt $ESP_MOUNTPOINT"
+  msg "    sudo $SCRIPT_NAME --dry-run"
+  exit 0
+fi
+
+msg "=== repaired $REPAIRS of $PROBLEMS problem(s) — UNRESOLVED issues remain ==="
+exit 1

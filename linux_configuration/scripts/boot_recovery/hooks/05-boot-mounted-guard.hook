@@ -1,0 +1,20 @@
+# Refuse to install a kernel while the ESP is unmounted.
+#
+# If /boot is not mounted, the kernel image lands in the ROOT filesystem's
+# /boot directory instead of the ESP. The firmware keeps booting the previous
+# image, whose module tree this same transaction is about to delete — which
+# drops the machine into emergency mode on the next boot.
+#
+# AbortOnFail makes this a gate, not a warning.
+
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Verifying the ESP is mounted before installing a kernel...
+When = PreTransaction
+Exec = /usr/local/sbin/boot-repair --preflight
+AbortOnFail
