@@ -125,8 +125,9 @@ APPS: Final[dict[str, AppIcon]] = {
             accent="#B8862E",
             glyph="quill-nib",
             icon_name="epopeja-karta",
-            # `flutter create` scaffolded no desktop target for this one; it is
-            # a character sheet you bring to the table, i.e. phone-only.
+            # A linux/ target exists, but only so the app can be driven on the
+            # desktop during development. It is a character sheet you bring to
+            # the table, so it ships no desktop entry and gets no hicolor set.
             linux=False,
         ),
     )

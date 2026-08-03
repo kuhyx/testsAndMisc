@@ -1,0 +1,51 @@
+{
+  "intent": "Give the new Epopeja character-sheet app (~/epopeja_karta) a launcher icon from the shared family, and let it run on the phone under focus mode.",
+  "scope": [
+    "python_pkg/app_icons/glyphs.py - new quill-nib glyph",
+    "python_pkg/app_icons/apps.py - register epopeja_karta",
+    "phone_focus_mode/config.sh - whitelist com.kuhy.epopeja_karta",
+    "Non-goal: the app itself lives in its own repo (~/epopeja_karta) and is not part of this change",
+    "Non-goal: no accent change - the family accent #B8862E is shared, apps differ by glyph only"
+  ],
+  "changes": [
+    "Added the quill-nib glyph: a filled dip-pen nib with a true vent hole and slit (fill-rule=evenodd), sized so every gap clears MIN_NEGATIVE_SPACE (36px) and the ink stays inside SAFE_BOX.",
+    "First draft was a symmetric almond and rendered as a map pin; the shipped shape has a flat shoulder, which is what makes it read as a nib.",
+    "Registered epopeja_karta -> quill-nib with the shared #B8862E accent, linux=False (a linux/ target exists for desktop development only, so no hicolor set or desktop entry).",
+    "Whitelisted com.kuhy.epopeja_karta in the focus-mode config; not yet deployed to the device, so config and phone are intentionally out of sync until deploy.sh runs."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests -q",
+      "result": "pass",
+      "evidence": "44 passed. Registry tests cover the new entry: every app references a real glyph, accents are shared, no glyph paints the background colour."
+    },
+    {
+      "command": "python3 -m coverage run --branch --source=python_pkg/app_icons -m pytest python_pkg/app_icons/tests",
+      "result": "pass",
+      "evidence": "254 stmts, 32 branches, 0 missed - 100% on apps.py and glyphs.py included."
+    },
+    {
+      "command": "render.safe_box_overflow(get_glyph('quill-nib'), '#B8862E')",
+      "result": "pass",
+      "evidence": "(0, 0) - no overflow on either axis, same as the receipt-split reference."
+    },
+    {
+      "command": "python3 -m python_pkg.app_icons generate --app epopeja_karta --android",
+      "result": "pass",
+      "evidence": "Wrote 6 asset files and regenerated the Android mipmaps; mipmap-xxxhdpi/ic_launcher.png visually confirmed as the nib, not the stock Flutter beach icon."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/app_icons/glyphs.py python_pkg/app_icons/apps.py phone_focus_mode/config.sh",
+      "result": "partial",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, shellcheck, codespell, binary-file block and secret scan all pass. Two hooks fail for reasons outside this change: 'workflow contract for multi-file code changes' needs a contract artifact, and 'pytest with coverage enforcement' aborts on pre-existing collection errors in code_tutor and wsg_grabber. Both must be resolved before this is committed - they are not bypassed."
+    }
+  ],
+  "risks": [
+    "The focus-mode whitelist entry has no effect until deploy.sh is run against the phone; until then a com.kuhy.epopeja_karta install would be killed within ~1s at home.",
+    "quill-nib is a filled silhouette, so it depends on fill-rule=evenodd keeping the vent and slit as true holes; a renderer change that ignores that would paint them charcoal and break icon_monochrome."
+  ],
+  "rollback": [
+    "Remove the epopeja_karta entry from APPS, the quill-nib entry from GLYPHS and its _QUILL_NIB body, and the whitelist line from phone_focus_mode/config.sh.",
+    "Re-run the app_icons test suite and confirm 100% coverage still holds; re-run deploy.sh if the whitelist had already been pushed to the device."
+  ]
+}
