@@ -6,7 +6,7 @@ import 'package:billsplit/domain/models.dart';
 import 'package:billsplit/state/app_state.dart';
 import 'package:billsplit/ui/people_screen.dart';
 import 'package:billsplit/ui/receipt_screen.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -122,13 +122,17 @@ class HomeScreen extends StatelessWidget {
     final state = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
-    final picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-      withData: true,
+    const jsonGroup = XTypeGroup(
+      label: 'e-paragon',
+      extensions: ['json'],
+      // Android matches on MIME rather than extension; without this the
+      // picker greys out every file.
+      mimeTypes: ['application/json'],
+      uniformTypeIdentifiers: ['public.json'],
     );
-    final data = picked?.files.firstOrNull?.bytes;
-    if (data == null) return;
+    final picked = await openFile(acceptedTypeGroups: [jsonGroup]);
+    if (picked == null) return;
+    final data = await picked.readAsBytes();
     try {
       final result = parseEParagonDetailed(utf8.decode(data));
       state.addReceipt(result.receipt);

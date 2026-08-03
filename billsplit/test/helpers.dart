@@ -1,19 +1,61 @@
 import 'dart:io';
 
 import 'package:billsplit/state/app_state.dart';
+import 'package:billsplit/ui/receipt_screen.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-const _pickerChannel = MethodChannel('miguelruivo.flutter.plugins.filepicker');
 const _pathChannel = MethodChannel('plugins.flutter.io/path_provider');
 
-/// Mocks the file_picker method channel.
+/// Fake [FileSelectorPlatform] driving open/save dialogs in tests.
 ///
-/// `pickResult`: bytes returned by pickFiles (null → user cancelled).
-/// `saveResult`: path returned by saveFile (null → user cancelled).
-/// `saveThrows`: saveFile raises a PlatformException.
+/// file_selector is swapped at the platform-interface level rather than at the
+/// method channel: the real implementation talks Pigeon, so a MethodChannel
+/// mock would not intercept it.
+class _FakeFileSelector extends FileSelectorPlatform {
+  _FakeFileSelector({
+    this.pickResult,
+    this.pickName,
+    this.saveResult,
+    this.saveThrows = false,
+  });
+
+  final Uint8List? pickResult;
+  final String? pickName;
+  final String? saveResult;
+  final bool saveThrows;
+
+  @override
+  Future<XFile?> openFile({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async {
+    if (pickResult == null) return null;
+    return XFile.fromData(pickResult!, name: pickName ?? 'picked.json');
+  }
+
+  @override
+  Future<FileSaveLocation?> getSaveLocation({
+    List<XTypeGroup>? acceptedTypeGroups,
+    SaveDialogOptions options = const SaveDialogOptions(),
+  }) async {
+    if (saveThrows) {
+      throw PlatformException(code: 'boom', message: 'disk full');
+    }
+    if (saveResult == null) return null;
+    return FileSaveLocation(saveResult!);
+  }
+}
+
+/// Installs a fake file_selector platform for the current test.
+///
+/// `pickResult`: bytes returned by openFile (null → user cancelled).
+/// `saveResult`: path returned by getSaveLocation (null → user cancelled).
+/// `saveThrows`: getSaveLocation raises a PlatformException.
 void mockFilePicker({
   Uint8List? pickResult,
   String? pickName,
@@ -21,26 +63,23 @@ void mockFilePicker({
   bool saveThrows = false,
 }) {
   TestWidgetsFlutterBinding.ensureInitialized();
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_pickerChannel, (call) async {
-    if (call.method == 'save') {
-      if (saveThrows) {
-        throw PlatformException(code: 'boom', message: 'disk full');
-      }
-      return saveResult;
-    }
-    // pickFiles ('custom'/'any'/...)
-    if (pickResult == null) return null;
-    return <Map<dynamic, dynamic>>[
-      {
-        'path': '/tmp/${pickName ?? 'picked.json'}',
-        'name': pickName ?? 'picked.json',
-        'size': pickResult.length,
-        'bytes': pickResult,
-      },
-    ];
+  FileSelectorPlatform.instance = _FakeFileSelector(
+    pickResult: pickResult,
+    pickName: pickName,
+    saveResult: saveResult,
+    saveThrows: saveThrows,
+  );
+  // Record the write instead of touching the disk: a real dart:io future never
+  // completes inside testWidgets' fake-async zone, so the export flow would
+  // stall before showing its snackbar.
+  exportedFiles.clear();
+  debugSetExportWriter((path, bytes, mimeType) async {
+    exportedFiles[path] = bytes;
   });
 }
+
+/// Paths and payloads captured by the stub export writer.
+final Map<String, Uint8List> exportedFiles = <String, Uint8List>{};
 
 /// Points path_provider's documents directory at [dir].
 void mockPathProvider(Directory dir) {
@@ -49,11 +88,12 @@ void mockPathProvider(Directory dir) {
       .setMockMethodCallHandler(_pathChannel, (call) async => dir.path);
 }
 
-/// Clears both channel mocks.
+/// Clears the path_provider channel mock and the file_selector fake.
 void clearChannelMocks() {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-    ..setMockMethodCallHandler(_pickerChannel, null)
-    ..setMockMethodCallHandler(_pathChannel, null);
+      .setMockMethodCallHandler(_pathChannel, null);
+  FileSelectorPlatform.instance = _FakeFileSelector();
+  debugSetExportWriter(null);
 }
 
 /// Creates an [AppState] persisted under a fresh temp directory.

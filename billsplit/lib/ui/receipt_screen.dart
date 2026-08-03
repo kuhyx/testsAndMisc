@@ -4,10 +4,39 @@ import 'package:billsplit/domain/xlsx_export.dart';
 import 'package:billsplit/state/app_state.dart';
 import 'package:billsplit/ui/assignment_sheet.dart';
 import 'package:billsplit/ui/item_edit.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+/// Writes exported [bytes] to [path]; the seam the export flow writes through.
+///
+/// Kept injectable because `file_selector` only returns a destination — the
+/// app performs the write itself, where `file_picker` did it inside the
+/// plugin. Real `dart:io` futures never complete inside `testWidgets`'
+/// fake-async zone, so a widget test that exercised the real write could never
+/// observe the resulting snackbar. Tests swap this for an in-memory stub.
+typedef ExportWriter = Future<void> Function(
+  String path,
+  Uint8List bytes,
+  String mimeType,
+);
+
+/// The active export writer. Replaced in tests via [debugSetExportWriter].
+ExportWriter writeExport = _writeExportToDisk;
+
+Future<void> _writeExportToDisk(
+  String path,
+  Uint8List bytes,
+  String mimeType,
+) =>
+    XFile.fromData(bytes, mimeType: mimeType).saveTo(path);
+
+/// Overrides [writeExport]; pass null to restore the real disk writer.
+@visibleForTesting
+void debugSetExportWriter(ExportWriter? writer) {
+  writeExport = writer ?? _writeExportToDisk;
+}
 
 /// One receipt: item list with assignments, totals, participants, export.
 class ReceiptScreen extends StatefulWidget {
@@ -154,16 +183,23 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         RegExp(r'[^\w\d ąćęłńóśżźĄĆĘŁŃÓŚŻŹ-]'),
         '_',
       );
-      final path = await FilePicker.saveFile(
-        dialogTitle: 'Save split as .xlsx',
-        fileName: '$safe split.xlsx',
-        type: FileType.custom,
-        allowedExtensions: ['xlsx'],
-        bytes: bytes,
+      const xlsxGroup = XTypeGroup(
+        label: 'Excel workbook',
+        extensions: ['xlsx'],
+        mimeTypes: [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ],
       );
-      if (path != null) {
+      final location = await getSaveLocation(
+        suggestedName: '$safe split.xlsx',
+        acceptedTypeGroups: [xlsxGroup],
+      );
+      if (location != null) {
+        // file_selector hands back a destination and leaves the writing to the
+        // caller, unlike file_picker which wrote the bytes inside the plugin.
+        await writeExport(location.path, bytes, xlsxGroup.mimeTypes!.first);
         messenger.showSnackBar(
-          SnackBar(content: Text('Saved: ${path.split('/').last}')),
+          SnackBar(content: Text('Saved: ${location.path.split('/').last}')),
         );
       }
     } on Exception catch (e) {

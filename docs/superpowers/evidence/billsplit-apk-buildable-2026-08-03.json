@@ -1,0 +1,63 @@
+{
+  "intent": "Make billsplit actually build an Android APK so its launcher icon can be verified from the built artifact, bring that build inside the machine's 2 GB memory budget, and stop the pre-push CI mirror from failing whenever the shared checkout is dirty.",
+  "scope": [
+    "billsplit/pubspec.yaml — file_picker replaced by file_selector",
+    "billsplit/lib/ui/home_screen.dart and receipt_screen.dart — the two picker call sites",
+    "billsplit/test/helpers.dart — platform fake replaces the method-channel mock",
+    "billsplit/test/xlsx_extra_test.dart — covers the real on-disk export writer",
+    "meta/scripts/ci_mirror.sh — gates now run in a throwaway worktree",
+    "Non-goal: changing billsplit's Gradle/AGP versions, which are byte-identical to the four sibling apps and were never the fault",
+    "Non-goal: any change to split/export logic or the xlsx format"
+  ],
+  "changes": [
+    "Replaced file_picker with the official file_selector. file_picker 11.0.3 is the LATEST on pub.dev and is unfixably wedged under AGP 9: it skips applying the Kotlin Gradle Plugin when AGP >= 9, so with built-in Kotlin off its own Kotlin never compiles (`cannot find symbol: FilePickerPlugin`), while with built-in Kotlin on its buildscript leaks KGP onto the global classpath via rootProject.allprojects and AGP rejects every module. Diagnosis rested on billsplit's android/app/build.gradle.kts and settings.gradle.kts being byte-identical to habit_stack, home_inventory and diet_guard_app, which all build — the dependency was the only difference.",
+    "Ported the two call sites: FilePicker.pickFiles -> openFile plus XFile.readAsBytes, and FilePicker.saveFile -> getSaveLocation plus an explicit write, since file_selector returns a destination and leaves writing to the caller.",
+    "Introduced an injectable ExportWriter seam (writeExport / debugSetExportWriter) for that write. Necessary, not decorative: file_picker performed the write inside the plugin so widget tests never touched the disk, whereas a real dart:io future never completes inside testWidgets' fake-async zone. Verified directly with a throwaway probe — a saveTo future was still pending after both pumpAndSettle and runAsync.",
+    "Swapped the test double from a MethodChannel mock to a FileSelectorPlatform fake, because file_selector speaks Pigeon and a channel mock would not intercept it.",
+    "Added a plain (non-widget) test exercising the real disk writer, restoring 100% line coverage without an ignore.",
+    "Rewrote ci_mirror.sh to run pre-commit --all-files and the pytest gate inside a disposable `git worktree add --detach HEAD`, removing the stash of the live tree entirely."
+  ],
+  "verification": [
+    {
+      "command": "flutter build apk --debug",
+      "result": "pass",
+      "evidence": "'Built build/app/outputs/flutter-apk/app-debug.apk' (143M). The first APK this app has ever produced; previously it failed at :app:compileDebugJavaWithJavac."
+    },
+    {
+      "command": "unzip the APK and render res/mipmap-xxxhdpi-v4/ic_launcher.png and res/drawable-xxxhdpi-v4/ic_launcher_foreground.png",
+      "result": "pass",
+      "evidence": "Both show the charcoal field with the gold perforated-receipt glyph. Neither matches the stock Flutter beach icon (md5 6270344430679711b81476e29878caa7). The icon is now verified from the built artifact rather than from a preview sheet."
+    },
+    {
+      "command": "PSS summed from /proc/<pid>/smaps_rollup across the build's JVM and Dart processes",
+      "result": "pass",
+      "evidence": "Peak 1.86 GiB, inside the 2 GB budget. Earlier attempts measured 2.03 and 3.01 GiB; removing file_picker also removed the flutter_plugin_android_lifecycle module and the built-in-Kotlin thrash."
+    },
+    {
+      "command": "flutter analyze && flutter test --no-pub --coverage && python3 -m python_pkg.billsplit_coverage",
+      "result": "pass",
+      "evidence": "'No issues found!', 60 tests passed, '100% line coverage across 11 lib files.'"
+    },
+    {
+      "command": "bash meta/scripts/ci_mirror.sh with the working tree deliberately dirty",
+      "result": "pass",
+      "evidence": "'all CI gates passed locally — safe to push' with eight modified files present, the exact condition that previously aborted the push. main.sh md5 unchanged at 262c91612bf9 across the run, and no worktree or /tmp/ci-mirror-* directory left behind."
+    },
+    {
+      "command": "shellcheck meta/scripts/ci_mirror.sh",
+      "result": "pass",
+      "evidence": "No findings."
+    }
+  ],
+  "risks": [
+    "The export write moved from the plugin into the app, so a failure now surfaces through the app's own catch as 'Export failed' rather than as a plugin exception. Behaviour on a real device is unverified — the APK was built but never installed or run.",
+    "writeExport is process-global mutable state. clearChannelMocks restores it, but a test that swaps it without going through the helper could leak the stub into later tests.",
+    "file_selector's save dialog is a different native flow from file_picker's; the Android and Linux pickers should be exercised by hand before trusting the export path in daily use.",
+    "ci_mirror.sh now gates HEAD rather than the working tree. That is the correct mirror of CI, but it means uncommitted work is no longer covered by the pre-push gate — it is checked at commit time instead."
+  ],
+  "rollback": [
+    "git revert the commit, then `flutter pub get` inside billsplit to restore file_picker. The APK will stop building again, which is the pre-change state, not a new fault.",
+    "Reverting ci_mirror.sh reinstates the stash-based gate and with it the spurious push failures on a dirty shared checkout; prefer keeping that hunk.",
+    "After any rollback, re-run flutter test: helpers.dart, receipt_screen.dart and xlsx_extra_test.dart must move together, since the platform fake and the ExportWriter seam are coupled."
+  ]
+}
