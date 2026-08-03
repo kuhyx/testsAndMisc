@@ -240,7 +240,10 @@ repos:
     hooks:
       - id: pytest-coverage
         name: pytest with coverage enforcement
-        entry: python meta/scripts/pytest_changed_packages.py
+        # Serialised against builds and pacman transactions on this 7.6 GB
+        # machine via the heavy-job lock. run_with_heavy_lock.sh is a plain
+        # passthrough on any clone that has not installed one.
+        entry: bash meta/scripts/run_with_heavy_lock.sh pytest python meta/scripts/pytest_changed_packages.py
         language: system
         types: [python]
         pass_filenames: true

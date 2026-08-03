@@ -32,6 +32,9 @@ CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Script paths
 PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
 MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
+# Drift manifests written by the two installers above (see deployment_drift).
+PACMAN_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/source.sha256"
+MAKEPKG_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/makepkg-source.sha256"
 MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
 STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
 PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/scripts/periodic_background/setup_periodic_system.sh"
@@ -107,6 +110,28 @@ hosts_pacman_hooks_installed() {
 		[[ -f /etc/pacman.d/hooks/90-guard-lib-relock-all.hook ]]; } ||
 		{ [[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]] &&
 			[[ -f /etc/pacman.d/hooks/90-relock-etc-hosts.hook ]]; }
+}
+
+# Replay a drift manifest written at install time. The manifest holds plain
+# sha256sum lines covering BOTH the repo sources an installer copied from and
+# the installed copies it produced, so one `sha256sum -c` answers both "has the
+# repo moved on?" and "did someone edit the deployed file?".
+#
+# This exists because an existence check is not a deployment check. On
+# 2026-08-03 /usr/local/bin/pacman_wrapper was 19916 B against a 27510 B source
+# — missing the policy integrity manifest, the pacman_lock_lib stale-lock fix
+# and the guard-lib fallbacks — while every check here reported "ok" hourly,
+# because the file was present and /usr/bin/pacman was a symlink. Both of those
+# facts stayed true the entire time the wrapper was a week out of date.
+#
+# Return: 0 verified, 1 drift detected, 2 no manifest (install predates this).
+# Callers must treat 2 as actionable rather than a pass: "cannot verify" is
+# precisely the state that hid the stale wrapper.
+deployment_drift() { # <manifest-path>
+	local manifest="$1"
+	[[ -f $manifest ]] || return 2
+	sha256sum -c --status "$manifest" 2>/dev/null || return 1
+	return 0
 }
 
 run() {
@@ -280,6 +305,22 @@ check_pacman_wrapper() {
 		fi
 	done
 
+	# Content drift — the check everything above misses. A correct symlink and a
+	# present file say nothing about WHICH version is deployed.
+	local drift_rc=0
+	deployment_drift "$PACMAN_WRAPPER_MANIFEST" || drift_rc=$?
+	case $drift_rc in
+	0) msg "Wrapper matches the source it was installed from (no drift)" ;;
+	1)
+		issues+=("Deployed pacman wrapper differs from its install manifest (stale or tampered)")
+		status="error"
+		;;
+	2)
+		issues+=("No drift manifest at $PACMAN_WRAPPER_MANIFEST — deployed version unverifiable")
+		status="error"
+		;;
+	esac
+
 	# Report and fix
 	if [[ $status == "error" ]]; then
 		for issue in "${issues[@]}"; do
@@ -292,8 +333,10 @@ check_pacman_wrapper() {
 			if [[ -f $PACMAN_WRAPPER_INSTALL ]]; then
 				run bash "$PACMAN_WRAPPER_INSTALL"
 				((FIXES_APPLIED++)) || true
-				# Re-verify after fix
-				if [[ $DRY_RUN -eq 0 ]] && [[ -L /usr/bin/pacman ]] && [[ -f /usr/bin/pacman.orig ]] && [[ -f /usr/local/bin/pacman_wrapper ]]; then
+				# Re-verify after fix. Content is part of "fixed": a reinstall
+				# that leaves the manifest failing has repaired nothing.
+				if [[ $DRY_RUN -eq 0 ]] && [[ -L /usr/bin/pacman ]] && [[ -f /usr/bin/pacman.orig ]] &&
+					[[ -f /usr/local/bin/pacman_wrapper ]] && deployment_drift "$PACMAN_WRAPPER_MANIFEST"; then
 					status="ok"
 				fi
 			else
@@ -359,6 +402,21 @@ check_makepkg_wrapper() {
 		issues+=("Upgrade-survival hook not installed at /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook")
 		status="error"
 	fi
+
+	# Content drift (see check_pacman_wrapper for why existence is not enough)
+	local drift_rc=0
+	deployment_drift "$MAKEPKG_WRAPPER_MANIFEST" || drift_rc=$?
+	case $drift_rc in
+	0) msg "Makepkg wrapper matches the source it was installed from (no drift)" ;;
+	1)
+		issues+=("Deployed makepkg wrapper differs from its install manifest (stale or tampered)")
+		status="error"
+		;;
+	2)
+		issues+=("No drift manifest at $MAKEPKG_WRAPPER_MANIFEST — deployed version unverifiable")
+		status="error"
+		;;
+	esac
 
 	# Report and fix
 	if [[ $status == "error" ]]; then
