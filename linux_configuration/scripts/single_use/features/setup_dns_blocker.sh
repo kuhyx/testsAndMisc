@@ -45,7 +45,7 @@ readonly WATCHDOG_TIMER="/etc/systemd/system/dnsmasq-watchdog.timer"
 # Optional DHCP-server mode (for routers that cannot advertise a custom DNS).
 readonly DHCP_CONF="/etc/dnsmasq.d/lan-dhcp.conf"
 readonly DHCP_LEASE="12h"
-readonly DHCP_START_HOST="10"  # .10 .. .150 mirrors a common router default range
+readonly DHCP_START_HOST="10" # .10 .. .150 mirrors a common router default range
 readonly DHCP_END_HOST="150"
 # Feed generator (chattr +i but still executable) and firewall owner script.
 readonly GEN="${SCRIPT_DIR}/../../periodic_background/hosts/generate_hosts_file.sh"
@@ -442,10 +442,21 @@ cmd_status() {
 	detect_lan
 	echo "=== LAN DNS blocker status ==="
 
-	is_service_active dnsmasq && status_line 0 "dnsmasq: active" || status_line 1 "dnsmasq: NOT active"
-	is_service_enabled dnsmasq && status_line 0 "dnsmasq: enabled at boot" || status_line 1 "dnsmasq: NOT enabled"
-	[[ -f $DNSMASQ_DROPIN ]] && status_line 0 "Restart=always drop-in present" || status_line 1 "Restart drop-in missing"
-
+	if is_service_active dnsmasq; then
+		status_line 0 "dnsmasq: active"
+	else
+		status_line 1 "dnsmasq: NOT active"
+	fi
+	if is_service_enabled dnsmasq; then
+		status_line 0 "dnsmasq: enabled at boot"
+	else
+		status_line 1 "dnsmasq: NOT enabled"
+	fi
+	if [[ -f $DNSMASQ_DROPIN ]]; then
+		status_line 0 "Restart=always drop-in present"
+	else
+		status_line 1 "Restart drop-in missing"
+	fi
 	if [[ -f $FEED ]]; then
 		status_line 0 "blocklist feed: $(wc -l <"$FEED") lines, updated $(date -r "$FEED" '+%Y-%m-%d %H:%M')"
 	else
@@ -472,10 +483,11 @@ cmd_status() {
 		status_line 0 "firewall: no default-drop ruleset loaded (DNS/DHCP not filtered)"
 	fi
 
-	systemctl is-active dns-blocklist-refresh.timer &>/dev/null &&
-		status_line 0 "refresh timer: active (next $(systemctl show -p NextElapseUSecRealtime --value dns-blocklist-refresh.timer 2>/dev/null))" ||
+	if systemctl is-active dns-blocklist-refresh.timer &>/dev/null; then
+		status_line 0 "refresh timer: active (next $(systemctl show -p NextElapseUSecRealtime --value dns-blocklist-refresh.timer 2>/dev/null))"
+	else
 		status_line 1 "refresh timer: NOT active"
-
+	fi
 	if [[ -f $DHCP_CONF ]]; then
 		if ss -ulnp 2>/dev/null | grep -q ':67 '; then
 			status_line 0 "DHCP mode: ON (serving leases; PC is the LAN DHCP server)"
@@ -492,12 +504,16 @@ cmd_status() {
 		local blocked passthru
 		blocked="$(dig +short +time=2 +tries=1 @"${LAN_IP}" youtube.com 2>/dev/null | head -1)"
 		passthru="$(dig +short +time=2 +tries=1 @"${LAN_IP}" example.com 2>/dev/null | head -1)"
-		[[ $blocked == "0.0.0.0" ]] &&
-			status_line 0 "youtube.com -> ${blocked} (BLOCKED, correct)" ||
+		if [[ $blocked == "0.0.0.0" ]]; then
+			status_line 0 "youtube.com -> ${blocked} (BLOCKED, correct)"
+		else
 			status_line 1 "youtube.com -> ${blocked:-<no answer>} (expected 0.0.0.0)"
-		[[ -n $passthru && $passthru != "0.0.0.0" ]] &&
-			status_line 0 "example.com -> ${passthru} (passthrough, correct)" ||
+		fi
+		if [[ -n $passthru && $passthru != "0.0.0.0" ]]; then
+			status_line 0 "example.com -> ${passthru} (passthrough, correct)"
+		else
 			status_line 1 "example.com -> ${passthru:-<no answer>} (expected a real IP)"
+		fi
 	else
 		log_warn "install 'dig' (bind) to run the live resolution test."
 	fi

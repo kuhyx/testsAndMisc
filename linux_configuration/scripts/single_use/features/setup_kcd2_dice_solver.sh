@@ -67,9 +67,12 @@ die() {
 	exit 1
 }
 
+# Takes the exit status to leave with, so the error path can print the same
+# help and still fail. Hardcoding `exit 0` made the `exit 1` after the
+# unknown-command branch unreachable -- the script reported SUCCESS on a typo.
 usage() {
 	grep -E '^#( |$)' "$0" | sed -E 's/^# ?//'
-	exit 0
+	exit "${1:-0}"
 }
 
 # --- Phase 1: preflight -----------------------------------------------------
@@ -394,13 +397,21 @@ check_http() {
 status_cmd() {
 	print_setup_header "KCD2 dice solver status"
 
-	has_cmd node && status_line 0 "node present" || status_line 1 "node missing"
-	has_cmd pnpm && status_line 0 "pnpm present" || status_line 1 "pnpm missing"
-
-	[[ -f "${DICE_SRC}/dist/index.html" ]] &&
-		status_line 0 "build present (dist/index.html)" ||
+	if has_cmd node; then
+		status_line 0 "node present"
+	else
+		status_line 1 "node missing"
+	fi
+	if has_cmd pnpm; then
+		status_line 0 "pnpm present"
+	else
+		status_line 1 "pnpm missing"
+	fi
+	if [[ -f "${DICE_SRC}/dist/index.html" ]]; then
+		status_line 0 "build present (dist/index.html)"
+	else
 		status_line 1 "build missing — run setup"
-
+	fi
 	if docker ps --format '{{.Names}}' | grep -qx "$DICE_CONTAINER"; then
 		status_line 0 "${DICE_CONTAINER} container running"
 		local pid listeners
@@ -418,14 +429,16 @@ status_cmd() {
 	status_line "$(check_http "http://127.0.0.1:${DICE_PORT}/" "$DICE_DOMAIN")" \
 		"local static server (127.0.0.1:${DICE_PORT}, Host: ${DICE_DOMAIN})"
 
-	[[ -f $DICE_SNIPPET ]] &&
-		status_line 0 "Caddy snippet present" ||
+	if [[ -f $DICE_SNIPPET ]]; then
+		status_line 0 "Caddy snippet present"
+	else
 		status_line 1 "Caddy snippet missing"
-
-	getent hosts "$DICE_DOMAIN" >/dev/null &&
-		status_line 0 "${DICE_DOMAIN} resolves" ||
+	fi
+	if getent hosts "$DICE_DOMAIN" >/dev/null; then
+		status_line 0 "${DICE_DOMAIN} resolves"
+	else
 		status_line 1 "${DICE_DOMAIN} does not resolve"
-
+	fi
 	status_line "$(check_http "https://${DICE_DOMAIN}/")" \
 		"external https://${DICE_DOMAIN}/"
 
@@ -438,10 +451,11 @@ status_cmd() {
 		status_line 1 "post-commit hook missing — re-run setup"
 	fi
 
-	[[ -f $UNIT_FILE ]] &&
-		status_line 0 "${UNIT_NAME} installed" ||
+	if [[ -f $UNIT_FILE ]]; then
+		status_line 0 "${UNIT_NAME} installed"
+	else
 		status_line 1 "${UNIT_NAME} missing — re-run setup"
-
+	fi
 	if systemctl --user is-failed --quiet "$UNIT_NAME"; then
 		status_line 1 "last auto-rebuild FAILED — journalctl --user -u ${UNIT_NAME}"
 	else
@@ -475,8 +489,7 @@ main() {
 		;;
 	*)
 		log_error "Unknown command: $cmd"
-		usage
-		exit 1
+		usage 1
 		;;
 	esac
 }

@@ -66,9 +66,13 @@ die() {
 	exit 1
 }
 
+# Takes the exit status to leave with, so the error path can print the same help
+# and still fail. It used to hardcode `exit 0`, which made the `exit 1` after the
+# unknown-command branch unreachable -- so `setup_personal_website.sh bogus`
+# printed an error and then reported SUCCESS to its caller.
 usage() {
 	grep -E '^#( |$)' "$0" | sed -E 's/^# ?//'
-	exit 0
+	exit "${1:-0}"
 }
 
 # --- Phase 1: preflight -----------------------------------------------------
@@ -320,13 +324,21 @@ check_http() {
 status_cmd() {
 	print_setup_header "Personal website status"
 
-	has_cmd node && status_line 0 "node present" || status_line 1 "node missing"
-	has_cmd pnpm && status_line 0 "pnpm present" || status_line 1 "pnpm missing"
-
-	[[ -f "${WEBSITE_SRC}/dist/index.html" ]] &&
-		status_line 0 "build present (dist/index.html)" ||
+	if has_cmd node; then
+		status_line 0 "node present"
+	else
+		status_line 1 "node missing"
+	fi
+	if has_cmd pnpm; then
+		status_line 0 "pnpm present"
+	else
+		status_line 1 "pnpm missing"
+	fi
+	if [[ -f "${WEBSITE_SRC}/dist/index.html" ]]; then
+		status_line 0 "build present (dist/index.html)"
+	else
 		status_line 1 "build missing — run setup"
-
+	fi
 	if docker ps --format '{{.Names}}' | grep -qx personal-website; then
 		status_line 0 "personal-website container running"
 	else
@@ -336,20 +348,26 @@ status_cmd() {
 	status_line "$(check_http "http://127.0.0.1:${WEBSITE_PORT}/")" \
 		"local static server (127.0.0.1:${WEBSITE_PORT})"
 
-	[[ -f $WEBSITE_SNIPPET ]] &&
-		status_line 0 "Caddy website snippet present" ||
+	if [[ -f $WEBSITE_SNIPPET ]]; then
+		status_line 0 "Caddy website snippet present"
+	else
 		status_line 1 "Caddy website snippet missing"
-	grep -qE '^[[:space:]]*import[[:space:]]+/etc/caddy/sites' "$CADDYFILE" 2>/dev/null &&
-		status_line 0 "root Caddyfile uses snippet imports" ||
+	fi
+	if grep -qE '^[[:space:]]*import[[:space:]]+/etc/caddy/sites' "$CADDYFILE" 2>/dev/null; then
+		status_line 0 "root Caddyfile uses snippet imports"
+	else
 		status_line 1 "root Caddyfile not migrated to imports"
-
-	getent hosts "$WEBSITE_DOMAIN" >/dev/null &&
-		status_line 0 "${WEBSITE_DOMAIN} resolves" ||
+	fi
+	if getent hosts "$WEBSITE_DOMAIN" >/dev/null; then
+		status_line 0 "${WEBSITE_DOMAIN} resolves"
+	else
 		status_line 1 "${WEBSITE_DOMAIN} does not resolve"
-	getent hosts "$GITEA_DOMAIN" >/dev/null &&
-		status_line 0 "${GITEA_DOMAIN} resolves" ||
+	fi
+	if getent hosts "$GITEA_DOMAIN" >/dev/null; then
+		status_line 0 "${GITEA_DOMAIN} resolves"
+	else
 		status_line 1 "${GITEA_DOMAIN} does not resolve"
-
+	fi
 	status_line "$(check_http "https://${WEBSITE_DOMAIN}/")" \
 		"external https://${WEBSITE_DOMAIN}/"
 	status_line "$(check_http "https://${GITEA_DOMAIN}/")" \
@@ -370,8 +388,7 @@ main() {
 		;;
 	*)
 		log_error "Unknown command: $cmd"
-		usage
-		exit 1
+		usage 1
 		;;
 	esac
 }

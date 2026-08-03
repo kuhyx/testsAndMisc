@@ -25,7 +25,11 @@ ensure_adb_installed() {
 	if command -v pacman &>/dev/null; then
 		sudo pacman -S --noconfirm android-tools || die "Failed to install android-tools"
 	elif command -v apt-get &>/dev/null; then
-		sudo apt-get update && sudo apt-get install -y adb || die "Failed to install adb"
+		# `apt-get update && apt-get install ... || die` would also die when the
+		# update succeeded but the install failed to REPORT - and, worse, skipped
+		# die entirely if update itself failed. Check each step.
+		sudo apt-get update || die "Failed to update apt package lists"
+		sudo apt-get install -y adb || die "Failed to install adb"
 	elif command -v dnf &>/dev/null; then
 		sudo dnf install -y android-tools || die "Failed to install android-tools"
 	else

@@ -18,12 +18,12 @@ DRY_RUN=0
 STATUS_ONLY=0
 
 # Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[0;33m'
+BLUE=$'\033[0;34m'
+CYAN=$'\033[0;36m'
+NC=$'\033[0m' # No Color
 
 # Get script and config directories
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -1320,17 +1320,17 @@ main
 # it hid dead hosts self-repair for five months. Make it impossible to miss.
 ######################################################################
 if [[ ${#MISSING_SCRIPTS[@]} -gt 0 ]]; then
-	printf "\n${RED}"
+	printf '\n%s' "$RED"
 	printf '=%.0s' {1..74}
 	printf "\n  SELF-REPAIR IS BROKEN — %d repair script(s) MISSING\n" "${#MISSING_SCRIPTS[@]}"
 	printf '=%.0s' {1..74}
-	printf "${NC}\n"
+	printf '%s\n' "$NC"
 	for missing in "${MISSING_SCRIPTS[@]}"; do
 		err "$missing"
 	done
-	printf "${RED}The services above are NOT being repaired — this tool found the\n"
-	printf "problem and then could not run the fix. Correct these paths first.${NC}\n"
-	printf "${CYAN}Also logged at error priority: journalctl -p err -t check-and-enable-services${NC}\n\n"
+	printf '%sThe services above are NOT being repaired — this tool found the\n' "$RED"
+	printf 'problem and then could not run the fix. Correct these paths first.%s\n' "$NC"
+	printf '%sAlso logged at error priority: journalctl -p err -t check-and-enable-services%s\n\n' "$CYAN" "$NC"
 	exit 2
 fi
 

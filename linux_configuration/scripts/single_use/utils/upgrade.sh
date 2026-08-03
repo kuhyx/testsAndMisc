@@ -42,10 +42,12 @@ fix_cloudflare_key() {
 
 	if [[ ${expired:-0} -gt 0 ]]; then
 		log "Refreshing expired Cloudflare WARP GPG key..."
-		curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
-			| gpg --yes --dearmor -o "$keyring" 2>/dev/null \
-			&& log "Cloudflare key refreshed." \
-			|| log "WARNING: Could not refresh Cloudflare key (network issue?). Skipping."
+		if curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg |
+			gpg --yes --dearmor -o "$keyring" 2>/dev/null; then
+			log "Cloudflare key refreshed."
+		else
+			log "WARNING: Could not refresh Cloudflare key (network issue?). Skipping."
+		fi
 	fi
 }
 
@@ -66,8 +68,8 @@ fix_wine_legacy_key() {
 
 	# Export key to modern location
 	gpg --no-default-keyring --keyring "$legacy_keyring" \
-		--export "$wine_key_id" \
-		| gpg --yes --dearmor -o "$modern_keyring" 2>/dev/null
+		--export "$wine_key_id" |
+		gpg --yes --dearmor -o "$modern_keyring" 2>/dev/null
 
 	# Remove from legacy keyring (suppress the deprecation warning)
 	apt-key del "$wine_key_id" >/dev/null 2>&1 || true

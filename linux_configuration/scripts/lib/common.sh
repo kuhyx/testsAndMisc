@@ -116,8 +116,11 @@ parse_interactive_args() {
 
 # Handle common argument patterns for scripts with custom usage functions
 # Usage: handle_arg_help_or_unknown "$1" usage_function err_function
-# Returns: 0 if argument was handled (caller should continue), 1 if not our concern
-# Exits: on -h/--help (exit 0) or unknown arg starting with - (exit 2)
+# Returns: 1 if the argument is not ours, so the caller handles it.
+# Exits: on -h/--help (exit 0) or unknown arg starting with - (exit 2).
+# There is deliberately no success return: every other branch exits. The old
+# trailing `return 0` was unreachable, and the doc promised a 0 that no code
+# path could ever produce.
 handle_arg_help_or_unknown() {
 	local arg="$1"
 	local usage_fn="${2:-usage}"
@@ -137,7 +140,6 @@ handle_arg_help_or_unknown() {
 		return 1 # Not a flag, let caller handle it
 		;;
 	esac
-	return 0
 }
 
 # Initialize a setup script with common boilerplate
@@ -186,7 +188,7 @@ is_focus_app_running() {
 	if command -v xdotool &>/dev/null && [[ ${#FOCUS_APPS_WINDOWS[@]} -gt 0 ]]; then
 		local regex wid
 		printf -v regex '%s|' "${FOCUS_APPS_WINDOWS[@]}"
-		regex="${regex%|}"  # strip trailing |
+		regex="${regex%|}" # strip trailing |
 		while IFS= read -r wid; do
 			[[ -n $wid ]] || continue
 			echo "focus app"
@@ -199,7 +201,7 @@ is_focus_app_running() {
 	for app in "${FOCUS_APPS_PROCESSES[@]}"; do
 		for comm in /proc/[0-9]*/comm; do
 			[[ -r $comm ]] || continue
-			read -r _proc_comm < "$comm" 2>/dev/null || continue
+			read -r _proc_comm <"$comm" 2>/dev/null || continue
 			if [[ $_proc_comm == *"$app"* ]]; then
 				echo "$_proc_comm"
 				return 0
@@ -450,7 +452,7 @@ get_second() {
 # Get Unix timestamp from boot (uptime in seconds)
 # Usage: boot_seconds=$(get_uptime_seconds)
 get_uptime_seconds() {
-	read -r uptime_with_fraction _ < /proc/uptime
+	read -r uptime_with_fraction _ </proc/uptime
 	printf '%.*f\n' 0 "$uptime_with_fraction"
 }
 

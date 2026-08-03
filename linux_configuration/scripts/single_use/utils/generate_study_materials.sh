@@ -498,8 +498,10 @@ if [ -d "$PER_LANG_DIR" ]; then
 	}
 
 	# Process keywords by language
-	echo "## Language Keywords" >>"$DOCS_FILE"
-	echo "" >>"$DOCS_FILE"
+	{
+		echo "## Language Keywords"
+		echo ""
+	} >>"$DOCS_FILE"
 
 	for keyword_file in "$PER_LANG_DIR"/keywords_*.txt; do
 		[ ! -f "$keyword_file" ] && continue
@@ -523,12 +525,14 @@ if [ -d "$PER_LANG_DIR" ]; then
 		*) display_lang="$lang" ;;
 		esac
 
-		echo "### $display_lang Keywords" >>"$DOCS_FILE"
-		echo "" >>"$DOCS_FILE"
-		echo "| Keyword | Count | Documentation |" >>"$DOCS_FILE"
-		echo "|---------|-------|---------------|" >>"$DOCS_FILE"
+		{
+			echo "### $display_lang Keywords"
+			echo ""
+			echo "| Keyword | Count | Documentation |"
+			echo "|---------|-------|---------------|"
+		} >>"$DOCS_FILE"
 
-		head -$TOP_N "$keyword_file" | while read -r count term; do
+		head -n "$TOP_N" "$keyword_file" | while read -r count term; do
 			[ -z "$term" ] && continue
 			[[ $term =~ ^[#] ]] && continue # Skip comment lines
 			url=$(get_doc_url "$term" "$doc_lang")
@@ -538,8 +542,10 @@ if [ -d "$PER_LANG_DIR" ]; then
 	done
 
 	# Process functions by language
-	echo "## Function/Method Calls" >>"$DOCS_FILE"
-	echo "" >>"$DOCS_FILE"
+	{
+		echo "## Function/Method Calls"
+		echo ""
+	} >>"$DOCS_FILE"
 
 	for func_file in "$PER_LANG_DIR"/functions_*.txt; do
 		[ ! -f "$func_file" ] && continue
@@ -561,12 +567,14 @@ if [ -d "$PER_LANG_DIR" ]; then
 		*) display_lang="$lang" ;;
 		esac
 
-		echo "### $display_lang Functions" >>"$DOCS_FILE"
-		echo "" >>"$DOCS_FILE"
-		echo "| Function | Count | Documentation |" >>"$DOCS_FILE"
-		echo "|----------|-------|---------------|" >>"$DOCS_FILE"
+		{
+			echo "### $display_lang Functions"
+			echo ""
+			echo "| Function | Count | Documentation |"
+			echo "|----------|-------|---------------|"
+		} >>"$DOCS_FILE"
 
-		head -$TOP_N "$func_file" | while read -r count term; do
+		head -n "$TOP_N" "$func_file" | while read -r count term; do
 			[ -z "$term" ] && continue
 			[[ $term =~ ^(if|for|while|switch|catch|elif)$ ]] && continue
 			url=$(get_doc_url "$term" "$doc_lang")
@@ -576,8 +584,10 @@ if [ -d "$PER_LANG_DIR" ]; then
 	done
 
 	# Process imports by language
-	echo "## Imports/Includes" >>"$DOCS_FILE"
-	echo "" >>"$DOCS_FILE"
+	{
+		echo "## Imports/Includes"
+		echo ""
+	} >>"$DOCS_FILE"
 
 	for import_file in "$PER_LANG_DIR"/imports_*.txt; do
 		[ ! -f "$import_file" ] && continue
@@ -599,10 +609,12 @@ if [ -d "$PER_LANG_DIR" ]; then
 		*) display_lang="$lang" ;;
 		esac
 
-		echo "### $display_lang" >>"$DOCS_FILE"
-		echo "" >>"$DOCS_FILE"
-		echo "| Import | Count | Documentation |" >>"$DOCS_FILE"
-		echo "|--------|-------|---------------|" >>"$DOCS_FILE"
+		{
+			echo "### $display_lang"
+			echo ""
+			echo "| Import | Count | Documentation |"
+			echo "|--------|-------|---------------|"
+		} >>"$DOCS_FILE"
 
 		head -20 "$import_file" | while read -r count import; do
 			[ -z "$import" ] && continue
@@ -613,7 +625,7 @@ if [ -d "$PER_LANG_DIR" ]; then
 				module=$(echo "$import" | sed -E 's/.*[<"]([^">]+)[">].*/\1/' | sed 's|.*/||' | sed 's/\..*$//')
 				url=$(get_doc_url "$module" "$doc_lang")
 			fi
-			import_escaped=$(echo "$import" | sed 's/|/\\|/g')
+			import_escaped="${import//|/\\|}"
 			echo "| \`$import_escaped\` | $count | [docs]($url) |" >>"$DOCS_FILE"
 		done
 		echo "" >>"$DOCS_FILE"
@@ -624,12 +636,14 @@ else
 	echo -e "${YELLOW}No per-language files found, using combined analysis${NC}"
 
 	if [ -f "$RESULTS_DIR/grep_keywords.txt" ]; then
-		echo "## Language Keywords" >>"$DOCS_FILE"
-		echo "" >>"$DOCS_FILE"
-		echo "| Keyword | Count | Documentation |" >>"$DOCS_FILE"
-		echo "|---------|-------|---------------|" >>"$DOCS_FILE"
+		{
+			echo "## Language Keywords"
+			echo ""
+			echo "| Keyword | Count | Documentation |"
+			echo "|---------|-------|---------------|"
+		} >>"$DOCS_FILE"
 
-		head -$TOP_N "$RESULTS_DIR/grep_keywords.txt" | while read -r count term; do
+		head -n "$TOP_N" "$RESULTS_DIR/grep_keywords.txt" | while read -r count term; do
 			[ -z "$term" ] && continue
 			url=$(get_doc_url "$term" "$PRIMARY_LANG")
 			echo "| \`$term\` | $count | [docs]($url) |" >>"$DOCS_FILE"
@@ -638,12 +652,14 @@ else
 	fi
 
 	if [ -f "$RESULTS_DIR/grep_function_calls.txt" ]; then
-		echo "## Function/Method Calls" >>"$DOCS_FILE"
-		echo "" >>"$DOCS_FILE"
-		echo "| Function | Count | Documentation |" >>"$DOCS_FILE"
-		echo "|----------|-------|---------------|" >>"$DOCS_FILE"
+		{
+			echo "## Function/Method Calls"
+			echo ""
+			echo "| Function | Count | Documentation |"
+			echo "|----------|-------|---------------|"
+		} >>"$DOCS_FILE"
 
-		head -$TOP_N "$RESULTS_DIR/grep_function_calls.txt" | while read -r count term; do
+		head -n "$TOP_N" "$RESULTS_DIR/grep_function_calls.txt" | while read -r count term; do
 			[ -z "$term" ] && continue
 			[[ $term =~ ^(if|for|while|switch|catch)$ ]] && continue
 			url=$(get_doc_url "$term" "$PRIMARY_LANG")
@@ -653,25 +669,29 @@ else
 	fi
 
 	if [ -f "$RESULTS_DIR/grep_imports.txt" ]; then
-		echo "## Imports/Includes" >>"$DOCS_FILE"
-		echo "" >>"$DOCS_FILE"
-		echo "| Import | Count | Documentation |" >>"$DOCS_FILE"
-		echo "|--------|-------|---------------|" >>"$DOCS_FILE"
+		{
+			echo "## Imports/Includes"
+			echo ""
+			echo "| Import | Count | Documentation |"
+			echo "|--------|-------|---------------|"
+		} >>"$DOCS_FILE"
 
 		head -20 "$RESULTS_DIR/grep_imports.txt" | while read -r count import; do
 			[ -z "$import" ] && continue
 			module=$(echo "$import" | sed -E 's/.*[<"]([^">]+)[">].*/\1/' | sed 's|.*/||' | sed 's/\..*$//')
 			url=$(get_doc_url "$module" "$PRIMARY_LANG")
-			import_escaped=$(echo "$import" | sed 's/|/\\|/g')
+			import_escaped="${import//|/\\|}"
 			echo "| \`$import_escaped\` | $count | [docs]($url) |" >>"$DOCS_FILE"
 		done
 		echo "" >>"$DOCS_FILE"
 	fi
 fi
 
-echo "" >>"$DOCS_FILE"
-echo "---" >>"$DOCS_FILE"
-echo "*Generated by analyze_repo.sh + generate_study_materials.sh*" >>"$DOCS_FILE"
+{
+	echo ""
+	echo "---"
+	echo "*Generated by analyze_repo.sh + generate_study_materials.sh*"
+} >>"$DOCS_FILE"
 
 echo -e "${GREEN}Created: $DOCS_FILE${NC}"
 #==============================================================================
@@ -694,7 +714,7 @@ EOF
 # Generate cards for top keywords
 if [ -f "$RESULTS_DIR/grep_keywords.txt" ]; then
 	echo "# Keywords" >>"$ANKI_FILE"
-	head -$TOP_N "$RESULTS_DIR/grep_keywords.txt" | while read -r count term; do
+	head -n "$TOP_N" "$RESULTS_DIR/grep_keywords.txt" | while read -r count term; do
 		[ -z "$term" ] && continue
 		url=$(get_doc_url "$term" "$PRIMARY_LANG")
 
@@ -730,9 +750,11 @@ fi
 
 # Generate cards for top functions
 if [ -f "$RESULTS_DIR/grep_function_calls.txt" ]; then
-	echo "" >>"$ANKI_FILE"
-	echo "# Functions" >>"$ANKI_FILE"
-	head -$TOP_N "$RESULTS_DIR/grep_function_calls.txt" | while read -r count term; do
+	{
+		echo ""
+		echo "# Functions"
+	} >>"$ANKI_FILE"
+	head -n "$TOP_N" "$RESULTS_DIR/grep_function_calls.txt" | while read -r count term; do
 		[ -z "$term" ] && continue
 		[[ $term =~ ^(if|for|while|switch|catch)$ ]] && continue
 		url=$(get_doc_url "$term" "$PRIMARY_LANG")
@@ -780,7 +802,7 @@ generate_keywords_with_docs() {
 	local keywords_file="$RESULTS_DIR/grep_keywords.txt"
 	[ ! -f "$keywords_file" ] && echo "No keywords found" && return
 
-	head -$TOP_N "$keywords_file" | grep -v '^#' | while read -r line; do
+	head -n "$TOP_N" "$keywords_file" | grep -v '^#' | while read -r line; do
 		local count
 		count=$(echo "$line" | awk '{print $1}')
 		local keyword
@@ -797,7 +819,7 @@ generate_functions_with_docs() {
 	local functions_file="$RESULTS_DIR/grep_function_calls.txt"
 	[ ! -f "$functions_file" ] && echo "No functions found" && return
 
-	head -$TOP_N "$functions_file" | grep -v '^#' | while read -r line; do
+	head -n "$TOP_N" "$functions_file" | grep -v '^#' | while read -r line; do
 		local count
 		count=$(echo "$line" | awk '{print $1}')
 		local func

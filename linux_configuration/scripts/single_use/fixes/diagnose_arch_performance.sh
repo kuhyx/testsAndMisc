@@ -145,19 +145,23 @@ collect_basics() {
 }
 
 check_cpu_governor() {
-	local gov_files
-	gov_files=$(find /sys/devices/system/cpu -maxdepth 3 -name scaling_governor 2>/dev/null || true)
+	# An ARRAY, not a newline-joined string: the awk/grep calls below need one
+	# argument per file. With the old unquoted "$gov_files" an empty result
+	# also left awk with NO file operands, so it fell through to reading stdin
+	# and the diagnostic hung instead of reporting 'not found'.
+	local -a gov_files=()
+	mapfile -t gov_files < <(find /sys/devices/system/cpu -maxdepth 3 -name scaling_governor 2>/dev/null || true)
 
-	if [[ -z $gov_files ]]; then
+	if ((${#gov_files[@]} == 0)); then
 		add_action "CPU governor files not found (may be unsupported on this platform)."
 		return
 	fi
 
 	local summary
-	summary=$(awk '{count[$1]++} END {for (g in count) printf "%s:%d ", g, count[g]}' $gov_files 2>/dev/null || true)
+	summary=$(awk '{count[$1]++} END {for (g in count) printf "%s:%d ", g, count[g]}' "${gov_files[@]}" 2>/dev/null || true)
 	echo "CPU governor summary: ${summary:-unknown}" >>"$REPORT_FILE"
 
-	if grep -q '^powersave$' $gov_files 2>/dev/null; then
+	if grep -q '^powersave$' "${gov_files[@]}" 2>/dev/null; then
 		add_finding "CPU governor includes 'powersave' on one or more cores; this can make high-end hardware feel slow."
 	fi
 }
@@ -261,9 +265,11 @@ check_gpu_state() {
 		util=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -n 1 | xargs || true)
 		power=$(nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits 2>/dev/null | head -n 1 | xargs || true)
 
-		echo "NVIDIA pstate: ${pstate:-unknown}" >>"$REPORT_FILE"
-		echo "NVIDIA util: ${util:-unknown}%" >>"$REPORT_FILE"
-		echo "NVIDIA power: ${power:-unknown}W" >>"$REPORT_FILE"
+		{
+			echo "NVIDIA pstate: ${pstate:-unknown}"
+			echo "NVIDIA util: ${util:-unknown}%"
+			echo "NVIDIA power: ${power:-unknown}W"
+		} >>"$REPORT_FILE"
 
 		if [[ ${pstate:-} == "P0" && ${util:-100} -le 5 ]]; then
 			add_finding "NVIDIA GPU is in P0 high-performance state while mostly idle; this can increase heat and trigger thermal limits."

@@ -412,13 +412,25 @@ repos:
     hooks:
       - id: shellcheck
         name: shellcheck
-        entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 40 shellcheck --severity=warning' --
+        # NO --severity filter: every finding shellcheck reports, down to info
+        # and style, fails the commit. The previous --severity=warning quietly
+        # accepted 222 findings across 94 of 244 shell files -- and among them
+        # were real defects, not noise: two scripts that reported SUCCESS on an
+        # unknown command, five that sourced a path off by one directory (so
+        # they failed at runtime), a stale `source=` directive that had silently
+        # disabled following for six i3blocks scripts, and a diagnostic that
+        # would hang on stdin when its file list came back empty.
+        # Settings live in .shellcheckrc (external-sources, source-path).
+        entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 40 shellcheck' --
         language: system
         types: [shell]
         # shellcheck only understands sh/bash/dash/ksh; it cannot parse zsh
         # syntax (e.g. extended globs like (#s)). zsh files are checked by the
         # zsh-syntax hook below instead.
         exclude_types: [zsh]
+        # Vendored upstream code: we do not own it and patches here would be
+        # lost on the next vendor sync. Matches the prettier hook's exclusion.
+        exclude: ^third_party/
 
   # ===========================================================================
   # ZSH SYNTAX - zsh -n parse check (shellcheck has no zsh mode)

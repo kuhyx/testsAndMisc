@@ -113,7 +113,7 @@ find_files() {
 			# Not a git repo - fall back to manual exclusion
 			local find_args=()
 			for i in "${!patterns[@]}"; do
-				if [ $i -eq 0 ]; then
+				if [ "$i" -eq 0 ]; then
 					find_args+=(-name "${patterns[$i]}")
 				else
 					find_args+=(-o -name "${patterns[$i]}")
@@ -125,7 +125,7 @@ find_files() {
 		# No filtering - find all files
 		local find_args=()
 		for i in "${!patterns[@]}"; do
-			if [ $i -eq 0 ]; then
+			if [ "$i" -eq 0 ]; then
 				find_args+=(-name "${patterns[$i]}")
 			else
 				find_args+=(-o -name "${patterns[$i]}")
@@ -302,7 +302,7 @@ if [ "$RESPECT_GITIGNORE" = true ] && is_git_repo; then
 	} | sort -u | wc -l)
 	echo "Files: $FILE_COUNT (respecting .gitignore)"
 elif [ "$RESPECT_GITIGNORE" = true ]; then
-	echo "Files: $(find . -type f 2>/dev/null | grep -Ev "/($EXCLUDE_DIRS)/" | wc -l) (excluding common dirs)"
+	echo "Files: $(find . -type f 2>/dev/null | grep -cEv "/($EXCLUDE_DIRS)/") (excluding common dirs)"
 else
 	echo "Files: $(find . -type f | wc -l)"
 fi
@@ -336,7 +336,7 @@ print_header "STEP 4: Fast Keyword Analysis (Code vs Comments)"
 fast_count() {
 	local top_n="${1:-50}"
 	if command -v counts &>/dev/null; then
-		counts 2>/dev/null | head -$((top_n + 1)) | tail -$top_n
+		counts 2>/dev/null | head -n "$((top_n + 1))" | tail -n "$top_n"
 	else
 		python3 "$SCRIPT_DIR/fast_count.py" "$top_n"
 	fi
@@ -387,14 +387,14 @@ HAS_GO=false
 HAS_RUST=false
 HAS_JAVA=false
 
-((${LANG_FILES[c]} + ${LANG_FILES[cpp]} + ${LANG_FILES[h]} > 0)) && HAS_C_FAMILY=true
-((${LANG_FILES[python]} > 0)) && HAS_PYTHON=true
-((${LANG_FILES[javascript]} + ${LANG_FILES[typescript]} > 0)) && HAS_JS_FAMILY=true
-((${LANG_FILES[shell]} > 0)) && HAS_SHELL=true
-((${LANG_FILES[ruby]} > 0)) && HAS_RUBY=true
-((${LANG_FILES[go]} > 0)) && HAS_GO=true
-((${LANG_FILES[rust]} > 0)) && HAS_RUST=true
-((${LANG_FILES[java]} > 0)) && HAS_JAVA=true
+((LANG_FILES[c] + LANG_FILES[cpp] + LANG_FILES[h] > 0)) && HAS_C_FAMILY=true
+((LANG_FILES[python] > 0)) && HAS_PYTHON=true
+((LANG_FILES[javascript] + LANG_FILES[typescript] > 0)) && HAS_JS_FAMILY=true
+((LANG_FILES[shell] > 0)) && HAS_SHELL=true
+((LANG_FILES[ruby] > 0)) && HAS_RUBY=true
+((LANG_FILES[go] > 0)) && HAS_GO=true
+((LANG_FILES[rust] > 0)) && HAS_RUST=true
+((LANG_FILES[java] > 0)) && HAS_JAVA=true
 
 #------------------------------------------------------------------------------
 # Language-specific keyword definitions
@@ -735,7 +735,7 @@ if [ -f "$RESULTS_DIR/tags" ]; then
 
 	print_subheader "Symbol Types Distribution"
 	# Fast: extract single-letter kind code after ;" and count
-	grep -aoP ';"\t\K[a-z]' "$RESULTS_DIR/tags" 2>/dev/null | fast_count 20 | while read count kind; do
+	grep -aoP ';"\t\K[a-z]' "$RESULTS_DIR/tags" 2>/dev/null | fast_count 20 | while read -r count kind; do
 		case $kind in
 		f) echo "$count functions" ;;
 		v) echo "$count variables" ;;

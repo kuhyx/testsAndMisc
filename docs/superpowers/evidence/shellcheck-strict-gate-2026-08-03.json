@@ -1,0 +1,69 @@
+{
+  "intent": "Make the shellcheck pre-commit hook fail on every finding, and clear all 222 findings the previous --severity=warning gate had been accepting silently.",
+  "scope": [
+    ".pre-commit-config.yaml (hook strictness + third_party exclusion), .shellcheckrc (new)",
+    "45 shell files across linux_configuration/, phone_focus_mode/, meta/",
+    "NON-GOAL: third_party/ vendored code",
+    "NON-GOAL: linux_configuration/scripts/single_use/fresh-install/main.sh (another session's uncommitted work, left unstaged)"
+  ],
+  "changes": [
+    "Added .shellcheckrc with external-sources=true and source-path=SCRIPTDIR. This RESOLVES sourced files instead of silencing SC1091: 81 -> 13 findings with no suppression, and it made shellcheck analyse the sourced code, which is what surfaced several of the bugs below.",
+    "Removed --severity=warning from the hook so info- and style-level findings fail the commit; excluded third_party/ (vendored, matching the prettier hook).",
+    "REAL BUG: five scripts in single_use/misc/testsAndMisc-bash/ sourced $SCRIPT_DIR/../../lib/common.sh, one directory too shallow. The file does not exist at that path, so every one of them failed at runtime. Corrected to ../../../lib/common.sh.",
+    "REAL BUG: setup_personal_website.sh and setup_kcd2_dice_solver.sh called usage() (which ends in `exit 0`) and then `exit 1` on an unknown command. The exit 1 was unreachable, so a typo'd subcommand reported SUCCESS. usage() now takes an exit status; both verified to exit 1.",
+    "REAL BUG: six i3blocks scripts carried a `# shellcheck source=linux_configuration/i3-configuration/...` directive missing the scripts/periodic_background/ segment. The stale path silently disabled source-following. Corrected to a script-relative `source=persist_common.sh`.",
+    "REAL BUG: diagnose_arch_performance.sh word-split a newline-joined `gov_files` string; when the find returned nothing, awk was left with no file operands and fell through to reading stdin, hanging the diagnostic. Now a mapfile array with an explicit empty guard.",
+    "REAL BUG: lib/common.sh's handle_arg_help_or_unknown ended with an unreachable `return 0` while its doc promised 'Returns: 0 if handled' — a contract no code path could satisfy. Dead line removed, doc corrected.",
+    "phone_focus_mode/deploy.sh: renamed its SCRIPT_DIR to DEPLOY_DIR. config.sh is sourced at top level and reassigns SCRIPT_DIR, and can repoint it at the on-device path /data/local/tmp/focus_mode — after which every later path in deploy.sh would resolve against the wrong tree.",
+    "Mechanical but genuine fixes elsewhere: printf format strings (SC2059) with colour variables moved to %s arguments — which required switching the colour definitions to ANSI-C $'...' quoting, since printf does not interpret backslash escapes in arguments; `A && B || C` rewritten as if/then/else; ls-parsing replaced with find/glob arrays; unquoted expansions quoted; repeated appends grouped."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck (full strictness) over every tracked first-party *.sh, in a CLEAN worktree",
+      "result": "pass",
+      "evidence": "222 findings in 94 files -> 0 findings in 0 files. Verified with `git worktree add --detach` on HEAD rather than the working tree: config.sh sources the gitignored config_secrets.sh, which exists locally but NOT in a clean checkout, so a working-tree-only check passed while ci_mirror.sh (which lints HEAD in a clean worktree) failed."
+    },
+    {
+      "command": "pre-commit run shellcheck --all-files",
+      "result": "pass",
+      "evidence": "exit 0"
+    },
+    {
+      "command": "pre-commit run shellcheck --files <planted info-level canary>",
+      "result": "pass",
+      "evidence": "exit 1 on a file whose ONLY finding is SC2016 (info). The old --severity=warning gate exits 0 on the same file - this is the regression that let 222 findings accumulate."
+    },
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_tether_enforcer.sh",
+      "result": "pass",
+      "evidence": "17 passed, 0 failed after rewriting all 17 assertions from `cond && ok || no` to if/then/else"
+    },
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_adb_common.sh",
+      "result": "pass",
+      "evidence": "13 passed, 0 failed"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_shutdown_timer_monitor.sh",
+      "result": "pass",
+      "evidence": "regression checks passed"
+    },
+    {
+      "command": "behavioural spot-checks",
+      "result": "pass",
+      "evidence": "setup_personal_website.sh bogus -> exit 1 (was 0), --help -> 0; disk_cleanup_check.sh output byte-identical with ANSI escapes present and zero literal \\033 leaked; build.sh picks the same build-tools dir as the old ls pipeline; every touched file passes bash -n / sh -n"
+    }
+  ],
+  "risks": [
+    "The gate is now strict for everyone: any new shell code must be shellcheck-clean at info level. That is the intent, but it will fail commits that previously passed.",
+    "16 `# shellcheck disable=` directives were added where the finding is provably a false positive - injection-test payloads that must not expand, literal source text being grepped for, POSIX sh scripts on the phone where arrays do not exist, and runtime-only source paths. Each carries a written reason. They are the only suppressions; everything else was fixed in code.",
+    "A comment line beginning '# shellcheck ' is parsed as a directive - one such comment broke a file mid-sweep and had to be reworded. Worth knowing when writing these reasons.",
+    "Verifying a lint gate against the WORKING TREE is not the same as verifying it against a clean checkout. config.sh sources a gitignored secrets file that exists locally; shellcheck resolved it here and reported nothing, while ci_mirror.sh - which checks HEAD out into a clean worktree, exactly as CI does - failed. Any future gate work must be checked the ci_mirror way.",
+    "check_polling_antipatterns.sh has a pre-existing SC2034 disable hiding a real bug: its `patterns` array is never used, so the checker detects nothing. Confirmed against the pre-change version - behaviour is unchanged by this commit. Left for a separate fix."
+  ],
+  "rollback": [
+    "Restore --severity=warning in the shellcheck hook entry and delete .shellcheckrc to return to the old gate",
+    "git revert the commit to restore all 45 files; the code fixes are independent of the hook change and can be kept separately",
+    "After rollback, validate: pre-commit run shellcheck --all-files still passes, and the affected test suites still pass"
+  ]
+}
