@@ -1,0 +1,20 @@
+{
+  "title": "Migrate Reverse Survivors into the testsAndMisc monorepo",
+  "objective": "Relocate the standalone React 19 + Vite 8 + TypeScript 6 game from ~/Downloads/reverse/reverse-survivors to reverse_survivors/ inside this monorepo, preserving its toolchain and quality gates verbatim. Success means the project builds, lints, and passes its 100 % coverage gate from the new path; a root-level path-scoped GitHub Actions workflow runs those same gates on every touching push or PR; and the directory is listed in both index tables. The migration is complete only when npm run check passes in place — a moved project that cannot build is the failure mode this contract exists to prevent.",
+  "acceptance_criteria": [
+    "reverse_survivors/ contains all 33 project files; git status --porcelain -uall reports 33 and nothing was swallowed by the root .gitignore",
+    "The project's nested .github/ is deleted and its workflow lives at .github/workflows/reverse-survivors-ci.yml with paths: filters and defaults.run.working-directory both naming reverse_survivors",
+    "npm ci, npm run check (typecheck + eslint --max-warnings 0 + vitest at 100 % thresholds), and npm run build all pass from reverse_survivors/",
+    "npm run dev serves the app and Vite transforms /src/main.tsx from the new path",
+    "README.md and CLAUDE.md each gain a reverse_survivors/ Repository Layout row",
+    "The commit stages explicit paths only, leaving the concurrent uncommitted billsplit migration and the other modified files in the working tree untouched"
+  ],
+  "out_of_scope": [
+    "Converting the project from npm to pnpm, or regenerating package-lock.json",
+    "Changing the project's source code, pinned dependency versions, ESLint config, or coverage thresholds",
+    "Adding a per-project run.sh — meta/run.sh is a polling-script profiler, not a project dispatcher, and Node 24 is already present locally",
+    "Committing, fixing, or otherwise touching the in-progress billsplit migration sitting untracked in this working tree",
+    "Backfilling the missing billsplit/ and bucket_catch/ rows in the index tables"
+  ],
+  "verifier": "cd reverse_survivors && npm ci && npm run check && npm run build (the project's own gate, mirrored by .github/workflows/reverse-survivors-ci.yml), plus pre-commit run --files and pre-commit run --hook-stage pre-push --files over the staged paths"
+}

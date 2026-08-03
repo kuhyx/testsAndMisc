@@ -33,6 +33,7 @@ Archived / unmaintained projects live in the sibling repository
 | `python_pkg/`          | Python packages — each maintained subpackage lives here                                       |
 | `linux_configuration/` | Arch Linux setup, i3 config, system maintenance scripts                                       |
 | `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                          |
+| `reverse_survivors/`   | Reverse Survivors — React/Vite game, you play the horde (TypeScript, 100 % coverage gate)     |
 | `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc` |
 | `scripts/`             | Workspace-level helper scripts and pre-commit hooks (moved to `meta/scripts/`)                |
 | `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                               |
