@@ -7,3 +7,11 @@
 **/dist/
 **/coverage/
 node_modules/
+
+# Captured real-world payloads used as test fixtures. These must stay
+# byte-faithful to what the device or service actually emits — a real Polish
+# e-paragon arrives as minified single-line JSON, and the tests read the file
+# as raw text, not only as parsed JSON. Pretty-printing one silently broke
+# `accepts bare JPK payload and bare JWS token`, whose regex matches
+# `"data":"..."` with no space after the colon.
+billsplit/test/fixtures/

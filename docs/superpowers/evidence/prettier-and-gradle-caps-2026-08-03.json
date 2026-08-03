@@ -1,0 +1,62 @@
+{
+  "intent": "Bring the last three unformatted markdown files under prettier, cap the billsplit Android build's memory so it cannot exhaust a 7.6 GB machine, and repair an e-paragon parser test that a previous prettier pass silently broke.",
+  "scope": [
+    "DESIGN_AUDIT_TODO.md, .github/skills/self-hosted-service-exposure/SKILL.md, linux_configuration/scripts/boot_recovery/README.md — prettier formatting only",
+    "billsplit/android/gradle.properties — JVM and daemon memory ceilings",
+    "billsplit/test/fixtures/sample_receipt.json — restored to its original minified bytes",
+    "billsplit/test/eparagon_parser_test.dart — regex hardened against JSON whitespace",
+    ".prettierignore — captured real-world fixtures excluded",
+    "Non-goal: making billsplit build an Android APK; that is blocked upstream by file_picker and is not attempted here",
+    "Non-goal: any change to billsplit's Dart behaviour or the app's dependency set"
+  ],
+  "changes": [
+    "Formatted the three remaining unformatted markdown files. The edits are cosmetic and markdown-correct: escaping `L*` to `L\\*` so it stops rendering as emphasis, normalising `*em*` to `_em_`, and aligning tables.",
+    "Lowered billsplit/android/gradle.properties from the Flutter template's `-Xmx8G -XX:MaxMetaspaceSize=4G` to `768m/512m`, and cut the number of JVMs with kotlin.compiler.execution.strategy=in-process, org.gradle.daemon=false, org.gradle.parallel=false and org.gradle.workers.max=1. The template default asks for more than this machine has.",
+    "Fixed a regression I introduced and had already pushed: an earlier prettier pass pretty-printed billsplit/test/fixtures/sample_receipt.json, and the test `accepts bare JPK payload and bare JWS token` reads that file as RAW TEXT with a regex matching `\"data\":\"...\"` with no space after the colon. Pretty-printing inserted a space, the match returned null, and the null-check operator threw. My earlier check compared the PARSED JSON for equality, which passed and proved nothing about the raw-text contract.",
+    "Restored the fixture to its original minified bytes — verified byte-identical to the pre-formatting version — because it is a captured real e-paragon and a real one arrives as single-line JSON.",
+    "Added billsplit/test/fixtures/ to .prettierignore so captured payloads stay byte-faithful and this cannot recur by the same route.",
+    "Hardened the test regex to `\\\"data\\\"\\\\s*:\\\\s*\\\"([^\\\"]+)\\\"` and added an explicit isNotNull assertion with a reason, so a whitespace change now fails with a readable message instead of a bare null-check crash."
+  ],
+  "verification": [
+    {
+      "command": "flutter test --no-pub --coverage (billsplit)",
+      "result": "pass",
+      "evidence": "59 passed. Before the fix this run failed with 'Null check operator used on a null value' at eparagon_parser_test.dart:67."
+    },
+    {
+      "command": "Generalisation check — temporarily pretty-print the fixture and re-run the repaired test, then restore",
+      "result": "pass",
+      "evidence": "The test passes against BOTH the minified fixture and the pretty-printed form that originally broke it, so the fix is not specific to the one byte layout. Fixture confirmed byte-identical to the original afterwards."
+    },
+    {
+      "command": "python3 -m python_pkg.billsplit_coverage",
+      "result": "pass",
+      "evidence": "100% line coverage across 11 lib files."
+    },
+    {
+      "command": "pytest over python_pkg/*/tests and linux_configuration/tests, --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "1117 passed, 12 skipped, TOTAL 100% branch coverage."
+    },
+    {
+      "command": "prettier --check over all 525 tracked md/json/yaml files",
+      "result": "pass",
+      "evidence": "'All matched files use Prettier code style!' The fixture is now reported as excluded rather than checked."
+    },
+    {
+      "command": "pre-commit run --files $(git diff --cached --name-only), inside systemd-run MemoryMax=2G MemorySwapMax=0",
+      "result": "pass",
+      "evidence": "Every hook passes with no bypass, inside a hard 2G cgroup."
+    }
+  ],
+  "risks": [
+    "billsplit still cannot build an Android APK: file_picker 11.0.3 (the latest on pub.dev) puts the Kotlin Gradle Plugin on the global classpath via rootProject.allprojects, which AGP 9 rejects, while turning built-in Kotlin off leaves file_picker's own Kotlin uncompiled. The launcher icon is therefore verified only by the preview sheet and a resource-resolution check, never by a build.",
+    "The gradle.properties ceilings were exercised through a full compileDebugJavaWithJavac but never through a complete successful assembleDebug, because the build fails upstream of packaging for the reason above.",
+    "Peak PSS observed during those Android builds was 2.03 GiB and 3.01 GiB — above the 2 GB budget for this machine. Nothing was OOM-killed, but an Android build here is not yet inside budget.",
+    "The .prettierignore entry covers billsplit/test/fixtures/ only. Another app adding captured payloads elsewhere gets no such protection and can hit the identical trap."
+  ],
+  "rollback": [
+    "git revert the commit. The markdown edits and .prettierignore entry are inert; reverting gradle.properties restores the 8G template default, which is what endangered the machine, so prefer keeping that hunk.",
+    "After rollback, re-run flutter test in billsplit: the fixture and the regex must move together, since the old brittle regex only works against the minified fixture."
+  ]
+}

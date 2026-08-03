@@ -24,11 +24,11 @@ sudo ./install.sh
 
 Installs:
 
-| Path | Purpose |
-|---|---|
-| `/usr/local/sbin/boot-repair` | the repair tool |
-| `/etc/pacman.d/hooks/05-boot-mounted-guard.hook` | pre-transaction **gate** |
-| `/etc/pacman.d/hooks/99-boot-autorepair.hook` | post-transaction auto-repair |
+| Path                                             | Purpose                      |
+| ------------------------------------------------ | ---------------------------- |
+| `/usr/local/sbin/boot-repair`                    | the repair tool              |
+| `/etc/pacman.d/hooks/05-boot-mounted-guard.hook` | pre-transaction **gate**     |
+| `/etc/pacman.d/hooks/99-boot-autorepair.hook`    | post-transaction auto-repair |
 
 It lives on the **root** filesystem by necessity: the ESP is unreachable by
 definition when this is needed.
@@ -51,13 +51,13 @@ No network is used at any point. Missing kernel modules are recovered from
 
 ### Options
 
-| Flag | Meaning |
-|---|---|
-| `--dry-run` | Report problems, change nothing |
-| `--preflight` | Exit non-zero unless the ESP is mounted (used by the gate hook) |
-| `--auto` | Quiet repair for the post-transaction hook |
-| `--root DIR` | Operate on another root (fixtures, or an Arch ISO chroot) |
-| `--esp DEVICE` | Override ESP auto-detection |
+| Flag           | Meaning                                                         |
+| -------------- | --------------------------------------------------------------- |
+| `--dry-run`    | Report problems, change nothing                                 |
+| `--preflight`  | Exit non-zero unless the ESP is mounted (used by the gate hook) |
+| `--auto`       | Quiet repair for the post-transaction hook                      |
+| `--root DIR`   | Operate on another root (fixtures, or an Arch ISO chroot)       |
+| `--esp DEVICE` | Override ESP auto-detection                                     |
 
 Exit status: `0` consistent/repaired, `1` problems remain, `2` usage error.
 
@@ -65,7 +65,7 @@ Exit status: `0` consistent/repaired, `1` problems remain, `2` usage error.
 
 1. Root filesystem read-only after a failed boot → remount rw
 2. `noauto`/`nofail` on `/boot` in fstab → reset to `defaults` (backed up).
-   `nofail` turns a loud emergency drop into a *silent* boot of a stale kernel,
+   `nofail` turns a loud emergency drop into a _silent_ boot of a stale kernel,
    which is strictly worse.
 3. Orphaned kernel files written into the unmounted `/boot` → delete
 4. `vfat` unloadable → restore `fs/fat` + `fs/nls` from the cached kernel
@@ -105,7 +105,7 @@ off the real root filesystem while proving the ESP survives.
 
 - 31/31 fixture tests, 11/11 live tests, `shellcheck` clean
 - Gate proven to abort a real kernel transaction with the ESP unmounted:
-  `error: failed to commit transaction`, *no packages upgraded*, nothing
+  `error: failed to commit transaction`, _no packages upgraded_, nothing
   written into the unmounted `/boot`
 
 ## Limitation

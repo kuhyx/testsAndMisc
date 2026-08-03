@@ -63,8 +63,12 @@ void main() {
   test('accepts bare JPK payload and bare JWS token', () {
     final res = parseEParagonDetailed(fixture);
     expect(res.receipt.items, isNotEmpty);
-    // Raw JWS from the wrapper should parse identically.
-    final jws = RegExp('"data":"([^"]+)"').firstMatch(fixture)!.group(1)!;
+    // Raw JWS from the wrapper should parse identically. Tolerate whitespace
+    // around the colon: the fixture is minified as the device emits it, but a
+    // pretty-printed payload is equally valid JSON and must not fail here.
+    final match = RegExp(r'"data"\s*:\s*"([^"]+)"').firstMatch(fixture);
+    expect(match, isNotNull, reason: 'fixture must carry a "data" JWS field');
+    final jws = match!.group(1)!;
     final fromJws = parseEParagon(jws);
     expect(fromJws.items.length, res.receipt.items.length);
   });

@@ -15,7 +15,7 @@ description: Use BEFORE deploying any Docker-based self-hosted service on this m
 - **The firewall is owned entirely by**
   `linux_configuration/scripts/single_use/features/setup_wireguard_ssh.sh`. It
   regenerates `/etc/nftables.conf` from scratch on every `setup` run (`flush
-  ruleset` + fixed heredoc). **Never hand-edit `/etc/nftables.conf` directly or
+ruleset` + fixed heredoc). **Never hand-edit `/etc/nftables.conf` directly or
   from a second script** — the next `setup` re-run (e.g. adding a WireGuard peer)
   will silently wipe an independent edit. To open a new port, extend this script
   (see its `allow-web` subcommand, which persists an `ALLOW_WEB` flag and adds
@@ -48,7 +48,7 @@ inside the container.
 
 **Root cause**: this host's custom nftables ruleset defines its own
 `chain forward { policy drop; }` with **zero accept rules**. Docker manages a
-*separate* set of forwarding rules via legacy `iptables` (`ip_tables` kernel
+_separate_ set of forwarding rules via legacy `iptables` (`ip_tables` kernel
 module, not `nf_tables`) that correctly `ACCEPT` bridge-network traffic — but
 `ip_tables` and `nf_tables` both register at the same `NF_INET_FORWARD` netfilter
 hook, and **a DROP verdict from either one is terminal**, regardless of what the
@@ -57,6 +57,7 @@ all Docker bridge-network container egress, even though `docker ps`/`iptables -L
 DOCKER-FORWARD` show everything looks correctly configured on Docker's side.
 
 Confirm this is what's happening:
+
 ```bash
 docker exec <container> wget -qO- --timeout=5 https://api.ipify.org   # hangs/times out
 sudo nft list ruleset | grep -A3 "chain forward"                       # policy drop, no rules
@@ -73,7 +74,7 @@ with host networking there's no bridge isolation to rely on.
 
 **Alternative (broader fix, requires explicit user sign-off)**: add
 `ct state established,related accept` + `ip saddr 172.16.0.0/12 accept` to
-`setup_wireguard_ssh.sh`'s forward chain. Fixes egress for *all* Docker
+`setup_wireguard_ssh.sh`'s forward chain. Fixes egress for _all_ Docker
 containers on the host (useful if `joplin-server`/`open-webui` ever need
 outbound access too), but it's a change to shared, security-relevant
 infrastructure beyond any single service's scope — ask before applying it,
@@ -86,6 +87,7 @@ under `set -o pipefail`: `grep -q` quits at the first match, SIGPIPE-ing
 `docker logs` before it finishes writing, and `pipefail` propagates that
 upstream non-zero exit even though `grep` itself succeeded. Fix: capture into a
 variable first, then grep the variable —
+
 ```bash
 logs=$(docker logs "$container" 2>&1)
 if grep -q "ready-string" <<<"$logs"; then ...
@@ -123,12 +125,14 @@ not an implementation detail.
 ## Boot persistence — confirm these are all `enabled`, not just running
 
 A service surviving a reboot needs all of:
+
 ```bash
 systemctl is-enabled docker      # containers won't come back without this
 systemctl is-enabled nftables    # firewall rules reload from /etc/nftables.conf
 systemctl is-enabled cronie      # or crond -- DuckDNS updater needs this
 docker inspect <container> --format '{{.HostConfig.RestartPolicy.Name}}'  # unless-stopped or always
 ```
+
 If all of the above hold, no boot-time script or systemd unit is needed for the
 service itself — the Docker daemon restarts `unless-stopped` containers on its
 own startup, independent of `docker compose` ever being re-invoked.
