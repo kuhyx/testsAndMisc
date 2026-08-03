@@ -133,6 +133,37 @@ before committing. The `ai-evidence-contract` hook will reject commits without i
 
 Work directly on `main` — no need to create branches for this repository. Commit and push straight to `main`.
 
+### Hooks are mandatory
+
+`core.hooksPath` points at the **tracked** directory `linux_configuration/.githooks/`,
+so the hooks travel with the repo and cannot be missing on a clone. `.git/hooks/`
+is unused and irrelevant — never run `pre-commit install`, which writes there and
+is ignored (newer pre-commit refuses outright while `hooksPath` is set).
+
+- `pre-commit` — shfmt + shellcheck + jscpd, then `pre-commit run --hook-stage pre-commit`
+- `pre-push` — `pre-commit run --hook-stage pre-push` (prettier, ci-mirror, pytest-coverage)
+  over the pushed commit range
+
+Bootstrap a new machine or clone with:
+
+```bash
+./meta/scripts/install_hooks.sh          # wire hooks + install missing tools
+./meta/scripts/install_hooks.sh --check  # verify, change nothing, exit 1 if incomplete
+```
+
+Both hooks **fail closed**: every external binary they invoke (`pre-commit`,
+`prettier`, `shellcheck`, `shfmt`, `zsh`, `node`, `npm`, `python3`) is verified on
+every run and auto-installed via `pacman` when possible; if it cannot be installed
+non-interactively the commit or push aborts with the exact command to run. A missing
+tool never means "skip the check" — that failure mode is why `prettier` was absent
+for an unknown length of time without anyone noticing. The required-tool list lives
+in `REQUIRED_TOOLS` in `linux_configuration/.githooks/lib/common.sh`; extend it when
+adding a `language: system` hook.
+
+Each hook also re-asserts `core.hooksPath`, so drift self-heals after one run. The
+one gap it cannot close is a fresh clone where the config was never set and no hook
+runs at all — that is exactly what `install_hooks.sh` is for.
+
 ## Development Workflow
 
 do NOT run tests unless specifically instructed to do so or before committing

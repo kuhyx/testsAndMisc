@@ -1,0 +1,69 @@
+{
+  "intent": "Make the git hooks and the tools they depend on mandatory rather than best-effort: add the missing pre-push gate, and convert every fail-open path into a fail-closed one so a missing binary aborts the commit or push instead of silently skipping the check.",
+  "scope": [
+    "linux_configuration/.githooks/lib/common.sh — new shared library (require_tool, verify_toolchain, ensure_hooks_path)",
+    "linux_configuration/.githooks/pre-push — new hook; none existed before",
+    "linux_configuration/.githooks/pre-commit — fail-open paths for shfmt, shellcheck and the pre-commit framework removed",
+    "meta/scripts/install_hooks.sh — new bootstrap with a --check mode",
+    "CLAUDE.md — documents the requirement and the install command",
+    "Non-goal: porting this to other repos, or changing which hooks .pre-commit-config.yaml defines"
+  ],
+  "changes": [
+    "Added a pre-push hook. There was none, so prettier, ci-mirror and pytest-coverage — the three hooks with stages: [pre-push] — had never run locally. That is the direct cause of prettier being absent from this machine without anyone noticing.",
+    "The pre-push hook parses git's stdin ref lines into --from-ref/--to-ref. This is load-bearing: `pre-commit run --hook-stage pre-push` with no range operates on staged files, and nothing is staged at push time, so file-scoped hooks like prettier would receive zero files and pass vacuously. Branch deletions exit early; a new remote branch falls back to --all-files rather than checking nothing.",
+    "Added require_tool: looks for a command, attempts `sudo -n pacman -S --noconfirm --needed <pkg>` when absent, and aborts with the exact `! sudo pacman -S <pkg>` command if that cannot work non-interactively. verify_toolchain applies it to all eight binaries the hooks invoke (pre-commit, prettier, shellcheck, shfmt, zsh, node, npm, python3).",
+    "Removed the three fail-open branches in the pre-commit hook: shfmt and shellcheck were wrapped in `if command -v`, and the entire pre-commit framework was skipped with a warning when the binary was missing. All three now rely on verify_toolchain having already guaranteed the tool.",
+    "Added ensure_hooks_path, called by both hooks, which repairs core.hooksPath whenever it has drifted — so the wiring self-heals after a single hook run.",
+    "Added meta/scripts/install_hooks.sh for the one case the hooks cannot self-heal: a fresh clone where core.hooksPath was never set, so no hook runs at all. It wires the path, makes the hooks executable, verifies the toolchain, and pre-builds pre-commit environments. --check reports state without changing anything.",
+    "Documented in CLAUDE.md why `pre-commit install` must never be used here: it writes into .git/hooks/, which git ignores entirely while core.hooksPath is set."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck -x -S warning linux_configuration/.githooks/{pre-commit,pre-push,lib/common.sh} meta/scripts/install_hooks.sh",
+      "result": "pass",
+      "evidence": "Clean, with no suppression comments. An earlier draft of pre-push used `# shellcheck disable=SC2086` for word-splitting a range string; that was replaced with a RANGE_ARGS array so no suppression is needed. One SC2155 in install_hooks.sh (declare-and-assign masking a return value) was fixed by splitting the readonly declaration."
+    },
+    {
+      "command": "./meta/scripts/install_hooks.sh --check",
+      "result": "pass",
+      "evidence": "Reported core.hooksPath = linux_configuration/.githooks, both hooks present and executable, and all 8 tools found, ending 'Hooks are wired and the toolchain is complete.'"
+    },
+    {
+      "command": "git config --unset core.hooksPath && ./meta/scripts/install_hooks.sh --check",
+      "result": "pass",
+      "evidence": "Exit code 1 with '✗ core.hooksPath is <unset>, expected linux_configuration/.githooks' and '1 problem(s). Run ./meta/scripts/install_hooks.sh to fix.' Confirms --check detects drift instead of reporting healthy."
+    },
+    {
+      "command": "source lib/common.sh && ensure_hooks_path   (with core.hooksPath unset)",
+      "result": "pass",
+      "evidence": "Printed '↻ repaired core.hooksPath: <unset> → linux_configuration/.githooks' and the config read back as linux_configuration/.githooks. Original value restored afterwards."
+    },
+    {
+      "command": "source lib/common.sh && require_tool definitely-not-a-real-tool definitely-not-a-real-pkg",
+      "result": "pass",
+      "evidence": "Attempted the install, then exited 1 with \"Aborted: required tool 'definitely-not-a-real-tool' is missing and could not be installed automatically\" and the exact retry command. Execution did not continue past the call, confirming fail-closed rather than warn-and-skip. A fictitious package name was used so nothing real was installed or removed."
+    },
+    {
+      "command": "bash linux_configuration/.githooks/pre-commit   (run exactly as git invokes it)",
+      "result": "pass",
+      "evidence": "Ran the full chain — toolchain verification, shfmt, shellcheck (Passed), jscpd, then the pre-commit framework — and aborted non-zero with 'Commit aborted: pre-commit hooks failed.' The failures it caught (codespell 'dokument' and check-python-location on billsplit/tool/coverage_check.py) came from another session's concurrently staged work, not from this change; the hook correctly refused to let them through."
+    },
+    {
+      "command": "printf '(delete) 000...0 refs/heads/scratch <sha>' | bash linux_configuration/.githooks/pre-push origin <url>",
+      "result": "pass",
+      "evidence": "Printed 'Verifying hook wiring and toolchain before pushing...', '✓ toolchain complete', then 'Nothing to check (branch deletion or empty push).' and exited 0 — stdin parsing and the branch-deletion early exit both behave correctly."
+    }
+  ],
+  "risks": [
+    "Every push now runs ci-mirror, which builds a clean venv and runs `pre-commit run --all-files` plus changed-package pytest. Pushes are substantially slower than before. That is the intended trade — the alternative is the silent gap this change exists to close.",
+    "require_tool runs pacman from inside a git hook. A held pacman database lock, or a package that has been renamed or dropped from the repos, surfaces as an aborted commit rather than a package-manager error. The abort message names the exact command so the cause is visible.",
+    "The REQUIRED_TOOLS list is maintained by hand. Adding a `language: system` hook to .pre-commit-config.yaml without adding its binary here reintroduces exactly the class of gap this change closes; CLAUDE.md says so at the point of use.",
+    "ensure_hooks_path cannot help on a fresh clone where core.hooksPath was never set, because no hook runs at all. install_hooks.sh is the only remedy for that case and must be run manually once per clone.",
+    "python3 currently resolves through a pyenv shim and node through nvm, neither of which pacman manages. If either shim disappears, require_tool would try to install the pacman package and could end up with a different interpreter on PATH than the one previously in use."
+  ],
+  "rollback": [
+    "git revert the commit. That restores the previous pre-commit hook and removes the pre-push hook, returning the repo to commit-time-only gating.",
+    "core.hooksPath is a local git config value and is not changed by a revert; it already pointed at linux_configuration/.githooks before this change, so nothing needs undoing there.",
+    "After rollback, confirm `git commit` still runs the pre-commit hook and be aware that the pre-push stage silently stops running again — re-check that prettier is installed before trusting any push."
+  ]
+}

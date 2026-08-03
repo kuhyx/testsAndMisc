@@ -5,6 +5,14 @@ set -euo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
+# shellcheck source=linux_configuration/.githooks/lib/common.sh
+source "${repo_root}/linux_configuration/.githooks/lib/common.sh"
+
+printf 'Verifying hook wiring and toolchain before committing...\n'
+ensure_hooks_path
+verify_toolchain
+printf '  ✓ toolchain complete\n'
+
 printf 'Running auto-fixers and shell_check before committing...\n'
 
 # Get list of staged shell files
@@ -13,15 +21,13 @@ mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACM | gr
 if [[ ${#staged_files[@]} -gt 0 ]]; then
   printf 'Auto-fixing %d shell file(s)...\n' "${#staged_files[@]}"
 
-  # Auto-fix with shfmt if available
-  if command -v shfmt > /dev/null 2>&1; then
-    printf '  → Running shfmt...\n'
-    for file in "${staged_files[@]}"; do
-      if [[ -f $file ]]; then
-        shfmt -w "$file" 2> /dev/null || true
-      fi
-    done
-  fi
+  # Auto-fix with shfmt (guaranteed present by verify_toolchain)
+  printf '  → Running shfmt...\n'
+  for file in "${staged_files[@]}"; do
+    if [[ -f $file ]]; then
+      shfmt -w "$file" 2> /dev/null || true
+    fi
+  done
 
   # Re-stage the auto-fixed files
   for file in "${staged_files[@]}"; do
@@ -41,15 +47,13 @@ printf 'Running shell_check validation...\n'
 mapfile -d '' -t staged_shell_files < <(git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.(sh|bash|zsh)$' || true)
 
 if [[ ${#staged_shell_files[@]} -gt 0 ]]; then
-  # Run shellcheck on staged files
+  # Run shellcheck on staged files (guaranteed present by verify_toolchain)
   # -x: follow source directives
   # -S warning: only fail on warning or higher (not info-level SC1091)
-  if command -v shellcheck > /dev/null 2>&1; then
-    if ! shellcheck -x -S warning "${staged_shell_files[@]}" 2>&1; then
-      printf '\nCommit aborted: shellcheck found issues.\n' >&2
-      printf 'Fix the remaining problems and retry the commit.\n' >&2
-      exit 1
-    fi
+  if ! shellcheck -x -S warning "${staged_shell_files[@]}" 2>&1; then
+    printf '\nCommit aborted: shellcheck found issues.\n' >&2
+    printf 'Fix the remaining problems and retry the commit.\n' >&2
+    exit 1
   fi
 fi
 
@@ -97,17 +101,12 @@ printf '  ✓ Duplication check passed (under 2%% threshold)\n'
 # This covers: Python (ruff, mypy, pylint, bandit, flake8, autoflake),
 # C/C++ (clang-format, cppcheck, flawfinder), TypeScript (eslint),
 # shell (shellcheck), and general checks (trailing-whitespace, etc.)
-if command -v pre-commit > /dev/null 2>&1; then
-  printf '\nRunning pre-commit framework hooks...\n'
-  if ! pre-commit run --hook-stage pre-commit; then
-    printf '\nCommit aborted: pre-commit hooks failed.\n' >&2
-    printf 'Fix the issues above and retry the commit.\n' >&2
-    exit 1
-  fi
-  printf '  ✓ pre-commit framework hooks passed\n'
-else
-  printf '\n⚠ pre-commit not installed, skipping framework hooks.\n' >&2
-  printf '  Install with: sudo pacman -S python-pre-commit && pre-commit install\n' >&2
+printf '\nRunning pre-commit framework hooks...\n'
+if ! pre-commit run --hook-stage pre-commit; then
+  printf '\nCommit aborted: pre-commit hooks failed.\n' >&2
+  printf 'Fix the issues above and retry the commit.\n' >&2
+  exit 1
 fi
+printf '  ✓ pre-commit framework hooks passed\n'
 
 printf 'All checks passed. Proceeding with commit.\n'

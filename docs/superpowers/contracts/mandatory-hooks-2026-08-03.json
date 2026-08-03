@@ -1,0 +1,20 @@
+{
+  "title": "Make git hooks and their toolchain mandatory and fail-closed",
+  "objective": "Close the gap that let an entirely absent `prettier` binary go unnoticed while unformatted markdown reached main. Two causes: there was no pre-push hook at all, so the `stages: [pre-push]` hooks (prettier, ci-mirror, pytest-coverage) never ran locally; and the existing pre-commit hook failed open, skipping shellcheck and the whole pre-commit framework with a warning when their binaries were missing. Success means a commit or push is impossible while any required tool is missing or the hook wiring is broken, and a fresh clone has one documented command that makes it correct.",
+  "acceptance_criteria": [
+    "A pre-push hook exists and runs `pre-commit run --hook-stage pre-push` over the pushed commit range, not over the (empty) staged set",
+    "Every external binary the hooks invoke is verified on every hook run; a missing one is auto-installed via non-interactive pacman or aborts the operation with the exact command to run",
+    "No code path in either hook skips a check because a tool is absent",
+    "core.hooksPath drift is repaired automatically by any hook run",
+    "meta/scripts/install_hooks.sh wires a fresh clone, and --check reports the state without changing anything and exits non-zero when incomplete",
+    "All four shell files pass `shellcheck -x -S warning` with no suppression comments added",
+    "The requirement is documented in CLAUDE.md, including why `pre-commit install` must not be used"
+  ],
+  "out_of_scope": [
+    "Porting the hook setup to kuhy's other repositories — noted as a follow-up, not done here",
+    "Changing which hooks .pre-commit-config.yaml defines, or their stages",
+    "Fixing the pre-existing codespell and check-python-location failures surfaced in another session's concurrently staged billsplit work",
+    "Using `pre-commit install` — it writes to .git/hooks/, which git ignores entirely while core.hooksPath is set"
+  ],
+  "verifier": "shellcheck -x -S warning over all four scripts; ./meta/scripts/install_hooks.sh --check (exit 0 healthy, exit 1 on drift); require_tool against a non-existent package (must abort); ensure_hooks_path against an unset config (must repair); and a real commit + push through the hooks themselves"
+}

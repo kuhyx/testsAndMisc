@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+# ============================================================================
+# Pre-push gate: runs the `stages: [pre-push]` hooks from
+# .pre-commit-config.yaml (prettier, ci-mirror, pytest-coverage).
+#
+# Before this hook existed there was no pre-push gate at all, so those three
+# never ran locally — which is how a completely absent `prettier` binary went
+# unnoticed while unformatted markdown reached main.
+#
+# git passes the remote name/URL as $1/$2 and one line per ref on stdin:
+#   <local_ref> <local_sha> <remote_ref> <remote_sha>
+# ============================================================================
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# shellcheck source=linux_configuration/.githooks/lib/common.sh
+source "${repo_root}/linux_configuration/.githooks/lib/common.sh"
+
+readonly ZERO_SHA="0000000000000000000000000000000000000000"
+
+# pre-commit arguments describing what to check; filled by resolve_push_range.
+RANGE_ARGS=()
+
+# Translate the refs git feeds us on stdin into a pre-commit file selector.
+#
+# This matters: `pre-commit run --hook-stage pre-push` with no range operates
+# on *staged* files, and nothing is staged at push time — so file-scoped hooks
+# like prettier would silently receive zero files and pass vacuously. Only the
+# always_run hooks would really fire. Passing the range is what makes the gate
+# real.
+resolve_push_range() {
+  local local_ref local_sha remote_ref remote_sha
+
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    # Branch deletion — nothing to check.
+    if [[ $local_sha == "$ZERO_SHA" ]]; then
+      continue
+    fi
+
+    # New branch on the remote: no common ancestor to diff against, so check
+    # every file rather than silently checking nothing.
+    if [[ $remote_sha == "$ZERO_SHA" ]]; then
+      printf 'Pushing a new branch (%s) — checking all files.\n' "$remote_ref"
+      RANGE_ARGS=(--all-files)
+      return 0
+    fi
+
+    printf 'Checking %s (%s..%s)\n' "$local_ref" "${remote_sha:0:8}" "${local_sha:0:8}"
+    RANGE_ARGS=(--from-ref "$remote_sha" --to-ref "$local_sha")
+    return 0
+  done
+
+  return 0
+}
+
+printf 'Verifying hook wiring and toolchain before pushing...\n'
+ensure_hooks_path
+verify_toolchain
+printf '  ✓ toolchain complete\n'
+
+resolve_push_range
+
+if [[ ${#RANGE_ARGS[@]} -eq 0 ]]; then
+  printf 'Nothing to check (branch deletion or empty push).\n'
+  exit 0
+fi
+
+printf '\nRunning pre-push hooks (prettier, ci-mirror, pytest-coverage)...\n'
+
+if ! pre-commit run --hook-stage pre-push "${RANGE_ARGS[@]}"; then
+  printf '\nPush aborted: pre-push hooks failed.\n' >&2
+  printf 'Fix the issues above and retry the push.\n' >&2
+  exit 1
+fi
+
+printf 'All pre-push checks passed. Proceeding with push.\n'
