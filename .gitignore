@@ -367,3 +367,26 @@ phone_focus_mode/focus_status_app/debug.keystore
 
 # ci_mirror.sh cached requirements.txt venv (rebuilt on demand)
 .ci-mirror-venv/
+
+# ===========================================================================
+# billsplit (Flutter) — launcher icons & platform assets MUST live in-repo
+# ===========================================================================
+# The blanket *.png / *.ico / *.manifest rules above would swallow the whole
+# platform icon set, leaving a checkout that cannot `flutter build`. These are
+# generated build inputs, not stray binaries, so they get the documented
+# .binary-allowlist exception rather than the ../testsAndMisc_binaries/ +
+# symlink treatment (a symlinked PNG breaks a fresh clone).
+# Last-match-wins: this block sits at the end of the file on purpose, so it
+# also overrides *.manifest in the PyInstaller section.
+# Source art for the shared icon generator (python_pkg/app_icons). Both the
+# SVG and the rasterised PNG are kept so regenerating never needs rsvg-convert.
+!billsplit/assets/icon/*.svg
+!billsplit/assets/icon/*.png
+# Android: legacy mipmaps plus the adaptive foreground/monochrome layers that
+# flutter_launcher_icons writes into drawable-*/.
+!billsplit/android/app/src/main/res/**/*.png
+# Other platform targets, straight from `flutter create`.
+!billsplit/ios/Runner/Assets.xcassets/**/*.png
+!billsplit/macos/Runner/Assets.xcassets/**/*.png
+!billsplit/windows/runner/resources/app_icon.ico
+!billsplit/windows/runner/runner.exe.manifest

@@ -31,6 +31,7 @@ Archived / unmaintained projects live in the sibling repository
 | Path                   | Description                                                                                   |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `python_pkg/`          | Python packages — each maintained subpackage lives here                                       |
+| `billsplit/`           | Receipt bill-splitting Flutter app (Dart, e-paragon import, 100 % line coverage gate)         |
 | `linux_configuration/` | Arch Linux setup, i3 config, system maintenance scripts                                       |
 | `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                          |
 | `reverse_survivors/`   | Reverse Survivors — React/Vite game, you play the horde (TypeScript, 100 % coverage gate)     |
@@ -41,6 +42,17 @@ Archived / unmaintained projects live in the sibling repository
 
 > **Note**: Root-level `pyproject.toml`, `requirements.txt`, `requirements.txt`, `run.sh`, and `.fvmrc`
 > are symlinks into `meta/`. Edit files there, not the symlinks.
+
+> **Note**: `billsplit/` is the only Flutter app in this repo, and the only place
+> binaries are committed. Its platform launcher icons are build inputs, so they
+> get the `.binary-allowlist` exception plus matching `!` overrides at the end of
+> `.gitignore` — both are required, since an ignored file fails silently on
+> `git add` rather than erroring. Adding another Flutter app here means repeating
+> that pair. Icons come from the shared generator in `python_pkg/app_icons/`, and
+> there is no local `dart format` / `flutter analyze` hook — Dart style is gated
+> by `.github/workflows/billsplit-ci.yml` only. `billsplit/` holds **no Python**:
+> its coverage gate lives at `python_pkg/billsplit_coverage/`, because the
+> `check-python-location` hook requires every `.py` under `python_pkg/`.
 
 ## Architecture
 

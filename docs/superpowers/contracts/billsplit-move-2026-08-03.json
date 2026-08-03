@@ -1,0 +1,22 @@
+{
+  "title": "Move billsplit into the testsAndMisc monorepo",
+  "objective": "Relocate the standalone billsplit Flutter app from ~/Downloads/billsplit (one commit, no git remote — the only copy of its history) into testsAndMisc as billsplit/, so it is version-controlled alongside the rest of the monorepo, its CI actually runs, and it carries a shared-family launcher icon instead of the stock Flutter one. Success means the app builds and tests to 100% line coverage from its new location, every one of its files is genuinely tracked, and the Downloads copy is removed only after the commit is confirmed on origin.",
+  "acceptance_criteria": [
+    "flutter pub get && flutter test --coverage && python3 tool/coverage_check.py all pass from ~/testsAndMisc/billsplit",
+    "git ls-files billsplit resolves to 162 files, including all 30 platform PNGs and the .ico — nothing silently dropped by the root .gitignore",
+    "billsplit/ contains no Python at all: its coverage gate lives at python_pkg/billsplit_coverage/ with its own 100%-branch-covered test suite, so check-python-location holds with no new exception",
+    "git check-ignore over billsplit/ shows zero files blocked by the root .gitignore; remaining hits come only from billsplit's own nested .gitignore files and are all generated artifacts",
+    "pre-commit run --files <staged> passes with no --no-verify and no new per-file lint suppressions",
+    "The relocated workflow sits at .github/workflows/billsplit-ci.yml with working-directory: billsplit and a billsplit/** path filter, so it is neither inert nor triggered by unrelated commits",
+    "The launcher icon is the charcoal + #B8862E family icon from python_pkg/app_icons, not the stock Flutter beach icon, and its perforation holes stay transparent on the foreground and monochrome layers",
+    "~/Downloads/billsplit is removed only after git log origin/main shows the new commit"
+  ],
+  "out_of_scope": [
+    "Any change to billsplit's Dart source, tests, or runtime behaviour — this is a move, not a refactor",
+    "Linux desktop integration: no hicolor icon set, no .desktop entry, no my_application.cc change; the app is phone-first",
+    "Rethemeing the app: its ThemeData still seeds from Colors.teal even though the icon uses the family accent",
+    "Adding dart format / flutter analyze pre-commit hooks for the new Dart code",
+    "Fixing the pre-existing missing system Python dependencies beyond what is needed to let the commit hooks run"
+  ],
+  "verifier": "pre-commit run --files $(git diff --cached --name-only) at commit time (ruff, ruff-format, mypy, pylint, bandit, codespell, no-binaries, check-python-location, ai-evidence-contract, ai-multifile-contract, and pytest-coverage over the whole python_pkg suite at --cov-fail-under=100); plus flutter test --coverage inside billsplit/ followed by python3 -m python_pkg.billsplit_coverage from the repository root; plus .github/workflows/billsplit-ci.yml on push"
+}

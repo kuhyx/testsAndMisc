@@ -1,0 +1,82 @@
+{
+  "intent": "Move the standalone billsplit Flutter app (receipt splitting with e-paragon import) out of ~/Downloads and into the testsAndMisc monorepo as billsplit/, with its CI actually running and a shared-family launcher icon replacing the stock Flutter one.",
+  "scope": [
+    "billsplit/ — whole Flutter app tree, copied in and re-rooted",
+    ".gitignore — ! overrides so the blanket *.png / *.ico / *.manifest rules stop swallowing platform icon assets",
+    ".binary-allowlist — new file; the documented in-repo exception for build-input binaries",
+    ".github/workflows/billsplit-ci.yml — relocated from billsplit/.github/, which GitHub never reads when nested",
+    "python_pkg/app_icons/{glyphs,apps}.py — new receipt-split glyph and billsplit registry entry",
+    "python_pkg/app_icons/tests/test_registry.py — new invariant test",
+    "python_pkg/billsplit_coverage/ — new package; the app's coverage gate, relocated out of billsplit/tool/",
+    ".pre-commit-config.yaml — codespell ignore-words-list gains the Polish word `dokument`",
+    "meta/scripts/pytest_changed_packages.py and run_prettier_capped.sh — hook memory ceilings lowered to fit a 2G budget",
+    "Non-goal: no change to billsplit's own Dart source, tests, or behaviour",
+    "Non-goal: no Linux desktop entry / hicolor icon set — the app is phone-first"
+  ],
+  "changes": [
+    "Copied the tree and dropped its .git, .idea and .flutter-plugins-dependencies; billsplit's own nested .gitignore is kept and still correctly hides generated registrants, gradlew, ephemeral/ and coverage/.",
+    "Added a trailing billsplit block of ! overrides to .gitignore. It sits at the end of the file deliberately: gitignore is last-match-wins, and *.manifest lives in the PyInstaller section further down than the image block.",
+    "Created .binary-allowlist (it did not exist) with glob — not literal — patterns, so the entries survive icon regeneration. Departed from the memory's ../testsAndMisc_binaries/ + symlink scheme: those sibling directories no longer exist, and a symlinked PNG breaks flutter build on a fresh clone.",
+    "Relocated the CI workflow to the repository root with defaults.run.working-directory: billsplit and an on.push.paths filter, so it neither stays inert nor fires on unrelated Python/Bash commits.",
+    "Added a receipt-split glyph to the shared generator and registered billsplit, rather than hand-rolling a per-repo icon. The glyph is a filled silhouette because a stroked receipt cannot carry a fine torn edge at the family's 72px stroke; the split is a perforation cut with fill-rule=evenodd so the holes stay transparent on the icon_foreground and icon_monochrome layers.",
+    "Rewrote the coverage gate into typed functions writing to sys.stdout/sys.stderr. It had entered repo-wide ruff/mypy/pylint for the first time, and ruff --fix had stripped every print() call, leaving the failure branch as a bare `pass` that exited 1 while reporting nothing.",
+    "Moved that gate from billsplit/tool/coverage_check.py to python_pkg/billsplit_coverage/, so the check-python-location rule holds with no new exception and billsplit/ contains only Dart. It gained a --project flag and a 19-test suite at 100% branch coverage, which the python_pkg gate now requires of it; the CI step runs it from the repository root via `python3 -m python_pkg.billsplit_coverage`.",
+    "Added the Polish word `dokument` to codespell's ignore-words-list, alongside the Polish entries already there (sie, numer, adres, parametr, tekst, serwer, grup, blok, metod). It is a field name in the e-paragon schema, so correcting it to `document` would break the parser that matches on it.",
+    "Lowered the hook memory ceilings to fit a 2G budget: pytest_changed_packages.py from 4G to 2G and run_prettier_capped.sh from 1G to 512M (Node heap 768M to 384M). These were not merely generous, they were actively harmful — a nested systemd scope requesting more than its parent's budget gets OOM-killed from the inside, so the 4G request made the suite fail rather than throttle whenever a caller imposed a tighter cap. Both new values are set from measurement, not guesswork.",
+    "Added test_no_glyph_paints_the_background_colour, codifying the invariant that a glyph hole must be an evenodd cut rather than a charcoal-painted shape."
+  ],
+  "verification": [
+    {
+      "command": "cd billsplit && flutter test --coverage && python3 -m python_pkg.billsplit_coverage",
+      "result": "pass",
+      "evidence": "59 tests passed from the new location; '100% line coverage across 11 lib files.' The gate gives the same answer run from the repo root (default project resolution) and from inside billsplit/ with --project ."
+    },
+    {
+      "command": "pytest python_pkg/billsplit_coverage/tests --cov-branch",
+      "result": "pass",
+      "evidence": "19 passed, 100% branch coverage across __init__, __main__ and checker. Covers both failure modes explicitly: uncovered lines are reported by name and line number, a lib file absent from the report is reported as 0% coverage, and a missing report exits 2 — the gate reports rather than failing silently."
+    },
+    {
+      "command": "git check-ignore -v --no-index over every file in billsplit/",
+      "result": "pass",
+      "evidence": "Before the overrides, 32 of 146 files were swallowed (.gitignore:56 *.png x30, :62 *.ico, :153 *.manifest). After, zero files are blocked by the root .gitignore; the only remaining hits come from billsplit's own nested .gitignore files and are all generated artifacts."
+    },
+    {
+      "command": "pre-commit run --files $(git diff --cached --name-only)",
+      "result": "pass",
+      "evidence": "Full commit-time hook set over all staged files: ruff, ruff-format, mypy, pylint, bandit, codespell, no-binaries, check-python-location, ai-evidence-contract, ai-multifile-contract and pytest-coverage. No --no-verify and no new per-file lint suppressions."
+    },
+    {
+      "command": "pytest over every python_pkg/*/tests plus linux_configuration/tests, --cov python_pkg --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "1098 passed, 12 skipped, TOTAL 100% branch coverage; python_pkg/app_icons at 100% across all nine modules. Run against a probe venv because the system interpreter is missing eight declared dependencies — verified pre-existing by reproducing the same collection errors at HEAD in a detached worktree."
+    },
+    {
+      "command": "resource.getrusage(RUSAGE_CHILDREN).ru_maxrss around the full pytest suite and around prettier",
+      "result": "pass",
+      "evidence": "Peak RSS 0.23 GiB for 1117 tests with branch coverage, and 0.10 GiB for prettier over a 14-file commit — against declared caps of 4G and 1G respectively. The new 2G and 512M ceilings are set from these numbers."
+    },
+    {
+      "command": "systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 -- pre-commit run --files $(git diff --cached --name-only)",
+      "result": "pass",
+      "evidence": "Every hook completes inside a hard 2G cgroup with swap disabled; no hook is OOM-killed. Previously the 4G pytest request could not be satisfied inside such a scope."
+    },
+    {
+      "command": "python_pkg.app_icons render.safe_box_overflow for the receipt-split glyph",
+      "result": "pass",
+      "evidence": "(0, 0) — ink is 400x470, inside the 560px SAFE_BOX on both axes. Foreground and monochrome layers rendered over magenta to confirm the perforation holes are genuinely transparent."
+    }
+  ],
+  "risks": [
+    "The ! overrides in .gitignore are path-prefixed to billsplit/. A future Flutter app added to this monorepo will hit the same silent-drop problem and needs its own block plus .binary-allowlist entries.",
+    "billsplit is the only Dart code in a repo whose pre-commit suite is Python/Bash-shaped: there is no dart format or flutter analyze hook, so Dart style is gated only by the GitHub workflow, not locally.",
+    "The coverage gate now sits two directories away from the app it guards. Renaming or moving billsplit/ silently breaks the parents[2] default path resolution in python_pkg/billsplit_coverage/checker.py; the test suite pins the behaviour but not the app's location.",
+    "billsplit's ThemeData still seeds from Colors.teal while the icon uses the family accent #B8862E, so the launcher icon does not match the app's first screen. Deliberately left alone as out of scope for a move.",
+    "The commit cannot be made until eight declared dependencies are installed into the system interpreter; the pytest-coverage hook runs the whole suite at commit time, and bypassing hooks is not an option."
+  ],
+  "rollback": [
+    "git revert the move commit, then rm -rf billsplit/ — the app is self-contained under that one prefix apart from the .gitignore/.binary-allowlist/workflow/app_icons edits, which the revert restores.",
+    "The original tree remains at ~/Downloads/billsplit until the push is confirmed on origin, so a rollback before that point loses nothing.",
+    "After rollback, confirm python_pkg/app_icons tests still pass and that no other app's icon changed: the shared generator was extended with a new glyph, never edited in style.py, so the other seven apps' assets are untouched."
+  ]
+}

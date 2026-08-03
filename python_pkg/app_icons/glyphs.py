@@ -112,6 +112,76 @@ _STORAGE_BOX = """\
     <path d="M 512 512 L 720 392"/>"""
 
 
+# A till receipt with a torn bottom edge and a perforation down the middle:
+# one bill, two shares.
+#
+# Filled rather than stroked, which is what makes the tear possible at all. A
+# stroked receipt cannot have a fine ragged edge: at the family's 72px stroke,
+# a zigzag needs ~200px pitch to keep adjacent up-strokes MIN_NEGATIVE_SPACE
+# apart, and two teeth that coarse read as a ribbon or a pair of bookmarks,
+# not as a torn receipt. A filled silhouette is not bound by that rule, so the
+# teeth can be small enough to read as a real tear — the "prefer a filled
+# silhouette when a stroked outline reads ambiguously" case.
+#
+# The split is a perforation, not a divider. A full-height divider cuts the
+# silhouette into two separate shapes and the receipt read is lost (the same
+# bookmarks failure); a dotted tear line says "split here" while leaving one
+# intact receipt. Drawn with fill-rule="evenodd" so the dots are true holes,
+# not charcoal-painted ones — icon_foreground and icon_monochrome are rendered
+# on transparency, where a painted hole would show as a blob and, on the
+# monochrome layer, in the wrong colour entirely.
+#
+# Geometry: body x 312..712, y 282..752, six teeth 46px deep off a root at
+# y=706. Four holes of r=30 on the centreline at y=350/446/542/638. Every gap
+# is at the family budget: 36px of accent between holes (96px pitch, 60px
+# diameter), 38px above the first and below the last. Ink is 400x470, inside
+# SAFE_BOX on both axes.
+_RECEIPT_SPLIT = """\
+    <path fill="{{ACCENT}}" fill-rule="evenodd" stroke="none" d="\
+M 312 282 L 712 282 L 712 706 L 678 752 L 645 706 L 612 752 L 578 706 \
+L 545 752 L 512 706 L 478 752 L 445 706 L 412 752 L 378 706 L 345 752 \
+L 312 706 Z \
+M 482 350 A 30 30 0 1 0 542 350 A 30 30 0 1 0 482 350 Z \
+M 482 446 A 30 30 0 1 0 542 446 A 30 30 0 1 0 482 446 Z \
+M 482 542 A 30 30 0 1 0 542 542 A 30 30 0 1 0 482 542 Z \
+M 482 638 A 30 30 0 1 0 542 638 A 30 30 0 1 0 482 638 Z"/>"""
+
+
+# A dip-pen nib: the character sheet is a thing you write on, and the game is
+# set in the Romantic era, so the nib carries both the app and the period.
+#
+# Filled rather than stroked. A stroked almond outline plus a stroked vent hole
+# leaves only ~20px of charcoal between the two strokes at the family's 72px
+# weight — under MIN_NEGATIVE_SPACE, so the nib fills in solid at 48dp. Filled,
+# the vent and the slit become true holes and the budget is spent on gaps
+# instead of on stroke.
+#
+# A d20 was the obvious alternative and was rejected: this system rolls k6, and
+# a 20-sided outline is a mess of short strokes at launcher size. A front-on
+# die with pips collides with `storage-box` (both read as "boxy thing with
+# marks"). Nothing else in the family is a tall pointed shape.
+#
+# The top edge is flat, not pointed. A symmetric almond — pointed at both ends
+# — with a round hole in the upper half is a map pin, which is exactly what the
+# first draft rendered as. The flat shoulder is where a real nib clips into the
+# holder, and it is what stops the map-pin read.
+#
+# Geometry: shoulder (420,312)-(604,312), waist bowing out to ~x=400/624 around
+# y=456, converging to the tip at (512,812) — ink 224x500, inside SAFE_BOX on
+# both axes. Vent circle r=40 at (512,470) clears the outline by ~61px; the
+# slit stops at y=700, leaving ~41px to the outline near the tip and 70px to
+# the vent above. Every gap is over the 36px budget. fill-rule="evenodd" keeps
+# both holes true holes — icon_foreground and icon_monochrome render on
+# transparency, where a painted hole would show as a blob and in the wrong
+# colour.
+_QUILL_NIB = """\
+    <path fill="{{ACCENT}}" fill-rule="evenodd" stroke="none" d="\
+M 420 312 L 604 312 Q 626 470 596 570 L 512 812 L 428 570 \
+Q 398 470 420 312 Z \
+M 472 470 A 40 40 0 1 0 552 470 A 40 40 0 1 0 472 470 Z \
+M 512 700 L 492 580 L 532 580 Z"/>"""
+
+
 GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
     for glyph in (
@@ -122,6 +192,8 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("checklist", "Two ticked-off list rows", _CHECKLIST),
         Glyph("chain-link", "Two interlocking chain links", _CHAIN_LINK),
         Glyph("storage-box", "Isometric storage carton", _STORAGE_BOX),
+        Glyph("receipt-split", "Torn receipt with a perforated split", _RECEIPT_SPLIT),
+        Glyph("quill-nib", "Dip-pen nib with vent hole and slit", _QUILL_NIB),
     )
 }
 

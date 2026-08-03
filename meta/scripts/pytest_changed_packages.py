@@ -23,7 +23,13 @@ import shutil
 import subprocess
 import sys
 
-_TOTAL_MEM = "4G"
+# Memory ceiling for the whole suite. Measured peak RSS for all python_pkg
+# tests plus linux_configuration/tests (1117 tests, branch coverage on) is
+# ~0.23 GiB, so 2G leaves roughly 8x headroom. It was 4G, which is not free:
+# a 4G request cannot be satisfied inside a smaller outer scope, so wrapping
+# a commit in a tighter budget got the suite OOM-killed from the inside rather
+# than merely slowed. Keep this at or below any outer cap a caller may impose.
+_TOTAL_MEM = "2G"
 
 # Standalone script test suites outside python_pkg/ that should be gated but
 # not coverage-measured. Skipped silently if the directory does not exist.

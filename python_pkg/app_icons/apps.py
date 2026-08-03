@@ -105,6 +105,30 @@ APPS: Final[dict[str, AppIcon]] = {
             icon_name="home-inventory",
             linux=True,
         ),
+        AppIcon(
+            key="billsplit",
+            # The only app in this registry that lives inside the testsAndMisc
+            # monorepo rather than in its own repo, so its path carries a
+            # directory component the others do not.
+            repo=_HOME / "testsAndMisc" / "billsplit",
+            accent="#B8862E",
+            glyph="receipt-split",
+            icon_name="billsplit",
+            # `flutter create` scaffolded a linux/ target, but the app is
+            # phone-first and ships no desktop entry, so the hicolor icon set
+            # is not generated for it.
+            linux=False,
+        ),
+        AppIcon(
+            key="epopeja_karta",
+            repo=_HOME / "epopeja_karta",
+            accent="#B8862E",
+            glyph="quill-nib",
+            icon_name="epopeja-karta",
+            # `flutter create` scaffolded no desktop target for this one; it is
+            # a character sheet you bring to the table, i.e. phone-only.
+            linux=False,
+        ),
     )
 }
 

@@ -48,3 +48,19 @@ class TestFamilyInvariants:
     def test_safe_box_fits_inside_canvas(self) -> None:
         assert style.SAFE_BOX < style.CANVAS
         assert style.MIN_NEGATIVE_SPACE == style.STROKE_WIDTH / 2
+
+    def test_no_glyph_paints_the_background_colour(self) -> None:
+        """A hole must be cut, not painted.
+
+        ``icon_foreground`` and ``icon_monochrome`` are rendered on
+        transparency, so a shape filled with ``style.BACKGROUND`` to fake a
+        hole shows up as a charcoal blob on those layers instead of
+        disappearing — and on the monochrome layer, which the system
+        recolours, in the wrong colour entirely. Holes belong in the path as
+        ``fill-rule="evenodd"`` subpaths.
+        """
+        for glyph in glyphs.GLYPHS.values():
+            assert style.BACKGROUND.lower() not in glyph.body.lower(), (
+                f"{glyph.name} paints style.BACKGROUND; cut the hole with "
+                f'fill-rule="evenodd" instead'
+            )
