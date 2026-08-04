@@ -1,0 +1,64 @@
+{
+  "intent": "Close the root cause behind the CI outage fixed in 9dd9aeb: CI and developer machines ran different shellcheck versions, so a commit could pass every local gate and still fail CI on findings the developer could not reproduce. Pin CI to the version developers actually run, and make any future divergence visible locally at commit time instead of as an unreproducible CI failure.",
+  "scope": [
+    ".github/workflows/pre-commit.yml (pin + verify shellcheck)",
+    "linux_configuration/.githooks/lib/common.sh (local drift warning)",
+    "Non-goal: changing which findings shellcheck reports, or any hook's behaviour",
+    "Non-goal: pinning the local shellcheck itself, which comes from pacman on a rolling distro where version bumps are routine",
+    "Non-goal: pinning the other language:system tools (prettier, shfmt, zsh, node); only shellcheck has demonstrated this failure"
+  ],
+  "changes": [
+    "Added an 'Install shellcheck (pinned)' step to the pre-commit workflow that downloads shellcheck v0.11.0 from the official GitHub release, verifies it against a recorded sha256 with 'sha256sum --check --strict', installs it to /usr/local/bin, and then asserts the version resolved on PATH matches. Previously the workflow never installed shellcheck at all and silently inherited whatever ubuntu-latest shipped, which was 0.9.0.",
+    "The version assertion fails the step immediately, with 'command -v -a shellcheck' output, rather than letting a wrong binary surface as confusing findings 40 hooks later.",
+    "Added EXPECTED_SHELLCHECK_VERSION and check_shellcheck_version() to the git hook library, called from verify_toolchain(), so a local shellcheck that disagrees with the CI pin prints a warning naming both files to update.",
+    "The local check warns rather than aborts on purpose: shellcheck arrives via pacman on a rolling distro, so a bump is routine and must not block a commit. What must not happen silently is local and CI disagreeing about what counts as a finding."
+  ],
+  "verification": [
+    {
+      "command": "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/pre-commit.yml'))\"",
+      "result": "pass",
+      "evidence": "Parses cleanly; steps are checkout, setup-python, Install system dependencies, Install shellcheck (pinned), Install dependencies, Run pre-commit hooks -- the pin lands before the hooks run."
+    },
+    {
+      "command": "the workflow's install steps, executed verbatim in a scratch directory",
+      "result": "pass",
+      "evidence": "curl fetched shellcheck-v0.11.0.linux.x86_64.tar.xz (HTTP 200); 'sha256sum --check --strict' reported OK; the extracted binary reports version 0.11.0, so the version gate would pass in CI."
+    },
+    {
+      "command": "check_shellcheck_version with a stub shellcheck reporting 0.9.0 on PATH",
+      "result": "pass",
+      "evidence": "Emitted: '⚠ shellcheck 0.9.0 locally, CI pins 0.11.0.' followed by both file paths to update. The drift warning was observed firing, not merely assumed to work."
+    },
+    {
+      "command": "check_shellcheck_version against the real local shellcheck 0.11.0",
+      "result": "pass",
+      "evidence": "No output, as intended -- the warning stays silent when the versions agree."
+    },
+    {
+      "command": "shellcheck linux_configuration/.githooks/lib/common.sh",
+      "result": "pass",
+      "evidence": "Zero findings."
+    },
+    {
+      "command": "bash ~/.claude/scripts/finish.sh gate ~/testsAndMisc <2 files>",
+      "result": "pass",
+      "evidence": "FINISH_GATE {\"risk\":\"review\",\"changed_files\":2,\"phase\":\"ok\"} with 1193 Python tests at 100% coverage."
+    },
+    {
+      "command": "gh run view 30940953208   # Pre-commit checks on 9dd9aeb",
+      "result": "pass",
+      "evidence": "Pre-commit checks = success -- the first green run of that workflow since it broke at b83ce5d on 2026-08-03. This change protects that result rather than producing it."
+    }
+  ],
+  "risks": [
+    "The pinned version now has to be maintained in two places. The local warning exists precisely to surface that, but a developer who ignores it can still drift.",
+    "The recorded sha256 must be updated alongside SHELLCHECK_VERSION; a bump without it fails the checksum step, which is the intended direction of failure.",
+    "CI now depends on the GitHub release asset being reachable at build time. A transient outage fails the workflow rather than silently falling back to the runner's copy, which is deliberate but is a new external dependency.",
+    "The other language:system tools (prettier, shfmt, zsh, node) remain unpinned and could develop the same class of divergence; only shellcheck has demonstrated it so far."
+  ],
+  "rollback": [
+    "git revert the commit; both changes are purely additive and no existing step or function was modified.",
+    "After reverting, CI returns to using the runner image's shellcheck, so expect findings to reappear that local 0.11.0 does not report.",
+    "Confirm with: pre-commit run shellcheck --all-files locally, and check the next CI 'Pre-commit checks' run still passes."
+  ]
+}

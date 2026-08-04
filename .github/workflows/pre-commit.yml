@@ -19,6 +19,40 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y zsh
 
+      # Pin shellcheck instead of inheriting whatever ubuntu-latest ships.
+      #
+      # The runner image carried 0.9.0 while developer machines have 0.11.0
+      # from pacman, and the shellcheck hook is `language: system` -- so it
+      # used whichever binary happened to be on PATH. The two versions
+      # disagree (0.11.0 demoted SC2002 and several SC2015/SC2119 cases as
+      # noise), which meant a commit could pass every local check and still
+      # fail CI on findings the developer could not reproduce. That is exactly
+      # what kept this workflow red from b83ce5d onward.
+      #
+      # Keep SHELLCHECK_VERSION in step with the version developers install;
+      # the verification below fails loudly rather than silently drifting.
+      - name: Install shellcheck (pinned)
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+        run: |
+          set -euo pipefail
+          tarball="shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl -fsSL -o "$tarball" \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/${tarball}"
+          echo "${SHELLCHECK_SHA256}  ${tarball}" | sha256sum --check --strict
+          tar -xJf "$tarball"
+          sudo install -m 0755 "shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          # Fail here, not 40 hooks later, if PATH still resolves to another copy.
+          installed="$(shellcheck --version | awk '/^version:/ { print $2 }')"
+          expected="${SHELLCHECK_VERSION#v}"
+          if [ "$installed" != "$expected" ]; then
+            echo "::error::shellcheck on PATH is ${installed}, expected ${expected}" >&2
+            command -v -a shellcheck >&2
+            exit 1
+          fi
+          echo "shellcheck ${installed} pinned and on PATH"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

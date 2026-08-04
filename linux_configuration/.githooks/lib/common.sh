@@ -89,6 +89,35 @@ Run this yourself, then retry:
   ! sudo pacman -S ${pkg}"
 }
 
+# The shellcheck version CI pins (see .github/workflows/pre-commit.yml).
+# Kept here so a drift between the two is visible locally, at commit time,
+# rather than as a CI failure nobody can reproduce on their own machine.
+readonly EXPECTED_SHELLCHECK_VERSION="0.11.0"
+
+# Warn when the local shellcheck disagrees with the one CI pins.
+#
+# Deliberately a warning, not an abort: shellcheck comes from pacman on a
+# rolling distro, so a version bump here is routine and should not block a
+# commit. What must not happen silently is the situation this check exists
+# for -- local and CI disagreeing about what counts as a finding, so a commit
+# passes every local gate and then fails CI on output the developer cannot
+# reproduce. When this fires, update EXPECTED_SHELLCHECK_VERSION and
+# SHELLCHECK_VERSION in the workflow together.
+check_shellcheck_version() {
+	local installed
+
+	command -v shellcheck >/dev/null 2>&1 || return 0
+
+	installed="$(shellcheck --version 2>/dev/null | awk '/^version:/ { print $2 }')"
+	[[ -n $installed ]] || return 0
+	[[ $installed == "$EXPECTED_SHELLCHECK_VERSION" ]] && return 0
+
+	hook_log "⚠ shellcheck ${installed} locally, CI pins ${EXPECTED_SHELLCHECK_VERSION}."
+	hook_log "  Findings may differ between here and CI. Update both:"
+	hook_log "  .github/workflows/pre-commit.yml (SHELLCHECK_VERSION)"
+	hook_log "  linux_configuration/.githooks/lib/common.sh (EXPECTED_SHELLCHECK_VERSION)"
+}
+
 # Ensure every tool in REQUIRED_TOOLS is present. Fails closed on the first
 # one that cannot be provided.
 verify_toolchain() {
@@ -98,4 +127,6 @@ verify_toolchain() {
 		pkg="${entry##*:}"
 		require_tool "$cmd" "$pkg"
 	done
+
+	check_shellcheck_version
 }
