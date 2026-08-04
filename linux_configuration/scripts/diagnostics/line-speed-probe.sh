@@ -80,7 +80,9 @@ verdict_for() {
 cleanup() {
     local p
     for p in "${PIDS[@]:-}"; do
-        [[ -n "$p" ]] && kill "$p" 2>/dev/null || true
+        if [[ -n "$p" ]]; then
+            kill "$p" 2>/dev/null || true
+        fi
     done
     wait 2>/dev/null || true
 }

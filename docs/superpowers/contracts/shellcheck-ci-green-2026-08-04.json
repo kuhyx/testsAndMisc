@@ -1,0 +1,21 @@
+{
+  "title": "Fix the 11 shellcheck findings keeping CI red",
+  "objective": "Restore the 'Pre-commit checks' GitHub Actions workflow to green. It has failed on every push since b83ce5d (2026-08-03), which removed shellcheck's --severity filter; CI runs an older shellcheck than the developer machine and reports 11 info/style findings that shellcheck 0.11.0 no longer emits. Fix each finding properly, with no behavioural change and no suppressions.",
+  "acceptance_criteria": [
+    "shellcheck 0.9.0, version-matched to CI, reports zero findings on all 9 edited files",
+    "shellcheck 0.11.0, the developer machine version, also reports zero findings on those files",
+    "pre-commit run shellcheck --all-files passes over the whole repository",
+    "Every rewritten conditional keeps the trailing '|| true' the original had, so no guarded side effect can newly abort a caller under set -e",
+    "require_imagemagick and adb_select_device behave identically to the bare calls they replace, confirmed by running both forms",
+    "phone_focus_mode/lib/tests/test_adb_common.sh passes 13/13 and boot_recovery/tests/test_boot_repair.sh passes 31/31",
+    "No shellcheck disable directive, no --severity filter, and no per-file exclusion is added"
+  ],
+  "out_of_scope": [
+    "Changing the behaviour of any edited script: every fix is semantics-preserving",
+    "third_party/agent-skills/, which the shellcheck hook already excludes as vendored upstream code that would be lost on the next sync",
+    "Pinning the shellcheck version in the CI workflow to remove the local/CI divergence at its root: considered, deferred as a separate change",
+    "The mtk_root toolkit from commit 1b43ba0, which was already clean and is untouched here",
+    "Device-level verification of curfew_enforcer.sh and hosts_enforcer.sh, which run on the phone under Magisk"
+  ],
+  "verifier": "shellcheck 0.9.0 (CI-matched) and 0.11.0 over the edited files; pre-commit run shellcheck --all-files; phone_focus_mode/lib/tests/test_adb_common.sh; linux_configuration/scripts/boot_recovery/tests/test_boot_repair.sh; and the GitHub Actions 'Pre-commit checks' run on the pushed commit"
+}

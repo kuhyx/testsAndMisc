@@ -49,7 +49,9 @@ if ! command -v magick &> /dev/null && ! command -v convert &> /dev/null; then
   fi
 fi
 
-require_imagemagick || exit 1
+# Empty arg = no preference between magick/convert. Passing "$@" here would
+# forward this script's own arguments as a tool preference, which is wrong.
+require_imagemagick "" || exit 1
 
 # Set up identify command (IM7: magick identify, IM6: identify)
 if [[ ${MAGICK_CMD} == "magick" ]]; then

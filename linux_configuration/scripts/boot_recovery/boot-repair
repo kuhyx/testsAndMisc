@@ -363,7 +363,9 @@ check_fstab_options() {
 	' OFS='\t' "$fstab" > "${fstab}.new"
   mv "${fstab}.new" "$fstab"
   repaired "fstab /boot options reset to 'defaults'"
-  is_live && systemctl daemon-reload 2> /dev/null || true
+  if is_live; then
+    systemctl daemon-reload 2> /dev/null || true
+  fi
   return 0
 }
 

@@ -1,0 +1,72 @@
+{
+  "intent": "Turn the 'Pre-commit checks' CI workflow green again. It has failed on every push since b83ce5d (2026-08-03), the commit that removed shellcheck's --severity filter, because CI runs an older shellcheck than the developer machine and reports 11 findings that shellcheck 0.11.0 no longer emits.",
+  "scope": [
+    "linux_configuration/scripts/boot_recovery/boot-repair",
+    "linux_configuration/scripts/diagnostics/line-speed-probe.sh",
+    "linux_configuration/scripts/single_use/features/keepass_sync.sh",
+    "linux_configuration/scripts/single_use/utils/{gif_to_square,txt_to_image}.sh",
+    "phone_focus_mode/{curfew_enforcer,hosts_enforcer,run_phone}.sh",
+    "phone_focus_mode/lib/tests/test_adb_common.sh",
+    "Non-goal: changing any script's behaviour -- every fix is semantics-preserving",
+    "Non-goal: suppressing findings via directives or a --severity filter",
+    "Non-goal: third_party/, which the shellcheck hook already excludes as vendored code"
+  ],
+  "changes": [
+    "SC2015 x6: rewrote 'A && B || C' as an explicit if-statement in boot-repair, line-speed-probe.sh, keepass_sync.sh, curfew_enforcer.sh (x2) and run_phone.sh. Each retains its trailing '|| true' so a failing side effect still cannot abort the caller under set -e.",
+    "SC2119 x3: require_imagemagick and adb_select_device both take an OPTIONAL first argument, so the bare calls were correct. Passing \"$@\" as shellcheck suggests would forward the script's own arguments as a tool preference, which would be a defect; passing an explicit \"\" states the same intent without changing behaviour.",
+    "SC2002 x2: replaced 'cat FILE | tr ...' with 'tr ... < FILE' in hosts_enforcer.sh, keeping 2>/dev/null so a missing file still yields an empty string.",
+    "Kept '|| true' on the _info call in run_phone.sh: it is the last statement of a function under set -e, so dropping it (as the first draft of this change did) would let a failed write to stderr abort the caller."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck-v0.9.0 -- <each of the 9 files>   # version-matched to CI",
+      "result": "pass",
+      "evidence": "All 9 report OK. Before the change the same binary reproduced CI exactly: 6x SC2015, 3x SC2119, 2x SC2002. A full-repo scan under 0.9.0 leaves findings only in third_party/agent-skills/, which the hook excludes via '^third_party/'."
+    },
+    {
+      "command": "pre-commit run shellcheck --all-files",
+      "result": "pass",
+      "evidence": "shellcheck...Passed over the whole repository."
+    },
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_adb_common.sh",
+      "result": "pass",
+      "evidence": "Results: 13 passed, 0 failed."
+    },
+    {
+      "command": "bash linux_configuration/scripts/boot_recovery/tests/test_boot_repair.sh",
+      "result": "pass",
+      "evidence": "31 passed, 0 failed."
+    },
+    {
+      "command": "behavioural equivalence check for require_imagemagick",
+      "result": "pass",
+      "evidence": "Sourcing lib/common.sh and calling both forms: require_imagemagick \"\" -> OK, MAGICK_CMD=magick; bare require_imagemagick -> OK, MAGICK_CMD=magick. Identical result."
+    },
+    {
+      "command": "behavioural equivalence check for the useless-cat rewrite",
+      "result": "pass",
+      "evidence": "Against a file containing '  1 ': old 'cat F | tr -d [:space:]' -> [1]; new 'tr -d [:space:] < F' -> [1]. Against a nonexistent path the new form still yields [] with the error suppressed."
+    },
+    {
+      "command": "bash -n on all 8 edited executable scripts",
+      "result": "pass",
+      "evidence": "All report syntax OK."
+    },
+    {
+      "command": "bash ~/.claude/scripts/finish.sh gate ~/testsAndMisc <9 files>",
+      "result": "pass",
+      "evidence": "FINISH_GATE {\"risk\":\"review\",\"changed_files\":9,\"phase\":\"ok\"} with 1193 Python tests passing at 100% coverage. The review pass flagged the dropped '|| true' in run_phone.sh, which was then restored."
+    }
+  ],
+  "risks": [
+    "The underlying local/CI divergence remains: CI installs a different shellcheck version than the developer machine, so a future finding can again pass locally and fail in CI. Pinning the version in the workflow would remove the class of problem; that was considered and deferred as a separate change.",
+    "These files were not otherwise exercised end-to-end. curfew_enforcer.sh and hosts_enforcer.sh run on the phone under Magisk and were verified by static analysis, syntax check and unit tests rather than a device run.",
+    "keepass_sync.sh's case arm is now a single-line if-then-fi, which is denser to read than the original; behaviour is unchanged."
+  ],
+  "rollback": [
+    "git revert the commit; each change is confined to one or two lines per file and no interfaces changed.",
+    "After reverting, expect 'Pre-commit checks' CI to go red again on the same 11 findings while local shellcheck 0.11.0 continues to report none.",
+    "Re-run pre-commit run shellcheck --all-files plus the phone_focus_mode and boot_recovery test suites to confirm the revert left both in their prior state."
+  ]
+}

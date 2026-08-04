@@ -88,7 +88,7 @@ remote_get() {
 }
 remote_hash() {
 	case "$REMOTE_MODE" in
-	file)   [[ -f "$REMOTE_FILE" ]] && sha "$REMOTE_FILE" || true ;;
+	file)   if [[ -f "$REMOTE_FILE" ]]; then sha "$REMOTE_FILE" || true; fi ;;
 	webdav) curl -fsS -u "$DUFS_USER:$DUFS_PASS" "${REMOTE_URL}?hash" 2>/dev/null || true ;;
 	esac
 }

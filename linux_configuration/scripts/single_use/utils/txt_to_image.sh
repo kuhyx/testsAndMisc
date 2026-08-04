@@ -35,7 +35,9 @@ EOF
 }
 
 # Check if ImageMagick is installed and determine which command to use
-require_imagemagick || exit 1
+# Empty arg = no preference between magick/convert. Passing "$@" here would
+# forward this script's own arguments as a tool preference, which is wrong.
+require_imagemagick "" || exit 1
 
 # Parse arguments
 if [[ $# -lt 1 ]]; then
