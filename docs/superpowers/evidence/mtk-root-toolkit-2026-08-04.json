@@ -1,0 +1,82 @@
+{
+  "intent": "Give the user a tested toolkit ready for the day a Ulefone Armor X12 Pro arrives: a host-readiness gate, a read-only recon script that decides which rooting path applies, a MediaTek-only stock partition dump, and post-flash verification. Everything testable without the device is validated against a Pixel 6a read-only, and everything that is not is labelled as such.",
+  "scope": [
+    "linux_configuration/scripts/lib/mtk_common.sh (new shared library)",
+    "linux_configuration/scripts/mtk_root/ (install, 00-preflight, 10-recon, 20-dump-stock, 90-verify-root, udev rules, tests, README/NOTES/READY)",
+    "Non-goal: any flashing script; irreversible partition writes stay manual and deliberate",
+    "Non-goal: any write to the Pixel 6a, which is the user's daily driver",
+    "Non-goal: modifying root_bl9000.sh, which still serves a different device",
+    "Binary artifacts live in ~/.cache/mtk-root/, never in the repo"
+  ],
+  "changes": [
+    "Added lib/mtk_common.sh with two device-read seams (dev_getprop, dev_list_by_name) that read from fixture files when MTK_ROOT_FIXTURE is set, making the whole suite offline and hermetic",
+    "discover_partitions derives the slot scheme from observed _a suffixes and selects the ramdisk carrier by preference order init_boot then boot over the partitions actually present, never hardcoding either name; the AOSP launch-version rule explains the ordering but the code reads the filesystem",
+    "classify_device requires a positive MediaTek platform signal AND a vendor match for ULEFONE, with no 'not a Pixel therefore Ulefone' fallback, so an unrecognised third device lands in UNKNOWN and every caller refuses",
+    "10-recon.sh triages unauthorized-versus-device before any getprop, because an unauthorized device returns empty properties that would otherwise be misreported as 'device has no properties'",
+    "Carrier lock is hardcoded to UNDETERMINED with the raw signals printed, since sys.oem_unlock_allowed, ro.oem_unlock_supported and settings global oem_unlock_allowed all read identically whether a device is carrier-locked or merely has the toggle off",
+    "20-dump-stock.sh reads the ramdisk partition name from the recon facts file rather than re-deriving it, so a dump can only ever target a partition already seen in a recon report; MTK_DUMP_CMD stubs the mtkclient call for tests",
+    "90-verify-root.sh reports each check independently with no aggregate verdict, since partial root is a real state and which part failed is the useful information",
+    "Added udev/60-mtk-root.rules scoped to Google 18d1 and MediaTek 0e8d using MODE=0660 plus TAG+=uaccess instead of world-writable 0666",
+    "install.sh clones mtkclient fresh, rebuilds its venv when it cannot import its dependencies, and gates the catch-all udev repair behind --fix-udev with a timestamped backup rather than rewriting another script's file silently",
+    "Fixed a SIGPIPE abort in 00-preflight.sh where 'adb version | head -1' under pipefail exited 141 and killed the script mid-run",
+    "Fixed a silent exit in 20-dump-stock.sh where find on a nonexistent cache dir failed under set -e, so the script printed its title and stopped without explaining that recon must run first",
+    "Fixed a hole in the read-only static scan: stripping all quoted strings to avoid false positives on printf text also hid mtk_adb shell \"reboot bootloader\" from every check; now only printf/echo/cat arguments are stripped, and a negative self-test asserts the scan fails on injected commands"
+  ],
+  "verification": [
+    {
+      "command": "./linux_configuration/scripts/mtk_root/tests/run_tests.sh",
+      "result": "pass",
+      "evidence": "58 passed, 0 failed. Includes: selects init_boot_a over co-present boot_a; A-only bare names; falls back to boot_a on the Pixel fixture; UNKNOWN device exits 1 with no PATH claimed; dump refuses a Pixel; dump manifest records sha256, size and idempotence; a 512-byte dump is rejected as implausibly small; scan catches injected 'adb shell \"reboot bootloader\"', bare fastboot, and settings put."
+    },
+    {
+      "command": "./linux_configuration/scripts/mtk_root/00-preflight.sh",
+      "result": "pass",
+      "evidence": "12 passed, 0 failed, 0 warnings -- HOST READY. adb 1.0.41, fastboot 37.0.0, python3 3.14.6, git 2.55.0, sha256sum 9.11; plugdev and adbusers active; 60-mtk-root.rules present and udevadm verify clean; no world-writable catch-all; mtkclient venv importable; mtkclient rev 0542a87; cache dir writable."
+    },
+    {
+      "command": "./linux_configuration/scripts/mtk_root/10-recon.sh   # read-only, against attached Pixel 6a",
+      "result": "pass",
+      "evidence": "Reported: classified as PIXEL; A/B scheme A/B; slot suffix _a; ramdisk lives in boot -> partition boot_a; 'Magisk must patch BOOT on this device (no init_boot present)'; flash.locked=1, verifiedbootstate=green; OEM-unlock toggle UNREADABLE; Carrier lock UNDETERMINED; decision 'PATH C or D (Pixel) - INDETERMINATE' with a refusal to act. Device state after the run was unchanged: flash.locked=1, verifiedbootstate=green, 53 partitions visible, adb state 'device'."
+    },
+    {
+      "command": "negative test: inject 'mtk_adb shell \"reboot bootloader\"' into a copy of 10-recon.sh and run the read-only scan",
+      "result": "pass",
+      "evidence": "Before the fix the injected command was NOT CAUGHT, confirming the guard had been weakened by the quote-stripping. After the fix all three injections (quoted adb reboot, bare fastboot, settings put) are detected, and the unmodified script still yields no findings."
+    },
+    {
+      "command": "./install.sh --skip-pacman  then  ~/.cache/mtk-root/mtkclient/venv/bin/python -c 'import usb, usb.core, serial'",
+      "result": "pass",
+      "evidence": "Cloned mtkclient fresh at rev 0542a87 (2026-08-02) and built a venv under Python 3.14.6 that imports cleanly. The pre-existing venv at ~/.cache/bl9000-root/mtkclient failed the same import with ModuleNotFoundError: No module named 'usb', which is the breakage 00-preflight.sh now detects."
+    },
+    {
+      "command": "udevadm verify linux_configuration/scripts/mtk_root/udev/60-mtk-root.rules",
+      "result": "pass",
+      "evidence": "1 udev rules files have been checked. Success: 1, Fail: 0."
+    },
+    {
+      "command": "./install.sh --fix-udev --skip-pacman   # user-approved; then adb devices",
+      "result": "pass",
+      "evidence": "Commented the world-writable catch-all in /etc/udev/rules.d/51-android.rules with backup 51-android.rules.bak-20260804T183038Z. Afterwards adb still lists 23181JEGR08034 as 'device', 'udevadm test' no longer applies any wildcard rule, and no active uncommented idVendor==\"*\" rule remains."
+    },
+    {
+      "command": "shellcheck (no severity filter) over all new shell files",
+      "result": "pass",
+      "evidence": "mtk_common.sh, install.sh, 00-preflight.sh, 10-recon.sh, 20-dump-stock.sh, 90-verify-root.sh and tests/run_tests.sh all report zero findings. Two SC2034 findings on unused size constants were resolved by adding the mtk_sane_ramdisk_size function that consumes them, not by suppression."
+    }
+  ],
+  "risks": [
+    "The Ulefone launched on Android 13, so it most likely carries the ramdisk in init_boot -- the opposite branch from the Pixel used for validation. The init_boot selection path is proven by fixtures only and has never run against hardware that has that partition.",
+    "Ulefone property values (manufacturer, model, ro.board.platform) are guessed. If the real unit reports something outside the patterns, classify_device returns UNKNOWN and every script refuses. This fails safe but will resemble a bug on first contact; --explain-classification and a single marked pattern block in mtk_common.sh are the intended remedy.",
+    "Path semantics A/B/C/D are inferred because the companion document defining them was never provided; 10-recon.sh prints an assumption banner on every run rather than presenting the mapping as authoritative.",
+    "mtkclient reading a real partition over BROM is untested. Chipset support exists (rev 0542a87 has an MT6765 entry with an mt6765_payload.bin loader) but this unit's SLA/DAA authentication state is undocumented and per-device.",
+    "udev rules are syntactically verified and adb access is confirmed for a Google VID, but access to a MediaTek device in BROM mode cannot be confirmed without the hardware.",
+    "Commenting the catch-all udev rule narrows USB permissions system-wide. adb was re-verified afterwards, but a device that relied on the wildcard rule and is not covered by 18d1 or 0e8d would need its VID added.",
+    "The Magisk release publishes both Magisk-v30.7.apk and a 25 MB app-debug.apk; selecting the wrong asset is an easy error, recorded in NOTES.md and stock/README.md."
+  ],
+  "rollback": [
+    "git revert the commit: the toolkit is self-contained under linux_configuration/scripts/mtk_root/ plus lib/mtk_common.sh, and no existing script imports either.",
+    "Restore the udev catch-all if needed: sudo cp -a /etc/udev/rules.d/51-android.rules.bak-20260804T183038Z /etc/udev/rules.d/51-android.rules && sudo udevadm control --reload-rules && sudo udevadm trigger",
+    "Remove the narrowed rules with sudo rm /etc/udev/rules.d/60-mtk-root.rules followed by a udevadm reload, and delete ~/.cache/mtk-root/ to discard the clone, venv and downloaded APK.",
+    "After any rollback, confirm 'adb devices' still lists the phone as 'device' and that root_bl9000.sh's own udev expectations (Google 18d1, MediaTek 0e8d) remain satisfied by /etc/udev/rules.d/51-android.rules."
+  ]
+}
