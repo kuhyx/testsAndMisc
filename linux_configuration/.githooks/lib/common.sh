@@ -89,33 +89,81 @@ Run this yourself, then retry:
   ! sudo pacman -S ${pkg}"
 }
 
-# The shellcheck version CI pins (see .github/workflows/pre-commit.yml).
-# Kept here so a drift between the two is visible locally, at commit time,
-# rather than as a CI failure nobody can reproduce on their own machine.
-readonly EXPECTED_SHELLCHECK_VERSION="0.11.0"
-
-# Warn when the local shellcheck disagrees with the one CI pins.
+# Versions of the `language: system` tools that the gates depend on. Every
+# entry is `command:expected:where`, where `where` names the file that pins
+# the other side so a mismatch report can point at it.
 #
-# Deliberately a warning, not an abort: shellcheck comes from pacman on a
-# rolling distro, so a version bump here is routine and should not block a
-# commit. What must not happen silently is the situation this check exists
-# for -- local and CI disagreeing about what counts as a finding, so a commit
-# passes every local gate and then fails CI on output the developer cannot
-# reproduce. When this fires, update EXPECTED_SHELLCHECK_VERSION and
-# SHELLCHECK_VERSION in the workflow together.
-check_shellcheck_version() {
-	local installed
+# Why this table exists: these hooks run whatever binary happens to be on
+# PATH. When the local copy and the pinned copy disagree about what counts as
+# a finding -- or, for the formatters, about how a file should be formatted --
+# a commit passes every local gate and then fails elsewhere on output the
+# developer cannot reproduce. That is precisely what kept the pre-commit
+# workflow red from b83ce5d onward, and it cost a full session to diagnose
+# because the failure was invisible on the developer's machine.
+#
+# Two distinct risks are covered here. The linters (shellcheck and zsh) run
+# in CI, so drift there shows up as an unreproducible CI failure. The
+# formatters (prettier and shfmt) never run in CI -- they are pre-push and
+# local-git-hook only -- but they REWRITE files, so drift between two
+# developers silently reformats the repo back and forth, producing diff churn
+# nobody intended.
+readonly PINNED_TOOL_VERSIONS=(
+	"shellcheck:0.11.0:.github/workflows/pre-commit.yml (SHELLCHECK_VERSION)"
+	"prettier:3.9.5:.github/workflows/pre-commit.yml (PRETTIER_VERSION)"
+	"shfmt:3.13.1:.github/workflows/pre-commit.yml (SHFMT_VERSION)"
+	"zsh:5.9:.github/workflows/pre-commit.yml (zsh comes from apt; major.minor only)"
+)
 
-	command -v shellcheck >/dev/null 2>&1 || return 0
+# Print the version of a pinned tool, normalised to bare digits.
+#
+# Each tool reports differently: shellcheck uses a `version:` line, shfmt and
+# node prefix a `v`, zsh puts it in field 2. Normalising here keeps the
+# comparison below a plain string match.
+_tool_version() {
+	local cmd="$1" raw=""
 
-	installed="$(shellcheck --version 2>/dev/null | awk '/^version:/ { print $2 }')"
-	[[ -n $installed ]] || return 0
-	[[ $installed == "$EXPECTED_SHELLCHECK_VERSION" ]] && return 0
+	case "$cmd" in
+		shellcheck) raw="$(shellcheck --version 2>/dev/null | awk '/^version:/ { print $2 }')" ;;
+		prettier) raw="$(prettier --version 2>/dev/null)" ;;
+		shfmt) raw="$(shfmt --version 2>/dev/null)" ;;
+		# zsh patch releases are not selectable via apt, so compare major.minor
+		# only -- 5.9.2 locally and 5.9 in CI are not a meaningful divergence.
+		zsh) raw="$(zsh --version 2>/dev/null | awk '{ print $2 }' | cut -d. -f1,2)" ;;
+		*) return 1 ;;
+	esac
 
-	hook_log "⚠ shellcheck ${installed} locally, CI pins ${EXPECTED_SHELLCHECK_VERSION}."
-	hook_log "  Findings may differ between here and CI. Update both:"
-	hook_log "  .github/workflows/pre-commit.yml (SHELLCHECK_VERSION)"
-	hook_log "  linux_configuration/.githooks/lib/common.sh (EXPECTED_SHELLCHECK_VERSION)"
+	printf '%s' "${raw#v}"
+}
+
+# Warn when a local tool disagrees with the version pinned for CI.
+#
+# Deliberately warnings, not aborts: these arrive via pacman on a rolling
+# distro, so bumps are routine and must not block a commit. What must not
+# happen silently is the disagreement itself.
+check_pinned_tool_versions() {
+	local entry cmd expected where installed drifted=0
+
+	for entry in "${PINNED_TOOL_VERSIONS[@]}"; do
+		cmd="${entry%%:*}"
+		where="${entry##*:}"
+		expected="${entry#*:}"
+		expected="${expected%%:*}"
+
+		command -v "$cmd" >/dev/null 2>&1 || continue
+
+		installed="$(_tool_version "$cmd")" || continue
+		[[ -n $installed ]] || continue
+		[[ $installed == "$expected" ]] && continue
+
+		hook_log "⚠ ${cmd} ${installed} locally, pinned ${expected}"
+		hook_log "  update: ${where}"
+		hook_log "  update: linux_configuration/.githooks/lib/common.sh (PINNED_TOOL_VERSIONS)"
+		drifted=1
+	done
+
+	if [[ $drifted -eq 1 ]]; then
+		hook_log "  Results may differ between this machine and CI/other developers."
+	fi
 }
 
 # Ensure every tool in REQUIRED_TOOLS is present. Fails closed on the first
@@ -128,5 +176,5 @@ verify_toolchain() {
 		require_tool "$cmd" "$pkg"
 	done
 
-	check_shellcheck_version
+	check_pinned_tool_versions
 }

@@ -16,8 +16,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      # zsh backs the zsh-syntax hook. apt does not let a patch release be
+      # selected, so this is pinned only to what the runner image provides;
+      # the version is echoed so a jump shows up in the log rather than as a
+      # mystery parse difference. Local machines compare on major.minor only.
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y zsh
+        run: |
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install -y zsh
+          zsh --version
 
       # Pin shellcheck instead of inheriting whatever ubuntu-latest ships.
       #
@@ -52,6 +59,41 @@ jobs:
             exit 1
           fi
           echo "shellcheck ${installed} pinned and on PATH"
+
+      # prettier and shfmt do NOT run in this job -- prettier is a pre-push
+      # hook and shfmt runs from the local pre-commit git hook. They are
+      # pinned here anyway so this file stays the single place that records
+      # the expected version of every `language: system` tool, and so a future
+      # workflow that does run them inherits the pin instead of re-deriving
+      # it. Their real divergence risk is between developers: both REWRITE
+      # files, so two versions reformat the repo back and forth.
+      - name: Install prettier and shfmt (pinned)
+        env:
+          PRETTIER_VERSION: 3.9.5
+          SHFMT_VERSION: v3.13.1
+          SHFMT_SHA256: fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1
+        run: |
+          set -euo pipefail
+          npm install --global --no-fund --no-audit "prettier@${PRETTIER_VERSION}"
+
+          curl -fsSL -o shfmt \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+          echo "${SHFMT_SHA256}  shfmt" | sha256sum --check --strict
+          sudo install -m 0755 shfmt /usr/local/bin/shfmt
+
+          # Assert what PATH actually resolves to, not what was just written:
+          # a copy earlier on PATH would otherwise win silently.
+          prettier_installed="$(prettier --version)"
+          shfmt_installed="$(shfmt --version)"
+          if [ "$prettier_installed" != "$PRETTIER_VERSION" ]; then
+            echo "::error::prettier on PATH is ${prettier_installed}, expected ${PRETTIER_VERSION}" >&2
+            exit 1
+          fi
+          if [ "$shfmt_installed" != "$SHFMT_VERSION" ]; then
+            echo "::error::shfmt on PATH is ${shfmt_installed}, expected ${SHFMT_VERSION}" >&2
+            exit 1
+          fi
+          echo "prettier ${prettier_installed} and shfmt ${shfmt_installed} pinned and on PATH"
 
       - name: Install dependencies
         run: |
