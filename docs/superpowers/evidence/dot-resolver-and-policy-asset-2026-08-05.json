@@ -1,0 +1,80 @@
+{
+  "intent": "Make the unrooted path work end to end: the phone can now consume the focus policy as a generated asset, and the blocklist is served over DNS-over-TLS from a resolver the rooted enforcer permits instead of blocking.",
+  "scope": [
+    "python_pkg/focus_policy/__main__.py - new CLI that renders the policy as JSON",
+    "focus_owner/lib/policy.dart, assets/policy.json, test/policy_test.dart - new: parse and display the policy",
+    "phone_focus_mode/dns_enforcer.sh - allow one trusted DoT endpoint instead of rejecting all 853; pin Private DNS to it",
+    "phone_focus_mode/config.sh - new DNS_TRUSTED_DOT_HOST / DNS_TRUSTED_DOT_IPS",
+    "linux_configuration/scripts/single_use/features/setup_dot_resolver.sh - new: stunnel DoT front end",
+    "docs/device-owner-wipe-checklist.md - planning only, no wipe performed",
+    "Non-goal: no Device Owner provisioning, no factory reset, no enforcement in focus_owner",
+    "Non-goal: the dns_enforcer change is NOT deployed to the rooted phone"
+  ],
+  "changes": [
+    "focus_owner loads a generated policy.json rather than hardcoding anything, so config.sh remains the single source of truth across Python, shell and Kotlin. The committed asset is rendered with --redact-home, and a test fails if home coordinates ever appear in it. An unknown schema_version is rejected outright, because silently accepting a newer schema means enforcing a policy the app has misread - and a misread allowlist is one that blocks the dialer.",
+    "dns_enforcer.sh previously rejected ALL port 853 traffic and pinned Private DNS off, re-asserted every 20s. That is correct when DoT is a bypass channel, but it is exactly wrong when DoT is the enforcement channel, which is what an unrooted phone needs. With DNS_TRUSTED_DOT_HOST set it now ACCEPTs the trusted resolver's addresses BEFORE the blanket REJECT and pins Private DNS to that hostname. With the variable empty the old behaviour is byte-identical.",
+    "expected_rule_count() gained a family argument and counts the new ACCEPTs. Without that, chain_intact() would see a size mismatch and rebuild the chain every DNS_CHECK_INTERVAL - a silent fork storm that also drops the DoT connection on each rebuild.",
+    "setup_dot_resolver.sh terminates DoT with stunnel rather than Caddy: DoT is a raw TLS stream and stock caddy:2.8 lacks the layer4 module, so using Caddy would have meant an xcaddy rebuild of a container serving five live sites. It reuses the certificate Caddy already renews, so there is no second ACME client competing for port 80.",
+    "The resolver binds to the WireGuard address, not 0.0.0.0. A public DoT endpoint is an open resolver; over the existing tunnel it needs no port-forward, no firewall rule and no rate limiting, because only configured peers can route to it."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m python_pkg.focus_policy --config phone_focus_mode/config.sh --redact-home --output focus_owner/assets/policy.json",
+      "result": "pass",
+      "evidence": "Renders 84 allowed / 39 night / 44 never-disable / 15 workout domains, curfew 23:00-05:00, latitude and longitude null. Running it against the real config_secrets.sh exits 1 with the placeholder message rather than emitting a policy."
+    },
+    {
+      "command": "cd focus_owner && flutter analyze && flutter test",
+      "result": "pass",
+      "evidence": "'No issues found!' and 27 tests passing, including a guard that loads the actually-committed assets/policy.json and asserts hasCoordinates is false."
+    },
+    {
+      "command": "adb install -r && am start && screencap",
+      "result": "pass",
+      "evidence": "On-device screenshot shows 'Allowed apps 84 (39 at night)', 'Curfew 23:00-05:00', 'Home radius 150 m (coords redacted)', 'Workout domains 15' - matching config.sh, read through the generated asset. Device owner still 'no', restrictions still 'none'."
+    },
+    {
+      "command": "bash scratchpad/test_dot.sh (stubbed iptables/settings harness)",
+      "result": "pass",
+      "evidence": "14/14 checks. Confirms: with no trusted host there are zero ACCEPT rules and Private DNS is forced off (old behaviour preserved); with one set, the v4 and v6 ACCEPTs exist, the rule counts match expected_rule_count exactly, the ACCEPT precedes the REJECT, Private DNS is pinned to hostname, and a user changing it in Settings is reverted."
+    },
+    {
+      "command": "shellcheck + shfmt on dns_enforcer.sh, config.sh, setup_dot_resolver.sh",
+      "result": "pass",
+      "evidence": "Clean. CI fails on any shellcheck finding, so an SC2155 on the new script was fixed by splitting declaration from assignment rather than suppressed."
+    },
+    {
+      "command": "setup_dot_resolver.sh && --check && kdig +tls @10.8.0.1 -p 853",
+      "result": "pass",
+      "evidence": "'OK - DoT resolver healthy'. example.com resolves (104.20.23.154); pornhub.com returns 0.0.0.0, i.e. the blocklist is applied; TLS 1.3 negotiates against the Let's Encrypt cert. Survives systemctl restart; service and cert-sync timer both enabled at boot."
+    },
+    {
+      "command": "ss -lnt | grep 853; kdig +tls @192.168.1.43 and @79.184.36.76",
+      "result": "pass",
+      "evidence": "Listening on 10.8.0.1:853 only. Both the LAN address and the public IP fail to answer, confirming the resolver is not exposed."
+    },
+    {
+      "command": "caddy validate + reload, then curl each existing site",
+      "result": "pass",
+      "evidence": "Config validated BEFORE reload because a bad site block previously broke ACME for every domain. After reload the cert for dns.kuhy.duckdns.org was issued and kuhy.duckdns.org, gitea.kuhy.duckdns.org and kuhy-sync.duckdns.org all still return 200."
+    },
+    {
+      "command": "adb shell pm list packages (Wallet and 2FA apps)",
+      "result": "pass",
+      "evidence": "Google Wallet is NOT installed and nfc_payment_default_component is null, so the one unresolved Device Owner risk does not apply to this device. Also found that Aegis, MS Authenticator, Oracle IDM and PKO IKO are absent - they were in config.sh's whitelist, which describes the ROOTED phone, not this one. The checklist was corrected against the device rather than the config."
+    }
+  ],
+  "risks": [
+    "config.sh now ships DNS_TRUSTED_DOT_HOST populated. Deploying it to the rooted phone flips DNS enforcement from 'no DoT at all' to 'only this DoT', and the phone must be on the WireGuard tunnel or DNS stops resolving. This has NOT been deployed; do it attended.",
+    "The DoT endpoint is reachable only over WireGuard, and phone.conf uses AllowedIPs = 10.8.0.0/24 (split tunnel). Filtering therefore applies only while the tunnel is up - it is not an always-on guarantee.",
+    "stunnel reads the certificate from disk; the daily timer copies it out of the Caddy container. If Caddy renews and the timer fails silently, stunnel serves an expired certificate and Android rejects the connection, which presents as total DNS failure on the phone.",
+    "A dns.caddy site block now exists purely to make Caddy issue the certificate. It responds 200 on a public hostname. Harmless, but it is a live endpoint that did not exist before.",
+    "The wipe checklist is drafted, not rehearsed. mObywatel re-activation in particular is documented from secondary Polish sources and should be re-checked at gov.pl before anyone relies on it."
+  ],
+  "rollback": [
+    "DoT resolver: sudo systemctl disable --now stunnel-dot.service dot-cert-sync.timer; rm /etc/stunnel/dot-resolver.conf /etc/systemd/system/stunnel-dot.service; rm /home/kuhy/gitea/sites/dns.caddy and reload Caddy.",
+    "dns_enforcer: set DNS_TRUSTED_DOT_HOST=\"\" in config.sh. That alone restores the previous behaviour exactly - no code revert needed, which is why the flag defaults to empty.",
+    "focus_owner: git revert. The app reads the policy but enforces nothing, so nothing on the phone changes.",
+    "After rollback validate: setup_dot_resolver.sh --check fails as expected, the five existing Caddy sites still return 200, and the stubbed enforcer harness still passes section A."
+  ]
+}
