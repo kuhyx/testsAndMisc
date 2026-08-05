@@ -37,17 +37,17 @@ PKO IKO, Google Wallet.**
 
 Present and relevant:
 
-| App | Package | Survives Google backup? |
-|---|---|---|
-| KeePassDX | `com.kunzisoft.keepass.libre` | File-based — you own the `.kdbx` |
-| Signal | `org.thoughtcrime.securesms` | **No** — needs its own backup |
-| mBank | `pl.mbank` | No — device re-pairing |
-| Revolut | `com.revolut.revolut` | No — re-login + possible re-verification |
-| mObywatel | `pl.nask.mobywatel` | No — full re-activation |
+| App       | Package                       | Survives Google backup?                  |
+| --------- | ----------------------------- | ---------------------------------------- |
+| KeePassDX | `com.kunzisoft.keepass.libre` | File-based — you own the `.kdbx`         |
+| Signal    | `org.thoughtcrime.securesms`  | **No** — needs its own backup            |
+| mBank     | `pl.mbank`                    | No — device re-pairing                   |
+| Revolut   | `com.revolut.revolut`         | No — re-login + possible re-verification |
+| mObywatel | `pl.nask.mobywatel`           | No — full re-activation                  |
 
 **No dedicated TOTP app is installed**, so the usual "authenticator seeds are
 destroyed by the wipe" trap does not apply — unless your TOTP secrets live
-inside the KeePassDX database, which is likely. If so, the `.kdbx` file *is*
+inside the KeePassDX database, which is likely. If so, the `.kdbx` file _is_
 your seed backup, and step 2 covers it.
 
 ## Phase A — break the circular dependency first
