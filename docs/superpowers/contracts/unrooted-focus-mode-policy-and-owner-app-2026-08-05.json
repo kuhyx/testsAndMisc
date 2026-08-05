@@ -1,0 +1,24 @@
+{
+  "title": "Device-independent focus policy, blocklist pipeline, and inert device-owner app",
+  "objective": "Extract the parts of phone_focus_mode that do not require root into a shared, tested policy layer, so that one definition can drive both the rooted shell enforcer and a future unrooted Device Owner backend. Deliver the blocklist as domains rather than a hosts file, since an unrooted phone cannot bind-mount /system/etc/hosts. Ship a device-owner app whose removal path is implemented and verified before any restriction exists. Success is: the policy loads from the real config.sh, the generated blocklist is accepted by the resolver that will consume it, and the app runs on the Pixel 6a while leaving the device provably unmodified.",
+  "acceptance_criteria": [
+    "python_pkg/focus_policy parses the real phone_focus_mode/config.sh - it does not duplicate the package lists, so the shell config remains the single source of truth",
+    "The shipped REDACTED_* coordinate placeholder raises a PolicyError rather than defaulting to (0,0), which would silently disable the location gate",
+    "Commented-out hosts entries are honoured as deliberate unblocks, so facebook/messenger/linkedin/4chan stay unblocked after conversion",
+    "Loopback and IPv6 housekeeping lines never become blocked domains",
+    "Invalid upstream tokens are rejected, and dnsmasq --test accepts the generated config over the full real blocklist",
+    "The workout exception releases subdomains, so dynamic r*---sn-*.googlevideo.com CDN hosts are unblocked during a workout",
+    "The same suffix-matching fix is applied to the live phone_focus_mode/strip_workout_hosts.py, with regression tests that fail against the pre-fix code",
+    "100% branch coverage on python_pkg/focus_policy with zero lint suppressions",
+    "focus_owner implements clearDeviceOwnerApp() and it is unit-tested before any restriction-setting code exists",
+    "focus_owner builds, installs, and runs on the Pixel 6a, and dumpsys afterwards shows no device owner, no user restrictions, and no suspended packages"
+  ],
+  "out_of_scope": [
+    "Device Owner provisioning - dpm set-device-owner requires a factory reset that has not been agreed",
+    "Any enforcement whatsoever: no setApplicationHidden, no addUserRestriction, no setAlwaysOnVpnPackage",
+    "Changes to the rooted enforcement layers - hosts bind mount, iptables chains, netd restart are untouched",
+    "The DoT endpoint and the dns_enforcer port 853 conflict, both tracked separately",
+    "Shell-side fixes to generate_hosts_file.sh - only strip_workout_hosts.py is changed here"
+  ],
+  "verifier": "pre-commit run --files <staged>; coverage run --branch --source=python_pkg/focus_policy -m pytest python_pkg/focus_policy/tests/ && coverage report (expect 100%); pytest linux_configuration/tests/test_strip_workout_hosts.py; dnsmasq --test --conf-file=<generated>; cd focus_owner && flutter analyze && flutter test; adb install + am start + dumpsys package/device_policy to confirm the device is unchanged"
+}
