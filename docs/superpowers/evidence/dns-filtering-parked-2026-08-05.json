@@ -1,0 +1,55 @@
+{
+  "intent": "Stop pursuing phone-side DNS filtering until an always-on resolver exists, leaving the phone on working DNS and the config in its pre-change state, while keeping the artifacts that remain useful.",
+  "scope": [
+    "phone_focus_mode/config.sh - DNS_TRUSTED_DOT_HOST/IPS reverted to empty",
+    "linux_configuration/scripts/single_use/features/setup_dot_resolver.sh - permit 853 on wg0",
+    "linux_configuration/scripts/single_use/features/setup_phone_wireguard.sh - new",
+    "docs/dns-filtering-parked.md - why it stopped and what was ruled out",
+    "Non-goal: no provider signup, no VPS, no Device Owner provisioning",
+    "Non-goal: the local stunnel DoT endpoint is left running deliberately"
+  ],
+  "changes": [
+    "Reverted DNS_TRUSTED_DOT_HOST/IPS to empty. That single change restores the previous behaviour exactly - no code revert needed, which is why the flag was built to default empty.",
+    "Fixed a real gap found while testing: the nftables input chain is policy drop and admitted only ssh over wg0, so binding stunnel to the tunnel address was not sufficient. ICMP passed while TCP 853 was dropped, which presents as 'ping works but the port does not'. The rule is now added explicitly, scoped to wg0.",
+    "Added setup_phone_wireguard.sh: installs the client, pushes the config, waits for the tunnel, deletes the pushed private key, and verifies handshake plus reachability plus DNS rather than assuming success.",
+    "Recorded the ruled-out options with their specific reasons so the hosted-hybrid idea is not re-proposed."
+  ],
+  "verification": [
+    {
+      "command": "adb shell settings put global private_dns_mode hostname (resolver unreachable)",
+      "result": "pass",
+      "evidence": "'ping: unknown host example.com'. Reproduced twice on the Pixel 6a. Android Private DNS fails CLOSED with no carrier fallback, so a resolver on a machine that can be switched off leaves the phone with no internet. This is the measurement the whole decision rests on. Phone restored to private_dns_mode=off afterwards, pings resolving at 36ms."
+    },
+    {
+      "command": "bash scratchpad/test_dot.sh against the reverted config",
+      "result": "pass",
+      "evidence": "14/14. Section A confirms zero ACCEPT rules and Private DNS forced off, i.e. byte-identical to the pre-change behaviour. The live config yields an empty v4 allowlist."
+    },
+    {
+      "command": "setup_phone_wireguard.sh then --check",
+      "result": "pass",
+      "evidence": "Handshake from 31.61.251.198, phone reaches 10.8.0.1 over the tunnel, DNS resolves. Before the nftables fix the port test failed while ping succeeded; after it, nc to 853 connects and stunnel logs the connection."
+    },
+    {
+      "command": "shellcheck + shfmt on both setup scripts and config.sh",
+      "result": "pass",
+      "evidence": "Clean. An SC2024 and an unused-variable warning were fixed by restructuring (install -m 600 instead of a sudo redirect, and asserting the client config assigns the expected peer address) rather than suppressed."
+    },
+    {
+      "command": "ss -lnt | grep 853; systemctl is-active dnsmasq",
+      "result": "pass",
+      "evidence": "stunnel still bound to 10.8.0.1 only - never publicly bound. A split-horizon dnsmasq entry tried during debugging was removed and dnsmasq restarted; LAN DNS confirmed working afterwards."
+    }
+  ],
+  "risks": [
+    "stunnel-dot.service and dot-cert-sync.timer are left running. They are WireGuard-only and verified unreachable from LAN and WAN, but they are live services with no current consumer; removal commands are in the parked doc.",
+    "The dns.caddy site block remains, so Caddy keeps renewing a certificate for a hostname nothing consumes. Harmless but it is a live public endpoint that did not exist before.",
+    "The nftables rule permitting 853 on wg0 was added at runtime and is not persisted by this repo's firewall management; it will not survive a ruleset reload unless setup_dot_resolver.sh is re-run.",
+    "config.sh now carries the DNS_TRUSTED_DOT_* knobs with empty values. Harmless, but a future reader could set them without realising the always-on requirement that made them unusable here - hence the parked doc."
+  ],
+  "rollback": [
+    "The DNS_TRUSTED_DOT_* revert IS the rollback; nothing further is needed for the enforcer.",
+    "To remove the DoT stack entirely, follow the commands in docs/dns-filtering-parked.md.",
+    "After rollback validate: the enforcer harness still passes section A, and the phone still resolves DNS with private_dns_mode=off."
+  ]
+}

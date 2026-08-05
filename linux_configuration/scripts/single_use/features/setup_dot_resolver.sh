@@ -193,11 +193,23 @@ EOF
 }
 
 open_firewall() {
-	# Bound to WireGuard there is nothing to open: the tunnel is already
-	# permitted and the listener is not reachable from the LAN or the WAN.
+	# Binding to the WireGuard address is NOT sufficient on its own. The
+	# input chain has `policy drop` and admits only specific ports over wg0
+	# (ssh), so a DoT connection from the phone is dropped even though the
+	# tunnel itself is up and ICMP replies fine. That combination is
+	# confusing to debug -- ping works, the port does not -- so the rule is
+	# added explicitly, scoped to the tunnel interface.
 	if [[ "$BIND_ADDR" != "0.0.0.0" ]]; then
-		log "No firewall change needed - $BIND_ADDR is WireGuard-only."
-		log "No router port-forward needed either."
+		if command -v nft >/dev/null 2>&1 && sudo nft list table inet filter >/dev/null 2>&1; then
+			if sudo nft list table inet filter | grep -q "iifname \"wg0\" tcp dport $DOT_PORT"; then
+				log "nftables already permits $DOT_PORT on wg0"
+			else
+				sudo nft add rule inet filter input iifname wg0 tcp dport "$DOT_PORT" accept ||
+					log "WARNING: could not add nftables rule for $DOT_PORT on wg0"
+				log "Permitted TCP $DOT_PORT on wg0 only"
+			fi
+		fi
+		log "No router port-forward needed - $BIND_ADDR is WireGuard-only."
 		return
 	fi
 	if command -v nft >/dev/null 2>&1 && sudo nft list table inet filter >/dev/null 2>&1; then
