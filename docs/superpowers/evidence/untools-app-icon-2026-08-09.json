@@ -1,0 +1,44 @@
+{
+  "intent": "Give the new ~/untools Flutter app a launcher icon from the shared family (charcoal field + accent glyph), so it does not ship the stock Flutter beach icon, and whitelist its package in phone_focus_mode's config.",
+  "scope": [
+    "python_pkg/app_icons/glyphs.py — new decision-tree glyph",
+    "python_pkg/app_icons/apps.py — register the untools app",
+    "phone_focus_mode/config.sh — add com.kuhy.untools to the productive-apps whitelist",
+    "Non-goal: no change to render/style/generate; the shared palette and safe-box rules are untouched"
+  ],
+  "changes": [
+    "Added _DECISION_TREE: one node branching into two, drawn as hollow rings (r=78) so the 72px stroke leaves visible negative space at icon size. A two-level, seven-node version was tried first and rejected — the generator's safe-box check flagged it as overflowing by ~170x162px, and at 48dp the doubled connectors closed into a solid mass. Branch spread was then narrowed from 324/700 to 346/678 to clear a residual 44px horizontal overflow.",
+    "Registered the untools AppIcon (accent #B8862E, glyph decision-tree, linux=False because the desktop build is the web build in a Chrome --app window, so there is no GTK app to hand a hicolor PNG to).",
+    "Added com.kuhy.untools to config.sh's user-requested productive apps. Note this is source-of-truth only: the current Pixel 6a (23181JEGR08034) is not rooted, has no /data/local/tmp/focus_mode directory and no running daemon, so nothing was pushed to the device and no app is at risk of being killed there. Kept for the rooted BL9000 phone / any future redeploy."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m pytest python_pkg/app_icons/tests -q --cov=python_pkg.app_icons",
+      "result": "pass",
+      "evidence": "44 passed; app_icons at 100% (apps.py 24/24, glyphs.py 28/28, cli.py 60/60, generate.py 41/41). The repo-wide 5.35% total is the monorepo bar applied to a single-subpackage run, not a regression from this change."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app untools --android",
+      "result": "pass",
+      "evidence": "wrote 6 asset files to /home/kuhy/untools/assets/icon; regenerated Android mipmaps; no safe-box warning on the final geometry."
+    },
+    {
+      "command": "visual inspection of assets/icon/icon.png and icon_foreground.png",
+      "result": "pass",
+      "evidence": "Symmetric tree, three hollow rings holding their negative space, charcoal #211D1B field with #B8862E glyph — consistent with the rest of the family."
+    },
+    {
+      "command": "adb -s 23181JEGR08034 install -r app-release.apk && am start",
+      "result": "pass",
+      "evidence": "Installed and launched; app alive after 4s (pid present), confirming no focus-mode interference on this device."
+    }
+  ],
+  "risks": [
+    "The glyph reads as a generic org-chart/hierarchy at very small sizes; it is distinguished from the family's other glyphs by shape, and no other app uses a node-and-edge motif.",
+    "config.sh now lists a package that is not enforced on the current device. Harmless, but a reader could infer the whitelist is live here when it is not — the comment in this evidence file and the commit message state otherwise."
+  ],
+  "rollback": [
+    "Revert the three files; delete ~/untools/assets/icon and the android mipmaps it regenerated.",
+    "After rollback, re-run the app_icons test suite (44 tests) and confirm the registry test still passes with the untools entry removed."
+  ]
+}

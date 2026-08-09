@@ -90,6 +90,16 @@ APPS: Final[dict[str, AppIcon]] = {
             linux=True,
         ),
         AppIcon(
+            key="untools",
+            repo=_HOME / "untools",
+            accent="#B8862E",
+            glyph="decision-tree",
+            icon_name="untools",
+            # Desktop is the web build in a Chrome --app window, so there is
+            # no GTK app to hand a hicolor PNG to.
+            linux=False,
+        ),
+        AppIcon(
             key="habit_stack",
             repo=_HOME / "habit_stack",
             accent="#B8862E",

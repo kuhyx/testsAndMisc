@@ -78,6 +78,29 @@ _CHECKLIST = """\
     <path d="M 272 620 L 346 694 L 478 562"/>
     <path d="M 594 648 L 752 648"/>"""
 
+# A branching decision tree: one node splitting into two. Reads as "decompose
+# a problem into parts", the move every one of the 25 thinking tools makes in
+# some form -- an issue tree most literally, but also a fishbone's ribs and a
+# 2x2's quadrants.
+#
+# Nodes are hollow circles rather than filled dots: at 48dp a filled dot and
+# the 72px stroke merge into a blob, while the ring keeps visible negative
+# space (r=78 leaves 156-72=84px of interior).
+#
+# Two levels of branching were tried first (7 nodes) and rejected: the
+# generator's safe-box check flagged it as overflowing by ~170px, and at icon
+# size the doubled connectors closed up into a solid mass. One clean split
+# survives the launcher mask and still reads as a tree rather than a Y-fork,
+# because the square shoulders and vertical drops keep the hierarchy legible.
+_DECISION_TREE = """\
+    <circle cx="512" cy="300" r="78"/>
+    <path d="M 512 378 L 512 452"/>
+    <path d="M 346 452 L 678 452"/>
+    <path d="M 346 452 L 346 528"/>
+    <path d="M 678 452 L 678 528"/>
+    <circle cx="346" cy="606" r="78"/>
+    <circle cx="678" cy="606" r="78"/>"""
+
 # Two interlocking stadium (pill-ring) outlines, both rotated -45 deg and
 # offset along the anti-diagonal so their strokes overlap in the middle --
 # reads as both "habit-stacking" (linked items) and "don't break the chain".
@@ -238,6 +261,11 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("quill-nib", "Dip-pen nib with vent hole and slit", _QUILL_NIB),
         Glyph("anvil", "Blacksmith's anvil with horn and flared foot", _ANVIL),
         Glyph("track-bars", "Rising log bars with a plotted trend point", _TRACK_BARS),
+        Glyph(
+            "decision-tree",
+            "Node branching into two levels of child nodes",
+            _DECISION_TREE,
+        ),
     )
 }
 
