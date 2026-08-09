@@ -5,8 +5,8 @@ import type {
   DirectorAction, Enemy, EnemyKind, EnemySpec, GameState, Survivor, UpgradeId,
 } from './types'
 import {
-  ARENA, CONTACT_COOLDOWN, ENERGY_START, ENEMY_SPECS, GAME_DURATION, STATUS_POWER,
-  UPGRADE_POOL,
+  ARENA, CONTACT_COOLDOWN, ENERGY_START, ENEMY_SPECS, FRENZY_DAMAGE, FRENZY_SPEED,
+  GAME_DURATION, STATUS_POWER, UPGRADE_POOL,
 } from './types'
 import type { Vec } from './vec'
 import { clamp, dist, toward } from './vec'
@@ -50,6 +50,11 @@ export const createInitialState = (seed: number, duration = GAME_DURATION): Game
     energy: ENERGY_START,
     waveIndex: 0,
     bossCooldowns: { colossus: 0, hivemind: 0, leech: 0 },
+    powerCooldowns: { ambush: 0, frenzy: 0, rift: 0 },
+    frenzyTimer: 0,
+    riftTimer: 0,
+    riftEdge: 0,
+    ambushIndex: 0,
   },
   upgrades: [],
   nextId: 1,
@@ -168,11 +173,15 @@ const survivorStep = (state: GameState, dt: number): void => {
   }
 }
 
+/** Frenzy's damage multiplier, derived from state so every damage channel agrees. */
+export const frenzyDamageMul = (state: GameState): number =>
+  factor(state.director.frenzyTimer, FRENZY_DAMAGE)
+
 const detonate = (state: GameState, enemy: Enemy): void => {
   const spec = ENEMY_SPECS[enemy.kind]
   enemy.hp = 0
   if (dist(enemy.pos, state.survivor.pos) <= spec.blastRadius) {
-    state.survivor.hp -= spec.blastDamage
+    state.survivor.hp -= spec.blastDamage * frenzyDamageMul(state)
   }
 }
 
@@ -203,15 +212,17 @@ const killByShot = (state: GameState, enemy: Enemy): void => {
   split(state, spec, enemy.pos)
 }
 
-const MOVE_FNS: Record<'chase' | 'skirmish', (e: Enemy, sv: Survivor, d: number) => Vec> = {
-  chase: (e, sv) => toward(e.pos, sv.pos, ENEMY_SPECS[e.kind].speed),
-  skirmish: (e, sv, d) => {
+type MoveFn = (e: Enemy, sv: Survivor, d: number, speed: number) => Vec
+
+const MOVE_FNS: Record<'chase' | 'skirmish', MoveFn> = {
+  chase: (e, sv, _d, speed) => toward(e.pos, sv.pos, speed),
+  skirmish: (e, sv, d, speed) => {
     const spec = ENEMY_SPECS[e.kind]
     if (d > spec.keepDistance) {
-      return toward(e.pos, sv.pos, spec.speed)
+      return toward(e.pos, sv.pos, speed)
     }
     if (d < spec.keepDistance * 0.65) {
-      return toward(sv.pos, e.pos, spec.speed)
+      return toward(sv.pos, e.pos, speed)
     }
     return { x: 0, y: 0 }
   },
@@ -220,11 +231,14 @@ const MOVE_FNS: Record<'chase' | 'skirmish', (e: Enemy, sv: Survivor, d: number)
 const enemiesStep = (state: GameState, dt: number): void => {
   const sv = state.survivor
   const spawned: { kind: EnemyKind; pos: Vec }[] = []
+  // Frenzy is read straight off director state — no import, so no new import cycle.
+  const speedMul = factor(state.director.frenzyTimer, FRENZY_SPEED)
+  const damageMul = frenzyDamageMul(state)
   for (const e of state.enemies) {
     const spec = ENEMY_SPECS[e.kind]
     e.hitTimer = Math.max(0, e.hitTimer - dt)
     const d = dist(e.pos, sv.pos)
-    const vel = MOVE_FNS[spec.move](e, sv, d)
+    const vel = MOVE_FNS[spec.move](e, sv, d, spec.speed * speedMul)
     e.pos.x = clamp(e.pos.x + vel.x * dt, spec.radius, ARENA.w - spec.radius)
     e.pos.y = clamp(e.pos.y + vel.y * dt, spec.radius, ARENA.h - spec.radius)
 
@@ -232,7 +246,7 @@ const enemiesStep = (state: GameState, dt: number): void => {
       if (spec.detonates) {
         detonate(state, e)
       } else if (e.hitTimer === 0) {
-        sv.hp -= spec.contactDamage
+        sv.hp -= spec.contactDamage * damageMul
         // Unconditional: a 0-duration spec makes this a provable no-op, which is
         // cheaper than a guard branch under the 100 % gate.
         applyStatus(sv, spec.debuff, spec.debuffDuration)
@@ -251,7 +265,7 @@ const enemiesStep = (state: GameState, dt: number): void => {
           pos: { x: e.pos.x, y: e.pos.y },
           vel: toward(e.pos, sv.pos, spec.projSpeed),
           radius: 5,
-          damage: spec.projDamage,
+          damage: spec.projDamage * damageMul,
           ttl: ENEMY_PROJ_TTL,
           debuff: spec.debuff,
           debuffDuration: spec.debuffDuration,

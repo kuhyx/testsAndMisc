@@ -116,3 +116,74 @@ describe('SpawnBar', () => {
     expect(onAction).toHaveBeenCalledWith({ type: 'boss', kind: 'colossus' })
   })
 })
+
+describe('SpawnBar powers', () => {
+  it('dispatches an ambush when funded and ready', () => {
+    const onAction = vi.fn()
+    render(<SpawnBar snap={snapWith((s) => { s.director.energy = 400 })} onAction={onAction} />)
+    fireEvent.click(screen.getByRole('button', { name: /ambush/i }))
+    expect(onAction).toHaveBeenCalledWith({ type: 'ambush', kind: 'rusher' })
+  })
+
+  it('disables ambush while it is cooling and shows the timer', () => {
+    render(
+      <SpawnBar
+        snap={snapWith((s) => {
+          s.director.energy = 400
+          s.director.powerCooldowns.ambush = 4
+        })}
+        onAction={() => undefined}
+      />,
+    )
+    const btn = screen.getByRole('button', { name: /ambush/i })
+    expect(btn).toBeDisabled()
+    expect(btn).toHaveTextContent('recovering 4s')
+  })
+
+  it('dispatches frenzy when funded and blocks it when broke', () => {
+    const onAction = vi.fn()
+    const { rerender } = render(<SpawnBar snap={snapWith()} onAction={onAction} />)
+    expect(screen.getByRole('button', { name: /frenzy/i })).toBeDisabled()
+    rerender(
+      <SpawnBar snap={snapWith((s) => { s.director.energy = 400 })} onAction={onAction} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /frenzy/i }))
+    expect(onAction).toHaveBeenCalledWith({ type: 'frenzy' })
+  })
+
+  it('dispatches a rift on the chosen edge', () => {
+    const onAction = vi.fn()
+    render(<SpawnBar snap={snapWith((s) => { s.director.energy = 400 })} onAction={onAction} />)
+    fireEvent.click(screen.getByRole('button', { name: /west/i }))
+    expect(onAction).toHaveBeenCalledWith({ type: 'rift', edge: 2 })
+  })
+
+  it('marks the open rift edge and counts it down', () => {
+    const { container } = render(
+      <SpawnBar
+        snap={snapWith((s) => {
+          s.director.energy = 400
+          s.director.riftTimer = 7
+          s.director.riftEdge = 3
+        })}
+        onAction={() => undefined}
+      />,
+    )
+    expect(container.querySelectorAll('.card-rift-active')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /east/i })).toHaveTextContent('open 7s')
+  })
+})
+
+describe('Hud frenzy banner', () => {
+  it('appears only while the horde is frenzied', () => {
+    const { rerender } = render(<Hud snap={snapWith()} onRestart={() => undefined} />)
+    expect(screen.queryByText(/frenzied/i)).not.toBeInTheDocument()
+    rerender(
+      <Hud
+        snap={snapWith((s) => { s.director.frenzyTimer = 3 })}
+        onRestart={() => undefined}
+      />,
+    )
+    expect(screen.getByText(/frenzied/i)).toBeInTheDocument()
+  })
+})

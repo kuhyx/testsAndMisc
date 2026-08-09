@@ -1,8 +1,10 @@
 import { makeEnemy } from './sim'
 import { nextFloat, pick } from './rng'
-import type { BossKind, DirectorAction, GameState, UnitKind } from './types'
+import type { BossKind, DirectorAction, EdgeId, GameState, PowerKind, UnitKind } from './types'
 import {
-  ARENA, BOSS_COOLDOWN, BOSS_ORDER, BOSS_UNLOCK_AT, ENERGY_CAP, ENEMY_SPECS,
+  AMBUSH_RADIUS, ARENA, BOSS_COOLDOWN, BOSS_ORDER, BOSS_UNLOCK_AT, EDGE_ORDER, ENERGY_CAP,
+  ENEMY_SPECS, FRENZY_DURATION, GOLDEN_ANGLE, POWER_COOLDOWN, POWER_COST, POWER_ORDER,
+  RIFT_DURATION,
 } from './types'
 import type { Vec } from './vec'
 import { clamp } from './vec'
@@ -18,19 +20,30 @@ export const tickDirector = (state: GameState, dt: number): void => {
   for (const boss of BOSS_ORDER) {
     d.bossCooldowns[boss] = Math.max(0, d.bossCooldowns[boss] - dt)
   }
+  for (const power of POWER_ORDER) {
+    d.powerCooldowns[power] = Math.max(0, d.powerCooldowns[power] - dt)
+  }
+  d.frenzyTimer = Math.max(0, d.frenzyTimer - dt)
+  d.riftTimer = Math.max(0, d.riftTimer - dt)
 }
 
 type EdgeFn = (roll: number) => Vec
-const EDGES: readonly [EdgeFn, ...EdgeFn[]] = [
-  (roll): Vec => ({ x: roll * ARENA.w, y: 0 }),
-  (roll): Vec => ({ x: roll * ARENA.w, y: ARENA.h }),
-  (roll): Vec => ({ x: 0, y: roll * ARENA.h }),
-  (roll): Vec => ({ x: ARENA.w, y: roll * ARENA.h }),
-]
+/** Keyed by EdgeId rather than an array: index access then stays non-optional. */
+const EDGES: Record<EdgeId, EdgeFn> = {
+  0: (roll): Vec => ({ x: roll * ARENA.w, y: 0 }),
+  1: (roll): Vec => ({ x: roll * ARENA.w, y: ARENA.h }),
+  2: (roll): Vec => ({ x: 0, y: roll * ARENA.h }),
+  3: (roll): Vec => ({ x: ARENA.w, y: roll * ARENA.h }),
+}
 
+/**
+ * A live rift pins the edge; otherwise the RNG picks. The unpinned path draws
+ * exactly two values in the original order, so existing seeded replays are unchanged.
+ */
 export const edgeSpawnPos = (state: GameState): Vec => {
-  const edge = pick(state.rng, EDGES)
-  return edge(nextFloat(state.rng))
+  const d = state.director
+  const chosen = d.riftTimer > 0 ? d.riftEdge : pick(state.rng, EDGE_ORDER)
+  return EDGES[chosen](nextFloat(state.rng))
 }
 
 const spawnUnit = (state: GameState, kind: UnitKind): boolean => {
@@ -83,6 +96,62 @@ const summonBoss = (state: GameState, kind: BossKind): boolean => {
   return true
 }
 
+/**
+ * Shared gate for every power: one cooldown check and one affordability check,
+ * so adding a power costs no new branches here.
+ *
+ * Named `spendPower`, not `usePower`: the React hooks lint rules treat any
+ * `use`-prefixed function as a hook and reject calls from plain functions.
+ */
+const spendPower = (state: GameState, kind: PowerKind, extra: number): boolean => {
+  const d = state.director
+  if (d.powerCooldowns[kind] > 0) {
+    return false
+  }
+  const cost = POWER_COST[kind] + extra
+  if (d.energy < cost) {
+    return false
+  }
+  d.energy -= cost
+  d.powerCooldowns[kind] = POWER_COOLDOWN[kind]
+  return true
+}
+
+const ambush = (state: GameState, kind: UnitKind): boolean => {
+  if (!spendPower(state, 'ambush', ENEMY_SPECS[kind].cost)) {
+    return false
+  }
+  const d = state.director
+  // Golden angle: an irrational fraction of a turn, so successive ambushes keep
+  // landing in the widest remaining gap and never repeat a lane. (A rational
+  // step like 2*PI/7 looks varied but silently cycles every 7 summons.)
+  const angle = d.ambushIndex * GOLDEN_ANGLE
+  d.ambushIndex += 1
+  const sv = state.survivor.pos
+  makeEnemy(state, kind, {
+    x: clamp(sv.x + Math.cos(angle) * AMBUSH_RADIUS, 10, ARENA.w - 10),
+    y: clamp(sv.y + Math.sin(angle) * AMBUSH_RADIUS, 10, ARENA.h - 10),
+  })
+  return true
+}
+
+const frenzy = (state: GameState): boolean => {
+  if (!spendPower(state, 'frenzy', 0)) {
+    return false
+  }
+  state.director.frenzyTimer = FRENZY_DURATION
+  return true
+}
+
+const rift = (state: GameState, edge: EdgeId): boolean => {
+  if (!spendPower(state, 'rift', 0)) {
+    return false
+  }
+  state.director.riftEdge = edge
+  state.director.riftTimer = RIFT_DURATION
+  return true
+}
+
 /** Applies a director order. Returns false when rejected (cost, lock, or cooldown). */
 export const applyAction = (state: GameState, action: DirectorAction): boolean => {
   switch (action.type) {
@@ -92,5 +161,11 @@ export const applyAction = (state: GameState, action: DirectorAction): boolean =
       return callWave(state)
     case 'boss':
       return summonBoss(state, action.kind)
+    case 'ambush':
+      return ambush(state, action.kind)
+    case 'frenzy':
+      return frenzy(state)
+    case 'rift':
+      return rift(state, action.edge)
   }
 }

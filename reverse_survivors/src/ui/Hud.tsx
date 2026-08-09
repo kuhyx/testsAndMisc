@@ -55,6 +55,10 @@ export const Hud = ({ snap, onRestart }: Props): ReactElement => {
         </ul>
       </div>
 
+      {snap.frenzyActive && (
+        <p className="frenzy-banner">The horde is frenzied</p>
+      )}
+
       {snap.status === 'directorWon' && (
         <div className="overlay overlay-win">
           <h2>The intruder falls</h2>

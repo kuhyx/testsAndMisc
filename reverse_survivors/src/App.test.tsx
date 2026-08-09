@@ -60,6 +60,15 @@ describe('App', () => {
     expect(screen.getByText('30 / 400')).toBeInTheDocument()
   })
 
+  it('dispatches a director power from the bar', () => {
+    const raf = installRaf()
+    render(<App seed={9} boot={(state) => { state.director.energy = 400 }} />)
+    pump(raf, 0)
+    fireEvent.click(screen.getByRole('button', { name: /frenzy/i }))
+    pump(raf, 16)
+    expect(screen.getByText(/frenzied/i)).toBeInTheDocument()
+  })
+
   it('shows the dawn overlay when the survivor outlasts the horde', () => {
     const raf = installRaf()
     render(<App boot={(state) => { state.duration = 0.05 }} />)

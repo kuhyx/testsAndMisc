@@ -156,6 +156,31 @@ export const BOSS_COOLDOWN: Record<BossKind, number> = {
   colossus: 25, hivemind: 30, leech: 28,
 }
 
+export type PowerKind = 'ambush' | 'frenzy' | 'rift'
+export const POWER_ORDER: readonly [PowerKind, ...PowerKind[]] = ['ambush', 'frenzy', 'rift']
+export const POWER_NAMES: Record<PowerKind, string> = {
+  ambush: 'Ambush', frenzy: 'Frenzy', rift: 'Rift',
+}
+/** Ambush additionally costs the summoned unit's own price. */
+export const POWER_COST: Record<PowerKind, number> = { ambush: 45, frenzy: 90, rift: 25 }
+export const POWER_COOLDOWN: Record<PowerKind, number> = { ambush: 8, frenzy: 45, rift: 12 }
+
+/** How close to the survivor an ambush lands. Just outside its contact ring. */
+export const AMBUSH_RADIUS = 130
+/** ~137.5deg. Irrational share of a turn, so repeated steps never land twice. */
+export const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
+export const FRENZY_DURATION = 6
+export const FRENZY_SPEED = 1.35
+export const FRENZY_DAMAGE = 1.3
+export const RIFT_DURATION = 10
+
+/** Arena edge, as a finite union so `Record` indexing stays non-optional. */
+export type EdgeId = 0 | 1 | 2 | 3
+export const EDGE_ORDER: readonly [EdgeId, ...EdgeId[]] = [0, 1, 2, 3]
+export const EDGE_NAMES: Record<EdgeId, string> = {
+  0: 'North', 1: 'South', 2: 'West', 3: 'East',
+}
+
 export type UpgradeId = 'damage' | 'fireRate' | 'speed' | 'vitality' | 'regen' | 'multishot'
 export const UPGRADE_POOL: readonly [UpgradeId, ...UpgradeId[]] = [
   'damage', 'fireRate', 'speed', 'vitality', 'regen', 'multishot',
@@ -206,12 +231,21 @@ export interface DirectorState {
   energy: number
   waveIndex: number
   bossCooldowns: Record<BossKind, number>
+  powerCooldowns: Record<PowerKind, number>
+  frenzyTimer: number
+  riftTimer: number
+  riftEdge: EdgeId
+  /** Rotates ambush placement deterministically, without drawing from the RNG. */
+  ambushIndex: number
 }
 
 export type DirectorAction =
   | { type: 'spawn'; kind: UnitKind }
   | { type: 'wave' }
   | { type: 'boss'; kind: BossKind }
+  | { type: 'ambush'; kind: UnitKind }
+  | { type: 'frenzy' }
+  | { type: 'rift'; edge: EdgeId }
 
 export type Status = 'running' | 'directorWon' | 'survivorWon'
 

@@ -1,0 +1,17 @@
+{
+  "title": "Reverse Survivors: director powers (ambush, frenzy, rift)",
+  "objective": "Give the director three powers beyond spawn/wave/boss, buying back some control over where enemies appear. Ambush places a unit next to the survivor at a premium, Frenzy drives the horde harder for six seconds, and Rift pins spawns to one edge for ten. Placement becomes purchasable rather than free.",
+  "acceptance_criteria": [
+    "`npm run check` passes standalone: tsc --noEmit clean, eslint --max-warnings 0 clean, vitest at 100% on all four metrics.",
+    "Existing seeded replays are unaffected: the unpinned edgeSpawnPos path draws the same RNG values in the same order as before.",
+    "Ambush placement is deterministic and draws no RNG.",
+    "Ambush lanes never repeat, including past a full turn.",
+    "Frenzy scales every damage channel - contact, projectile and blast - not just melee.",
+    "Each power is independently gated by cooldown and affordability, and rejects cleanly when either fails."
+  ],
+  "out_of_scope": [
+    "Difficulty tiers, which ship as a separate commit.",
+    "Letting the player choose the ambush unit: the bar binds it to a fixed cheap unit so SpawnBar stays a pure snapshot-to-buttons function with no local state."
+  ],
+  "verifier": "npm run check (typecheck + eslint --max-warnings 0 + vitest --coverage at 100%), plus director.test.ts assertions on cooldown gating, lane rotation across 24 summons, and rift edge pinning"
+}

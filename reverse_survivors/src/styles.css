@@ -243,3 +243,19 @@ body {
   .board { flex-direction: column; }
   .hud { width: 100%; }
 }
+
+.card-power { border-color: var(--arcane); }
+.card-rift { border-color: var(--bone-dim); }
+.card-rift-active { border-color: var(--holy); color: var(--holy); }
+
+.frenzy-banner {
+  margin: 10px 0 0;
+  padding: 5px 9px;
+  border: 1px solid var(--blood);
+  border-radius: 4px;
+  color: var(--blood);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+}

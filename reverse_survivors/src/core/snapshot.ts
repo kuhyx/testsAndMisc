@@ -1,10 +1,16 @@
 import { waveCost } from './director'
-import type { BossKind, GameState, Status, StatusKind, UnitKind, UpgradeId } from './types'
+import type {
+  BossKind, EdgeId, GameState, PowerKind, Status, StatusKind, UnitKind, UpgradeId,
+} from './types'
 import {
-  BOSS_ORDER, BOSS_UNLOCK_AT, ENERGY_CAP, ENEMY_SPECS, STATUS_LABELS, STATUS_ORDER, UNIT_ORDER,
+  BOSS_ORDER, BOSS_UNLOCK_AT, EDGE_NAMES, EDGE_ORDER, ENERGY_CAP, ENEMY_SPECS, POWER_COST,
+  POWER_NAMES, POWER_ORDER, STATUS_LABELS, STATUS_ORDER, UNIT_ORDER,
 } from './types'
 
 export type BossPhase = 'locked' | 'cooling' | 'ready'
+
+/** Ambush summons a fixed cheap unit, so the bar needs no unit-selection mode. */
+export const AMBUSH_UNIT: UnitKind = 'rusher'
 
 export interface UnitButton {
   kind: UnitKind
@@ -26,6 +32,21 @@ export interface BossButton {
 export interface UpgradeEntry {
   n: number
   id: UpgradeId
+}
+
+export interface PowerButton {
+  kind: PowerKind
+  name: string
+  cost: number
+  cooldown: number
+  ready: boolean
+  affordable: boolean
+}
+
+export interface EdgeButton {
+  edge: EdgeId
+  name: string
+  active: boolean
 }
 
 export interface StatusChip {
@@ -51,6 +72,11 @@ export interface HudSnapshot {
   units: UnitButton[]
   bosses: BossButton[]
   statuses: StatusChip[]
+  powers: Record<PowerKind, PowerButton>
+  edges: EdgeButton[]
+  frenzyActive: boolean
+  riftSeconds: number
+  ambushKind: UnitKind
   outcomeTime: number
 }
 
@@ -62,6 +88,29 @@ const bossPhase = (state: GameState, kind: BossKind): BossPhase => {
     return 'cooling'
   }
   return 'ready'
+}
+
+/** Ambush also pays for the unit it summons; the others carry no surcharge. */
+const POWER_SURCHARGE: Record<PowerKind, number> = {
+  ambush: ENEMY_SPECS[AMBUSH_UNIT].cost,
+  frenzy: 0,
+  rift: 0,
+}
+
+const powerButtons = (state: GameState): Record<PowerKind, PowerButton> => {
+  const out = {} as Record<PowerKind, PowerButton>
+  for (const kind of POWER_ORDER) {
+    const cost = POWER_COST[kind] + POWER_SURCHARGE[kind]
+    out[kind] = {
+      kind,
+      name: POWER_NAMES[kind],
+      cost,
+      cooldown: Math.ceil(state.director.powerCooldowns[kind]),
+      ready: state.director.powerCooldowns[kind] === 0,
+      affordable: state.director.energy >= cost,
+    }
+  }
+  return out
 }
 
 export const snapshotOf = (state: GameState): HudSnapshot => ({
@@ -100,5 +149,14 @@ export const snapshotOf = (state: GameState): HudSnapshot => ({
     cooldown: Math.ceil(state.director.bossCooldowns[kind]),
     affordable: state.director.energy >= ENEMY_SPECS[kind].cost,
   })),
+  powers: powerButtons(state),
+  edges: EDGE_ORDER.map((edge) => ({
+    edge,
+    name: EDGE_NAMES[edge],
+    active: state.director.riftTimer > 0 && state.director.riftEdge === edge,
+  })),
+  frenzyActive: state.director.frenzyTimer > 0,
+  riftSeconds: Math.ceil(state.director.riftTimer),
+  ambushKind: AMBUSH_UNIT,
   outcomeTime: state.outcomeTime,
 })

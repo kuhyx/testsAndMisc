@@ -4,7 +4,9 @@ import {
   xpForLevel,
 } from './sim'
 import type { GameState, Projectile } from './types'
-import { ARENA, GAME_DURATION, STATUS_POWER } from './types'
+import {
+  ARENA, FRENZY_DAMAGE, FRENZY_SPEED, GAME_DURATION, STATUS_POWER,
+} from './types'
 
 const CENTER = { x: ARENA.w / 2, y: ARENA.h / 2 }
 
@@ -580,5 +582,76 @@ describe('status effects', () => {
     step(s, [], 0.001)
     const own = s.projectiles.find((p) => p.from === 'survivor')
     expect(own?.debuffDuration).toBe(0)
+  })
+})
+
+describe('frenzy', () => {
+  it('speeds the horde while it lasts', () => {
+    const base = fresh()
+    const b = makeEnemy(base, 'rusher', { x: CENTER.x + 300, y: CENTER.y })
+    step(base, [], 0.05)
+    const normal = CENTER.x + 300 - b.pos.x
+
+    const hyped = fresh()
+    hyped.director.frenzyTimer = 5
+    const h = makeEnemy(hyped, 'rusher', { x: CENTER.x + 300, y: CENTER.y })
+    step(hyped, [], 0.05)
+    const rushed = CENTER.x + 300 - h.pos.x
+
+    expect(rushed).toBeCloseTo(normal * FRENZY_SPEED, 5)
+  })
+
+  it('raises contact damage while it lasts', () => {
+    const s = fresh()
+    s.director.frenzyTimer = 5
+    makeEnemy(s, 'rusher', { x: CENTER.x, y: CENTER.y })
+    step(s, [], 0.01)
+    expect(s.survivor.hp).toBeCloseTo(100 - 6 * FRENZY_DAMAGE, 5)
+  })
+
+  it('expires back to baseline speed', () => {
+    const s = fresh()
+    s.director.frenzyTimer = 0.01
+    const e = makeEnemy(s, 'rusher', { x: CENTER.x + 300, y: CENTER.y })
+    step(s, [], 0.5)
+    expect(s.director.frenzyTimer).toBe(0)
+    const after = e.pos.x
+    step(s, [], 0.05)
+    const moved = after - e.pos.x
+    expect(moved).toBeCloseTo(170 * 0.05, 5)
+  })
+})
+
+describe('frenzy damage reaches every channel', () => {
+  // Regression: frenzy multiplied contact damage only, so ranged and blast
+  // units — including the bomber, whose whole purpose is damage — ignored it.
+  const dealt = (frenzied: boolean, kind: 'warden' | 'artillery' | 'bomber', at: number): number => {
+    const s = fresh(3)
+    s.survivor.hp = 1e6
+    s.survivor.maxHp = 1e6
+    s.survivor.speed = 0
+    s.duration = 1e6
+    if (frenzied) {
+      s.director.frenzyTimer = 1e6
+    }
+    makeEnemy(s, kind, { x: CENTER.x + at, y: CENTER.y })
+    const before = s.survivor.hp
+    for (let i = 0; i < 360; i += 1) {
+      step(s, [], 1 / 60)
+    }
+    return before - s.survivor.hp
+  }
+
+  it('scales contact damage', () => {
+    expect(dealt(true, 'warden', 0)).toBeCloseTo(dealt(false, 'warden', 0) * FRENZY_DAMAGE, 5)
+  })
+
+  it('scales ranged damage', () => {
+    expect(dealt(true, 'artillery', 300))
+      .toBeCloseTo(dealt(false, 'artillery', 300) * FRENZY_DAMAGE, 5)
+  })
+
+  it('scales blast damage', () => {
+    expect(dealt(true, 'bomber', 0)).toBeCloseTo(dealt(false, 'bomber', 0) * FRENZY_DAMAGE, 5)
   })
 })

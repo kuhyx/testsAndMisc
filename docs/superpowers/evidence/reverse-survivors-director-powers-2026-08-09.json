@@ -1,0 +1,47 @@
+{
+  "intent": "Add three director powers - ambush, frenzy and rift - giving the player priced control over enemy placement and a burst tempo lever.",
+  "scope": [
+    "reverse_survivors/src/core/types.ts (PowerKind, costs/cooldowns, EdgeId, DirectorState fields, new DirectorAction variants)",
+    "reverse_survivors/src/core/director.ts (spendPower gate, ambush/frenzy/rift, rift-aware edgeSpawnPos)",
+    "reverse_survivors/src/core/sim.ts (frenzy speed and damage), snapshot.ts, src/ui/SpawnBar.tsx, src/ui/Hud.tsx, src/styles.css",
+    "Non-goal: difficulty tiers ship as their own commit"
+  ],
+  "changes": [
+    "A shared spendPower gate handles cooldown and affordability for all three powers, so each additional power costs no new branches in the dispatcher.",
+    "EDGES converted from an array to Record<EdgeId, EdgeFn>: under noUncheckedIndexedAccess an array index would be possibly-undefined and force an unreachable fallback branch, whereas a finite-union Record stays non-optional.",
+    "Ambush placement uses a golden-angle step so successive summons never reuse a lane. An earlier 2*PI/7 formulation was caught in review: it silently cycled every 7 summons, with index 7 landing byte-identically on index 0.",
+    "Frenzy damage derives from one shared frenzyDamageMul helper. Review caught that an earlier version multiplied contact damage only, leaving enemy projectiles and bomber blasts unscaled - which contradicted the README and left the bomber, whose contactDamage is 0, entirely unaffected.",
+    "MOVE_FNS gained a speed parameter so frenzy (and later difficulty) multiply in one place rather than at three call sites.",
+    "The README's former promise that enemy placement is never the player's to choose is deliberately reversed here and documented as such."
+  ],
+  "verification": [
+    {
+      "command": "npm run check (typecheck + eslint --max-warnings 0 + vitest --coverage)",
+      "result": "pass",
+      "evidence": "145 tests passed. Coverage 100% on all four metrics: statements 516/516, branches 153/153, functions 96/96, lines 499/499."
+    },
+    {
+      "command": "ambush lane probe via vite-node",
+      "result": "pass",
+      "evidence": "24 consecutive ambushes produced 24 distinct spawn positions. Before the golden-angle fix the same probe produced only 7, with index 7 identical to index 0 at (610.0000, 300.0000)."
+    },
+    {
+      "command": "frenzy damage-channel probe via vite-node",
+      "result": "pass",
+      "evidence": "Ratios with frenzy on vs off, measured over 360 ticks: warden contact 1.300, artillery projectile 1.300, stalker projectile 1.300, bomber blast 1.300. Before the fix the last three measured 1.000."
+    },
+    {
+      "command": "RNG-identity check against the pre-change implementation",
+      "result": "pass",
+      "evidence": "The old array-based pick was reimplemented from git HEAD and compared across 50 seeds x 20 calls on both the returned position and the final RNG state: 0 mismatches. Existing seeded replays are unchanged."
+    }
+  ],
+  "risks": [
+    "Powers are gated by cooldown rather than energy alone, because late-game income reaches 24/s and an energy-only gate would degenerate into spamming the highest-value button.",
+    "Ambush lets the director bypass the survivor's kiting AI, which is the intended counter to its late-game power curve but is the most likely thing to need retuning."
+  ],
+  "rollback": [
+    "git revert the commit; no persisted state or data migration is involved.",
+    "After rollback run `npm run check` in reverse_survivors/ and confirm the suite passes at 100% coverage."
+  ]
+}

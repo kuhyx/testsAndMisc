@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import type { BossButton } from '../core/snapshot'
+import type { BossButton, PowerButton } from '../core/snapshot'
 import type { HudSnapshot } from '../core/snapshot'
 import type { DirectorAction } from '../core/types'
 
@@ -18,8 +18,12 @@ const bossCaption = (b: BossButton): string => {
   return `${String(b.cost)} souls`
 }
 
+const powerCaption = (p: PowerButton): string =>
+  p.ready ? `${String(p.cost)} souls` : `recovering ${String(p.cooldown)}s`
+
 export const SpawnBar = ({ snap, onAction }: Props): ReactElement => {
   const running = snap.status === 'running'
+  const { ambush, frenzy, rift } = snap.powers
   return (
     <nav className="spawnbar" aria-label="Summoning">
       {snap.units.map((u) => (
@@ -53,6 +57,36 @@ export const SpawnBar = ({ snap, onAction }: Props): ReactElement => {
         >
           <span className="card-name">{b.name}</span>
           <span className="card-cost">{bossCaption(b)}</span>
+        </button>
+      ))}
+      <button
+        type="button"
+        className="card card-power"
+        disabled={!running || !ambush.ready || !ambush.affordable}
+        onClick={() => { onAction({ type: 'ambush', kind: snap.ambushKind }) }}
+      >
+        <span className="card-name">Ambush</span>
+        <span className="card-cost">{powerCaption(ambush)}</span>
+      </button>
+      <button
+        type="button"
+        className="card card-power"
+        disabled={!running || !frenzy.ready || !frenzy.affordable}
+        onClick={() => { onAction({ type: 'frenzy' }) }}
+      >
+        <span className="card-name">Frenzy</span>
+        <span className="card-cost">{powerCaption(frenzy)}</span>
+      </button>
+      {snap.edges.map((e) => (
+        <button
+          key={`edge-${String(e.edge)}`}
+          type="button"
+          className={e.active ? 'card card-rift card-rift-active' : 'card card-rift'}
+          disabled={!running || !rift.ready || !rift.affordable}
+          onClick={() => { onAction({ type: 'rift', edge: e.edge }) }}
+        >
+          <span className="card-name">{e.name}</span>
+          <span className="card-cost">{e.active ? `open ${String(snap.riftSeconds)}s` : 'rift'}</span>
         </button>
       ))}
     </nav>
