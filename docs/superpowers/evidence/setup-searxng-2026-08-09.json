@@ -62,6 +62,21 @@
       "evidence": "All CSS/JS/img/manifest same-origin (/static/...). ZERO inline scripts (the single <script> has src= and passes config via a base64 client_settings attribute). ZERO inline style= attributes. Autocomplete is same-origin /autocompleter (200). JS bundle references zero absolute external origins. Image results use data-src=\"/image_proxy?url=...\" (780 occurrences, same-origin lazy-load) -- external URLs appear only as encoded query params, never as fetch targets, so img-src 'self' data: is safe."
     },
     {
+      "command": "engine pruning round 2 (kuhy-selected from /preferences, 9 groups, all categories)",
+      "result": "pass -- 84 engines disabled, 0 unresponsive in every category",
+      "evidence": "Disabled every erroring engine (CAPTCHA/access denied/timeout/parsing error/crash) plus the slow tail across general, images, videos, news, music, it, science, files and social media. Three engines NOT in kuhy's list surfaced as unresponsive only under load and were pruned with the rest: brave.images, startpage images, kickass. Post-prune per-category (q=linux): general 572ms/20, images 406ms/20, videos 1378ms/119, news 455ms/52, music 461ms/48, it 1698ms/114, science 1338ms/50, files 584ms/125, social media 1074ms/120 -- unresponsive_engines=[] for ALL nine."
+    },
+    {
+      "command": "images category under 1 second (kuhy's explicit ask)",
+      "result": "pass -- 406-900ms, was 2.1s",
+      "evidence": "12 queries measured post-prune: cat 900, dog 343, arch+linux 501, mountain 446, coffee 687, bridge 511, sunset 612, laptop 450, guitar 461, ocean 504, forest 624, city 450 ms -- all sub-1s, still 20 results each. ROOT CAUSE of the old 2.1s was NOT google cse images being slow (1.1s): SearXNG waits for the slowest engine in the category, so quark images at 2.9s set the floor. Removing the other image engines removed the ceiling, and also freed connection-pool contention."
+    },
+    {
+      "command": "general-search single-point-of-failure check (correcting an earlier wrong claim)",
+      "result": "documented in-file + guarded in status",
+      "evidence": "Initially asserted general search retained 'three working sources' (google cse + google + bing) because !go returned 20 and !bi returned 10. That was WRONG: upstream marks both google and bing 'inactive: true', so they answer ONLY to an explicit bang and were never in the merged view. The merged general view is served by google cse alone, and was before this pruning too -- so the pruning removed only zero-contribution engines, but general search does have a single point of failure. Comment corrected in settings.yml and status_cmd now prints the !go/!bi fallback if a live search returns 0 results."
+    },
+    {
       "command": "real browser load + search (Thorium with the Claude extension)",
       "result": "pass -- CSP confirmed by a rendering engine, closing the last gap",
       "evidence": "Front page renders fully styled (logo, search box, About/Preferences, footer 2026.8.4+cd3835bd2). Text search 'arch linux wiki' returned ArchWiki/Wikipedia/Reddit/LWN/GitHub results in 0.9s with favicons + thumbnails loading. Image search returned hundreds of proxied thumbnails in 2.1s. Autocomplete dropdown fired on typing (a fetch to /autocompleter), proving connect-src 'self'. UNFILTERED console over the whole session: 4 messages, all benign '[PLUGIN] calculator: Running/Done' DEBUG lines from SearXNG's own bundle -- ZERO 'Refused to load/execute/apply' CSP violations. The '?' placeholder tiles in image results are dead upstream URLs (origin 404s), not blocked requests; a CSP block would have logged a Refused-to-load per image."

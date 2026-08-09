@@ -279,22 +279,132 @@ ui:
 # Re-check periodically with:
 #   curl -s 'http://127.0.0.1:${SEARX_PORT}/search?q=test&format=json' \\
 #     | grep -o '"unresponsive_engines":.*'
+# Engine pruning, kuhy-selected 2026-08-09 from the /preferences engine table:
+# every engine that was erroring (CAPTCHA / access denied / timeout / parsing
+# error / crash) plus the slow tail, across all categories.
+#
+# Retained on purpose: google cse, wikipedia/wikidata and the specialist
+# lookups (arch linux wiki, github, stackexchange, pypi, ...).
+#
+# IMPORTANT about general search: the merged general view is served by
+# google cse ALONE, and was before this pruning too. The plain google and bing
+# engines are marked "inactive: true" upstream, meaning they only run when
+# explicitly invoked with a bang (!go -> 20 results, !bi -> 10, both
+# verified working). So the pruning removed only engines that were already
+# contributing zero results -- but it also means general search has a single
+# point of failure. If google cse ever starts erroring, general search returns
+# nothing until another engine is enabled or !go/!bi is used.
+#
+# pinterest is blackholed to 0.0.0.0 by this host's own /etc/hosts
+# (generate_hosts_file.sh) -- a LOCAL failure that looks identical to a dead
+# upstream. Disabled to stop the pointless request, not because the engine is bad.
+#
+# Re-check periodically:
+#   curl -s 'http://127.0.0.1:8090/search?q=test&format=json' | grep -o '"unresponsive_engines":.*'
 engines:
-  # --- CAPTCHA / actively blocking this IP (100% failure across every query) ---
-  - name: brave
-    disabled: true          # "Suspended: too many requests" on every query
-  - name: duckduckgo
-    disabled: true          # CAPTCHA on every query
-  - name: startpage
-    disabled: true          # "Suspended: CAPTCHA" on every query
+  # === general ===
+  - { name: brave, disabled: true }             # too many requests
+  - { name: duckduckgo, disabled: true }        # CAPTCHA
+  - { name: startpage, disabled: true }         # Suspended: CAPTCHA
+  - { name: dogpile, disabled: true }           # access denied
+  - { name: encyclosearch, disabled: true }     # timeout
+  - { name: fastbot, disabled: true }           # access denied
+  - { name: fireball, disabled: true }          # access denied
+  - { name: quark, disabled: true }             # unexpected crash
+  - { name: qwant, disabled: true }             # CAPTCHA
+  - { name: sogou, disabled: true }             # CAPTCHA
+  - { name: tusksearch, disabled: true }        # HTTP error
+  - { name: yahoo, disabled: true }             # HTTP protocol error
+  - { name: yep, disabled: true }               # access denied
+  - { name: naver, disabled: true }             # 1.9s
+  - { name: baidu, disabled: true }             # 1.7s
+  - { name: abcnyheter, disabled: true }        # 1.5s
+  - { name: boardreader, disabled: true }       # 1.5s
+  - { name: crowdview, disabled: true }         # 1.0s
 
-  # --- blocked locally, not upstream ---
-  - name: pinterest
-    disabled: true          # 0.0.0.0 in /etc/hosts on this host
+  # === images === (keeping ONLY google cse images)
+  - { name: dogpile images, disabled: true }    # access denied
+  - { name: findfiles images, disabled: true }  # unexpected crash
+  - { name: library of congress, disabled: true } # parsing error
+  - { name: pinterest, disabled: true }         # 0.0.0.0 in /etc/hosts (local)
+  - { name: qwant images, disabled: true }      # CAPTCHA
+  - { name: tusksearch images, disabled: true } # HTTP error
+  - { name: wikicommons.images, disabled: true } # too many requests
+  - { name: yandex images, disabled: true }     # parsing error
+  - { name: quark images, disabled: true }      # 2.9s
+  - { name: 1x, disabled: true }                # 2.5s
+  - { name: baidu images, disabled: true }      # 2.5s
+  - { name: picjumbo, disabled: true }          # 2.4s
+  - { name: naver images, disabled: true }      # 2.3s
+  - { name: sogou images, disabled: true }      # 2.0s
+  - { name: unsplash, disabled: true }          # 1.2s
+  - { name: duckduckgo images, disabled: true }
+  - { name: flickr, disabled: true }            # 1.0s
+  - { name: bing images, disabled: true }       # cut for the sub-1s images goal
+  - { name: deviantart, disabled: true }        # cut for the sub-1s images goal
+  - { name: openverse, disabled: true }         # cut for the sub-1s images goal
+  - { name: pexels, disabled: true }            # cut for the sub-1s images goal
+  - { name: artic, disabled: true }             # cut for the sub-1s images goal
+  - { name: devicons, disabled: true }          # cut for the sub-1s images goal
+  - { name: lucide, disabled: true }            # cut for the sub-1s images goal
+  - { name: wallhaven, disabled: true }         # cut for the sub-1s images goal
+  # Not in the /preferences list kuhy sent -- these only surfaced as
+  # unresponsive under load, same failure pattern, so pruned with the rest.
+  - { name: brave.images, disabled: true }      # too many requests
+  - { name: startpage images, disabled: true }  # Suspended: CAPTCHA
 
-  # --- slow tail (>= 1.0s median, measured) ---
-  - name: flickr
-    disabled: true          # 1.0s median, image-only, redundant with the rest
+  # === videos ===
+  - { name: 360search videos, disabled: true }  # unexpected crash
+  - { name: acfun, disabled: true }             # timeout
+  - { name: brave.videos, disabled: true }      # too many requests
+  - { name: dogpile videos, disabled: true }    # access denied
+  - { name: fireball videos, disabled: true }   # access denied
+  - { name: niconico, disabled: true }          # HTTP connection error
+  - { name: pixabay videos, disabled: true }    # timeout
+  - { name: tusksearch videos, disabled: true } # HTTP error
+  - { name: vimeo, disabled: true }             # access denied
+  - { name: youtube, disabled: true }           # HTTP connection error
+  - { name: naver videos, disabled: true }      # 2.4s
+  - { name: sogou videos, disabled: true }      # 2.0s
+  - { name: iqiyi, disabled: true }             # 1.3s
+  - { name: rumble, disabled: true }            # 1.3s
+
+  # === news ===
+  - { name: bing news, disabled: true }         # parsing error
+  - { name: brave.news, disabled: true }        # too many requests
+  - { name: dogpile news, disabled: true }      # access denied
+  - { name: fireball news, disabled: true }     # access denied
+  - { name: google news, disabled: true }       # Suspended: CAPTCHA
+  - { name: startpage news, disabled: true }    # Suspended: CAPTCHA
+  - { name: tusksearch news, disabled: true }   # HTTP error
+  - { name: sogou wechat, disabled: true }      # 1.7s
+  - { name: naver news, disabled: true }        # 1.7s
+
+  # === music ===
+  - { name: radio browser, disabled: true }     # HTTP error
+  - { name: yandex music, disabled: true }      # HTTP error
+
+  # === it ===
+  - { name: codeberg, disabled: true }          # timeout
+  - { name: metacpan, disabled: true }          # HTTP error
+  - { name: nixos wiki, disabled: true }        # timeout
+  - { name: baidu kaifa, disabled: true }       # 2.0s
+  - { name: gitea.com, disabled: true }         # 1.8s
+  - { name: rubygems, disabled: true }          # 1.1s
+
+  # === science ===
+  - { name: openairepublications, disabled: true } # 2.7s
+  - { name: openairedatasets, disabled: true }  # 2.7s
+
+  # === files ===
+  - { name: 1337x, disabled: true }             # HTTP connection error
+  - { name: btdigg, disabled: true }            # 1.5s
+  - { name: findfiles, disabled: true }         # 1.2s
+  - { name: kickass, disabled: true }           # HTTP connection error (surfaced under load)
+
+  # === social media ===
+  - { name: 9gag, disabled: true }              # access denied
+  - { name: tootfinder, disabled: true }        # access denied
 EOF
 	# 640, NOT 600. The entrypoint chowns this file to the container's searxng
 	# user (uid 977), but granian's worker runs as a different uid and only has
@@ -736,6 +846,15 @@ status_cmd() {
 	local dead
 	dead="$(grep -oE '"unresponsive_engines": \[\[[^]]*' <<<"$json" | head -c 300 || true)"
 	[[ -n $dead ]] && log_info "unresponsive engines: ${dead#*: }"
+
+	# After pruning, general search is served by google cse alone (google/bing
+	# are inactive: true upstream and only answer to !go / !bi). That is a single
+	# point of failure worth naming explicitly rather than discovering as "no
+	# results", so check the engine that is actually carrying the category.
+	if [[ ${hits:-0} -eq 0 ]]; then
+		log_warn "general search has no working engine — try: !go <query> / !bi <query>,"
+		log_warn "or re-enable an engine in the 'engines:' block of ${SEARX_SETTINGS}"
+	fi
 
 	log_info "Not checked here (needs another machine): the JSON API under bot"
 	log_info "detection. Run from your phone on cellular, not from this host:"
