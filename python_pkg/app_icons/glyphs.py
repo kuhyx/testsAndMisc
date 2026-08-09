@@ -182,6 +182,36 @@ M 472 470 A 40 40 0 1 0 552 470 A 40 40 0 1 0 472 470 Z \
 M 512 700 L 492 580 L 532 580 Z"/>"""
 
 
+# A blacksmith's anvil: OctoForge is a GitHub client, and the forge is the
+# name. Filled rather than stroked, for the same reason as the nib — a stroked
+# anvil outline is a long thin horn plus a narrow waist, and at the family's
+# 72px weight the waist closes up solid at 48dp.
+#
+# The obvious alternatives were rejected: an octopus (the Octocat) is both
+# GitHub trade dress and a tangle of thin curves that blurs at launcher size,
+# and a hammer alone collides with nothing in the family but reads as a generic
+# tool rather than a forge. The anvil silhouette is unmistakable and shares no
+# shape language with the other nine glyphs.
+#
+# Geometry: the body is a face slab (x=336..768, y=316..420), a waist
+# (x=444..596, y=420..592) and a flared foot (x=304..716, y=592..708) — total
+# ink 512x392 including the horn, inside SAFE_BOX once the renderer scales it.
+#
+# The horn is what makes this an anvil rather than an I-beam, so it is a
+# separate wedge projecting left off the face, not a rounded corner on it: it
+# leaves the slab at full 104px depth (x=336) and tapers to a 40px blunt tip
+# at x=256, dropping the underside from y=420 to y=392 on the way. A sharp
+# point would disappear at 48dp; 40px is above MIN_NEGATIVE_SPACE so it
+# survives. The first two drafts folded the taper into the slab's left end and
+# both read as a bump.
+_ANVIL = """\
+    <path fill="{{ACCENT}}" stroke="none" d="\
+M 768 316 L 768 420 L 596 420 \
+Q 592 512 592 592 L 716 592 L 716 708 L 304 708 L 304 592 L 428 592 \
+Q 428 512 424 420 L 336 420 \
+L 256 392 Q 248 376 256 360 L 336 316 Z"/>"""
+
+
 GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
     for glyph in (
@@ -194,6 +224,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("storage-box", "Isometric storage carton", _STORAGE_BOX),
         Glyph("receipt-split", "Torn receipt with a perforated split", _RECEIPT_SPLIT),
         Glyph("quill-nib", "Dip-pen nib with vent hole and slit", _QUILL_NIB),
+        Glyph("anvil", "Blacksmith's anvil with horn and flared foot", _ANVIL),
     )
 }
 

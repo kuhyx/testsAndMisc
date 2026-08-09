@@ -130,6 +130,18 @@ APPS: Final[dict[str, AppIcon]] = {
             # the table, so it ships no desktop entry and gets no hicolor set.
             linux=False,
         ),
+        AppIcon(
+            key="octoforge",
+            # The Flutter app is a subdirectory of the repo: the repo root
+            # holds the pure-Dart core and the tooling alongside it.
+            repo=_HOME / "octoforge" / "octoforge" / "app",
+            accent="#B8862E",
+            glyph="anvil",
+            icon_name="octoforge",
+            # Unlike the other phone-first apps, this one is genuinely used on
+            # the desktop too, so it gets the hicolor set and a desktop entry.
+            linux=True,
+        ),
     )
 }
 
