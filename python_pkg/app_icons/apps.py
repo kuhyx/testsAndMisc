@@ -142,6 +142,17 @@ APPS: Final[dict[str, AppIcon]] = {
             # the desktop too, so it gets the hicolor set and a desktop entry.
             linux=True,
         ),
+        AppIcon(
+            key="kuhylog",
+            repo=_HOME / "kuhylog" / "kuhylog",
+            accent="#B8862E",
+            glyph="track-bars",
+            icon_name="kuhylog",
+            # Android is the real target (home-screen widget, quick-settings
+            # tile); the Linux build exists for trying the UI without a phone,
+            # so it still wants the hicolor set.
+            linux=True,
+        ),
     )
 }
 

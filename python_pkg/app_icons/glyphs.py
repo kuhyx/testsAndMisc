@@ -211,6 +211,18 @@ Q 592 512 592 592 L 716 592 L 716 708 L 304 708 L 304 592 L 428 592 \
 Q 428 512 424 420 L 336 420 \
 L 256 392 Q 248 376 256 360 L 336 316 Z"/>"""
 
+# Three rising bars with a plotted point above the tallest -- a day-by-day log
+# that adds up to a trend, which is what a life tracker is. The bars are
+# strokes rather than filled rects so the glyph keeps one stroke weight
+# throughout; at a 168px pitch the 72px strokes leave 96px gaps, well above
+# MIN_NEGATIVE_SPACE. The marker sits on its own row clear of the bar caps,
+# and is hollow so it reads as a data point rather than a full stop.
+_TRACK_BARS = """\
+    <path d="M 320 700 L 320 556"/>
+    <path d="M 488 700 L 488 460"/>
+    <path d="M 656 700 L 656 364"/>
+    <circle cx="656" cy="252" r="40" fill="none"/>"""
+
 
 GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
@@ -225,6 +237,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("receipt-split", "Torn receipt with a perforated split", _RECEIPT_SPLIT),
         Glyph("quill-nib", "Dip-pen nib with vent hole and slit", _QUILL_NIB),
         Glyph("anvil", "Blacksmith's anvil with horn and flared foot", _ANVIL),
+        Glyph("track-bars", "Rising log bars with a plotted trend point", _TRACK_BARS),
     )
 }
 
