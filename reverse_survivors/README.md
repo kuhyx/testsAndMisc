@@ -14,14 +14,32 @@ npm run dev
 ```
 
 - **Rusher / Stalker / Tank / Bomber** — single spawns at a random arena edge.
+- **Splitter** — dies into three rushers. Killing it _creates_ pressure.
+- **Artillery** — outranges the survivor (460 vs its 260) and holds station beyond
+  reach. Its shells **stifle**, stretching the survivor's reload.
+- **Warden** — faster than the survivor and **mires** it on contact.
 - **Wave N** — a ring formation around the survivor; each call grows and costs more.
-- **Colossus** (unlocks 1:00) and **Hivemind** (unlocks 2:00) — expensive, on cooldown.
-  The Hivemind births free rushers while it lives.
+- **Colossus** (1:00), **Hivemind** (2:00) and **Leech** (3:00) — expensive, on
+  cooldown. The Hivemind births free rushers; the Leech's touch **unknits** flesh,
+  shutting off regeneration while it lives.
+- **Ambush** places a unit right next to the survivor, at a premium.
+  **Frenzy** drives the whole horde faster and harder for six seconds.
+  **Rift** pins every spawn to one edge for ten, so you can mass a flank.
 - The survivor gains XP per kill and rolls an upgrade per level
   (damage, fire rate, speed, vitality, regen, multishot). Time favors it. Pressure early.
+- **Haunting / Normal / Crusade** scale enemy hp and speed, the survivor's health,
+  your income, and the length of the night.
 
-Where enemies appear is deliberately not yours to choose — the director picks
-_what_ and _when_; the seeded RNG picks _where_.
+Placement is purchasable, never free. By default the director picks _what_ and
+_when_ while the seeded RNG picks _where_ — Ambush and Rift buy that choice back,
+one at a premium and the other at a cooldown.
+
+> Earlier versions made the loss of placement control absolute. Ambush and Rift
+> deliberately reverse that: the interesting decision turned out to be _what a
+> placement is worth_, not being denied one.
+
+All three debuffs need contact — a survivor that kites cleanly takes none of them —
+and they refresh rather than stack, so a horde can never chain-lock the intruder.
 
 ## Quality gates
 
@@ -42,6 +60,11 @@ ESLint 10.8.0 · typescript-eslint 8.65.0 · TypeScript **6.0.3**.
 
 ## Architecture (what makes 100 % honest)
 
+- `src/core/status.ts` — the survivor's debuff timers. `isOn`/`factor` are written
+  as arithmetic (`Math.min(1, Math.ceil(t))`) rather than comparisons, so the whole
+  status system contributes **zero branches** to the coverage gate; consumers just
+  multiply by the result. `applyStatus` uses `Math.max`, which is what makes
+  refresh-not-stack a structural guarantee rather than a tuned number.
 - `src/core/` — the whole game as pure-ish functions over a plain state object.
   Deterministic: seeded mulberry32 RNG lives _in_ the state; same seed + same
   action sequence ⇒ identical run. Behavior dispatch uses records instead of

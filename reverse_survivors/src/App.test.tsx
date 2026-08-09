@@ -60,6 +60,17 @@ describe('App', () => {
     expect(screen.getByText('30 / 400')).toBeInTheDocument()
   })
 
+  it('restarts on a new tier when the difficulty is changed', () => {
+    const raf = installRaf()
+    render(<App seed={9} />)
+    pump(raf, 0)
+    // Normal runs 5:00; Crusade runs 6:00, so the clock proves the tier took.
+    expect(screen.getByText(/\/ 5:00/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Crusade' }))
+    expect(screen.getByText(/\/ 6:00/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Crusade' })).toHaveClass('diff-on')
+  })
+
   it('dispatches a director power from the bar', () => {
     const raf = installRaf()
     render(<App seed={9} boot={(state) => { state.director.energy = 400 }} />)

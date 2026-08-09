@@ -156,6 +156,36 @@ export const BOSS_COOLDOWN: Record<BossKind, number> = {
   colossus: 25, hivemind: 30, leech: 28,
 }
 
+export type DifficultyId = 'haunting' | 'normal' | 'crusade'
+
+export interface DifficultyConfig {
+  readonly label: string
+  readonly enemyHp: number
+  readonly enemySpeed: number
+  readonly survivorHp: number
+  readonly energyRate: number
+  readonly duration: number
+}
+
+/** `normal` is exactly 1 across the board, so it is the identity tier. */
+export const DIFFICULTIES: Record<DifficultyId, DifficultyConfig> = {
+  haunting: {
+    label: 'Haunting',
+    enemyHp: 0.85, enemySpeed: 0.95, survivorHp: 1.25, energyRate: 1.25, duration: 240,
+  },
+  normal: {
+    label: 'Normal',
+    enemyHp: 1, enemySpeed: 1, survivorHp: 1, energyRate: 1, duration: GAME_DURATION,
+  },
+  crusade: {
+    label: 'Crusade',
+    enemyHp: 1.2, enemySpeed: 1.05, survivorHp: 0.85, energyRate: 0.85, duration: 360,
+  },
+}
+export const DIFFICULTY_ORDER: readonly [DifficultyId, ...DifficultyId[]] = [
+  'haunting', 'normal', 'crusade',
+]
+
 export type PowerKind = 'ambush' | 'frenzy' | 'rift'
 export const POWER_ORDER: readonly [PowerKind, ...PowerKind[]] = ['ambush', 'frenzy', 'rift']
 export const POWER_NAMES: Record<PowerKind, string> = {
@@ -251,6 +281,7 @@ export type Status = 'running' | 'directorWon' | 'survivorWon'
 
 export interface GameState {
   status: Status
+  difficulty: DifficultyConfig
   t: number
   duration: number
   rng: Rng

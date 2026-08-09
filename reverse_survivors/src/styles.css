@@ -259,3 +259,18 @@ body {
   letter-spacing: 0.06em;
   text-align: center;
 }
+
+.difficulty { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+
+.diff {
+  background: none;
+  border: 1px solid var(--panel-edge);
+  border-radius: 4px;
+  color: var(--bone-dim);
+  cursor: pointer;
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  padding: 3px 10px;
+}
+
+.diff-on { border-color: var(--holy); color: var(--holy); }

@@ -301,3 +301,15 @@ describe('director powers', () => {
     expect(s.director.riftTimer).toBe(0)
   })
 })
+
+describe('difficulty economy', () => {
+  it('regen defaults to a rate of 1', () => {
+    expect(regenRate(0)).toBe(6)
+    expect(regenRate(30)).toBe(8)
+  })
+
+  it('regen scales with the tier rate', () => {
+    expect(regenRate(0, 1.25)).toBeCloseTo(7.5)
+    expect(regenRate(0, 0.85)).toBeCloseTo(5.1)
+  })
+})

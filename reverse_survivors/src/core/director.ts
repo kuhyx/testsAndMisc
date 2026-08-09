@@ -10,13 +10,13 @@ import type { Vec } from './vec'
 import { clamp } from './vec'
 
 /** Energy per second: ramps every 30 seconds so pressure always grows. */
-export const regenRate = (t: number): number => 6 + 2 * Math.floor(t / 30)
+export const regenRate = (t: number, rate = 1): number => (6 + 2 * Math.floor(t / 30)) * rate
 
 export const waveCost = (waveIndex: number): number => 60 + 25 * waveIndex
 
 export const tickDirector = (state: GameState, dt: number): void => {
   const d = state.director
-  d.energy = Math.min(ENERGY_CAP, d.energy + regenRate(state.t) * dt)
+  d.energy = Math.min(ENERGY_CAP, d.energy + regenRate(state.t, state.difficulty.energyRate) * dt)
   for (const boss of BOSS_ORDER) {
     d.bossCooldowns[boss] = Math.max(0, d.bossCooldowns[boss] - dt)
   }

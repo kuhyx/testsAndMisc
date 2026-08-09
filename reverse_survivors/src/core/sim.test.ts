@@ -5,7 +5,7 @@ import {
 } from './sim'
 import type { GameState, Projectile } from './types'
 import {
-  ARENA, FRENZY_DAMAGE, FRENZY_SPEED, GAME_DURATION, STATUS_POWER,
+  ARENA, DIFFICULTIES, FRENZY_DAMAGE, FRENZY_SPEED, GAME_DURATION, STATUS_POWER,
 } from './types'
 
 const CENTER = { x: ARENA.w / 2, y: ARENA.h / 2 }
@@ -619,6 +619,47 @@ describe('frenzy', () => {
     step(s, [], 0.05)
     const moved = after - e.pos.x
     expect(moved).toBeCloseTo(170 * 0.05, 5)
+  })
+})
+
+describe('difficulty tiers', () => {
+  it('defaults to normal, the identity tier', () => {
+    const s = fresh()
+    expect(s.difficulty).toBe(DIFFICULTIES.normal)
+    expect(s.survivor.maxHp).toBe(100)
+  })
+
+  it('accepts an explicit tier', () => {
+    const s = createInitialState(1, undefined, 'crusade')
+    expect(s.difficulty).toBe(DIFFICULTIES.crusade)
+  })
+
+  it('takes its duration from the tier when none is given', () => {
+    expect(createInitialState(1, undefined, 'haunting').duration)
+      .toBe(DIFFICULTIES.haunting.duration)
+  })
+
+  it('an explicit duration still wins over the tier', () => {
+    expect(createInitialState(1, 42, 'haunting').duration).toBe(42)
+  })
+
+  it('scales enemy hp', () => {
+    const s = createInitialState(1, undefined, 'crusade')
+    const e = makeEnemy(s, 'rusher', { x: 0, y: 0 })
+    expect(e.hp).toBeCloseTo(14 * DIFFICULTIES.crusade.enemyHp, 5)
+  })
+
+  it('scales survivor hp', () => {
+    const s = createInitialState(1, undefined, 'haunting')
+    expect(s.survivor.maxHp).toBe(125)
+  })
+
+  it('scales enemy speed', () => {
+    const s = createInitialState(1, undefined, 'crusade')
+    const e = makeEnemy(s, 'rusher', { x: CENTER.x + 300, y: CENTER.y })
+    step(s, [], 0.05)
+    const moved = CENTER.x + 300 - e.pos.x
+    expect(moved).toBeCloseTo(170 * DIFFICULTIES.crusade.enemySpeed * 0.05, 5)
   })
 })
 

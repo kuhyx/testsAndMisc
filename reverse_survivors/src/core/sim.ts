@@ -2,11 +2,12 @@ import { applyAction, tickDirector } from './director'
 import { createRng, pick } from './rng'
 import { applyStatus, factor, tickStatuses } from './status'
 import type {
-  DirectorAction, Enemy, EnemyKind, EnemySpec, GameState, Survivor, UpgradeId,
+  DifficultyConfig, DifficultyId, DirectorAction, Enemy, EnemyKind, EnemySpec, GameState,
+  Survivor, UpgradeId,
 } from './types'
 import {
-  ARENA, CONTACT_COOLDOWN, ENERGY_START, ENEMY_SPECS, FRENZY_DAMAGE, FRENZY_SPEED,
-  GAME_DURATION, STATUS_POWER, UPGRADE_POOL,
+  ARENA, CONTACT_COOLDOWN, DIFFICULTIES, ENERGY_START, ENEMY_SPECS, FRENZY_DAMAGE,
+  FRENZY_SPEED, STATUS_POWER, UPGRADE_POOL,
 } from './types'
 import type { Vec } from './vec'
 import { clamp, dist, toward } from './vec'
@@ -21,10 +22,10 @@ const CENTER: Vec = { x: ARENA.w / 2, y: ARENA.h / 2 }
 
 export const xpForLevel = (level: number): number => 20 + 15 * (level - 1)
 
-const createSurvivor = (): Survivor => ({
+const createSurvivor = (cfg: DifficultyConfig): Survivor => ({
   pos: { x: CENTER.x, y: CENTER.y },
-  hp: 100,
-  maxHp: 100,
+  hp: 100 * cfg.survivorHp,
+  maxHp: 100 * cfg.survivorHp,
   speed: 150,
   regen: 0,
   damage: 8,
@@ -38,28 +39,40 @@ const createSurvivor = (): Survivor => ({
   statuses: { slow: 0, suppress: 0, bleed: 0 },
 })
 
-export const createInitialState = (seed: number, duration = GAME_DURATION): GameState => ({
-  status: 'running',
-  t: 0,
-  duration,
-  rng: createRng(seed),
-  survivor: createSurvivor(),
-  enemies: [],
-  projectiles: [],
-  director: {
-    energy: ENERGY_START,
-    waveIndex: 0,
-    bossCooldowns: { colossus: 0, hivemind: 0, leech: 0 },
-    powerCooldowns: { ambush: 0, frenzy: 0, rift: 0 },
-    frenzyTimer: 0,
-    riftTimer: 0,
-    riftEdge: 0,
-    ambushIndex: 0,
-  },
-  upgrades: [],
-  nextId: 1,
-  outcomeTime: 0,
-})
+export const createInitialState = (
+  seed: number,
+  duration?: number,
+  difficulty: DifficultyId = 'normal',
+): GameState => {
+  const cfg = DIFFICULTIES[difficulty]
+  return {
+    status: 'running',
+    difficulty: cfg,
+    t: 0,
+    duration: duration ?? cfg.duration,
+    rng: createRng(seed),
+    survivor: createSurvivor(cfg),
+    enemies: [],
+    projectiles: [],
+    director: {
+      energy: ENERGY_START,
+      waveIndex: 0,
+      bossCooldowns: { colossus: 0, hivemind: 0, leech: 0 },
+      powerCooldowns: { ambush: 0, frenzy: 0, rift: 0 },
+      frenzyTimer: 0,
+      riftTimer: 0,
+      riftEdge: 0,
+      ambushIndex: 0,
+    },
+    upgrades: [],
+    nextId: 1,
+    outcomeTime: 0,
+  }
+}
+
+/** Single place enemy speed is derived: difficulty and frenzy both land here. */
+export const enemySpeed = (state: GameState, kind: EnemyKind, frenzyMul: number): number =>
+  ENEMY_SPECS[kind].speed * state.difficulty.enemySpeed * frenzyMul
 
 export const makeEnemy = (state: GameState, kind: EnemyKind, pos: Vec): Enemy => {
   const id = state.nextId
@@ -68,7 +81,7 @@ export const makeEnemy = (state: GameState, kind: EnemyKind, pos: Vec): Enemy =>
     id,
     kind,
     pos: { x: pos.x, y: pos.y },
-    hp: ENEMY_SPECS[kind].hp,
+    hp: ENEMY_SPECS[kind].hp * state.difficulty.enemyHp,
     hitTimer: 0,
     fireTimer: 0,
     spawnTimer: ENEMY_SPECS[kind].spawnEvery,
@@ -238,7 +251,7 @@ const enemiesStep = (state: GameState, dt: number): void => {
     const spec = ENEMY_SPECS[e.kind]
     e.hitTimer = Math.max(0, e.hitTimer - dt)
     const d = dist(e.pos, sv.pos)
-    const vel = MOVE_FNS[spec.move](e, sv, d, spec.speed * speedMul)
+    const vel = MOVE_FNS[spec.move](e, sv, d, enemySpeed(state, e.kind, speedMul))
     e.pos.x = clamp(e.pos.x + vel.x * dt, spec.radius, ARENA.w - spec.radius)
     e.pos.y = clamp(e.pos.y + vel.y * dt, spec.radius, ARENA.h - spec.radius)
 
