@@ -1,0 +1,24 @@
+{
+  "title": "Prove DPM app-hiding persists, and build the enforcement decision layer on it",
+  "objective": "The Device Owner design rests on setApplicationHidden surviving a reboot, which had never been tested - both shell primitives were measured to be cleared by one. Prove or disprove that WITHOUT spending a factory reset, then build the decision layer that turns the parsed policy plus current conditions into a hide/show set. Success is a measured persistence result with its scope stated honestly, and a pure, fully tested decision function.",
+  "acceptance_criteria": [
+    "setApplicationHidden persistence measured across a real reboot, using a removable managed profile so no wipe is spent",
+    "The test profile and its profile-owner grant are removed afterwards, with user 0 verified untouched",
+    "The result is recorded with its scope limit: profile owner in a work profile is NOT device owner in user 0",
+    "EnforcementDecision is a pure function of its inputs - testable with no device, clock or location provider",
+    "packagesToShow is always the complete allowed set rather than a delta, so a missed run self-repairs",
+    "Unknown location enforces rather than releasing, matching focus_daemon.sh",
+    "A policy with redacted coordinates still enforces rather than reading as always-away",
+    "Geofence hysteresis prevents flapping between radius and radius+hysteresis",
+    "The workout exception releases the YouTube packages and nothing else",
+    "Workout signal sources are verified on-device before being built, not assumed"
+  ],
+  "out_of_scope": [
+    "Device Owner provisioning and the factory reset - unchanged, still not done",
+    "The foreground service, BOOT_COMPLETED receiver and alarm scheduling - next step",
+    "DNS filtering, which remains parked",
+    "com.kuhy.workout_app as a signal source: verified to expose nothing readable",
+    "org.runnerup: not installed on this device"
+  ],
+  "verifier": "pm create-user/dpm set-profile-owner + adb reboot + dumpsys package, then pm remove-user and re-check user 0; cd focus_owner && flutter analyze && flutter test"
+}

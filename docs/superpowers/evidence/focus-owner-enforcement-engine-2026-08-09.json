@@ -1,0 +1,51 @@
+{
+  "intent": "Settle whether DPM app-hiding survives a reboot without spending a factory reset on the question, then build the enforcement decision layer on the answer.",
+  "scope": [
+    "focus_owner/lib/enforcement.dart - new: pure hide/show decision function",
+    "focus_owner/lib/policy.dart - workoutExemptPackages, mapping unblock domains to packages",
+    "focus_owner/android/.../DevicePolicyBridge.kt - setApplicationHidden / isApplicationHidden / isProfileOwner",
+    "focus_owner/android/.../HideTestReceiver.kt - new, TEMPORARY: adb-driveable test hook",
+    "focus_owner/test/enforcement_test.dart - new: 16 tests",
+    "Non-goal: no Device Owner provisioning, no factory reset",
+    "Non-goal: the foreground service, boot receiver and alarms are the next step"
+  ],
+  "changes": [
+    "Measured setApplicationHidden persistence using a removable managed profile (pm create-user --profileOf 0 --managed, dpm set-profile-owner) rather than a factory reset. hidden=true before reboot, hidden=true after, confirmed by both dumpsys and the DPM API. The profile was then removed, taking the profile-owner grant and all hidden state with it.",
+    "EnforcementDecision.evaluate is a pure function of policy plus conditions, so the whole decision layer is testable with no device, clock or location provider.",
+    "packagesToShow is always the complete allowed set rather than a delta. Unhiding is the failure mode that matters: failing to hide is a mild disappointment, failing to unhide strands the user without a dialer or a bank after a reboot during curfew. Applying the full set every run makes a missed evaluation self-repairing.",
+    "The workout exception is expressed as packages, not domains. The rooted system unblocked youtube.com in a hosts file; hiding apps cannot target a domain, so workoutExemptPackages derives the package set from the configured domains and keeps config.sh as the source of truth for intent."
+  ],
+  "verification": [
+    {
+      "command": "pm create-user --profileOf 0 --managed; dpm set-profile-owner; am broadcast HIDE; adb reboot; dumpsys package",
+      "result": "pass",
+      "evidence": "hidden=true before reboot and hidden=true after, corroborated by the DPM API's own isApplicationHidden ('RESULT query com.android.chrome -> hidden=true'). This is the assumption the entire Device Owner design rests on, and it holds."
+    },
+    {
+      "command": "pm remove-user 10; dumpsys device_policy; dumpsys package com.android.chrome",
+      "result": "pass",
+      "evidence": "'Success: removed user'. Device Owner Type: -1, effective restrictions none, and Chrome in user 0 shows hidden=false - the real user was never touched."
+    },
+    {
+      "command": "cd focus_owner && flutter analyze && flutter test",
+      "result": "pass",
+      "evidence": "'No issues found!' and 43 tests passing, 16 of them new: away/at-home/curfew transitions, midnight wrap, hysteresis at 160m in both directions, fail-closed on unknown location, fail-closed on redacted coordinates, the workout exception, and an invariant that hide and show partition the installed set."
+    },
+    {
+      "command": "adb shell pm list packages / dumpsys package (workout signal sources)",
+      "result": "pass",
+      "evidence": "StrongLifts declares AND is granted android.permission.health.WRITE_EXERCISE, and com.google.android.apps.healthdata is installed, so the Health Connect path is viable. com.kuhy.workout_app exposes only MainActivity plus Flutter boilerplate - no provider or broadcast to read. org.runnerup is not installed at all. Two of the three proposed sources were checked before being built rather than after."
+    }
+  ],
+  "risks": [
+    "SCOPE LIMIT, stated deliberately: persistence was proven for PROFILE OWNER inside a work profile. That is NOT the same as DEVICE OWNER hiding apps in user 0, which is what the real design needs. DO in user 0 additionally cannot hide the current launcher, the default dialer/SMS/IME, or packages the system deems critical, and setApplicationHidden may return false silently rather than throwing. Test this in the first minute after provisioning, while clearDeviceOwnerApp() is still a cheap exit.",
+    "HideTestReceiver is exported=true. It is gated behind MANAGE_DEVICE_ADMINS, a signature|privileged permission no third-party app can hold, but it is a receiver that applies policy and it must be deleted before any provisioned build. Tracked.",
+    "BOOT_COMPLETED does not fire until first unlock. Observed directly: the phone sat at RUNNING_LOCKED for several minutes after a reboot with no network and no app start. Enforcement state therefore persists unchanged across a reboot until the user unlocks - fail-closed for hiding, but also fail-closed for unhiding. The service layer must make boundary transitions alarm-driven and idempotent.",
+    "workoutExemptPackages hardcodes the youtube.com to package mapping. Adding a new unblock domain to config.sh will not automatically map to a package."
+  ],
+  "rollback": [
+    "git revert. enforcement.dart is new and nothing outside focus_owner imports it; the app applies no policy in this build.",
+    "Nothing on the phone needs undoing - the test profile is already removed and user 0 was verified unchanged.",
+    "After rollback validate: flutter analyze && flutter test still pass, and dumpsys device_policy still reports Device Owner Type: -1."
+  ]
+}
