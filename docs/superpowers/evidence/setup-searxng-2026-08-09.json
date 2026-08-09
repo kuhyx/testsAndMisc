@@ -62,6 +62,11 @@
       "evidence": "All CSS/JS/img/manifest same-origin (/static/...). ZERO inline scripts (the single <script> has src= and passes config via a base64 client_settings attribute). ZERO inline style= attributes. Autocomplete is same-origin /autocompleter (200). JS bundle references zero absolute external origins. Image results use data-src=\"/image_proxy?url=...\" (780 occurrences, same-origin lazy-load) -- external URLs appear only as encoded query params, never as fetch targets, so img-src 'self' data: is safe."
     },
     {
+      "command": "real browser load + search (Thorium with the Claude extension)",
+      "result": "pass -- CSP confirmed by a rendering engine, closing the last gap",
+      "evidence": "Front page renders fully styled (logo, search box, About/Preferences, footer 2026.8.4+cd3835bd2). Text search 'arch linux wiki' returned ArchWiki/Wikipedia/Reddit/LWN/GitHub results in 0.9s with favicons + thumbnails loading. Image search returned hundreds of proxied thumbnails in 2.1s. Autocomplete dropdown fired on typing (a fetch to /autocompleter), proving connect-src 'self'. UNFILTERED console over the whole session: 4 messages, all benign '[PLUGIN] calculator: Running/Done' DEBUG lines from SearXNG's own bundle -- ZERO 'Refused to load/execute/apply' CSP violations. The '?' placeholder tiles in image results are dead upstream URLs (origin 404s), not blocked requests; a CSP block would have logged a Refused-to-load per image."
+    },
+    {
       "command": "Mozilla Observatory scan (MDN Observatory API v2)",
       "result": "pass -- A+ GRADED, not inferred",
       "evidence": "POST https://observatory-api.mdn.mozilla.net/api/v2/scan?host=searx.kuhy.duckdns.org -> {\"grade\":\"A+\",\"score\":120,\"tests_passed\":10,\"tests_failed\":0,\"tests_quantity\":10,\"scanned_at\":\"2026-08-09T15:20:15Z\"}. Score exactly matches the predicted 120 (100 base +10 default-src 'none' +5 frame-ancestors +5 Referrer-Policy)."
@@ -95,7 +100,7 @@
   ],
   "risks": [
     "JSON API is LOCAL-ONLY by design. format=json works for processes on this host (pass_ip exempts loopback); a scripted client from anywhere else gets 429 because it cannot send Sec-Fetch-* headers. This satisfies an MCP server running on this box, but NOT one calling in from the phone or another machine. Widening it would mean adding that client's IP to pass_ip.",
-    "NOT YET VERIFIED: real browser load. The strict CSP was validated by static asset analysis, not by a rendering engine (the Chrome extension was not connected and headless chromium produced empty output on this host). A browser load + console check would close this.",
+    "RESOLVED 2026-08-09: the strict CSP is now confirmed by a real rendering engine (Thorium + Claude extension), not just static analysis -- see verification. No CSP violations on front page, text search, image search, or autocomplete.",
     "NOT YET VERIFIED by the user: the phone-on-cellular acceptance test. Note this is now about user acceptance, not about whether the public path works -- see the ACME evidence in verification.",
     "brave/duckduckgo/startpage are disabled due to CAPTCHA from this IP. If the IP's reputation changes they could be re-enabled -- re-check with the unresponsive_engines command in settings.yml's comment.",
     "pass_ip exempts loopback from ALL botdetection. Any process on this host can query the JSON API unthrottled. Acceptable for a single-user box; would need revisiting if untrusted local services existed.",
