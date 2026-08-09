@@ -299,112 +299,132 @@ ui:
 # (generate_hosts_file.sh) -- a LOCAL failure that looks identical to a dead
 # upstream. Disabled to stop the pointless request, not because the engine is bad.
 #
+# USE "inactive: true", NOT "disabled: true". Straight from enginelib:
+#   disabled -> "disable BY DEFAULT ... will allow the user to manually
+#               activate it in the settings"  (i.e. only the default for a
+#               fresh visitor; anyone with an existing preferences cookie keeps
+#               running the engine)
+#   inactive -> "Remove the engine from the settings (disabled & removed)"
+# The first pass used "disabled" and the pruned engines kept executing for any
+# browser session that already had a preferences cookie -- yandex images was
+# still throwing JSONDecodeErrors in the log minutes after being "disabled".
+#
+# EXCEPTION -- brave and qwant use "disabled", not "inactive", ON PURPOSE.
+# They own an outgoing connection pool that sibling engines reference by name
+# ("network: brave" <- brave.images/.videos/.news; "network: qwant" <- qwant
+# news/images/videos). "inactive" REMOVES the definition, so the siblings'
+# lookup dies at startup with KeyError: 'qwant' and the container never comes
+# up. "disabled" keeps the pool defined while hiding the engine from results.
+# Pool owners in this image: brave, qwant, yandex, piped, yacy -- of which only
+# brave and qwant are pruned here. Check before making any of the rest inactive:
+#   grep -B4 'network: <name>' /usr/local/searxng/searx/settings.yml
+#
 # Re-check periodically:
 #   curl -s 'http://127.0.0.1:8090/search?q=test&format=json' | grep -o '"unresponsive_engines":.*'
 engines:
   # === general ===
   - { name: brave, disabled: true }             # too many requests
-  - { name: duckduckgo, disabled: true }        # CAPTCHA
-  - { name: startpage, disabled: true }         # Suspended: CAPTCHA
-  - { name: dogpile, disabled: true }           # access denied
-  - { name: encyclosearch, disabled: true }     # timeout
-  - { name: fastbot, disabled: true }           # access denied
-  - { name: fireball, disabled: true }          # access denied
-  - { name: quark, disabled: true }             # unexpected crash
+  - { name: duckduckgo, inactive: true }        # CAPTCHA
+  - { name: startpage, inactive: true }         # Suspended: CAPTCHA
+  - { name: dogpile, inactive: true }           # access denied
+  - { name: encyclosearch, inactive: true }     # timeout
+  - { name: fastbot, inactive: true }           # access denied
+  - { name: fireball, inactive: true }          # access denied
+  - { name: quark, inactive: true }             # unexpected crash
   - { name: qwant, disabled: true }             # CAPTCHA
-  - { name: sogou, disabled: true }             # CAPTCHA
-  - { name: tusksearch, disabled: true }        # HTTP error
-  - { name: yahoo, disabled: true }             # HTTP protocol error
-  - { name: yep, disabled: true }               # access denied
-  - { name: naver, disabled: true }             # 1.9s
-  - { name: baidu, disabled: true }             # 1.7s
-  - { name: abcnyheter, disabled: true }        # 1.5s
-  - { name: boardreader, disabled: true }       # 1.5s
-  - { name: crowdview, disabled: true }         # 1.0s
+  - { name: sogou, inactive: true }             # CAPTCHA
+  - { name: tusksearch, inactive: true }        # HTTP error
+  - { name: yahoo, inactive: true }             # HTTP protocol error
+  - { name: yep, inactive: true }               # access denied
+  - { name: naver, inactive: true }             # 1.9s
+  - { name: baidu, inactive: true }             # 1.7s
+  - { name: abcnyheter, inactive: true }        # 1.5s
+  - { name: boardreader, inactive: true }       # 1.5s
+  - { name: crowdview, inactive: true }         # 1.0s
 
   # === images === (keeping ONLY google cse images)
-  - { name: dogpile images, disabled: true }    # access denied
-  - { name: findfiles images, disabled: true }  # unexpected crash
-  - { name: library of congress, disabled: true } # parsing error
-  - { name: pinterest, disabled: true }         # 0.0.0.0 in /etc/hosts (local)
-  - { name: qwant images, disabled: true }      # CAPTCHA
-  - { name: tusksearch images, disabled: true } # HTTP error
-  - { name: wikicommons.images, disabled: true } # too many requests
-  - { name: yandex images, disabled: true }     # parsing error
-  - { name: quark images, disabled: true }      # 2.9s
-  - { name: 1x, disabled: true }                # 2.5s
-  - { name: baidu images, disabled: true }      # 2.5s
-  - { name: picjumbo, disabled: true }          # 2.4s
-  - { name: naver images, disabled: true }      # 2.3s
-  - { name: sogou images, disabled: true }      # 2.0s
-  - { name: unsplash, disabled: true }          # 1.2s
-  - { name: duckduckgo images, disabled: true }
-  - { name: flickr, disabled: true }            # 1.0s
-  - { name: bing images, disabled: true }       # cut for the sub-1s images goal
-  - { name: deviantart, disabled: true }        # cut for the sub-1s images goal
-  - { name: openverse, disabled: true }         # cut for the sub-1s images goal
-  - { name: pexels, disabled: true }            # cut for the sub-1s images goal
-  - { name: artic, disabled: true }             # cut for the sub-1s images goal
-  - { name: devicons, disabled: true }          # cut for the sub-1s images goal
-  - { name: lucide, disabled: true }            # cut for the sub-1s images goal
-  - { name: wallhaven, disabled: true }         # cut for the sub-1s images goal
+  - { name: dogpile images, inactive: true }    # access denied
+  - { name: findfiles images, inactive: true }  # unexpected crash
+  - { name: library of congress, inactive: true } # parsing error
+  - { name: pinterest, inactive: true }         # 0.0.0.0 in /etc/hosts (local)
+  - { name: qwant images, inactive: true }      # CAPTCHA
+  - { name: tusksearch images, inactive: true } # HTTP error
+  - { name: wikicommons.images, inactive: true } # too many requests
+  - { name: yandex images, inactive: true }     # parsing error
+  - { name: quark images, inactive: true }      # 2.9s
+  - { name: 1x, inactive: true }                # 2.5s
+  - { name: baidu images, inactive: true }      # 2.5s
+  - { name: picjumbo, inactive: true }          # 2.4s
+  - { name: naver images, inactive: true }      # 2.3s
+  - { name: sogou images, inactive: true }      # 2.0s
+  - { name: unsplash, inactive: true }          # 1.2s
+  - { name: duckduckgo images, inactive: true }
+  - { name: flickr, inactive: true }            # 1.0s
+  - { name: bing images, inactive: true }       # cut for the sub-1s images goal
+  - { name: deviantart, inactive: true }        # cut for the sub-1s images goal
+  - { name: openverse, inactive: true }         # cut for the sub-1s images goal
+  - { name: pexels, inactive: true }            # cut for the sub-1s images goal
+  - { name: artic, inactive: true }             # cut for the sub-1s images goal
+  - { name: devicons, inactive: true }          # cut for the sub-1s images goal
+  - { name: lucide, inactive: true }            # cut for the sub-1s images goal
+  - { name: wallhaven, inactive: true }         # cut for the sub-1s images goal
   # Not in the /preferences list kuhy sent -- these only surfaced as
   # unresponsive under load, same failure pattern, so pruned with the rest.
-  - { name: brave.images, disabled: true }      # too many requests
-  - { name: startpage images, disabled: true }  # Suspended: CAPTCHA
+  - { name: brave.images, inactive: true }      # too many requests
+  - { name: startpage images, inactive: true }  # Suspended: CAPTCHA
 
   # === videos ===
-  - { name: 360search videos, disabled: true }  # unexpected crash
-  - { name: acfun, disabled: true }             # timeout
-  - { name: brave.videos, disabled: true }      # too many requests
-  - { name: dogpile videos, disabled: true }    # access denied
-  - { name: fireball videos, disabled: true }   # access denied
-  - { name: niconico, disabled: true }          # HTTP connection error
-  - { name: pixabay videos, disabled: true }    # timeout
-  - { name: tusksearch videos, disabled: true } # HTTP error
-  - { name: vimeo, disabled: true }             # access denied
-  - { name: youtube, disabled: true }           # HTTP connection error
-  - { name: naver videos, disabled: true }      # 2.4s
-  - { name: sogou videos, disabled: true }      # 2.0s
-  - { name: iqiyi, disabled: true }             # 1.3s
-  - { name: rumble, disabled: true }            # 1.3s
+  - { name: 360search videos, inactive: true }  # unexpected crash
+  - { name: acfun, inactive: true }             # timeout
+  - { name: brave.videos, inactive: true }      # too many requests
+  - { name: dogpile videos, inactive: true }    # access denied
+  - { name: fireball videos, inactive: true }   # access denied
+  - { name: niconico, inactive: true }          # HTTP connection error
+  - { name: pixabay videos, inactive: true }    # timeout
+  - { name: tusksearch videos, inactive: true } # HTTP error
+  - { name: vimeo, inactive: true }             # access denied
+  - { name: youtube, inactive: true }           # HTTP connection error
+  - { name: naver videos, inactive: true }      # 2.4s
+  - { name: sogou videos, inactive: true }      # 2.0s
+  - { name: iqiyi, inactive: true }             # 1.3s
+  - { name: rumble, inactive: true }            # 1.3s
 
   # === news ===
-  - { name: bing news, disabled: true }         # parsing error
-  - { name: brave.news, disabled: true }        # too many requests
-  - { name: dogpile news, disabled: true }      # access denied
-  - { name: fireball news, disabled: true }     # access denied
-  - { name: google news, disabled: true }       # Suspended: CAPTCHA
-  - { name: startpage news, disabled: true }    # Suspended: CAPTCHA
-  - { name: tusksearch news, disabled: true }   # HTTP error
-  - { name: sogou wechat, disabled: true }      # 1.7s
-  - { name: naver news, disabled: true }        # 1.7s
+  - { name: bing news, inactive: true }         # parsing error
+  - { name: brave.news, inactive: true }        # too many requests
+  - { name: dogpile news, inactive: true }      # access denied
+  - { name: fireball news, inactive: true }     # access denied
+  - { name: google news, inactive: true }       # Suspended: CAPTCHA
+  - { name: startpage news, inactive: true }    # Suspended: CAPTCHA
+  - { name: tusksearch news, inactive: true }   # HTTP error
+  - { name: sogou wechat, inactive: true }      # 1.7s
+  - { name: naver news, inactive: true }        # 1.7s
 
   # === music ===
-  - { name: radio browser, disabled: true }     # HTTP error
-  - { name: yandex music, disabled: true }      # HTTP error
+  - { name: radio browser, inactive: true }     # HTTP error
+  - { name: yandex music, inactive: true }      # HTTP error
 
   # === it ===
-  - { name: codeberg, disabled: true }          # timeout
-  - { name: metacpan, disabled: true }          # HTTP error
-  - { name: nixos wiki, disabled: true }        # timeout
-  - { name: baidu kaifa, disabled: true }       # 2.0s
-  - { name: gitea.com, disabled: true }         # 1.8s
-  - { name: rubygems, disabled: true }          # 1.1s
+  - { name: codeberg, inactive: true }          # timeout
+  - { name: metacpan, inactive: true }          # HTTP error
+  - { name: nixos wiki, inactive: true }        # timeout
+  - { name: baidu kaifa, inactive: true }       # 2.0s
+  - { name: gitea.com, inactive: true }         # 1.8s
+  - { name: rubygems, inactive: true }          # 1.1s
 
   # === science ===
-  - { name: openairepublications, disabled: true } # 2.7s
-  - { name: openairedatasets, disabled: true }  # 2.7s
+  - { name: openairepublications, inactive: true } # 2.7s
+  - { name: openairedatasets, inactive: true }  # 2.7s
 
   # === files ===
-  - { name: 1337x, disabled: true }             # HTTP connection error
-  - { name: btdigg, disabled: true }            # 1.5s
-  - { name: findfiles, disabled: true }         # 1.2s
-  - { name: kickass, disabled: true }           # HTTP connection error (surfaced under load)
+  - { name: 1337x, inactive: true }             # HTTP connection error
+  - { name: btdigg, inactive: true }            # 1.5s
+  - { name: findfiles, inactive: true }         # 1.2s
+  - { name: kickass, inactive: true }           # HTTP connection error (surfaced under load)
 
   # === social media ===
-  - { name: 9gag, disabled: true }              # access denied
-  - { name: tootfinder, disabled: true }        # access denied
+  - { name: 9gag, inactive: true }              # access denied
+  - { name: tootfinder, inactive: true }        # access denied
 EOF
 	# 640, NOT 600. The entrypoint chowns this file to the container's searxng
 	# user (uid 977), but granian's worker runs as a different uid and only has
@@ -478,6 +498,7 @@ wait_for_site() {
 		size="$(curl -s --compressed -o /dev/null -w '%{size_download}' \
 			-A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' \
 			-H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' \
+			-H 'Accept-Language: en-US,en;q=0.9' \
 			-H 'Accept-Encoding: gzip, deflate, br' \
 			-H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Site: none' -H 'Sec-Fetch-Dest: document' \
 			-H "Host: ${SEARX_DOMAIN}" "http://127.0.0.1:${SEARX_PORT}/" 2>/dev/null || echo 0)"
@@ -704,10 +725,17 @@ check_http() {
 	# with nothing in it, which a status-only check would call healthy.
 	# Certificates are NOT skipped — `curl -k` would report a failed-ACME cert as
 	# healthy, which is exactly the green-while-broken this exists to catch.
-	# Browser-shaped headers are REQUIRED, not cosmetic. The limiter's
-	# botdetection 429s any request missing Sec-Fetch-*/gzip Accept-Encoding, so
-	# a bare `curl` reports a perfectly healthy instance as broken. (Observed:
-	# bare curl -> 429, same URL with these headers -> 200.)
+	# Browser-shaped headers are REQUIRED, not cosmetic. botdetection runs a
+	# separate check per header and 429s on the FIRST one that fails, so the full
+	# set below must be sent every time. All four matter:
+	#   Accept-Language   -> http_accept_language   (omitting this alone 429s)
+	#   Accept-Encoding   -> http_accept_encoding   (needs gzip or deflate)
+	#   Accept            -> http_accept
+	#   Sec-Fetch-*       -> http_sec_fetch         (302-redirects when invalid)
+	# Diagnosing which one bit is easy but non-obvious: set `debug: true` under
+	# general: in settings.yml, restart, and the log prints
+	# "NOT OK (searx.botdetection.<method>)" naming the exact check.
+	# (Observed: dropping only Accept-Language turned a healthy 200 into a 429.)
 	local url="$1" out code size
 	out="$(curl -s --compressed -o /dev/null -w '%{http_code} %{size_download}' --max-time 10 \
 		-A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' \
@@ -751,6 +779,7 @@ check_headers() {
 	out="$(curl -sI --compressed --max-time 10 \
 		-A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' \
 		-H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' \
+		-H 'Accept-Language: en-US,en;q=0.9' \
 		-H 'Accept-Encoding: gzip, deflate, br' \
 		-H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Site: none' -H 'Sec-Fetch-Dest: document' \
 		"https://${SEARX_DOMAIN}/" 2>/dev/null || true)"
