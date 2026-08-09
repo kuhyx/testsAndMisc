@@ -24,8 +24,14 @@ describe('draw', () => {
     const ctx = makeCtxStub()
     const s = fresh()
     s.projectiles.push(
-      { id: 1, from: 'survivor', pos: { x: 10, y: 10 }, vel: { x: 0, y: 0 }, radius: 4, damage: 1, ttl: 1 },
-      { id: 2, from: 'enemy', pos: { x: 20, y: 20 }, vel: { x: 0, y: 0 }, radius: 5, damage: 1, ttl: 1 },
+      {
+        id: 1, from: 'survivor', pos: { x: 10, y: 10 }, vel: { x: 0, y: 0 },
+        radius: 4, damage: 1, ttl: 1, debuff: 'slow', debuffDuration: 0,
+      },
+      {
+        id: 2, from: 'enemy', pos: { x: 20, y: 20 }, vel: { x: 0, y: 0 },
+        radius: 5, damage: 1, ttl: 1, debuff: 'slow', debuffDuration: 0,
+      },
     )
     draw(ctx, s)
     expect(ctx.fill).toHaveBeenCalledTimes(BASE.fill + 2)
@@ -59,5 +65,21 @@ describe('draw', () => {
     expect(ctx.fill).toHaveBeenCalledTimes(BASE.fill + 1)
     expect(ctx.stroke).toHaveBeenCalledTimes(BASE.stroke + 1)
     expect(ctx.arc).toHaveBeenCalledTimes(BASE.arc + 2)
+  })
+})
+
+describe('status halo', () => {
+  it('is absent for an unafflicted survivor', () => {
+    const ctx = makeCtxStub()
+    draw(ctx, fresh())
+    expect(ctx.stroke).toHaveBeenCalledTimes(BASE.stroke)
+  })
+
+  it('draws one extra ring when a status is live', () => {
+    const ctx = makeCtxStub()
+    const s = fresh()
+    s.survivor.statuses.slow = 1.5
+    draw(ctx, s)
+    expect(ctx.stroke).toHaveBeenCalledTimes(BASE.stroke + 1)
   })
 })

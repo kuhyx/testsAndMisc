@@ -1,10 +1,12 @@
 import { applyAction, tickDirector } from './director'
 import { createRng, pick } from './rng'
+import { applyStatus, factor, tickStatuses } from './status'
 import type {
   DirectorAction, Enemy, EnemyKind, EnemySpec, GameState, Survivor, UpgradeId,
 } from './types'
 import {
-  ARENA, CONTACT_COOLDOWN, ENERGY_START, ENEMY_SPECS, GAME_DURATION, UPGRADE_POOL,
+  ARENA, CONTACT_COOLDOWN, ENERGY_START, ENEMY_SPECS, GAME_DURATION, STATUS_POWER,
+  UPGRADE_POOL,
 } from './types'
 import type { Vec } from './vec'
 import { clamp, dist, toward } from './vec'
@@ -33,6 +35,7 @@ const createSurvivor = (): Survivor => ({
   xp: 0,
   xpNext: xpForLevel(1),
   kills: 0,
+  statuses: { slow: 0, suppress: 0, bleed: 0 },
 })
 
 export const createInitialState = (seed: number, duration = GAME_DURATION): GameState => ({
@@ -110,6 +113,13 @@ const nearestEnemy = (state: GameState): Enemy | null => {
 
 const survivorStep = (state: GameState, dt: number): void => {
   const sv = state.survivor
+  // Tick before reading: a status applied this tick is felt from the next one,
+  // and a 0-second (inert) application is never observable.
+  tickStatuses(sv, dt)
+  const moveMul = factor(sv.statuses.slow, STATUS_POWER.slow)
+  const fireMul = factor(sv.statuses.suppress, STATUS_POWER.suppress)
+  const regenMul = factor(sv.statuses.bleed, STATUS_POWER.bleed)
+  const speed = sv.speed * moveMul
   let fleeX = 0
   let fleeY = 0
   for (const e of state.enemies) {
@@ -123,14 +133,14 @@ const survivorStep = (state: GameState, dt: number): void => {
   const fleeMag = Math.hypot(fleeX, fleeY)
   let vel: Vec = { x: 0, y: 0 }
   if (fleeMag > 0) {
-    vel = { x: (fleeX / fleeMag) * sv.speed, y: (fleeY / fleeMag) * sv.speed }
+    vel = { x: (fleeX / fleeMag) * speed, y: (fleeY / fleeMag) * speed }
   } else if (dist(sv.pos, CENTER) > 4) {
-    vel = toward(sv.pos, CENTER, sv.speed * 0.4)
+    vel = toward(sv.pos, CENTER, speed * 0.4)
   }
   sv.pos.x = clamp(sv.pos.x + vel.x * dt, SURVIVOR_RADIUS, ARENA.w - SURVIVOR_RADIUS)
   sv.pos.y = clamp(sv.pos.y + vel.y * dt, SURVIVOR_RADIUS, ARENA.h - SURVIVOR_RADIUS)
 
-  sv.hp = Math.min(sv.maxHp, sv.hp + sv.regen * dt)
+  sv.hp = Math.min(sv.maxHp, sv.hp + sv.regen * regenMul * dt)
 
   sv.fireTimer = Math.max(0, sv.fireTimer - dt)
   const target = nearestEnemy(state)
@@ -148,9 +158,13 @@ const survivorStep = (state: GameState, dt: number): void => {
         radius: 4,
         damage: sv.damage,
         ttl: PROJ_TTL,
+        debuff: 'slow',
+        debuffDuration: 0,
       })
     }
-    sv.fireTimer = sv.fireCooldown
+    // Suppression scales the reload, not the countdown: the remaining timer stays
+    // linear in dt, which keeps replays and assertions exact.
+    sv.fireTimer = sv.fireCooldown * fireMul
   }
 }
 
@@ -219,6 +233,9 @@ const enemiesStep = (state: GameState, dt: number): void => {
         detonate(state, e)
       } else if (e.hitTimer === 0) {
         sv.hp -= spec.contactDamage
+        // Unconditional: a 0-duration spec makes this a provable no-op, which is
+        // cheaper than a guard branch under the 100 % gate.
+        applyStatus(sv, spec.debuff, spec.debuffDuration)
         e.hitTimer = CONTACT_COOLDOWN
       }
     }
@@ -236,6 +253,8 @@ const enemiesStep = (state: GameState, dt: number): void => {
           radius: 5,
           damage: spec.projDamage,
           ttl: ENEMY_PROJ_TTL,
+          debuff: spec.debuff,
+          debuffDuration: spec.debuffDuration,
         })
         e.fireTimer = spec.fireCooldown
       }
@@ -284,6 +303,7 @@ const projectilesStep = (state: GameState, dt: number): void => {
       }
     } else if (dist(p.pos, sv.pos) <= p.radius + SURVIVOR_RADIUS) {
       sv.hp -= p.damage
+      applyStatus(sv, p.debuff, p.debuffDuration)
       continue
     }
     surviving.push(p)

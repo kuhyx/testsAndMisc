@@ -143,6 +143,29 @@ body {
 
 .feed li::before { content: "▲ "; color: var(--bone-dim); }
 
+.status-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.chip {
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid currentcolor;
+  opacity: 0.85;
+}
+
+.chip-slow { color: var(--arcane); }
+.chip-suppress { color: var(--blood); }
+.chip-bleed { color: var(--bone-dim); }
+
 .spawnbar {
   display: flex;
   flex-wrap: wrap;

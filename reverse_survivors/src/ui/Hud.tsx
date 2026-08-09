@@ -41,6 +41,13 @@ export const Hud = ({ snap, onRestart }: Props): ReactElement => {
         <p className="hud-num">
           {Math.ceil(snap.survivorHp)} hp · level {snap.survivorLevel} · {snap.kills} of yours slain
         </p>
+        <ul className="status-chips">
+          {snap.statuses.map((c) => (
+            <li key={`st-${c.kind}`} className={`chip chip-${c.kind}`}>
+              {c.label} {c.seconds}s
+            </li>
+          ))}
+        </ul>
         <ul className="feed">
           {snap.upgrades.map((u) => (
             <li key={`up-${String(u.n)}`}>{UPGRADE_LABELS[u.id]}</li>

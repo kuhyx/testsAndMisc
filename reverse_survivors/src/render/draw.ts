@@ -1,6 +1,6 @@
 import { FIRE_RANGE, SURVIVOR_RADIUS } from '../core/sim'
 import type { EnemyKind, GameState } from '../core/types'
-import { ARENA, ENEMY_SPECS } from '../core/types'
+import { ARENA, ENEMY_SPECS, STATUS_ORDER } from '../core/types'
 
 /** Structural subset of CanvasRenderingContext2D — stubbable in tests. */
 export interface Ctx2D {
@@ -112,4 +112,13 @@ export const draw = (ctx: Ctx2D, state: GameState): void => {
     -Math.PI / 2, -Math.PI / 2 + (Math.max(0, sv.hp) / sv.maxHp) * Math.PI * 2,
   )
   ctx.stroke()
+
+  // Afflicted halo. Gated so an unafflicted survivor draws exactly as before.
+  const afflicted = STATUS_ORDER.some((kind) => sv.statuses[kind] > 0)
+  if (afflicted) {
+    ctx.strokeStyle = COLORS.arcane
+    ctx.lineWidth = 2
+    circle(ctx, sv.pos.x, sv.pos.y, SURVIVOR_RADIUS + 10)
+    ctx.stroke()
+  }
 }

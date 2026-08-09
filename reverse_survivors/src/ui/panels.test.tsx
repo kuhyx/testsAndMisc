@@ -21,6 +21,24 @@ describe('Hud', () => {
     expect(screen.getByText('200 / 400')).toBeInTheDocument()
   })
 
+  it('lists live status chips and omits idle ones', () => {
+    const snap = snapWith((s) => {
+      s.survivor.statuses.slow = 1.2
+      s.survivor.statuses.bleed = 3
+    })
+    const { container } = render(<Hud snap={snap} onRestart={() => undefined} />)
+    const chips = container.querySelectorAll('.status-chips li')
+    expect(chips).toHaveLength(2)
+    expect(screen.getByText(/mired/)).toBeInTheDocument()
+    expect(screen.getByText(/unknitting/)).toBeInTheDocument()
+    expect(screen.queryByText(/stifled/)).not.toBeInTheDocument()
+  })
+
+  it('renders no status chips for an unafflicted survivor', () => {
+    const { container } = render(<Hud snap={snapWith()} onRestart={() => undefined} />)
+    expect(container.querySelectorAll('.status-chips li')).toHaveLength(0)
+  })
+
   it('reports the intruder and its recent upgrades', () => {
     const snap = snapWith((s) => {
       s.survivor.hp = 50

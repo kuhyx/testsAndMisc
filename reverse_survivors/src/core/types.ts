@@ -7,6 +7,22 @@ export const CONTACT_COOLDOWN = 0.5
 export const ENERGY_CAP = 400
 export const ENERGY_START = 30
 
+export type StatusKind = 'slow' | 'suppress' | 'bleed'
+export const STATUS_ORDER: readonly [StatusKind, ...StatusKind[]] = ['slow', 'suppress', 'bleed']
+
+/** Multiplier applied to the survivor while the matching status is live. */
+export const STATUS_POWER: Record<StatusKind, number> = {
+  slow: 0.55, // move speed
+  suppress: 1.75, // fire cooldown — higher is slower
+  bleed: 0, // regen
+}
+
+export const STATUS_LABELS: Record<StatusKind, string> = {
+  slow: 'mired',
+  suppress: 'stifled',
+  bleed: 'unknitting',
+}
+
 export type UnitKind =
   | 'rusher' | 'stalker' | 'tank' | 'bomber' | 'splitter' | 'artillery' | 'warden'
 export type BossKind = 'colossus' | 'hivemind' | 'leech'
@@ -38,6 +54,10 @@ export interface EnemySpec {
   readonly spawnKind: UnitKind
   /** 0 disables on-death splitting. */
   readonly splitCount: number
+  /** Status inflicted on contact (or on projectile hit). Inert when duration is 0. */
+  readonly debuff: StatusKind
+  /** 0 means this kind inflicts nothing — `applyStatus` becomes a no-op. */
+  readonly debuffDuration: number
 }
 
 const spec = (s: EnemySpec): EnemySpec => s
@@ -49,6 +69,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 0,
   }),
   stalker: spec({
     name: 'Stalker', cost: 24, hp: 20, speed: 110, radius: 10,
@@ -56,6 +77,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 7, projSpeed: 260, fireRange: 250, fireCooldown: 1.6, keepDistance: 200,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 0,
   }),
   tank: spec({
     name: 'Tank', cost: 45, hp: 120, speed: 55, radius: 18,
@@ -63,6 +85,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 0,
   }),
   bomber: spec({
     name: 'Bomber', cost: 30, hp: 16, speed: 140, radius: 10,
@@ -70,6 +93,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: true, blastRadius: 70, blastDamage: 22, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 0,
   }),
   splitter: spec({
     name: 'Splitter', cost: 34, hp: 30, speed: 95, radius: 13,
@@ -77,6 +101,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 3,
+    debuff: 'slow', debuffDuration: 0,
   }),
   artillery: spec({
     name: 'Artillery', cost: 52, hp: 26, speed: 70, radius: 12,
@@ -84,6 +109,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 13, projSpeed: 190, fireRange: 460, fireCooldown: 2.6, keepDistance: 420,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'suppress', debuffDuration: 2.5,
   }),
   warden: spec({
     name: 'Warden', cost: 40, hp: 34, speed: 215, radius: 8,
@@ -91,6 +117,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 2.0,
   }),
   colossus: spec({
     name: 'Colossus', cost: 150, hp: 700, speed: 40, radius: 34,
@@ -98,6 +125,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 0,
   }),
   hivemind: spec({
     name: 'Hivemind', cost: 220, hp: 420, speed: 60, radius: 28,
@@ -105,6 +133,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 2.5,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'slow', debuffDuration: 0,
   }),
   leech: spec({
     name: 'Leech', cost: 190, hp: 500, speed: 75, radius: 30,
@@ -112,6 +141,7 @@ export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     projDamage: 0, projSpeed: 0, fireRange: 0, fireCooldown: 0, keepDistance: 0,
     detonates: false, blastRadius: 0, blastDamage: 0, spawnEvery: 0,
     spawnKind: 'rusher', splitCount: 0,
+    debuff: 'bleed', debuffDuration: 3.5,
   }),
 } as const
 
@@ -145,6 +175,8 @@ export interface Survivor {
   xp: number
   xpNext: number
   kills: number
+  /** Seconds remaining per status. A finite-union Record, so indexing stays `number`. */
+  statuses: Record<StatusKind, number>
 }
 
 export interface Enemy {
@@ -165,6 +197,9 @@ export interface Projectile {
   radius: number
   damage: number
   ttl: number
+  /** Carried on the shot itself so a hit needs no lookup of a possibly-dead firer. */
+  debuff: StatusKind
+  debuffDuration: number
 }
 
 export interface DirectorState {

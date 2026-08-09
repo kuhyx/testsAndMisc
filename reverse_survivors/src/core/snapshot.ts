@@ -1,7 +1,7 @@
 import { waveCost } from './director'
-import type { BossKind, GameState, Status, UnitKind, UpgradeId } from './types'
+import type { BossKind, GameState, Status, StatusKind, UnitKind, UpgradeId } from './types'
 import {
-  BOSS_ORDER, BOSS_UNLOCK_AT, ENERGY_CAP, ENEMY_SPECS, UNIT_ORDER,
+  BOSS_ORDER, BOSS_UNLOCK_AT, ENERGY_CAP, ENEMY_SPECS, STATUS_LABELS, STATUS_ORDER, UNIT_ORDER,
 } from './types'
 
 export type BossPhase = 'locked' | 'cooling' | 'ready'
@@ -28,6 +28,12 @@ export interface UpgradeEntry {
   id: UpgradeId
 }
 
+export interface StatusChip {
+  kind: StatusKind
+  label: string
+  seconds: number
+}
+
 export interface HudSnapshot {
   status: Status
   t: number
@@ -44,6 +50,7 @@ export interface HudSnapshot {
   upgrades: UpgradeEntry[]
   units: UnitButton[]
   bosses: BossButton[]
+  statuses: StatusChip[]
   outcomeTime: number
 }
 
@@ -71,6 +78,13 @@ export const snapshotOf = (state: GameState): HudSnapshot => ({
   survivorLevel: state.survivor.level,
   kills: state.survivor.kills,
   upgrades: state.upgrades.map((id, i) => ({ n: i + 1, id })).slice(-3),
+  statuses: STATUS_ORDER
+    .map((kind) => ({
+      kind,
+      label: STATUS_LABELS[kind],
+      seconds: Math.ceil(state.survivor.statuses[kind]),
+    }))
+    .filter((chip) => chip.seconds > 0),
   units: UNIT_ORDER.map((kind) => ({
     kind,
     name: ENEMY_SPECS[kind].name,

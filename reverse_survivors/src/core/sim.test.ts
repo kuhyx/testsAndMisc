@@ -4,7 +4,7 @@ import {
   xpForLevel,
 } from './sim'
 import type { GameState, Projectile } from './types'
-import { ARENA, GAME_DURATION } from './types'
+import { ARENA, GAME_DURATION, STATUS_POWER } from './types'
 
 const CENTER = { x: ARENA.w / 2, y: ARENA.h / 2 }
 
@@ -20,6 +20,8 @@ const shot = (state: GameState, x: number, y: number, damage: number): Projectil
     radius: 4,
     damage,
     ttl: 1,
+    debuff: 'slow',
+    debuffDuration: 0,
   }
   state.nextId += 1
   state.projectiles.push(p)
@@ -312,6 +314,7 @@ describe('projectiles', () => {
     s.projectiles.push({
       id: 500, from: 'enemy', pos: { x: CENTER.x, y: CENTER.y },
       vel: { x: 0, y: 0 }, radius: 5, damage: 7, ttl: 1,
+      debuff: 'slow', debuffDuration: 0,
     })
     step(s, [], 0.001)
     expect(s.survivor.hp).toBe(93)
@@ -323,6 +326,7 @@ describe('projectiles', () => {
     s.projectiles.push({
       id: 501, from: 'enemy', pos: { x: 30, y: 30 },
       vel: { x: 0, y: 0 }, radius: 5, damage: 7, ttl: 1,
+      debuff: 'slow', debuffDuration: 0,
     })
     step(s, [], 0.001)
     expect(s.survivor.hp).toBe(100)
@@ -483,5 +487,98 @@ describe('new units', () => {
     h.spawnTimer = 0
     step(s, [], 0.001)
     expect(s.enemies.some((e) => e.kind === 'rusher')).toBe(true)
+  })
+})
+
+describe('status effects', () => {
+  it('a warden contact mires the survivor and halves its movement', () => {
+    const slowed = fresh()
+    slowed.survivor.pos = { x: 100, y: CENTER.y }
+    makeEnemy(slowed, 'warden', { x: 100, y: CENTER.y })
+    step(slowed, [], 0.01)
+    // Statuses tick in survivorStep, which runs before enemiesStep applies
+    // contact — so a status landing this tick starts at its full duration.
+    expect(slowed.survivor.statuses.slow).toBe(2.0)
+
+    // Control: same displacement, an enemy that inflicts nothing.
+    const control = fresh()
+    control.survivor.pos = { x: 100, y: CENTER.y }
+    makeEnemy(control, 'rusher', { x: 100, y: CENTER.y })
+    step(control, [], 0.01)
+    expect(control.survivor.statuses.slow).toBe(0)
+
+    const before = { slowed: slowed.survivor.pos.x, control: control.survivor.pos.x }
+    slowed.enemies = []
+    control.enemies = []
+    step(slowed, [], 0.05)
+    step(control, [], 0.05)
+    const movedSlowed = slowed.survivor.pos.x - before.slowed
+    const movedControl = control.survivor.pos.x - before.control
+    expect(movedSlowed).toBeCloseTo(movedControl * STATUS_POWER.slow, 5)
+  })
+
+  it('slow expires and full speed returns', () => {
+    const s = fresh()
+    s.survivor.pos = { x: 100, y: CENTER.y }
+    s.survivor.statuses.slow = 0.02
+    step(s, [], 0.05)
+    expect(s.survivor.statuses.slow).toBe(0)
+  })
+
+  it('an artillery shell stifles the survivor and lengthens its reload', () => {
+    const s = fresh()
+    s.projectiles.push({
+      id: 900, from: 'enemy', pos: { x: CENTER.x, y: CENTER.y },
+      vel: { x: 0, y: 0 }, radius: 5, damage: 13, ttl: 1,
+      debuff: 'suppress', debuffDuration: 2.5,
+    })
+    makeEnemy(s, 'tank', { x: CENTER.x + 200, y: CENTER.y })
+    step(s, [], 0.001)
+    expect(s.survivor.statuses.suppress).toBeGreaterThan(0)
+    // The shot fired this tick reloaded before the status landed; the next one pays.
+    s.survivor.fireTimer = 0
+    step(s, [], 0.001)
+    expect(s.survivor.fireTimer).toBeCloseTo(0.55 * STATUS_POWER.suppress, 5)
+  })
+
+  it('a leech contact blocks regeneration until it expires', () => {
+    const s = fresh()
+    s.survivor.regen = 5
+    s.survivor.hp = 50
+    makeEnemy(s, 'leech', { x: CENTER.x, y: CENTER.y })
+    const hp0 = s.survivor.hp
+    step(s, [], 0.1)
+    // Contact damage lands and regen is suppressed, so hp cannot have risen.
+    expect(s.survivor.hp).toBeLessThan(hp0)
+    expect(s.survivor.statuses.bleed).toBeGreaterThan(0)
+
+    s.enemies = []
+    s.survivor.statuses.bleed = 0
+    const hp1 = s.survivor.hp
+    step(s, [], 0.1)
+    expect(s.survivor.hp).toBeGreaterThan(hp1)
+  })
+
+  it('repeated warden contacts refresh rather than stack', () => {
+    const s = fresh()
+    makeEnemy(s, 'warden', { x: CENTER.x, y: CENTER.y })
+    makeEnemy(s, 'warden', { x: CENTER.x, y: CENTER.y })
+    step(s, [], 0.01)
+    expect(s.survivor.statuses.slow).toBeLessThanOrEqual(2.0)
+  })
+
+  it('a plain rusher inflicts no status at all', () => {
+    const s = fresh()
+    makeEnemy(s, 'rusher', { x: CENTER.x, y: CENTER.y })
+    step(s, [], 0.01)
+    expect(s.survivor.statuses).toEqual({ slow: 0, suppress: 0, bleed: 0 })
+  })
+
+  it('survivor fire never debuffs the survivor', () => {
+    const s = fresh()
+    makeEnemy(s, 'tank', { x: CENTER.x + 200, y: CENTER.y })
+    step(s, [], 0.001)
+    const own = s.projectiles.find((p) => p.from === 'survivor')
+    expect(own?.debuffDuration).toBe(0)
   })
 })
