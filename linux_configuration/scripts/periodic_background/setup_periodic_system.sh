@@ -204,6 +204,42 @@ install_browser_preexec_wrapper() {
     ln -sf "$wrapper" "$link"
   done
   echo "✓ Symlinked wrapper for common browsers in /usr/local/bin"
+
+  redirect_app_mode_desktop_entries
+}
+
+# Chromium "app mode" shortcuts (--app-id=...) are auto-generated with a direct
+# Exec=/opt/<browser>/<browser> line, bypassing /usr/local/bin entirely. That
+# means neither the flags file nor the crash logging applies to them, and it is
+# silent: on 2026-08-09 five such Thorium entries were found still launching
+# without the --disable-gpu-compositing mitigation added on 2026-07-25.
+# Chromium regenerates these files, so this re-runs on every install.
+redirect_app_mode_desktop_entries() {
+  local target_user="${SUDO_USER:-$USER}"
+  local apps_dir
+  apps_dir="$(getent passwd "$target_user" | cut -d: -f6)/.local/share/applications"
+
+  [[ -d $apps_dir ]] || return 0
+
+  local rewritten=0 f
+  while IFS= read -r -d '' f; do
+    if grep -q '^Exec=/opt/' "$f"; then
+      # Keep only the BASENAME, whatever the nesting depth:
+      #   /opt/thorium-browser/thorium-browser -> /usr/local/bin/thorium-browser
+      #   /opt/google/chrome/google-chrome     -> /usr/local/bin/google-chrome
+      # The greedy .* up to the last slash is what makes depth irrelevant;
+      # matching a single path segment silently mangles the nested case.
+      sed -i -E 's|^Exec=/opt/.*/([^/ ]+)|Exec=/usr/local/bin/\1|' "$f"
+      rewritten=$((rewritten + 1))
+    fi
+  done < <(find "$apps_dir" -maxdepth 1 -type f -name '*.desktop' -print0 2> /dev/null)
+
+  if ((rewritten > 0)); then
+    chown "$target_user" "$apps_dir"/*.desktop 2> /dev/null || true
+    echo "✓ Redirected $rewritten app-mode .desktop entries through the wrapper"
+  else
+    echo "✓ No app-mode .desktop entries needed redirecting"
+  fi
 }
 
 # Function to install automatic system update service
