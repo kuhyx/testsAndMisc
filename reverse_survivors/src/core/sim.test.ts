@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  applyUpgrade, createInitialState, DANGER_RADIUS, grantXp, makeEnemy, step, xpForLevel,
+  applyUpgrade, createInitialState, DANGER_RADIUS, grantXp, makeEnemy, SPLIT_RADIUS, step,
+  xpForLevel,
 } from './sim'
 import type { GameState, Projectile } from './types'
 import { ARENA, GAME_DURATION } from './types'
@@ -366,5 +367,121 @@ describe('game end', () => {
     step(s, [{ type: 'spawn', kind: 'rusher' }], 0.001)
     expect(s.enemies).toHaveLength(1)
     expect(s.director.energy).toBeLessThan(30)
+  })
+})
+
+describe('splitter', () => {
+  it('dies into three rushers at fixed offsets', () => {
+    const s = fresh()
+    const sp = makeEnemy(s, 'splitter', { x: 300, y: 300 })
+    shot(s, 300, 300, 999)
+    step(s, [], 0.001)
+    const children = s.enemies.filter((e) => e.id !== sp.id)
+    expect(children).toHaveLength(3)
+    expect(children.every((c) => c.kind === 'rusher')).toBe(true)
+    // Children drift toward the survivor within the same tick, so assert the
+    // spawn ring loosely — the exact geometry is pinned by the test below.
+    for (const c of children) {
+      expect(Math.hypot(c.pos.x - 300, c.pos.y - 300)).toBeLessThan(SPLIT_RADIUS + 5)
+    }
+  })
+
+  it('spawns children on a ring at 120-degree offsets', () => {
+    const s = fresh()
+    makeEnemy(s, 'splitter', { x: 300, y: 300 })
+    shot(s, 300, 300, 999)
+    // dt of 0 isolates the spawn geometry from the movement that follows it.
+    step(s, [], 0)
+    const angles = s.enemies
+      .map((e) => Math.atan2(e.pos.y - 300, e.pos.x - 300))
+      .sort((a, b) => a - b)
+    expect(angles).toHaveLength(3)
+    // Pairwise gaps without indexing (noUncheckedIndexedAccess would widen those).
+    const gaps: number[] = []
+    let prev: number | null = null
+    for (const a of angles) {
+      if (prev !== null) {
+        gaps.push(a - prev)
+      }
+      prev = a
+    }
+    expect(gaps).toHaveLength(2)
+    for (const g of gaps) {
+      expect(g).toBeCloseTo((Math.PI * 2) / 3, 5)
+    }
+  })
+
+  it('children are deterministic and draw no RNG', () => {
+    const run = (): { x: number; y: number }[] => {
+      const s = fresh(42)
+      makeEnemy(s, 'splitter', { x: 300, y: 300 })
+      shot(s, 300, 300, 999)
+      step(s, [], 0.001)
+      return s.enemies.map((e) => ({ x: e.pos.x, y: e.pos.y }))
+    }
+    expect(run()).toEqual(run())
+  })
+
+  it('clamps children into the arena when it dies in a corner', () => {
+    const s = fresh()
+    makeEnemy(s, 'splitter', { x: 2, y: 2 })
+    shot(s, 2, 2, 999)
+    step(s, [], 0.001)
+    for (const e of s.enemies) {
+      expect(e.pos.x).toBeGreaterThanOrEqual(10)
+      expect(e.pos.y).toBeGreaterThanOrEqual(10)
+    }
+  })
+
+  it('a later projectile in the same tick can hit a fresh child', () => {
+    const s = fresh()
+    makeEnemy(s, 'splitter', { x: 300, y: 300 })
+    shot(s, 300, 300, 999)
+    shot(s, 300 + SPLIT_RADIUS, 300, 999)
+    step(s, [], 0.001)
+    expect(s.survivor.kills).toBe(2)
+  })
+
+  it('non-splitting kinds spawn no children', () => {
+    const s = fresh()
+    makeEnemy(s, 'rusher', { x: 300, y: 300 })
+    shot(s, 300, 300, 999)
+    step(s, [], 0.001)
+    expect(s.enemies).toHaveLength(0)
+  })
+})
+
+describe('new units', () => {
+  it('artillery outranges the survivor and fires while it cannot', () => {
+    const s = fresh()
+    const a = makeEnemy(s, 'artillery', { x: CENTER.x + 400, y: CENTER.y })
+    a.fireTimer = 0
+    step(s, [], 0.001)
+    expect(s.projectiles.some((p) => p.from === 'enemy')).toBe(true)
+    expect(s.projectiles.some((p) => p.from === 'survivor')).toBe(false)
+  })
+
+  it('artillery holds station at its keep distance', () => {
+    const s = fresh()
+    const a = makeEnemy(s, 'artillery', { x: CENTER.x + 420, y: CENTER.y })
+    const before = a.pos.x
+    step(s, [], 0.016)
+    expect(a.pos.x).toBeCloseTo(before, 5)
+  })
+
+  it('warden closes faster than a rusher', () => {
+    const s = fresh()
+    const w = makeEnemy(s, 'warden', { x: CENTER.x + 300, y: CENTER.y })
+    const r = makeEnemy(s, 'rusher', { x: CENTER.x + 300, y: CENTER.y })
+    step(s, [], 0.016)
+    expect(CENTER.x + 300 - w.pos.x).toBeGreaterThan(CENTER.x + 300 - r.pos.x)
+  })
+
+  it('the hivemind still births rushers via spawnKind', () => {
+    const s = fresh()
+    const h = makeEnemy(s, 'hivemind', { x: 40, y: 40 })
+    h.spawnTimer = 0
+    step(s, [], 0.001)
+    expect(s.enemies.some((e) => e.kind === 'rusher')).toBe(true)
   })
 })

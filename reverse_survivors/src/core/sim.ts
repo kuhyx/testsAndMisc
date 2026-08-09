@@ -1,7 +1,7 @@
 import { applyAction, tickDirector } from './director'
 import { createRng, pick } from './rng'
 import type {
-  DirectorAction, Enemy, EnemyKind, GameState, Survivor, UpgradeId,
+  DirectorAction, Enemy, EnemyKind, EnemySpec, GameState, Survivor, UpgradeId,
 } from './types'
 import {
   ARENA, CONTACT_COOLDOWN, ENERGY_START, ENEMY_SPECS, GAME_DURATION, UPGRADE_POOL,
@@ -46,7 +46,7 @@ export const createInitialState = (seed: number, duration = GAME_DURATION): Game
   director: {
     energy: ENERGY_START,
     waveIndex: 0,
-    bossCooldowns: { colossus: 0, hivemind: 0 },
+    bossCooldowns: { colossus: 0, hivemind: 0, leech: 0 },
   },
   upgrades: [],
   nextId: 1,
@@ -162,6 +162,23 @@ const detonate = (state: GameState, enemy: Enemy): void => {
   }
 }
 
+export const SPLIT_RADIUS = 22
+
+/**
+ * Emits `splitCount` children at fixed angular offsets. Deterministic on purpose:
+ * drawing from the RNG here would shift every seeded replay downstream.
+ * Loop-only — `splitCount: 0` makes this a no-op without a guard branch.
+ */
+const split = (state: GameState, spec: EnemySpec, pos: Vec): void => {
+  for (let i = 0; i < spec.splitCount; i += 1) {
+    const angle = (Math.PI * 2 * i) / spec.splitCount
+    makeEnemy(state, spec.spawnKind, {
+      x: clamp(pos.x + Math.cos(angle) * SPLIT_RADIUS, 10, ARENA.w - 10),
+      y: clamp(pos.y + Math.sin(angle) * SPLIT_RADIUS, 10, ARENA.h - 10),
+    })
+  }
+}
+
 const killByShot = (state: GameState, enemy: Enemy): void => {
   const spec = ENEMY_SPECS[enemy.kind]
   state.survivor.kills += 1
@@ -169,6 +186,7 @@ const killByShot = (state: GameState, enemy: Enemy): void => {
   if (spec.detonates) {
     detonate(state, enemy)
   }
+  split(state, spec, enemy.pos)
 }
 
 const MOVE_FNS: Record<'chase' | 'skirmish', (e: Enemy, sv: Survivor, d: number) => Vec> = {
@@ -226,7 +244,7 @@ const enemiesStep = (state: GameState, dt: number): void => {
     if (spec.spawnEvery > 0) {
       e.spawnTimer = Math.max(0, e.spawnTimer - dt)
       if (e.spawnTimer === 0) {
-        spawned.push({ kind: 'rusher', pos: { x: e.pos.x, y: e.pos.y } })
+        spawned.push({ kind: spec.spawnKind, pos: { x: e.pos.x, y: e.pos.y } })
         e.spawnTimer = spec.spawnEvery
       }
     }

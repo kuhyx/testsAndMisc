@@ -30,8 +30,12 @@ const ENEMY_COLORS: Record<EnemyKind, string> = {
   stalker: '#b06ce8',
   tank: '#8a4b3c',
   bomber: '#e0a13d',
+  splitter: '#5fae6b',
+  artillery: '#d4693a',
+  warden: '#e6d15c',
   colossus: '#7d2c50',
   hivemind: '#5a3d8a',
+  leech: '#3f7d6e',
 }
 
 const IS_BOSS: Record<EnemyKind, boolean> = {
@@ -39,8 +43,12 @@ const IS_BOSS: Record<EnemyKind, boolean> = {
   stalker: false,
   tank: false,
   bomber: false,
+  splitter: false,
+  artillery: false,
+  warden: false,
   colossus: true,
   hivemind: true,
+  leech: true,
 }
 
 const circle = (ctx: Ctx2D, x: number, y: number, r: number): void => {
