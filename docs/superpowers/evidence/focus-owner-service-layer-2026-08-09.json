@@ -1,0 +1,52 @@
+{
+  "intent": "Give the enforcement decision a runtime that fires at the right moments, survives a reboot, and cannot be quietly deferred by Doze.",
+  "scope": [
+    "focus_owner/android/.../EnforcementService.kt - new: applies a pass, schedules the next, stops",
+    "focus_owner/android/.../EnforcementScheduler.kt - new: exact alarms plus a coarse repair fallback",
+    "focus_owner/android/.../BootReceiver.kt - new: LOCKED_BOOT_COMPLETED and BOOT_COMPLETED",
+    "focus_owner/android/.../EnforcementAlarmReceiver.kt - new: hands off to the service",
+    "focus_owner/android/app/src/main/AndroidManifest.xml - permissions, service and receivers",
+    "focus_owner/lib/{main,device_policy}.dart - a Run-now control to arm the chain",
+    "Non-goal: no Device Owner provisioning; the service verifies this and no-ops"
+  ],
+  "changes": [
+    "Not a polling loop. Doze can skip a poll indefinitely, and skipping the 05:00 boundary would leave the curfew allowlist applied into the morning with the user's banking app missing and no obvious cause. The transitions are known in advance, so they get exact alarms; the service wakes, applies, schedules and stops rather than sitting resident.",
+    "BootReceiver handles LOCKED_BOOT_COMPLETED as well as BOOT_COMPLETED. The latter does not arrive until first unlock - measured on this device, where it stayed RUNNING_LOCKED for minutes after a restart with no network. Relying on it alone freezes enforcement state across a reboot, which is safe for hiding but not for unhiding. The schedule is re-armed before unlock; the pass itself waits for storage to be readable.",
+    "USE_EXACT_ALARM replaced SCHEDULE_EXACT_ALARM after the first on-device run logged 'exact alarms not permitted'. dumpsys showed the cost precisely: window=+11m14s and maxWhenElapsed=+25m51s, so a 15-minute fallback could slip to 26 minutes. USE_EXACT_ALARM is granted at install for apps whose function is acting at specific times.",
+    "A failure inside a pass is caught and logged so it cannot prevent the next run being scheduled. An enforcement bug should degrade one tick, not end the chain."
+  ],
+  "verification": [
+    {
+      "command": "adb install -r && am start && adb logcat",
+      "result": "pass",
+      "evidence": "'boot: android.intent.action.LOCKED_BOOT_COMPLETED unlocked=true' and 'BOOT_COMPLETED unlocked=true' both fire, followed by 'not DO/PO - no enforcement applied'. The service refuses to act unprovisioned and says so, rather than failing silently."
+    },
+    {
+      "command": "adb shell dumpsys alarm | grep -A4 EnforcementAlarmReceiver (before)",
+      "result": "pass",
+      "evidence": "With SCHEDULE_EXACT_ALARM: 'window=+11m14s999ms', 'whenElapsed=+14m36s maxWhenElapsed=+25m51s'. This is the measurement that justified changing the permission."
+    },
+    {
+      "command": "adb shell dumpsys alarm | grep -A4 EnforcementAlarmReceiver (after)",
+      "result": "pass",
+      "evidence": "'window=0 exactAllowReason=policy_permission' and whenElapsed == maxWhenElapsed (+14m43s984ms both). The boundary now fires on the minute, and the earlier warning is gone from logcat."
+    },
+    {
+      "command": "cd focus_owner && flutter analyze && flutter test",
+      "result": "pass",
+      "evidence": "'No issues found!' and 67 tests passing."
+    }
+  ],
+  "risks": [
+    "The service currently logs a tick and reschedules; it does not yet call setApplicationHidden with the decision. The decision layer and the DPM call are both tested, but the wiring between them is the next step and is not done.",
+    "QUERY_ALL_PACKAGES is now requested. It is necessary to enumerate installed apps for the allowlist sweep, but it is a broad permission and Play would require a declaration for it.",
+    "ACCESS_BACKGROUND_LOCATION is declared but not yet requested at runtime, and Android grants it only through a separate settings screen. Until that is wired the geofence cannot evaluate with the screen off.",
+    "The 15-minute repair fallback costs a wakeup every 15 minutes. Acceptable for bounding a lost alarm, but it should be widened once boundary alarms are proven reliable.",
+    "Still true and unproven: DO hiding in user 0."
+  ],
+  "rollback": [
+    "git revert. The service no-ops without device owner, so reverting changes nothing on the phone.",
+    "To stop a scheduled chain on a device: open the app and use the cancel path, or uninstall - alarms do not survive uninstall.",
+    "After rollback validate: flutter analyze && flutter test pass, and dumpsys alarm shows no EnforcementAlarmReceiver entry."
+  ]
+}
