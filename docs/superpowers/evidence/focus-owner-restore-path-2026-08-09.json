@@ -1,0 +1,54 @@
+{
+  "intent": "Make it possible for focus_owner to un-hide an app it has hidden. Before this change a hidden app could never be restored, so leaving home (or the curfew ending) would not have given access back.",
+  "scope": [
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/EnforcementRunner.kt",
+    "python_pkg/focus_policy/export.py",
+    "python_pkg/focus_policy/tests/test_export.py",
+    "python_pkg/focus_policy/tests/test_loader.py",
+    "focus_owner/docs/profile-owner-verification-2026-08-09.md",
+    "Non-goal: wiring the workout signal into the Kotlin path (pre-existing gap, documented not fixed)",
+    "Non-goal: Device Owner provisioning, which still needs a factory reset"
+  ],
+  "changes": [
+    "EnforcementRunner.installedThirdPartyPackages() now queries with PackageManager.MATCH_UNINSTALLED_PACKAGES. A package hidden by setApplicationHidden is dropped from the default enumeration, so it left installedPackages, so it could never appear in packagesToShow, so it could never be unhidden.",
+    "export.py injects ENFORCER_PACKAGE (com.kuhy.focus_owner) into both allowlists. The enforcer was in neither, so the decision layer put it in the hide set on every enforcing pass; only an in-app check stopped the app hiding itself along with its own escape hatch.",
+    "Corrected the EnforcementRunner comment that described that in-app check as redundant defence-in-depth; until a policy asset is regenerated it is the sole protection.",
+    "Added test_export.py covering the injection guarantee, set-union idempotence, sorted output, curfew rendering and home redaction; updated the test_loader.py allowlist assertion the injection legitimately changes."
+  ],
+  "verification": [
+    {
+      "command": "on-device: managed profile (user 12) with profile owner, tap 'Run enforcement now'",
+      "result": "fail-then-pass",
+      "evidence": "Before fix: 'applied LOCATION_UNKNOWN: hid 0, restored 0' with all three apps still hidden=true, and pm list packages --user 12 -3 returning only focus_owner. After fix: 'setApplicationHidden(...,false)=true' x3 and 'applied LOCATION_UNKNOWN: hid 0, restored 3'."
+    },
+    {
+      "command": "adb shell dumpsys package <pkg> (per-user hidden= flag)",
+      "result": "pass",
+      "evidence": "com.termux, org.breezyweather, de.duenndns.gmdice all hidden=false after the restore pass; back in the default enumeration; cmd package resolve-activity com.termux resolved to TermuxActivity."
+    },
+    {
+      "command": "adb reboot; re-check hidden state in user 12",
+      "result": "pass",
+      "evidence": "All three still hidden=true after reboot. This is the property pm suspend and pm disable-user both fail, and the one the Device Owner design depends on."
+    },
+    {
+      "command": "python -m pytest python_pkg/focus_policy/",
+      "result": "pass",
+      "evidence": "123 passed. Isolated coverage for python_pkg/focus_policy: 249 statements, 58 branches, 100%."
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "See commit; all hooks green."
+    }
+  ],
+  "risks": [
+    "MATCH_UNINSTALLED_PACKAGES also returns packages uninstalled with data retained, which could put ghosts in packagesToHide. Measured on this device: pm list packages -3 and -u -3 both return 49, so there are none, and apply() wraps both bridge calls in runCatching so a ghost is a no-op.",
+    "Verification used a profile owner, not a device owner. The DPM calls are identical, but the harness could not exercise real home coordinates (every pass resolved to LOCATION_UNKNOWN), the full 373-package sweep, or persisted geofence hysteresis.",
+    "The committed policy asset still predates the exporter fix; it cannot be regenerated on this machine because config_secrets.sh holds the REDACTED_LAT placeholder rather than real coordinates. Until it is regenerated the in-app self-hide check remains the only protection, which is why that check was kept."
+  ],
+  "rollback": [
+    "git revert the commit. The Kotlin change is one flag argument and the exporter change is one set union.",
+    "After rollback, re-check that no app is left hidden: adb shell pm list packages -u -3 --user 0 against pm list packages -3 --user 0. A difference means an app is hidden and, without the fix, cannot be restored by the app itself; clear it with adb shell pm unhide <pkg> or by removing the profile."
+  ]
+}
