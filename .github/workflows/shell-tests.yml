@@ -60,9 +60,12 @@ jobs:
       # ptrace. Without these the trace file is never produced.
       options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
-      # base-devel ships neither git (actions/checkout needs it) nor strace.
+      # base-devel ships none of these: git (actions/checkout needs it), strace
+      # (execve counting), or jq (the claude_usage block parses its cache with
+      # it, and without jq that block degrades to "no data" and its assertions
+      # fail).
       - name: Install dependencies
-        run: pacman -Sy --noconfirm --needed git strace
+        run: pacman -Sy --noconfirm --needed git strace jq
 
       - uses: actions/checkout@v4
 

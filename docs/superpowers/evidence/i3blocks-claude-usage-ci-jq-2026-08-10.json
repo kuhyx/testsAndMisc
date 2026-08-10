@@ -1,0 +1,37 @@
+{
+  "intent": "Make the claude_usage i3blocks tests pass on CI, where they failed because the Arch container had no jq.",
+  "scope": [
+    ".github/workflows/shell-tests.yml (arch-tests container dependencies)",
+    "linux_configuration/tests/test_i3blocks_efficiency.sh (dependency probe)",
+    "Non-goal: changing claude_usage.sh runtime behaviour — degrading to 'no data' without jq is correct"
+  ],
+  "changes": [
+    "Install jq in the arch-tests container. archlinux:base-devel ships neither git, strace nor jq; the first two were already installed, and claude_usage.sh parses its cache with jq.",
+    "Guard the claude_usage test section on a working jq. The probe runs `printf '{}' | jq -e .` rather than `command -v jq`, because a jq that exists but cannot execute produces exactly the same 'no data' output as an absent one, and `command -v` would pass in that case."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "EXIT=0 with jq present."
+    },
+    {
+      "command": "PATH=<stub-with-failing-jq> bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "Reports 'FAIL: a working jq is required for the claude_usage tests (pacman -S jq)' instead of the previous misleading \"expected '🤖 5h 34% · 7d 55%', actual: '🤖 no data'\" — the failure now names its real cause. Confirmed the earlier `command -v jq` form did NOT catch this case."
+    },
+    {
+      "command": "reproduce CI failure locally",
+      "result": "pass",
+      "evidence": "Running claude_usage.sh with a failing jq on PATH reproduced the exact CI output '🤖 no data', confirming the missing dependency rather than a logic defect."
+    }
+  ],
+  "risks": [
+    "Adds one package to the CI container install step, marginally increasing job setup time.",
+    "The guard makes a missing dependency a hard failure rather than a skip; that is intended, since silently skipping would hide the block's assertions entirely."
+  ],
+  "rollback": [
+    "git revert the commit; CI returns to failing on the claude_usage assertions until jq is installed another way.",
+    "Validate with: gh run list --limit 3 after the next push."
+  ]
+}

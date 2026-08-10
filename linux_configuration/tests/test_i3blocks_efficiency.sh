@@ -192,6 +192,14 @@ grep -Fq 'iface_path}/device' "$I3BLOCKS_DIR/ethernet.sh" \
   || fail 'ethernet script should require a real device to skip virtual interfaces'
 
 printf 'Checking Claude usage block behavior and fork count...\n'
+# claude_usage.sh parses its cache with jq and degrades to "no data" when jq is
+# missing. That is the right runtime behaviour, but it would make every
+# assertion below fail with a misleading message about percentages, so name the
+# real cause instead of letting a missing tool look like a logic bug.
+# Probe by running jq, not with `command -v`: a jq that exists but cannot
+# execute produces exactly the same "no data" output as one that is absent.
+printf '{}' | jq -e . >/dev/null 2>&1 \
+  || fail 'a working jq is required for the claude_usage tests (pacman -S jq)'
 CLAUDE_STATE_DIR="$TMP_DIR/limit-state"
 mkdir -p "$CLAUDE_STATE_DIR"
 claude_now=1786366861
