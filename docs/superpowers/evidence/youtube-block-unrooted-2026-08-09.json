@@ -1,0 +1,56 @@
+{
+  "intent": "Make YouTube unreachable on the unrooted Pixel 6a without a factory reset, keeping Firefox installed and working, and let phone_focus_mode scripts target more than one enrolled phone.",
+  "scope": [
+    "phone_focus_mode/distraction_purge.sh",
+    "phone_focus_mode/lib/adb_common.sh",
+    "phone_focus_mode/lib/tests/test_adb_common.sh",
+    "phone_focus_mode/docs/youtube-block-unrooted.md",
+    "Non-goal: Device Owner provisioning, still gated on the factory reset",
+    "Non-goal: tamper-resistance against a user who wants to undo it (see the doc's limits section)"
+  ],
+  "changes": [
+    "distraction_purge.sh removes com.google.android.youtube, com.google.android.apps.youtube.music and com.android.chrome for user 0 via `pm uninstall --user 0`, which needs no root and -- unlike pm suspend and pm disable-user -- survives a reboot. --list, --status and --restore included; --restore is a single command because the APKs stay on the system image.",
+    "The script re-reads each package's state with dumpsys after acting instead of trusting the pm exit code, and exits non-zero if anything is still installed, so a Play Store reinstall surfaces as a failure rather than a silent no-op.",
+    "adb_common.sh: the trusted-device record becomes a directory with one file per device, so a second phone no longer evicts the first. The legacy single-device file is still honoured. An unenrolled device still aborts, and a device whose model or build fingerprint changed aborts rather than falling through to the next record.",
+    "Added adb_list_trusted_serials and adb_forget_trusted_device; adb_save_trusted_device now exports ADB_ENROLLED_DEVICE_FILE so callers and tests can find the record it wrote."
+  ],
+  "verification": [
+    {
+      "command": "adb shell pm uninstall --user 0 <pkg>; adb reboot; re-check dumpsys",
+      "result": "pass",
+      "evidence": "All three packages read installed=false before and after reboot, across two reboots. `cmd package resolve-activity com.google.android.youtube` returns 'No activity found'."
+    },
+    {
+      "command": "Firefox (org.mozilla.fenix) loading each YouTube URL form, screenshot-verified",
+      "result": "pass",
+      "evidence": "m.youtube.com, www.youtube.com, www.youtube.com/watch?v=..., and youtu.be/... all render 'Unable to connect'. YouTube search returns nothing. Control https://example.com loads normally, so the internet works and only YouTube is blocked. Re-confirmed after a reboot."
+    },
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_adb_common.sh",
+      "result": "pass",
+      "evidence": "16 passed, 0 failed, up from 13. Three new tests cover accepting any enrolled device, rejecting an unenrolled one, and forgetting a single record."
+    },
+    {
+      "command": "bash lib/tests/test_dns_enforcer.sh; bash lib/tests/test_magisk_service.sh",
+      "result": "fail",
+      "evidence": "Both fail, but identically on clean HEAD in a throwaway worktree -- pre-existing and unrelated. They exercise Magisk/root paths and this phone is not rooted. test_tether_enforcer.sh passes both before and after."
+    },
+    {
+      "command": "shellcheck + shfmt on the changed shell files",
+      "result": "pass",
+      "evidence": "Clean after fixing SC2155 and reformatting to tabs."
+    }
+  ],
+  "risks": [
+    "The web block depends on RethinkDNS (com.celzero.bravedns, installed manually from F-Droid, arm64 build versionCode 633), which is NOT part of this commit and lives only on the device. Its 8 wildcard domain rules are device state; a factory reset or app data wipe loses them. The doc records how to rebuild them.",
+    "None of this is tamper-resistant. The VPN is 3-4 taps from off in Settings, and no unrooted non-Device-Owner app can prevent that. Device Owner plus setAlwaysOnVpnPackage and DISALLOW_CONFIG_VPN is the only tier that meets 'cannot be shut down from the phone', and it needs the factory reset.",
+    "`pm uninstall --user 0` was verified against reboot but NOT against the Play Store. YouTube and Chrome are Play-distributed, so they may be reinstallable in a few taps, which would put the app layer at roughly the same difficulty as the VPN toggle. Unverified at time of writing.",
+    "Nothing re-asserts the purge automatically. phone-auto-sync.timer is inactive and points at a path that does not exist, so distraction_purge.sh is manual for now.",
+    "Android holds BOOT_COMPLETED until first unlock, so the VPN is down between boot and unlock. Unavoidable without Device Owner, and low impact since the phone is locked during that window. An adb-written always_on_vpn_app was tested and does NOT work -- it persisted across a reboot but the app still did not start -- so it was reverted rather than left as a setting implying protection it does not give."
+  ],
+  "rollback": [
+    "./distraction_purge.sh --restore puts all three packages back for user 0 with no download.",
+    "git revert restores the single-device trusted record path; per-device records under ~/.local/state/phone_focus_mode/trusted_devices/ can be deleted, and trusted_device.sh.migrated renamed back.",
+    "The web block is undone by stopping or uninstalling RethinkDNS, or deleting its domain rules."
+  ]
+}
