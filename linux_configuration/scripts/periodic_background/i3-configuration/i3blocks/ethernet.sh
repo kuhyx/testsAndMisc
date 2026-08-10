@@ -8,23 +8,37 @@ SCRIPT_DIR=${BASH_SOURCE[0]%/*}
 # shellcheck source=persist_common.sh
 source "$SCRIPT_DIR/persist_common.sh"
 
+# Picks a real physical ethernet interface. Virtual interfaces (docker/podman
+# bridges, veth pairs, wireguard, tailscale, bonds) must be skipped: they sort
+# alphabetically BEFORE enp*/eth*, so taking the first match reported "down"
+# forever on a machine with docker installed, even with a live wired link.
+# Physical NICs are the ones with a real device symlink under /sys/class/net.
 find_ethernet_interface() {
-	local iface_path iface
+	local iface_path iface state fallback=''
 	for iface_path in /sys/class/net/*; do
 		iface=${iface_path##*/}
 		[[ $iface == lo ]] && continue
 		[[ -d ${iface_path}/wireless ]] && continue
+		[[ -e ${iface_path}/device ]] || continue
 		[[ -r ${iface_path}/operstate ]] || continue
-		printf '%s\n' "$iface"
-		return 0
+		read -r state <"${iface_path}/operstate"
+		# Prefer an interface that is actually up; remember the first physical
+		# one so an all-down machine still reports a real NIC rather than none.
+		if [[ $state == up ]]; then
+			printf '%s\n' "$iface"
+			return 0
+		fi
+		[[ -z $fallback ]] && fallback=$iface
 	done
-	return 1
+	[[ -n $fallback ]] || return 1
+	printf '%s\n' "$fallback"
+	return 0
 }
 
 emit() {
 	local iface state addr_output output_line
 	iface=$(find_ethernet_interface) || {
-		output_line='  down'
+		output_line='🌐 down'
 		if i3blocks_update_if_changed_key "ethernet_output" "$output_line"; then
 			printf '%s\n' "$output_line"
 		fi
@@ -33,7 +47,7 @@ emit() {
 
 	read -r state <"/sys/class/net/${iface}/operstate"
 	if [[ $state != up ]]; then
-		output_line='  down'
+		output_line='🌐 down'
 		if i3blocks_update_if_changed_key "ethernet_output" "$output_line"; then
 			printf '%s\n' "$output_line"
 		fi
@@ -42,9 +56,9 @@ emit() {
 
 	addr_output=$(ip -o -4 addr show dev "$iface" scope global 2>/dev/null) || addr_output=''
 	if [[ $addr_output =~ ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+) ]]; then
-		output_line="    ${BASH_REMATCH[1]}"
+		output_line="🌐 ${BASH_REMATCH[1]}"
 	else
-		output_line='  down'
+		output_line='🌐 down'
 	fi
 
 	if i3blocks_update_if_changed_key "ethernet_output" "$output_line"; then

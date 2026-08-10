@@ -16,10 +16,6 @@ BIN_DIR="$TMP_DIR/bin"
 mkdir -p "$BIN_DIR"
 
 cleanup() {
-  if [[ -n "${AW_PID:-}" ]]; then
-    kill "$AW_PID" 2>/dev/null || true
-    wait "$AW_PID" 2>/dev/null || true
-  fi
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -58,15 +54,6 @@ count_execs() {
     >/dev/null 2>&1
   grep -c 'execve(' "$log_file"
 }
-
-cat >"$BIN_DIR/bluetoothctl" <<'EOF'
-#!/bin/bash
-printf '%s\n' \
-  'Device AA:BB:CC:DD:EE:FF' \
-  'Alias: Test Headphones' \
-  'Connected: yes'
-EOF
-chmod +x "$BIN_DIR/bluetoothctl"
 
 cat >"$BIN_DIR/pacman" <<'EOF'
 #!/bin/bash
@@ -124,20 +111,6 @@ exit 1
 EOF
 chmod +x "$BIN_DIR/ip"
 
-cat >"$BIN_DIR/warp-cli" <<'EOF'
-#!/bin/bash
-set -euo pipefail
-
-if [[ $# -eq 1 && $1 == status ]]; then
-  printf 'Status update: %s\n' "${WARP_STATUS:-Disconnected}"
-  exit 0
-fi
-
-printf 'unexpected warp-cli args: %s\n' "$*" >&2
-exit 1
-EOF
-chmod +x "$BIN_DIR/warp-cli"
-
 cat >"$BIN_DIR/df" <<'EOF'
 #!/bin/bash
 set -euo pipefail
@@ -153,8 +126,6 @@ printf 'unexpected df args: %s\n' "$*" >&2
 exit 1
 EOF
 chmod +x "$BIN_DIR/df"
-
-ln -s /bin/sleep "$BIN_DIR/aw-qt"
 
 printf 'Checking config uses dedicated low-fork scripts...\n'
 grep -q '^command=~/.config/i3blocks/time.sh$' "$CONFIG_FILE" \
@@ -173,109 +144,128 @@ grep -A2 '^\[motherboard_temperature\]$' "$CONFIG_FILE" | grep -q '^interval=30$
   || fail 'motherboard block should poll at 30s interval'
 grep -A2 '^\[memory\]$' "$CONFIG_FILE" | grep -q '^interval=30$' \
   || fail 'memory block should poll at 30s interval'
-grep -A2 '^\[bluetooth\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
-  || fail 'bluetooth block should use persist mode'
-grep -A2 '^\[battery\]$' "$CONFIG_FILE" | grep -q '^interval=60$' \
-  || fail 'battery block should poll at 60s interval'
 grep -A2 '^\[ethernet\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
   || fail 'ethernet block should use persist mode'
-grep -A2 '^\[wifi\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
-  || fail 'wifi block should use persist mode'
-grep -A2 '^\[activitywatch\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
-  || fail 'activitywatch block should use persist mode'
-grep -A2 '^\[warp\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
-  || fail 'warp block should use persist mode'
+grep -A2 '^\[claude_usage\]$' "$CONFIG_FILE" | grep -q '^interval=60$' \
+  || fail 'claude_usage block should poll at 60s interval'
+grep -q '^command=~/.config/i3blocks/claude_usage.sh$' "$CONFIG_FILE" \
+  || fail 'claude_usage block should call claude_usage.sh'
+
+# Blocks for hardware/software absent from this machine were removed; make sure
+# they do not silently return. Each rendered permanently-dead text in the bar.
+for removed_block in bluetooth battery wifi activitywatch warp network_monitor; do
+  if grep -q "^\[${removed_block}\]$" "$CONFIG_FILE"; then
+    fail "removed block [${removed_block}] should not be in the config"
+  fi
+done
+
+printf 'Checking status icons avoid Font Awesome private-use codepoints...\n'
+# The fonts named in the i3 bar's pango string are not installed, so private-use
+# codepoints (U+E000-U+F8FF) fall through to whatever font claims them - which
+# rendered the ethernet icon as a star and the wifi icon as Cyrillic. Plain
+# Unicode/emoji resolve consistently instead.
+for icon_script in "$I3BLOCKS_DIR"/*.sh; do
+  if grep -qP '[\x{E000}-\x{F8FF}]|\\u[eEfF][0-9a-fA-F]{3}' "$icon_script"; then
+    fail "$(basename "$icon_script") should not use private-use-area icon codepoints"
+  fi
+done
 
 printf 'Checking focus detection path avoids extra xdotool lookups...\n'
 ! grep -Fq "xdotool getwindowname \"\$wid\"" "$REPO_DIR/scripts/lib/common.sh" \
   || fail 'focus detection should not call xdotool getwindowname in hot path'
 
-printf 'Checking ActivityWatch persist strategy avoids /proc event storm...\n'
-! grep -Fq 'inotifywait -m -q -e create -e delete /proc' "$I3BLOCKS_DIR/activitywatch_status.sh" \
-  || fail 'activitywatch persist mode should avoid noisy /proc inotify stream'
-
-printf 'Checking GPU/WARP dedupe guards exist...\n'
+printf 'Checking GPU dedupe guards exist...\n'
 grep -Fq 'emit_if_changed()' "$I3BLOCKS_DIR/gpu_monitor.sh" \
   || fail 'gpu monitor should dedupe repeated identical samples'
-grep -Fq 'emit_if_changed()' "$I3BLOCKS_DIR/warp_status.sh" \
-  || fail 'warp status should dedupe repeated identical states'
-grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/bluetooth.sh" \
-  || fail 'bluetooth script should use shared persist helper'
-grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/wifi_monitor.sh" \
-  || fail 'wifi script should use shared persist helper'
 grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/ethernet.sh" \
   || fail 'ethernet script should use shared persist helper'
-grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/activitywatch_status.sh" \
-  || fail 'activitywatch script should use shared persist helper'
 grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/gpu_monitor.sh" \
   || fail 'gpu script should use shared persist helper'
-grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/warp_status.sh" \
-  || fail 'warp script should use shared persist helper'
-grep -Fq 'i3blocks_update_if_changed_key "bluetooth_state"' "$I3BLOCKS_DIR/bluetooth.sh" \
-  || fail 'bluetooth script should dedupe unchanged state'
-grep -Fq 'i3blocks_update_if_changed_key "wifi_output"' "$I3BLOCKS_DIR/wifi_monitor.sh" \
-  || fail 'wifi script should dedupe unchanged output'
 grep -Fq 'i3blocks_update_if_changed_key "ethernet_output"' "$I3BLOCKS_DIR/ethernet.sh" \
   || fail 'ethernet script should dedupe unchanged output'
-grep -Fq 'i3blocks_update_if_changed_key "activitywatch_state"' "$I3BLOCKS_DIR/activitywatch_status.sh" \
-  || fail 'activitywatch script should dedupe unchanged state'
 
-printf 'Checking bluetooth block behavior and fork count...\n'
-bluetooth_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/bluetooth.sh")
-assert_equals ' Test Headphones' "$(printf '%s\n' "$bluetooth_output" | sed -n '1p')" \
-  'bluetooth script should show connected alias'
-assert_le "$(count_execs "$I3BLOCKS_DIR/bluetooth.sh")" 2 \
-  'bluetooth script should stay at one external helper plus bash'
+printf 'Checking ethernet picks a physical NIC over virtual bridges...\n'
+# Regression: the old loop returned the first non-loopback interface, which on a
+# machine with docker installed is a `br-*` bridge (always "down", and sorted
+# before enp*/eth*), so the bar reported "down" on a live wired connection.
+grep -Fq 'iface_path}/device' "$I3BLOCKS_DIR/ethernet.sh" \
+  || fail 'ethernet script should require a real device to skip virtual interfaces'
 
-printf 'Checking ActivityWatch block behavior and fork count...\n'
-activitywatch_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/activitywatch_status.sh")
-assert_equals 'AW off' "$(printf '%s\n' "$activitywatch_output" | sed -n '1p')" \
-  'activitywatch script should show AW off when not running'
-assert_le "$(count_execs "$I3BLOCKS_DIR/activitywatch_status.sh")" 1 \
-  'activitywatch script should avoid pacman/pgrep hot-path forks'
+printf 'Checking Claude usage block behavior and fork count...\n'
+CLAUDE_STATE_DIR="$TMP_DIR/limit-state"
+mkdir -p "$CLAUDE_STATE_DIR"
+claude_now=1786366861
 
-"$BIN_DIR/aw-qt" 60 >/dev/null 2>&1 &
-AW_PID=$!
-activitywatch_running_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/activitywatch_status.sh")
-assert_equals 'AW on' "$(printf '%s\n' "$activitywatch_running_output" | sed -n '1p')" \
-  'activitywatch script should detect running aw-qt process'
+write_claude_state() {
+  printf '{"five_hour_pct":%s,"five_hour_resets_at":%s,"seven_day_pct":%s,"seven_day_resets_at":%s,"updated_at":%s}\n' \
+    "$1" "$2" "$3" "$4" "$5" >"$CLAUDE_STATE_DIR/state.json"
+}
 
-printf 'Checking Wi-Fi block behavior and fork count...\n'
-wifi_connected_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/wifi_monitor.sh")
-assert_equals '    TestWifi (-53 dBm) 192.168.1.44' \
-  "$wifi_connected_output" \
-  'wifi script should show ssid, signal, and IP when connected'
-assert_le "$(count_execs "$I3BLOCKS_DIR/wifi_monitor.sh")" 4 \
-  'wifi script should stay within bash plus iw/iw/ip exec budget'
+run_claude_usage() {
+  LIMIT_STATE_DIR="$CLAUDE_STATE_DIR" NOW_EPOCH="$claude_now" \
+    bash "$I3BLOCKS_DIR/claude_usage.sh"
+}
 
-wifi_disconnected_output=$(WIFI_CONNECTED=0 PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/wifi_monitor.sh")
-assert_equals '    down' "$wifi_disconnected_output" \
-  'wifi script should show down when the interface is not connected'
+# Percentages arrive as floats (e.g. 55.00000000000001) and must be truncated.
+write_claude_state 34 "$((claude_now + 3600))" 55.00000000000001 "$((claude_now + 99999))" "$claude_now"
+claude_output=$(run_claude_usage)
+assert_equals '🤖 5h 34% · 7d 55%' "$(printf '%s\n' "$claude_output" | sed -n '1p')" \
+  'claude usage should show both windows as whole percentages'
+assert_equals '#50FA7B' "$(printf '%s\n' "$claude_output" | sed -n '3p')" \
+  'claude usage should be green well below the limit'
 
-wifi_missing_output=$(WIFI_HAS_INTERFACE=0 PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/wifi_monitor.sh") || true
-assert_equals '    down' "$wifi_missing_output" \
-  'wifi script should show down when no Wi-Fi interface exists'
+write_claude_state 70 "$((claude_now + 3600))" 12 "$((claude_now + 99999))" "$claude_now"
+assert_equals '#F1FA8C' "$(run_claude_usage | sed -n '3p')" \
+  'claude usage should warn when a window passes 60%'
 
-printf 'Checking WARP block behavior and fork count...\n'
-warp_connected_output=$(WARP_STATUS=Connected PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/warp_status.sh")
-assert_equals '🔒 !!! WARP CONNECTED !!!' "$(printf '%s\n' "$warp_connected_output" | sed -n '1p')" \
-  'warp script should show the connected warning when WARP is enabled'
-assert_equals '#FFFF00' "$(printf '%s\n' "$warp_connected_output" | sed -n '3p')" \
-  'warp script should show yellow when WARP is connected'
-assert_le "$(count_execs "$I3BLOCKS_DIR/warp_status.sh")" 2 \
-  'warp script should stay at one external helper plus bash'
+write_claude_state 91 "$((claude_now + 3600))" 12 "$((claude_now + 99999))" "$claude_now"
+assert_equals '#FF5555' "$(run_claude_usage | sed -n '3p')" \
+  'claude usage should go critical when a window passes 85%'
 
-warp_disconnected_output=$(WARP_STATUS=Disconnected PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/warp_status.sh")
-assert_equals 'WARP disconnected' "$(printf '%s\n' "$warp_disconnected_output" | sed -n '1p')" \
-  'warp script should show the disconnected state'
+# The writer only runs while a Claude session is open, so old data must be
+# labelled rather than presented as the current figure.
+write_claude_state 34 "$((claude_now + 3600))" 55 "$((claude_now + 99999))" "$((claude_now - 5000))"
+assert_equals '🤖 5h 34% · 7d 55% (stale)' "$(run_claude_usage | sed -n '1p')" \
+  'claude usage should mark stale cache data'
 
-warp_unknown_output=$(WARP_STATUS=Unknown PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/warp_status.sh")
-assert_equals '⚠️ ! WARP unknown !' "$(printf '%s\n' "$warp_unknown_output" | sed -n '1p')" \
-  'warp script should show the unknown state when status parsing fails'
+# A window whose reset time has passed has rolled over: its cached percentage is
+# meaningless, so it must read as unknown rather than a misleading value.
+write_claude_state 99 "$((claude_now - 10))" 55 "$((claude_now + 99999))" "$claude_now"
+assert_equals '🤖 5h ?% · 7d 55%' "$(run_claude_usage | sed -n '1p')" \
+  'claude usage should not report a rolled-over window as current'
+
+write_claude_state 34 "$((claude_now + 3600))" 55 null "$claude_now"
+assert_equals '🤖 5h 34% · 7d 55%' "$(run_claude_usage | sed -n '1p')" \
+  'claude usage should tolerate a null seven_day reset time'
+
+printf 'not json\n' >"$CLAUDE_STATE_DIR/state.json"
+assert_equals '🤖 no data' "$(run_claude_usage | sed -n '1p')" \
+  'claude usage should degrade gracefully on unparsable cache data'
+
+claude_missing_output=$(LIMIT_STATE_DIR="$TMP_DIR/no-such-dir" NOW_EPOCH="$claude_now" \
+  bash "$I3BLOCKS_DIR/claude_usage.sh")
+assert_equals '🤖 no data' "$(printf '%s\n' "$claude_missing_output" | sed -n '1p')" \
+  'claude usage should degrade gracefully when the cache directory is absent'
+
+write_claude_state 34 "$((claude_now + 3600))" 55 "$((claude_now + 99999))" "$claude_now"
+assert_le "$(LIMIT_STATE_DIR="$CLAUDE_STATE_DIR" NOW_EPOCH="$claude_now" \
+  count_execs "$I3BLOCKS_DIR/claude_usage.sh")" 3 \
+  'claude usage should stay within bash plus jq'
+
+# The real cache holds one file per project (~170 on this machine), so the
+# fork budget has to be measured against a populated directory. Measuring it
+# against a single-file dir hid a `stat` call sitting inside the scan loop.
+for filler in $(seq 1 200); do
+  cp "$CLAUDE_STATE_DIR/state.json" "$CLAUDE_STATE_DIR/filler-$filler.json"
+done
+assert_le "$(LIMIT_STATE_DIR="$CLAUDE_STATE_DIR" NOW_EPOCH="$claude_now" \
+  count_execs "$I3BLOCKS_DIR/claude_usage.sh")" 3 \
+  'claude usage fork count must not scale with the number of cached projects'
+rm -f "$CLAUDE_STATE_DIR"/filler-*.json
 
 printf 'Checking disk block behavior and fork count...\n'
 disk_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/disk.sh")
-assert_equals '  15G/100G' "$disk_output" \
+assert_equals '💾 15G/100G' "$disk_output" \
   'disk script should show used and total disk space'
 assert_le "$(count_execs "$I3BLOCKS_DIR/disk.sh")" 2 \
   'disk script should stay at one external helper plus bash'

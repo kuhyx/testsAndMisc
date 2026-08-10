@@ -7,8 +7,8 @@ set -euo pipefail
   read -r _
   read -r _ size used _
 } < <(df -h / 2> /dev/null) || {
-  echo "  N/A"
+  echo "💾 N/A"
   exit 0
 }
 
-echo "  ${used}/${size}"
+echo "💾 ${used}/${size}"

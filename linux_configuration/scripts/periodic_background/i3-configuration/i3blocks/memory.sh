@@ -28,4 +28,4 @@ done < /proc/meminfo
 used_mib=$(((total_kib - available_kib) / 1024))
 total_mib=$((total_kib / 1024))
 
-printf '  %s/%s\n' "$(format_mib "$used_mib")" "$(format_mib "$total_mib")"
+printf '🧠 %s/%s\n' "$(format_mib "$used_mib")" "$(format_mib "$total_mib")"

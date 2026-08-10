@@ -1,0 +1,21 @@
+{
+  "title": "i3 bar: add Claude usage block, fix broken icons, remove dead blocks",
+  "objective": "Surface Claude Code's 5-hour and 7-day rate-limit windows in the i3 status bar, replace Font Awesome private-use-area icon codepoints that render as wrong glyphs (the fonts named in the bar's pango string are not installed), and remove status blocks for hardware/software absent from this desktop.",
+  "acceptance_criteria": [
+    "A [claude_usage] block renders '5h NN% · 7d NN%' matching the newest ~/.claude/cache/limit-state/*.json",
+    "claude_usage degrades safely: stale cache is labelled, a rolled-over window reads '?%' instead of a misleading number, and missing/unparsable data reads 'no data'",
+    "No script under i3blocks/ contains a private-use-area codepoint (U+E000-U+F8FF) or a \\uEXXX/\\uFXXX escape",
+    "No literal colour string (e.g. #FF0000) is rendered as visible text in the bar",
+    "The bluetooth, battery, wifi, activitywatch, warp and network_monitor blocks are absent from the config and their scripts deleted",
+    "The ethernet block reports the physical NIC's address rather than a docker bridge's permanent 'down'",
+    "bash linux_configuration/tests/test_i3blocks_efficiency.sh exits 0",
+    "pre-commit passes on all changed files"
+  ],
+  "out_of_scope": [
+    "Editing ~/.config/i3/config or its font line (it has drifted from the repo by three live-only exec lines; the emoji approach avoids needing a font change)",
+    "Installing a Nerd Font or any new font package",
+    "Restarting i3 while a fullscreen game session is running",
+    "Any change to blocks that already render correctly (volume, shutdown_countdown, pc_startup)"
+  ],
+  "verifier": "bash linux_configuration/tests/test_i3blocks_efficiency.sh; pre-commit run --files <changed>; i3blocks -c ~/.config/i3blocks/config -o i3bar (inspect emitted JSON)"
+}

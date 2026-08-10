@@ -18,7 +18,7 @@ SCRIPT_DIR=${BASH_SOURCE[0]%/*}
 source "$SCRIPT_DIR/persist_common.sh"
 
 # Nerd Font glyph: display / desktop icon (U+F108).
-ICON=$'\uf108'
+ICON='🎮'
 
 emit() {
 	local temp=$1 load=$2 color
@@ -31,7 +31,7 @@ emit() {
 	else
 		color='#FF5555'
 	fi
-	printf '<span color="%s">%s    %s°C, %s%%</span>\n' \
+	printf '<span color="%s">%s %s°C, %s%%</span>\n' \
 		"$color" "$ICON" "$temp" "$load"
 }
 

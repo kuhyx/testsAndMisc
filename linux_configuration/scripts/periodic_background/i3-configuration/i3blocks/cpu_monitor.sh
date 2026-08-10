@@ -57,5 +57,7 @@ elif ((load_x100 > 0)); then
   fi
 fi
 
-# Nerd Font glyph: microchip / CPU icon (U+F2DB).
-printf '<span color="%s">\uf2db    %s°C, %s</span>\n' "$color" "$temp" "$load"
+# CPU icon. Plain Unicode, not a Font Awesome PUA codepoint: the fonts named
+# in the i3 bar's pango string are not installed, so PUA glyphs fall through to
+# whatever random font claims them (this one used to render as a tiny box).
+printf '<span color="%s">🖥 %s°C, %s</span>\n' "$color" "$temp" "$load"

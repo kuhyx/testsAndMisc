@@ -28,24 +28,9 @@ interval=60
 color=#50FA7B
 
 
-
-
 [volume]
 command=~/.config/i3blocks/volume.sh
 interval=persist
-markup=pango
-
-
-
-[bluetooth]
-command=~/.config/i3blocks/bluetooth.sh
-interval=persist
-color=#FFFFFF
-
-
-[battery]
-command=~/.config/i3blocks/battery_status.sh
-interval=60
 markup=pango
 
 
@@ -55,27 +40,9 @@ interval=persist
 color=#FFFFFF
 
 
-[wifi]
-command=~/.config/i3blocks/wifi_monitor.sh
-interval=persist
-color=#FFFFFF
-
-
-#[network_monitor]
-#command=~/.config/i3blocks/network_monitor.sh
-#interval=1
-#color=#FFFFFF
-
-
-[warp]
-command=~/.config/i3blocks/warp_status.sh
-interval=persist
-
-
-[activitywatch]
-command=~/.config/i3blocks/activitywatch_status.sh
-interval=persist
-color=#FFFFFF
+[claude_usage]
+command=~/.config/i3blocks/claude_usage.sh
+interval=60
 
 
 [pc_startup]

@@ -4,7 +4,7 @@
 set -uo pipefail
 
 emit() {
-  printf '  %(%Y-%m-%d %H:%M)T\n' -1
+  printf '🕑 %(%Y-%m-%d %H:%M)T\n' -1
 }
 
 while :; do
