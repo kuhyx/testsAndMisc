@@ -1,0 +1,56 @@
+{
+  "intent": "Reinstall the 54 packages captured by phone_backup.sh onto the freshly wiped Pixel 6a without disturbing the device owner, which cannot be re-provisioned once any account exists.",
+  "scope": [
+    "phone_focus_mode/restore_apps.sh (new)",
+    "Non-goal: app-private data, logins, Signal history -- unreachable from adb on an unrooted phone",
+    "Non-goal: Google 'Copy apps & data', which is setup-wizard-only and mutually exclusive with device owner provisioning"
+  ],
+  "changes": [
+    "New restore_apps.sh: iterates the backup's per-package directories and installs each with `adb install-multiple`, since 130 APKs across 54 packages means splits and `adb install base.apk` fails on those with INSTALL_FAILED_INVALID_APK.",
+    "Failures are collected and summarised rather than aborting the run: preinstalled and Play-licensed packages are expected to refuse a sideload, and stop-on-first-error would leave the restore half-done with no report.",
+    "com.kuhy.focus_owner is skipped by name. The captured APK is the old debug-signed build; it could not install over the provisioned release build anyway, but a successful downgrade would be far worse than a failed one.",
+    "Device owner state is printed before and after the run, so the invariant the whole factory reset was spent on is checked rather than assumed."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck phone_focus_mode/restore_apps.sh",
+      "result": "pass",
+      "evidence": "Clean after splitting the SC2155 declare-and-assign on SCRIPT_NAME."
+    },
+    {
+      "command": "./restore_apps.sh --backup ... --serial 23181JEGR08034 --dry-run",
+      "result": "pass",
+      "evidence": "54 packages enumerated, split counts correct (airbnb 9, claude 6, discord 6), and 'SKIP com.kuhy.focus_owner (device owner; keeping the provisioned build)'."
+    },
+    {
+      "command": "./restore_apps.sh --backup ... --serial 23181JEGR08034",
+      "result": "pass",
+      "evidence": "Installed: 54  Failed: 0. Better than predicted -- no Play-licensed refusals materialised. `pm list packages -3 | wc -l` on device confirms 54."
+    },
+    {
+      "command": "adb push of /sdcard subtrees",
+      "result": "pass",
+      "evidence": "DCIM 1.2G (6 files), Download 40 files, Pictures 43 files, Movies 4, Music 2. On-device du: 1.1G DCIM, 109M Download, 4.3M Pictures."
+    },
+    {
+      "command": "content call --uri content://media/external --method scan_volume",
+      "result": "pass",
+      "evidence": "27 images indexed in MediaStore. The documented MEDIA_MOUNTED broadcast is rejected by modern Android (SecurityException); scan_volume is the working path."
+    },
+    {
+      "command": "dumpsys device_policy + dumpsys account after the full restore",
+      "result": "pass",
+      "evidence": "Device Owner Type: 0, admin=ComponentInfo{...FocusDeviceAdminReceiver}, accounts: 0. The restore cost nothing."
+    }
+  ],
+  "risks": [
+    "Once a Google account is added, `dpm set-device-owner` can never run again without another factory reset. The escape hatch still releases without a wipe, but it becomes ONE-WAY: releasing means losing device owner permanently. The plan to 're-test the release path after each restriction' is therefore no longer safe to execute literally; verify the path is reachable (isDeviceOwner true, button rendered) instead of pressing it.",
+    "No .kdbx was found on /sdcard, before or after. KeePassDX stores its database in private storage, so phone_backup.sh never captured it. The canonical copy is on the PC, which is the user's stated intent.",
+    "App-private data did not come back: every app is at first-run state, and all logins must be redone. Signal history was destroyed by the wipe with the user's explicit go-ahead.",
+    "restore_apps.sh has no automated tests. It is an adb-driven operational script in phone_focus_mode/, matching the existing untested scripts there; the dry-run mode is the safety mechanism."
+  ],
+  "rollback": [
+    "Uninstall any unwanted package with `adb uninstall <pkg>`; nothing here is destructive to the device owner.",
+    "NEVER `adb uninstall com.kuhy.focus_owner` while it holds device ownership -- releasing first from inside the app is the only safe order, and after an account exists the release cannot be undone."
+  ]
+}

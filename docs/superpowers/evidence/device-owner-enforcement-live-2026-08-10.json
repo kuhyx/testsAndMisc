@@ -1,0 +1,66 @@
+{
+  "intent": "Turn the provisioned device owner into an actually-enforcing install: block YouTube (a FLAG_SYSTEM package the sweep could not previously touch), and make the enforcer impossible to uninstall while it is enforcing. Done inside the 0-account window, where a mistake costs a re-provision rather than a factory reset.",
+  "scope": [
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyBridge.kt",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/EnforcementRunner.kt",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/MainActivity.kt",
+    "phone_focus_mode/config.sh",
+    "focus_owner/assets/policy.json",
+    "Non-goal: home coordinate delivery, which needs an in-app writer (run-as is dead on a release build)"
+  ],
+  "changes": [
+    "DevicePolicyBridge gained setSelfUninstallBlocked/isSelfUninstallBlocked. Device owner already hides Settings' uninstall button, but `adb uninstall` worked without this -- and that path strands ownership with no holder, making a factory reset the only exit.",
+    "releaseDeviceOwner now unblocks uninstall BEFORE clearDeviceOwnerApp. Reversed, the block would outlive the ownership that is required to lift it: an app that owns nothing and cannot be removed.",
+    "EnforcementRunner.apply re-asserts the block every pass, tracking decision.isEnforcing. Self-healing rather than set-once, and going away from home lifts it -- the app stays removable exactly when enforcement is already off.",
+    "pl.infakt.infakt added to config.sh (both the day and night allowlists) and the asset regenerated. It was absent because config.sh describes the rooted phone; the first pass would have hidden it, stranding the SMS-paired banking re-authentication chain."
+  ],
+  "verification": [
+    {
+      "command": "jq allowed_packages vs `pm list packages -3`, comm -23, before applying anything",
+      "result": "pass",
+      "evidence": "Computed the hide set on the PC first. Caught pl.infakt.infakt in it. Confirmed org.fossify.messages, org.fossify.phone, keepass, mbank, revolut, mobywatel and Signal were all allowed -- hiding the SMS app would have stranded every bank re-pairing ahead."
+    },
+    {
+      "command": "adb install -r app-release.apk over the provisioned device owner",
+      "result": "pass",
+      "evidence": "Success, and dumpsys still reported Device Owner Type: 0 with the same admin. This is what the release signing config bought: an in-place update that does not disturb ownership."
+    },
+    {
+      "command": "tap 'Run enforcement now'",
+      "result": "pass",
+      "evidence": "'applied LOCATION_UNKNOWN: hid 27, restored 0'. dumpsys: youtube, youtube.music, chrome, vending, videos all hidden=true. Before the FLAG_SYSTEM fix these were invisible to the sweep."
+    },
+    {
+      "command": "dumpsys on the apps that must keep working",
+      "result": "pass",
+      "evidence": "phone, messages, keepass, mbank, revolut, infakt, mobywatel, focus_owner, settings, signal all hidden=false. The phone remains usable and the restore chain is intact."
+    },
+    {
+      "command": "adb uninstall com.kuhy.focus_owner",
+      "result": "pass (refused, as intended)",
+      "evidence": "Failure [DELETE_FAILED_DEVICE_POLICY_MANAGER]; logcat 'setUninstallBlocked(true) -> true'; package still installed. dumpsys device_policy lists PackagePolicyKey{packageUninstallBlocked, com.kuhy.focus_owner}."
+    },
+    {
+      "command": "adb reboot, then re-check",
+      "result": "pass",
+      "evidence": "After reboot: youtube/chrome/vending still hidden=true, Device Owner Type: 0, uninstall still refused. This is the exact failure that defeated `pm suspend` and `pm disable-user` on this device -- both were cleared by a reboot. Device owner holds."
+    },
+    {
+      "command": "gradlew :app:testDebugUnitTest ; pre-commit run --files <9 paths>",
+      "result": "pass",
+      "evidence": "Kotlin unit tests BUILD SUCCESSFUL. All pre-commit hooks pass, including shfmt/shellcheck on the new restore_apps.sh."
+    }
+  ],
+  "risks": [
+    "Enforcement is currently PERMANENT, not geofenced. No home_location.json exists, so every pass decides LOCATION_UNKNOWN and fails closed. That is the safe direction, but it means YouTube is blocked everywhere, not only at home.",
+    "The geofence cannot be provisioned by the existing push_home_location.sh: it relies on `run-as`, which returns 'package not debuggable' on the release build device owner requires. The fix is an in-app 'set home to current location' action, deliberately NOT an exported intent -- an exported set-home is a bypass, since spoofing home to elsewhere would leave the device permanently 'away' with enforcement off. Deferred: it is an APK update, and updates install in place on the same signature, so it does not need the 0-account window.",
+    "com.celzero.bravedns (RethinkDNS) is in the hide set, so enforcement hides the independent DNS-level blocking layer. Not dangerous, but the layers are not additive while enforcing.",
+    "com.android.vending is hidden, so no app can be installed or updated from Play while enforcing. Intended -- it is what stops a one-tap YouTube reinstall -- but it is a large blast radius.",
+    "The uninstall block is tied to decision.isEnforcing. If a future change makes a pass decide AWAY incorrectly, the block lifts. That is the fail-safe direction (removable rather than stranded), but it is not a hard guarantee."
+  ],
+  "rollback": [
+    "In-app 'Release device owner' unblocks uninstall and clears ownership, verified working on this device before any account existed.",
+    "IMPORTANT: once a Google account is added, `dpm set-device-owner` can never run again without another factory reset, so releasing becomes one-way. Verify the release path is REACHABLE (device owner: yes, button rendered) rather than pressing it.",
+    "To lift enforcement without releasing ownership: add the package to the allowlist in config.sh, regenerate the asset, rebuild, install in place, run a pass."
+  ]
+}
