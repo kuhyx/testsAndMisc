@@ -1,0 +1,50 @@
+# Maintainer: kuhy (local-only package, not published to the AUR)
+# fee[dB]ack has no AUR entry; this PKGBUILD packages the upstream GitHub
+# release AppImage the same way hypersomnia-appimage/jackify-bin are
+# packaged on this box: extracted into /opt, symlinked into /usr/bin, with
+# a discovered (not hardcoded) .desktop entry and icon theme tree.
+
+pkgname=feedback-appimage
+pkgver=0.3.0.alpha1
+pkgrel=1
+pkgdesc="fee[dB]ack desktop app with integrated audio engine, VST hosting, and amp modeling"
+arch=('x86_64')
+url="https://got-feedback.org/"
+license=('AGPL3')
+depends=('fuse2')
+options=(!strip) # stripping corrupts the AppImage's embedded ELF/squashfs layout
+source=("https://github.com/got-feedback/feedBack-desktop/releases/download/v0.3.0-alpha.1/feedback-0.3.0-x86_64.AppImage")
+# Pinned for real (unlike upstream examples that use SKIP) so a future
+# pkgver bump that silently changes the release asset fails the build
+# loudly instead of installing an unverified binary.
+sha512sums=('d4c664ed5fe2052635dd6741579a19f521cb22e6b5c88edf5ac5c4e22226656113d7e613a996bd5ed59f05a229a07dbad421b6ac18212bcd94073a818efd3953')
+
+_filename="feedback-0.3.0-x86_64.AppImage"
+_install_path="/opt/feedback/feedback"
+
+package() {
+	chmod +x "${_filename}"
+	./"${_filename}" --appimage-extract >/dev/null 2>&1
+
+	# Discover the bundled .desktop file rather than hardcode its name -
+	# upstream's internal AppImage layout isn't a stable contract across releases.
+	local desktop_file
+	desktop_file=$(find squashfs-root -maxdepth 1 -iname '*.desktop' | head -1)
+	[[ -n "$desktop_file" ]] || { echo "feedback-appimage: no bundled .desktop file found in AppImage" >&2; return 1; }
+
+	install -Dm755 "${_filename}" "${pkgdir}${_install_path}"
+	install -dm755 "${pkgdir}/usr/bin"
+	ln -s "${_install_path}" "${pkgdir}/usr/bin/feedback"
+
+	install -Dm644 "$desktop_file" "${pkgdir}/usr/share/applications/feedback-appimage.desktop"
+	# Bundled Exec points at the AppImage's own AppRun wrapper; point it at
+	# the installed symlink instead, keeping the upstream --no-sandbox flag.
+	sed -i 's|^Exec=.*|Exec=feedback --no-sandbox %U|' "${pkgdir}/usr/share/applications/feedback-appimage.desktop"
+
+	if [[ -d squashfs-root/usr/share/icons/hicolor ]]; then
+		install -dm755 "${pkgdir}/usr/share/icons"
+		cp -a squashfs-root/usr/share/icons/hicolor "${pkgdir}/usr/share/icons/"
+		find "${pkgdir}/usr/share/icons/hicolor" -type d -exec chmod 755 {} \;
+		find "${pkgdir}/usr/share/icons/hicolor" -type f -exec chmod 644 {} \;
+	fi
+}

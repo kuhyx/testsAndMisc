@@ -440,7 +440,15 @@ repos:
         exclude_types: [zsh]
         # Vendored upstream code: we do not own it and patches here would be
         # lost on the next vendor sync. Matches the prettier hook's exclusion.
-        exclude: ^third_party/
+        #
+        # PKGBUILDs are makepkg manifests, not standalone scripts: they have no
+        # shebang by design, and pkgname/pkgver/source/sha512sums are read by
+        # makepkg while pkgdir/srcdir are injected by it. shellcheck therefore
+        # reports every one of them as unused-or-undefined (SC2148/SC2034/
+        # SC2154) -- all false positives, and none suppressible without
+        # littering the file with directives. Same reasoning as zsh above:
+        # the dialect is outside what shellcheck can judge.
+        exclude: ^third_party/|(^|/)PKGBUILD$
 
   # ===========================================================================
   # ZSH SYNTAX - zsh -n parse check (shellcheck has no zsh mode)
