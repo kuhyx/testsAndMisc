@@ -1,0 +1,17 @@
+{
+  "title": "archwiki_rag: offline semantic search over the Arch Wiki",
+  "objective": "Let Claude answer Arch questions by symptom rather than by page title, with no network round-trip, by indexing the arch-wiki-docs dump that is already on disk and exposing it to the knowledge-rag MCP server.",
+  "acceptance_criteria": [
+    "Converts the local arch-wiki-docs dump into a markdown corpus without fetching pages over the network",
+    "Builds a searchable index and refreshes it via `sync --reindex`",
+    "install.sh installs its own dependencies, wires the MCP config and registers a pacman hook so the index follows package updates",
+    "100% branch coverage across every module in python_pkg/archwiki_rag",
+    "The generated index is not committed (machine-specific, binary, regenerable)"
+  ],
+  "out_of_scope": [
+    "Duplicating yay-mcp's pacman install/remove/update, PKGBUILD checks or system stats — this package only searches",
+    "Fetching wiki pages over the network at query time",
+    "Replacing the generic wiki-kb pipeline for non-Arch wikis"
+  ],
+  "verifier": "python -m pytest python_pkg/archwiki_rag --cov=python_pkg.archwiki_rag (61 passed, 100% branch coverage on cli, constants, convert, reindex, sync, _reindex_entry)"
+}

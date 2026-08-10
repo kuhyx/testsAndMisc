@@ -204,6 +204,11 @@ repos:
           - requests
           - pygame
           - pillow
+          # archwiki_rag parses the local arch-wiki-docs HTML dump. pylint runs
+          # in its own venv, so a package being in meta/requirements.txt is not
+          # enough for it to resolve the import.
+          - beautifulsoup4
+          - markdownify
           - gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.1.0#subdirectory=gatelock
           - anthropic
           - rich
