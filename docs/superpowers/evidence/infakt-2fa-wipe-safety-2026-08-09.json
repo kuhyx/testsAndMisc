@@ -1,0 +1,39 @@
+{
+  "intent": "Settle whether a Device Owner factory reset would lock the user out of inFakt, which was the last blocker on that decision.",
+  "scope": [
+    "phone_focus_mode/docs/youtube-block-unrooted.md",
+    "docs/device-owner-wipe-checklist.md",
+    "Documentation only -- no code, no device state changed"
+  ],
+  "changes": [
+    "Recorded that inFakt 2FA is SMS-only and that no TOTP seed exists, so a wipe cannot destroy one.",
+    "Corrected the wipe checklist, which assumed TOTP secrets were 'likely' inside the KeePassDX database and treated the .kdbx as a seed backup. Neither holds: the user keeps the canonical .kdbx on the PC, and inFakt has no authenticator configured.",
+    "Added pl.infakt.infakt to the set of apps whose banking pairing does not survive the wipe."
+  ],
+  "verification": [
+    {
+      "command": "inFakt web panel, Weryfikacja dwuetapowa (screenshot supplied by the user)",
+      "result": "pass",
+      "evidence": "2FA = Wlaczona with SMS to the registered number. 'Aplikacja weryfikacyjna' shows a 'Skonfiguruj' link, i.e. NOT configured -- no TOTP seed. Under 'Akcje objete weryfikacja dwuetapowa' only 'Wrazliwe' is checked; 'Logowanie' and 'Wystawianie faktur' are unchecked, so plain login needs the password alone."
+    },
+    {
+      "command": "adb shell dumpsys package pl.infakt.infakt | grep -i c2dm/firebase",
+      "result": "pass",
+      "evidence": "FirebaseInstanceIdReceiver registered for com.google.android.c2dm.intent.RECEIVE, so the browser-login approval tap is a push prompt. Push tokens are per-install, so a reinstall re-registers rather than stranding the account."
+    },
+    {
+      "command": "adb shell dumpsys account | grep -i infakt",
+      "result": "pass",
+      "evidence": "No device account entry -- nothing stored locally that a wipe would destroy beyond the pairing and app PIN."
+    }
+  ],
+  "risks": [
+    "The push-reinstall behaviour is inferred from the Firebase receiver plus vendor docs, not from a stated 'reinstalling does not lock you out'. It is safe to act on because the second factor is SMS and the SIM survives -- if push re-registration misbehaved, SMS still works.",
+    "Earlier in this session the user was advised to download inFakt backup codes. That advice applies to the extended OTP-app variant, which this account does not use; with SMS-only 2FA the recovery path is the SIM. Corrected rather than left standing.",
+    "The 2FA settings page warns that saving changes logs out all current mobile sessions, so it should not be edited casually.",
+    "Still unresolved and unchanged: inFakt's banking side is device-paired and holds a live session with funds and an active card. Re-pairing after a wipe goes through SMS."
+  ],
+  "rollback": [
+    "git revert -- documentation only, nothing on the device depends on it."
+  ]
+}

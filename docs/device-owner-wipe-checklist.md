@@ -46,9 +46,19 @@ Present and relevant:
 | mObywatel | `pl.nask.mobywatel`           | No — full re-activation                  |
 
 **No dedicated TOTP app is installed**, so the usual "authenticator seeds are
-destroyed by the wipe" trap does not apply — unless your TOTP secrets live
-inside the KeePassDX database, which is likely. If so, the `.kdbx` file _is_
-your seed backup, and step 2 covers it.
+destroyed by the wipe" trap does not apply.
+
+Checked 2026-08-09, and it does not apply via KeePassDX either: the `.kdbx`
+lives in KeePassDX's private storage (not on `/sdcard`, so `phone_backup.sh`
+cannot reach it), but the canonical copy is on the PC. And **inFakt — the one
+account whose loss would have blocked this wipe — is SMS-only 2FA**:
+"Aplikacja weryfikacyjna" is unconfigured, so no seed exists to lose, and
+_Logowanie_ is not among the 2FA-gated actions. See
+`phone_focus_mode/docs/youtube-block-unrooted.md`.
+
+`pl.infakt.infakt` belongs in the table above: the account is server-side and
+survives, but its **banking pairing does not** — re-pair via SMS, same as
+mBank.
 
 ## Phase A — break the circular dependency first
 
