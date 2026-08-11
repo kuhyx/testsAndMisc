@@ -214,8 +214,15 @@ open_firewall() {
 	fi
 	if command -v nft >/dev/null 2>&1 && sudo nft list table inet filter >/dev/null 2>&1; then
 		if ! sudo nft list table inet filter | grep -q "dport $DOT_PORT"; then
-			sudo nft add rule inet filter input tcp dport "$DOT_PORT" accept ||
-				log "WARNING: could not add nftables rule for $DOT_PORT"
+			# Rate limited, because a publicly bound DoT endpoint is an open
+			# resolver: TCP-only so not usable for classic UDP amplification,
+			# but still someone else's free DNS and a standing attack surface.
+			# A phone issues a handful of lookups a second at worst; 25/second
+			# with a burst of 50 is far above real use and far below abuse.
+			sudo nft add rule inet filter input tcp dport "$DOT_PORT" \
+				limit rate 25/second burst 50 packets accept ||
+				log "WARNING: could not add rate-limited nftables rule for $DOT_PORT"
+			log "Permitted TCP $DOT_PORT (rate limited 25/s, burst 50)"
 		fi
 	fi
 	log "Ensure your router forwards TCP $DOT_PORT to this host."

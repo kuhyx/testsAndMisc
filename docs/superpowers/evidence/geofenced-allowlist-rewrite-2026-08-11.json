@@ -1,0 +1,57 @@
+{
+  "intent": "Reframe enforcement around what the phone cannot undo. The user demonstrated the network bypass remotely -- RethinkDNS's blocklists toggle off in a few taps -- so the block moves to app hiding, which only the device owner can reverse, scoped to an explicit allowlist and the home geofence.",
+  "scope": [
+    "phone_focus_mode/config.sh",
+    "focus_owner/assets/policy.json",
+    "python_pkg/focus_policy/export.py",
+    "python_pkg/focus_policy/tests/test_export.py",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/{DevicePolicyBridge,EnforcementRunner,FocusPolicy}.kt",
+    "linux_configuration/scripts/periodic_background/hosts/install.sh",
+    "linux_configuration/scripts/single_use/features/setup_dot_resolver.sh"
+  ],
+  "changes": [
+    "WHITELIST and NIGHT_WHITELIST rewritten from the user's explicit list. The previous lists described the rooted Blackview and named apps this phone does not have. Every browser is now excluded, so no link opens at home at all.",
+    "LAUNCHER_PACKAGE corrected to com.google.android.apps.nexuslauncher. It still named the Blackview's minimalist launcher, which is not installed here -- the exporter's launcher check refused to render the policy, which is exactly why that check exists.",
+    "Private DNS support added to the bridge (setPrivateDns / setPrivateDnsConfigBlocked) but the policy field ships EMPTY: the host is not reachable from the phone, so pinning it would mean no DNS at all.",
+    "yt3.googleusercontent.com added to the hosts blocklist. yt3.ggpht.com was already there; Google serves channel avatars from both, so blocking one left the other resolving.",
+    "The public DoT bind was reverted to WireGuard-only and its nftables rule removed."
+  ],
+  "verification": [
+    {
+      "command": "python -m python_pkg.focus_policy --config ... (exporter safety check)",
+      "result": "pass (after two real failures)",
+      "evidence": "Refused twice: first 'launcher com.qqlabs.minimalistlauncher is not in allowed_packages', then the same for nexuslauncher until it was added to both lists. Enforcing either policy would have left the phone with no home screen."
+    },
+    {
+      "command": "comm -23 <installed 3rd-party> <allowed>",
+      "result": "pass",
+      "evidence": "Hide set at home: protonmail, claude, discord, contactkeys, safetycore, f-droid, stronglifts, thunderbird, fenix, signal, etar. Matches the user's list exactly -- browsers included, Signal and email deliberately out."
+    },
+    {
+      "command": "pytest ; gradlew testDebugUnitTest ; flutter test ; flutter build apk --release",
+      "result": "pass",
+      "evidence": "130 Python tests at 100% branch coverage, 16 Kotlin, 69 Dart, release APK built."
+    },
+    {
+      "command": "install + run an enforcement pass, then dumpsys per package",
+      "result": "pass",
+      "evidence": "'applied AT_HOME: hid 0, restored 0' -- correctly a no-op, every app was already in its target state. Newly allowed anki/metrolist/tachiyomi/cutecalc all hidden=false; fenix/signal/discord hidden=true."
+    },
+    {
+      "command": "pm unhide com.google.android.youtube  (from adb shell)",
+      "result": "pass (refused)",
+      "evidence": "SecurityException, and the package stayed hidden=true. This is the finding the whole redesign rests on: app hiding cannot be undone from the phone, unlike the VPN app's blocklists."
+    }
+  ],
+  "risks": [
+    "No browser at home means links from Messenger or any other app simply do not open. The user confirmed this explicitly.",
+    "Signal, Thunderbird and Proton Mail are hidden at home. The user was asked and left them out; Signal in particular is a messaging app they use.",
+    "The network layer is now explicitly a soft deterrent, kept without lockdown at the user's choice: RethinkDNS's blocklists can still be switched off in ~3 taps. It catches youtube.com in a browser only while they are on. The uninstall block and the always-on pin remain.",
+    "Private DNS could not be delivered: stunnel logged zero connections from the handset during two pin attempts, so the router does not forward 853. Android's own `nc -z` on the device reported the port OPEN three times and was wrong (toybox nc ignores -z), which is why the server-side log is the only evidence used here.",
+    "Even with a forward, Private DNS would likely be inert while a lockdown VPN holds the tunnel: app DNS goes to the VPN's resolver (10.111.222.3), not the system Private DNS path."
+  ],
+  "rollback": [
+    "git revert restores the previous allowlists; regenerate the asset, rebuild, install, run a pass.",
+    "In-app 'Release device owner' remains the full exit and clears every restriction in the correct order before releasing ownership."
+  ]
+}
