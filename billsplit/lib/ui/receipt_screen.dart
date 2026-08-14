@@ -234,7 +234,7 @@ class _ItemsList extends StatelessWidget {
           subtitle: Text(
             _assignmentLabel(item, people.length, state),
             style: TextStyle(
-              color: unassigned ? Colors.red : null,
+              color: unassigned ? Theme.of(context).colorScheme.error : null,
               fontWeight: unassigned ? FontWeight.bold : null,
             ),
           ),
@@ -272,6 +272,12 @@ class _CategoryDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (category) {
+      // Categorical encoding, deliberately NOT mapped onto ColorScheme slots.
+      // These four say "which category", not "which theme role", and a
+      // single-accent design system has no four distinct hues to lend. Folding
+      // them into primary/secondary/tertiary would make the categories stop
+      // being distinguishable, which is the only job they have. Tracked in
+      // unified-design-system/nielsen-audit.md as needing a categorical ramp.
       Categories.alcohol => Colors.deepOrange,
       Categories.mixer => Colors.amber,
       Categories.deposit => Colors.blueGrey,
@@ -300,14 +306,16 @@ class _TotalsView extends StatelessWidget {
       children: [
         if (split.unassigned.isNotEmpty)
           Card(
-            color: Colors.red.shade50,
+            color: Theme.of(context).colorScheme.errorContainer,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
                 '${split.unassigned.length} item(s) have nobody assigned and '
                 'are excluded from totals:\n'
                 '${split.unassigned.map((i) => '· ${i.name}').join('\n')}',
-                style: const TextStyle(color: Colors.red),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
               ),
             ),
           ),
@@ -347,7 +355,7 @@ class _TotalsView extends StatelessWidget {
   }) {
     final style = TextStyle(
       fontWeight: bold || warn ? FontWeight.bold : null,
-      color: warn ? Colors.red : null,
+      color: warn ? Theme.of(context).colorScheme.error : null,
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

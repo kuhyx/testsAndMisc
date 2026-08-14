@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:billsplit/state/app_state.dart';
 import 'package:billsplit/ui/home_screen.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,9 +28,10 @@ class BillSplitApp extends StatelessWidget {
       child: MaterialApp(
         title: 'BillSplit',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        ),
+        // The shared light theme, replacing a teal-seeded scheme. Light, not
+        // dark: the receipt screens carry black-on-white helper text, so
+        // switching brightness here would make it unreadable.
+        theme: buildLightTheme(),
         home: const HomeScreen(),
       ),
     );

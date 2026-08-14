@@ -1,6 +1,7 @@
 import 'package:billsplit/domain/models.dart';
 import 'package:billsplit/domain/split_engine.dart';
 import 'package:billsplit/state/app_state.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
 /// Bottom sheet to assign an item: quick modes (everyone / drinkers /
@@ -126,8 +127,10 @@ Future<void> showAssignmentSheet(
                           'totals until someone is assigned.'
                       : _eachLabel(resolved.length, item.totalGr),
                   style: TextStyle(
-                    color: resolved.isEmpty ? Colors.red : Colors.black54,
-                    fontSize: 12,
+                    color: resolved.isEmpty
+                        ? Theme.of(c).colorScheme.error
+                        : Theme.of(c).colorScheme.onSurfaceVariant,
+                    fontSize: AppTextSize.caption,
                   ),
                 ),
               ],

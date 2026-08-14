@@ -1,5 +1,6 @@
 import 'package:billsplit/domain/models.dart';
 import 'package:billsplit/state/app_state.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,12 +26,15 @@ class PeopleScreen extends StatelessWidget {
           for (final p in state.people) _PersonTile(person: p),
           const Divider(height: 32),
           const _SectionHeader('Groups'),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Drinkers / non-drinkers are built in (the toggle on each '
               'person). Groups below are extra tags, e.g. "meat eaters".',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(
+                fontSize: AppTextSize.caption,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           for (final g in state.groups) _GroupTile(group: g),

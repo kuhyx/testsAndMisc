@@ -6,6 +6,7 @@ import 'package:billsplit/domain/models.dart';
 import 'package:billsplit/state/app_state.dart';
 import 'package:billsplit/ui/people_screen.dart';
 import 'package:billsplit/ui/receipt_screen.dart';
+import 'package:design_system/design_system.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -45,11 +46,17 @@ class HomeScreen extends StatelessWidget {
                     return Dismissible(
                       key: ValueKey(r.id),
                       direction: DismissDirection.endToStart,
+                      // The delete affordance revealed by swiping. The fill
+                      // and the icon on top of it must move together, hence
+                      // error/onError rather than two independent colours.
                       background: Container(
-                        color: Colors.red.shade300,
+                        color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 16),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                        padding: const EdgeInsets.only(right: AppSpacing.md),
+                        child: Icon(
+                          Icons.delete,
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
                       ),
                       confirmDismiss: (_) => _confirmDelete(context, r),
                       onDismissed: (_) => state.removeReceipt(r),

@@ -1,5 +1,6 @@
 import 'package:billsplit/domain/models.dart';
 import 'package:billsplit/state/app_state.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
 /// Add ([item] == null) or edit an item. The user types amounts in złoty
@@ -65,10 +66,13 @@ Future<void> showItemEditDialog(
                     setState(() => category = v ?? Categories.general),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Alcohol items default to drinkers only; everything else to '
                 'everyone. Fine-tune by tapping the item afterwards.',
-                style: TextStyle(fontSize: 11, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: AppTextSize.caption,
+                  color: Theme.of(c).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -80,7 +84,10 @@ Future<void> showItemEditDialog(
                 state.mutate(() => receipt.items.remove(item));
                 Navigator.pop(c);
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Theme.of(c).colorScheme.error),
+              ),
             ),
           TextButton(
             onPressed: () => Navigator.pop(c),

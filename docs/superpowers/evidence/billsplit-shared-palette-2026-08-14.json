@@ -1,0 +1,51 @@
+{
+  "intent": "Put billsplit on the one shared palette every other kuhy Flutter app now uses, instead of a teal-seeded scheme plus fifteen ad hoc colour literals.",
+  "scope": [
+    "billsplit/lib/main.dart (theme construction)",
+    "billsplit/lib/ui/{home_screen,receipt_screen,item_edit,people_screen,assignment_sheet}.dart (literal call sites)",
+    "billsplit/pubspec.yaml (new design_system git dep)",
+    "Non-goal: no behaviour, layout or business-logic change; no switch to a dark theme"
+  ],
+  "changes": [
+    "theme: ColorScheme.fromSeed(seedColor: Colors.teal) -> buildLightTheme() from design_system-v0.1.0. Light, not dark: the receipt screens carry black-on-white helper text that would be unreadable inverted.",
+    "Mapped the error-family literals onto ColorScheme slots: Colors.red -> error (4 sites), Colors.red.shade50 -> errorContainer with onErrorContainer text, and the swipe-to-delete Colors.red.shade300 + Colors.white -> error + onError, so the fill and the icon on top of it cannot drift apart.",
+    "Mapped the de-emphasised helper text Colors.black54 -> onSurfaceVariant (3 sites). These were the literals that would have broken outright on any dark surface.",
+    "Left the four-colour category ramp (deepOrange/amber/blueGrey/teal for alcohol/mixer/deposit/other) as literals, with a comment saying why: they encode category identity, not a theme role, and a single-accent design system has no four distinct hues to lend. Folding them into ColorScheme slots would destroy the only job they do. Tracked in unified-design-system/nielsen-audit.md as needing a categorical ramp."
+  ],
+  "verification": [
+    {
+      "command": "flutter analyze --fatal-infos (billsplit)",
+      "result": "pass",
+      "evidence": "4 issues, all pre-existing unnecessary_unawaited infos from SDK drift (the same class of info also present in epopeja_karta and kuhylog before this work). One real error introduced mid-edit -- const_eval_method_invocation, from putting Theme.of(context) inside a const Padding -- was found by the analyzer and fixed before commit."
+    },
+    {
+      "command": "flutter test (billsplit)",
+      "result": "pass",
+      "evidence": "60/60 tests passed"
+    },
+    {
+      "command": "python3 -m python_pkg.billsplit_coverage",
+      "result": "pass",
+      "evidence": "100% line coverage across 11 lib files"
+    },
+    {
+      "command": "flutter test (ad-hoc palette assertion, then deleted)",
+      "result": "pass",
+      "evidence": "Pumped the real BillSplitApp and read the theme off a Scaffold element: primary=ffb8862e, surface=fff6f4f3 (paper), brightness=light. Confirms the palette actually changed rather than merely compiling."
+    },
+    {
+      "command": "grep -rc 'Colors\\.' billsplit/lib",
+      "result": "pass",
+      "evidence": "15 -> 4, and the 4 remaining are exactly the category-dot ramp that was deliberately not mapped"
+    }
+  ],
+  "risks": [
+    "The app moves from a teal-derived Material scheme to the hand-picked gold palette, so every screen changes colour. That is the intent, and it is the last of four apps being brought onto one palette.",
+    "Colors.teal was both the theme seed and the default category dot. The seed is gone but the dot is deliberately unchanged, so those two are now decoupled -- previously they matched by coincidence, not by design. Noted here so the next reader does not read it as an oversight.",
+    "billsplit declares sdk ^3.5.0 while design_system declares ^3.12.2. Resolution succeeds on the installed SDK, but a machine on an older Dart could fail pub get; bumping billsplit's floor is the fix if that ever bites."
+  ],
+  "rollback": [
+    "git revert the commit and run flutter pub get; there is no build artifact or device state to unwind, since billsplit ships no APK from this change.",
+    "After rollback, confirm flutter test still reports 60/60 and the coverage gate still reports 100% across 11 files."
+  ]
+}

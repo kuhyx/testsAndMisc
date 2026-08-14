@@ -1,0 +1,20 @@
+{
+  "title": "billsplit adopts the shared design_system palette",
+  "objective": "billsplit is the last of four Flutter apps that had drifted off the frozen palette. It renders from a teal-seeded ColorScheme plus fifteen ad hoc colour literals that largely bypass the theme entirely. Success is billsplit rendering from design_system-v0.1.0's buildLightTheme(), with every literal that carries a theme role reading it off the ColorScheme instead, and with no behavioural, layout or coverage regression.",
+  "acceptance_criteria": [
+    "lib/main.dart builds its theme from design_system's buildLightTheme() rather than ColorScheme.fromSeed(seedColor: Colors.teal).",
+    "The rendered app's colorScheme.primary is ffb8862e and surface is fff6f4f3, proven by pumping the real BillSplitApp and reading the theme off a live element -- not by inspecting source.",
+    "Error-family literals map to error / onError / errorContainer / onErrorContainer; de-emphasised text maps to onSurfaceVariant.",
+    "The swipe-to-delete background and the icon drawn on it use error and onError respectively, so they cannot be changed independently.",
+    "flutter test reports 60/60 passing.",
+    "python3 -m python_pkg.billsplit_coverage reports 100% line coverage across all lib files.",
+    "flutter analyze --fatal-infos introduces no new findings beyond the pre-existing unnecessary_unawaited infos."
+  ],
+  "out_of_scope": [
+    "Switching billsplit to a dark theme. It is light-only by design; its helper text is black-on-white and would become unreadable.",
+    "Mapping the four category-dot colours (deepOrange/amber/blueGrey/teal) onto ColorScheme slots. They encode category identity rather than a theme role, and a single-accent system has no four distinct hues for them. Recorded in unified-design-system/nielsen-audit.md as needing a categorical ramp instead.",
+    "Fixing the pre-existing unnecessary_unawaited analyzer infos, which come from SDK drift and are present across several repos.",
+    "Any change to split logic, e-paragon parsing, xlsx export, or app state."
+  ],
+  "verifier": "flutter analyze --fatal-infos && flutter test (60/60) && python3 -m python_pkg.billsplit_coverage (100%, 11 files), plus a temporary widget test asserting primary=ffb8862e and surface=fff6f4f3 on the pumped app, deleted after it passed. CI re-runs the first three via .github/workflows/billsplit-ci.yml."
+}
