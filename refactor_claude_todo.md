@@ -17,8 +17,8 @@ churn, not size alone — refactoring pays where code is read and changed often
 
 ## Scope in this repo
 
-- **200 files** currently exceed 250 lines (of 807 eligible files).
-- **88,451 lines** sit in violation; longest file is **2053 lines**.
+- **197 files** currently exceed 250 lines (of 801 eligible files).
+- **87,393 lines** sit in violation; longest file is **2053 lines**.
 
 Exempt (do NOT split these):
 
@@ -51,7 +51,7 @@ has near-zero payoff and should not be first.
 |   415 |          7 | code  | `focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyBridge.kt`           |
 |   912 |          3 | code  | `linux_configuration/scripts/single_use/features/setup_searxng.sh`                             |
 
-_(185 further files over 250 lines not listed — re-run the survey for the full set.)_
+_(182 further files over 250 lines not listed — re-run the survey for the full set.)_
 
 ## How to split
 
