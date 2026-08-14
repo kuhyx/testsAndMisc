@@ -1,0 +1,16 @@
+{
+  "title": "token_audit: per-session token attribution and reporting",
+  "objective": "Land the token_audit package so token spend in a Claude session can be traced to what caused it — a skill, a hook, an always-on rule file, or an image — turning 'the context is expensive' into a measurable, per-cause number that can be acted on.",
+  "acceptance_criteria": [
+    "python_pkg/token_audit/ ships parse, model, attribute, imagecost, report and a __main__ CLI entry point",
+    "The full test suite passes: 81 tests, 0 failures",
+    "Branch coverage is 100% across all seven modules (the repo gate is fail_under = 100)",
+    "The repo pre-commit gate passes with no suppressions and no --no-verify"
+  ],
+  "out_of_scope": [
+    "poker-stakes/, its CI workflow, and its README row — a concurrent session's uncommitted work, deliberately not staged",
+    "__pycache__ artifacts",
+    "Any change to existing python_pkg packages"
+  ],
+  "verifier": "python -m pytest python_pkg/token_audit/tests/ -q for correctness; python -m coverage run --branch --source=python_pkg/token_audit for the 100% branch-coverage bar; the repo pre-commit gate (ruff, mypy, pylint, bandit, coverage enforcement) as the final adjudicator."
+}

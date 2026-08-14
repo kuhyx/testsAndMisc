@@ -1,0 +1,39 @@
+{
+  "intent": "Add the token_audit package so per-session Claude token spend can be parsed from transcripts, attributed to a cause (skill, hook, rule file, image), and reported.",
+  "scope": [
+    "python_pkg/token_audit/ — new package (parse, model, attribute, imagecost, report, __main__)",
+    "python_pkg/token_audit/tests/ — 81 tests covering all seven modules",
+    "Non-goal: no changes to existing python_pkg packages or the pre-commit config",
+    "Non-goal: poker-stakes/ and its README row are another session's work, deliberately left uncommitted"
+  ],
+  "changes": [
+    "parse.py reads session transcript JSONL into typed records; model.py holds the dataclasses",
+    "attribute.py assigns token cost to a cause; imagecost.py prices image blocks separately",
+    "report.py renders the aggregate; __main__.py exposes the CLI entry point"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/token_audit/tests/ -q",
+      "result": "pass",
+      "evidence": "81 passed in 0.06s"
+    },
+    {
+      "command": "python -m coverage run --branch --source=python_pkg/token_audit -m pytest python_pkg/token_audit/tests/ -q && python -m coverage report",
+      "result": "pass",
+      "evidence": "TOTAL 394 stmts, 0 miss, 100 branch, 0 partial, 100% — all 7 modules at 100%"
+    },
+    {
+      "command": "pre-commit run (full gate via finish_auto.sh)",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, codespell, coverage enforcement, requirements-sync and leaked-secrets checks all Passed"
+    }
+  ],
+  "risks": [
+    "Transcript JSONL schema is external and may drift; parse.py would need updating if Claude changes its record format",
+    "Image cost constants are point-in-time pricing and go stale when rates change"
+  ],
+  "rollback": [
+    "git revert the 'Add token_audit package' commit — the package is self-contained and nothing else imports it",
+    "After rollback, re-run pytest on python_pkg to confirm the suite is still green"
+  ]
+}
