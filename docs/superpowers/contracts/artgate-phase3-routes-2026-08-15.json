@@ -1,0 +1,20 @@
+{
+  "title": "artgate Phase 3: procedural + code-as-art routes, and the shared finishing stage",
+  "objective": "Run the two CPU-only, download-free cells of the art bake-off - route (a) procedural/parametric and route (d) code-as-art via SVG - against the fixed twelve-subject set, and build the finishing stage that lets any continuous-tone route satisfy a pixel-art spec. Establishes measured cells in the decision table and the shared bridge that route (b) diffusion will reuse.",
+  "acceptance_criteria": [
+    "The twelve bake-off subjects are pinned in code with their measured easy/hard split, so every route is compared on the same task.",
+    "Route (a) renders all twelve subjects deterministically from a locked palette and its output passes the pixel_icon gate stack.",
+    "Route (d) renders vector subjects via rsvg-convert with no new Python dependency.",
+    "A finishing stage converts continuous-tone output (anti-aliased alpha, thousands of colours) into gate-passing pixel art, demonstrated on real rasteriser output rather than a synthetic stand-in.",
+    "Alpha is binarised BEFORE colour quantisation, mirroring the gate order, so transparent pixels never contribute RGB to the palette.",
+    "100% branch coverage, zero lint suppressions, all pre-commit hooks pass.",
+    "A contact sheet is produced per cell for the human gate."
+  ],
+  "out_of_scope": [
+    "Route (b) diffusion. The GPU path is proven but no model is downloaded or run in this change.",
+    "The 3D cell of route (d). Blender 5.2 is present and scriptable but not yet wired.",
+    "Deciding which icons are GOOD. The machine gates establish 'not malformed' only; acceptance is the user's contact-sheet verdict.",
+    "Tiling and animation gates (SEAM_ENERGY, LOOP_POPS), which belong to cells not yet run."
+  ],
+  "verifier": "python -m pytest python_pkg/artgate/tests/ --cov=python_pkg.artgate --cov-branch --cov-fail-under=100 (92 tests, 100% branch); pre-commit run over all artgate files; plus an end-to-end run generating all 12 procedural icons and gating them (12/12 machine-pass), and rendering 5 vector subjects before/after the finishing stage (0/5 -> 5/5)."
+}
