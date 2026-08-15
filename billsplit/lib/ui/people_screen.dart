@@ -17,7 +17,7 @@ class PeopleScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
-          const _SectionHeader('People'),
+          const SectionHeader('People', padding: SectionHeader.defaultPadding),
           if (state.people.isEmpty)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -25,7 +25,7 @@ class PeopleScreen extends StatelessWidget {
             ),
           for (final p in state.people) _PersonTile(person: p),
           const Divider(height: 32),
-          const _SectionHeader('Groups'),
+          const SectionHeader('Groups', padding: SectionHeader.defaultPadding),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
@@ -130,17 +130,6 @@ class PeopleScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
 }
 
 class _PersonTile extends StatelessWidget {

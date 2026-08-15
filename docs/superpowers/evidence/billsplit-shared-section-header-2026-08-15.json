@@ -1,0 +1,42 @@
+{
+  "intent": "Retire billsplit's local `_SectionHeader`, a donor copy that survived the design_system extraction, so the People screen renders from the shared `SectionHeader` with no visual change.",
+  "scope": [
+    "billsplit/lib/ui/people_screen.dart",
+    "Non-goal: no change to SectionHeader itself, and no other repo touched",
+    "Non-goal: the other audit findings (DeviceCodeDialog x3, Clock/RNG duplicates) are report-only, deferred to a future phase"
+  ],
+  "changes": [
+    "Replaced both `_SectionHeader('People'|'Groups')` call sites with `SectionHeader(..., padding: SectionHeader.defaultPadding)` from package:design_system, which the file already imported.",
+    "Deleted the 10-line local `_SectionHeader` class. design_system's SectionHeader doc names billsplit as one of its two donors and sizes `defaultPadding` as fromLTRB(md, md, md, xs) precisely to reproduce billsplit's (16,16,16,4), so the shared widget was already built to replace this copy."
+  ],
+  "verification": [
+    {
+      "command": "grep -rn '_SectionHeader' lib/",
+      "result": "pass",
+      "evidence": "No matches — the local copy is gone, no dangling references."
+    },
+    {
+      "command": "flutter analyze",
+      "result": "pass",
+      "evidence": "4 issues found, all pre-existing `unnecessary_unawaited` infos in lib/ui/home_screen.dart, which this change does not touch. Zero issues in people_screen.dart."
+    },
+    {
+      "command": "flutter test",
+      "result": "pass",
+      "evidence": "60/60 passed, including the people-screen flows ('people add person dialog', 'people drinks switch...', 'people groups: add, membership sheet, delete') that render both headers."
+    },
+    {
+      "command": "flutter test (throwaway equivalence test vs a verbatim copy of the retired widget)",
+      "result": "pass",
+      "evidence": "padding=EdgeInsets(16.0, 16.0, 16.0, 4.0), text topLeft=Offset(16.0, 16.0), height=24.0, fontSize=16.0 — all identical to the old widget. Test was removed after running; it existed to prove equivalence, not to be kept."
+    }
+  ],
+  "risks": [
+    "Not a pure no-op: the shared SectionHeader wraps its title in Row/Expanded to leave room for the optional trailing action, so the Text box fills the row width (768.0 in test) rather than shrinking to content (96.9). Glyph origin, baseline, height and style are unchanged, so there is no visible difference for a left-aligned title with no action — but hit-test width changes, and a future center/right alignment or an ellipsis/overflow decision would render differently than the old widget would have.",
+    "Low blast radius: one screen in one app, no shared code modified, no consumer of design_system affected."
+  ],
+  "rollback": [
+    "git revert the commit — the change is self-contained in one file.",
+    "After rollback, confirm `flutter analyze` is clean and the People screen still shows the 'People' and 'Groups' headings with 16px gutters."
+  ]
+}
