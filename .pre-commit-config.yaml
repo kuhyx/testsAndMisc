@@ -212,6 +212,9 @@ repos:
           # android_ui parses `uiautomator dump` output. Same reason as
           # beautifulsoup4 above: requirements.txt is not on pylint's path.
           - defusedxml
+          # artgate computes image gates over pixel arrays. Same reason again:
+          # it is the first package here to import numpy.
+          - numpy
           - gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.1.0#subdirectory=gatelock
           - anthropic
           - rich

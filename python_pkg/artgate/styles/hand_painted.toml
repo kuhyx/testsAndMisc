@@ -1,0 +1,17 @@
+# Hand-painted / illustrative: deliberately weakly gated.
+#
+# Palette conformance, colour count and scale-invariance are MEANINGLESS here --
+# smooth gradients and anti-aliased edges are the point of the style, so running
+# those gates would manufacture false failures on correct art. Only the
+# universally-valid gates apply.
+#
+# Consequence, stated rather than hidden: this style's bake-off verdict leans
+# almost entirely on the human contact-sheet gate. The machine gates can say
+# "not malformed"; they cannot say "not sloppy" for painterly work.
+name = "hand_painted"
+canvas = [1024, 1024]
+
+gates = [
+  "CANVAS_SIZE",
+  "SILHOUETTE_LOW_CONTRAST",
+]
