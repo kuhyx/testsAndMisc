@@ -69,6 +69,7 @@ DECLARABLE: Final = frozenset(
         Code.CANVAS_SIZE,
         Code.SCALE_NOT_INVARIANT,
         Code.SILHOUETTE_LOW_CONTRAST,
+        Code.MARGIN_TOO_SMALL,
     }
 )
 

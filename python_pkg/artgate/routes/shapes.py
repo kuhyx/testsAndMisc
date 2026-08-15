@@ -95,8 +95,8 @@ def _sword(c: NDArray[np.uint8]) -> None:
     _rect(c, 14, 3, 17, 21, "light")
     _rect(c, 15, 5, 16, 19, "mid")
     _rect(c, 9, 22, 22, 23, "gold")
-    _rect(c, 14, 24, 17, 27, "shadow")
-    _disc(c, 15.5, 28.0, 2.4, "gold")
+    _rect(c, 14, 23, 17, 26, "shadow")
+    _disc(c, 15.5, 27.0, 2.4, "gold")
 
 
 def _shield(c: NDArray[np.uint8]) -> None:

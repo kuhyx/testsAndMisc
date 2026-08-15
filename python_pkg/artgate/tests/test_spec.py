@@ -160,6 +160,7 @@ class TestFailClosed:
             ('gates = ["TOO_MANY_COLORS"]', "TOO_MANY_COLORS needs"),
             ('gates = ["OFF_PALETTE"]', "OFF_PALETTE needs"),
             ('gates = ["ALPHA_NOT_BINARY"]', "ALPHA_NOT_BINARY needs"),
+            ('gates = ["MARGIN_TOO_SMALL"]', "MARGIN_TOO_SMALL needs"),
         ],
     )
     def test_gate_without_config_is_rejected(

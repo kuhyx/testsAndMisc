@@ -31,7 +31,7 @@ PALETTE: Final[dict[str, str]] = {
     "cyan": "#5cb0be",
 }
 
-_STROKE: Final = 'stroke="#1a141c" stroke-width="1.5" stroke-linejoin="round"'
+STROKE: Final = 'stroke="#1a141c" stroke-width="1.5" stroke-linejoin="round"'
 
 
 def _svg(body: str, size: int = 64) -> str:
@@ -55,27 +55,27 @@ SHAPES: Final[dict[str, str]] = {
         f'<circle cx="20" cy="22" r="11" fill="none" stroke="{PALETTE["gold"]}"'
         f' stroke-width="7"/>'
         f'<rect x="27" y="30" width="7" height="27" fill="{PALETTE["gold"]}" '
-        f"{_STROKE}/>"
+        f"{STROKE}/>"
         f'<rect x="34" y="42" width="10" height="5" fill="{PALETTE["gold"]}" '
-        f"{_STROKE}/>"
+        f"{STROKE}/>"
         f'<rect x="34" y="50" width="7" height="5" fill="{PALETTE["gold"]}" '
-        f"{_STROKE}/>"
+        f"{STROKE}/>"
     ),
     "gem": (
         f'<polygon points="32,6 54,26 32,58 10,26" fill="{PALETTE["cyan"]}" '
-        f"{_STROKE}/>"
+        f"{STROKE}/>"
         f'<polygon points="32,6 42,26 32,34 22,26" fill="{PALETTE["light"]}" '
         f'opacity="0.65"/>'
     ),
     "potion": (
-        f'<circle cx="32" cy="42" r="17" fill="{PALETTE["cyan"]}" {_STROKE}/>'
+        f'<circle cx="32" cy="42" r="17" fill="{PALETTE["cyan"]}" {STROKE}/>'
         f'<rect x="26" y="12" width="12" height="16" '
-        f'fill="{PALETTE["light"]}" {_STROKE}/>'
+        f'fill="{PALETTE["light"]}" {STROKE}/>'
         f'<rect x="23" y="6" width="18" height="8" fill="{PALETTE["gold"]}" '
-        f"{_STROKE}/>"
+        f"{STROKE}/>"
     ),
     "coin": (
-        f'<circle cx="32" cy="32" r="24" fill="{PALETTE["gold"]}" {_STROKE}/>'
+        f'<circle cx="32" cy="32" r="24" fill="{PALETTE["gold"]}" {STROKE}/>'
         f'<circle cx="32" cy="32" r="18" fill="none" '
         f'stroke="{PALETTE["shadow"]}" stroke-width="2"/>'
         f'<polygon points="32,18 37,29 49,29 39,37 43,49 32,41 21,49 25,37 '
@@ -83,15 +83,40 @@ SHAPES: Final[dict[str, str]] = {
     ),
     "shield": (
         f'<path d="M10 10 H54 V32 Q54 52 32 60 Q10 52 10 32 Z" '
-        f'fill="{PALETTE["mid"]}" {_STROKE}/>'
+        f'fill="{PALETTE["mid"]}" {STROKE}/>'
         f'<path d="M10 10 H54 V20 H10 Z" fill="{PALETTE["gold"]}"/>'
-        f'<circle cx="32" cy="34" r="7" fill="{PALETTE["gold"]}" {_STROKE}/>'
+        f'<circle cx="32" cy="34" r="7" fill="{PALETTE["gold"]}" {STROKE}/>'
     ),
 }
 
 
+_REGISTRY: dict[str, str] = dict(SHAPES)
+
+
 class RenderError(RuntimeError):
     """Raised when the SVG rasteriser is unavailable or fails."""
+
+
+def all_shapes() -> dict[str, str]:
+    """Return every vector subject registered so far.
+
+    ``vector_shapes`` calls :func:`register` at import time, so the extra seven
+    subjects appear here without this module importing them -- which keeps the
+    dependency one-directional and avoids a circular import.
+
+    Returns:
+        A mapping of subject name to SVG markup.
+    """
+    return dict(_REGISTRY)
+
+
+def register(shapes: dict[str, str]) -> None:
+    """Add subjects to the vector registry.
+
+    Args:
+        shapes: A mapping of subject name to SVG markup.
+    """
+    _REGISTRY.update(shapes)
 
 
 def render(name: str, out: Path, size: int = 64) -> Path:
@@ -109,7 +134,8 @@ def render(name: str, out: Path, size: int = 64) -> Path:
         KeyError: If the subject has no vector shape.
         RenderError: If ``rsvg-convert`` is missing or exits non-zero.
     """
-    if name not in SHAPES:
+    shapes = all_shapes()
+    if name not in shapes:
         msg = f"no vector shape for {name!r}"
         raise KeyError(msg)
     binary = shutil.which("rsvg-convert")
@@ -118,7 +144,7 @@ def render(name: str, out: Path, size: int = 64) -> Path:
         raise RenderError(msg)
 
     source = out.with_suffix(".svg")
-    source.write_text(_svg(SHAPES[name], size), encoding="utf-8")
+    source.write_text(_svg(shapes[name], size), encoding="utf-8")
     result = subprocess.run(
         [binary, "-w", str(size), "-h", str(size), str(source), "-o", str(out)],
         capture_output=True,

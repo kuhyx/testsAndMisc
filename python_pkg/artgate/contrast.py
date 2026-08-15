@@ -62,6 +62,37 @@ def silhouette_delta(rgba: NDArray[np.uint8], background: int) -> float:
     return abs(subject - float(background))
 
 
+def check_margin(rgba: NDArray[np.uint8], min_margin: int) -> list[Code]:
+    """Verify a transparent border surrounds the subject.
+
+    An item icon must be a *sprite*, not a square tile: without a transparent
+    margin it cannot sit on an inventory slot or a world background. This gate
+    exists because it was missed -- twelve diffusion icons scored 100% opaque
+    coverage and passed every other gate, because nothing checked whether the
+    asset had a silhouette at all.
+
+    Args:
+        rgba: An ``(h, w, 4)`` uint8 array.
+        min_margin: Required clear border width in pixels.
+
+    Returns:
+        ``[MARGIN_TOO_SMALL]`` if any edge band contains opaque pixels.
+    """
+    if min_margin <= 0:
+        return []
+    alpha = rgba[:, :, 3]
+    band = min_margin
+    edges = (
+        alpha[:band, :],
+        alpha[-band:, :],
+        alpha[:, :band],
+        alpha[:, -band:],
+    )
+    if any(int(edge.max(initial=0)) > 0 for edge in edges):
+        return [Code.MARGIN_TOO_SMALL]
+    return []
+
+
 def check_silhouette(
     rgba: NDArray[np.uint8],
     min_delta: float = DEFAULT_MIN_DELTA,

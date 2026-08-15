@@ -15,6 +15,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -25,7 +26,7 @@ from python_pkg.artgate.codes import (
     EXIT_PASS,
     Code,
 )
-from python_pkg.artgate.contrast import check_silhouette
+from python_pkg.artgate.contrast import check_margin, check_silhouette
 from python_pkg.artgate.pixels import (
     check_alpha_binary,
     check_color_count,
@@ -33,6 +34,27 @@ from python_pkg.artgate.pixels import (
     check_scale_invariance,
 )
 from python_pkg.artgate.spec import SpecError, TargetSpec, load_spec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+def _check_canvas(rgba: np.ndarray, spec: TargetSpec) -> list[Code]:
+    """Verify the image matches the spec's exact canvas size.
+
+    Args:
+        rgba: An ``(h, w, 4)`` uint8 array.
+        spec: The target specification.
+
+    Returns:
+        ``[CANVAS_SIZE]`` on a mismatch, else empty.
+    """
+    if spec.canvas is None:
+        return []
+    height, width = rgba.shape[:2]
+    if (width, height) != spec.canvas:
+        return [Code.CANVAS_SIZE]
+    return []
 
 
 def evaluate(rgba: np.ndarray, spec: TargetSpec) -> list[Code]:
@@ -49,27 +71,29 @@ def evaluate(rgba: np.ndarray, spec: TargetSpec) -> list[Code]:
     Returns:
         The failing reason codes, empty if the asset passes.
     """
+    # A table rather than an if-chain: adding a gate is one entry, and the
+    # ORDER is explicit and load-bearing -- alpha must precede the colour
+    # count, or a soft-alpha image yields zero opaque pixels and passes.
+    checks: list[tuple[Code, Callable[[], list[Code]]]] = [
+        (Code.CANVAS_SIZE, lambda: _check_canvas(rgba, spec)),
+        (Code.ALPHA_NOT_BINARY, lambda: check_alpha_binary(rgba)),
+        (
+            Code.TOO_MANY_COLORS,
+            lambda: check_color_count(rgba, spec.max_colors or 0),
+        ),
+        (Code.OFF_PALETTE, lambda: check_palette(rgba, spec.palette)),
+        (
+            Code.SCALE_NOT_INVARIANT,
+            lambda: check_scale_invariance(rgba, spec.scale),
+        ),
+        (Code.SILHOUETTE_LOW_CONTRAST, lambda: check_silhouette(rgba)),
+        (Code.MARGIN_TOO_SMALL, lambda: check_margin(rgba, spec.min_margin)),
+    ]
+
     failures: list[Code] = []
-
-    if spec.runs(Code.CANVAS_SIZE) and spec.canvas is not None:
-        height, width = rgba.shape[:2]
-        if (width, height) != spec.canvas:
-            failures.append(Code.CANVAS_SIZE)
-
-    if spec.runs(Code.ALPHA_NOT_BINARY) and spec.alpha_binary:
-        failures.extend(check_alpha_binary(rgba))
-
-    if spec.runs(Code.TOO_MANY_COLORS) and spec.max_colors is not None:
-        failures.extend(check_color_count(rgba, spec.max_colors))
-
-    if spec.runs(Code.OFF_PALETTE) and spec.palette:
-        failures.extend(check_palette(rgba, spec.palette))
-
-    if spec.runs(Code.SCALE_NOT_INVARIANT):
-        failures.extend(check_scale_invariance(rgba, spec.scale))
-
-    if spec.runs(Code.SILHOUETTE_LOW_CONTRAST):
-        failures.extend(check_silhouette(rgba))
+    for code, run in checks:
+        if spec.runs(code):
+            failures.extend(run())
 
     deduped: list[Code] = []
     for code in failures:

@@ -1,0 +1,20 @@
+{
+  "title": "artgate Phase 4: diffusion route, 3D cell, full vector coverage, and the margin gate",
+  "objective": "Close the remaining bake-off cells - route (b) local diffusion on the 3090, route (d) 3D via headless Blender, and the other seven vector subjects - so all four routes are measured on the same twelve subjects. The phase's real outcome was a missing gate: diffusion output passed everything while being unusable, which forced MARGIN_TOO_SMALL into existence and inverted the decision table.",
+  "acceptance_criteria": [
+    "diffusers runs on the GPU in the isolated uv 3.12 venv, with model gating status verified at execution time rather than recalled.",
+    "Route (b) generates all twelve subjects locally with no gated download on the critical path.",
+    "Route (d) covers all twelve vector subjects, making its number comparable to route (a)'s.",
+    "Route (d) 3D renders via headless Blender, with a phantom-success guard: Blender exits 0 even when its embedded script raises.",
+    "A margin gate rejects full-bleed assets, because an item icon must be a sprite with a silhouette, not a square tile.",
+    "Every gate failure observed on real output is verified as a true positive before any threshold or shape is changed.",
+    "100% branch coverage, zero lint suppressions, all pre-commit hooks pass."
+  ],
+  "out_of_scope": [
+    "Deciding which route WINS. That needs the human contact-sheet verdicts, which are the user's call; this change only produces the machine column and the sheets.",
+    "A production matting solution for diffusion output. The flood-fill background removal demonstrated recoverability but visibly damages the art, and is reported as inadequate rather than shipped as the answer.",
+    "Modelling all twelve subjects in 3D. Five meshes answer whether render->finish clears the gates; twelve would be modelling work, not a route comparison.",
+    "Gated model families (FLUX.1-dev, SD3.x). Verified gated at execution time and deliberately kept off the critical path."
+  ],
+  "verifier": "python -m pytest python_pkg/artgate/tests/ --cov=python_pkg.artgate --cov-branch --cov-fail-under=100 (114 tests, 100% branch on 13 modules); pre-commit run over all artgate files; plus end-to-end generation and gating of all four routes against styles/pixel_icon.toml, with each observed failure traced to a specific measurable defect."
+}

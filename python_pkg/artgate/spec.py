@@ -229,6 +229,8 @@ def _require_config(spec: TargetSpec) -> None:
         missing.append("OFF_PALETTE needs a non-empty 'palette'")
     if spec.runs(Code.ALPHA_NOT_BINARY) and not spec.alpha_binary:
         missing.append("ALPHA_NOT_BINARY needs 'alpha_binary = true'")
+    if spec.runs(Code.MARGIN_TOO_SMALL) and spec.min_margin <= 0:
+        missing.append("MARGIN_TOO_SMALL needs a positive 'min_margin'")
     if missing:
         msg = "; ".join(missing)
         raise SpecError(msg)

@@ -108,6 +108,14 @@ class TestProceduralRoute:
 class TestVectorRoute:
     """SVG rasterisation is available and produces real output."""
 
+    def test_all_twelve_subjects_have_shapes(self) -> None:
+        """The vector cell covers the same 12 subjects as every other route.
+
+        A cell measured on five easy subjects is not comparable to one
+        measured on all twelve.
+        """
+        assert {s.name for s in SUBJECTS} <= set(vector.all_shapes())
+
     def test_unknown_shape_raises(self, tmp_path: Path) -> None:
         """An undefined vector subject fails loudly."""
         with pytest.raises(KeyError, match="no vector shape"):

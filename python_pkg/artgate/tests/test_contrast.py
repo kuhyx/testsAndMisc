@@ -9,10 +9,12 @@ reject good art.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from python_pkg.artgate.codes import Code
 from python_pkg.artgate.contrast import (
     DEFAULT_MIN_DELTA,
+    check_margin,
     check_silhouette,
     silhouette_delta,
 )
@@ -64,6 +66,50 @@ class TestCalibrationControls:
         arr = _solid(250)
         assert silhouette_delta(arr, 0) == 250.0
         assert check_silhouette(arr) == [Code.SILHOUETTE_LOW_CONTRAST]
+
+
+class TestMargin:
+    """A sprite needs a clear border; a square tile is not an item icon.
+
+    Regression: twelve SDXL icons measured 100% opaque coverage and passed
+    every other gate, because nothing checked whether the asset had a
+    silhouette at all. Gate-pass measured hygiene, not usability.
+    """
+
+    def test_full_bleed_is_rejected(self) -> None:
+        """A fully-opaque canvas has no silhouette and must fail."""
+        assert check_margin(_solid(128), 1) == [Code.MARGIN_TOO_SMALL]
+
+    def test_clear_border_passes(self) -> None:
+        """Content inset from every edge passes."""
+        arr = _solid(128, alpha=0)
+        arr[2:6, 2:6, 3] = 255
+        assert check_margin(arr, 1) == []
+
+    @pytest.mark.parametrize("edge", ["top", "bottom", "left", "right"])
+    def test_any_touched_edge_is_rejected(self, edge: str) -> None:
+        """Touching a single edge is enough to fail."""
+        arr = _solid(128, alpha=0)
+        arr[2:6, 2:6, 3] = 255
+        index = {
+            "top": (0, 3),
+            "bottom": (-1, 3),
+            "left": (3, 0),
+            "right": (3, -1),
+        }[edge]
+        arr[index[0], index[1], 3] = 255
+        assert check_margin(arr, 1) == [Code.MARGIN_TOO_SMALL]
+
+    def test_zero_margin_disables_the_gate(self) -> None:
+        """A style that permits full bleed opts out explicitly."""
+        assert check_margin(_solid(128), 0) == []
+
+    def test_wider_margin_is_stricter(self) -> None:
+        """A 2px requirement rejects art that only clears 1px."""
+        arr = _solid(128, alpha=0)
+        arr[1:7, 1:7, 3] = 255
+        assert check_margin(arr, 1) == []
+        assert check_margin(arr, 2) == [Code.MARGIN_TOO_SMALL]
 
 
 class TestEdgeCases:

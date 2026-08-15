@@ -152,6 +152,20 @@ class TestEvaluate:
         )
         assert evaluate(arr, spec) == [Code.NO_OPAQUE_PIXELS]
 
+    def test_margin_gate_runs_when_declared(self) -> None:
+        """A full-bleed asset fails once the margin gate is declared.
+
+        Regression: twelve diffusion icons were 100% opaque -- square tiles,
+        not sprites -- and passed every other gate, because no gate asked
+        whether the asset had a silhouette at all.
+        """
+        arr = np.zeros((8, 8, 4), dtype=np.uint8)
+        arr[:, :, 3] = 255
+        spec = TargetSpec(
+            name="s", min_margin=1, gates=frozenset({Code.MARGIN_TOO_SMALL})
+        )
+        assert evaluate(arr, spec) == [Code.MARGIN_TOO_SMALL]
+
     def test_silhouette_gate_runs_when_declared(self) -> None:
         """A near-white asset fails the silhouette gate.
 
