@@ -1,0 +1,42 @@
+{
+  "intent": "Stop the artgate 3D route (row C) rendering washed-out, desaturated items. Rendered gold/cyan/red materials came out beige and grey, which made the whole 3D row unfairly fail the human accept gate.",
+  "scope": [
+    "python_pkg/artgate/routes/blender_scene.py (SCENE_TEMPLATE only)",
+    "Non-goal: no geometry, lighting, material or camera changes",
+    "Non-goal: the route still runs Blender as a fire-and-forget subprocess; it was not rewired to the blender MCP host"
+  ],
+  "changes": [
+    "Set scene.view_settings.view_transform = 'Standard' in SCENE_TEMPLATE. Blender defaults to the AgX view transform, a photoreal film emulation that rolls off highlights and desaturates; on flat-lit item renders it destroyed the material colours.",
+    "Documented the reason inline with the measured numbers so the line is not 'cleaned up' later."
+  ],
+  "verification": [
+    {
+      "command": "controlled A/B render of an identical gold coin scene, AgX vs Standard, via the blender-mcp socket",
+      "result": "pass",
+      "evidence": "Identical geometry/materials/lights; only view_transform differed. AgX: mean RGB (193.6,178.6,145.4), saturation 0.282. Standard: mean RGB (241.1,214.7,138.1), saturation 0.787 -- a 2.8x increase. Visually beige vs gold."
+    },
+    {
+      "command": "python3 -c 'from python_pkg.artgate.routes.blender import render; render(\"coin\", out)'",
+      "result": "pass",
+      "evidence": "Ran the real route (not a standalone test scene) after the edit; 33193-byte PNG, visually saturated gold."
+    },
+    {
+      "command": "re-rendered all 5 modelled row-C subjects through the real route",
+      "result": "pass",
+      "evidence": "coin/gem/ring/bone/bomb all rendered. Saturation coin 0.24->0.68, ring 0.15->0.29, gem 0.09->0.20. bone/bomb unchanged at ~0.03 (genuinely near-greyscale by design). Contact sheet: ~/artgate-output/contact-sheets/ROWC_AGX_FIX.png"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/artgate/routes/blender_scene.py docs/superpowers/evidence/artgate-blender-agx-view-transform-2026-08-15.json",
+      "result": "pass",
+      "evidence": "All hooks Passed or Skipped (no files to check); none Failed. Includes ruff, ruff format, mypy, pylint, bandit, pytest with coverage enforcement, and the AI evidence contract."
+    }
+  ],
+  "risks": [
+    "Standard applies no tone mapping, so genuinely over-bright scenes can now clip to white instead of rolling off. Acceptable here: these are flat-lit 256px item renders that get downscaled to 32px, and clipping is preferable to desaturation for game icons.",
+    "This makes row C a fair test; it does not make row C good. The geometry is still low-poly primitives (the gem is two stacked cones, the bone is spheres on a cylinder) and ring/bone still read as nearly invisible at 32px. Colour management was one bug, not the only one."
+  ],
+  "rollback": [
+    "Delete the scene.view_settings.view_transform line from SCENE_TEMPLATE; Blender falls back to the AgX default.",
+    "After rollback, re-render coin and confirm saturation drops back to ~0.28 to prove the line was the cause."
+  ]
+}

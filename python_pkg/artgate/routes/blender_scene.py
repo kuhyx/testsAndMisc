@@ -39,6 +39,13 @@ scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGBA"
 scene.render.filepath = OUT
 
+# Blender defaults to the AgX view transform, which is built for photoreal film:
+# it rolls off highlights and desaturates hard. On flat-lit item renders that
+# turned gold into beige (measured mean saturation 0.28 vs 0.79 for the same
+# scene), which is why this route's first pass read as washed out. Game icons
+# want the raw shaded colour, so bypass tone mapping entirely.
+scene.view_settings.view_transform = "Standard"
+
 
 def material(name, rgba):
     mat = bpy.data.materials.new(name)
