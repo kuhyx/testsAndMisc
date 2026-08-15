@@ -1,0 +1,42 @@
+{
+  "intent": "Add a 64x64 icon spec so the diffusion route (the bake-off winner) has a deterministic gate at the size where its detail actually survives. At 32px a coin's struck emblem, a shield's radial pattern and a lantern's glass panes mush; the same source reads clearly at 64px.",
+  "scope": [
+    "python_pkg/artgate/styles/pixel_icon_64.toml (new file)",
+    "Non-goal: pixel_icon.toml (32px) is unchanged and remains the default spec",
+    "Non-goal: no code changes; this is a style spec consumed by the existing CLI"
+  ],
+  "changes": [
+    "New style spec: canvas 64x64, min_margin 2 (keeps 32px's 3.1% proportional margin rather than tightening it), same gates in the same order as pixel_icon.",
+    "max_colors deliberately held at 32 rather than scaled with the canvas. Calibrated against the 300 genuine 48x48 icons in ~/opengameart-downloads (the largest real-art sample above 32px available locally): p50=9 p75=11 p90=13 p95=13 p99=14 max=14. A cap of 32 rejects 0.00% of that art, and so does every larger cap -- hand-made art does not spend more colours on a bigger canvas, so raising the cap would only admit more un-quantized generator output."
+  ],
+  "verification": [
+    {
+      "command": "python -m python_pkg.artgate.cli <icon> --spec python_pkg/artgate/styles/pixel_icon_64.toml --json",
+      "result": "pass",
+      "evidence": "18/18. The 12 original bake-off subjects re-finished at 64px: 12/12 exit 0. Six brand-new subjects the route had never seen (lantern, axe, boots, helmet, torch, mushroom): 6/6 exit 0."
+    },
+    {
+      "command": "corpus calibration over ~/opengameart-downloads 48x48 icons",
+      "result": "pass",
+      "evidence": "n=300, max observed colour count 14, so max_colors=32 admits 100% of real art. Recorded so the cap is traceable to measurement rather than to a number that made one file pass."
+    },
+    {
+      "command": "end-to-end default run: generate a new subject with no flags, then gate it",
+      "result": "pass",
+      "evidence": "~/artgate-gen/generate.py with defaults produced a 64px anvil; CLI returned {\"codes\": [], \"exit\": 0}. This was a real regression check -- the generator originally derived the palette cap from the canvas size and produced 64-colour icons that failed TOO_MANY_COLORS on all 18 subjects."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/artgate/styles/pixel_icon_64.toml docs/superpowers/evidence/artgate-pixel-icon-64-spec-2026-08-15.json",
+      "result": "pass",
+      "evidence": "Every hook reported Passed or Skipped (no files to check); none Failed."
+    }
+  ],
+  "risks": [
+    "No 64x64 corpus exists locally, so the colour cap is extrapolated from 48x48 art. The extrapolation is conservative (holding the cap rather than raising it) and the 48px data trends downward in colour count as canvas grows, so the risk is admitting too little, not too much.",
+    "64px icons are 4x the pixel area of 32px. Anything consuming these needs to opt in by naming the spec; nothing switches size implicitly."
+  ],
+  "rollback": [
+    "Delete pixel_icon_64.toml. Nothing imports it -- it is selected by --spec at call time, so removal cannot break the 32px path.",
+    "After rollback, confirm the 32px path still gates: run the CLI against a 32px icon with pixel_icon.toml and expect exit 0."
+  ]
+}
