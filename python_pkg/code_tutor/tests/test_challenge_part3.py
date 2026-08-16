@@ -10,9 +10,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
-from python_pkg.code_tutor._challenge import (
+from python_pkg.code_tutor._challenge import _run_user_impl
+from python_pkg.code_tutor._challenge_flows import (
     _existing_tests_flow,
-    _run_user_impl,
     _write_tests_first_flow,
     run_coding_challenge,
 )
@@ -151,10 +151,10 @@ def test_write_tests_first_flow_tests_none(tmp_path: Path) -> None:
 
     with (
         patch(
-            "python_pkg.code_tutor._challenge._collect_and_rate_tests",
+            "python_pkg.code_tutor._challenge_flows._collect_and_rate_tests",
             return_value=None,
         ),
-        patch("python_pkg.code_tutor._challenge.Syntax"),
+        patch("python_pkg.code_tutor._challenge_flows.Syntax"),
     ):
         result = _write_tests_first_flow(
             _item(file="mod.py"),
@@ -174,14 +174,14 @@ def test_write_tests_first_flow_tests_fail_real(tmp_path: Path) -> None:
 
     with (
         patch(
-            "python_pkg.code_tutor._challenge._collect_and_rate_tests",
+            "python_pkg.code_tutor._challenge_flows._collect_and_rate_tests",
             return_value="test code",
         ),
         patch(
-            "python_pkg.code_tutor._challenge._validate_tests_against_real",
+            "python_pkg.code_tutor._challenge_flows._validate_tests_against_real",
             return_value=False,
         ),
-        patch("python_pkg.code_tutor._challenge.Syntax"),
+        patch("python_pkg.code_tutor._challenge_flows.Syntax"),
     ):
         result = _write_tests_first_flow(
             _item(file="mod.py"),
@@ -201,18 +201,18 @@ def test_write_tests_first_flow_success(tmp_path: Path) -> None:
 
     with (
         patch(
-            "python_pkg.code_tutor._challenge._collect_and_rate_tests",
+            "python_pkg.code_tutor._challenge_flows._collect_and_rate_tests",
             return_value="test code",
         ),
         patch(
-            "python_pkg.code_tutor._challenge._validate_tests_against_real",
+            "python_pkg.code_tutor._challenge_flows._validate_tests_against_real",
             return_value=True,
         ),
         patch(
-            "python_pkg.code_tutor._challenge._run_user_impl",
+            "python_pkg.code_tutor._challenge_flows._run_user_impl",
             return_value="passed",
         ),
-        patch("python_pkg.code_tutor._challenge.Syntax"),
+        patch("python_pkg.code_tutor._challenge_flows.Syntax"),
     ):
         result = _write_tests_first_flow(
             _item(file="mod.py"),
@@ -279,7 +279,9 @@ def test_existing_tests_flow_passes(tmp_path: Path) -> None:
 
     with (
         patch("python_pkg.code_tutor._challenge_support.Syntax"),
-        patch("python_pkg.code_tutor._challenge._patch_and_test", return_value=True),
+        patch(
+            "python_pkg.code_tutor._challenge_flows._patch_and_test", return_value=True
+        ),
     ):
         result = _existing_tests_flow(
             _item(file="mod.py"),
@@ -303,7 +305,9 @@ def test_existing_tests_flow_fails(tmp_path: Path) -> None:
 
     with (
         patch("python_pkg.code_tutor._challenge_support.Syntax"),
-        patch("python_pkg.code_tutor._challenge._patch_and_test", return_value=False),
+        patch(
+            "python_pkg.code_tutor._challenge_flows._patch_and_test", return_value=False
+        ),
     ):
         result = _existing_tests_flow(
             _item(file="mod.py"),
@@ -342,7 +346,8 @@ def test_run_coding_challenge_with_existing_tests(tmp_path: Path) -> None:
     mock_backend = MagicMock()
 
     with patch(
-        "python_pkg.code_tutor._challenge._existing_tests_flow", return_value="passed"
+        "python_pkg.code_tutor._challenge_flows._existing_tests_flow",
+        return_value="passed",
     ):
         result = run_coding_challenge(
             _item(file="mod.py"),
@@ -360,7 +365,7 @@ def test_run_coding_challenge_no_tests(tmp_path: Path) -> None:
     mock_backend = MagicMock()
 
     with patch(
-        "python_pkg.code_tutor._challenge._write_tests_first_flow",
+        "python_pkg.code_tutor._challenge_flows._write_tests_first_flow",
         return_value="skipped",
     ):
         result = run_coding_challenge(

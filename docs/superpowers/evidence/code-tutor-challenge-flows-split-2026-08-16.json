@@ -1,0 +1,52 @@
+{
+  "intent": "Bring code_tutor/_challenge.py under the 250-line cap by moving the two challenge flows, the entry point and the static prompt strings into their own modules, with no behaviour change.",
+  "scope": [
+    "python_pkg/code_tutor/_challenge_flows.py, _challenge_prompts.py (new)",
+    "python_pkg/code_tutor/_challenge.py (467 -> 236)",
+    "python_pkg/code_tutor/_verifier.py (import path only)",
+    "python_pkg/code_tutor/tests/test_challenge_part3.py (import and patch paths only)",
+    "Non-goal: no assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "Moved _write_tests_first_flow, _existing_tests_flow and run_coding_challenge into _challenge_flows.py, which imports the three interactive stages back from _challenge.",
+    "Moved _NO_AI_NOTICE, _MAX_TEST_ATTEMPTS and _TEST_JUDGE_SYSTEM into _challenge_prompts.py. The first cut left _challenge.py at 261, eleven over; these three constants are pure data with no patch targets, which made them the cheapest remaining eleven lines.",
+    "_verifier.py imports run_coding_challenge from _challenge_flows directly rather than through a re-export shim.",
+    "Repointed 13 patch strings in test_challenge_part3.py from _challenge to _challenge_flows, decided per test by which function is under test: the four _run_user_impl tests keep _challenge, the eight flow and entry-point tests move. A blanket substitution would have broken the first group.",
+    "_challenge.py dropped four imports the moved code solely used, and its module docstring now names where the flows went."
+  ],
+  "verification": [
+    {
+      "command": "timeout 90 env PYTHONPATH=. python3 -m pytest python_pkg/code_tutor/tests -q",
+      "result": "pass",
+      "evidence": "216 passed in 2.1s - identical to the baseline count, and comfortably inside the timeout."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -m pytest python_pkg/code_tutor/tests -q (intermediate run, before the patch strings were repointed)",
+      "result": "hang",
+      "evidence": "The suite spun for over two minutes and had to be killed. test_write_tests_first_flow_tests_none patched _collect_and_rate_tests on _challenge while _write_tests_first_flow had moved to _challenge_flows, so the patch stopped intercepting and the real interactive flow ran against a stub input function. This is the silent failure mode docs/python-split-recipes.md warns about: not a red test, but real execution. Every subsequent run was given an explicit timeout."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -c \"<assert every patched name resolves on _challenge_flows and _challenge>\"",
+      "result": "pass",
+      "evidence": "all patch targets resolve - run before the pytest invocation specifically because a missing target here spins rather than errors."
+    },
+    {
+      "command": "wc -l python_pkg/code_tutor/_challenge.py python_pkg/code_tutor/_challenge_flows.py python_pkg/code_tutor/_challenge_prompts.py",
+      "result": "pass",
+      "evidence": "236, 242 and 36 lines, all under the 250-line cap."
+    },
+    {
+      "command": "pre-commit run --files <the touched files and artifacts>",
+      "result": "pass",
+      "evidence": "ruff caught F821 Undefined name 'Callable' - the new module's TYPE_CHECKING block needed it. Fixed; ruff, ruff format, mypy, pylint, bandit and pytest-with-coverage then all pass."
+    }
+  ],
+  "risks": [
+    "This package's failure mode on a mispointed patch is a hang, not an error, because the code under test reads from an input callable in a retry loop. Any future split here should assert the patch targets resolve before running the suite, and should always run it under a timeout.",
+    "_challenge_flows imports from _challenge, which imports from _challenge_prompts, _challenge_support, _pytest_runner and _verdict. That direction must hold; _challenge importing from _challenge_flows would be a cycle."
+  ],
+  "rollback": [
+    "git revert the commit; _challenge.py returns to 467 lines and the two new modules disappear.",
+    "After rollback, re-run the package suite and confirm it still reports 216 passed."
+  ]
+}

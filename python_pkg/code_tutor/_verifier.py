@@ -16,7 +16,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 
-from python_pkg.code_tutor._challenge import run_coding_challenge
+from python_pkg.code_tutor._challenge_flows import run_coding_challenge
 from python_pkg.code_tutor._progress import LessonRecord
 
 if TYPE_CHECKING:

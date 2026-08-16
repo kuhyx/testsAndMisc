@@ -1,0 +1,19 @@
+{
+  "title": "Split code_tutor/_challenge.py under the 250-line cap",
+  "objective": "Bring python_pkg/code_tutor/_challenge.py (467 lines) under the repo-wide 250-line cap by moving the two challenge flows and the public entry point into _challenge_flows.py, and the static prompt strings into _challenge_prompts.py.",
+  "acceptance_criteria": [
+    "_challenge.py, _challenge_flows.py and _challenge_prompts.py are each at most 250 lines.",
+    "The code_tutor suite still reports exactly 216 passing tests -- the same count as before the split, proving no test was dropped or silently skipped.",
+    "The package keeps 100% branch coverage of the code_tutor source modules.",
+    "Every patch string in test_challenge_part3.py names the module its function-under-test now resolves collaborators through, decided per test rather than by a blanket substitution: the _run_user_impl tests keep _challenge, the flow and entry-point tests move to _challenge_flows.",
+    "The suite completes in seconds. A patch that no longer intercepts here does not fail - it lets the real interactive flow run and the suite spins, so wall-clock time is part of the pass condition.",
+    "No assertion is changed and no test is deleted, skipped or weakened.",
+    "No suppression is added and no coverage exclusion is introduced."
+  ],
+  "out_of_scope": [
+    "Changing what any test asserts, or any prompt text.",
+    "Splitting cli.py, _analyzer.py, _verifier.py, _llm.py or the code_tutor test modules, which are separate commits.",
+    "Adding a re-export shim in _challenge; _verifier.py points at _challenge_flows directly."
+  ],
+  "verifier": "timeout 90 env PYTHONPATH=. python3 -m pytest python_pkg/code_tutor/tests -q (expects exactly 216 passed, well inside the timeout), plus an import-time assertion that every patched name resolves on the module its test names, plus pre-commit run --files on the touched files."
+}
