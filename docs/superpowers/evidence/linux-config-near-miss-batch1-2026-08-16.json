@@ -1,0 +1,51 @@
+{
+  "intent": "Split three near-miss linux_configuration scripts under the cap, and confirm the shell-split pattern holds on a small batch before scaling it.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/turn_off_auto_idle_screen_shutdown.sh (289 -> 180) + lib/idle_inhibit.sh",
+    "linux_configuration/scripts/mtk_root/install.sh (262 -> 141) + lib/mtk_udev.sh",
+    "linux_configuration/scripts/single_use/features/setup_gitea.sh (255 -> 198) + lib/gitea_network.sh",
+    "Non-goal: no script executed, no behaviour change"
+  ],
+  "changes": [
+    "Moved the idle-inhibit process and controller watchers, the mtkclient udev/venv setup, and the Gitea firewall/UPnP/router block into sourced libs, each following the pattern from the install_joplin.sh commit: shebang, chmod +x, no set -euo pipefail, and SCRIPT_DIR via ${BASH_SOURCE[0]}.",
+    "mtk_root/install.sh already declared SCRIPT_DIR readonly, so the split reuses it rather than redeclaring; its existing $0 was upgraded to ${BASH_SOURCE[0]} at the same time.",
+    "Fixed two shellcheck findings the split exposed. persist_with_systemd_logind now takes the persist flag as an argument instead of reading the caller's global, so the lib is checkable standalone. python_bin in the mtkclient setup was assigned and never read - dead code, deleted rather than carried into the new file.",
+    "Neither finding was introduced by the split: shellcheck already reported three SC2034 warnings on the pre-split mtk_root/install.sh."
+  ],
+  "verification": [
+    {
+      "command": "scratchpad/verify_split.sh <script> <moved functions> -- bash -n, shellcheck -x, then a stubbed run",
+      "result": "fail then pass",
+      "evidence": "All four scripts (including install_joplin.sh from the previous commit) now report 'libs sourced, functions defined'. The stubbed run found a real bug static checks missed: mtk_root/install.sh aborted with 'SCRIPT_DIR: readonly variable' because the splitter inserted a second declaration. bash -n and shellcheck were both clean on that broken file."
+    },
+    {
+      "command": "shellcheck on each new lib",
+      "result": "fail then pass",
+      "evidence": "SC2154 on persist_systemd and SC2034 on python_bin, both fixed at the source rather than suppressed. Clean afterwards."
+    },
+    {
+      "command": "systemctl cat dns-blocklist-refresh media-organizer, then test -f the ExecStart path",
+      "result": "pass",
+      "evidence": "Both resolve to existing files. Neither script was touched in this batch, but the check is cheap and these are the only two units pointing into the repo."
+    },
+    {
+      "command": "pre-commit run --files <changed>, then the real git commit for jscpd",
+      "result": "pass",
+      "evidence": "Clean. jscpd stayed under 2% with three new libs added at once, which is what the small first batch was sizing up - the libs carry no set -euo pipefail or source-guard boilerplate, which is what would have driven duplication."
+    },
+    {
+      "command": "wc -l",
+      "result": "pass",
+      "evidence": "Entry scripts 180, 141, 198; libs all under the cap."
+    }
+  ],
+  "risks": [
+    "None of these scripts was run. turn_off_auto_idle_screen_shutdown.sh drives idle inhibition and logind, mtk_root/install.sh installs udev rules and a venv, and setup_gitea.sh opens a firewall port - all excluded by decision 6. The stubbed run proves the libs are reachable and the functions defined; it does not prove the scripts still do their job.",
+    "persist_with_systemd_logind's signature changed. Its only caller was updated in the same commit, and grep confirms there is no other.",
+    "The verifier mirrors the repo tree into a temp dir so repo-relative sources like ../../lib/common.sh resolve. A script sourcing something outside linux_configuration/scripts would not be covered by that mirror."
+  ],
+  "rollback": [
+    "git revert the commit; the three scripts return to 289, 262 and 255 lines and the three libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored scripts."
+  ]
+}
