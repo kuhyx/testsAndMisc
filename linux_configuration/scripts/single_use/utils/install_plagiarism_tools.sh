@@ -81,14 +81,7 @@ success "Python NLP packages installed"
 
 # Download NLTK data
 echo "Downloading NLTK data (stopwords, punkt tokenizer)..."
-python3 -c "
-import nltk
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('punkt_tab')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('wordnet')
-"
+python3 "$(dirname "$0")/download_nltk_data.py"
 success "NLTK data downloaded"
 
 # Download spaCy English model (small)
