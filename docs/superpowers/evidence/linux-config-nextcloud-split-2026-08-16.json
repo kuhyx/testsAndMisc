@@ -1,0 +1,44 @@
+{
+  "intent": "Split the largest linux_configuration script under the cap, and defer a second whose every function writes to one shared array.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_nextcloud_raspberry.sh (1383 -> 231)",
+    "lib/nc_image.sh, nc_flash.sh, nc_remote.sh, nc_remote_flash.sh, nc_packages.sh, nc_services.sh, nc_php.sh, nc_discover.sh (new)",
+    "Deferred and fully restored: periodic_background/check_and_enable_services.sh (1337)",
+    "Non-goal: no script executed"
+  ],
+  "changes": [
+    "setup_nextcloud_raspberry.sh split five ways in one pass, then three of those libs were carved again - the first pass left nc_image, nc_remote and nc_services at 272, 292 and 277 lines. Eight libs from one 1383-line script.",
+    "Fixed three unguarded cd /var/www/nextcloud calls, each immediately before an `occ` command. A failed cd would have run the Nextcloud installer or the cron switch against whatever directory the caller was in. Third script in this effort to have this bug.",
+    "check_and_enable_services.sh was split four ways and then fully reverted. SERVICE_STATUS is declared once and written by every check_* function, so any lib holding those functions fails SC2034 when linted alone. This is the fourth file deferred for shared state, and the clearest: the script IS an accumulator, so there is no seam anywhere in it."
+  ],
+  "verification": [
+    {
+      "command": "meta/scripts/verify_shell_split.sh setup_nextcloud_raspberry.sh <nine moved functions>",
+      "result": "fail then pass",
+      "evidence": "First run reported SC2164 for the unguarded cd calls; after guarding them, 'libs sourced, functions defined' across all eight libs."
+    },
+    {
+      "command": "shellcheck on each new lib",
+      "result": "pass",
+      "evidence": "Clean, with no disable directive. Each lib is checked in isolation, which is what the pre-commit hook does."
+    },
+    {
+      "command": "git checkout HEAD -- check_and_enable_services.sh, rm its svc_*.sh libs, ls the lib dir",
+      "result": "pass",
+      "evidence": "Restored to 1337 lines and shellcheck -x clean. The directory still contains periodic_browser.sh from an earlier commit - confirmed by listing it rather than assuming the revert removed only what it should."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "setup_nextcloud_raspberry.sh and all eight libs are under the cap; the largest is 182 lines."
+    }
+  ],
+  "risks": [
+    "Not executed: it flashes SD cards, installs packages over SSH to a Raspberry Pi, and configures MariaDB, PHP and Apache. The cd guards change the failure path - previously the installer would have run in the wrong directory, now it returns 1 - which is the intended correction but is a behaviour change.",
+    "check_and_enable_services.sh stays at 1337 lines, now the largest file in the repo. Splitting it means giving each check_* function a return value instead of writing to SERVICE_STATUS, which is a genuine refactor of the script's whole design."
+  ],
+  "rollback": [
+    "git revert the commit; setup_nextcloud_raspberry.sh returns to 1383 lines and the eight libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored script."
+  ]
+}
