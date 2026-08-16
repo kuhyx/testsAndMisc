@@ -1,0 +1,48 @@
+{
+  "intent": "Split seven more linux_configuration scripts under the cap, and fix a source line that a second split silently dropped.",
+  "scope": [
+    "mtk_root/10-recon.sh (349 -> 246) + lib/recon_report.sh",
+    "single_use/utils/install_exercism.sh (330 -> 174) + lib/exercism_config.sh",
+    "single_use/fixes/fix_arch_performance.sh (326 -> 215) + lib/arch_perf_fixes.sh",
+    "single_use/utils/format_sd_card.sh (323 -> 131) + lib/sd_card_ops.sh",
+    "single_use/features/setup_dot_resolver.sh (309 -> 162) + lib/dot_resolver_install.sh",
+    "single_use/misc/testsAndMisc-bash/fix_unity.sh (302 -> 236) + lib/unity_handler.sh",
+    "mtk_root/20-dump-stock.sh (295 -> 240) + lib/dump_verify.sh, lib/dump_partitions.sh",
+    "Non-goal: no script executed"
+  ],
+  "changes": [
+    "One cut each, except 20-dump-stock.sh, which needed two.",
+    "The second cut on 20-dump-stock.sh dropped the first cut's source line for dump_verify.sh, so verify_dump was called but never defined, and then a repair added the line inside the wrong file. Both fixed: the entry script now sources both libs and neither lib sources the other.",
+    "fix_unity.sh's desktop_dir global is read by the moved functions. Renamed to DESKTOP_DIR, matching the convention the surrounding files already use for module-level globals - the same resolution as the earlier clean_audio.sh attempt, which works here because only one variable and two call sites are involved."
+  ],
+  "verification": [
+    {
+      "command": "scratchpad/verify_split.sh per script",
+      "result": "fail then pass",
+      "evidence": "All seven now report 'libs sourced, functions defined'. Two failures on the way: SC1091 pointing at the misplaced dump_verify source line, and SC2154 on desktop_dir. Both were real - the first meant verify_dump was unreachable at runtime."
+    },
+    {
+      "command": "shellcheck -x on each entry script, shellcheck on each lib",
+      "result": "pass",
+      "evidence": "Clean. Note the verifier runs libs without -x, which is what surfaced the SC1091: a lib should never source a sibling, and the missing-file error is how that shows up."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep <these files>",
+      "result": "pass",
+      "evidence": "No output - all seven entry scripts and all eight libs are under the cap."
+    },
+    {
+      "command": "pre-commit run --files <changed>, then the real git commit",
+      "result": "pass",
+      "evidence": "Clean, jscpd included, now with twenty-three new libs across the linux_configuration commits."
+    }
+  ],
+  "risks": [
+    "None of the seven was run. The mtk_root pair talk to a phone over USB and format_sd_card.sh writes partition tables; executing them to verify would be exactly what decision 6 forbids.",
+    "Splitting a file twice is the risky operation in this batch: the tool inserts its source line relative to the current file, so the second pass can land it in the wrong place or displace the first. Any double split needs its source lines grepped afterwards, which is how this one was caught."
+  ],
+  "rollback": [
+    "git revert the commit; the seven scripts return to their previous sizes and the eight libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored scripts."
+  ]
+}
