@@ -27,13 +27,18 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 echo "--- $(basename "$script")"
-bash -n "$script" || exit 1
-shellcheck -x "$script" || exit 1
 for lib in "$dir"/lib/*.sh; do
 	[[ -e $lib ]] || continue
-	bash -n "$lib" || exit 1
+	# bash -n first: a split landing inside a heredoc produces a file the
+	# linter only warns about (SC1094 in the caller) but which bash rejects.
+	bash -n "$lib" || {
+		echo "  $lib does not parse -- the split probably cut inside a heredoc" >&2
+		exit 1
+	}
 	shellcheck "$lib" || exit 1
 done
+bash -n "$script" || exit 1
+shellcheck -x "$script" || exit 1
 
 dollar='$'
 grep -q "source \"${dollar}SCRIPT_DIR/" "$script" || {
