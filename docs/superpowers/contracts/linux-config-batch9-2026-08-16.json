@@ -1,0 +1,18 @@
+{
+  "title": "Split raspberry_pi_flash_sd.sh and test_boot_repair.sh under the cap",
+  "objective": "Bring raspberry_pi_flash_sd.sh (661) and test_boot_repair.sh (315) under the 250-line cap, choosing seams that avoid heredocs after the enforce_vbox_hosts failure.",
+  "acceptance_criteria": [
+    "Both entry scripts and all four new libs are at most 250 lines.",
+    "The pre-commit shellcheck hook passes on every touched file, with no new suppression and no disable directive.",
+    "No lib sources a sibling; every lib parses under bash -n.",
+    "Every seam is chosen outside a heredoc: the heredoc line numbers are listed before picking cut points.",
+    "test_boot_repair.sh is a sandboxed fixture harness, so it MUST be run: it has to report the same pass count after the split as a clean worktree at HEAD reports before it.",
+    "raspberry_pi_flash_sd.sh is not executed - it writes partition tables to an SD card."
+  ],
+  "out_of_scope": [
+    "Executing raspberry_pi_flash_sd.sh or any flashing step.",
+    "The seven deferred shell scripts.",
+    "Changing what any script does when run."
+  ],
+  "verifier": "meta/scripts/verify_shell_split.sh for both, plus running test_boot_repair.sh and comparing its pass count against the same script run from a detached worktree at HEAD, plus pre-commit run --files and check_file_length.sh."
+}
