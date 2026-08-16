@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**118 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `2527fb3`; the tree is clean.
+**116 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `194b006`; the tree is clean.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
 package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
@@ -15,7 +15,7 @@ at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
 `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
 `wsg_grabber`'s six test modules (277).
 
-**`linux_configuration` is 84 → 60**, in seven batches. The pattern is settled
+**`linux_configuration` is 84 → 58**, in nine batches. The pattern is settled
 and scripted — read `docs/shell-split-recipes.md` before touching another one.
 
 Earlier sessions had already done: the `~/utils` exemptions, the
@@ -28,7 +28,7 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 | Directory                             | Count        |
 | ------------------------------------- | ------------ |
-| `linux_configuration`                 | 60           |
+| `linux_configuration`                 | 58           |
 | `phone_focus_mode`                    | 13 (do LAST) |
 | `kcd2_dice_solver`                    | 12           |
 | `focus_owner`                         | 11           |
@@ -36,26 +36,25 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 | `reverse_survivors` / `meta` / `docs` | 4 each       |
 | `.github` / `bucket_catch`            | 2 each       |
 
-**Three `linux_configuration` files are deliberately left over the cap.** Each
-needs a real refactor, not a line-count split — see "When to give up on a
-seam" in the shell recipes doc:
+**Four `linux_configuration` files are deliberately over the cap**, all for
+one reason: **state crosses the seam.** Pass it explicitly first, then split;
+never suppress. See "When to give up on a seam".
 
-- `diagnose_pacman_hook_stall.sh` (493) — its transaction runner assigns
-  `LAST_ELAPSED` that the caller reads and reads `PACMAN_BIN` that the caller
-  defines. Pass that state explicitly first.
-- `clean_audio.sh` (419) — probe-result globals threaded through what would be
-  two libs.
-- `setup_passwordless_system.sh` (374) — no `main()`, so the top-level
-  invocation block has to be preserved by hand.
+| File                                  | Why                                                                    |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `steam_compatibility.sh` (663)        | `CACHE_MAP` assoc array written in a lib, read by `main`               |
+| `diagnose_pacman_hook_stall.sh` (493) | assigns `LAST_ELAPSED` the caller reads, reads `PACMAN_BIN` it defines |
+| `clean_audio.sh` (419)                | probe-result globals threaded through two libs                         |
+| `setup_passwordless_system.sh` (374)  | no `main()`; top-level block must be kept by hand                      |
 
 **The pre-commit `shellcheck` hook lints each lib in isolation**, with no view
 of the caller's globals. That is stricter than `shellcheck -x` on the entry
 script and is the check that decides whether a seam is real — run
 `pre-commit run shellcheck --files <all touched>` before believing a split.
 
-The next easy wins are the remaining `main()`-shaped shell scripts; after
-those, `kcd2_dice_solver` / `focus_owner` / `billsplit` (Dart+Kotlin, untouched
-this session), and the four prose files, which carry zero execution risk.
+Next: the remaining `main()`-shaped shell scripts, then
+`kcd2_dice_solver` / `focus_owner` / `billsplit` (TS+Dart+Kotlin, untouched so
+far), then the four prose files — zero execution risk.
 
 ## The seam-selection rule
 
