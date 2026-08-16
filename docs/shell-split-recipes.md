@@ -129,6 +129,28 @@ pre-existing, both a real bug: a failed `cd` runs the next command in the
 caller's directory. They only surface on splitting because a moved function
 gets linted in isolation. Fix with `|| die` / `|| return 1`, never a suppression.
 
+### Scripts that generate config need a content check
+
+For a setup script, "the functions still exist" is the wrong question — what
+matters is that the compose file, unit or settings file it writes is unchanged.
+The stubbed run cannot tell you that. Compare the moved region before and
+after, ignoring comments and ordering:
+
+```bash
+git show HEAD:<script> | awk '/^the_func\(\) \{/,/^\}$/' \
+  | grep -vE '^\s*(#|$)' | sort | md5sum
+cat <the new libs> | grep -vE '^\s*(#|$)' \
+  | grep -v '^new_func_name\|^}' | sort | md5sum
+```
+
+Equal hashes mean every emitted line survived and only wrappers were added.
+Used on `setup_searxng.sh`, whose `write_stack` was 342 lines of heredoc
+emitting three files.
+
+**Keep each heredoc with the comment that explains it.** `setup_searxng.sh`
+records why `settings.yml` is mode 640 and not 600 (at 600 the granian worker
+dies with EACCES) — that comment is worth more than the code around it.
+
 ### When to give up on a seam
 
 `clean_audio.sh` was reverted. Two probe-result globals were read by functions
