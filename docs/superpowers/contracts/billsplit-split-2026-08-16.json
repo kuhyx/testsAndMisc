@@ -1,0 +1,18 @@
+{
+  "title": "Split the billsplit Dart files under the 250-line cap",
+  "objective": "Bring all four over-cap billsplit Dart sources and its 536-line UI flow test under the cap, leaving only Flutter's generated Windows runner.",
+  "acceptance_criteria": [
+    "Every billsplit Dart file is at most 250 lines.",
+    "flutter test reports exactly 60 passing tests, the same as before the split.",
+    "flutter analyze reports no MORE issues than the pre-split baseline. That baseline is 4 pre-existing unnecessary_unawaited infos, measured from a detached worktree at HEAD rather than assumed.",
+    "Library-private declarations that cross a seam use part/part of. A `library;` directive must come before any `part`.",
+    "Split widget-test halves each call TestWidgetsFlutterBinding.ensureInitialized().",
+    "No test is deleted, skipped or weakened."
+  ],
+  "out_of_scope": [
+    "windows/runner/win32_window.cpp, which is Flutter-generated scaffolding that regeneration would overwrite.",
+    "Changing what any test asserts.",
+    "The 4 pre-existing unnecessary_unawaited infos, which are not this task's to fix."
+  ],
+  "verifier": "flutter test (expects 60 passed), flutter analyze compared against the same command run in a detached worktree at HEAD, and check_file_length.sh over billsplit."
+}

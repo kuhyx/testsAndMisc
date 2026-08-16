@@ -1,0 +1,42 @@
+{
+  "intent": "Clear every over-cap billsplit Dart file, leaving only Flutter's generated Windows runner.",
+  "scope": [
+    "lib/ui/receipt_screen.dart (401 -> 216) + receipt_items.dart",
+    "lib/domain/eparagon_parser.dart (293 -> 182) + eparagon_fields.dart",
+    "lib/domain/models.dart (278 -> 194) + assignment.dart",
+    "lib/ui/people_screen.dart (266 -> 139) + people_tiles.dart",
+    "test/ui_flows_test.dart (536 -> 214) + people_flows_test.dart, receipt_flows_test.dart, receipt_items_test.dart",
+    "Not touched: windows/runner/win32_window.cpp (288)",
+    "Non-goal: no assertion changed"
+  ],
+  "changes": [
+    "All four lib splits use part/part of, applying the rule learned in focus_owner rather than rediscovering it - none of them needed a second attempt.",
+    "models.dart has a `library;` directive, and the splitter inserted `part` above it, which is an error: the library directive must come first. Fixed by hand, and it also revealed that the insertion had split the file's doc comment in two.",
+    "The test file split three ways, each half declaring the test binding explicitly and keeping only the imports it uses. One aliased import (`as app`) survived the first pruning pass because the filter matched exact text - worth remembering that unused-import cleanup must handle aliases."
+  ],
+  "verification": [
+    {
+      "command": "flutter test",
+      "result": "pass",
+      "evidence": "60 passed, matching the baseline measured before any edit."
+    },
+    {
+      "command": "flutter analyze, compared against the same command in a detached worktree at HEAD",
+      "result": "pass",
+      "evidence": "4 issues after, 4 issues before - all pre-existing unnecessary_unawaited infos. Comparing against a worktree rather than assuming a clean baseline is what showed the intermediate run's 7 issues were 3 of my own making, including one real error."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep billsplit",
+      "result": "pass",
+      "evidence": "Only windows/runner/win32_window.cpp remains, and it is Flutter-generated scaffolding: editing it would be undone the next time the Windows target is regenerated."
+    }
+  ],
+  "risks": [
+    "part/part of puts the split files in one library namespace, so two parts cannot declare the same private name. Not an issue today, but invisible until it collides.",
+    "win32_window.cpp stays over the cap. It is vendored Flutter scaffolding, so the honest options are an exemption or leaving it; splitting it would be undone by `flutter create`."
+  ],
+  "rollback": [
+    "git revert the commit; the five originals return and the seven new files disappear.",
+    "After rollback, re-run flutter test and expect 60 passed."
+  ]
+}
