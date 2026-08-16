@@ -1,0 +1,35 @@
+{
+  "intent": "Commit the analyzer exclude block that `flutter pub get` writes into focus_owner/analysis_options.yaml, so it stops reappearing as an uncommitted change in every session.",
+  "scope": [
+    "focus_owner/analysis_options.yaml",
+    "Non-goal: no change to lib/ or test/ code, no lint rule added or removed"
+  ],
+  "changes": [
+    "Add the analyzer.exclude block (build/, android/, ios/, web/, windows/, macos/, linux/) that the Flutter toolchain generates during `flutter pub get`."
+  ],
+  "verification": [
+    {
+      "command": "flutter pub get (in a detached worktree at HEAD)",
+      "result": "pass",
+      "evidence": "Emitted 'Upgrading analysis_options.yaml to exclude build and platform directories' and produced a diff byte-identical to the working-tree change, confirming the edit is tool-generated and idempotent rather than hand-authored."
+    },
+    {
+      "command": "dart analyze (focus_owner, with the exclude)",
+      "result": "pass",
+      "evidence": "Analyzing focus_owner... No issues found!"
+    },
+    {
+      "command": "dart analyze (detached worktree at HEAD, packages resolved, exclude reverted)",
+      "result": "pass",
+      "evidence": "No issues found! -- baseline is also clean, so the exclude is a forward-looking guard against platform-dir noise, not a fix for existing warnings. An earlier run reporting 1136 issues was invalid: that worktree had no .dart_tool/package_config.json, so package:flutter did not resolve."
+    }
+  ],
+  "risks": [
+    "The exclude hides analyzer findings in android/ios/web/windows/macos/linux if hand-written Dart is ever added there; focus_owner keeps its Dart in lib/ and test/, so nothing is masked today.",
+    "Low blast radius: analyzer configuration only, no runtime code path touched."
+  ],
+  "rollback": [
+    "git revert the commit, or delete the analyzer: block from focus_owner/analysis_options.yaml.",
+    "Re-run `dart analyze` in focus_owner and confirm 'No issues found!'; note that the next `flutter pub get` will rewrite the block."
+  ]
+}
