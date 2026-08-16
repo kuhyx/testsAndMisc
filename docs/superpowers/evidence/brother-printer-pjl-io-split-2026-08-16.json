@@ -1,0 +1,51 @@
+{
+  "intent": "Bring brother_printer/usb_query.py under the 250-line cap by moving the non-blocking PJL transport into its own module, with no behaviour change.",
+  "scope": [
+    "python_pkg/brother_printer/_pjl_io.py (new)",
+    "python_pkg/brother_printer/usb_query.py",
+    "python_pkg/brother_printer/tests/test_usb_query_part2.py (MOD and import path only)",
+    "Non-goal: no assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "Moved _drain_buffer, _write_with_deadline, _read_nonblocking, _wait_for_pjl_response and pjl_query verbatim into python_pkg/brother_printer/_pjl_io.py, together with the comment explaining why the fd is kept non-blocking; 267 -> 180 lines.",
+    "usb_query.py imports _drain_buffer, _write_with_deadline and pjl_query back, because test_usb_query.py patches all three on that module. Checked first that each is genuinely called by the code that stayed (_retry_pjl_query and _run_pjl_queries call all three), so ruff cannot strip them under F401 and no __all__ shim is needed.",
+    "Dropped contextlib and select from usb_query, which the moved block was their only user. Kept os and time despite the move: test_usb_query.py patches MOD.os.access/open/close and MOD.time.sleep, and _retry_pjl_query / query_usb_pjl still use both.",
+    "_pjl_io imports os, select, time and contextlib by name because test_usb_query_part2.py patches MOD.os.read, MOD.os.write, MOD.select.select and MOD.time.time on it.",
+    "test_usb_query_part2.py had its MOD constant and import module repointed at _pjl_io. test_usb_query.py needed no change, which is the signal the seam matched the existing test boundary."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -m pytest python_pkg/brother_printer/tests -q",
+      "result": "pass",
+      "evidence": "402 passed before the split and 402 passed after it - identical pass count, not merely a green run."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -c \"from python_pkg.brother_printer import usb_query as u, _pjl_io as p; u._drain_buffer; u.pjl_query; u._write_with_deadline; u.time; u.os; u.Path; u.shutil; p.os; p.select; p.time; p.contextlib; p._read_nonblocking\"",
+      "result": "pass",
+      "evidence": "runtime probe OK - the three re-imported names are real attributes of usb_query, so test_usb_query.py's patches still reach them."
+    },
+    {
+      "command": "grep -cw '_drain_buffer|pjl_query|_write_with_deadline' over the kept region of usb_query.py",
+      "result": "pass",
+      "evidence": "5, 1 and 1 real call sites respectively - all three imports are used, so ruff's F401 sweep leaves them alone. Had any been import-only it would have needed an __all__ entry per docs/python-split-recipes.md."
+    },
+    {
+      "command": "wc -l python_pkg/brother_printer/usb_query.py python_pkg/brother_printer/_pjl_io.py",
+      "result": "pass",
+      "evidence": "180 and 109 lines, both well under the 250-line cap."
+    },
+    {
+      "command": "pre-commit run --files <the four touched files>",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit and pytest-with-coverage all pass on the touched files."
+    }
+  ],
+  "risks": [
+    "The three re-imported names are load-bearing for mock.patch, not just for calls. If a future edit removes the last call site of one, ruff will strip the import and test_usb_query.py will fail with 'does not have the attribute' - the fix is an __all__ entry, not deleting the patch.",
+    "usb_query <- _pjl_io is one-way; _pjl_io must never import from usb_query."
+  ],
+  "rollback": [
+    "git revert the commit; usb_query.py returns to 267 lines and _pjl_io.py disappears.",
+    "After rollback, re-run the package suite and confirm it still reports 402 passed."
+  ]
+}

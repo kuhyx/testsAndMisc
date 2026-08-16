@@ -1,4 +1,4 @@
-"""Tests for brother_printer.usb_query - the PJL wire protocol.
+"""Tests for brother_printer._pjl_io - the PJL wire protocol.
 
 The printer's fd is non-blocking throughout: usblp blocks forever on open
 and on writes whenever the printer is unwell, which is exactly when a status
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from python_pkg.brother_printer.usb_query import (
+from python_pkg.brother_printer._pjl_io import (
     _drain_buffer,
     _read_nonblocking,
     _wait_for_pjl_response,
@@ -17,7 +17,7 @@ from python_pkg.brother_printer.usb_query import (
     pjl_query,
 )
 
-MOD = "python_pkg.brother_printer.usb_query"
+MOD = "python_pkg.brother_printer._pjl_io"
 
 
 class TestDrainBuffer:
