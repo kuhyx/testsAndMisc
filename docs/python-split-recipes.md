@@ -76,6 +76,36 @@ every delegate needs a full docstring with `Args:`, so a 25-line function
 leaves a 12-line stub. Eight of those to make a line count is the cap-gaming
 the spec forbids.
 
+### A mispointed patch can HANG rather than fail
+
+In `brother_printer` a stale patch target raised `AttributeError` or made a
+real `subprocess` call — loud, or at worst a side effect you could check for
+afterwards. In `code_tutor` it **spins**: `_write_tests_first_flow` reads from
+an `input_fn` in a retry loop, so an unintercepted `_collect_and_rate_tests`
+ran the real interactive flow and the suite hung for two minutes with no
+output. `ps` showed it `State: R`, not blocked on I/O.
+
+Two consequences for any package whose code prompts, retries or shells out:
+
+- **Run the suite under `timeout`.** A hang is indistinguishable from a slow
+  run until you have waited longer than you should.
+- **Assert the patch targets resolve before invoking pytest**, since a missing
+  one is exactly what causes the hang:
+
+```bash
+PYTHONPATH=. python3 -c "
+from python_pkg.pkg import mod_a as a, mod_b as b
+for n in ('_helper', 'Thing'): assert hasattr(a, n), n
+"
+```
+
+`code_tutor` also patches by **absolute string with no `MOD` constant**, so a
+seam there costs one rewrite per patch string rather than one `sed`. Prefer
+seams whose moved block has few patched names, even at slightly worse line
+arithmetic. Watch out for a `sed` with escaped alternation silently matching
+nothing — a no-op rewrite looks exactly like a successful one at the shell, so
+`grep` the result before trusting it.
+
 ### You may edit the tests to follow the code (agreed 2026-08-16)
 
 When a patch target moves, **update the patch target**. Bounded by:
