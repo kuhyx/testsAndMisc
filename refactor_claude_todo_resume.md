@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**78 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `2ce86a5`. `focus_owner/analysis_options.yaml` has an uncommitted
+**73 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `a68313f`. `focus_owner/analysis_options.yaml` has an uncommitted
 change from an earlier session — **leave it unstaged**, it is not ours.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
@@ -46,15 +46,16 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 one reason: **state crosses the seam.** Pass it explicitly first, then split;
 never suppress. See "When to give up on a seam".
 
-| File                                  | Why                                          |
-| ------------------------------------- | -------------------------------------------- |
-| `check_and_enable_services.sh` (1337) | every `check_*` writes one `SERVICE_STATUS`  |
-| `steam_compatibility.sh` (663)        | `CACHE_MAP` written in a lib, read by `main` |
-| `diagnose_pacman_hook_stall.sh` (493) | `LAST_ELAPSED` / `PACMAN_BIN` cross the seam |
-| `libre_translate.sh` (488)            | ~19 globals cross any seam                   |
-| `enforce_vbox_hosts.sh` (443)         | every seam falls inside a heredoc            |
-| `clean_audio.sh` (419)                | probe-result globals through two libs        |
-| `setup_passwordless_system.sh` (374)  | no `main()`; top-level block kept by hand    |
+| File                                    | Why                                          |
+| --------------------------------------- | -------------------------------------------- |
+| `check_and_enable_services.sh` (1337)   | every `check_*` writes one `SERVICE_STATUS`  |
+| `steam_compatibility.sh` (663)          | `CACHE_MAP` written in a lib, read by `main` |
+| `diagnose_pacman_hook_stall.sh` (493)   | `LAST_ELAPSED` / `PACMAN_BIN` cross the seam |
+| `libre_translate.sh` (488)              | ~19 globals cross any seam                   |
+| `enforce_vbox_hosts.sh` (443)           | every seam falls inside a heredoc            |
+| `clean_audio.sh` (419)                  | probe-result globals through two libs        |
+| `setup_passwordless_system.sh` (374)    | no `main()`; top-level block kept by hand    |
+| `meta/scripts/optimize_vscode.py` (498) | `_apply_variant` calls back into the caller  |
 
 Same in TypeScript: `kcd2`'s `search.ts` and `badgeValue.ts`, and
 `reverse_survivors`' `sim.ts` (`step` ⇄ `survivorStep`) and `types.ts`.
@@ -63,8 +64,10 @@ Same in TypeScript: `kcd2`'s `search.ts` and `badgeValue.ts`, and
 caller's globals — stricter than `shellcheck -x` on the entry, and the check
 that decides whether a seam is real. Run it before believing a split.
 
-Next: `billsplit` (Dart, untouched), then the remaining `main()`-shaped shell
-scripts. `focus_owner`'s six leftovers are four Kotlin sources that read a
+`billsplit`'s last file is Flutter's generated `win32_window.cpp`; editing it
+would be undone by `flutter create`, so it needs an exemption or a shrug.
+
+Next: the remaining `main()`-shaped shell scripts, then `bucket_catch` (TS). `focus_owner`'s six leftovers are four Kotlin sources that read a
 private `context`, one State class, and one test one line over.
 
 Baselines and the per-language traps (Dart `part`, Kotlin fixture objects, the
