@@ -1,0 +1,18 @@
+{
+  "title": "Split fix_bluetooth.sh under the cap, deferring steam_compatibility.sh",
+  "objective": "Bring fix_bluetooth.sh (720 lines) under the 250-line cap using a single multi-lib pass, and confirm that a seam crossing shared mutable state must be abandoned rather than suppressed.",
+  "acceptance_criteria": [
+    "The entry script and all four new libs are at most 250 lines.",
+    "The pre-commit shellcheck hook passes on every touched file, with no new suppression and no disable directive.",
+    "All four libs are written in one pass, so the entry script sources every lib directly and no lib sources a sibling.",
+    "The stubbed run reports every moved function as defined.",
+    "No script is executed. fix_bluetooth.sh reloads btusb and restarts bluetooth and PipeWire, which would drop live audio.",
+    "steam_compatibility.sh is fully restored to 663 lines, with the unrelated libs already present in the same lib/ directory left untouched."
+  ],
+  "out_of_scope": [
+    "Executing any bluetooth or audio fix.",
+    "steam_compatibility.sh, whose CACHE_MAP associative array is written in one prospective lib and read by main.",
+    "Changing what any script does when run."
+  ],
+  "verifier": "meta/scripts/verify_shell_split.sh, plus pre-commit run --files over all touched files, plus check_file_length.sh, plus ls of the shared lib/ directory to confirm the revert removed only what it should."
+}
