@@ -6,10 +6,10 @@
 
 ## Where things stand
 
-**192 files** over 250 lines (was 198). All work so far is committed and pushed
-to `main`; `git status` is clean apart from pre-existing unrelated edits to
-`README.md`, `billsplit/analysis_options.yaml`, `focus_owner/analysis_options.yaml`
-— **leave those three alone, they are not yours.**
+**184 files** over 250 lines (was 198). All work so far is committed and pushed
+to `main`; the tree is clean. The three unrelated edits an earlier handoff
+warned about (`README.md`, the two `analysis_options.yaml`) are no longer
+present.
 
 Done already (do not redo):
 
@@ -20,6 +20,18 @@ Done already (do not redo):
 | `004b4b0` | `CLAUDE.md` 259 → 141 lines                                          |
 | `72a5e28` | `poker-stakes/` tracked in git (58 files)                            |
 | `73b85f5` | `poker-stakes/` 4 violations → 0                                     |
+| `77c6d9f` | `wsg_grabber/catalog.py` 251 → 175                                   |
+| `8ce4536` | `wsg_grabber/cli.py` 282 → 247                                       |
+| `62ad148` | `wsg_grabber/review.py` 330 → 196                                    |
+| `262ef38` | `wsg_grabber/net.py` 335 → 109                                       |
+| `f58caea` | `wsg_grabber/store.py` 382 → 202                                     |
+| `324ec0c` | `wsg_grabber/downloader.py` 420 → 238 (mixins)                       |
+| `16c6266` | `wsg_grabber/player.py` 373 → 235                                    |
+| `d86965f` | `wsg_grabber/ui.py` 398 → 242 (mixin)                                |
+
+**Every `wsg_grabber` source file is now under the cap.** What remains in that
+package is its 7 test files, which are the next thing to do — see the note on
+shared fixtures under "Traps".
 
 ## The live worklist
 
@@ -114,10 +126,12 @@ Two other things the gate will not catch for you:
   file for `patch.object(<module>` first and treat those names as pinned.
 - **Tests that call private methods pin them too** — `test_player.py` calls
   `mpv._note_errors(...)`, so that method stayed as a one-line delegate to the
-  moved implementation. Worth ~5–8 lines on every file with this shape, which
-  matters: three splits so far landed 2–6 lines over the cap and needed a second
-  seam. **Budget the new import block and `__all__` before deciding a two-way
-  split is enough.**
+  moved implementation.
+
+**Budget the new import block and `__all__` before deciding a two-way split is
+enough.** Five splits so far landed 2–16 lines over the cap after the first cut
+and needed a further seam; the header costs 10–20 lines that the arithmetic on
+function sizes does not show.
 
 Splitting a **class**: if tests call private methods as bound attributes
 (`worker._fetch_thread(...)` — grep the tests first), module-level functions
@@ -165,6 +179,14 @@ the report at 100% rather than being silently skipped. Add no new branches
 - **TS/Dart** — extract components; re-export from the original path so no
   importer changes.
 - **Tests** — split by describe/test-group. Coverage must not drop.
+  In `python_pkg`, `meta/pyproject.toml` omits `*/tests/*` from coverage **by
+  path**, so a shared `<pkg>/tests/_helpers.py` is coverage-safe — the opposite
+  of the `poker-stakes` trap below, where fixtures beside the source got counted
+  as production code. Prefer one shared helper module over another `partN` file:
+  the repo already carries `test_cups_service_part2/part3`,
+  `test_consumables_part2` and `test_downloader_part2`, and every new `partN`
+  that redeclares the same fixture scaffolding pushes jscpd toward its 2%
+  duplication threshold, which only fires on the real `git commit`.
 
 Never game the cap: no one-lining, no deleting tests, no moving code into an
 exempt extension, no suppressions.
