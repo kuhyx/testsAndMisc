@@ -18,9 +18,8 @@ from python_pkg.code_tutor._challenge import (
 from python_pkg.code_tutor._challenge_support import (
     _extract_signature_block,
     _import_hint,
-    _parse_verdict,
-    _stream_verdict,
 )
+from python_pkg.code_tutor._verdict import _parse_verdict, _stream_verdict
 from python_pkg.code_tutor.tests.conftest import _item, _make_live_mock
 
 # ---------------------------------------------------------------------------
@@ -39,7 +38,7 @@ def test_stream_verdict_accumulates_tokens() -> None:
 
     mock_backend.stream.side_effect = fake_stream
 
-    with patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock):
+    with patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock):
         result = _stream_verdict("sys", "user", mock_backend, mock_console)
 
     assert result == ""  # parts is empty since on_token was never called by stream
@@ -59,7 +58,7 @@ def test_stream_verdict_on_token_called() -> None:
 
     mock_backend.stream.side_effect = fake_stream
 
-    with patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock):
+    with patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock):
         result = _stream_verdict(
             "sys", "user", mock_backend, mock_console, label="Test"
         )
@@ -212,7 +211,7 @@ def test_collect_and_rate_tests_skip() -> None:
     mock_console = MagicMock()
     live_mock = _make_live_mock()
 
-    with patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock):
+    with patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock):
         result = _collect_and_rate_tests(
             "def fn():",
             "explanation",
@@ -236,7 +235,7 @@ def test_collect_and_rate_tests_pass_first() -> None:
     mock_backend.stream.side_effect = fake_stream
     lines_iter = iter(["test code line", "END"])
 
-    with patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock):
+    with patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock):
         result = _collect_and_rate_tests(
             "def fn():",
             "explanation",
@@ -264,7 +263,7 @@ def test_collect_and_rate_tests_fail_twice() -> None:
     ]
     inputs_iter = iter(attempt_inputs)
 
-    with patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock):
+    with patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock):
         result = _collect_and_rate_tests(
             "def fn():",
             "explanation",
@@ -297,7 +296,7 @@ def test_collect_and_rate_tests_fail_then_pass() -> None:
 
     inputs = iter(["bad test", "END", "good test", "END"])
 
-    with patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock):
+    with patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock):
         result = _collect_and_rate_tests(
             "def fn():",
             "explanation",

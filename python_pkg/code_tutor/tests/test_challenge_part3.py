@@ -33,7 +33,7 @@ def test_run_user_impl_skip(tmp_path: Path) -> None:
     live_mock = _make_live_mock()
 
     with (
-        patch("python_pkg.code_tutor._challenge_support.Live", return_value=live_mock),
+        patch("python_pkg.code_tutor._verdict.Live", return_value=live_mock),
         patch("python_pkg.code_tutor._challenge.Syntax"),
     ):
         result = _run_user_impl(

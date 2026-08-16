@@ -31,13 +31,11 @@ from python_pkg.code_tutor._challenge_support import (
     _extract_signature_block,
     _find_tests,
     _import_hint,
-    _parse_verdict,
-    _patch_and_test,
     _project_root,
-    _pytest_clean,
     _show_test_panels,
-    _stream_verdict,
 )
+from python_pkg.code_tutor._pytest_runner import _patch_and_test, _pytest_clean
+from python_pkg.code_tutor._verdict import _parse_verdict, _stream_verdict
 
 if TYPE_CHECKING:
     from collections.abc import Callable

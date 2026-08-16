@@ -14,12 +14,11 @@ from unittest.mock import MagicMock, patch
 from python_pkg.code_tutor._challenge_support import (
     _collect_lines,
     _find_tests,
-    _patch_and_test,
     _project_root,
-    _pytest_clean,
     _scan_test_file,
     _show_test_panels,
 )
+from python_pkg.code_tutor._pytest_runner import _patch_and_test, _pytest_clean
 from python_pkg.code_tutor.tests.conftest import _item
 
 # ---------------------------------------------------------------------------
@@ -205,7 +204,7 @@ def test_pytest_clean_pass() -> None:
     mock_result.stderr = ""
     mock_console = MagicMock()
     with patch(
-        "python_pkg.code_tutor._challenge_support.subprocess.run",
+        "python_pkg.code_tutor._pytest_runner.subprocess.run",
         return_value=mock_result,
     ):
         assert (
@@ -220,7 +219,7 @@ def test_pytest_clean_fail() -> None:
     mock_result.stderr = "FAILED"
     mock_console = MagicMock()
     with patch(
-        "python_pkg.code_tutor._challenge_support.subprocess.run",
+        "python_pkg.code_tutor._pytest_runner.subprocess.run",
         return_value=mock_result,
     ):
         assert (
@@ -236,7 +235,7 @@ def test_pytest_clean_no_output() -> None:
     mock_result.stderr = ""
     mock_console = MagicMock()
     with patch(
-        "python_pkg.code_tutor._challenge_support.subprocess.run",
+        "python_pkg.code_tutor._pytest_runner.subprocess.run",
         return_value=mock_result,
     ):
         _pytest_clean([], Path("/proj"), mock_console)
@@ -270,9 +269,7 @@ def test_patch_and_test_passes(tmp_path: Path) -> None:
     test_file = tmp_path / "test_mod.py"
     test_file.write_text("def test_fn(): pass\n", encoding="utf-8")
     mock_console = MagicMock()
-    with patch(
-        "python_pkg.code_tutor._challenge_support._pytest_clean", return_value=True
-    ):
+    with patch("python_pkg.code_tutor._pytest_runner._pytest_clean", return_value=True):
         result = _patch_and_test(
             _item(file="mod.py", start=1, end=2),
             str(tmp_path),
@@ -292,7 +289,7 @@ def test_patch_and_test_fails(tmp_path: Path) -> None:
     test_file.write_text("def test_fn(): pass\n", encoding="utf-8")
     mock_console = MagicMock()
     with patch(
-        "python_pkg.code_tutor._challenge_support._pytest_clean", return_value=False
+        "python_pkg.code_tutor._pytest_runner._pytest_clean", return_value=False
     ):
         result = _patch_and_test(
             _item(file="mod.py", start=1, end=2),
