@@ -1,0 +1,46 @@
+{
+  "intent": "Split five more linux_configuration single_use scripts under the cap, fixing a second latent unchecked cd.",
+  "scope": [
+    "install_unreal_mcp.sh (395 -> 155) + lib/unreal_mcp_repo.sh",
+    "diagnose_arch_performance.sh (377 -> 123) + lib/arch_perf_probes.sh, lib/arch_perf_report.sh",
+    "setup_local_llm.sh (370 -> 163) + lib/local_llm_model.sh",
+    "repo_to_study.sh (365 -> 160) + lib/repo_study_steps.sh",
+    "setup_dwm.sh (359 -> 147) + lib/dwm_config.sh",
+    "Non-goal: no script executed"
+  ],
+  "changes": [
+    "One cut each, except diagnose_arch_performance.sh: its first lib came out at 263 lines, so the GPU and journal probes, the safe-fix pass and the report summary moved on to a second lib.",
+    "All five already declared SCRIPT_DIR exactly once and the splitter correctly reused it, confirming the fix made in the previous batch.",
+    "Fixed SC2164 in the repo_to_study steps: a bare cd \"$analysis_dir\" immediately before invoking the study-material generator. A failed cd would have run the generator against the caller's directory. Now guarded with an error message and return 1 - the second instance of this same latent bug found by splitting."
+  ],
+  "verification": [
+    {
+      "command": "scratchpad/verify_split.sh per script",
+      "result": "pass",
+      "evidence": "All five report 'libs sourced, functions defined' after bash -n and shellcheck -x. No SCRIPT_DIR collision this time."
+    },
+    {
+      "command": "shellcheck on each new lib",
+      "result": "fail then pass",
+      "evidence": "SC2164 on the unguarded cd in repo_study_steps.sh, fixed at the source. Clean afterwards."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep <these files>",
+      "result": "pass",
+      "evidence": "None of the eleven files listed. The only remaining hit in that grep is fix_arch_performance.sh, a different script that was already over the cap and is untouched here."
+    },
+    {
+      "command": "pre-commit run --files <changed>, then the real git commit",
+      "result": "pass",
+      "evidence": "Clean, jscpd included, now with fifteen new libs across the linux_configuration commits."
+    }
+  ],
+  "risks": [
+    "None of the five was run: they install AUR packages, write Ollama modelfiles and systemd config, and compile dwm. The stubbed run proves the libs are reachable and the functions defined, not that the scripts still work end to end.",
+    "Two unchecked cd calls have now turned up in five splits. Others likely remain in unsplit files; splitting surfaces them because a moved function is linted in isolation."
+  ],
+  "rollback": [
+    "git revert the commit; the five scripts return to their previous sizes and the six libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored scripts."
+  ]
+}

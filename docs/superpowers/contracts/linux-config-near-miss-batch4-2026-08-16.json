@@ -1,0 +1,18 @@
+{
+  "title": "Split five more linux_configuration single_use scripts",
+  "objective": "Bring install_unreal_mcp.sh (395), diagnose_arch_performance.sh (377), setup_local_llm.sh (370), repo_to_study.sh (365) and setup_dwm.sh (359) under the 250-line cap.",
+  "acceptance_criteria": [
+    "All five entry scripts and all six new libs are at most 250 lines.",
+    "bash -n and shellcheck pass on every touched file, with no new suppression and no shellcheck disable directive.",
+    "The stubbed run reports every moved function as defined, for all five scripts.",
+    "Each entry script still declares SCRIPT_DIR exactly once.",
+    "No script is executed. These install packages, write systemd and Ollama config, and build dwm from source.",
+    "The unchecked cd exposed in the repo_to_study steps is fixed rather than suppressed."
+  ],
+  "out_of_scope": [
+    "Executing any install or diagnostic step.",
+    "fix_arch_performance.sh, a different file that is over the cap but was not touched here.",
+    "Changing what any script does when run, beyond the cd guard."
+  ],
+  "verifier": "scratchpad/verify_split.sh per script (bash -n + shellcheck -x + stubbed run), plus check_file_length.sh showing none of the eleven files, plus pre-commit run --files and the real git commit for jscpd."
+}
