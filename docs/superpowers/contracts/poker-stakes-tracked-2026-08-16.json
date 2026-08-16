@@ -1,0 +1,18 @@
+{
+  "title": "Track poker-stakes in git so the file-length cap can reach it",
+  "objective": "poker-stakes/ exists on disk with 58 untracked files, four of which exceed the 250-line cap. An untracked directory is invisible to every pre-commit hook, so its violations cannot be fixed or gated until it is committed. Track it with its CI workflow and its existing evidence artifact.",
+  "acceptance_criteria": [
+    "All 58 poker-stakes source and config files are tracked by git.",
+    ".github/workflows/poker-stakes-ci.yml is tracked so CI runs on the directory.",
+    "docs/superpowers/evidence/poker-stakes-ui-wiring-2026-08-14.json is tracked alongside the code it documents.",
+    "npm run check passes in poker-stakes/: typecheck, eslint --max-warnings 0, and vitest coverage at the configured 100% thresholds.",
+    "No binaries, no node_modules and no build output are staged.",
+    "The repo's pre-commit hooks all pass on the staged set."
+  ],
+  "out_of_scope": [
+    "Splitting poker-stakes' four over-250-line files; that lands as a separate commit once the directory is tracked.",
+    "Any change to poker-stakes application behaviour, dependencies or CI definition.",
+    "The remaining file-length violations elsewhere in the repo."
+  ],
+  "verifier": "cd poker-stakes && npm run check (exit 0, 220 tests, 100% statements/branches/functions/lines); git status --porcelain -uall poker-stakes returns empty afterwards; git ls-files poker-stakes | wc -l reports 58."
+}

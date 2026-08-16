@@ -1,0 +1,67 @@
+{
+  "intent": "Finish the poker-stakes UI layer so a full session is playable end to end in the browser: buy in, play hands, cash out or bust, and settle the resulting real-world task debt into a durable ledger that gates the next buy-in.",
+  "scope": [
+    "poker-stakes/src/App.tsx (wired the real app; was a placeholder div)",
+    "poker-stakes/src/ui/DebtHistoryPanel.tsx + test (new durable ledger panel)",
+    "poker-stakes/src/ui/OutstandingDebtRow.tsx + test (extracted shared log-progress control)",
+    "poker-stakes/src/ui/taskLabel.ts + test (extracted so the row file exports only components)",
+    "poker-stakes/src/ui/BuyInScreen.tsx (uses the shared row; non-empty-tuple TASK_TYPES fix)",
+    "poker-stakes/src/stakes/storage.ts (exported DEBTS_STORAGE_KEY for test seeding)",
+    "poker-stakes/src/main.tsx (import styles.css - it was never imported)",
+    ".github/workflows/poker-stakes-ci.yml + README.md row",
+    "Non-goal: mid-session persistence across reload (V1 accepts losing an in-progress hand; no debt is settled yet at that point)"
+  ],
+  "changes": [
+    "Wired App.tsx to useGame with injected `storage`/`seed` props (lazy `useState(() => seed ?? Date.now())`) so tests can script a deterministic deal; removed a dead 'Deal first hand' branch after confirming useGame.buyIn already deals the opening hand.",
+    "Extracted the log-progress control into a shared OutstandingDebtRow so BuyInScreen's hard gate and DebtHistoryPanel cannot drift; per the implemented SettledDebt type there is no mark-paid boolean, so logging units is the only way paidUnits advances.",
+    "Fixed a real bug the jsdom suite could not catch: src/styles.css (215 lines of design-system tokens) was never imported, so the app rendered entirely unstyled. Confirmed by the CSS bundle now appearing in `npm run build` output (3.03 kB).",
+    "Replaced two coverage-gap tests that could never exercise their guard (typing '-5' into a `min={1}` input is blocked by native constraint validation before the handler fires) with cleared/empty-field tests that actually reach the JS guard.",
+    "Strengthened two weak assertions: the cash-out test now pins `2*buyIn - finalChips` end to end, and a new test asserts a bust settles at exactly 2x the buy-in (seed 7 busts deterministically).",
+    "Fixed a third browser-only bug in Table.tsx: at a showdown the opponent's revealed hand and the board rendered but the player's OWN hole cards did not, because `playerHoleCards` was only populated while `isAwaiting`. `HandResult.revealedHoleCards` is a `Record<Seat, ...>` carrying both seats, so the data was present and simply unread. The player could win a pot without being able to see what they won with.",
+    "The Table test named 'reveals both hole cards at a showdown' was itself vacuous: its fixture set `player: [A-spades, A-clubs]` but the assertions only checked the opponent's two cards and one board card. Added the missing player-card assertions (verified by mutation: reintroducing the bug now fails the test) plus a companion test that a fold reveals no hands at all.",
+    "Closed two more vacuous-test gaps found by systematic mutation testing. (a) bettingRound's `minRaiseSize: Math.max(state.minRaiseSize, raiseSize)` floor was untested - every existing raise fixture had raiseSize >= minRaiseSize, so the Math.max never mattered; added a short-all-in case (raise of 5 over a min-raise of 50) asserting the floor holds. (b) storage's `isSettledDebt` per-field guards were untested in isolation: the only invalid-entry fixture omitted five of six fields, so deleting any single guard still tripped another. Added table-driven per-field cases (wrong-type and missing) holding all other fields valid.",
+    "Documented the `Math.max(0, ...)` floor in bettingRound's `owedToCall` as defensive-only after empirically confirming the whole 219-test suite passes without it (betToCall is always the highest committed, so the subtraction cannot go negative) - a comment rather than a test, since the branch is structurally unreachable.",
+    "Added src/engine/invariants.test.ts: a property sweep over 40 seeds playing sessions to completion, asserting chip conservation (a heads-up table is a closed system - invented chips would become forgiven debt), non-negative stacks, and owedUnits == max(0, 2*buyIn - finalChips) with the 2x cap. Includes counter assertions so the sweep cannot pass by silently doing nothing."
+  ],
+  "verification": [
+    {
+      "command": "cd poker-stakes && npm run check",
+      "result": "pass",
+      "evidence": "24 test files, 220 tests passed. Coverage 100% statements (572/572), 100% branches (299/299), 100% functions (109/109), 100% lines (542/542). eslint --max-warnings 0 clean, zero suppressions."
+    },
+    {
+      "command": "cd poker-stakes && npm run build",
+      "result": "pass",
+      "evidence": "tsc --noEmit clean; vite build emitted dist/assets/index-*.css 3.03 kB (confirms the styles.css import fix) and index-*.js 208.15 kB."
+    },
+    {
+      "command": "headless chromium + CDP against npm run dev (localhost:5173), full scripted session",
+      "result": "pass",
+      "evidence": "Cash-out branch: stack 99 -> panel previewed 'would owe 101 units' -> persisted ledger {owedUnits:101, reason:'cashOut'} == 2*100-99. Bust branch: persisted {owedUnits:200, reason:'bust'} == 2*buyIn cap. Buy-in gate with debt outstanding: sitDownPresent=false, gateMessage=true. After logging 101 units the gate reopened (Sit down present) and the history row read 'Pushups: 101 owed (cashed out) - cleared'. Screenshot confirmed the design-system styling renders. Post-fix showdown screenshot shows BOTH hands (opponent 10s/10c, player 2c/3c) where the player's seat was previously empty."
+    },
+    {
+      "command": "headless chromium audit: console/exception capture, a11y names, label association, layout at 390/768/1440 widths, mid-session reload, rapid triple-click",
+      "result": "pass",
+      "evidence": "Zero console errors, zero console warnings, zero uncaught exceptions across a full session. Every interactive control has an accessible name; both labels resolve via htmlFor. No horizontal overflow, no clipped cards and no sub-32px tap targets at any of the three widths. Mid-session reload loses in-progress hand state but no settled debt (matches plan Open Choice #2). Triple-clicking a betting action left the state coherent (no duplicate-submit corruption)."
+    },
+    {
+      "command": "mutation check on the new Table assertion",
+      "result": "pass",
+      "evidence": "Reintroducing the showdown bug (playerHoleCards = null between hands) makes 'reveals both hole cards at a showdown' FAIL; restoring the fix makes it pass. The assertion is non-vacuous."
+    },
+    {
+      "command": "systematic mutation testing across settlement / handEval / bettingRound / session / useGame / storage",
+      "result": "pass",
+      "evidence": "Deliberate source mutations confirmed each new assertion is non-vacuous: dropping the minRaiseSize floor fails the new short-all-in test; dropping isSettledDebt's owedUnits or id guard fails the matching per-field tests. settlement.ts, handEval.ts (exhaustive C(52,5) sweep), session.ts and useGame.ts (debt gate, cash-out guard, paidUnits clamp) caught every mutation attempted - no vacuous assertions found there. All mutated files restored and verified byte-identical to their originals."
+    }
+  ],
+  "risks": [
+    "The bust test pins reason='bust' for seed 7 with an always-first-legal-action strategy; changing the RNG, blind derivation, or opponent policy could flip that branch and fail the test. That is intended - it is a real behavioural assertion, not a smoke test.",
+    "App-level tests drive the UI by clicking the first button inside `.controls`, so renaming that class or reordering legal actions changes what they exercise.",
+    "Chrome DevTools port 9222 is already taken by Steam's webhelper on this machine; the verification scripts use 9333 to avoid attaching to Steam."
+  ],
+  "rollback": [
+    "Revert the poker-stakes/ directory and .github/workflows/poker-stakes-ci.yml plus the README.md table row; nothing outside poker-stakes/ is touched by the app changes.",
+    "After rollback, run `cd poker-stakes && npm run check` to confirm the tree is still green, and re-check that src/main.tsx still imports './styles.css' if any part of the UI work is kept."
+  ]
+}
