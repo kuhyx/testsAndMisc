@@ -1,0 +1,17 @@
+{
+  "title": "Split setup_dns_blocker.sh under the 250-line cap",
+  "objective": "Bring the DNS blocker setup script under the cap. It is the ExecStart of the live dns-blocklist-refresh.service unit, so the unit path and the script's exported function set must be unchanged.",
+  "acceptance_criteria": [
+    "The entry script and all three new libs are at most 250 lines.",
+    "Sourcing the script yields exactly the same 74 function names as before, diffed against a detached worktree at HEAD. The script exposes SETUP_DNS_BLOCKER_SKIP_MAIN, so this can be checked without running main().",
+    "systemctl cat dns-blocklist-refresh.service still resolves to the script, and the script still parses.",
+    "Every seam falls on a function boundary, outside the seven heredocs.",
+    "The pre-commit shellcheck hook passes on every file, with no new suppression."
+  ],
+  "out_of_scope": [
+    "Running main(); it installs dnsmasq, writes systemd units and changes firewall rules on the live machine.",
+    "Changing any generated config.",
+    "The other over-cap linux_configuration scripts."
+  ],
+  "verifier": "SETUP_DNS_BLOCKER_SKIP_MAIN=1 source + `declare -F`, diffed against the same from a worktree at HEAD; plus systemctl cat and bash -n on the unit's ExecStart; plus pre-commit run --files and check_file_length.sh."
+}

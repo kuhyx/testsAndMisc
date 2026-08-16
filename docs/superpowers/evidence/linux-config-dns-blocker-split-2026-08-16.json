@@ -1,0 +1,37 @@
+{
+  "intent": "Split setup_dns_blocker.sh under the cap without disturbing the live systemd unit that runs it.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_dns_blocker.sh (569 -> 211)",
+    "lib/dns_units.sh, dns_firewall.sh, dns_dhcp.sh (new)",
+    "Non-goal: main() not run"
+  ],
+  "changes": [
+    "Three libs: the dnsmasq config and systemd unit writers, the validation and firewall block, and the DHCP-server and status block. All seven heredocs sit inside functions, so function boundaries were safe seams.",
+    "The script guards its own entry with SETUP_DNS_BLOCKER_SKIP_MAIN, which made a proper function-set comparison possible on a script that otherwise reconfigures the machine when sourced."
+  ],
+  "verification": [
+    {
+      "command": "SETUP_DNS_BLOCKER_SKIP_MAIN=1 source the script and diff `declare -F` against a detached worktree at HEAD",
+      "result": "pass",
+      "evidence": "Identical 74-function set (its own plus common.sh's). This is the same check used for the two shared libs, and it is available here only because the script provides that escape hatch."
+    },
+    {
+      "command": "systemctl cat dns-blocklist-refresh.service, test -f its ExecStart, bash -n that file",
+      "result": "pass",
+      "evidence": "Still resolves to the split script and still parses. This is one of only two units pointing into the repo."
+    },
+    {
+      "command": "bash -n on the entry and each lib; pre-commit run --files",
+      "result": "pass",
+      "evidence": "All four parse and the gate is clean, with no suppression."
+    }
+  ],
+  "risks": [
+    "main() was not run: it installs dnsmasq, writes units, and changes nftables and DHCP settings on the live LAN. The function-set diff proves the surface, not the behaviour.",
+    "The refresh timer invokes the script with `refresh`, which reaches cmd_refresh through the same dispatch; that path is covered by the function-set check but not executed."
+  ],
+  "rollback": [
+    "git revert the commit; the script returns to 569 lines and the three libs disappear.",
+    "After rollback, re-run the SKIP_MAIN function-set check and expect the same 74 names."
+  ]
+}
