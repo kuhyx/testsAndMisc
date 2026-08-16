@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**92 files** over 250 lines (was 183 — exactly half cleared). Everything is
-committed and pushed to `main` at `776e04d`; the tree is clean.
+**87 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `0aa78ea`; the tree is clean.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
 package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
@@ -15,16 +15,13 @@ at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
 `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
 `wsg_grabber`'s six test modules (277).
 
-**`linux_configuration` is 84 → 49**, in eleven batches. **All 12 prose files
+**`linux_configuration` is 84 → 44**, in thirteen batches. **All 12 prose files
 are done** (8 split, 2 deleted as completed-work records on the user's ruling).
 **`kcd2_dice_solver` is 12 → 4**, all four remaining being source files. The
 shell pattern is settled and scripted — read `docs/shell-split-recipes.md`
 before touching another one.
 
-**Four deferred for shared state across the seam** in `kcd2_dice_solver` and
-`linux_configuration` alike (see the table below); the TypeScript ones are
-`search.ts` (findBestSet ⇄ hillClimb) and `badgeValue.ts` (valueBadge ⇄
-format). In TS a bad seam **compiles clean and fails at runtime** — an import
+In TypeScript a bad seam **compiles clean and fails at runtime** — an import
 cycle leaves a constant `undefined` at module-init. Always run the suite.
 
 Earlier sessions had already done: the `~/utils` exemptions, the
@@ -37,7 +34,7 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 | Directory                             | Count        |
 | ------------------------------------- | ------------ |
-| `linux_configuration`                 | 49           |
+| `linux_configuration`                 | 44           |
 | `phone_focus_mode`                    | 12 (do LAST) |
 | `kcd2_dice_solver`                    | 4            |
 | `focus_owner`                         | 11           |
@@ -49,21 +46,25 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 one reason: **state crosses the seam.** Pass it explicitly first, then split;
 never suppress. See "When to give up on a seam".
 
-| File                                  | Why                                                                    |
-| ------------------------------------- | ---------------------------------------------------------------------- |
-| `steam_compatibility.sh` (663)        | `CACHE_MAP` assoc array written in a lib, read by `main`               |
-| `diagnose_pacman_hook_stall.sh` (493) | assigns `LAST_ELAPSED` the caller reads, reads `PACMAN_BIN` it defines |
-| `clean_audio.sh` (419)                | probe-result globals threaded through two libs                         |
-| `setup_passwordless_system.sh` (374)  | no `main()`; top-level block must be kept by hand                      |
+| File                                  | Why                                          |
+| ------------------------------------- | -------------------------------------------- |
+| `check_and_enable_services.sh` (1337) | every `check_*` writes one `SERVICE_STATUS`  |
+| `steam_compatibility.sh` (663)        | `CACHE_MAP` written in a lib, read by `main` |
+| `diagnose_pacman_hook_stall.sh` (493) | `LAST_ELAPSED` / `PACMAN_BIN` cross the seam |
+| `libre_translate.sh` (488)            | ~19 globals cross any seam                   |
+| `enforce_vbox_hosts.sh` (443)         | every seam falls inside a heredoc            |
+| `clean_audio.sh` (419)                | probe-result globals through two libs        |
+| `setup_passwordless_system.sh` (374)  | no `main()`; top-level block kept by hand    |
 
-**The pre-commit `shellcheck` hook lints each lib in isolation**, with no view
-of the caller's globals. That is stricter than `shellcheck -x` on the entry
-script and is the check that decides whether a seam is real — run
-`pre-commit run shellcheck --files <all touched>` before believing a split.
+Same in `kcd2_dice_solver`: `search.ts` and `badgeValue.ts` are mutually
+recursive across any seam.
 
-Next: the remaining `main()`-shaped shell scripts, then
-`kcd2_dice_solver` / `focus_owner` / `billsplit` (TS+Dart+Kotlin, untouched so
-far), then the four prose files — zero execution risk.
+**The pre-commit `shellcheck` hook lints each lib alone**, with no view of the
+caller's globals — stricter than `shellcheck -x` on the entry, and the check
+that decides whether a seam is real. Run it before believing a split.
+
+Next: the remaining `main()`-shaped shell scripts, then `focus_owner` /
+`billsplit` / `reverse_survivors` (Kotlin+Dart+TS, untouched so far).
 
 ## The live worklist
 

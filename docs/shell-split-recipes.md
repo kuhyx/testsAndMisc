@@ -151,6 +151,19 @@ emitting three files.
 records why `settings.yml` is mode 640 and not 600 (at 600 the granian worker
 dies with EACCES) — that comment is worth more than the code around it.
 
+### A seam inside a heredoc produces a file that will not parse
+
+The worst failure in this effort: the split of `enforce_vbox_hosts.sh` cut
+between `cat <<EOF` and its terminator, leaving a lib with an unterminated
+here-document. `shellcheck` on the **entry** reported only SC1094 "parsing of
+sourced file failed", which reads like a linting nicety rather than a broken
+file, and the entry itself still linted clean with `-x`.
+
+`meta/scripts/verify_shell_split.sh` now runs `bash -n` over every lib
+**before** linting the entry and names the offending file. The splitter is
+still heredoc-unaware, so check for `<<` in the region you are moving before
+choosing a boundary.
+
 ### When to give up on a seam
 
 `clean_audio.sh` was reverted. Two probe-result globals were read by functions
