@@ -1,0 +1,38 @@
+{
+  "intent": "Split the largest focus_owner Kotlin test file under the cap, and record why the Kotlin sources and the second test file cannot follow.",
+  "scope": [
+    "android/app/src/test/.../EnforcementDecisionTest.kt (418 -> 168) + EnforcementDecisionCurfewTest.kt, EnforcementFixtures.kt",
+    "Not split: EnforcementRunner.kt (564), DevicePolicyBridge.kt (415), FocusPolicy.kt (277), EnforcementDecision.kt (274), EnforcementLogTest.kt (251)",
+    "Non-goal: no assertion changed"
+  ],
+  "changes": [
+    "The shared policy builders, the home coordinates and the installed-package set moved to an internal EnforcementFixtures object, and both test classes delegate to it. Kotlin has no part/part of, so an object in the same package is the equivalent - a plain second class could not see the originals' private members.",
+    "EnforcementRunner.kt was examined and left alone: its location block reads the private constructor property `context` and the private prefs() six and five times respectively, so extension functions cannot reach them.",
+    "EnforcementLogTest.kt is one line over the cap and was reverted after a split attempt: it defines helpers (`candidate`, `window`) between its test methods rather than in a fixture block, so any cut leaves unresolved references. One line is not worth restructuring a test file for."
+  ],
+  "verification": [
+    {
+      "command": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew testDebugUnitTest --offline",
+      "result": "fail twice, then pass",
+      "evidence": "BUILD SUCCESSFUL. Two compile failures first, both real: 'Unresolved reference installed' when a fixture was missed, then the same for the log test's inline helpers."
+    },
+    {
+      "command": "sum the tests= and failures= attributes across build/app/test-results/testDebugUnitTest/*.xml",
+      "result": "pass",
+      "evidence": "40 tests, 0 failures, now across 3 XML result files instead of 2 - matching the baseline of 40 measured before any edit. Gradle reports UP-TO-DATE rather than a count, so the XML is the only way to see it."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep '\\.kt:'",
+      "result": "partial",
+      "evidence": "EnforcementDecisionTest.kt is gone from the list. Five Kotlin files remain, four of them sources with the shared-state problem and one a test that is one line over."
+    }
+  ],
+  "risks": [
+    "JAVA_HOME must be pinned to JDK 21 for this build; the default JDK 26 breaks the AGP jlink transform. Any future session running these tests needs the same prefix.",
+    "Four Kotlin sources stay over the cap. Splitting EnforcementRunner means passing context and the prefs accessor explicitly, which changes its constructor contract."
+  ],
+  "rollback": [
+    "git revert the commit; EnforcementDecisionTest.kt returns to 418 lines and the two new files disappear.",
+    "After rollback, re-run the gradle unit tests and expect 40 tests, 0 failures."
+  ]
+}
