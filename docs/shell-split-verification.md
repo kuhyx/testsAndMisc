@@ -102,12 +102,18 @@ resolves that in two layers — see `meta/scripts/lib/trace_prefix.sh`:
 
 ```bash
 # $HOME-rooted destinations: no bwrap, no root needed
-meta/scripts/trace_shell_split.sh install_usage_monitoring.sh --prefix /tmp/pfx
+meta/scripts/trace_shell_split.sh install_usage_monitoring.sh --prefix /tmp/pfx-before
 
 # hardcoded absolutes: bind each LEAF directory
-meta/scripts/trace_shell_split.sh nvidia_troubleshoot.sh --prefix /tmp/pfx \
+meta/scripts/trace_shell_split.sh nvidia_troubleshoot.sh --prefix /tmp/pfx-nv \
   --bind-abs /etc/modprobe.d --bind-abs /etc/X11 --stub git,lsmod,nvidia-smi
 ```
+
+**Every run needs its own empty prefix**, hence the `-before`/`-after` naming.
+Reusing one leaves the first run's files in place, so the second run's manifest
+reports writes it never made and a dropped write stops showing up entirely —
+measured: the fixture pair below diffs _clean_ on a reused prefix. The harness
+refuses a non-empty prefix rather than deleting a path you named.
 
 `HOME` **and every `XDG_*` base** are redirected. Exporting the XDG vars
 explicitly is not belt-and-braces: `install_leechblock.sh` reads
@@ -129,7 +135,11 @@ Four traps, each of which cost a debugging round:
   to `/home//pyroveil`, `/etc/profile` became "No such file or directory", and
   a nested `/etc/X11` bind was masked so its write vanished from the manifest.
   All three look like a broken split. The scanner therefore never emits a bare
-  `/etc`.
+  `/etc`. A `--bind-abs` naming a **file** (`/etc/profile`) is bound
+  file-over-file, seeded with a copy of the original — bwrap cannot mount a
+  directory over a file, and binding the file's parent would be the wholesale
+  `/etc` bind again. The copy matters because a script that greps a config
+  before appending to it would otherwise read an empty file and branch wrong.
 - **`require_root` truncates a stubbed run to nothing.** `lib/common.sh` does
   `exec sudo "$0" "$@"`; under the `sudo` stub that records one line and exits
   0 — a three-line trace that diffs clean against _any_ split. `--bind-abs`
@@ -170,6 +180,7 @@ harness change can be checked instead of trusted:
 | `circular_nameref.sh`             | exit 0, correct stdout, warning only in stderr  |
 | `valued_stub_branch.sh`           | the silent-stub trap (`--stub du` vs `du=4096`) |
 | `dropped_write_{before,after}.sh` | a split that silently loses one write           |
+| `xdg_destinations.sh`             | writes addressed via `XDG_*`, not `$HOME`       |
 
 A lint fix once broke one of these invisibly: adding a trailing `echo` to
 satisfy SC2034 made _that_ echo the function's last statement, so the fixture

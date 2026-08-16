@@ -119,16 +119,42 @@ trace_prefix_bwrap_argv() {
 		return 0
 	fi
 
+	# Kill the whole process group rather than `return 1`. The caller reads this
+	# function through `mapfile < <(...)`, and a process substitution's exit
+	# status is discarded -- returning 1 left the caller with an empty argv,
+	# which is indistinguishable from "no bind needed", so the run proceeded
+	# unsandboxed as uid 1000. validate_requirements probes bwrap up front so
+	# this path should be unreachable; it is a backstop, and it must not be a
+	# silent one.
 	if ! command -v bwrap >/dev/null 2>&1; then
 		echo "Error: --bind-abs needs bubblewrap (pacman -S bubblewrap)" >&2
-		return 1
+		kill -TERM $$
+		exit 1
 	fi
 
 	local -a argv=(bwrap --dev-bind / / --unshare-user --uid 0 --gid 0)
-	local dir
+	local dir target
 	for dir in "${abs_dirs[@]}"; do
-		mkdir -p "$prefix/abs$dir"
-		argv+=(--bind "$prefix/abs$dir" "$dir")
+		# A bind target that exists as a FILE is bound as a file: bwrap refuses
+		# to mount a directory over one ("Can't mkdir /etc/profile: Not a
+		# directory") and aborts before the run writes anything. Binding its
+		# PARENT instead is worse than the crash -- that is a wholesale /etc
+		# bind, which was measured to shadow /etc/passwd (collapsing $SUDO_USER
+		# to /home//) and hide the real /etc/profile from the script's own
+		# grep. So seed a file in the prefix and bind file-over-file.
+		#
+		# The seed is a COPY of the original, because a script that reads a
+		# config before rewriting it (nvidia_troubleshoot.sh greps /etc/profile,
+		# then appends) would otherwise see an empty file and take a branch it
+		# would not take live.
+		target="$prefix/abs$dir"
+		if [[ -f $dir && ! -d $dir ]]; then
+			mkdir -p "$(dirname "$target")"
+			cp -p "$dir" "$target"
+		else
+			mkdir -p "$target"
+		fi
+		argv+=(--bind "$target" "$dir")
 	done
 	printf '%s\n' "${argv[@]}"
 }

@@ -56,7 +56,32 @@
     {
       "command": "wc -l on changed files",
       "result": "pass",
-      "evidence": "trace_shell_split.sh 197, lib/trace_prefix.sh 166, lib/trace_stubs.sh 71, docs/shell-split-verification.md 230 - all under the 250-line cap."
+      "evidence": "All changed files under the 250-line cap; stub generation was moved to lib/ specifically because --prefix pushed the harness to 252."
+    },
+    {
+      "command": "REVIEW FOLLOW-UP: reused prefix across a before/after pair",
+      "result": "pass",
+      "evidence": "Found by review and reproduced: with one prefix reused, run 1's files remain and the dropped-write fixture pair diffed CLEAN - the manifest reported a write that did not happen. The harness now refuses a non-empty prefix (it does not rm -rf a user-supplied path) and the doc's examples use distinct -before/-after prefixes. Re-verified: reuse exits 1; separate prefixes still detect the drop."
+    },
+    {
+      "command": "REVIEW FOLLOW-UP: bwrap missing swallowed by mapfile",
+      "result": "pass",
+      "evidence": "trace_prefix_bwrap_argv returned 1, but a process substitution's status is discarded, so mapfile saw 0, runner was empty, and the run proceeded UNSANDBOXED as uid 1000 - the same fail-open shape as the grep-status swallow fixed earlier. bwrap is now probed in validate_requirements before any run. Verified with a minimal PATH lacking bwrap: exit 1, clear message, prefix never created."
+    },
+    {
+      "command": "REVIEW FOLLOW-UP: no-prefix output vs the pre-change commit cdf2a55",
+      "result": "pass",
+      "evidence": "Traced disk_cleanup_check.sh with the old and new harness from a detached worktree at cdf2a55: byte-identical. Confirms the cat->sed substitution on the stdout/stderr path did not alter default output, so existing baselines remain valid."
+    },
+    {
+      "command": "REVIEW FOLLOW-UP: XDG redirect measured, not just argued",
+      "result": "pass",
+      "evidence": "New fixture xdg_destinations.sh run with a REAL XDG_DATA_HOME pointing at a decoy dir: all four XDG-addressed writes landed in the prefix and the decoy stayed empty. This is the rsync --delete data-loss path closed, proven without running install_leechblock.sh."
+    },
+    {
+      "command": "REVIEW FOLLOW-UP: partial --bind-abs list, and file bind targets",
+      "result": "pass",
+      "evidence": "The absolute scan now runs whenever --prefix is given and reports only paths not covered by an existing bind (a bind of /etc/X11 covers /etc/X11/xorg.conf.d). Fixing that surfaced a second defect: --bind-abs /etc/profile aborted the run with 'Can't mkdir /etc/profile: Not a directory', and binding its parent reintroduced the wholesale /etc shadowing (/home//, unreadable /etc/profile). File targets are now bound file-over-file, seeded with a copy so a script that greps before appending sees real content. Verified: all three nvidia writes captured, /etc/passwd intact, live /etc untouched."
     }
   ],
   "risks": [

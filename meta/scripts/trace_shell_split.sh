@@ -81,16 +81,52 @@ validate_requirements() {
 		echo "Error: no such script: $TARGET" >&2
 		exit 1
 	fi
+	# A prefix must start empty. Reusing one across a before/after pair leaves
+	# run 1's files in place, so run 2's manifest reports writes it never made
+	# and a DROPPED WRITE STOPS SHOWING UP -- measured: the fixture pair diffs
+	# clean on a reused prefix. Refuse rather than deleting a user-supplied
+	# path.
+	if [[ -n "$PREFIX" && -d "$PREFIX" ]] && [[ -n "$(ls -A "$PREFIX" 2>/dev/null)" ]]; then
+		echo "Error: --prefix $PREFIX is not empty; use a fresh directory" >&2
+		echo "  (a stale file makes the manifest report a write that did not happen)" >&2
+		exit 1
+	fi
+	# bwrap is probed HERE, not where the argv is built: there the failure is
+	# returned through a process substitution, whose status mapfile discards,
+	# so a missing bwrap left runner empty and the run continued with no
+	# sandbox and no uid 0 -- the exact fail-open this flag exists to prevent.
+	if [[ ${#BIND_ABS[@]} -gt 0 ]] && ! command -v bwrap >/dev/null 2>&1; then
+		echo "Error: --bind-abs needs bubblewrap (pacman -S bubblewrap)" >&2
+		exit 1
+	fi
 	# Refuse rather than quietly writing to the real path: a script with
 	# hardcoded absolute destinations and no --bind-abs would either mutate the
 	# live system or take a different branch on EPERM, and both look like a
 	# clean trace.
-	if [[ -n "$PREFIX" && ${#BIND_ABS[@]} -eq 0 ]]; then
-		local -a found=()
+	#
+	# The scan runs whenever --prefix is given, not only when BIND_ABS is empty.
+	# Gating it on "no binds at all" meant a user who bound one path and missed
+	# three got no warning: those writes fail closed, but the failure surfaces
+	# only as a stderr line inside a long trace, which is easy to read as the
+	# script's own behaviour.
+	if [[ -n "$PREFIX" ]]; then
+		local -a found=() unbound=()
+		local path bound covered
 		mapfile -t found < <(trace_prefix_scan_absolute "$TARGET")
-		if [[ ${#found[@]} -gt 0 ]]; then
+		for path in ${found[@]+"${found[@]}"}; do
+			covered=0
+			for bound in ${BIND_ABS[@]+"${BIND_ABS[@]}"}; do
+				# A bind of /etc/X11 covers /etc/X11/xorg.conf.d beneath it.
+				if [[ $path == "$bound" || $path == "$bound"/* ]]; then
+					covered=1
+					break
+				fi
+			done
+			((covered)) || unbound+=("$path")
+		done
+		if [[ ${#unbound[@]} -gt 0 ]]; then
 			echo "Error: $TARGET writes to absolute paths; pass --bind-abs for each:" >&2
-			printf '  --bind-abs %s\n' "${found[@]}" >&2
+			printf '  --bind-abs %s\n' "${unbound[@]}" >&2
 			exit 1
 		fi
 	fi
