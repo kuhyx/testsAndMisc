@@ -9,6 +9,11 @@ from typing import TYPE_CHECKING
 # Re-exported through __all__: tests/test_display.py imports these names from
 # this module. Only the un-patched supply *maths* moved to _supply -- everything
 # the tests reach with mock.patch has to stay resolvable here.
+from python_pkg.brother_printer._page_count import (
+    _display_consumables_reference,
+    _display_page_count_estimate,
+    _display_page_delivery_warning,
+)
 from python_pkg.brother_printer._severity import (
     _SEVERITY_COLORS,
     _SEVERITY_ICONS,
@@ -21,24 +26,17 @@ from python_pkg.brother_printer._supply import (
     _format_supply_bar,
     _parse_supply_value,
     _process_supply_item,
-    render_life_bar,
 )
 from python_pkg.brother_printer.constants import (
     BOLD,
     CYAN,
     DIM,
-    DRUM_RATED_PAGES,
     GREEN,
     RED,
     RESET,
-    TONER_RATED_PAGES,
     YELLOW,
     _out,
     get_status_info,
-)
-from python_pkg.brother_printer.consumables import (
-    check_page_delivery,
-    estimate_consumable_life,
 )
 from python_pkg.brother_printer.cups_queue import (
     display_cups_queue_status,
@@ -69,98 +67,6 @@ def _display_report_header() -> None:
     _out(f"{BOLD}╔══════════════════════════════════════════════════╗{RESET}")
     _out(f"{BOLD}║      Brother Laser Printer Status Report         ║{RESET}")
     _out(f"{BOLD}╚══════════════════════════════════════════════════╝{RESET}")
-    _out()
-
-
-def _display_page_delivery_warning(printer_total: int, *, queue_idle: bool) -> None:
-    """Warn when CUPS claims more pages than the printer actually counted.
-
-    Args:
-        printer_total: Lifetime count from the printer's own counter.
-        queue_idle: False while a job is queued or printing, when the two
-            counters legitimately disagree.
-    """
-    check = check_page_delivery(printer_total, queue_idle=queue_idle)
-    if not check.suspected:
-        return
-    _out(f"{BOLD}── Dropped Pages ──{RESET}")
-    _out()
-    _out(
-        f"  {RED}{BOLD}⚠  {check.dropped} pages did not print.{RESET}"
-        f"  {RED}CUPS sent {check.cups_pages} pages since the last check;"
-        f" the printer's own counter advanced by"
-        f" {check.printer_pages}.{RESET}"
-    )
-    _out()
-    _out(
-        f"  {DIM}The printer discards pages whose 600 dpi raster does not fit"
-        f" its memory, stays READY, and reports no error - and CUPS still calls"
-        f" the job successful. Reprint at a lower resolution:{RESET}"
-    )
-    _out(f"  {DIM}  lp -o Resolution=300dpi <file>{RESET}")
-    _out()
-
-
-def _display_page_count_estimate(printer_total: int = 0) -> None:
-    """Show estimated consumable life based on the printer's page count.
-
-    Args:
-        printer_total: Lifetime count from the printer's own counter, or zero
-            when it could not be read and the CUPS page log has to stand in.
-    """
-    estimate = estimate_consumable_life(printer_total)
-    if estimate.total_pages <= 0:
-        return
-    _out(f"{BOLD}── Page Count Estimate ──{RESET}")
-    _out()
-    _out(
-        f"  {BOLD}Total pages printed:{RESET} {estimate.total_pages}"
-        f"  (toner: {estimate.toner_pages} since replacement,"
-        f" drum: {estimate.drum_pages} since replacement)"
-    )
-    if estimate.approximate:
-        _out(
-            f"  {YELLOW}Approximate: counted from the CUPS log, not the"
-            f" printer's own counter, so it misses pages CUPS never saw"
-            f" and reads high.{RESET}"
-        )
-    _out()
-    render_life_bar(
-        "Toner:",
-        estimate.toner_pct_remaining,
-        exhausted=estimate.toner_exhausted,
-        low=estimate.toner_low,
-        exhausted_note=" ← REPLACE NOW",
-        low_note=" ← order soon",
-    )
-    render_life_bar(
-        "Drum: ",
-        estimate.drum_pct_remaining,
-        low=estimate.drum_near_end,
-        low_note=" ← nearing end",
-    )
-    _out(
-        f"  {DIM}Based on pages since last replacement"
-        f" vs rated capacity (toner ~{TONER_RATED_PAGES},"
-        f" drum ~{DRUM_RATED_PAGES}).{RESET}"
-    )
-    _out(f"  {DIM}Reset after replacing: --reset-toner or --reset-drum{RESET}")
-    if estimate.toner_exhausted:
-        _out()
-        _out(
-            f"  {RED}{BOLD}⚠  Toner is likely exhausted."
-            f" This is probably why the orange light is flashing.{RESET}"
-        )
-    _out()
-
-
-def _display_consumables_reference() -> None:
-    """Print compatible consumables reference."""
-    _out(f"{BOLD}── Compatible Consumables ──{RESET}")
-    _out()
-    _out(f"  {BOLD}Toner:{RESET} TN-1050 / TN-1030 (or compatible third-party)")
-    _out(f"  {BOLD}Drum:{RESET}  DR-1050 / DR-1030 (or compatible third-party)")
-    _out(f"  {DIM}  Toner rated ~1000 pages; Drum rated ~10000 pages.{RESET}")
     _out()
 
 

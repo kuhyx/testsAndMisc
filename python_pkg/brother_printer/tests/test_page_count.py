@@ -1,21 +1,21 @@
-"""Tests for brother_printer.display - page counts and dropped-page warning."""
+"""Tests for brother_printer._page_count - page counts and dropped pages."""
 
 from __future__ import annotations
 
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from python_pkg.brother_printer.data_classes import (
-    PageCountEstimate,
-    PageDeliveryCheck,
-)
-from python_pkg.brother_printer.display import (
+from python_pkg.brother_printer._page_count import (
     _display_consumables_reference,
     _display_page_count_estimate,
     _display_page_delivery_warning,
 )
+from python_pkg.brother_printer.data_classes import (
+    PageCountEstimate,
+    PageDeliveryCheck,
+)
 
-MOD = "python_pkg.brother_printer.display"
+MOD = "python_pkg.brother_printer._page_count"
 
 
 class TestDisplayPageCountEstimate:

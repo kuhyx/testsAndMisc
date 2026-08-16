@@ -1,0 +1,44 @@
+{
+  "intent": "Bring brother_printer/display.py under the 250-line cap by moving the page-count estimate and dropped-page warning into their own module, with no behaviour change.",
+  "scope": [
+    "python_pkg/brother_printer/_page_count.py (new)",
+    "python_pkg/brother_printer/display.py",
+    "python_pkg/brother_printer/tests/test_display_part3.py -> tests/test_page_count.py",
+    "Non-goal: no assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "Moved _display_page_delivery_warning, _display_page_count_estimate and _display_consumables_reference verbatim into python_pkg/brother_printer/_page_count.py, which imports the patched collaborators check_page_delivery and estimate_consumable_life directly.",
+    "display.py now imports the three functions from _page_count so display_usb_results still resolves them, and dropped the now-unused render_life_bar, TONER_RATED_PAGES and DRUM_RATED_PAGES imports; 342 -> 248 lines.",
+    "Renamed tests/test_display_part3.py to tests/test_page_count.py and repointed its MOD and import block to the new module (per docs/python-split-recipes.md, the module a test patches must be the one the function actually lives in)."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -m pytest python_pkg/brother_printer/tests -q",
+      "result": "pass",
+      "evidence": "402 passed before the split and 402 passed after it - identical pass count, not merely a green run."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -c \"from python_pkg.brother_printer import display; display._display_page_count_estimate; display._display_consumables_reference; display._display_report_header; display._display_page_delivery_warning\"",
+      "result": "pass",
+      "evidence": "runtime probe OK - the names test_display.py patches on display are still attributes of display at import time, so ruff's TC001 rewrite trap did not fire."
+    },
+    {
+      "command": "wc -l python_pkg/brother_printer/display.py",
+      "result": "pass",
+      "evidence": "248 lines, under the 250-line cap; _page_count.py is 114 lines."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/brother_printer/_page_count.py python_pkg/brother_printer/display.py python_pkg/brother_printer/tests/test_page_count.py",
+      "result": "pass",
+      "evidence": "ruff auto-sorted the new import block in test_page_count.py on the first run; clean on re-run."
+    }
+  ],
+  "risks": [
+    "mock.patch pins names to a module: a test still patching estimate_consumable_life on display would now miss. Checked - test_page_count.py is the only module that patched it, and its MOD moved with the code.",
+    "display.py keeps _display_report_header, which both test_display.py and test_display_part2.py patch, so it was deliberately left in place."
+  ],
+  "rollback": [
+    "git revert the commit; display.py returns to 342 lines and test_page_count.py back to test_display_part3.py.",
+    "After rollback, re-run the package suite and confirm it still reports 402 passed."
+  ]
+}
