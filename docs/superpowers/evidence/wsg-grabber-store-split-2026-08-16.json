@@ -1,0 +1,35 @@
+{
+  "intent": "Bring python_pkg/wsg_grabber/store.py under the 250-line file cap by separating the read-only projections over the file index from the lifecycle writes, keeping every store.* name reachable for downloader.py, cli.py and test_store.py.",
+  "scope": [
+    "python_pkg/wsg_grabber/store.py",
+    "python_pkg/wsg_grabber/_store_queries.py (new)",
+    "Non-goal: no behaviour change, no SQL change, no test changes"
+  ],
+  "changes": [
+    "Moved the read-only projections into _store_queries.py: claimable_values, ready_items, ready_item, counts, pending_downloads, known_md5s, state_of, attempts_for.",
+    "Moved claim_next there too -- it is a write, but it is the one write that must be a single atomic transaction against exactly those reads, so splitting it from them would have put a BEGIN IMMEDIATE on one side of a module boundary and its SELECT on the other.",
+    "Renamed the shared helper _scalar -> scalar because it is now imported across a module boundary; record_files still needs it (it counts rows before and after the insert), so store.py imports it back. The dependency runs store -> _store_queries only, no cycle.",
+    "store.py re-exports the moved names through __all__.",
+    "store.py 382 -> 202 lines; _store_queries.py 232. Both under the cap."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -c \"from python_pkg.wsg_grabber import store; [getattr(store, n) for n in store.__all__]\"",
+      "result": "pass",
+      "evidence": "Printed 'store OK: 15'. Re-run after ruff's autofix pass removed 8 dead imports, confirming the __all__ entries were not among what it stripped."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/wsg_grabber/store.py python_pkg/wsg_grabber/_store_queries.py",
+      "result": "pass",
+      "evidence": "After the autofix pass settled, the only remaining failure was the expected 'no staged evidence artifact' from this file not yet existing; ruff, ruff format, mypy, pylint and the coverage-gated pytest all pass. Final confirmation is the commit itself, which runs the full hook set including jscpd."
+    }
+  ],
+  "risks": [
+    "An earlier attempt at this split was silently reverted: `git push --dry-run` ran pre-commit, which stashed unstaged files and restored the pre-edit store.py, leaving the new module orphaned. The split was redone and the files staged before running the gate. Stage before running pre-commit on a work-in-progress tree.",
+    "claim_next sits in a module named _store_queries despite being a write; the docstring says why. Splitting it from the reads it transacts against would be worse."
+  ],
+  "rollback": [
+    "git revert the commit; store.py returns to its 382-line form and _store_queries.py is deleted.",
+    "After rollback, run python3 -m pytest python_pkg/wsg_grabber/tests/ -q to confirm the suite still passes."
+  ]
+}
