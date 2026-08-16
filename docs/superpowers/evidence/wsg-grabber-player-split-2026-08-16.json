@@ -1,0 +1,37 @@
+{
+  "intent": "Bring python_pkg/wsg_grabber/player.py under the 250-line file cap by separating the stateless mpv wire protocol and the Player interface from the class that owns the process and socket.",
+  "scope": [
+    "python_pkg/wsg_grabber/player.py",
+    "python_pkg/wsg_grabber/_mpv_ipc.py (new)",
+    "python_pkg/wsg_grabber/_player_api.py (new)",
+    "Non-goal: no behaviour change, no test changes, no change to the mpv command line"
+  ],
+  "changes": [
+    "Moved the stateless wire protocol into _mpv_ipc.py: read_reply (was _read_reply), build_argv, encode, note_errors, plus probe_properties and query lifted out of MpvPlayer.probe/_query, which only ever needed the socket path.",
+    "Moved the Player Protocol into _player_api.py; ui.py depends on the interface, not on MpvPlayer.",
+    "Moved the probe constants _PROBE_ID, _PROBE_TIMEOUT_S and _PROBE_PROPERTIES verbatim alongside the code that reads them.",
+    "player.py re-exports Player, build_argv and encode through __all__.",
+    "MpvPlayer._note_errors is kept as a thin bound delegate to _mpv_ipc.note_errors, because test_player.py calls it on the instance and the tests are out of scope for this refactor.",
+    "player.py 373 -> 235 lines; _mpv_ipc.py 158; _player_api.py 49."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/wsg_grabber/tests/ -q --cov=python_pkg.wsg_grabber --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "277 passed in 15.14s. _mpv_ipc.py 51 stmts / 14 branches 100%, _player_api.py 100%, player.py 89 stmts 100%. An intermediate version of this split failed with 1 failed / 276 passed because test_mpv_errors_are_logged_rather_than_discarded calls mpv._note_errors as a bound method; the delegate was added in response to that real failure, not pre-emptively."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/wsg_grabber/player.py python_pkg/wsg_grabber/_mpv_ipc.py python_pkg/wsg_grabber/_player_api.py",
+      "result": "pass",
+      "evidence": "Only the expected 'no staged evidence artifact' failure remained, which this file satisfies. ruff, ruff format, mypy, pylint, bandit and the coverage-gated pytest all pass with no suppression."
+    }
+  ],
+  "risks": [
+    "_PROBE_ID is 9001 and read_reply matches replies on it. An intermediate version of the new module briefly carried a placeholder value of 1, which would have made every probe hang until timeout while still returning a plausible-looking error string; the constants were then moved across verbatim and the value re-checked at 9001.",
+    "probe_properties/query now take an ipc_path rather than reading self._ipc_path. MpvPlayer.probe delegates, so the public behaviour is unchanged and the tests that drive mpv.probe() cover both."
+  ],
+  "rollback": [
+    "git revert the commit; player.py returns to its 373-line form and the two new modules are deleted.",
+    "After rollback, run python3 -m pytest python_pkg/wsg_grabber/tests/ -q to confirm 277 tests still pass."
+  ]
+}

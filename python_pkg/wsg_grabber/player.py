@@ -19,15 +19,27 @@ orphan. No reviewing decisions are made here.
 
 from __future__ import annotations
 
-import json
 import socket
 import subprocess
 import threading
 import time
-from typing import TYPE_CHECKING, Final, Protocol
+from typing import TYPE_CHECKING
 
 from python_pkg.wsg_grabber import logs
+
+# Re-exported through __all__ so player.Player / player.build_argv /
+# player.encode keep working for ui.py and test_player.py; the wire format and
+# the protocol live in their own modules to keep this one under the 250-line cap.
+from python_pkg.wsg_grabber._mpv_ipc import (
+    build_argv,
+    encode,
+    note_errors,
+    probe_properties,
+)
+from python_pkg.wsg_grabber._player_api import Player
 from python_pkg.wsg_grabber.constants import IPC_READY_TIMEOUT_S
+
+__all__ = ["MpvPlayer", "Player", "build_argv", "encode"]
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -37,125 +49,6 @@ _SOCKET_POLL_S = 0.05
 _READ_CHUNK = 65536
 _READ_TIMEOUT_S = 0.2
 _READER_JOIN_S = 5.0
-_PROBE_ID = 9001
-_PROBE_TIMEOUT_S = 2.0
-
-# What to record when diagnosing an apparently frozen reviewer: which file mpv
-# holds, whether it is actually advancing, and the size it configured its video
-# output to (which changes per video, so a static value is itself a symptom).
-_PROBE_PROPERTIES: Final[tuple[str, ...]] = (
-    "path",
-    "pause",
-    "core-idle",
-    "eof-reached",
-    "playback-time",
-    "width",
-    "height",
-)
-
-
-def _read_reply(conn: socket.socket) -> object:
-    """Read until mpv answers the probe request.
-
-    Args:
-        conn: A freshly connected control socket.
-
-    Returns:
-        object: The ``data`` field of the reply, or an ``error:`` string.
-    """
-    buffer = b""
-    while True:
-        chunk = conn.recv(65536)
-        if not chunk:
-            return "error: socket closed"
-        buffer += chunk
-        for line in buffer.split(b"\n"):
-            if not line:
-                continue
-            try:
-                message = json.loads(line)
-            except ValueError:
-                continue
-            if message.get("request_id") == _PROBE_ID:
-                return message.get("data")
-
-
-class Player(Protocol):
-    """What the reviewer needs from a video player."""
-
-    def play(self, path: Path) -> None:
-        """Show *path*, replacing whatever is on screen.
-
-        Args:
-            path: Video file to play.
-        """
-        ...  # pragma: no cover
-
-    def stop(self) -> None:
-        """Blank the video area."""
-        ...  # pragma: no cover
-
-    def is_alive(self) -> bool:
-        """Report whether the player is still running.
-
-        Returns:
-            bool: True while the process lives.
-        """
-        ...  # pragma: no cover
-
-    def probe(self) -> dict[str, object]:
-        """Report what the player is currently doing, for diagnostics.
-
-        Returns:
-            dict[str, object]: Property name to value.
-        """
-        ...  # pragma: no cover
-
-    def close(self) -> None:
-        """Shut the player down and release its resources."""
-        ...  # pragma: no cover
-
-
-def build_argv(wid: int, ipc_path: Path) -> list[str]:
-    """Build the mpv command line.
-
-    ``--input-vo-keyboard=no`` matters: with ``--wid`` mpv reparents a child
-    window over the Tk frame, and if mpv claims the keyboard the Tk bindings
-    never see a keypress. Declining it leaves X delivering keys to the focused
-    toplevel, which is the Tk window.
-
-    Args:
-        wid: X11 window id of the frame to draw into.
-        ipc_path: Where to create the control socket.
-
-    Returns:
-        list[str]: Argument vector for :func:`subprocess.Popen`.
-    """
-    return [
-        "mpv",
-        f"--wid={wid}",
-        f"--input-ipc-server={ipc_path}",
-        "--idle=yes",
-        "--loop-file=inf",
-        "--keep-open=yes",
-        "--no-terminal",
-        "--osc=no",
-        "--input-default-bindings=no",
-        "--input-vo-keyboard=no",
-        "--no-config",
-    ]
-
-
-def encode(command: Sequence[object]) -> bytes:
-    """Encode one mpv IPC command.
-
-    Args:
-        command: Command name followed by its arguments.
-
-    Returns:
-        bytes: Newline-terminated JSON, ready for the socket.
-    """
-    return json.dumps({"command": list(command)}).encode("utf-8") + b"\n"
 
 
 class MpvPlayer:
@@ -228,19 +121,13 @@ class MpvPlayer:
     def _note_errors(self, chunk: bytes) -> None:
         """Log any failure mpv reported back.
 
+        Delegates to :func:`._mpv_ipc.note_errors`; kept as a bound method
+        because the reader thread and the tests both reach it that way.
+
         Args:
             chunk: Raw bytes just read from the socket.
         """
-        for line in chunk.split(b"\n"):
-            if not line.strip():
-                continue
-            try:
-                message = json.loads(line)
-            except ValueError:
-                continue
-            failure = message.get("error")
-            if isinstance(failure, str) and failure != "success":
-                logs.warning("player.reply_error", detail=failure, reply=message)
+        note_errors(chunk)
 
     def _connect(self) -> socket.socket:
         """Wait for mpv's socket to appear and connect to it.
@@ -319,32 +206,7 @@ class MpvPlayer:
             dict[str, object]: Property name to value; a property that could
             not be read maps to a string starting with ``error:``.
         """
-        return {name: self._query(name) for name in _PROBE_PROPERTIES}
-
-    def _query(self, name: str) -> object:
-        """Read one mpv property over a short-lived connection.
-
-        A separate connection avoids interleaving with the asynchronous events
-        mpv pushes down the main socket, which would otherwise make replies
-        easy to mis-attribute.
-
-        Args:
-            name: Property name.
-
-        Returns:
-            object: The value, or an ``error:`` string.
-        """
-        request = json.dumps(
-            {"command": ["get_property", name], "request_id": _PROBE_ID}
-        )
-        try:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
-                probe.settimeout(_PROBE_TIMEOUT_S)
-                probe.connect(str(self._ipc_path))
-                probe.sendall(request.encode("utf-8") + b"\n")
-                return _read_reply(probe)
-        except OSError as exc:
-            return f"error: {exc}"
+        return probe_properties(self._ipc_path)
 
     def is_alive(self) -> bool:
         """Report whether mpv is still running.
