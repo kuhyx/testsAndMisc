@@ -1,0 +1,43 @@
+{
+  "intent": "Bring the kcd2_dice_solver data tables under the 250-line cap without changing any exported value.",
+  "scope": [
+    "kcd2_dice_solver/src/data/dice.ts (415 -> 93) + rawDice.ts, rawDiceAM.ts, rawDiceNZ.ts",
+    "kcd2_dice_solver/src/data/badges.ts (369 -> 111) + badgeTable.ts, badgeTableGold.ts, headstart.ts",
+    "Non-goal: no test edited, no exported value changed"
+  ],
+  "changes": [
+    "dice.ts: the 317-line RAW_DICE literal and its RawDie interface moved to rawDice.ts, which was itself still 332 lines, so the 43 entries split in half by id into rawDiceAM.ts and rawDiceNZ.ts. rawDice.ts now just concatenates them. dice.ts keeps normalise() and the derived DICE / DICE_BY_ID exports.",
+    "badges.ts: the 253-line BADGES literal moved to badgeTable.ts, then the gold tier moved on to badgeTableGold.ts. badges.ts keeps the scoring rules, the Badge types and the derived lookups, and re-exports BADGES and HEADSTART_POINTS so data.test.ts imports still resolve.",
+    "HEADSTART_POINTS ended up in its own module, headstart.ts, because both halves of the badge table need it at initialisation time."
+  ],
+  "verification": [
+    {
+      "command": "npm test -- --run",
+      "result": "fail twice, then pass",
+      "evidence": "288 passed in 15 files, matching the baseline. Two intermediate failures, both import cycles that tsc reported as clean: first badgeTable importing HEADSTART_POINTS from badges (11 test files failed with 'Cannot read properties of undefined (reading tin)'), then badgeTableGold importing it from badgeTable. Resolved by giving the constant its own module."
+    },
+    {
+      "command": "npm run coverage",
+      "result": "pass",
+      "evidence": "100% statements (863/863), branches (375/375), functions (181/181) and lines (810/810). The new modules fall inside the coverage include glob, so they are measured rather than silently skipped - the mirror of the poker-stakes trap where new files landed in an excluded path."
+    },
+    {
+      "command": "npm run lint",
+      "result": "pass",
+      "evidence": "tsc --noEmit and eslint both clean, after removing one BadgeTier import the split left unused."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep kcd2",
+      "result": "pass",
+      "evidence": "No src/data/ file remains. The largest is badgeTable.ts at 175."
+    }
+  ],
+  "risks": [
+    "An import cycle in TypeScript type-checks perfectly and fails only at module-init time. It happened twice here and neither tsc nor eslint saw it; only running the suite did. Any further split of these tables must be validated by running the tests, not by a clean lint.",
+    "badges.ts re-exports BADGES and HEADSTART_POINTS purely so existing importers keep working. That indirection is invisible at the call site and easy to delete by accident."
+  ],
+  "rollback": [
+    "git revert the commit; dice.ts and badges.ts return to 415 and 369 lines and the six new modules disappear.",
+    "After rollback, re-run npm test and expect 288 passed."
+  ]
+}
