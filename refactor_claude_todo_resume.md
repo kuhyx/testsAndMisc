@@ -91,6 +91,44 @@ Verified on `wsg_grabber/cli.py`; `__all__` passes ruff + mypy + pylint clean.
 Splits that only move **private** helpers (leading `_`, no external caller)
 need no shim at all — check with grep first, as in `catalog.py`.
 
+`__all__` only needs the **re-exported** names, not every public name in the
+module — names defined locally stay reachable either way. Verified against the
+full gate on `store.py`. Worth ~5–8 lines on every file with this shape, which
+matters: three splits so far landed 2–6 lines over the cap and needed a second
+seam. **Budget the new import block and `__all__` before deciding a two-way
+split is enough.**
+
+Splitting a **class**: if tests call private methods as bound attributes
+(`worker._fetch_thread(...)` — grep the tests first), module-level functions
+will not do; use mixins. The shape that passes every gate with **no
+suppression** (settled on `downloader.py`, do not re-derive):
+
+```python
+# _worker_base.py
+class WorkerBase(ABC):
+    _deps: WorkerDeps          # bare annotations for read-only attributes
+    _downloaded: int = 0       # real default for any attribute the mixin ASSIGNS
+
+    @abstractmethod
+    def _publish(self, event: DownloadEvent) -> None:
+        """Supplied by the concrete Worker."""
+```
+
+Both mixins inherit `WorkerBase`; `Worker(ScanMixin, DownloadMixin)`. Why not
+the obvious alternatives:
+
+- Naming a class `*Mixin` does **not** get you pylint's `no-member` exemption
+  here — `ignored-checks-for-mixins` is not configured for it. Don't rely on it.
+- `raise NotImplementedError` stub bodies are **uncovered lines** under the
+  100% branch gate.
+- `if TYPE_CHECKING: def _publish(...) -> None: ...` satisfies mypy but leaves
+  pylint reporting `no-member`.
+- A bare annotation (`_downloaded: int`) is not enough for an attribute the
+  mixin assigns to (`+= 1`); pylint wants a real default.
+
+Watch the MRO: `Worker(ScanMixin, DownloadMixin)` means ScanMixin wins any
+name collision.
+
 Coverage: `meta/pyproject.toml` sets `source = ["python_pkg"]`, so a new
 sibling module is measured automatically. Confirmed: new modules show up in
 the report at 100% rather than being silently skipped. Add no new branches
@@ -109,6 +147,23 @@ the report at 100% rather than being silently skipped. Add no new branches
 
 Never game the cap: no one-lining, no deleting tests, no moving code into an
 exempt extension, no suppressions.
+
+## Never edit files while a push is running
+
+`git push` runs pre-commit, which **stashes unstaged changes and restores them
+afterwards**. Editing a file in that window makes the restore fail with
+`patch does not apply`, and the push aborts — _while `git push | tail` still
+reports exit 0_, because the pipe masks it. This cost two silent failed pushes
+and one silently reverted split.
+
+Rules that follow:
+
+- Stage (`git add`) before running `pre-commit run --files ...` on a
+  work-in-progress tree, or the same stash cycle can revert the edit.
+- Push only with a clean tree, and do not start other file edits until it
+  returns.
+- After any push, confirm with `git status --short --branch` that it does not
+  still say `ahead N`. Never trust the exit code alone.
 
 ## Traps that cost time in the last session
 
