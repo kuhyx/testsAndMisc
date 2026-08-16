@@ -1,258 +1,141 @@
-# Copilot Instructions for testsAndMisc
+# testsAndMisc
 
-## Project Overview
-
-A mixed-language monorepo containing Python packages, Bash scripts, and misc automation. Actively-developed
-components span personal productivity tools: alarm/shutdown scheduling, Linux system configuration, and
-Android phone focus enforcement.
-
-Extracted to their own repos:
-
-- [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer)
-- [`screen-locker`](https://github.com/kuhyx/screen-locker)
-- [`diet-guard`](https://github.com/kuhyx/diet-guard)
-- [`wake-alarm`](https://github.com/kuhyx/wake-alarm)
-- [`dufs-cloud`](https://github.com/kuhyx/dufs-cloud) — self-hosted dufs cloud:
-  React web gallery (`web/`), Flutter app (`app/`), and the dufs/media setup
-  scripts (`scripts/`). Extracted from `cloud_gallery/` + the
-  `linux_configuration` dufs scripts + the standalone `dufs_client` repo. The
-  live `media-cloud-sync` systemd units now run the scripts from
-  `~/dufs-cloud/scripts/`.
-- [`build-your-x`](https://github.com/kuhyx/build-your-x) — build-your-own-x
-  difficulty ladder + `byox` progress tracker (crdt_sync-backed) and the builds
-  themselves (`builds/`). Extracted from `python_pkg/byox_ladder/` + the
-  standalone `~/build_your_x` builds. Lives at `~/build_your_x`.
-
-Archived / unmaintained projects live in the sibling repository
-[`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
+Mixed-language monorepo: Python packages, Bash automation, and several apps.
 
 ## Repository Layout
 
-| Path                   | Description                                                                                   |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| `python_pkg/`          | Python packages — each maintained subpackage lives here                                       |
-| `billsplit/`           | Receipt bill-splitting Flutter app (Dart, e-paragon import, 100 % line coverage gate)         |
-| `linux_configuration/` | Arch Linux setup, i3 config, system maintenance scripts                                       |
-| `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                          |
-| `reverse_survivors/`   | Reverse Survivors — React/Vite game, you play the horde (TypeScript, 100 % coverage gate)     |
-| `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc` |
-| `scripts/`             | Workspace-level helper scripts and pre-commit hooks (moved to `meta/scripts/`)                |
-| `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                               |
-| `third_party/`         | Vendored upstream skills/agents                                                               |
+| Path                        | Description                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `python_pkg/`               | Python packages — every `.py` in the repo belongs here or in an allowlisted dir                           |
+| `meta/`                     | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc`, `scripts/` |
+| `linux_configuration/`      | Arch setup, i3 config, system maintenance, and the tracked git hooks                                      |
+| `phone_focus_mode/`         | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                                      |
+| `billsplit/`                | Receipt bill-splitting Flutter app (Dart)                                                                 |
+| `reverse_survivors/`        | React/Vite game — you play the horde (TypeScript)                                                         |
+| `poker-stakes/`             | Poker stakes trainer (TypeScript, Vite)                                                                   |
+| `kcd2_dice_solver/`         | KCD2 dice solver                                                                                          |
+| `focus_owner/`              | Android Device-Owner focus enforcer (Kotlin)                                                              |
+| `bucket_catch/`, `bottles/` | Small standalone projects                                                                                 |
+| `docs/`                     | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                           |
+| `third_party/`              | Vendored upstream skills/agents                                                                           |
 
-> **Note**: Root-level `pyproject.toml`, `requirements.txt`, `requirements.txt`, `run.sh`, and `.fvmrc`
-> are symlinks into `meta/`. Edit files there, not the symlinks.
+Root `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh` and
+`.fvmrc` are **symlinks into `meta/`** — edit the files in `meta/`, not the
+symlinks.
 
-> **Note**: `billsplit/` is the only Flutter app in this repo, and the only place
-> binaries are committed. Its platform launcher icons are build inputs, so they
-> get the `.binary-allowlist` exception plus matching `!` overrides at the end of
-> `.gitignore` — both are required, since an ignored file fails silently on
-> `git add` rather than erroring. Adding another Flutter app here means repeating
-> that pair. Icons come from the shared generator in `python_pkg/app_icons/`, and
-> there is no local `dart format` / `flutter analyze` hook — Dart style is gated
-> by `.github/workflows/billsplit-ci.yml` only. `billsplit/` holds **no Python**:
-> its coverage gate lives at `python_pkg/billsplit_coverage/`, because the
-> `check-python-location` hook requires every `.py` under `python_pkg/`.
+Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer),
+[`screen-locker`](https://github.com/kuhyx/screen-locker),
+[`diet-guard`](https://github.com/kuhyx/diet-guard),
+[`wake-alarm`](https://github.com/kuhyx/wake-alarm),
+[`dufs-cloud`](https://github.com/kuhyx/dufs-cloud),
+[`build-your-x`](https://github.com/kuhyx/build-your-x) (lives at `~/build_your_x`).
+Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
-## Architecture
+## Adding a Flutter app
 
-### Python Packages (`python_pkg/`)
+`billsplit/` is currently the only one, and the only place binaries are
+committed. To add another, repeat **both** halves or the icons fail silently:
 
-- **brother_printer/** — Brother printer status checker via CUPS and USB/network query
-  - `check_brother_printer.py` — main status check
-  - `cups_queue.py` / `cups_service.py` — CUPS integration
-  - `network_query.py` / `usb_query.py` — device discovery
-  - `tests/` — pytest tests
+1. Add the icon globs to `.binary-allowlist`.
+2. Add matching `!` overrides at the end of `.gitignore` — an ignored file
+   fails silently on `git add` rather than erroring.
 
-- **shared/** — Shared utilities across python_pkg subpackages
-- **random_jpg/** — Random JPEG downloader utility
-- **geo_cache/** — Geographic coordinate cache helper
-
-### Phone Focus Mode (`phone_focus_mode/`)
-
-Location-based app restriction for rooted Android. Automatically disables non-whitelisted apps within
-500 m of home using ADB + Magisk.
-
-- `focus_ctl.sh` / `focus_daemon.sh` — focus enforcement scripts
-- `dns_enforcer.sh` — DNS-level blocking (netd cache restart for YouTube)
-- `hosts_enforcer.sh` — `/etc/hosts` manipulation
-- `launcher_enforcer.sh` — launcher restriction
-- `workout_detector.sh` — workout detection integration
-- `magisk_service.sh` — Magisk module hook (prevents module self-disabling)
-- `config.sh` — configuration constants
-- `deploy.sh` — ADB deployment script
-- `systemd/` — systemd units for scheduling
-- `lib/` — shared shell library functions
-
-### Linux Configuration (`linux_configuration/`)
-
-Arch Linux setup and ongoing system automation.
-
-```
-linux_configuration/
-├── install_core_system.sh          # Core system installer
-├── scripts/
-│   ├── single_use/                 # One-time setup scripts
-│   │   ├── fresh-install/
-│   │   ├── features/
-│   │   ├── fixes/
-│   │   └── misc/
-│   └── periodic_background/        # Ongoing daemons / scheduled scripts
-│       ├── digital_wellbeing/      # Compulsive-opening blocker, LeechBlock
-│       ├── hosts/                  # DNS/hosts guard and generation
-│       ├── i3-configuration/       # i3 window manager config
-│       ├── system-maintenance/     # Usage reporting, system checks
-│       └── utils/
-├── tests/                          # Shell-based test harness
-└── test_results.log
-```
-
-Key scripts:
-
-- `scripts/periodic_background/hosts/generate_hosts_file.sh` — Generates `/etc/hosts` blocklist
-- `scripts/periodic_background/system-maintenance/bin/usage_report.py` — Daily usage report
-
-### `meta/` — Repo-wide Tooling
-
-All root-level config files are symlinks into `meta/`. Edit here:
-
-- `meta/pyproject.toml` — ruff, mypy, pylint, bandit, pytest, coverage config
-- `meta/requirements.txt` — runtime + dev dependencies
-- `meta/run.sh` — usage report entrypoint + polling script profiler/diagnostics
-- `meta/lint_python.sh` — manual lint helper
-- `meta/scripts/` — pre-commit hook scripts (`check_no_binaries.sh`, `check_ai_evidence.sh`, etc.)
-
-### `docs/superpowers/` — AI Workflow Artifacts
-
-Pre-commit **requires** an evidence file for every commit that changes source code:
-
-```
-docs/superpowers/
-├── evidence/         # ← Required: one JSON per commit touching code
-│   └── template.json
-├── contracts/        # Acceptance criteria / objective contracts per task
-├── sessions/         # Append-only session logs (JSONL)
-├── specs/            # Task specifications / design docs
-├── plans/            # Implementation plans
-├── memory/           # Persistent context (CONTEXT.md, etc.)
-└── workflows/        # Agent workflow definitions
-```
-
-**Rule**: copy `docs/superpowers/evidence/template.json`, fill it in, and stage it with your code changes
-before committing. The `ai-evidence-contract` hook will reject commits without it.
+Icons come from the shared generator in `python_pkg/app_icons/`. Dart style is
+gated by CI only (`.github/workflows/billsplit-ci.yml`), not by a local hook.
+Keep app dirs free of Python: the `check-python-location` hook requires every
+`.py` to sit under `python_pkg/` (or `linux_configuration/`, `phone_focus_mode/`,
+`meta/scripts/`). `billsplit/`'s coverage gate therefore lives at
+`python_pkg/billsplit_coverage/`.
 
 ## Git Workflow
 
-Work directly on `main` — no need to create branches for this repository. Commit and push straight to `main`.
+Work directly on `main`; commit and push straight there.
 
-### Hooks are mandatory
+`core.hooksPath` points at the tracked `linux_configuration/.githooks/`, so
+hooks travel with the repo. `.git/hooks/` is unused — **never run
+`pre-commit install`**.
 
-`core.hooksPath` points at the **tracked** directory `linux_configuration/.githooks/`,
-so the hooks travel with the repo and cannot be missing on a clone. `.git/hooks/`
-is unused and irrelevant — never run `pre-commit install`, which writes there and
-is ignored (newer pre-commit refuses outright while `hooksPath` is set).
+- **pre-commit**: shfmt + shellcheck + jscpd (fails above 2% duplication),
+  then `pre-commit run --hook-stage pre-commit`.
+- **pre-push**: `pre-commit run --hook-stage pre-push` — `prettier` and
+  `ci-mirror`. `ci-mirror` runs a clean-venv install, `pre-commit run` over all
+  files, and pytest for changed packages.
 
-- `pre-commit` — shfmt + shellcheck + jscpd, then `pre-commit run --hook-stage pre-commit`
-- `pre-push` — `pre-commit run --hook-stage pre-push` (prettier, ci-mirror, pytest-coverage)
-  over the pushed commit range
-
-Bootstrap a new machine or clone with:
+Bootstrap a clone or new machine:
 
 ```bash
 ./meta/scripts/install_hooks.sh          # wire hooks + install missing tools
-./meta/scripts/install_hooks.sh --check  # verify, change nothing, exit 1 if incomplete
+./meta/scripts/install_hooks.sh --check  # verify only; exit 1 if incomplete
 ```
 
-Both hooks **fail closed**: every external binary they invoke (`pre-commit`,
-`prettier`, `shellcheck`, `shfmt`, `zsh`, `node`, `npm`, `python3`) is verified on
-every run and auto-installed via `pacman` when possible; if it cannot be installed
-non-interactively the commit or push aborts with the exact command to run. A missing
-tool never means "skip the check" — that failure mode is why `prettier` was absent
-for an unknown length of time without anyone noticing. The required-tool list lives
-in `REQUIRED_TOOLS` in `linux_configuration/.githooks/lib/common.sh`; extend it when
-adding a `language: system` hook.
-
-Each hook also re-asserts `core.hooksPath`, so drift self-heals after one run. The
-one gap it cannot close is a fresh clone where the config was never set and no hook
-runs at all — that is exactly what `install_hooks.sh` is for.
+Both hooks fail closed: every external binary is verified each run and
+auto-installed via pacman where possible. A missing tool aborts the commit —
+it never means "skip the check". Extend `REQUIRED_TOOLS` in
+`linux_configuration/.githooks/lib/common.sh` when adding a `language: system`
+hook. `common.sh` also warns when local shellcheck/prettier/shfmt/zsh drift
+from the versions pinned in `.github/workflows/pre-commit.yml`.
 
 ## Development Workflow
 
-do NOT run tests unless specifically instructed to do so or before committing
-If tests fail on the same issue twice in a row, STOP and ask the user how to proceed instead of continuing to fix and retry.
-ALWAYS confirm that the feature you add / bug you fixed behaves as it should by running the program after your changes (not tests!) and inspecting output comparing it with what user wanted, after confirming by yourself ask user if the program behaves as they intended
-After running tests fix all coverage gaps and issues, do not ignore unless specifically instructed to do so
+- Do NOT run tests unless instructed, or before committing.
+- If tests fail on the same issue twice in a row, STOP and ask.
+- Confirm a change works by **running the program** and inspecting output —
+  not by running tests. Then ask the user to confirm the behaviour.
+- Fix coverage gaps; do not ignore them.
 
-### AI Evidence Requirement
+### AI evidence (enforced)
 
-For every commit that touches `.py`, `.sh`, `.c`, `.go`, `.ts`, etc.:
+Every commit touching code needs an evidence artifact:
 
-1. Copy `docs/superpowers/evidence/template.json` → `docs/superpowers/evidence/<task-slug>-<date>.json`
-2. Fill in the fields (objective, steps taken, verification result)
-3. Stage and include it with your code changes
+1. Copy `docs/superpowers/evidence/template.json` →
+   `docs/superpowers/evidence/<task-slug>-<date>.json`.
+2. Fill in intent, scope, changes, verification, risks, rollback.
+3. Stage it with the code.
 
-### Linting Tools (configured in `meta/pyproject.toml`)
+`validate_evidence.py` rejects empty `verification[]` and the phrases
+"should work", "probably fine", "seems right".
 
-- **ruff**: `select = ["ALL"]` — all rules enabled, Google docstrings
-- **mypy**: `strict = true` with full type checking
-- **pylint**: all checks enabled
-- **coverage**: `fail_under = 100`, branch coverage required
+**Staging ≥4 code files additionally requires a fresh
+`docs/superpowers/contracts/*.json`** in the same commit.
+
+Deletions in `docs/superpowers/sessions/*` abort the commit (append-only).
 
 ## Code Conventions
 
-### Python Style
+Anything already enforced by a hook is omitted here — run
+`pre-commit run --all-files` and read `.pre-commit-config.yaml` for the
+complete list. What follows is what a linter cannot check.
 
-- Use `from __future__ import annotations` for forward references
-- Google docstring convention
-- Absolute imports only (`ban-relative-imports = "all"`)
-- Type hints required on all functions
-- Private functions/modules prefixed with `_` (e.g., `_smart_plug.py`, `_process_game_event`)
+### Python
 
-### Shell Style
+- `from __future__ import annotations` for forward references.
+- Prefix private functions/modules with `_` (`_smart_plug.py`,
+  `_process_game_event`).
+- Mock external calls in tests; never hit real APIs or the filesystem.
+- For branch coverage: prefer an explicit `while True` with
+  `try`/`except StopIteration` over `for` when iterator exhaustion needs
+  covering, and mock threads/subprocesses to keep tests fast.
 
-- Always `set -euo pipefail`
-- Double-quote all variable expansions
-- Avoid fork-heavy patterns: prefer `/proc`, `/sys`, bash builtins over `$(...)` in hot paths
-- Use `jq`/`yq` for JSON/YAML, not `grep`/`awk`
-- **NEVER embed Python program logic inline in a shell script** — no multi-line
-  `python -c "..."` and no `python <<'PY' ... PY` heredocs that contain real logic.
-  Put the code in a separate `.py` file so the repo's Python tooling (ruff, mypy,
-  pylint, bandit, tests) applies to it, and invoke it as `python3 path/to/file.py "$arg"`.
-  Resolve the path relative to the script (e.g. `"${0:A:h}/helper.py"` in zsh,
-  `"$(dirname "$0")/helper.py"` in bash). The only permitted inline Python is a
-  single-line availability/version probe with no logic, e.g. `python3 -c 'import kasa'`
-  or `python3 -c 'import sys; print(sys.version_info[0])'`.
+Full linting/coverage configuration lives in `meta/pyproject.toml`
+(ruff `select = ["ALL"]`, mypy, pylint `enable = "all"`, coverage
+`fail_under = 100` with branch coverage). Note the mypy **hook** disables a
+number of error codes, so it is weaker than the `strict = true` in the config.
 
-### Test Patterns
+### Shell
 
-```python
-# Type aliases for test dicts (keeps mypy happy)
-Event = dict[str, Any]
-
-# Mock external calls — never hit real APIs/filesystem
-with patch("python_pkg.screen_locker.screen_lock.some_func") as mock:
-    ...
-
-# Use PropertyMock for property exceptions
-type(mock_obj).property_name = PropertyMock(side_effect=TypeError())
-```
-
-### Branch Coverage Tips
-
-- Use explicit `while True` + `try/except StopIteration` instead of `for` loops when iterator
-  exhaustion needs coverage
-- Mock threads/subprocesses to avoid slow tests
-- Every `if`/`else` branch needs a corresponding test
+- `set -euo pipefail` in every script.
+- Prefer `/proc`, `/sys` and bash builtins over `$(...)` in hot paths — see
+  the `efficient-polling-scripts` skill. The `no-polling-antipatterns` hook
+  only inspects functions named `*_loop`, `*_daemon` or `poll*`, so a fork
+  storm elsewhere passes clean.
+- Use `jq`/`yq` for JSON/YAML, not `grep`/`awk`.
 
 ## Key Files
 
-- `meta/pyproject.toml` — All tool configs (ruff, mypy, pylint, pytest, coverage)
-- `.pre-commit-config.yaml` — Pre-commit hook definitions
-- `meta/requirements.txt` — Runtime + dev dependencies
-- `.github/workflows/python-tests.yml` — CI: runs all pytest on `python_pkg/**` changes
-- `.github/workflows/pre-commit.yml` — CI: runs pre-commit checks
-- `docs/superpowers/evidence/template.json` — Template for AI evidence artifacts
-
-## Per-File Ignores (in `meta/pyproject.toml`)
-
-Test files allow: `S101` (assert), `PLR2004` (magic values), `S310`, `S607`, `PLC0415`
+- `meta/pyproject.toml` — all Python tool configs
+- `.pre-commit-config.yaml` — hook definitions
+- `linux_configuration/.githooks/` — the tracked git hooks
+- `meta/requirements.txt` — runtime + dev dependencies
+- `docs/superpowers/evidence/template.json` — evidence template
+- `.github/workflows/` — `pre-commit`, `python-tests`, `shell-tests`, and one
+  CI workflow per app

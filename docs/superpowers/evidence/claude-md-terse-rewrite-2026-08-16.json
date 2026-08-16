@@ -1,0 +1,39 @@
+{
+  "intent": "Shrink CLAUDE.md from 259 to 141 lines by deleting rules that hooks already enforce, correcting claims that were factually wrong, and rewriting the remainder as HOW rather than WHY.",
+  "scope": [
+    "CLAUDE.md (rewritten)",
+    "Non-goal: no hook behaviour changes in this commit; the one new gate (no-inline-python) landed separately in 17b20e5"
+  ],
+  "changes": [
+    "Deleted prose duplicating existing gates: ruff/mypy/pylint/coverage settings, 'double-quote expansions' (shellcheck SC2086, no severity filter), absolute imports (TID252), Google docstrings, type hints (ANN), the inline-Python rule (now the no-inline-python hook), and the evidence-file procedure detail.",
+    "Corrected four factual errors found by auditing the config: (1) pytest-coverage was listed as a pre-push hook but is stages:[pre-commit] -- pre-push is prettier + ci-mirror only; (2) the root-symlink list named requirements.txt twice and omitted lint_python.sh; (3) 'scripts/ -- workspace-level helpers' described a directory that does not exist at repo root; (4) per-file-ignores were listed as S101/PLR2004/S310/S607/PLC0415 when the actual set is ARG/D/PLC0415/PLR2004/S101/SLF001.",
+    "Added five top-level directories the layout table omitted: poker-stakes, bottles, bucket_catch, focus_owner, kcd2_dice_solver.",
+    "Documented three enforced-but-undocumented gates an agent would otherwise hit blind: the 4-file contract threshold, append-only session logs, and the 2% jscpd duplication limit.",
+    "Recorded two places where the gate is weaker than it looks: the mypy hook disables ~20 error codes despite strict=true in config, and no-polling-antipatterns only inspects *_loop/*_daemon/poll* functions."
+  ],
+  "verification": [
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh CLAUDE.md",
+      "result": "pass",
+      "evidence": "259 -> 141 lines; exits 0, comfortably under the 250-line cap with headroom rather than trimming to exactly 250."
+    },
+    {
+      "command": "grep checks against check_python_location.sh, validate_evidence.py, check_append_only_sessions.sh, check_agent_contract.sh, check_polling_antipatterns.sh, .githooks/pre-commit",
+      "result": "pass",
+      "evidence": "Every retained claim verified against its source: allowlist dirs match; banned phrases are exactly 'should work'/'probably fine'/'seems right'; sessions regex is ^docs/superpowers/sessions/.*\\.(jsonl|log|txt)$; MULTI_FILE_THRESHOLD=4; in_poll awk guard matches *_loop|*_daemon|poll*; jscpd --threshold 2."
+    },
+    {
+      "command": "test -d for each of the 13 directories named in the layout table",
+      "result": "pass",
+      "evidence": "No MISSING lines -- every path in the table exists."
+    }
+  ],
+  "risks": [
+    "Deleting enforced prose relies on the hooks staying wired. That is the intended trade: a gate that fails the commit is stronger than a sentence an agent may not read, and .pre-commit-config.yaml is now named as the source of truth.",
+    "The audit that classified each rule was produced by a subagent; every claim retained or corrected here was independently re-verified against the config files before editing."
+  ],
+  "rollback": [
+    "git revert this commit to restore the 259-line version.",
+    "Validate with: bash ~/utils/scripts/check_file_length.sh CLAUDE.md (will then fail at 259 lines)."
+  ]
+}
