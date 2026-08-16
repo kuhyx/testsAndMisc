@@ -1,16 +1,16 @@
-"""Tests for brother_printer.cups_service module - part 4 (IPP queries)."""
+"""Tests for brother_printer._cups_fallback module - part 4 (IPP queries)."""
 
 from __future__ import annotations
 
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from python_pkg.brother_printer.cups_service import (
+from python_pkg.brother_printer._cups_fallback import (
     _get_cups_ipp_status,
     _parse_ipp_attributes,
 )
 
-MOD = "python_pkg.brother_printer.cups_service"
+MOD = "python_pkg.brother_printer._cups_fallback"
 
 
 class TestParseIppAttributes:

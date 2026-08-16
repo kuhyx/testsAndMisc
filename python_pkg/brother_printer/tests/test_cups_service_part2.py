@@ -1,27 +1,27 @@
-"""Tests for brother_printer.cups_service module - part 2."""
+"""Tests for brother_printer._cups_fallback module - part 2."""
 
 from __future__ import annotations
 
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from python_pkg.brother_printer.constants import (
-    _CUPS_REASONS_TO_STATUS,
-    DERIVED_CUPS_ERROR,
-    get_status_info,
-)
-from python_pkg.brother_printer.cups_service import (
+from python_pkg.brother_printer._cups_fallback import (
     _cups_reasons_to_error,
     _get_cups_economode,
     _map_cups_to_status_code,
     _port_status_to_status_code,
     find_cups_printer_name,
 )
+from python_pkg.brother_printer.constants import (
+    _CUPS_REASONS_TO_STATUS,
+    DERIVED_CUPS_ERROR,
+    get_status_info,
+)
 from python_pkg.brother_printer.data_classes import (
     USBPortStatus,
 )
 
-MOD = "python_pkg.brother_printer.cups_service"
+MOD = "python_pkg.brother_printer._cups_fallback"
 
 
 # ── _get_cups_economode ──────────────────────────────────────────────

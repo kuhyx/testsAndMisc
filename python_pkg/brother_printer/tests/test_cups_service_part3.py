@@ -1,22 +1,22 @@
-"""Tests for brother_printer.cups_service module - part 3 (query_usb_via_cups)."""
+"""Tests for brother_printer._cups_fallback module - part 3 (query_usb_via_cups)."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from python_pkg.brother_printer._cups_fallback import (
+    query_usb_via_cups,
+)
 from python_pkg.brother_printer.constants import (
     DERIVED_TONER_END,
     DERIVED_TONER_LOW,
-)
-from python_pkg.brother_printer.cups_service import (
-    query_usb_via_cups,
 )
 from python_pkg.brother_printer.data_classes import (
     PageCountEstimate,
     USBPortStatus,
 )
 
-MOD = "python_pkg.brother_printer.cups_service"
+MOD = "python_pkg.brother_printer._cups_fallback"
 
 
 # ── query_usb_via_cups ───────────────────────────────────────────────

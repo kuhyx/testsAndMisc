@@ -251,7 +251,7 @@ class TestQueryUsbPjl:
     @patch(f"{MOD}.find_usb_printer_dev", return_value=None)
     def test_no_dev_falls_back_to_cups(self, f: MagicMock) -> None:
         with patch(
-            "python_pkg.brother_printer.cups_service.query_usb_via_cups",
+            "python_pkg.brother_printer._cups_fallback.query_usb_via_cups",
         ) as mock_cups:
             mock_cups.return_value = USBResult(device="cups")
             result = query_usb_pjl()

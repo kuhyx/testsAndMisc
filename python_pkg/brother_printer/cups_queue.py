@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 
+from python_pkg.brother_printer._cups_fallback import find_cups_printer_name
 from python_pkg.brother_printer._query import run_command_text
 from python_pkg.brother_printer.constants import (
     DIM,
@@ -17,7 +18,6 @@ from python_pkg.brother_printer.constants import (
     RESET,
     _out,
 )
-from python_pkg.brother_printer.cups_service import find_cups_printer_name
 from python_pkg.brother_printer.data_classes import CUPSJob, CUPSQueueStatus
 
 # ── Queue inspection ─────────────────────────────────────────────────

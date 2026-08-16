@@ -1,0 +1,20 @@
+{
+  "title": "Split brother_printer/cups_service.py under the 250-line cap",
+  "objective": "Bring python_pkg/brother_printer/cups_service.py (406 lines) under the repo-wide 250-line cap by moving the IPP attribute queries, the CUPS status-code mapping and the CUPS-based USB fallback query into a new _cups_fallback.py, leaving cups_service holding only service control and raw USB port status.",
+  "acceptance_criteria": [
+    "cups_service.py and the new _cups_fallback.py are each at most 250 lines.",
+    "The brother_printer suite still reports exactly 402 passing tests -- the same count as before the split, proving no test was dropped or silently skipped.",
+    "The package keeps 100% branch coverage of the brother_printer source modules.",
+    "test_cups_service.py, the largest of the four test modules, needs no edit at all: every name it imports and every collaborator it patches on MOD (fcntl, os, Path, shutil, subprocess, time) stays defined in cups_service.py.",
+    "_get_cups_economode and find_cups_printer_name move together, because test_cups_service_part2.py imports both and patches shutil once on a single MOD; separating them would need two MOD constants in one test module.",
+    "usb_query.py's late importlib.import_module call and the absolute patch target in test_usb_query.py both name the new module, so the CUPS fallback is still reached and still mocked.",
+    "No assertion is changed and no test is deleted, skipped or weakened; the only test edits are the MOD constant, the import module path, and one absolute patch string.",
+    "No suppression is added and no coverage exclusion is introduced."
+  ],
+  "out_of_scope": [
+    "Changing what any test asserts, or any status-code mapping behaviour.",
+    "Splitting the brother_printer test files, which are separate commits -- part2 and part3 remain over the cap after this change.",
+    "Adding a re-export shim in cups_service; importers point at the new module directly to keep the dependency direction one-way."
+  ],
+  "verifier": "PYTHONPATH=. python3 -m pytest python_pkg/brother_printer/tests -q (expects exactly 402 passed), plus pre-commit run --files on the touched files, plus bash ~/utils/scripts/check_file_length.sh --all for the cap."
+}
