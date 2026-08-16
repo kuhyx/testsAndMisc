@@ -1,0 +1,18 @@
+{
+  "title": "Split three more linux_configuration feature and fix scripts",
+  "objective": "Bring setup_syncyomi.sh (408), setup_personal_website.sh (396) and fix_thorium.sh (377) under the 250-line cap, and teach the splitter to reuse an existing SCRIPT_DIR rather than redeclaring it.",
+  "acceptance_criteria": [
+    "All three entry scripts and all four new libs are at most 250 lines.",
+    "bash -n and shellcheck pass on every touched file, with no new suppression and no shellcheck disable directive.",
+    "Each entry script declares SCRIPT_DIR exactly once. All three already had one, and a second declaration aborts the script at runtime with 'readonly variable' while passing bash -n and shellcheck.",
+    "The stubbed run reports every moved function as defined, for all three scripts.",
+    "No script is executed. All three write Docker compose stacks, Caddy config or browser profile data.",
+    "The unchecked cd exposed in build_website is fixed rather than suppressed."
+  ],
+  "out_of_scope": [
+    "Executing any setup or fix step.",
+    "clean_audio.sh and setup_passwordless_system.sh, both deferred for reasons already recorded.",
+    "Changing what any script does when run, beyond the cd guard."
+  ],
+  "verifier": "scratchpad/verify_split.sh per script (bash -n + shellcheck -x + stubbed run), plus check_file_length.sh showing none of the six files, plus pre-commit run --files and the real git commit for jscpd."
+}
