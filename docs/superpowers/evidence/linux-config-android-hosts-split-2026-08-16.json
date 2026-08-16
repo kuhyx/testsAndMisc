@@ -1,0 +1,39 @@
+{
+  "intent": "Split update_android_hosts.sh under the cap, extracting its 247-line blocklist as data rather than shell.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/update_android_hosts.sh (870 -> 146)",
+    "lib/android_device.sh, android_module.sh, android_commands.sh (new)",
+    "data/android_guardian_blocklist.hosts (new)",
+    "Non-goal: no script executed, no generated content changed"
+  ],
+  "changes": [
+    "Three libs for device discovery, module building and the subcommands. The script dispatches through a `case` rather than a main(), so the case block and the argument parsing that feeds it stay in the entry.",
+    "build_module was 287 lines, almost all of it a single heredoc emitting 247 lines of hosts entries. That is data, so it moved to data/android_guardian_blocklist.hosts and the script now cats it. Unlike extracting an embedded Python program, a data file attracts no linter - it is the cheap version of the same move.",
+    "Two fixes the split exposed: the entry already declared SCRIPT_DIR (with $0, upgraded to ${BASH_SOURCE[0]} since the libs resolve the data path through it), and COMMAND was being assigned at the end of a lib but read by the entry's case - that argument-parsing tail moved back."
+  ],
+  "verification": [
+    {
+      "command": "md5 of the original heredoc body vs the extracted data file",
+      "result": "pass",
+      "evidence": "7d3f2550bf24e30017e360c9f4f23b7f on both sides - the blocklist the module installs is byte-identical. For a script whose job is emitting a file, this is the check that matters."
+    },
+    {
+      "command": "bash -n on the entry and each lib",
+      "result": "fail then pass",
+      "evidence": "The first attempt cut inside the `case` statement and both the entry and a lib failed to parse. Redone with the case boundary as a hard limit; all four parse now."
+    },
+    {
+      "command": "shellcheck -x on the entry, shellcheck on each lib",
+      "result": "pass",
+      "evidence": "Zero findings across all four files, no suppression."
+    }
+  ],
+  "risks": [
+    "Not executed: it pairs with a phone over adb and installs a Magisk module. The content hash covers what it writes; nothing covers the adb interaction.",
+    "The blocklist now lives two directories from the code that installs it, resolved through SCRIPT_DIR. If the script is ever copied elsewhere without data/, the module builds with an empty blocklist rather than failing loudly."
+  ],
+  "rollback": [
+    "git revert the commit; the script returns to 870 lines with the blocklist inline.",
+    "After rollback, re-run bash -n and shellcheck on the restored script."
+  ]
+}
