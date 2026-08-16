@@ -1,12 +1,4 @@
-"""Tests for the Tk window.
-
-``tkinter`` is replaced wholesale in the module's namespace, so every widget is
-a mock and no real ``Tk()`` is ever constructed. That matters beyond speed: CI
-has no display, and instantiating Tk there would fail outright.
-
-There is deliberately little to test here, because the window contains no
-decisions -- those all live in ``review`` and are covered by ``test_review``.
-"""
+"""Tests for the window's event-drain tick and shutdown."""
 
 from __future__ import annotations
 
@@ -18,9 +10,6 @@ import pytest
 
 from python_pkg.wsg_grabber import review, ui
 from python_pkg.wsg_grabber.constants import (
-    KEEP_KEYS,
-    PASS_KEYS,
-    QUIT_KEYS,
     UNDO_KEYS,
 )
 from python_pkg.wsg_grabber.models import (
@@ -154,60 +143,101 @@ def _window(
     return window, recorder
 
 
-def test_the_window_has_a_video_area_and_a_control_bar(toolkit: MagicMock) -> None:
+def test_tick_drains_events_and_reschedules(toolkit: MagicMock) -> None:
+    from python_pkg.wsg_grabber.models import Indexed
+
+    events: queue.SimpleQueue[DownloadEvent] = queue.SimpleQueue()
+    events.put(Indexed(known=42))
+    window, _ = _window(review.initial_state(0, []), events)
+    window.tick()
+    assert window.state.indexed == 42
+    _mock(window.widgets.root).after.assert_called_once()
+    assert _mock(window.widgets.root).after.call_args.args[1] == window.tick
+
+
+def test_drain_on_an_empty_queue_is_harmless(toolkit: MagicMock) -> None:
     window, _ = _window(review.initial_state(0, []))
-    assert toolkit.Tk.called
-    assert toolkit.Button.call_count == 3  # keep, pass, undo
-    # two frames: the video area and the control bar below it
-    assert toolkit.Frame.call_count == 2
-    # the video area expands; the bar sits under it rather than over it, because
-    # mpv's --wid child window covers whatever shares its frame
-    assert _mock(window.widgets.video).pack.call_args.kwargs["expand"]
+    window.drain()
+    assert window.state.indexed == 0
 
 
-def test_every_shortcut_is_bound(toolkit: MagicMock) -> None:
-    window, _ = _window(review.initial_state(0, []))
-    calls = _mock(window.widgets.root).bind.call_args_list
-    bound = {call.args[0] for call in calls}
-    assert set(KEEP_KEYS) <= bound
-    assert set(PASS_KEYS) <= bound
-    assert set(QUIT_KEYS) <= bound
-    assert set(UNDO_KEYS) <= bound
-
-
-def test_keep_and_pass_shortcuts_reach_the_callbacks(
+def test_shutdown_cancels_the_tick_and_closes_the_player(
     toolkit: MagicMock,
-    tmp_path: Path,
 ) -> None:
-    state = review.initial_state(2, [_item(tmp_path, "a"), _item(tmp_path, "b")])
-    window, recorder = _window(state)
-    window.attach_player(MagicMock())
-
-    bound = _mock(window.widgets.root).bind.call_args_list
-    handlers = {call.args[0]: call.args[1] for call in bound}
-    handlers[KEEP_KEYS[0]](object())
-    first: object = recorder.commit.call_args.args[0]
-    assert first is Verdict.KEEP
-    handlers[PASS_KEYS[0]](object())
-    second: object = recorder.commit.call_args.args[0]
-    assert second is Verdict.SKIP
-
-
-def test_the_quit_shortcut_shuts_down(toolkit: MagicMock) -> None:
+    """A leaked after-callback or an orphan mpv would outlive the window."""
     window, recorder = _window(review.initial_state(0, []))
-    bound = _mock(window.widgets.root).bind.call_args_list
-    handlers = {call.args[0]: call.args[1] for call in bound}
-    handlers[QUIT_KEYS[0]](object())
+    player = MagicMock()
+    window.attach_player(player)
+    window.tick()
+    window.shutdown()
+    _mock(window.widgets.root).after_cancel.assert_called_once()
+    player.close.assert_called_once()
     recorder.shutdown.assert_called_once()
     _mock(window.widgets.root).destroy.assert_called_once()
 
 
-def test_the_buttons_call_the_same_handlers(
+def test_shutdown_without_a_pending_tick(toolkit: MagicMock) -> None:
+    window, _ = _window(review.initial_state(0, []))
+    window.shutdown()
+    _mock(window.widgets.root).after_cancel.assert_not_called()
+
+
+def test_video_wid_realises_the_window_first(toolkit: MagicMock) -> None:
+    window, _ = _window(review.initial_state(0, []))
+    _mock(window.widgets.video).winfo_id.return_value = 4321
+    assert window.video_wid() == 4321
+    _mock(window.widgets.root).update.assert_called()
+
+
+def test_run_starts_ticking_then_enters_the_loop(toolkit: MagicMock) -> None:
+    window, _ = _window(review.initial_state(0, []))
+    window.run()
+    _mock(window.widgets.root).mainloop.assert_called_once()
+    _mock(window.widgets.root).after.assert_called_once()
+
+
+def test_undo_takes_back_the_last_verdict(
     toolkit: MagicMock,
     tmp_path: Path,
 ) -> None:
+    """The misclick case: passed something you meant to keep."""
+    state = review.initial_state(2, [_item(tmp_path, "a"), _item(tmp_path, "b")])
+    window, recorder = _window(state)
+    player = MagicMock()
+    window.attach_player(player)
+
+    window.on_pass()
+    assert window.state.current is not None
+    assert window.state.current.md5 == "b-md5"
+    assert window.state.passed == 1
+
+    window.on_undo()
+    recorder.undo.assert_called_once()
+    assert window.state.current is not None
+    assert window.state.current.md5 == "a-md5"
+    assert window.state.passed == 0
+    # and the video that was on screen is not lost
+    assert [item.md5 for item in window.state.pending] == ["b-md5"]
+
+
+def test_the_undo_shortcut_is_wired(toolkit: MagicMock, tmp_path: Path) -> None:
     state = review.initial_state(1, [_item(tmp_path)])
     window, recorder = _window(state)
     window.attach_player(MagicMock())
     window.on_keep()
-    assert recorder.commit.call_args.args[0] is Verdict.KEEP
+    bound = _mock(window.widgets.root).bind.call_args_list
+    handlers = {call.args[0]: call.args[1] for call in bound}
+    handlers[UNDO_KEYS[0]](object())
+    recorder.undo.assert_called_once()
+
+
+def test_the_undo_button_is_disabled_until_there_is_something_to_undo(
+    toolkit: MagicMock,
+    tmp_path: Path,
+) -> None:
+    state = review.initial_state(1, [_item(tmp_path)])
+    window, _ = _window(state)
+    window.attach_player(MagicMock())
+    assert _mock(window.widgets.undo).configure.call_args.kwargs["state"] == "disabled"
+    window.on_keep()
+    assert _mock(window.widgets.undo).configure.call_args.kwargs["state"] == "normal"

@@ -1,0 +1,43 @@
+{
+  "intent": "Clear the last six over-cap test modules in python_pkg, all in wsg_grabber, finishing the package tree.",
+  "scope": [
+    "python_pkg/wsg_grabber/tests/test_player.py (473 -> 229) + test_player_probe.py, test_player_errors.py, test_player_socket.py",
+    "python_pkg/wsg_grabber/tests/test_ui.py (453 -> 214) + test_ui_playback.py, test_ui_idle.py, test_ui_tick.py",
+    "python_pkg/wsg_grabber/tests/test_app.py (429 -> 212) + test_app_undo.py, test_app_undo_history.py, test_app_undo_safety.py",
+    "python_pkg/wsg_grabber/tests/test_net.py (370 -> 250) + test_net_resume.py",
+    "python_pkg/wsg_grabber/tests/test_downloader.py (341 -> 228) + test_downloader_retry.py, test_downloader_outcomes.py",
+    "python_pkg/wsg_grabber/tests/test_downloader_part2.py (333 -> 184) + test_downloader_lifecycle.py, test_downloader_conditional.py",
+    "Non-goal: no assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "Partitioned all six at topic boundaries, in two passes: the first cut left five files still over, so each was cut again. Eleven new modules, named for the behaviour they cover rather than a partN suffix.",
+    "Each split copies the entire original preamble - imports, local mock builders and the module's pytest fixtures - into the new file. Carrying the fixtures matters more here than in other packages: test_player, test_ui and test_app each define module-scoped fixtures (started, toolkit, session) that their tests take as parameters, and pytest resolves those lexically within the module.",
+    "conftest.py's autouse isolate_paths fixture still applies to every new module unchanged, since they all sit in the same directory.",
+    "No patch string changed. The wsg_grabber source was split under the cap in earlier sessions, so every patched name already resolves on the module each test file names."
+  ],
+  "verification": [
+    {
+      "command": "timeout 180 env PYTHONPATH=. python3 -m pytest python_pkg/wsg_grabber/tests -q",
+      "result": "pass",
+      "evidence": "277 passed before the split and 277 passed after both passes - identical count. Verified after each of the two rounds, not just at the end."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep python_pkg",
+      "result": "pass",
+      "evidence": "No output at all: every file under python_pkg is now within the 250-line cap, down from 50 violations when this effort started and 13 at the beginning of this session's python_pkg work."
+    },
+    {
+      "command": "pre-commit run --files <the touched test files and artifacts>",
+      "result": "pass",
+      "evidence": "ruff pruned 82 imports the preamble copy left unused across the eleven new modules and reformatted 14 files; clean on re-run, with mypy, pylint, name-tests-test and pytest-with-coverage all passing at 100%."
+    }
+  ],
+  "risks": [
+    "Copying a preamble that defines pytest fixtures duplicates those fixture definitions across the split halves. That is harmless while both halves use them, but a later edit that removes the last user in one half leaves a dead fixture ruff will not flag, since a fixture is referenced by name rather than imported.",
+    "test_net.py landed at exactly 250 lines - at the cap, not under it by any margin. A single added line there will trip the gate."
+  ],
+  "rollback": [
+    "git revert the commit; the six originals return at their previous sizes and the eleven new modules disappear.",
+    "After rollback, re-run the package suite and confirm it still reports 277 passed."
+  ]
+}

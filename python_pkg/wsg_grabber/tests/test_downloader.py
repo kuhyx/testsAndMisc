@@ -15,18 +15,13 @@ import pytest
 
 from python_pkg.wsg_grabber import db, downloader, net, store, store_threads
 from python_pkg.wsg_grabber.models import (
-    Downloaded,
     DownloadEvent,
-    DownloadResult,
-    FileReady,
     Indexed,
     JsonResponse,
-    Outcome,
     RemoteFile,
     TaskKind,
     ThreadRef,
 )
-from python_pkg.wsg_grabber.states import FileState
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -226,116 +221,3 @@ def test_a_board_without_an_archive_is_tolerated(
         side_effect=[_json([]), _json(None, not_found=True)],
     ):
         assert worker.run_once() is TaskKind.SCAN
-
-
-def test_a_completed_download_is_renamed_and_announced(
-    deps: downloader.WorkerDeps,
-) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-
-    def fake_download(_session: object, transfer: net.Transfer) -> DownloadResult:
-        transfer.part_path.write_bytes(_BODY)
-        return DownloadResult(outcome=Outcome.COMPLETED, bytes_done=len(_BODY))
-
-    with patch.object(net, "download", side_effect=fake_download):
-        assert worker.run_once() is TaskKind.DOWNLOAD
-
-    events = _drain(deps.events)
-    ready = [event for event in events if isinstance(event, FileReady)]
-    assert len(ready) == 1
-    assert ready[0].item.md5 == _MD5
-    assert ready[0].item.path.exists()
-    assert not ready[0].item.path.name.endswith(".part")
-    assert ready[0].item.orig_name == "clip.webm"
-    assert any(isinstance(event, Downloaded) for event in events)
-    assert worker.downloaded == 1
-    assert store.counts(deps.conn)[FileState.READY.value] == 1
-
-
-def test_a_404_is_terminal_and_never_retried(deps: downloader.WorkerDeps) -> None:
-    """This is what stops a fallen-off thread being re-fetched every run."""
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with patch.object(
-        net,
-        "download",
-        return_value=DownloadResult(outcome=Outcome.NOT_FOUND, bytes_done=0),
-    ):
-        worker.run_once()
-    assert store.counts(deps.conn)[FileState.GONE.value] == 1
-    assert store.pending_downloads(deps.conn) == 0
-
-
-def test_a_transient_failure_is_retried(deps: downloader.WorkerDeps) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with patch.object(
-        net,
-        "download",
-        return_value=DownloadResult(outcome=Outcome.TRANSIENT, bytes_done=0),
-    ):
-        worker.run_once()
-    assert store.counts(deps.conn)[FileState.FAILED.value] == 1
-    assert store.pending_downloads(deps.conn) == 1
-
-
-def test_a_transient_failure_gives_up_after_the_attempt_budget(
-    deps: downloader.WorkerDeps,
-) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with patch.object(
-        net,
-        "download",
-        return_value=DownloadResult(outcome=Outcome.TRANSIENT, bytes_done=0),
-    ):
-        for _ in range(3):
-            worker.run_once()
-    assert store.counts(deps.conn)[FileState.GONE.value] == 1
-
-
-def test_a_retry_after_pauses_the_worker(deps: downloader.WorkerDeps) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with (
-        patch.object(
-            net,
-            "download",
-            return_value=DownloadResult(
-                outcome=Outcome.TRANSIENT,
-                bytes_done=0,
-                retry_after=5.0,
-            ),
-        ),
-        patch.object(deps.stop, "wait") as waited,
-    ):
-        worker.run_once()
-    assert any(call.args and call.args[0] == 5.0 for call in waited.call_args_list)
-
-
-def test_a_checksum_mismatch_marks_the_file_corrupt(
-    deps: downloader.WorkerDeps,
-) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with patch.object(
-        net,
-        "download",
-        return_value=DownloadResult(outcome=Outcome.CHECKSUM_MISMATCH, bytes_done=0),
-    ):
-        worker.run_once()
-    assert store.counts(deps.conn)[FileState.CORRUPT.value] == 1
-
-
-def test_an_aborted_download_stays_resumable(deps: downloader.WorkerDeps) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with patch.object(
-        net,
-        "download",
-        return_value=DownloadResult(outcome=Outcome.ABORTED, bytes_done=4),
-    ):
-        worker.run_once()
-    assert store.counts(deps.conn)[FileState.FAILED.value] == 1
-    assert store.pending_downloads(deps.conn) == 1

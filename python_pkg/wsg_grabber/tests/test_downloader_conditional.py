@@ -1,8 +1,4 @@
-"""More tests for the background worker.
-
-Split from test_downloader.py to stay under this repo's 500-line-per-file cap;
-the fixtures are duplicated because each test module must stand alone.
-"""
+"""Tests for conditional board fetches and stored stamps."""
 
 from __future__ import annotations
 
@@ -13,16 +9,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from python_pkg.wsg_grabber import db, downloader, net, store
+from python_pkg.wsg_grabber import db, downloader, net, store_threads
+from python_pkg.wsg_grabber.constants import THREADS_URL
 from python_pkg.wsg_grabber.models import (
     DownloadEvent,
-    DownloadResult,
     JsonResponse,
-    Outcome,
     RemoteFile,
-    ThreadRef,
 )
-from python_pkg.wsg_grabber.states import FileState
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -124,56 +117,52 @@ def _drain(events: queue.SimpleQueue[DownloadEvent]) -> list[DownloadEvent]:
     return out
 
 
-def test_download_progress_is_persisted(deps: downloader.WorkerDeps) -> None:
+def test_the_board_endpoints_are_fetched_conditionally(
+    deps: downloader.WorkerDeps,
+) -> None:
+    """Without this an idle reviewer re-fetches the board unconditionally forever."""
+    deps.include_archive = True
     worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-
-    def fake_download(_session: object, transfer: net.Transfer) -> DownloadResult:
-        assert transfer.on_progress is not None
-        transfer.on_progress(7)
-        return DownloadResult(outcome=Outcome.ABORTED, bytes_done=7)
-
-    with patch.object(net, "download", side_effect=fake_download):
+    stamp = "Mon, 27 Jul 2026 10:00:00 GMT"
+    with patch.object(
+        net,
+        "get_json",
+        return_value=_json([], last_modified=stamp),
+    ) as fake:
         worker.run_once()
-    assert deps.conn.execute("SELECT bytes_done FROM files").fetchone()[0] == 7
+        sent_first = [call.args[2] for call in fake.call_args_list]
+        worker._catalog_fresh = False
+        fake.reset_mock()
+        worker.run_once()
+        sent_again = [call.args[2] for call in fake.call_args_list]
+
+    assert sent_first == [None, None]  # nothing stored yet
+    assert sent_again == [stamp, stamp]  # the stamp goes back
 
 
-def test_claim_losing_a_race_is_a_no_op(deps: downloader.WorkerDeps) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    with (
-        patch.object(store, "claim_next", return_value=None),
-        patch.object(
-            net,
-            "download",
-        ) as never,
-    ):
-        worker._download_one()
-    never.assert_not_called()
-
-
-def test_deleted_upstream_files_are_written_off(
+def test_a_304_on_the_board_keeps_the_stored_stamp(
     deps: downloader.WorkerDeps,
 ) -> None:
     worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    thread = {"posts": [{"no": 1, "md5": _MD5, "filedeleted": 1}]}
-    # Driven directly: with a file queued, run_once would always pick DOWNLOAD
-    # over SCAN, so the thread fetch under test would never happen.
-    with patch.object(net, "get_json", return_value=_json(thread)):
-        worker._fetch_thread(ThreadRef(7, 100))
-    assert store.counts(deps.conn)[FileState.GONE.value] == 1
-    assert store.pending_downloads(deps.conn) == 0
+    stamp = "Mon, 27 Jul 2026 10:00:00 GMT"
+    with patch.object(net, "get_json", return_value=_json([], last_modified=stamp)):
+        worker.run_once()
+    with patch.object(net, "get_json", return_value=_json(None, not_modified=True)):
+        worker._catalog_fresh = False
+        worker.run_once()
+    assert store_threads.cached_last_modified(deps.conn, THREADS_URL) == stamp
 
 
-def test_an_already_downloaded_file_survives_upstream_deletion(
-    deps: downloader.WorkerDeps,
+def test_a_worker_that_cannot_build_its_resources_reports_it(
+    tmp_path: Path,
 ) -> None:
-    """Once the bytes are ours, the post being deleted is irrelevant."""
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    store.mark_downloaded(deps.conn, _MD5, "1-x.webm")
-    thread = {"posts": [{"no": 1, "md5": _MD5, "filedeleted": 1}]}
-    with patch.object(net, "get_json", return_value=_json(thread)):
-        worker._fetch_thread(ThreadRef(7, 100))
-    assert store.state_of(deps.conn, _MD5) is FileState.READY
+    """Otherwise the reviewer waits on downloads that will never come."""
+    reported: list[str] = []
+    thread = downloader.start(
+        lambda: (_ for _ in ()).throw(OSError("no database")),
+        reported.append,
+    )
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert reported
+    assert "no database" in reported[0]

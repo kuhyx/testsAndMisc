@@ -1,8 +1,4 @@
-"""More tests for the background worker.
-
-Split from test_downloader.py to stay under this repo's 500-line-per-file cap;
-the fixtures are duplicated because each test module must stand alone.
-"""
+"""Tests for how completed and failed downloads are recorded."""
 
 from __future__ import annotations
 
@@ -15,12 +11,14 @@ import pytest
 
 from python_pkg.wsg_grabber import db, downloader, net, store
 from python_pkg.wsg_grabber.models import (
+    Downloaded,
     DownloadEvent,
     DownloadResult,
+    FileReady,
     JsonResponse,
     Outcome,
     RemoteFile,
-    ThreadRef,
+    TaskKind,
 )
 from python_pkg.wsg_grabber.states import FileState
 
@@ -124,56 +122,40 @@ def _drain(events: queue.SimpleQueue[DownloadEvent]) -> list[DownloadEvent]:
     return out
 
 
-def test_download_progress_is_persisted(deps: downloader.WorkerDeps) -> None:
+def test_a_completed_download_is_renamed_and_announced(
+    deps: downloader.WorkerDeps,
+) -> None:
     worker = downloader.Worker(deps)
     store.record_files(deps.conn, [_remote()])
 
     def fake_download(_session: object, transfer: net.Transfer) -> DownloadResult:
-        assert transfer.on_progress is not None
-        transfer.on_progress(7)
-        return DownloadResult(outcome=Outcome.ABORTED, bytes_done=7)
+        transfer.part_path.write_bytes(_BODY)
+        return DownloadResult(outcome=Outcome.COMPLETED, bytes_done=len(_BODY))
 
     with patch.object(net, "download", side_effect=fake_download):
-        worker.run_once()
-    assert deps.conn.execute("SELECT bytes_done FROM files").fetchone()[0] == 7
+        assert worker.run_once() is TaskKind.DOWNLOAD
+
+    events = _drain(deps.events)
+    ready = [event for event in events if isinstance(event, FileReady)]
+    assert len(ready) == 1
+    assert ready[0].item.md5 == _MD5
+    assert ready[0].item.path.exists()
+    assert not ready[0].item.path.name.endswith(".part")
+    assert ready[0].item.orig_name == "clip.webm"
+    assert any(isinstance(event, Downloaded) for event in events)
+    assert worker.downloaded == 1
+    assert store.counts(deps.conn)[FileState.READY.value] == 1
 
 
-def test_claim_losing_a_race_is_a_no_op(deps: downloader.WorkerDeps) -> None:
+def test_a_404_is_terminal_and_never_retried(deps: downloader.WorkerDeps) -> None:
+    """This is what stops a fallen-off thread being re-fetched every run."""
     worker = downloader.Worker(deps)
     store.record_files(deps.conn, [_remote()])
-    with (
-        patch.object(store, "claim_next", return_value=None),
-        patch.object(
-            net,
-            "download",
-        ) as never,
+    with patch.object(
+        net,
+        "download",
+        return_value=DownloadResult(outcome=Outcome.NOT_FOUND, bytes_done=0),
     ):
-        worker._download_one()
-    never.assert_not_called()
-
-
-def test_deleted_upstream_files_are_written_off(
-    deps: downloader.WorkerDeps,
-) -> None:
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    thread = {"posts": [{"no": 1, "md5": _MD5, "filedeleted": 1}]}
-    # Driven directly: with a file queued, run_once would always pick DOWNLOAD
-    # over SCAN, so the thread fetch under test would never happen.
-    with patch.object(net, "get_json", return_value=_json(thread)):
-        worker._fetch_thread(ThreadRef(7, 100))
+        worker.run_once()
     assert store.counts(deps.conn)[FileState.GONE.value] == 1
     assert store.pending_downloads(deps.conn) == 0
-
-
-def test_an_already_downloaded_file_survives_upstream_deletion(
-    deps: downloader.WorkerDeps,
-) -> None:
-    """Once the bytes are ours, the post being deleted is irrelevant."""
-    worker = downloader.Worker(deps)
-    store.record_files(deps.conn, [_remote()])
-    store.mark_downloaded(deps.conn, _MD5, "1-x.webm")
-    thread = {"posts": [{"no": 1, "md5": _MD5, "filedeleted": 1}]}
-    with patch.object(net, "get_json", return_value=_json(thread)):
-        worker._fetch_thread(ThreadRef(7, 100))
-    assert store.state_of(deps.conn, _MD5) is FileState.READY
