@@ -25,6 +25,10 @@ BOLD='\033[1m'
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${SCRIPT_DIR}"
+
+# Sourced before argument parsing: --help calls usage() from here.
+# shellcheck source=./lib/lint_output.sh
+source "${SCRIPT_DIR}/lib/lint_output.sh"
 PYTHON_PATHS=(
 	"PYTHON"
 	"articles"
@@ -73,19 +77,7 @@ while [[ $# -gt 0 ]]; do
 		shift
 		;;
 	--help | -h)
-		echo "Usage: $0 [OPTIONS] [FILES...]"
-		echo ""
-		echo "Options:"
-		echo "  --fix, -f      Auto-fix issues where possible"
-		echo "  --quick, -q    Quick mode (ruff + mypy only)"
-		echo "  --report, -r   Generate detailed reports to ./lint-reports/"
-		echo "  --help, -h     Show this help message"
-		echo ""
-		echo "Examples:"
-		echo "  $0                    # Lint all Python files"
-		echo "  $0 --fix              # Lint and auto-fix"
-		echo "  $0 PYTHON/            # Lint specific directory"
-		echo "  $0 --quick --fix      # Quick lint with auto-fix"
+		usage "$0"
 		exit 0
 		;;
 	*)
@@ -110,77 +102,6 @@ fi
 # Track overall status
 OVERALL_STATUS=0
 FAILED_TOOLS=()
-
-# ==============================================================================
-# Helper functions
-# ==============================================================================
-
-print_header() {
-	echo ""
-	echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"
-	echo -e "${BOLD}${BLUE}  $1${NC}"
-	echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"
-}
-
-print_subheader() {
-	echo ""
-	echo -e "${CYAN}──────────────────────────────────────────────────────────────${NC}"
-	echo -e "${CYAN}  $1${NC}"
-	echo -e "${CYAN}──────────────────────────────────────────────────────────────${NC}"
-}
-
-print_success() {
-	echo -e "${GREEN}✓${NC} $1"
-}
-
-print_warning() {
-	echo -e "${YELLOW}⚠${NC} $1"
-}
-
-print_error() {
-	echo -e "${RED}✗${NC} $1"
-}
-
-print_info() {
-	echo -e "${BLUE}ℹ${NC} $1"
-}
-
-run_tool() {
-	local tool_name="$1"
-	local tool_cmd="$2"
-	local report_file="${PROJECT_ROOT}/lint-reports/${tool_name}.txt"
-
-	print_subheader "Running ${tool_name}..."
-
-	if [[ "${REPORT_MODE}" == true ]]; then
-		if eval "${tool_cmd}" 2>&1 | tee "${report_file}"; then
-			print_success "${tool_name} passed"
-			return 0
-		else
-			print_error "${tool_name} found issues (see ${report_file})"
-			FAILED_TOOLS+=("${tool_name}")
-			return 1
-		fi
-	else
-		if eval "${tool_cmd}"; then
-			print_success "${tool_name} passed"
-			return 0
-		else
-			print_error "${tool_name} found issues"
-			FAILED_TOOLS+=("${tool_name}")
-			return 1
-		fi
-	fi
-}
-
-check_tool() {
-	if command -v "$1" &>/dev/null; then
-		return 0
-	else
-		print_warning "$1 not found, skipping..."
-		return 1
-	fi
-}
 
 # ==============================================================================
 # Main linting process
@@ -227,108 +148,9 @@ if [[ "${QUICK_MODE}" == true ]]; then
 	fi
 fi
 
-# ==============================================================================
-# PYLINT - Comprehensive linting
-# ==============================================================================
-if check_tool pylint; then
-	run_tool "pylint" "pylint --rcfile=pyproject.toml --jobs=0 --fail-under=10 ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# BANDIT - Security linting
-# ==============================================================================
-if check_tool bandit; then
-	run_tool "bandit" "bandit -c pyproject.toml -r ${TARGET_FILES} --severity-level low --confidence-level low" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# VULTURE - Dead code detection
-# ==============================================================================
-if check_tool vulture; then
-	run_tool "vulture" "vulture --min-confidence 80 ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# FLAKE8 - Traditional linter
-# ==============================================================================
-if check_tool flake8; then
-	run_tool "flake8" "flake8 --max-line-length=88 --extend-ignore=E203,W503 --max-complexity=10 ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# PYCODESTYLE - PEP 8 style checker
-# ==============================================================================
-if check_tool pycodestyle; then
-	run_tool "pycodestyle" "pycodestyle --max-line-length=88 --ignore=E203,W503 ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# PYDOCSTYLE - Docstring style checker
-# ==============================================================================
-if check_tool pydocstyle; then
-	run_tool "pydocstyle" "pydocstyle --convention=google ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# RADON - Complexity metrics
-# ==============================================================================
-if check_tool radon; then
-	print_subheader "Running radon (complexity analysis)..."
-	echo ""
-	echo -e "${MAGENTA}Cyclomatic Complexity:${NC}"
-	radon cc -a -s "${TARGET_FILES_ARR[@]}" || true
-	echo ""
-	echo -e "${MAGENTA}Maintainability Index:${NC}"
-	radon mi -s "${TARGET_FILES_ARR[@]}" || true
-
-	if [[ "${REPORT_MODE}" == true ]]; then
-		radon cc -a -s "${TARGET_FILES_ARR[@]}" >"${PROJECT_ROOT}/lint-reports/radon-cc.txt" 2>&1 || true
-		radon mi -s "${TARGET_FILES_ARR[@]}" >"${PROJECT_ROOT}/lint-reports/radon-mi.txt" 2>&1 || true
-	fi
-fi
-
-# ==============================================================================
-# INTERROGATE - Docstring coverage
-# ==============================================================================
-if check_tool interrogate; then
-	run_tool "interrogate" "interrogate -v --fail-under=0 ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# PYRIGHT - Microsoft's type checker (optional, very strict)
-# ==============================================================================
-if check_tool pyright; then
-	run_tool "pyright" "pyright ${TARGET_FILES}" || OVERALL_STATUS=1
-fi
-
-# ==============================================================================
-# AUTOFLAKE - Unused imports/variables (fix mode only)
-# ==============================================================================
-if [[ "${FIX_MODE}" == true ]] && check_tool autoflake; then
-	print_subheader "Running autoflake (removing unused imports)..."
-	find "${TARGET_FILES_ARR[@]}" -name "*.py" -type f -exec autoflake --in-place --remove-all-unused-imports --remove-unused-variables {} \;
-	print_success "autoflake completed"
-fi
-
-# ==============================================================================
-# PYUPGRADE - Upgrade Python syntax (fix mode only)
-# ==============================================================================
-if [[ "${FIX_MODE}" == true ]] && check_tool pyupgrade; then
-	print_subheader "Running pyupgrade (upgrading syntax to Python 3.10+)..."
-	find "${TARGET_FILES_ARR[@]}" -name "*.py" -type f -exec pyupgrade --py310-plus {} \;
-	print_success "pyupgrade completed"
-fi
-
-# ==============================================================================
-# CODESPELL - Spell checking
-# ==============================================================================
-if check_tool codespell; then
-	if [[ "${FIX_MODE}" == true ]]; then
-		run_tool "codespell" "codespell -w --skip='*.json,*.lock,.git,__pycache__,.venv' ${TARGET_FILES}" || OVERALL_STATUS=1
-	else
-		run_tool "codespell" "codespell --skip='*.json,*.lock,.git,__pycache__,.venv' ${TARGET_FILES}" || OVERALL_STATUS=1
-	fi
-fi
+# shellcheck source=./lib/lint_full_tools.sh
+source "${SCRIPT_DIR}/lib/lint_full_tools.sh"
+run_full_mode_linters
 
 # ==============================================================================
 # Summary
@@ -346,7 +168,7 @@ if [[ ${OVERALL_STATUS} -ne 0 ]]; then
 		print_info "Detailed reports saved to: ${PROJECT_ROOT}/lint-reports/"
 	fi
 	print_info "Run with --fix to auto-fix issues where possible"
-	exit ${OVERALL_STATUS}
+	exit "${OVERALL_STATUS}"
 else
 	print_success "All linting checks passed!"
 	exit 0
