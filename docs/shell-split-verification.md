@@ -73,8 +73,17 @@ exit 1 with the later calls missing from the trace, and the nameref shows up as
 `circular name reference` in stderr despite exit 0 and correct stdout. A run
 against a fixture calling `systemctl` left the real unit untouched.
 
-Two things it does not do:
+Three things to watch:
 
+- **A silent stub produces an identical, meaningless trace.** This is the
+  trap. `du` stubbed to print nothing makes `size=$(du -sk x)` empty, so every
+  `((size > 0))` is false, every guarded branch is skipped, and two such traces
+  match perfectly while exercising none of the code you changed. Give
+  value-producing commands a plausible output: `--stub 'du=4096\t/some/dir'`.
+  Measured on a fixture: the empty stub printed `size=[]` / `branch skipped`
+  and never reached the guarded `sudo rm -rf`; the valued stub printed
+  `size=[4096]` / `BRANCH TAKEN` and captured it. Ask of every trace: _did this
+  actually go down the branch I touched?_
 - **Stubs always exit 0.** A script that branches on a real failure status
   takes a path it would not take live. Hand-write a stub for those and say so
   in the split's evidence file.
@@ -83,6 +92,17 @@ Two things it does not do:
   state harmlessly and a blanket stub would change what they see. Grep the
   target for network and build verbs, then pass them:
   `--stub git,curl,makepkg`.
+
+**Scripts whose job is placing files** (`install_pacman_wrapper.sh`,
+`block_compulsive_opening.sh`) are not yet tractable here: stub `cp`/`chmod`/
+`ln` and the trace is nearly empty, don't stub them and the run rewrites the
+live system. Those need a fakeroot-style prefix redirect — a harness change,
+not a split. Do not trace one until that exists.
+
+**Run the baseline from the script's own directory** when it reads relative
+paths. `fresh-install/main.sh` reads `aur_packages.txt` and
+`pacman_packages.txt` from the cwd; tracing it from elsewhere dies at the first
+read and looks exactly like a broken split.
 
 Note it does not need a `main()`, which matters: none of the remaining
 near-miss shell targets (`install_usage_monitoring.sh`,

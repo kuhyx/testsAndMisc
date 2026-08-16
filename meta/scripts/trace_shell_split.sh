@@ -87,15 +87,36 @@ validate_requirements() {
 # Stubs report success because the point is to reach later code paths, not to
 # simulate failure. A script whose logic branches on a real exit status needs a
 # hand-written stub instead -- note that in the split's evidence file.
+#
+# A stub may carry an output value as `name=text` (from --stub). This matters
+# more than it looks: a stub that prints nothing makes every `size=$(du ...)`
+# empty, so every `((size > 0))` is false and the trace walks straight past all
+# the branches you wanted to compare. Two such traces are identical and
+# meaningless. Give value-producing commands a plausible non-zero output.
 write_stubs() {
-	local bin_dir="$1" name
+	local bin_dir="$1" entry name value
 	mkdir -p "$bin_dir"
-	for name in "${DEFAULT_STUBBED_COMMANDS[@]}" ${EXTRA_STUBS[@]+"${EXTRA_STUBS[@]}"}; do
-		cat >"$bin_dir/$name" <<STUB
-#!/usr/bin/env bash
-printf '%s %s\n' "$name" "\$*" >>"\$TRACE_FILE"
+	for entry in "${DEFAULT_STUBBED_COMMANDS[@]}" ${EXTRA_STUBS[@]+"${EXTRA_STUBS[@]}"}; do
+		name="${entry%%=*}"
+		value=""
+		if [[ $entry == *=* ]]; then
+			value="${entry#*=}"
+		fi
+		# Quoted heredoc: everything is literal, so $* and $TRACE_FILE reach
+		# the generated stub instead of expanding here. Only $name and $value
+		# are interpolated, via the unquoted echo lines around it.
+		{
+			echo "#!/usr/bin/env bash"
+			echo "STUB_NAME=$(printf '%q' "$name")"
+			echo "STUB_VALUE=$(printf '%q' "$value")"
+			cat <<'STUB'
+printf '%s %s\n' "$STUB_NAME" "$*" >>"$TRACE_FILE"
+if [[ -n $STUB_VALUE ]]; then
+	printf '%s\n' "$STUB_VALUE"
+fi
 exit 0
 STUB
+		} >"$bin_dir/$name"
 		chmod +x "$bin_dir/$name"
 	done
 }
