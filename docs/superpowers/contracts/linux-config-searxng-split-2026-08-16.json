@@ -1,0 +1,19 @@
+{
+  "title": "Split setup_searxng.sh under the 250-line cap",
+  "objective": "Bring linux_configuration/scripts/single_use/features/setup_searxng.sh (912 lines) under the cap, and establish the verification a split must pass when the moved code generates service configuration.",
+  "acceptance_criteria": [
+    "The entry script and all six new libs are at most 250 lines.",
+    "The pre-commit shellcheck hook passes on every touched file, with no new suppression and no disable directive.",
+    "No lib sources a sibling: the entry script sources all six directly.",
+    "The stubbed run reports every moved function as defined.",
+    "The content the script generates is byte-identical: comparing the non-comment lines of the original write_stack against the three functions it became must produce the same hash. A split that quietly altered a compose file or settings.yml would pass every other check.",
+    "The comment explaining why settings.yml is mode 640 rather than 600 travels with the code it explains.",
+    "No script is executed."
+  ],
+  "out_of_scope": [
+    "Executing the setup, starting containers or reloading Caddy.",
+    "Changing anything the script writes.",
+    "The other very large scripts (setup_nextcloud_raspberry.sh, check_and_enable_services.sh and the rest), which are separate commits."
+  ],
+  "verifier": "meta/scripts/verify_shell_split.sh, plus an md5 comparison of the sorted non-comment lines of the original write_stack against its three successor functions, plus pre-commit run --files and check_file_length.sh."
+}

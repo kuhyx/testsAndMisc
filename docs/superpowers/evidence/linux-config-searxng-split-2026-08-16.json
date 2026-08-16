@@ -1,0 +1,43 @@
+{
+  "intent": "Split setup_searxng.sh (912 lines) under the cap, the first of the very large scripts, and establish how to verify a split that moves generated config content.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/setup_searxng.sh (912 -> 184)",
+    "lib/searxng_stack.sh, searxng_settings.sh, searxng_limiter.sh, searxng_start.sh, searxng_expose.sh, searxng_status.sh (new)",
+    "Non-goal: no script executed, no generated config content changed"
+  ],
+  "changes": [
+    "Six libs rather than one or two: the script has four clear phases (write the stack, start it, expose it, report status) and write_stack alone was 342 lines because it emits three config files from heredocs.",
+    "write_stack became three functions, one per file written, keeping each heredoc with the comment that explains it - including the note about settings.yml needing mode 640 rather than 600, which records a real failure (the granian worker dies with EACCES at 600).",
+    "The entry script now sources all six libs directly; no lib sources a sibling."
+  ],
+  "verification": [
+    {
+      "command": "meta/scripts/verify_shell_split.sh setup_searxng.sh write_stack write_searx_settings write_searx_limiter wait_for_site status_cmd setup_cmd ensure_firewall",
+      "result": "pass",
+      "evidence": "'libs sourced, functions defined' - all seven functions resolve across the six libs."
+    },
+    {
+      "command": "compare the non-comment lines of the original write_stack against the three new functions, sorted, by md5",
+      "result": "pass",
+      "evidence": "c90298c6533a64458e74e3032b5d5279 on both sides. Every line of emitted compose, settings.yml and limiter.toml content is byte-identical; the only additions are the two function wrappers and the two calls to them. This is the check that matters for a script whose whole job is writing config - the stubbed run proves the functions exist, not that what they write is unchanged."
+    },
+    {
+      "command": "pre-commit run --files <changed>",
+      "result": "pass",
+      "evidence": "shellcheck, shfmt, the shebang-executable hook and jscpd all pass, with six new libs in one commit."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "None of the seven files is listed; the largest lib is 235 lines."
+    }
+  ],
+  "risks": [
+    "Not executed: it writes /etc/searxng config, starts containers and reloads Caddy. The content-hash comparison is the substitute for running it, and is stronger evidence than the stubbed run for this particular script.",
+    "searxng_settings.sh is 235 lines, mostly one heredoc. Any addition to settings.yml pushes it over the cap, and the next seam there is not obvious - the heredoc cannot be split without changing what is written."
+  ],
+  "rollback": [
+    "git revert the commit; setup_searxng.sh returns to 912 lines and the six libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored script."
+  ]
+}
