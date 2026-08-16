@@ -1,0 +1,19 @@
+{
+  "title": "Split brother_printer/cups_queue.py under the 250-line cap",
+  "objective": "Bring python_pkg/brother_printer/cups_queue.py (424 lines) under the repo-wide 250-line cap by moving the queue-status display and the interactive fix prompt into a new _queue_fix.py, chosen so the CUPS-mutating action primitives stay where their tests patch subprocess and time.",
+  "acceptance_criteria": [
+    "cups_queue.py and the new _queue_fix.py are each at most 250 lines.",
+    "The brother_printer suite still reports exactly 402 passing tests -- the same count as before the split, proving no test was dropped or silently skipped.",
+    "The package keeps 100% branch coverage of the brother_printer source modules.",
+    "_cups_enable_printer, _cups_cancel_all_jobs, _cups_cancel_job and _cups_restart_service remain defined in cups_queue.py, so test_cups_queue.py's patches of subprocess, time, shutil and Path on that module still intercept every call that would otherwise reach the live CUPS daemon.",
+    "No assertion is changed and no test is deleted, skipped or weakened; the only test edits are the MOD constant and the import module path following the moved code.",
+    "No suppression is added and no coverage exclusion is introduced."
+  ],
+  "out_of_scope": [
+    "Changing what any test asserts, or what any display string contains.",
+    "Splitting the brother_printer test files, which are separate commits.",
+    "Moving the _cups_* primitives, which would let an unpatched subprocess.run restart the real CUPS service during the test run.",
+    "Adding a re-export shim in cups_queue for display_cups_queue_status; importers point at the new module directly to keep the dependency direction one-way."
+  ],
+  "verifier": "PYTHONPATH=. python3 -m pytest python_pkg/brother_printer/tests -q (expects exactly 402 passed), plus pre-commit run --files on the touched files, plus bash ~/utils/scripts/check_file_length.sh --all for the cap."
+}

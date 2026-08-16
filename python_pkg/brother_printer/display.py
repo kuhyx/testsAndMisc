@@ -14,6 +14,7 @@ from python_pkg.brother_printer._page_count import (
     _display_page_count_estimate,
     _display_page_delivery_warning,
 )
+from python_pkg.brother_printer._queue_fix import display_cups_queue_status
 from python_pkg.brother_printer._severity import (
     _SEVERITY_COLORS,
     _SEVERITY_ICONS,
@@ -38,10 +39,7 @@ from python_pkg.brother_printer.constants import (
     _out,
     get_status_info,
 )
-from python_pkg.brother_printer.cups_queue import (
-    display_cups_queue_status,
-    get_cups_queue_status,
-)
+from python_pkg.brother_printer.cups_queue import get_cups_queue_status
 
 if TYPE_CHECKING:
     from python_pkg.brother_printer.data_classes import (

@@ -1,11 +1,11 @@
-"""Tests for brother_printer.cups_queue module - part 2 (interactive fix)."""
+"""Tests for brother_printer._queue_fix module - part 2 (interactive fix)."""
 
 from __future__ import annotations
 
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from python_pkg.brother_printer.cups_queue import (
+from python_pkg.brother_printer._queue_fix import (
     _dwj_cancel_and_enable,
     _dwj_cancel_only,
     _dwj_enable_only,
@@ -19,7 +19,7 @@ from python_pkg.brother_printer.cups_queue import (
 )
 from python_pkg.brother_printer.data_classes import CUPSJob, CUPSQueueStatus
 
-MOD = "python_pkg.brother_printer.cups_queue"
+MOD = "python_pkg.brother_printer._queue_fix"
 
 
 # ── _offer_queue_fix ─────────────────────────────────────────────────

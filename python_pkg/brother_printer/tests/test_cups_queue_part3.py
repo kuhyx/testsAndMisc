@@ -1,16 +1,16 @@
-"""Tests for brother_printer.cups_queue module - part 3 (display status)."""
+"""Tests for brother_printer._queue_fix module - part 3 (display status)."""
 
 from __future__ import annotations
 
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from python_pkg.brother_printer.cups_queue import (
+from python_pkg.brother_printer._queue_fix import (
     display_cups_queue_status,
 )
 from python_pkg.brother_printer.data_classes import CUPSJob, CUPSQueueStatus
 
-MOD = "python_pkg.brother_printer.cups_queue"
+MOD = "python_pkg.brother_printer._queue_fix"
 
 
 class TestDisplayCupsQueueStatus:
