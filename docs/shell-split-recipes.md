@@ -11,10 +11,13 @@ enforcement script that mutates the live system or the phone.**
 - After each split, `bash -n` and `shellcheck` the entry script _and_ every new
   lib. **Neither catches a `source` line that resolves to the wrong path** —
   both passed clean on a split whose lib was unreachable at runtime.
-- So the real check is a **stubbed run**: copy the entry script and its libs to
-  a `mktemp -d`, `sed` the final `main` invocation into a `declare -F` probe,
-  and run it. That executes the `source` lines and nothing else. This caught
-  the bug below; no static check did.
+- So the real check is a **stubbed run**, scripted as
+  `meta/scripts/verify_shell_split.sh <script> <function>...`: it mirrors the
+  repo tree into a `mktemp -d`, replaces the final `main` invocation with a
+  `declare -F` probe, and runs that. The `source` lines execute and nothing
+  else, which makes it safe for installers. Across 18 splits it caught five
+  bugs no static check did. It needs the script to end in `main "$@"`; for the
+  rest, use the by-hand checks below.
 
 ### Use `${BASH_SOURCE[0]}`, not `$0`
 
@@ -94,6 +97,37 @@ grep -rn -E '^\s*(sudo )?(install|cp)\s.*(SCRIPT_DIR|REPO).*/usr/local/' \
 - **An entry script that already declares `SCRIPT_DIR`** — often `readonly`.
   Reuse it instead of adding a second declaration, or the script dies with
   `readonly variable`. `bash -n` and `shellcheck` both pass on that.
+
+### Splitting the same file twice is the risky move
+
+The splitter inserts its `source` line relative to the file as it currently
+stands, so a second pass can **displace the first pass's line**. On
+`20-dump-stock.sh` that left `verify_dump` called but never defined, and the
+repair then put the line inside the lib rather than the entry script.
+
+After any double split: `grep -n 'source "\$SCRIPT_DIR' <entry> <libs>` and
+check that the entry sources **every** lib and **no lib sources another**.
+`shellcheck` without `-x` on a lib is what surfaces this — a lib sourcing a
+sibling reports SC1091 "does not exist", because the relative path is only
+valid from the entry script's directory.
+
+### Globals read across the seam
+
+Common, and the fix depends on how many:
+
+- **One or two, module-level constants** — rename to UPPERCASE, matching what
+  the surrounding files already do (`QUIET`, `FORCE`). Worked for
+  `DESKTOP_DIR` in `fix_unity.sh`.
+- **A flag the caller computes** — pass it as a parameter. Worked for
+  `persist_with_systemd_logind`.
+- **Several, threaded through three files** — stop. See below.
+
+### Unguarded `cd` turns up constantly
+
+Two found in five splits (`build_website`, the study-material generator), both
+pre-existing, both a real bug: a failed `cd` runs the next command in the
+caller's directory. They only surface on splitting because a moved function
+gets linted in isolation. Fix with `|| die` / `|| return 1`, never a suppression.
 
 ### When to give up on a seam
 

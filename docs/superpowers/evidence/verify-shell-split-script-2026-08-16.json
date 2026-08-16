@@ -1,0 +1,44 @@
+{
+  "intent": "Commit the shell-split verifier as a repo script instead of leaving it in a scratchpad, since it has caught five bugs that bash -n and shellcheck both missed.",
+  "scope": [
+    "meta/scripts/verify_shell_split.sh (new)",
+    "docs/shell-split-recipes.md (points at it, and records the double-split, cross-seam-global and unguarded-cd findings)",
+    "Non-goal: no behaviour change to any script it checks"
+  ],
+  "changes": [
+    "Added meta/scripts/verify_shell_split.sh. It mirrors the repo tree into a mktemp -d, copies the entry script and its lib/, replaces the final main invocation with a declare -F probe, and runs that. The source lines execute and nothing else, which is what makes it usable on installers and enforcement scripts under decision 6.",
+    "Its header records what it caught across 18 splits: SCRIPT_DIR computed from $0, a redeclared readonly SCRIPT_DIR, a source line displaced by a second split, and two libs sourcing a sibling. It also states its limit - the script must end in main \"$@\".",
+    "Resolved two SC2016 warnings by building the literal dollar sign through a variable rather than adding a disable directive, so the file is clean with no suppression.",
+    "docs/shell-split-recipes.md now points at the script and adds three sections earned in the last two batches: splitting a file twice, globals read across the seam, and unguarded cd."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh <a correctly split script>",
+      "result": "pass",
+      "evidence": "install_joplin.sh reports 'libs sourced, functions defined'."
+    },
+    {
+      "command": "deliberately point the source line at a nonexistent lib, re-run, then restore",
+      "result": "pass",
+      "evidence": "Reports 'lib/DOES_NOT_EXIST.sh: No such file or directory' and exits non-zero; passes again once restored. Tested in both directions, because a checker that never fails is worse than none."
+    },
+    {
+      "command": "shellcheck meta/scripts/verify_shell_split.sh",
+      "result": "pass",
+      "evidence": "Clean with no disable directive."
+    },
+    {
+      "command": "pre-commit run --files <changed>",
+      "result": "pass",
+      "evidence": "shellcheck, shfmt and the shebang-executable hook all pass."
+    }
+  ],
+  "risks": [
+    "The verifier only works on scripts ending in `main \"$@\"` or `main`. Scripts that run top-level statements silently do less: the probe replaces nothing and the script would run for real, so those must use the by-hand checks in the doc instead. The header says so, but it is not enforced.",
+    "It mirrors only linux_configuration/scripts/lib and the script's own lib/. A script sourcing something outside those paths would fail in the temp tree for a reason unrelated to the split."
+  ],
+  "rollback": [
+    "git revert the commit; the script disappears and the doc loses its pointer.",
+    "The scratchpad copy is session-local and not a durable fallback."
+  ]
+}
