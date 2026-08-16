@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**121 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `dbc4d09`; the tree is clean.
+**118 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `2527fb3`; the tree is clean.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
 package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
@@ -15,7 +15,7 @@ at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
 `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
 `wsg_grabber`'s six test modules (277).
 
-**`linux_configuration` is 84 → 63**, in six batches. The pattern is settled
+**`linux_configuration` is 84 → 60**, in seven batches. The pattern is settled
 and scripted — read `docs/shell-split-recipes.md` before touching another one.
 
 Earlier sessions had already done: the `~/utils` exemptions, the
@@ -28,7 +28,7 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 | Directory                             | Count        |
 | ------------------------------------- | ------------ |
-| `linux_configuration`                 | 63           |
+| `linux_configuration`                 | 60           |
 | `phone_focus_mode`                    | 13 (do LAST) |
 | `kcd2_dice_solver`                    | 12           |
 | `focus_owner`                         | 11           |
@@ -36,13 +36,22 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 | `reverse_survivors` / `meta` / `docs` | 4 each       |
 | `.github` / `bucket_catch`            | 2 each       |
 
-**Two `linux_configuration` files are deliberately left over the cap**, both
-recorded in the shell recipes doc:
+**Three `linux_configuration` files are deliberately left over the cap.** Each
+needs a real refactor, not a line-count split — see "When to give up on a
+seam" in the shell recipes doc:
 
+- `diagnose_pacman_hook_stall.sh` (493) — its transaction runner assigns
+  `LAST_ELAPSED` that the caller reads and reads `PACMAN_BIN` that the caller
+  defines. Pass that state explicitly first.
 - `clean_audio.sh` (419) — probe-result globals threaded through what would be
-  two libs. Needs a real refactor, not a line-count split.
+  two libs.
 - `setup_passwordless_system.sh` (374) — no `main()`, so the top-level
   invocation block has to be preserved by hand.
+
+**The pre-commit `shellcheck` hook lints each lib in isolation**, with no view
+of the caller's globals. That is stricter than `shellcheck -x` on the entry
+script and is the check that decides whether a seam is real — run
+`pre-commit run shellcheck --files <all touched>` before believing a split.
 
 The next easy wins are the remaining `main()`-shaped shell scripts; after
 those, `kcd2_dice_solver` / `focus_owner` / `billsplit` (Dart+Kotlin, untouched
@@ -64,9 +73,8 @@ Do not work from a list in this file — it goes stale. Run:
 bash ~/utils/scripts/check_file_length.sh --all
 ```
 
-**Every count in this file is a snapshot and will be wrong by the time you read
-it. Run the script.** The table above is a snapshot at `4b2cd0c`, quoted only
-to tell you where the bulk sits, never to work from.
+**Every count here is a snapshot and will be wrong by the time you read it.
+Run the script.** The table above tells you where the bulk sits, nothing more.
 
 **Do the source files in a package before its tests.** Proven on `wsg_grabber`
 and again on all seven `python_pkg` packages: the test files then split along
@@ -144,9 +152,9 @@ Each rule in both cost a failed gate run or a revert to establish.
 
 ## Split recipes
 
-- **Shell** — extract into `lib/*.sh` sourced by a thin entry script,
-  `set -euo pipefail` in each. Follow `phone_focus_mode/lib/` and
-  `linux_configuration/scripts/lib/common.sh`.
+- **Shell** — extract into `lib/*.sh` sourced by a thin entry script. See
+  `docs/shell-split-recipes.md` for the lib shape; note it corrects the old
+  advice to repeat `set -euo pipefail` in every lib.
 - **Python** — extract cohesive helpers into sibling modules; keep the public
   API stable by re-exporting.
 - **TS/Dart** — extract components; re-export from the original path so no
