@@ -22,6 +22,7 @@
 # Usage:
 #   trace_shell_split.sh <script> [-- <script args>]
 #   trace_shell_split.sh <script> --out <file> [-- <script args>]
+#   trace_shell_split.sh <script> --stub git,curl,makepkg --out <file>
 # ============================================================================
 
 set -euo pipefail
@@ -32,7 +33,12 @@ readonly SCRIPT_NAME
 # Commands that change the system, the phone, or the package set. Each becomes
 # a stub that records its invocation and exits 0. Extend deliberately: a
 # missing name here means the real binary runs.
-readonly STUBBED_COMMANDS=(
+#
+# Deliberately NOT here: `git`, `curl`, `wget`, `makepkg`. Those are stubbed
+# per-run via --stub, because plenty of scripts read git state harmlessly and a
+# blanket git stub would change what they see rather than protect anything.
+# Grep the target for network and build verbs before tracing it.
+readonly DEFAULT_STUBBED_COMMANDS=(
 	sudo pacman yay paru systemctl systemd-run
 	adb fastboot
 	nft iptables ip6tables firewall-cmd
@@ -47,6 +53,7 @@ TARGET=""
 OUT=""
 TEMP_DIR=""
 declare -a SCRIPT_ARGS=()
+declare -a EXTRA_STUBS=()
 
 cleanup() {
 	if [[ -n "${TEMP_DIR:-}" && -d "$TEMP_DIR" ]]; then
@@ -57,9 +64,10 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-	echo "Usage: $SCRIPT_NAME <script> [--out <file>] [-- <script args>]"
+	echo "Usage: $SCRIPT_NAME <script> [--out <file>] [--stub a,b] [-- <script args>]"
 	echo "  <script>      script to trace (not modified)"
 	echo "  --out <file>  write the trace here (default: stdout)"
+	echo "  --stub a,b    also shadow these binaries (e.g. git,curl,makepkg)"
 	echo "  --            everything after this is passed to the script"
 	exit 0
 }
@@ -82,7 +90,7 @@ validate_requirements() {
 write_stubs() {
 	local bin_dir="$1" name
 	mkdir -p "$bin_dir"
-	for name in "${STUBBED_COMMANDS[@]}"; do
+	for name in "${DEFAULT_STUBBED_COMMANDS[@]}" ${EXTRA_STUBS[@]+"${EXTRA_STUBS[@]}"}; do
 		cat >"$bin_dir/$name" <<STUB
 #!/usr/bin/env bash
 printf '%s %s\n' "$name" "\$*" >>"\$TRACE_FILE"
@@ -138,6 +146,11 @@ while [[ $# -gt 0 ]]; do
 	case $1 in
 	--out)
 		OUT="$2"
+		shift 2
+		;;
+	--stub)
+		# Comma-separated extra binaries to shadow for this run only.
+		IFS=',' read -r -a EXTRA_STUBS <<<"$2"
 		shift 2
 		;;
 	-h | --help)

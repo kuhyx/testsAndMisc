@@ -1,0 +1,41 @@
+{
+  "intent": "Let trace_shell_split.sh shadow additional binaries per run, so scripts that clone from AUR or build packages can be traced without touching the network or the package set.",
+  "scope": [
+    "meta/scripts/trace_shell_split.sh",
+    "Non-goal: git/curl/wget/makepkg are deliberately not added to the default set"
+  ],
+  "changes": [
+    "Rename STUBBED_COMMANDS to DEFAULT_STUBBED_COMMANDS and add a --stub a,b,c flag whose names are shadowed for that run only.",
+    "Document why git and friends stay out of the default set: many scripts read git state harmlessly, so a blanket stub would change what they observe rather than protect anything."
+  ],
+  "verification": [
+    {
+      "command": "trace_shell_split.sh on a fixture calling `git clone` and `curl`, with --stub git,curl,makepkg",
+      "result": "pass",
+      "evidence": "Trace captured 'git clone https://example.com/repo.git' and 'curl -sL https://example.com/x'; stdout reached 'reached the end'. No repository was cloned and no request left the machine."
+    },
+    {
+      "command": "Regression: the `set -e` function-tail fixture",
+      "result": "pass",
+      "evidence": "Still exit status 1 with an empty trace and no stdout -- the --stub change did not weaken detection."
+    },
+    {
+      "command": "Regression: the self-referencing nameref fixture",
+      "result": "pass",
+      "evidence": "Still four 'circular name reference' warnings captured in stderr."
+    },
+    {
+      "command": "shellcheck meta/scripts/trace_shell_split.sh; shfmt -d meta/scripts/trace_shell_split.sh",
+      "result": "pass",
+      "evidence": "Both exit 0 with no output."
+    }
+  ],
+  "risks": [
+    "A caller who forgets --stub for a script that shells out to git or curl gets a real clone or a real request. The header comment tells the reader to grep for network and build verbs first; that remains a human step.",
+    "IFS-splitting the --stub value means a binary name containing a comma cannot be passed, which no real binary does."
+  ],
+  "rollback": [
+    "Revert the commit; the harness returns to a fixed default stub list.",
+    "Re-run the three fixtures and confirm the same exit statuses."
+  ]
+}
