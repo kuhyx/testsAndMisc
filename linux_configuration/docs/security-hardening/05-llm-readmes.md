@@ -8,10 +8,11 @@ These should be created in the respective directories:
 # Hosts Guard System - LLM Reference
 
 ## Purpose
+
 Prevent tampering with /etc/hosts to maintain website blocking.
 
 ## Architecture
-````
+```
 
 /etc/hosts (immutable) ←── canonical (/usr/local/share/locked-hosts)
 ↑
@@ -93,4 +94,6 @@ echo "newpackage" >> pacman_blocked_keywords.txt
 sudo ./install_pacman_wrapper.sh
 ````
 
-````
+```
+
+```

@@ -64,7 +64,7 @@ echo "Results: $PASS passed, $FAIL failed"
 echo "=========================================="
 
 exit $FAIL
-````
+```
 
 ---
 
