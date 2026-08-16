@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**73 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `a68313f`. `focus_owner/analysis_options.yaml` has an uncommitted
+**70 files** over 250 lines (was 183 — 62% cleared). Everything is committed
+and pushed to `main` at `61d4ef1`. `focus_owner/analysis_options.yaml` has an uncommitted
 change from an earlier session — **leave it unstaged**, it is not ours.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
@@ -16,7 +16,8 @@ at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
 `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
 `wsg_grabber`'s six test modules (277).
 
-**`linux_configuration` is 84 → 42**, in fourteen batches. **All 12 prose files
+**`linux_configuration` is 84 → 39**, in seventeen batches. Both shared libs
+(`common.sh`, `mtk_common.sh`) are done via the entry-point pattern. **All 12 prose files
 are done** (8 split, 2 deleted as completed-work records on the user's ruling).
 **`kcd2_dice_solver` is 12 → 4**, all four remaining being source files. The
 shell pattern is settled and scripted — read `docs/shell-split-recipes.md`
