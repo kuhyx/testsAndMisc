@@ -167,3 +167,41 @@ Coverage: `meta/pyproject.toml` sets `source = ["python_pkg"]`, so a new
 sibling module is measured automatically. Confirmed: new modules show up in
 the report at 100% rather than being silently skipped. Add no new branches
 (no `if TYPE_CHECKING` guards beyond what moved, no defensive `try/except`).
+
+## The seam-selection rule (settled over 8 packages)
+
+Generalised from `python_pkg`; full detail in `docs/python-split-recipes.md`.
+
+**A block may move if every MOD-relative patch that reaches it comes from one
+test module. If two test modules patch a shared collaborator, keep the
+collaborator and move its callers instead.** The caller resolves the name
+through its *own* module's globals, so importing it into the new module makes
+the patch land there.
+
+Corollaries that each cost a failed run to learn:
+
+- **`test_X.py` needing no edit is the signal you cut in the right place.**
+  It held on four of five source splits in `brother_printer`.
+- **Never blanket-`sed` a MOD.** Decide per test *by which function is under
+  test*. `test_challenge_part3.py` needed 13 of its strings repointed and 4
+  left alone.
+- **A mispointed patch does not always fail — it can HANG or do real work.**
+  `code_tutor` spun for two minutes running a real interactive flow;
+  `cups_queue` would have restarted the live CUPS daemon. Always run under
+  `timeout`, and assert the targets resolve *before* invoking pytest.
+- **When splitting a test file, copy the WHOLE preamble** (docstring, imports,
+  fixture builders) into the new file and let ruff's `F401` pass prune it.
+  Hand-writing the import block failed on every early attempt; the copy-then-
+  prune order removed 82 imports correctly in `wsg_grabber` with none missed.
+  It does **not** cover module-level `def`s and constants sitting *between*
+  sections — `_make_verifier`, `_QUESTIONS`, `_logger` and
+  `_SAME_FIELD_X_TOLERANCE_PX` were each left behind that way. Grep for them.
+- **Budget two cuts.** Nine of the splits landed 1–20 lines over after the
+  first seam. Pure-data blocks (prompt strings, skip tables, SVG fragments)
+  are the cheapest second cut and have no patch targets.
+- **Prefer a `conftest.py` fixture over a duplicated builder** — that is where
+  `_make_verifier` went, and it removed a shadowing copy of `_make_live_mock`.
+
+Two helper scripts are in the scratchpad, not committed (they are throwaway):
+they cut a module at a banner comment or at a named `def`/`class` and copy the
+preamble. Rewriting them takes about five minutes.

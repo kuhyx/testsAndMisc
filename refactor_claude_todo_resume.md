@@ -6,26 +6,44 @@
 
 ## Where things stand
 
-**183 files** over 250 lines (was 198). Everything is committed and pushed to
-`main` at `9e688c5`; the tree is clean. The three unrelated edits an earlier
-handoff warned about (`README.md`, the two `analysis_options.yaml`) are gone.
+**142 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `4b2cd0c`; the tree is clean.
 
-Done already (do not redo):
+**`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared in
+this order, one package per tranche, pushing after each: `brother_printer`
+(15→0, suite pinned at 402), `code_tutor` (13→0, 216→217), then `android_ui`,
+`app_icons`, `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14),
+then `wsg_grabber`'s six test modules (277).
 
-- `~/utils`: `plans/` + `sessions/` exempted from the cap (`specs/` still capped)
-- `17b20e5` new `no-inline-python` pre-commit hook + its one violation
-- `004b4b0` `CLAUDE.md` 259 → 141
-- `72a5e28` + `73b85f5` `poker-stakes/` tracked, then 4 violations → 0
-- `77c6d9f`…`d86965f` **every `wsg_grabber` source file** — `catalog` 251→175,
-  `cli` 282→247, `review` 330→196, `net` 335→109, `store` 382→202,
-  `downloader` 420→238, `player` 373→235, `ui` 398→242
-- `e03fbd1` `wsg_grabber/tests/test_review.py` 297 → 112 + two new modules
-- `2832b78` `brother_printer/display.py` 427 → 342 — **partial, still a
-  violation.** Extracted `_supply.py` + `_severity.py` and deduped the
-  toner/drum bars. The last ~92 lines were blocked on `mock.patch` pinning,
-  which the decision below now unblocks.
+Earlier sessions had already done: the `~/utils` exemptions, the
+`no-inline-python` hook, `CLAUDE.md`, `poker-stakes/`, and every `wsg_grabber`
+**source** file.
 
 `git log --oneline --grep='cap'` is the authoritative list.
+
+## What is left
+
+| Directory | Count |
+|---|---|
+| `linux_configuration` | 84 |
+| `phone_focus_mode` | 13 (do LAST) |
+| `kcd2_dice_solver` | 12 |
+| `focus_owner` | 11 |
+| `billsplit` | 6 |
+| `reverse_survivors` / `meta` / `docs` | 4 each |
+| `.github` / `bucket_catch` | 2 each |
+
+Within `linux_configuration` the bulk is `scripts/single_use/` (39 across
+`features`/`utils`/`fixes`), then `scripts/periodic_background/` (10) and
+`tests/` (4).
+
+## The seam-selection rule
+
+Settled over eight `python_pkg` packages and written up in
+`docs/python-split-recipes.md` under "The seam-selection rule". In one line:
+**a block may move if every patch reaching it comes from one test module; if
+two modules patch a shared collaborator, keep the collaborator and move its
+callers.** Read the doc before splitting anything with tests.
 
 ## The live worklist
 
@@ -36,18 +54,14 @@ bash ~/utils/scripts/check_file_length.sh --all
 ```
 
 **Every count in this file is a snapshot and will be wrong by the time you read
-it. Run the script.** As of `ac02a23` the shape was `linux_configuration` 84,
-`python_pkg` 41, `phone_focus_mode` 13, `kcd2_dice_solver` 12, `focus_owner`
-11, `billsplit` 6, `reverse_survivors`/`meta`/`docs` 4 each,
-`.github`/`bucket_catch` 2 each — quoted only to tell you where the bulk sits,
-never to work from.
+it. Run the script.** The table above is a snapshot at `4b2cd0c`, quoted only
+to tell you where the bulk sits, never to work from.
 
-Within `python_pkg`: `brother_printer` 15, `code_tutor` 13, `wsg_grabber` 6
-(tests only), then singles.
-
-**Do the source files in a package before its tests.** Proven on `wsg_grabber`:
-the test files then split along seams the source already established, instead
-of you inventing a new boundary for them.
+**Do the source files in a package before its tests.** Proven on `wsg_grabber`
+and again on all seven `python_pkg` packages: the test files then split along
+seams the source already established, instead of you inventing a new boundary
+for them. On `brother_printer` this meant four of the five source splits needed
+**no test edit at all**.
 
 ## Decisions already made (do not re-ask)
 
@@ -68,6 +82,14 @@ of you inventing a new boundary for them.
    stalled on `brother_printer` because of it.
 9. Per-commit gate is `pre-commit run --files <changed>`; the real `git commit`
    is the full gate (it adds jscpd). Push per directory tranche, not per commit.
+10. **When a seam splits code covered by a per-file-ignore, fix the lint —
+    do not copy the ignore onto the new file** (user's call, 2026-08-16).
+    Done for `code_tutor/cli.py`: `S607` fixed with `shutil.which`, `PERF203`
+    by extracting the probe so the poll loop carries no `try`/`except`. Both
+    entries deleted from `meta/pyproject.toml`; the repo now has two fewer
+    suppressions. The `which()` fix added a branch, so a covering test was
+    written (216 → 217) rather than excluding it. Expect the same question on
+    any remaining per-file-ignore you split through — ask, don't assume.
 
 ## The constraint that will bite you
 
@@ -93,13 +115,19 @@ Plus `.github/workflows/file-length.yml` modelled on
 `.utils`), scoped to changed files. Then prove it fails: stage a deliberately
 251-line file, confirm `git commit` aborts, delete it.
 
-## Python split recipes
+## Language recipes
 
-`docs/python-split-recipes.md` holds the settled Python rules: the `__all__`
-re-export form, the `TC001` trap that lints clean and breaks at runtime, the
-mixin shape for splitting a class, what the tests pin in place, and the
-coverage behaviour of new sibling modules. **Read it before the first Python
-split** — each rule there cost a failed gate run or a revert to establish.
+- `docs/python-split-recipes.md` — the `__all__` re-export form, the `TC001`
+  trap that lints clean and breaks at runtime, the mixin shape for splitting a
+  class, what the tests pin in place, and the coverage behaviour of new sibling
+  modules. `python_pkg` is done, so this now matters only if a stray `.py`
+  turns up outside it.
+- `docs/shell-split-recipes.md` — **read this before the first
+  `linux_configuration` split.** What replaces the pass count when there is no
+  test suite, the two live systemd units that point at repo paths, and the
+  jscpd trap on the first multi-lib commit.
+
+Each rule in both cost a failed gate run or a revert to establish.
 
 ## Split recipes
 
