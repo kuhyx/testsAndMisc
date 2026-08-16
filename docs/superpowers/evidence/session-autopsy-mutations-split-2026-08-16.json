@@ -1,0 +1,45 @@
+{
+  "intent": "Bring mutate_session_autopsy_hooks.py under the 250-line cap by extracting its mutation operators, leaving the mutation results unchanged.",
+  "scope": [
+    "meta/scripts/mutate_session_autopsy_hooks.py (253 -> 178 lines)",
+    "New: meta/scripts/_session_autopsy_mutations.py (100 lines)",
+    "Non-goal: changing any mutation, or the hooks and tests they exercise"
+  ],
+  "changes": [
+    "Moved the eight mutation operators (_gut, _drop_transcript_guard, _widen_count, _drop_numeric_guard, _drop_readable_guard, _always_announce, _unguarded_and_always_announce), the Mutation NamedTuple, the MUTATIONS table and the _GUTTED constant into _session_autopsy_mutations.py.",
+    "Promoted _END_HOOK/_START_HOOK to END_HOOK/START_HOOK and _MUTATIONS to MUTATIONS, since they now cross a module boundary, and declared __all__ for the four exported names.",
+    "The driver keeps _TEST_FILE, _OUTCOME, and everything that touches the filesystem or runs pytest. The new module is pure text transforms, which makes the 'deployed hooks are never modified' guarantee easier to see.",
+    "Gave the new module a #!/usr/bin/env python3 shebang, matching the sibling _schema_validation.py. That is what satisfies ruff's INP001 here -- ruff exempts files it recognises as scripts -- so no __init__.py and no per-file-ignore were needed."
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/mutate_session_autopsy_hooks.py, diffed against the same run from a detached worktree at HEAD",
+      "result": "pass",
+      "evidence": "Byte-identical output. All eight mutations run in the same order and kill the same named tests (gut-end 2, gut-start 1, end-no-transcript-guard 4, start-count-ge-zero 1, start-no-numeric-guard 1, start-no-readable-guard 0, start-always-announce 3, start-unguarded-announce 5), ending in 'PASS: all 12 tests killed by at least one mutation'."
+    },
+    {
+      "command": "pre-commit run --files on both files",
+      "result": "pass",
+      "evidence": "ruff, mypy, pylint and bandit all pass. Three real defects were caught and fixed rather than suppressed: the new module needed its own `import re`; the driver still annotates _apply with Mutation and so needed that name imported too (F821 from ruff, name-defined from mypy, E0602 from pylint -- three tools, one bug); and INP001 was answered with the sibling's shebang convention."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh",
+      "result": "pass",
+      "evidence": "driver 178, mutations 100. Neither appears in the violation list."
+    },
+    {
+      "command": "grep for importers and patch targets",
+      "result": "pass",
+      "evidence": "Nothing in the repository imports this module and no test patches it; it is only a pre-commit entry point (.pre-commit-config.yaml:276). So no test file needed editing, and the decision-8 bound on test edits does not come into play."
+    }
+  ],
+  "risks": [
+    "The bare `from _session_autopsy_mutations import ...` relies on Python putting the script's own directory on sys.path. That holds when the file is run as a script, which is the only way it is used -- verified by actually running it from the repository root, the same way .pre-commit-config.yaml invokes it. The sibling validate_evidence.py imports _schema_validation the same way.",
+    "The first run after the split failed with NameError on `re`, caught only by executing the script -- ast.parse had reported the file as fine. A missing import in a moved block is invisible to a parse check.",
+    "A PostToolUse formatter fired on the new module immediately after the `import re` edit; the import was re-checked with grep before proceeding, per the known trap."
+  ],
+  "rollback": [
+    "git revert the commit; the driver returns to its 253-line form and the sibling disappears.",
+    "After rollback, run python3 meta/scripts/mutate_session_autopsy_hooks.py and confirm it still ends in 'PASS: all 12 tests killed by at least one mutation'."
+  ]
+}

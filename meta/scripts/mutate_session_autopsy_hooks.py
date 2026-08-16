@@ -32,15 +32,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import TYPE_CHECKING, NamedTuple
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from _session_autopsy_mutations import END_HOOK, MUTATIONS, START_HOOK, Mutation
 
 _TEST_FILE = "linux_configuration/tests/test_session_autopsy_hooks.py"
-_END_HOOK = "session_autopsy_end.sh"
-_START_HOOK = "session_autopsy_start.sh"
-_GUTTED = "#!/bin/bash\nexit 0\n"
 _OUTCOME = re.compile(r"::(test_\w+)\s+(PASSED|FAILED|ERROR|SKIPPED)")
 
 
@@ -55,80 +50,6 @@ def _hooks_dir() -> Path:
     if override:
         return Path(override)
     return Path.home() / ".claude" / "hooks"
-
-
-def _gut(_text: str) -> str:
-    """Replace an entire hook body with a bare successful exit."""
-    return _GUTTED
-
-
-def _drop_transcript_guard(text: str) -> str:
-    """Remove the SessionEnd guard that requires an existing transcript."""
-    return re.sub(
-        r'if \[\[ -z "\$transcript".*?\nfi\n',
-        "",
-        text,
-        flags=re.DOTALL,
-    )
-
-
-def _widen_count(text: str) -> str:
-    """Make a zero candidate count announce itself."""
-    return text.replace("(( count > 0 ))", "(( count >= 0 ))")
-
-
-def _drop_numeric_guard(text: str) -> str:
-    """Drop the count regex guard, leaving the arithmetic syntactically valid."""
-    return text.replace(
-        '[[ "$count" =~ ^[0-9]+$ ]] && (( count > 0 ))',
-        "(( count > 0 ))",
-    )
-
-
-def _drop_readable_guard(text: str) -> str:
-    """Remove the early exit taken when the state file cannot be read."""
-    return re.sub(
-        r'if \[\[ ! -r "\$STATE" \]\]; then\n.*?\nfi\n',
-        "",
-        text,
-        flags=re.DOTALL,
-    )
-
-
-def _always_announce(text: str) -> str:
-    """Announce unconditionally -- the defect every silence test exists to catch."""
-    return re.sub(r'if \[\[ "\$count".*?; then', "if true; then", text)
-
-
-def _unguarded_and_always_announce(text: str) -> str:
-    """Drop the readability guard AND announce unconditionally.
-
-    Needed because the readability guard is redundant on its own: jq's stderr is
-    suppressed and an empty count already fails the arithmetic, so removing it
-    changes nothing observable. Only removing it together with the count
-    condition can reach the no-state and unreadable-state cases.
-    """
-    return _always_announce(_drop_readable_guard(text))
-
-
-class Mutation(NamedTuple):
-    """One named defect injected into one hook."""
-
-    name: str
-    hook: str
-    apply: Callable[[str], str]
-
-
-_MUTATIONS = (
-    Mutation("gut-end", _END_HOOK, _gut),
-    Mutation("gut-start", _START_HOOK, _gut),
-    Mutation("end-no-transcript-guard", _END_HOOK, _drop_transcript_guard),
-    Mutation("start-count-ge-zero", _START_HOOK, _widen_count),
-    Mutation("start-no-numeric-guard", _START_HOOK, _drop_numeric_guard),
-    Mutation("start-no-readable-guard", _START_HOOK, _drop_readable_guard),
-    Mutation("start-always-announce", _START_HOOK, _always_announce),
-    Mutation("start-unguarded-announce", _START_HOOK, _unguarded_and_always_announce),
-)
 
 
 def _repo_root() -> Path:
@@ -197,7 +118,7 @@ def _apply(mutation: Mutation, hooks_dir: Path, target_dir: Path) -> None:
         RuntimeError: If the mutation left the hook text unchanged, which means
             the hook was edited and the mutation no longer describes it.
     """
-    for hook in (_END_HOOK, _START_HOOK):
+    for hook in (END_HOOK, START_HOOK):
         shutil.copy2(hooks_dir / hook, target_dir / hook)
     target = target_dir / mutation.hook
     original = target.read_text(encoding="utf-8")
@@ -215,7 +136,7 @@ def _apply(mutation: Mutation, hooks_dir: Path, target_dir: Path) -> None:
 def main() -> int:
     """Run every mutation and fail if any test survives them all."""
     hooks_dir = _hooks_dir()
-    if not all((hooks_dir / hook).is_file() for hook in (_END_HOOK, _START_HOOK)):
+    if not all((hooks_dir / hook).is_file() for hook in (END_HOOK, START_HOOK)):
         _emit(f"session_autopsy hooks are not deployed under {hooks_dir} -- skipping")
         return 0
 
@@ -227,7 +148,7 @@ def main() -> int:
             return 1
 
         killed_by: dict[str, list[str]] = {}
-        for mutation in _MUTATIONS:
+        for mutation in MUTATIONS:
             try:
                 with tempfile.TemporaryDirectory() as mutant_name:
                     mutant_dir = Path(mutant_name)
