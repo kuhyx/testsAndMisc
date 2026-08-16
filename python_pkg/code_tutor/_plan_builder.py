@@ -6,13 +6,16 @@ import dataclasses
 from datetime import datetime, timezone
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from python_pkg.code_tutor._analyzer import (
-    CodeItem,
+from python_pkg.code_tutor._deps import (
     codebase_fingerprint,
     get_file_imports,
     get_python_files,
 )
+
+if TYPE_CHECKING:
+    from python_pkg.code_tutor._analyzer import CodeItem
 
 
 def _toposort_files(file_deps: dict[Path, set[Path]]) -> list[Path]:

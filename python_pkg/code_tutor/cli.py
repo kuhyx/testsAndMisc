@@ -21,7 +21,8 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from python_pkg.code_tutor._analyzer import codebase_fingerprint, extract_items
+from python_pkg.code_tutor._analyzer import extract_items
+from python_pkg.code_tutor._deps import codebase_fingerprint
 from python_pkg.code_tutor._llm import OllamaBackend
 from python_pkg.code_tutor._plan_builder import build_plan
 from python_pkg.code_tutor._progress import (

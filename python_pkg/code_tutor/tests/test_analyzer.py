@@ -8,16 +8,18 @@ from unittest.mock import patch
 
 from python_pkg.code_tutor._analyzer import (
     CodeItem,
-    _build_dotted_map,
     _extract_other,
     _extract_python,
     _FunctionVisitor,
     _is_binary,
     _make_id,
-    _match_deps,
     _should_skip,
-    codebase_fingerprint,
     extract_items,
+)
+from python_pkg.code_tutor._deps import (
+    _build_dotted_map,
+    _match_deps,
+    codebase_fingerprint,
     get_file_imports,
     get_python_files,
 )
