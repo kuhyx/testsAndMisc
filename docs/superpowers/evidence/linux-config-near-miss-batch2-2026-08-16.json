@@ -1,0 +1,44 @@
+{
+  "intent": "Split two more linux_configuration scripts under the cap, and record why a third was reverted rather than forced.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/control_from_mobile.sh (415 -> 180) + lib/mobile_service.sh",
+    "linux_configuration/scripts/periodic_background/setup_periodic_system.sh (408 -> 228) + lib/periodic_browser.sh",
+    "Reverted: scripts/single_use/misc/testsAndMisc-bash/clean_audio.sh",
+    "Non-goal: no script executed, no behaviour change"
+  ],
+  "changes": [
+    "control_from_mobile.sh: the credential, env, runner-script and systemd-unit generation moved to lib/mobile_service.sh. Straightforward - it has a main() and no cross-file globals.",
+    "setup_periodic_system.sh has NO main(): it defines functions and then runs a block of top-level calls. The splitter's default behaviour moved that executing block into the lib, which would have changed when it ran. Caught by the stubbed run and redone by hand, moving only function definitions and leaving the invocation block in the entry script.",
+    "clean_audio.sh was reverted. Its two probe-result globals (use_arnndn, afftdn_supports_md) are read by functions in what would be two separate libs, and renaming them to uppercase to satisfy SC2154 only pushed the warning to a third variable. Untangling that is a real refactor, not a line-count split, and doing it here would have meant either a suppression or a behaviour risk."
+  ],
+  "verification": [
+    {
+      "command": "scratchpad/verify_split.sh control_from_mobile.sh <moved functions>",
+      "result": "pass",
+      "evidence": "'libs sourced, functions defined' after bash -n and shellcheck -x."
+    },
+    {
+      "command": "static verification of setup_periodic_system.sh",
+      "result": "pass",
+      "evidence": "The stubbed run could NOT be used: the script requests sudo at source time, so running it is excluded by decision 6. Verified instead that the source line is at 176 and the first top-level call at 178, and that all eleven invoked functions are defined exactly once across the two files (six in the entry, five in the lib). bash -n and shellcheck -x clean on both."
+    },
+    {
+      "command": "git checkout + rm -rf lib, then shellcheck the restored clean_audio.sh",
+      "result": "pass",
+      "evidence": "Restored to 419 lines and clean, leaving no partial split behind."
+    },
+    {
+      "command": "pre-commit run --files <changed>",
+      "result": "pass",
+      "evidence": "Clean, including jscpd on the real commit with two more libs added."
+    }
+  ],
+  "risks": [
+    "setup_periodic_system.sh requests root and installs systemd units; it was not run. The static check proves the lib is sourced before any call and that no function is missing or doubly defined, which is the strongest available evidence short of executing it.",
+    "clean_audio.sh remains over the cap at 419 lines and is now a known-harder case: its globals must be threaded explicitly, or the whole probe/filter section kept in one lib, before it can be split without a suppression."
+  ],
+  "rollback": [
+    "git revert the commit; both scripts return to their previous sizes and the two libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored scripts."
+  ]
+}

@@ -80,6 +80,30 @@ grep -rn -E '^\s*(sudo )?(install|cp)\s.*(SCRIPT_DIR|REPO).*/usr/local/' \
   linux_configuration --include='*.sh'
 ```
 
+## Three traps found while splitting (2026-08-16)
+
+- **A script with no `main()`.** `setup_periodic_system.sh` defines functions
+  and then runs a block of top-level calls. Moving that block into a lib
+  changes _when_ it runs. Move **only function definitions**; leave every
+  top-level invocation in the entry script, and check the `source` line comes
+  before the first call.
+- **A script that needs root at source time.** The same file asks for sudo
+  while sourcing, so the stubbed run is not available. Fall back to: source
+  line before first call, plus every invoked function defined exactly once
+  across the two files (`grep -c '^fn() {'` in each).
+- **An entry script that already declares `SCRIPT_DIR`** — often `readonly`.
+  Reuse it instead of adding a second declaration, or the script dies with
+  `readonly variable`. `bash -n` and `shellcheck` both pass on that.
+
+### When to give up on a seam
+
+`clean_audio.sh` was reverted. Two probe-result globals were read by functions
+destined for different libs; renaming them to satisfy SC2154 just moved the
+warning to a third. **A split that needs a suppression, or that would thread
+globals through three files, is a refactor — not a line-count split.** Revert
+it, leave the file over the cap, and say so. It is cheaper than a silent
+behaviour change in a script you are not allowed to run.
+
 - Prefer files that **nothing** references first — pure lint risk.
 - Watch **jscpd** on the first multi-lib commit: repeated `set -euo pipefail` +
   source-guard headers across several new libs is exactly what pushes

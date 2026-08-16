@@ -1,0 +1,18 @@
+{
+  "title": "Split two more linux_configuration scripts, reverting a third",
+  "objective": "Bring control_from_mobile.sh (415) and setup_periodic_system.sh (408) under the 250-line cap, and establish when a seam should be abandoned rather than forced.",
+  "acceptance_criteria": [
+    "Both entry scripts and both new libs are at most 250 lines.",
+    "bash -n and shellcheck pass on every touched file, with no new suppression and no shellcheck disable directive.",
+    "setup_periodic_system.sh keeps its top-level invocation block in the entry script: it has no main(), so moving that block into a lib would change when it runs. Only function definitions move.",
+    "For any script that cannot be stub-run (setup_periodic_system.sh asks for root at source time), verification is: the source line precedes the first top-level call, and every invoked function is defined exactly once across the entry script and its lib.",
+    "No script is executed. Both install systemd units and one requires root.",
+    "clean_audio.sh is fully reverted, leaving no partial split and no new lib directory behind, and remains over the cap with the reason recorded."
+  ],
+  "out_of_scope": [
+    "Executing any installer or enforcement step.",
+    "Untangling clean_audio.sh's cross-file globals, which is a refactor rather than a line-count split.",
+    "Changing what any script does when run."
+  ],
+  "verifier": "scratchpad/verify_split.sh for control_from_mobile.sh; for setup_periodic_system.sh, bash -n + shellcheck -x plus grep proving source-before-call and one definition per invoked function; plus pre-commit run --files and the real git commit for jscpd."
+}
