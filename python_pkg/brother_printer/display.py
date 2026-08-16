@@ -5,10 +5,6 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-# ── Shared display helpers ───────────────────────────────────────────
-# Re-exported through __all__: tests/test_display.py imports these names from
-# this module. Only the un-patched supply *maths* moved to _supply -- everything
-# the tests reach with mock.patch has to stay resolvable here.
 from python_pkg.brother_printer._page_count import (
     _display_consumables_reference,
     _display_page_count_estimate,
@@ -20,14 +16,7 @@ from python_pkg.brother_printer._severity import (
     _SEVERITY_ICONS,
     _SEVERITY_SUMMARIES,
 )
-from python_pkg.brother_printer._supply import (
-    _classify_percentage_level,
-    _classify_supply_level,
-    _collect_supply_items,
-    _format_supply_bar,
-    _parse_supply_value,
-    _process_supply_item,
-)
+from python_pkg.brother_printer._supply import _collect_supply_items
 from python_pkg.brother_printer.constants import (
     BOLD,
     CYAN,
@@ -47,16 +36,7 @@ if TYPE_CHECKING:
         USBResult,
     )
 
-__all__ = [
-    "_classify_percentage_level",
-    "_classify_supply_level",
-    "_collect_supply_items",
-    "_format_supply_bar",
-    "_parse_supply_value",
-    "_process_supply_item",
-    "display_network_results",
-    "display_usb_results",
-]
+__all__ = ["display_network_results", "display_usb_results"]
 
 
 def _display_report_header() -> None:
