@@ -1,0 +1,18 @@
+{
+  "title": "Make the files this session's splits touched shfmt-clean",
+  "objective": "Ensure the 250-line splits landed in 41cc045, a84556a and 936e0ec do not add new shfmt violations to linux_configuration, whose shell_check.sh run_linters pass compares every discovered script against shfmt's default formatting.",
+  "acceptance_criteria": [
+    "shfmt -d reports no diff for analyze_repo.sh and for the three new lib/shell_check_*.sh files.",
+    "shellcheck still reports zero findings across every file this session created or modified.",
+    "analyze_repo.sh still runs to completion (exit 0) against a fixture repo and still produces artifacts byte-identical to the pre-split original at 133fccf.",
+    "shell_check.sh --skip-install --list-only --verbose still discovers 321 files.",
+    "The STEP 1 comment banner that shfmt -w stripped from analyze_repo.sh is restored, so all eight STEP banners are present.",
+    "No file that was already shfmt-dirty before this session is reformatted; the change is scoped to what these splits touched."
+  ],
+  "out_of_scope": [
+    "Reformatting the 157 of 298 linux_configuration shell files that already fail shfmt at 133fccf. That drift predates this session and fixing it is a repo-wide formatting decision, not a line-count split.",
+    "Making shell_check.sh itself shfmt-clean: it was already dirty at 133fccf, uses 2-space indentation throughout, and reformatting it would rewrite the whole file rather than the seam.",
+    "Adding shfmt to .pre-commit-config.yaml or introducing an .editorconfig."
+  ],
+  "verifier": "shfmt -d over the four files (expects no output), shellcheck over every file this session touched (expects zero findings), a stubbed end-to-end run of analyze_repo.sh against a fixture repo diffed artifact-by-artifact against the 133fccf run, and shell_check.sh --skip-install --list-only --verbose piped to a line count (expects 321)."
+}
