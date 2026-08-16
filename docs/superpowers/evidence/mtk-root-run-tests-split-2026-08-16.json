@@ -1,0 +1,49 @@
+{
+  "intent": "Bring linux_configuration/scripts/mtk_root/tests/run_tests.sh (421 lines) under the 250-line cap by extracting the assertion helpers and the 20-dump-stock.sh test group into sourced libs.",
+  "scope": [
+    "linux_configuration/scripts/mtk_root/tests/run_tests.sh",
+    "linux_configuration/scripts/mtk_root/tests/lib/assertions.sh (new)",
+    "linux_configuration/scripts/mtk_root/tests/lib/dump_tests.sh (new)",
+    "Non-goal: no assertion changed, no test removed, renamed or skipped"
+  ],
+  "changes": [
+    "Move pass/fail/assert_contains/assert_not_contains/assert_eq/strip_noncode/run_recon into lib/assertions.sh.",
+    "Move the six 20-dump-stock.sh tests (refusals, happy path, truncation, ordering, facts file) into lib/dump_tests.sh.",
+    "run_tests.sh keeps SCRIPT_DIR, the counters, cleanup/trap, the eight recon tests and main(), and sources both libs."
+  ],
+  "verification": [
+    {
+      "command": "bash run_tests.sh (before the split, from the tests directory)",
+      "result": "pass",
+      "evidence": "=== 58 passed, 0 failed ===, exit 0. Suite is hermetic: every test drives a fixture directory via MTK_ROOT_FIXTURE, so no phone is involved."
+    },
+    {
+      "command": "bash run_tests.sh (after the split), full stdout diffed against the baseline capture",
+      "result": "pass",
+      "evidence": "=== 58 passed, 0 failed ===, exit 0, and `diff` of the complete 89-line output reported no differences -- OUTPUT IDENTICAL. This is a real-execution check with 58 assertions, not a stubbed trace."
+    },
+    {
+      "command": "bash -n on all three files; shellcheck -x on the entry; shellcheck on both libs",
+      "result": "pass",
+      "evidence": "All exit 0 with no output."
+    },
+    {
+      "command": "pre-commit run --files <the three files>",
+      "result": "pass",
+      "evidence": "No hook reported a failure."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh on all three",
+      "result": "pass",
+      "evidence": "421 -> 218 (entry) + 157 (dump_tests) + 75 (assertions), all under 250."
+    }
+  ],
+  "risks": [
+    "The libs depend on caller state: pass/fail increment PASS and FAIL, run_recon reads WORKROOT, FIXTURES and RECON. All are defined in run_tests.sh before the source lines, and the header comments say so.",
+    "All three files are shfmt-dirty, but run_tests.sh was already shfmt-dirty at HEAD (2-space indent vs shfmt's tabs) and the new libs inherit that existing style. No clean file was made dirty; shfmt is not a pre-commit hook in this repo."
+  ],
+  "rollback": [
+    "git revert the commit; both libs disappear and run_tests.sh returns to 421 lines.",
+    "Re-run `bash run_tests.sh` from the tests directory and confirm '58 passed, 0 failed'."
+  ]
+}
