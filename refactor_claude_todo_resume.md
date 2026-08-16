@@ -93,10 +93,31 @@ need no shim at all — check with grep first, as in `catalog.py`.
 
 `__all__` only needs the **re-exported** names, not every public name in the
 module — names defined locally stay reachable either way. Verified against the
-full gate on `store.py`. Worth ~5–8 lines on every file with this shape, which
-matters: three splits so far landed 2–6 lines over the cap and needed a second
-seam. **Budget the new import block and `__all__` before deciding a two-way
-split is enough.**
+full gate on `store.py`.
+
+**`__all__` does not save you from ruff's `TC001`.** It suppresses `F401`, but
+a re-exported class used only in annotations gets rewritten into the
+`TYPE_CHECKING` block, which lints perfectly and raises `AttributeError` at
+import time. This nearly shipped a broken `ui.Callbacks` that `cli.py`
+constructs. A class that must be reachable at runtime from module X stays
+_defined_ in module X. **Always finish a re-export split with**
+
+```bash
+PYTHONPATH=. python3 -c "from python_pkg.pkg import mod; mod.TheName"
+```
+
+Two other things the gate will not catch for you:
+
+- **Check what the tests patch before choosing a seam.** `test_ui.py` does
+  `patch.object(ui, "tk", fake)`, so every line touching `tkinter` had to stay
+  in `ui.py`; moving widget construction out errored 22 tests. Grep the test
+  file for `patch.object(<module>` first and treat those names as pinned.
+- **Tests that call private methods pin them too** — `test_player.py` calls
+  `mpv._note_errors(...)`, so that method stayed as a one-line delegate to the
+  moved implementation. Worth ~5–8 lines on every file with this shape, which
+  matters: three splits so far landed 2–6 lines over the cap and needed a second
+  seam. **Budget the new import block and `__all__` before deciding a two-way
+  split is enough.**
 
 Splitting a **class**: if tests call private methods as bound attributes
 (`worker._fetch_thread(...)` — grep the tests first), module-level functions
