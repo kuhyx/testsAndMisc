@@ -164,6 +164,23 @@ file, and the entry itself still linted clean with `-x`.
 still heredoc-unaware, so check for `<<` in the region you are moving before
 choosing a boundary.
 
+### A widely-sourced library splits cleanly — keep it as the entry point
+
+`common.sh` (620, sourced by **49** scripts) and `mtk_common.sh` (503, by 7)
+both split with no consumer edited: the original file keeps its path and
+sources its own parts, which is the shape the handoff prescribes for
+`config.sh`. Move any array or constant along with the function that reads it.
+
+**The check that matters is the exported function set**, not a passing lint:
+
+```bash
+bash -c 'source <lib>; declare -F | sed "s/declare -f //" | sort'
+# diff that against the same run from a detached worktree at HEAD
+```
+
+Both gave an identical set (48 and 28 functions). Re-run it after **each**
+carve, not just at the end.
+
 ### Extracting an embedded program pulls it into the Python gate
 
 `install_plagiarism_tools.sh` (534) is mostly two heredocs emitting a 224-line
