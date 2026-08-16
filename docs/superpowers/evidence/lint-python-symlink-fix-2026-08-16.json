@@ -1,0 +1,45 @@
+{
+  "intent": "Fix `./lint_python.sh` from the repo root, which the preceding split broke: the root path is a symlink into meta/, and SCRIPT_DIR did not resolve it, so the new source line pointed at a lib/ that does not exist.",
+  "scope": [
+    "meta/lint_python.sh",
+    "Non-goal: no change to which linters run or to any output"
+  ],
+  "changes": [
+    "Resolve SCRIPT_DIR with `dirname \"$(readlink -f \"${BASH_SOURCE[0]}\")\"` instead of a bare dirname, matching the pattern nvidia_troubleshoot.sh already uses in this repo."
+  ],
+  "verification": [
+    {
+      "command": "./lint_python.sh --help (from the repo root, via the symlink) -- BEFORE the fix",
+      "result": "fail",
+      "evidence": "exit 1: './lint_python.sh: line 31: /home/kuhy/testsAndMisc/lib/lint_output.sh: No such file or directory'. Under set -euo pipefail this is an immediate hard exit. Pre-split, SCRIPT_DIR only fed PROJECT_ROOT, so a root-path invocation degraded quietly instead of dying."
+    },
+    {
+      "command": "./lint_python.sh --help and ./lint_python.sh scripts/check_requirements_sync.py (after the fix)",
+      "result": "pass",
+      "evidence": "exit 0 both times; the full-mode run reports all six available linters passing (ruff-lint, ruff-format-check, mypy, pylint, flake8, pycodestyle)."
+    },
+    {
+      "command": "bash meta/lint_python.sh scripts/check_requirements_sync.py, diffed against the pre-split baseline captured in a detached worktree",
+      "result": "pass",
+      "evidence": "DIRECT PATH IDENTICAL TO PRE-SPLIT BASELINE -- byte-identical, so resolving the symlink did not shift PROJECT_ROOT for the direct invocation."
+    },
+    {
+      "command": "grep -rn 'lint_python' meta/run.sh .github/workflows/ .pre-commit-config.yaml",
+      "result": "pass",
+      "evidence": "No hits: no CI job, hook or wrapper invokes it, so the broken commit did not break an automated path. It is documented as a root-path entry point in README.md and CLAUDE.md, which is how a human would hit it."
+    },
+    {
+      "command": "shellcheck -x and shfmt -d on meta/lint_python.sh",
+      "result": "pass",
+      "evidence": "Both exit 0."
+    }
+  ],
+  "risks": [
+    "PROJECT_ROOT is now meta/ for symlink invocations too, rather than the repo root. That is the same value the direct invocation always used, and the direct-path output is byte-identical to the pre-split baseline, so the two entry points now agree instead of diverging.",
+    "The general lesson, recorded in the handoff: a script reachable through a symlink must be verified through that symlink. Every check on the original split used `bash meta/lint_python.sh`, the one path that could not fail."
+  ],
+  "rollback": [
+    "Revert to the bare dirname; `./lint_python.sh` from the repo root breaks again.",
+    "Verify with `./lint_python.sh --help` expecting exit 0."
+  ]
+}

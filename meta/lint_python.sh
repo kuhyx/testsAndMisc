@@ -23,7 +23,11 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# readlink -f, not a bare dirname: the repo root carries a lint_python.sh
+# symlink into meta/, and `dirname` on the symlink path yields the repo root,
+# where lib/ does not exist. That made `./lint_python.sh` die on the source
+# line below.
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 PROJECT_ROOT="${SCRIPT_DIR}"
 
 # Sourced before argument parsing: --help calls usage() from here.

@@ -114,6 +114,33 @@ Note the knock-on: renaming the nameref local hides the array from shellcheck
 through a variable (`CODE_FILES_MAP="LANG_CODE_FILES"`) so the reference is
 real, rather than suppressing.
 
+### Verify through every entry point, especially symlinks
+
+Adding a `source "$SCRIPT_DIR/lib/..."` line to `meta/lint_python.sh` broke
+`./lint_python.sh` from the repo root, because that root path is a **symlink**
+into `meta/` (so are `pyproject.toml`, `requirements.txt`, `run.sh`, `.fvmrc`).
+`SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` does not resolve
+symlinks — `dirname` is string manipulation — so it became the repo root, where
+`lib/` does not exist, and `set -euo pipefail` turned that into an instant exit.
+
+It was invisible because every check used `bash meta/lint_python.sh`, the one
+path that cannot fail. Before splitting a script, ask how else it is reachable:
+
+```bash
+find . -maxdepth 2 -type l -lname '*<script>*'   # symlinks pointing at it
+grep -rn '<script>' .github/workflows/ .pre-commit-config.yaml meta/run.sh
+```
+
+The fix is the pattern already used elsewhere in this repo:
+
+```bash
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+```
+
+Note the pre-split script had the same unresolved `SCRIPT_DIR`; it only fed
+`PROJECT_ROOT`, so the bug was latent. Adding a `source` line is what turns a
+quiet wrong value into a hard failure — which is exactly what a split does.
+
 ### Do not make a clean file shfmt-dirty
 
 157 of 298 `linux_configuration` shell files already fail `shfmt` and there is
