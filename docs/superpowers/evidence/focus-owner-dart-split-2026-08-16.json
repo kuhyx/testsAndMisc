@@ -1,0 +1,46 @@
+{
+  "intent": "Bring the focus_owner Dart files under the cap, learning that Dart's library-scoped privates force part/part of rather than a plain import.",
+  "scope": [
+    "lib/main.dart (538 -> 130) + status_body.dart, status_page_state.dart",
+    "lib/policy.dart (272 -> 85) + focus_policy.dart",
+    "lib/enforcement_status_card.dart (268 -> 145) + status_card_parts.dart",
+    "test/widget_test.dart (351 -> 128) + status_page_test.dart",
+    "test/policy_test.dart (253 -> 110) + policy_decisions_test.dart",
+    "Non-goal: no assertion changed; the unrelated analysis_options.yaml edit left unstaged"
+  ],
+  "changes": [
+    "Every lib split uses part/part of, not import. The first attempt used import plus export and the analyzer produced 30 errors like \"The name '_Card' isn't a class\": Dart privates are visible to the whole LIBRARY, and a separate file is a separate library unless it is a part. part/part of keeps them in one library and the analyzer went straight to zero issues.",
+    "The test splits separated groups from the testWidgets() calls that had been initialising the binding implicitly, so four DevicePolicy tests failed with 'Binding has not yet been initialized'. Both halves now call TestWidgetsFlutterBinding.ensureInitialized() explicitly, with a comment saying why.",
+    "An earlier automated import-pruning pass broke three tests, so it was reverted wholesale and the seven unused imports and two orphaned helpers were removed from the analyzer's exact list instead."
+  ],
+  "verification": [
+    {
+      "command": "flutter test",
+      "result": "fail three times, then pass",
+      "evidence": "94 passed, matching the baseline measured before any edit. The three failures were all real: the private-scope errors, the missing binding initialisation, and the over-eager automated pruning."
+    },
+    {
+      "command": "flutter analyze",
+      "result": "pass",
+      "evidence": "'No issues found!' - no errors, warnings or infos, and no analyzer suppression added."
+    },
+    {
+      "command": "git diff --cached focus_owner/analysis_options.yaml, then git restore --staged",
+      "result": "pass",
+      "evidence": "The file had an uncommitted analyzer-exclude block from an earlier session's work, last committed at f636d2b. It was unstaged and left in the working tree rather than swept into this commit."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep focus_owner",
+      "result": "partial",
+      "evidence": "Both test files and three of the four lib files are now under the cap. status_page_state.dart is 307 and status_page_test.dart is 309 - still over, and left for a follow-up rather than forced."
+    }
+  ],
+  "risks": [
+    "part/part of makes the split files members of one library, so they share a namespace: two parts cannot declare the same private name. That is invisible until it collides.",
+    "status_page_state.dart and status_page_test.dart remain over the cap. The Kotlin sources under android/ are untouched and are the bigger remaining group."
+  ],
+  "rollback": [
+    "git revert the commit; the five originals return and the six new files disappear.",
+    "After rollback, re-run flutter test and expect 94 passed."
+  ]
+}
