@@ -38,13 +38,13 @@ language detection. Two separate bugs, neither reachable without executing:
 
 - **`set -e` and the function tail.** Eight `((LANG_FILES[x] > 0)) && HAS_Y=true`
   lines were top-level statements, where a false `&&` merely leaves `$?`
-  non-zero. Wrapped into a function they become its *return value*, and the
+  non-zero. Wrapped into a function they become its _return value_, and the
   last one (java, false for most repos) killed the script. Any time you wrap
   former top-level code in a function, check what its **last statement** is;
   append `|| true` if it is a bare conditional.
 - **A self-referencing nameref.** `local -n LANG_CODE_FILES="$1"` pointing at a
   global of the same name still moves data on bash 5.3, but warns
-  `circular name reference` on *every access* — straight into the script's
+  `circular name reference` on _every access_ — straight into the script's
   output. Name the local something else (`_code_files`).
 
 So: when a seam passes state, run the thing. Stub only the parts that mutate
