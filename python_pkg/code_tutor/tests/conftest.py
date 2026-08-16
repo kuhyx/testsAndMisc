@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from python_pkg.code_tutor._analyzer import CodeItem
+from python_pkg.code_tutor._verifier import Verifier
 
 
 def _item(
@@ -54,3 +55,10 @@ def _make_live_mock() -> MagicMock:
     live.__enter__ = MagicMock(return_value=live)
     live.__exit__ = MagicMock(return_value=False)
     return live
+
+
+def _make_verifier() -> tuple[Verifier, MagicMock, MagicMock]:
+    mock_backend = MagicMock()
+    mock_console = MagicMock()
+    verifier = Verifier(mock_backend, mock_console)
+    return verifier, mock_backend, mock_console
