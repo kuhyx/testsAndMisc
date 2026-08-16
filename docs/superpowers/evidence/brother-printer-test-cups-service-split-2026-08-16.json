@@ -1,0 +1,50 @@
+{
+  "intent": "Bring the three over-cap cups_service test modules under the 250-line cap by partitioning them, with no change to what is tested.",
+  "scope": [
+    "python_pkg/brother_printer/tests/test_cups_service.py (390 -> 172)",
+    "python_pkg/brother_printer/tests/test_cups_service_port.py (new)",
+    "python_pkg/brother_printer/tests/test_cups_service_part2.py -> test_cups_economode.py (261 -> 115)",
+    "python_pkg/brother_printer/tests/test_cups_status_mapping.py (new)",
+    "python_pkg/brother_printer/tests/test_cups_service_part3.py -> test_cups_fallback_query.py (260 -> 105)",
+    "python_pkg/brother_printer/tests/test_cups_fallback_port_ok.py (new)",
+    "python_pkg/brother_printer/tests/test_cups_service_part4.py -> test_cups_ipp.py (rename only)",
+    "Non-goal: no assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "test_cups_service.py split at TestPortStatusViaUsblp: the pyusb device info and CUPS service control tests stay, the usblp ioctl port-status tests go to test_cups_service_port.py.",
+    "test_cups_service_part2.py split at TestCupsReasonsToError: economode and CUPS-state mapping stay, the error-reason mapping, port-status-to-code mapping and printer-name discovery go to test_cups_status_mapping.py.",
+    "test_cups_service_part3.py was a single 235-line class, so it split by method at test_port_ok_toner_exhausted: the no-port-status and hardware-error cases stay, the four healthy-port cases become TestQueryUsbViaCupsPortOk in test_cups_fallback_port_ok.py.",
+    "Renamed the four part-numbered files after what they actually cover: test_cups_economode.py, test_cups_fallback_query.py, test_cups_ipp.py, plus the two new names.",
+    "Import blocks trimmed per file to what each uses. No MOD constant changed; the source split in the previous commits already put every patched name in the module these files name."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -m pytest python_pkg/brother_printer/tests -q",
+      "result": "pass",
+      "evidence": "402 passed before the split and 402 passed after it - identical pass count."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -m pytest python_pkg/brother_printer/tests/test_cups_status_mapping.py -q",
+      "result": "fail then pass",
+      "evidence": "The first run after the part2 split reported 2 failed, 400 passed: the moved classes needed subprocess (for TimeoutExpired) and get_status_info, which my hand-written import block had dropped. Both added; the suite returned to 402. Recorded because it is exactly the failure the pass-count check exists to catch."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep brother_printer",
+      "result": "pass",
+      "evidence": "No cups_service or _cups_fallback test module is listed any more; brother_printer is down to five over-cap files, all of them other test modules."
+    },
+    {
+      "command": "pre-commit run --files <the touched test files and artifacts>",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, name-tests-test and pytest-with-coverage all pass."
+    }
+  ],
+  "risks": [
+    "Hand-trimmed import blocks are the live risk in this kind of split, as the two failures above show. A dropped name fails loudly at collection or call time, so the pass count catches it; the danger would be trimming an import that only a skipped test used.",
+    "Three of these files are now named after _cups_fallback rather than cups_service, matching where the code moved in an earlier commit."
+  ],
+  "rollback": [
+    "git revert the commit; the three originals return at 390, 261 and 260 lines and the three new modules disappear.",
+    "After rollback, re-run the package suite and confirm it still reports 402 passed."
+  ]
+}

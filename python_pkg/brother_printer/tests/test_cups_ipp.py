@@ -1,4 +1,4 @@
-"""Tests for brother_printer._cups_fallback module - part 4 (IPP queries)."""
+"""Tests for brother_printer._cups_fallback - IPP attribute queries."""
 
 from __future__ import annotations
 
