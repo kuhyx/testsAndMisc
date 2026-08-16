@@ -1,4 +1,4 @@
-"""Tests for brother_printer._queue_fix module - part 3 (display status)."""
+"""Tests for brother_printer._queue_fix - the queue status display."""
 
 from __future__ import annotations
 
