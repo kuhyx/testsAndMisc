@@ -18,6 +18,12 @@ enforcement script that mutates the live system or the phone.**
   else, which makes it safe for installers. Across 18 splits it caught five
   bugs no static check did. It needs the script to end in `main "$@"`; for the
   rest, use the by-hand checks below.
+- **But a stubbed run only proves the `source` lines resolve.** It sources the
+  libs and never calls them, so it cannot reach a bug in a seam that passes
+  state — `analyze_repo.sh` passed every static check plus the stub and still
+  aborted at runtime. See **`docs/shell-split-verification.md`**, which now
+  holds every "the split was green and still wrong" lesson, including the
+  `set -e` function-tail trap and the flag that looked safe and was not.
 
 ### Use `${BASH_SOURCE[0]}`, not `$0`
 
