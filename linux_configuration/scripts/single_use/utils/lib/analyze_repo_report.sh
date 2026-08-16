@@ -41,7 +41,7 @@ KEYWORDS_RUBY="BEGIN|END|alias|and|begin|break|case|class|def|defined|do|else|el
 # Takes the map built by separate_code_and_comments explicitly, so no mutable
 # state crosses the file boundary between the two passes.
 report_languages() {
-	local -n LANG_CODE_FILES="$1"
+	local -n _code_files="$1"
 	local COMMENTS_TEMP="$2"
 	local lang code_file keywords output_file lang_file CODE_TEMP
 
@@ -60,8 +60,8 @@ report_languages() {
 	LANG_KEYWORDS[java]="$KEYWORDS_JAVA"
 
 	# Analyze each language separately
-	for lang in "${!LANG_CODE_FILES[@]}"; do
-		code_file="${LANG_CODE_FILES[$lang]}"
+	for lang in "${!_code_files[@]}"; do
+		code_file="${_code_files[$lang]}"
 		keywords="${LANG_KEYWORDS[$lang]}"
 		output_file="$RESULTS_DIR/per_language/keywords_${lang}.txt"
 
@@ -79,8 +79,8 @@ report_languages() {
 	#------------------------------------------------------------------------------
 	print_subheader "Per-Language Function Calls"
 
-	for lang in "${!LANG_CODE_FILES[@]}"; do
-		code_file="${LANG_CODE_FILES[$lang]}"
+	for lang in "${!_code_files[@]}"; do
+		code_file="${_code_files[$lang]}"
 		output_file="$RESULTS_DIR/per_language/functions_${lang}.txt"
 
 		if [ -f "$code_file" ] && [ -s "$code_file" ]; then
@@ -100,84 +100,84 @@ report_languages() {
 	print_subheader "Per-Language Imports/Includes"
 
 	# C/C++ includes
-	if [ -n "${LANG_CODE_FILES[c_cpp]}" ] && [ -s "${LANG_CODE_FILES[c_cpp]}" ]; then
+	if [ -n "${_code_files[c_cpp]}" ] && [ -s "${_code_files[c_cpp]}" ]; then
 		echo -e "${YELLOW}=== C/C++ Includes ===${NC}"
-		ugrep -o '#include\s*[<"][^>"]+[>"]' "${LANG_CODE_FILES[c_cpp]}" 2>/dev/null |
+		ugrep -o '#include\s*[<"][^>"]+[>"]' "${_code_files[c_cpp]}" 2>/dev/null |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_c_cpp.txt"
 	fi
 
 	# Python imports
-	if [ -n "${LANG_CODE_FILES[python]}" ] && [ -s "${LANG_CODE_FILES[python]}" ]; then
+	if [ -n "${_code_files[python]}" ] && [ -s "${_code_files[python]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== Python Imports ===${NC}"
-		ugrep -o '^\s*(from\s+\S+\s+import\s+\S+|import\s+\S+)' "${LANG_CODE_FILES[python]}" 2>/dev/null |
+		ugrep -o '^\s*(from\s+\S+\s+import\s+\S+|import\s+\S+)' "${_code_files[python]}" 2>/dev/null |
 			sed 's/^\s*//' |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_python.txt"
 	fi
 
 	# JavaScript imports
-	if [ -n "${LANG_CODE_FILES[javascript]}" ] && [ -s "${LANG_CODE_FILES[javascript]}" ]; then
+	if [ -n "${_code_files[javascript]}" ] && [ -s "${_code_files[javascript]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== JavaScript Imports ===${NC}"
-		ugrep -o "(import\s+.*\s+from\s+['\"][^'\"]+['\"]|require\s*\(['\"][^'\"]+['\"]\))" "${LANG_CODE_FILES[javascript]}" 2>/dev/null |
+		ugrep -o "(import\s+.*\s+from\s+['\"][^'\"]+['\"]|require\s*\(['\"][^'\"]+['\"]\))" "${_code_files[javascript]}" 2>/dev/null |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_javascript.txt"
 	fi
 
 	# TypeScript imports
-	if [ -n "${LANG_CODE_FILES[typescript]}" ] && [ -s "${LANG_CODE_FILES[typescript]}" ]; then
+	if [ -n "${_code_files[typescript]}" ] && [ -s "${_code_files[typescript]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== TypeScript Imports ===${NC}"
-		ugrep -o "(import\s+.*\s+from\s+['\"][^'\"]+['\"]|require\s*\(['\"][^'\"]+['\"]\))" "${LANG_CODE_FILES[typescript]}" 2>/dev/null |
+		ugrep -o "(import\s+.*\s+from\s+['\"][^'\"]+['\"]|require\s*\(['\"][^'\"]+['\"]\))" "${_code_files[typescript]}" 2>/dev/null |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_typescript.txt"
 	fi
 
 	# Go imports
-	if [ -n "${LANG_CODE_FILES[go]}" ] && [ -s "${LANG_CODE_FILES[go]}" ]; then
+	if [ -n "${_code_files[go]}" ] && [ -s "${_code_files[go]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== Go Imports ===${NC}"
-		ugrep -o '"[^"]+/[^"]+"' "${LANG_CODE_FILES[go]}" 2>/dev/null |
+		ugrep -o '"[^"]+/[^"]+"' "${_code_files[go]}" 2>/dev/null |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_go.txt"
 	fi
 
 	# Rust use statements
-	if [ -n "${LANG_CODE_FILES[rust]}" ] && [ -s "${LANG_CODE_FILES[rust]}" ]; then
+	if [ -n "${_code_files[rust]}" ] && [ -s "${_code_files[rust]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== Rust Use Statements ===${NC}"
-		ugrep -o '^\s*use\s+[^;]+' "${LANG_CODE_FILES[rust]}" 2>/dev/null |
+		ugrep -o '^\s*use\s+[^;]+' "${_code_files[rust]}" 2>/dev/null |
 			sed 's/^\s*//' |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_rust.txt"
 	fi
 
 	# Java imports
-	if [ -n "${LANG_CODE_FILES[java]}" ] && [ -s "${LANG_CODE_FILES[java]}" ]; then
+	if [ -n "${_code_files[java]}" ] && [ -s "${_code_files[java]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== Java Imports ===${NC}"
-		ugrep -o '^\s*import\s+[^;]+' "${LANG_CODE_FILES[java]}" 2>/dev/null |
+		ugrep -o '^\s*import\s+[^;]+' "${_code_files[java]}" 2>/dev/null |
 			sed 's/^\s*//' |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_java.txt"
 	fi
 
 	# Ruby requires
-	if [ -n "${LANG_CODE_FILES[ruby]}" ] && [ -s "${LANG_CODE_FILES[ruby]}" ]; then
+	if [ -n "${_code_files[ruby]}" ] && [ -s "${_code_files[ruby]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== Ruby Requires ===${NC}"
-		ugrep -o "(require\s+['\"][^'\"]+['\"]|require_relative\s+['\"][^'\"]+['\"])" "${LANG_CODE_FILES[ruby]}" 2>/dev/null |
+		ugrep -o "(require\s+['\"][^'\"]+['\"]|require_relative\s+['\"][^'\"]+['\"])" "${_code_files[ruby]}" 2>/dev/null |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_ruby.txt"
 	fi
 
 	# Shell sources
-	if [ -n "${LANG_CODE_FILES[shell]}" ] && [ -s "${LANG_CODE_FILES[shell]}" ]; then
+	if [ -n "${_code_files[shell]}" ] && [ -s "${_code_files[shell]}" ]; then
 		echo ""
 		echo -e "${YELLOW}=== Shell Sources ===${NC}"
-		ugrep -o '(source\s+[^\s]+|\.\s+[^\s]+)' "${LANG_CODE_FILES[shell]}" 2>/dev/null |
+		ugrep -o '(source\s+[^\s]+|\.\s+[^\s]+)' "${_code_files[shell]}" 2>/dev/null |
 			fast_count 30 |
 			tee "$RESULTS_DIR/per_language/imports_shell.txt"
 	fi
@@ -189,7 +189,7 @@ report_languages() {
 
 	# Create combined CODE_TEMP
 	CODE_TEMP=$(mktemp)
-	for lang_file in "${LANG_CODE_FILES[@]}"; do
+	for lang_file in "${_code_files[@]}"; do
 		[ -f "$lang_file" ] && cat "$lang_file" >>"$CODE_TEMP"
 	done
 

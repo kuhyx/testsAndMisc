@@ -12,9 +12,6 @@
 # separate_code_and_comments below. Keeping definition and use in one file is
 # what lets shellcheck see them as used.
 
-# separate_code_and_comments <code_files_map_name> <comments_file>
-# The map is filled by nameref rather than left in a global, so no mutable
-# state crosses the file boundary into the reporting pass.
 # Populates LANG_FILES and the HAS_* family from the files present in the cwd.
 detect_languages() {
 	print_subheader "Detecting languages in repository..."
@@ -62,18 +59,28 @@ detect_languages() {
 	HAS_RUST=false
 	HAS_JAVA=false
 
-	((LANG_FILES[c] + LANG_FILES[cpp] + LANG_FILES[h] > 0)) && HAS_C_FAMILY=true
-	((LANG_FILES[python] > 0)) && HAS_PYTHON=true
-	((LANG_FILES[javascript] + LANG_FILES[typescript] > 0)) && HAS_JS_FAMILY=true
-	((LANG_FILES[shell] > 0)) && HAS_SHELL=true
-	((LANG_FILES[ruby] > 0)) && HAS_RUBY=true
-	((LANG_FILES[go] > 0)) && HAS_GO=true
-	((LANG_FILES[rust] > 0)) && HAS_RUST=true
-	((LANG_FILES[java] > 0)) && HAS_JAVA=true
+	# `|| true` on each: these were top-level statements before the split, where
+	# a false `((...)) &&` merely left $? non-zero. As the tail of a function
+	# they become its return value, and under `set -e` the last one (java, false
+	# for most repos) aborted the whole script.
+	((LANG_FILES[c] + LANG_FILES[cpp] + LANG_FILES[h] > 0)) && HAS_C_FAMILY=true || true
+	((LANG_FILES[python] > 0)) && HAS_PYTHON=true || true
+	((LANG_FILES[javascript] + LANG_FILES[typescript] > 0)) && HAS_JS_FAMILY=true || true
+	((LANG_FILES[shell] > 0)) && HAS_SHELL=true || true
+	((LANG_FILES[ruby] > 0)) && HAS_RUBY=true || true
+	((LANG_FILES[go] > 0)) && HAS_GO=true || true
+	((LANG_FILES[rust] > 0)) && HAS_RUST=true || true
+	((LANG_FILES[java] > 0)) && HAS_JAVA=true || true
 }
 
+# separate_code_and_comments <code_files_map_name> <comments_file>
+# The map is filled by nameref rather than left in a global, so no mutable
+# state crosses the file boundary into the reporting pass. The local is named
+# _code_files, deliberately NOT the caller's name: a nameref whose local name
+# equals the variable it points at makes bash warn "circular name reference" on
+# every access, which would land in this script's user-facing output.
 separate_code_and_comments() {
-	local -n LANG_CODE_FILES="$1"
+	local -n _code_files="$1"
 	local COMMENTS_TEMP="$2"
 
 	# Create per-language output directory
@@ -82,27 +89,27 @@ separate_code_and_comments() {
 	# Process C/C++ files
 	if $HAS_C_FAMILY; then
 		echo "Processing C/C++ files..."
-		LANG_CODE_FILES["c_cpp"]=$(mktemp /tmp/code_c_cpp.XXXXXX.tmp)
-		find_files "*.c" "*.cpp" "*.cc" "*.cxx" "*.h" "*.hpp" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[c_cpp]}"
+		_code_files["c_cpp"]=$(mktemp /tmp/code_c_cpp.XXXXXX.tmp)
+		find_files "*.c" "*.cpp" "*.cc" "*.cxx" "*.h" "*.hpp" | head -15000 | xargs cat 2>/dev/null >"${_code_files[c_cpp]}"
 
 		# Extract and strip C-style comments
-		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${LANG_CODE_FILES[c_cpp]}" >>"$COMMENTS_TEMP"
-		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${LANG_CODE_FILES[c_cpp]}" >"${LANG_CODE_FILES[c_cpp]}.clean"
-		mv "${LANG_CODE_FILES[c_cpp]}.clean" "${LANG_CODE_FILES[c_cpp]}"
+		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${_code_files[c_cpp]}" >>"$COMMENTS_TEMP"
+		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${_code_files[c_cpp]}" >"${_code_files[c_cpp]}.clean"
+		mv "${_code_files[c_cpp]}.clean" "${_code_files[c_cpp]}"
 	fi
 
 	# Process JavaScript files (separate from TypeScript)
 	if $HAS_JS_FAMILY; then
 		echo "Processing JavaScript files..."
-		LANG_CODE_FILES["javascript"]=$(mktemp /tmp/code_js.XXXXXX.tmp)
-		find_files "*.js" "*.jsx" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[javascript]}"
+		_code_files["javascript"]=$(mktemp /tmp/code_js.XXXXXX.tmp)
+		find_files "*.js" "*.jsx" | head -15000 | xargs cat 2>/dev/null >"${_code_files[javascript]}"
 
 		echo "Processing TypeScript files..."
-		LANG_CODE_FILES["typescript"]=$(mktemp /tmp/code_ts.XXXXXX.tmp)
-		find_files "*.ts" "*.tsx" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[typescript]}"
+		_code_files["typescript"]=$(mktemp /tmp/code_ts.XXXXXX.tmp)
+		find_files "*.ts" "*.tsx" | head -15000 | xargs cat 2>/dev/null >"${_code_files[typescript]}"
 
 		# Extract and strip comments from both
-		for lang_file in "${LANG_CODE_FILES[javascript]}" "${LANG_CODE_FILES[typescript]}"; do
+		for lang_file in "${_code_files[javascript]}" "${_code_files[typescript]}"; do
 			[ ! -s "$lang_file" ] && continue
 			perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "$lang_file" >>"$COMMENTS_TEMP"
 			perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "$lang_file" >"${lang_file}.clean"
@@ -113,74 +120,74 @@ separate_code_and_comments() {
 	# Process Python files
 	if $HAS_PYTHON; then
 		echo "Processing Python files..."
-		LANG_CODE_FILES["python"]=$(mktemp /tmp/code_python.XXXXXX.tmp)
-		find_files "*.py" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[python]}"
+		_code_files["python"]=$(mktemp /tmp/code_python.XXXXXX.tmp)
+		find_files "*.py" | head -15000 | xargs cat 2>/dev/null >"${_code_files[python]}"
 
-		perl -ne 'if (/^\s*#(.*)/) { print "$1\n"; } elsif (/#(.*)$/) { print "$1\n"; }' "${LANG_CODE_FILES[python]}" >>"$COMMENTS_TEMP"
-		perl -0777 -ne 'while (/"""(.+?)"""/gs) { print "$1\n"; } while (/'"'"''"'"''"'"'(.+?)'"'"''"'"''"'"'/gs) { print "$1\n"; }' "${LANG_CODE_FILES[python]}" >>"$COMMENTS_TEMP"
-		perl -pe 's/#.*$//' "${LANG_CODE_FILES[python]}" | perl -0777 -pe 's/""".*?"""//gs; s/'"'"''"'"''"'"'.*?'"'"''"'"''"'"'//gs' >"${LANG_CODE_FILES[python]}.clean"
-		mv "${LANG_CODE_FILES[python]}.clean" "${LANG_CODE_FILES[python]}"
+		perl -ne 'if (/^\s*#(.*)/) { print "$1\n"; } elsif (/#(.*)$/) { print "$1\n"; }' "${_code_files[python]}" >>"$COMMENTS_TEMP"
+		perl -0777 -ne 'while (/"""(.+?)"""/gs) { print "$1\n"; } while (/'"'"''"'"''"'"'(.+?)'"'"''"'"''"'"'/gs) { print "$1\n"; }' "${_code_files[python]}" >>"$COMMENTS_TEMP"
+		perl -pe 's/#.*$//' "${_code_files[python]}" | perl -0777 -pe 's/""".*?"""//gs; s/'"'"''"'"''"'"'.*?'"'"''"'"''"'"'//gs' >"${_code_files[python]}.clean"
+		mv "${_code_files[python]}.clean" "${_code_files[python]}"
 	fi
 
 	# Process Go files
 	if $HAS_GO; then
 		echo "Processing Go files..."
-		LANG_CODE_FILES["go"]=$(mktemp /tmp/code_go.XXXXXX.tmp)
-		find_files "*.go" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[go]}"
+		_code_files["go"]=$(mktemp /tmp/code_go.XXXXXX.tmp)
+		find_files "*.go" | head -15000 | xargs cat 2>/dev/null >"${_code_files[go]}"
 
-		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${LANG_CODE_FILES[go]}" >>"$COMMENTS_TEMP"
-		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${LANG_CODE_FILES[go]}" >"${LANG_CODE_FILES[go]}.clean"
-		mv "${LANG_CODE_FILES[go]}.clean" "${LANG_CODE_FILES[go]}"
+		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${_code_files[go]}" >>"$COMMENTS_TEMP"
+		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${_code_files[go]}" >"${_code_files[go]}.clean"
+		mv "${_code_files[go]}.clean" "${_code_files[go]}"
 	fi
 
 	# Process Rust files
 	if $HAS_RUST; then
 		echo "Processing Rust files..."
-		LANG_CODE_FILES["rust"]=$(mktemp /tmp/code_rust.XXXXXX.tmp)
-		find_files "*.rs" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[rust]}"
+		_code_files["rust"]=$(mktemp /tmp/code_rust.XXXXXX.tmp)
+		find_files "*.rs" | head -15000 | xargs cat 2>/dev/null >"${_code_files[rust]}"
 
-		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${LANG_CODE_FILES[rust]}" >>"$COMMENTS_TEMP"
-		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${LANG_CODE_FILES[rust]}" >"${LANG_CODE_FILES[rust]}.clean"
-		mv "${LANG_CODE_FILES[rust]}.clean" "${LANG_CODE_FILES[rust]}"
+		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${_code_files[rust]}" >>"$COMMENTS_TEMP"
+		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${_code_files[rust]}" >"${_code_files[rust]}.clean"
+		mv "${_code_files[rust]}.clean" "${_code_files[rust]}"
 	fi
 
 	# Process Ruby files
 	if $HAS_RUBY; then
 		echo "Processing Ruby files..."
-		LANG_CODE_FILES["ruby"]=$(mktemp /tmp/code_ruby.XXXXXX.tmp)
-		find_files "*.rb" | head -5000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[ruby]}"
+		_code_files["ruby"]=$(mktemp /tmp/code_ruby.XXXXXX.tmp)
+		find_files "*.rb" | head -5000 | xargs cat 2>/dev/null >"${_code_files[ruby]}"
 
-		perl -ne 'if (/#(.*)$/) { print "$1\n"; }' "${LANG_CODE_FILES[ruby]}" >>"$COMMENTS_TEMP"
-		perl -0777 -ne 'while (/=begin(.+?)=end/gs) { print "$1\n"; }' "${LANG_CODE_FILES[ruby]}" >>"$COMMENTS_TEMP"
-		perl -pe 's/#.*$//' "${LANG_CODE_FILES[ruby]}" | perl -0777 -pe 's/=begin.*?=end//gs' >"${LANG_CODE_FILES[ruby]}.clean"
-		mv "${LANG_CODE_FILES[ruby]}.clean" "${LANG_CODE_FILES[ruby]}"
+		perl -ne 'if (/#(.*)$/) { print "$1\n"; }' "${_code_files[ruby]}" >>"$COMMENTS_TEMP"
+		perl -0777 -ne 'while (/=begin(.+?)=end/gs) { print "$1\n"; }' "${_code_files[ruby]}" >>"$COMMENTS_TEMP"
+		perl -pe 's/#.*$//' "${_code_files[ruby]}" | perl -0777 -pe 's/=begin.*?=end//gs' >"${_code_files[ruby]}.clean"
+		mv "${_code_files[ruby]}.clean" "${_code_files[ruby]}"
 	fi
 
 	# Process Shell files
 	if $HAS_SHELL; then
 		echo "Processing Shell files..."
-		LANG_CODE_FILES["shell"]=$(mktemp /tmp/code_shell.XXXXXX.tmp)
-		find_files "*.sh" "*.bash" | head -5000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[shell]}"
+		_code_files["shell"]=$(mktemp /tmp/code_shell.XXXXXX.tmp)
+		find_files "*.sh" "*.bash" | head -5000 | xargs cat 2>/dev/null >"${_code_files[shell]}"
 
-		perl -ne 'if (/^\s*#(.*)/ && !/^#!/) { print "$1\n"; } elsif (/#(.*)$/) { print "$1\n"; }' "${LANG_CODE_FILES[shell]}" >>"$COMMENTS_TEMP"
-		perl -pe 's/#.*$//' "${LANG_CODE_FILES[shell]}" >"${LANG_CODE_FILES[shell]}.clean"
-		mv "${LANG_CODE_FILES[shell]}.clean" "${LANG_CODE_FILES[shell]}"
+		perl -ne 'if (/^\s*#(.*)/ && !/^#!/) { print "$1\n"; } elsif (/#(.*)$/) { print "$1\n"; }' "${_code_files[shell]}" >>"$COMMENTS_TEMP"
+		perl -pe 's/#.*$//' "${_code_files[shell]}" >"${_code_files[shell]}.clean"
+		mv "${_code_files[shell]}.clean" "${_code_files[shell]}"
 	fi
 
 	# Process Java files
 	if $HAS_JAVA; then
 		echo "Processing Java files..."
-		LANG_CODE_FILES["java"]=$(mktemp /tmp/code_java.XXXXXX.tmp)
-		find_files "*.java" | head -15000 | xargs cat 2>/dev/null >"${LANG_CODE_FILES[java]}"
+		_code_files["java"]=$(mktemp /tmp/code_java.XXXXXX.tmp)
+		find_files "*.java" | head -15000 | xargs cat 2>/dev/null >"${_code_files[java]}"
 
-		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${LANG_CODE_FILES[java]}" >>"$COMMENTS_TEMP"
-		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${LANG_CODE_FILES[java]}" >"${LANG_CODE_FILES[java]}.clean"
-		mv "${LANG_CODE_FILES[java]}.clean" "${LANG_CODE_FILES[java]}"
+		perl -0777 -ne 'while (/\/\*(.+?)\*\//gs) { print "$1\n"; } while (/\/\/([^\n]*)/g) { print "$1\n"; }' "${_code_files[java]}" >>"$COMMENTS_TEMP"
+		perl -0777 -pe 's|/\*.*?\*/||gs; s|//[^\n]*||g;' "${_code_files[java]}" >"${_code_files[java]}.clean"
+		mv "${_code_files[java]}.clean" "${_code_files[java]}"
 	fi
 
 	local COMMENT_LINES
 	COMMENT_LINES=$(wc -l <"$COMMENTS_TEMP")
 	echo ""
-	echo "Processed languages: ${!LANG_CODE_FILES[*]}"
+	echo "Processed languages: ${!_code_files[*]}"
 	echo "Total comment lines: $COMMENT_LINES"
 }

@@ -165,10 +165,13 @@ print_subheader "Processing source files (separating code from comments)..."
 
 COMMENTS_TEMP=$(mktemp)
 trap 'rm -f "$COMMENTS_TEMP" /tmp/code_*.tmp 2>/dev/null' EXIT
-declare -A LANG_CODE_FILES
+# Named once and passed by name to both passes, so the map itself never becomes
+# a global that the libs reach for implicitly.
+CODE_FILES_MAP="LANG_CODE_FILES"
+declare -A "$CODE_FILES_MAP"
 
-separate_code_and_comments LANG_CODE_FILES "$COMMENTS_TEMP"
-report_languages LANG_CODE_FILES "$COMMENTS_TEMP"
+separate_code_and_comments "$CODE_FILES_MAP" "$COMMENTS_TEMP"
+report_languages "$CODE_FILES_MAP" "$COMMENTS_TEMP"
 
 #==============================================================================
 # STEP 5: ctags Symbol Analysis
