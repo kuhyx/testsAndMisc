@@ -9,16 +9,21 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from python_pkg.brother_printer._page_delivery import (
+    _snapshot_counters,
+    check_page_delivery,
+)
 from python_pkg.brother_printer.consumables import (
     STATE_SCHEMA_CUPS_SCALE,
     STATE_SCHEMA_PRINTER_SCALE,
     _cups_total_on_printer_scale,
     _migrate_state_to_printer_scale,
-    _snapshot_counters,
-    check_page_delivery,
 )
 
 MOD = "python_pkg.brother_printer.consumables"
+# check_page_delivery and _snapshot_counters moved to _page_delivery, so the
+# state-file helpers they call resolve through that module's globals instead.
+MOD_PD = "python_pkg.brother_printer._page_delivery"
 
 
 class TestMigrateStateToPrinterScale:
@@ -113,9 +118,9 @@ class TestCheckPageDelivery:
     never actually came out.
     """
 
-    @patch(f"{MOD}._snapshot_counters")
-    @patch(f"{MOD}._get_cups_total_pages", return_value=1841)
-    @patch(f"{MOD}._load_consumable_state")
+    @patch(f"{MOD_PD}._snapshot_counters")
+    @patch(f"{MOD_PD}._get_cups_total_pages", return_value=1841)
+    @patch(f"{MOD_PD}._load_consumable_state")
     def test_detects_dropped_pages(
         self,
         mock_load: MagicMock,
@@ -133,9 +138,9 @@ class TestCheckPageDelivery:
         assert check.dropped == 63
         assert check.suspected is True
 
-    @patch(f"{MOD}._snapshot_counters")
-    @patch(f"{MOD}._get_cups_total_pages", return_value=1841)
-    @patch(f"{MOD}._load_consumable_state")
+    @patch(f"{MOD_PD}._snapshot_counters")
+    @patch(f"{MOD_PD}._get_cups_total_pages", return_value=1841)
+    @patch(f"{MOD_PD}._load_consumable_state")
     def test_healthy_job_does_not_warn(
         self,
         mock_load: MagicMock,
@@ -150,9 +155,9 @@ class TestCheckPageDelivery:
         assert check.dropped == 0
         assert check.suspected is False
 
-    @patch(f"{MOD}._snapshot_counters")
-    @patch(f"{MOD}._get_cups_total_pages", return_value=1780)
-    @patch(f"{MOD}._load_consumable_state")
+    @patch(f"{MOD_PD}._snapshot_counters")
+    @patch(f"{MOD_PD}._get_cups_total_pages", return_value=1780)
+    @patch(f"{MOD_PD}._load_consumable_state")
     def test_small_gap_is_not_a_warning(
         self,
         mock_load: MagicMock,
@@ -175,9 +180,9 @@ class TestCheckPageDelivery:
     def test_skipped_without_printer_count(self) -> None:
         assert check_page_delivery(0, queue_idle=True).suspected is False
 
-    @patch(f"{MOD}._snapshot_counters")
-    @patch(f"{MOD}._get_cups_total_pages", return_value=1841)
-    @patch(f"{MOD}._load_consumable_state")
+    @patch(f"{MOD_PD}._snapshot_counters")
+    @patch(f"{MOD_PD}._get_cups_total_pages", return_value=1841)
+    @patch(f"{MOD_PD}._load_consumable_state")
     def test_first_run_only_establishes_baseline(
         self,
         mock_load: MagicMock,
@@ -189,9 +194,9 @@ class TestCheckPageDelivery:
         assert check.suspected is False
         mock_snap.assert_called_once()
 
-    @patch(f"{MOD}._snapshot_counters")
-    @patch(f"{MOD}._get_cups_total_pages", return_value=10)
-    @patch(f"{MOD}._load_consumable_state")
+    @patch(f"{MOD_PD}._snapshot_counters")
+    @patch(f"{MOD_PD}._get_cups_total_pages", return_value=10)
+    @patch(f"{MOD_PD}._load_consumable_state")
     def test_log_rotation_draws_no_conclusion(
         self,
         mock_load: MagicMock,
@@ -206,9 +211,9 @@ class TestCheckPageDelivery:
         check = check_page_delivery(2087, queue_idle=True)
         assert check.suspected is False
 
-    @patch(f"{MOD}._snapshot_counters")
-    @patch(f"{MOD}._get_cups_total_pages", return_value=1841)
-    @patch(f"{MOD}._load_consumable_state")
+    @patch(f"{MOD_PD}._snapshot_counters")
+    @patch(f"{MOD_PD}._get_cups_total_pages", return_value=1841)
+    @patch(f"{MOD_PD}._load_consumable_state")
     def test_printer_counter_reset_draws_no_conclusion(
         self,
         mock_load: MagicMock,
@@ -224,7 +229,7 @@ class TestCheckPageDelivery:
 
 
 class TestSnapshotCounters:
-    @patch(f"{MOD}._save_consumable_state")
+    @patch(f"{MOD_PD}._save_consumable_state")
     def test_writes_new_snapshot(self, mock_save: MagicMock) -> None:
         state = {"last_printer_count": 2000, "last_cups_total": 1700}
         _snapshot_counters(state, 2087, 1778)
@@ -232,7 +237,7 @@ class TestSnapshotCounters:
         assert saved["last_printer_count"] == 2087
         assert saved["last_cups_total"] == 1778
 
-    @patch(f"{MOD}._save_consumable_state")
+    @patch(f"{MOD_PD}._save_consumable_state")
     def test_unchanged_counters_skip_the_write(self, mock_save: MagicMock) -> None:
         """Do not rewrite the file on every run when nothing moved."""
         state = {"last_printer_count": 2087, "last_cups_total": 1778}

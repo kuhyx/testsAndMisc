@@ -8,6 +8,7 @@ than through ``display``.
 
 from __future__ import annotations
 
+from python_pkg.brother_printer._page_delivery import check_page_delivery
 from python_pkg.brother_printer._supply import render_life_bar
 from python_pkg.brother_printer.constants import (
     BOLD,
@@ -19,10 +20,7 @@ from python_pkg.brother_printer.constants import (
     YELLOW,
     _out,
 )
-from python_pkg.brother_printer.consumables import (
-    check_page_delivery,
-    estimate_consumable_life,
-)
+from python_pkg.brother_printer.consumables import estimate_consumable_life
 
 
 def _display_page_delivery_warning(printer_total: int, *, queue_idle: bool) -> None:
