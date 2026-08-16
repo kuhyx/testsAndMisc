@@ -1,0 +1,47 @@
+{
+  "intent": "Split three more very large linux_configuration scripts under the cap, and fix the directory handling the splits exposed.",
+  "scope": [
+    "single_use/features/raspberry_pi_nextcloud.sh (1276 -> 163) + 7 libs",
+    "single_use/utils/root_bl9000.sh (1116 -> 211) + 6 libs",
+    "single_use/utils/lookup_docs.sh (942 -> 165) + 6 libs",
+    "Non-goal: no script executed"
+  ],
+  "changes": [
+    "Sixteen new libs across the three scripts. raspberry_pi_nextcloud and root_bl9000 each needed a second carve after the first pass left a lib over the cap.",
+    "lookup_docs.sh's lookup_python was a single 300-line function. Extracted the keyword-to-anchor mapping into python_keyword_doc, which emits result and desc tab-separated so the caller keeps its own control flow - the block only ever assigned those two variables.",
+    "Fixed four more unguarded cd calls in the Nextcloud libs, each before an occ command or a download.",
+    "bl9000_mtkclient.sh had the cd X; work; cd - pattern with three separate return paths. install_mtkclient became a subshell. extract_boot_with_mtkclient could NOT: it exports BOOT_IMG to its caller, so a subshell would swallow it. Instead the venv check moved to before the cd (so that early return needs no cd back), the cd is guarded, and the restores use a saved $PWD rather than cd -.",
+    "Flattened two chained source blocks. The root_bl9000 usage split had absorbed the entry's whole source block into a lib, and the docs split had done the same. Both entries now source every lib directly.",
+    "lookup_docs.sh had no SCRIPT_DIR at all - it needed one adding before its new source block."
+  ],
+  "verification": [
+    {
+      "command": "meta/scripts/verify_shell_split.sh per script",
+      "result": "fail then pass",
+      "evidence": "Three rounds of failures, each a real defect: SC2164 on the unguarded cd calls, SC1091 from the chained source blocks, and then '/lib/docs_python_keywords.sh: No such file' because SCRIPT_DIR was undefined. All three report 'libs sourced, functions defined' now."
+    },
+    {
+      "command": "shellcheck over every lib in isolation",
+      "result": "pass",
+      "evidence": "Clean, including SC2103, with no disable directive anywhere."
+    },
+    {
+      "command": "grep -l 'source \"$SCRIPT_DIR/lib/' over all libs in the touched directories",
+      "result": "pass",
+      "evidence": "No matches - no lib sources a sibling. This is the third occurrence of the chaining bug, so it is now checked explicitly rather than noticed."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "None of the three entry scripts or sixteen libs is listed."
+    }
+  ],
+  "risks": [
+    "None of the three was run: they flash SD cards, put a phone into BROM mode over USB, and configure Apache and MariaDB. The cd fixes change failure paths only.",
+    "extract_boot_with_mtkclient still uses cd rather than a subshell, deliberately, because it exports BOOT_IMG. The restore is now unconditional on both exit paths, but a future edit adding a third return must restore too - a subshell would make that impossible to get wrong, at the cost of the exported variable."
+  ],
+  "rollback": [
+    "git revert the commit; the three scripts return to their previous sizes and the sixteen libs disappear.",
+    "After rollback, re-run bash -n and shellcheck on the restored scripts."
+  ]
+}
