@@ -127,149 +127,18 @@ exit 1
 EOF
 chmod +x "$BIN_DIR/df"
 
-printf 'Checking config uses dedicated low-fork scripts...\n'
-grep -q '^command=~/.config/i3blocks/time.sh$' "$CONFIG_FILE" \
-  || fail 'time block should call time.sh'
-grep -q '^interval=persist$' "$CONFIG_FILE" \
-  || fail 'config should use persist interval for time block'
-grep -q '^command=~/.config/i3blocks/memory.sh$' "$CONFIG_FILE" \
-  || fail 'memory block should call memory.sh'
-grep -q '^command=~/.config/i3blocks/ethernet.sh$' "$CONFIG_FILE" \
-  || fail 'ethernet block should call ethernet.sh'
-grep -q '^command=~/.config/i3blocks/disk.sh$' "$CONFIG_FILE" \
-  || fail 'disk block should call disk.sh'
-grep -q '^interval=10$' "$CONFIG_FILE" \
-  || fail 'cpu block should poll at 10s interval'
-grep -A2 '^\[motherboard_temperature\]$' "$CONFIG_FILE" | grep -q '^interval=30$' \
-  || fail 'motherboard block should poll at 30s interval'
-grep -A2 '^\[memory\]$' "$CONFIG_FILE" | grep -q '^interval=30$' \
-  || fail 'memory block should poll at 30s interval'
-grep -A2 '^\[ethernet\]$' "$CONFIG_FILE" | grep -q '^interval=persist$' \
-  || fail 'ethernet block should use persist mode'
-grep -A2 '^\[claude_usage\]$' "$CONFIG_FILE" | grep -q '^interval=60$' \
-  || fail 'claude_usage block should poll at 60s interval'
-grep -q '^command=~/.config/i3blocks/claude_usage.sh$' "$CONFIG_FILE" \
-  || fail 'claude_usage block should call claude_usage.sh'
+# Two blocks of checks live in libs to keep this file under the 250-line cap.
+# They run in this shell and use the helpers and paths set up above. The fake
+# $BIN_DIR binaries and their heredocs stay here: a seam inside a heredoc
+# produces a lib that will not parse.
+LIB_DIR="$SCRIPT_DIR/lib"
+# shellcheck source=lib/i3blocks_config_checks.sh
+source "$LIB_DIR/i3blocks_config_checks.sh"
+# shellcheck source=lib/i3blocks_claude_usage.sh
+source "$LIB_DIR/i3blocks_claude_usage.sh"
 
-# Blocks for hardware/software absent from this machine were removed; make sure
-# they do not silently return. Each rendered permanently-dead text in the bar.
-for removed_block in bluetooth battery wifi activitywatch warp network_monitor; do
-  if grep -q "^\[${removed_block}\]$" "$CONFIG_FILE"; then
-    fail "removed block [${removed_block}] should not be in the config"
-  fi
-done
-
-printf 'Checking status icons avoid Font Awesome private-use codepoints...\n'
-# The fonts named in the i3 bar's pango string are not installed, so private-use
-# codepoints (U+E000-U+F8FF) fall through to whatever font claims them - which
-# rendered the ethernet icon as a star and the wifi icon as Cyrillic. Plain
-# Unicode/emoji resolve consistently instead.
-for icon_script in "$I3BLOCKS_DIR"/*.sh; do
-  if grep -qP '[\x{E000}-\x{F8FF}]|\\u[eEfF][0-9a-fA-F]{3}' "$icon_script"; then
-    fail "$(basename "$icon_script") should not use private-use-area icon codepoints"
-  fi
-done
-
-printf 'Checking focus detection path avoids extra xdotool lookups...\n'
-! grep -Fq "xdotool getwindowname \"\$wid\"" "$REPO_DIR/scripts/lib/common.sh" \
-  || fail 'focus detection should not call xdotool getwindowname in hot path'
-
-printf 'Checking GPU dedupe guards exist...\n'
-grep -Fq 'emit_if_changed()' "$I3BLOCKS_DIR/gpu_monitor.sh" \
-  || fail 'gpu monitor should dedupe repeated identical samples'
-grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/ethernet.sh" \
-  || fail 'ethernet script should use shared persist helper'
-grep -Fq "source \"\$SCRIPT_DIR/persist_common.sh\"" "$I3BLOCKS_DIR/gpu_monitor.sh" \
-  || fail 'gpu script should use shared persist helper'
-grep -Fq 'i3blocks_update_if_changed_key "ethernet_output"' "$I3BLOCKS_DIR/ethernet.sh" \
-  || fail 'ethernet script should dedupe unchanged output'
-
-printf 'Checking ethernet picks a physical NIC over virtual bridges...\n'
-# Regression: the old loop returned the first non-loopback interface, which on a
-# machine with docker installed is a `br-*` bridge (always "down", and sorted
-# before enp*/eth*), so the bar reported "down" on a live wired connection.
-grep -Fq 'iface_path}/device' "$I3BLOCKS_DIR/ethernet.sh" \
-  || fail 'ethernet script should require a real device to skip virtual interfaces'
-
-printf 'Checking Claude usage block behavior and fork count...\n'
-# claude_usage.sh parses its cache with jq and degrades to "no data" when jq is
-# missing. That is the right runtime behaviour, but it would make every
-# assertion below fail with a misleading message about percentages, so name the
-# real cause instead of letting a missing tool look like a logic bug.
-# Probe by running jq, not with `command -v`: a jq that exists but cannot
-# execute produces exactly the same "no data" output as one that is absent.
-printf '{}' | jq -e . >/dev/null 2>&1 \
-  || fail 'a working jq is required for the claude_usage tests (pacman -S jq)'
-CLAUDE_STATE_DIR="$TMP_DIR/limit-state"
-mkdir -p "$CLAUDE_STATE_DIR"
-claude_now=1786366861
-
-write_claude_state() {
-  printf '{"five_hour_pct":%s,"five_hour_resets_at":%s,"seven_day_pct":%s,"seven_day_resets_at":%s,"updated_at":%s}\n' \
-    "$1" "$2" "$3" "$4" "$5" >"$CLAUDE_STATE_DIR/state.json"
-}
-
-run_claude_usage() {
-  LIMIT_STATE_DIR="$CLAUDE_STATE_DIR" NOW_EPOCH="$claude_now" \
-    bash "$I3BLOCKS_DIR/claude_usage.sh"
-}
-
-# Percentages arrive as floats (e.g. 55.00000000000001) and must be truncated.
-write_claude_state 34 "$((claude_now + 3600))" 55.00000000000001 "$((claude_now + 99999))" "$claude_now"
-claude_output=$(run_claude_usage)
-assert_equals '🤖 5h 34% · 7d 55%' "$(printf '%s\n' "$claude_output" | sed -n '1p')" \
-  'claude usage should show both windows as whole percentages'
-assert_equals '#50FA7B' "$(printf '%s\n' "$claude_output" | sed -n '3p')" \
-  'claude usage should be green well below the limit'
-
-write_claude_state 70 "$((claude_now + 3600))" 12 "$((claude_now + 99999))" "$claude_now"
-assert_equals '#F1FA8C' "$(run_claude_usage | sed -n '3p')" \
-  'claude usage should warn when a window passes 60%'
-
-write_claude_state 91 "$((claude_now + 3600))" 12 "$((claude_now + 99999))" "$claude_now"
-assert_equals '#FF5555' "$(run_claude_usage | sed -n '3p')" \
-  'claude usage should go critical when a window passes 85%'
-
-# The writer only runs while a Claude session is open, so old data must be
-# labelled rather than presented as the current figure.
-write_claude_state 34 "$((claude_now + 3600))" 55 "$((claude_now + 99999))" "$((claude_now - 5000))"
-assert_equals '🤖 5h 34% · 7d 55% (stale)' "$(run_claude_usage | sed -n '1p')" \
-  'claude usage should mark stale cache data'
-
-# A window whose reset time has passed has rolled over: its cached percentage is
-# meaningless, so it must read as unknown rather than a misleading value.
-write_claude_state 99 "$((claude_now - 10))" 55 "$((claude_now + 99999))" "$claude_now"
-assert_equals '🤖 5h ?% · 7d 55%' "$(run_claude_usage | sed -n '1p')" \
-  'claude usage should not report a rolled-over window as current'
-
-write_claude_state 34 "$((claude_now + 3600))" 55 null "$claude_now"
-assert_equals '🤖 5h 34% · 7d 55%' "$(run_claude_usage | sed -n '1p')" \
-  'claude usage should tolerate a null seven_day reset time'
-
-printf 'not json\n' >"$CLAUDE_STATE_DIR/state.json"
-assert_equals '🤖 no data' "$(run_claude_usage | sed -n '1p')" \
-  'claude usage should degrade gracefully on unparsable cache data'
-
-claude_missing_output=$(LIMIT_STATE_DIR="$TMP_DIR/no-such-dir" NOW_EPOCH="$claude_now" \
-  bash "$I3BLOCKS_DIR/claude_usage.sh")
-assert_equals '🤖 no data' "$(printf '%s\n' "$claude_missing_output" | sed -n '1p')" \
-  'claude usage should degrade gracefully when the cache directory is absent'
-
-write_claude_state 34 "$((claude_now + 3600))" 55 "$((claude_now + 99999))" "$claude_now"
-assert_le "$(LIMIT_STATE_DIR="$CLAUDE_STATE_DIR" NOW_EPOCH="$claude_now" \
-  count_execs "$I3BLOCKS_DIR/claude_usage.sh")" 3 \
-  'claude usage should stay within bash plus jq'
-
-# The real cache holds one file per project (~170 on this machine), so the
-# fork budget has to be measured against a populated directory. Measuring it
-# against a single-file dir hid a `stat` call sitting inside the scan loop.
-for filler in $(seq 1 200); do
-  cp "$CLAUDE_STATE_DIR/state.json" "$CLAUDE_STATE_DIR/filler-$filler.json"
-done
-assert_le "$(LIMIT_STATE_DIR="$CLAUDE_STATE_DIR" NOW_EPOCH="$claude_now" \
-  count_execs "$I3BLOCKS_DIR/claude_usage.sh")" 3 \
-  'claude usage fork count must not scale with the number of cached projects'
-rm -f "$CLAUDE_STATE_DIR"/filler-*.json
+i3_tests_config_and_guards
+i3_tests_claude_usage
 
 printf 'Checking disk block behavior and fork count...\n'
 disk_output=$(PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/disk.sh")

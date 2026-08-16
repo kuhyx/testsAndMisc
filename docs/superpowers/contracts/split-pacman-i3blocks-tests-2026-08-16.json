@@ -1,0 +1,21 @@
+{
+  "title": "Split the two remaining over-cap shell test suites in linux_configuration/tests",
+  "objective": "Bring test_pacman_wrapper_security.sh (287) and test_i3blocks_efficiency.sh (345) under the repo-wide 250-line cap by moving blocks of checks into sourced libs, with both suites producing byte-identical output to their pre-split runs.",
+  "acceptance_criteria": [
+    "Both entry scripts and all four new libs are at most 250 lines.",
+    "Each entry keeps its filename, because .github/workflows/shell-tests.yml runs both suites by filename.",
+    "test_pacman_wrapper_security.sh output is byte-identical to a run from a detached worktree at HEAD, exiting 0.",
+    "test_i3blocks_efficiency.sh output is byte-identical to the pre-split run, exiting 0.",
+    "Every new lib passes shellcheck ALONE, without -x, which is the check that decides whether the seam is real.",
+    "No check is changed, deleted, skipped or weakened, and no suppression is added.",
+    "No seam falls inside a heredoc: the i3blocks fake-binary setup stays in the entry script for exactly this reason.",
+    "Each i3blocks lib function ends in an explicit return 0, so a trailing `|| fail` conditional cannot become the function's return value under set -e."
+  ],
+  "out_of_scope": [
+    "Changing what any check asserts.",
+    "Reformatting test_i3blocks_efficiency.sh to satisfy shfmt. It uses 2-space indent and was already shfmt-dirty before this change; the new libs match the style of the code they hold.",
+    "Splitting block_compulsive_opening.sh, whose installer copies the running script to /usr/local/bin and would leave an entry script unable to find its libs.",
+    "Wiring the file-length pre-commit gate, which must land only once --all already exits 0."
+  ],
+  "verifier": "bash linux_configuration/tests/test_pacman_wrapper_security.sh diffed against the same suite from a detached worktree at HEAD, and bash linux_configuration/tests/test_i3blocks_efficiency.sh diffed against its pre-split run (both expect identical output and exit 0), plus shellcheck on each new lib alone, shellcheck -x on both entries, and pre-commit run --files over every touched file."
+}
