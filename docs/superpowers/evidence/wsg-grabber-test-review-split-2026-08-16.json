@@ -1,0 +1,36 @@
+{
+  "intent": "Bring python_pkg/wsg_grabber/tests/test_review.py under the 250-line file cap by splitting it along the same seams the source module was split on, keeping the test count identical.",
+  "scope": [
+    "python_pkg/wsg_grabber/tests/test_review.py",
+    "python_pkg/wsg_grabber/tests/test_review_render.py (new)",
+    "python_pkg/wsg_grabber/tests/test_review_undo.py (new)",
+    "python_pkg/wsg_grabber/tests/conftest.py",
+    "Non-goal: no assertion changes, no test removed or weakened"
+  ],
+  "changes": [
+    "Moved the rendering tests (emptiness, status_line, filename_line, title_line, render) into test_review_render.py, mirroring the source split into review._render.",
+    "Moved the undo tests into test_review_undo.py, mirroring review._undo.",
+    "Moved the two shared fixture builders _item and _reviewed into the existing conftest.py as item/reviewed, and imported them from the three test modules. Sharing them rather than copying keeps jscpd's 2% duplication gate happy.",
+    "test_review.py 297 -> 112 lines; test_review_render.py 102; test_review_undo.py 79; conftest.py 91."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/wsg_grabber/tests/ -q",
+      "result": "pass",
+      "evidence": "277 passed in 15.16s -- exactly the count before the split, so no test was dropped or silently skipped by the move. Two intermediate runs failed first (4 failed, then 1 failed) because the extracted module was missing model imports and Path; those were real NameErrors surfaced by running the suite, fixed, and re-verified."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/wsg_grabber/tests/test_review.py python_pkg/wsg_grabber/tests/test_review_render.py python_pkg/wsg_grabber/tests/test_review_undo.py python_pkg/wsg_grabber/tests/conftest.py",
+      "result": "pass",
+      "evidence": "All quality hooks pass; only the evidence and contract artifact hooks remained, which this file and the paired contract satisfy."
+    }
+  ],
+  "risks": [
+    "The shared builders went into conftest.py rather than a _helpers.py because the name-tests-test hook requires every other file under tests/ to match test_*.py. A _helpers.py was written first and rejected by that hook; python_pkg/syncyomi_guard/tests/conftest.py is the existing precedent for plain shared builders living in conftest.",
+    "conftest.py now mixes autouse path isolation with fixture builders. The module docstring says so explicitly."
+  ],
+  "rollback": [
+    "git revert the commit; test_review.py returns to its 297-line form, the two new modules are deleted and conftest.py loses the builders.",
+    "After rollback, run python3 -m pytest python_pkg/wsg_grabber/tests/ -q and confirm it still reports 277 passed."
+  ]
+}
