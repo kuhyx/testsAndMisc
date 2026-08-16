@@ -1,0 +1,38 @@
+{
+  "intent": "Split scripts/lib/mtk_common.sh with the same entry-point pattern used for common.sh.",
+  "scope": [
+    "linux_configuration/scripts/lib/mtk_common.sh (503 -> 132)",
+    "lib/mtk_device.sh, mtk_classify.sh, mtk_partitions.sh (new)",
+    "Non-goal: no behaviour change, no change to the public surface"
+  ],
+  "changes": [
+    "mtk_common.sh keeps its logging, path and sanitising helpers and sources three new parts: adb/device selection, device classification, and partition discovery.",
+    "The seven mtk_root scripts that source it are untouched, because the path they source is unchanged.",
+    "The `<<<` occurrences in this file are here-strings, not heredocs, so the heredoc hazard did not apply - worth checking rather than assuming, given the enforce_vbox_hosts failure."
+  ],
+  "verification": [
+    {
+      "command": "source mtk_common.sh in a subshell and diff `declare -F` before and after",
+      "result": "pass",
+      "evidence": "Identical 28-function set, checked after each of the two carves rather than only at the end."
+    },
+    {
+      "command": "shellcheck -x mtk_common.sh and shellcheck on each part",
+      "result": "pass",
+      "evidence": "Zero findings, no suppression."
+    },
+    {
+      "command": "meta/scripts/verify_shell_split.sh on 20-dump-stock.sh and install.sh",
+      "result": "pass",
+      "evidence": "Both consumers report 'libs sourced, functions defined' - they source mtk_common.sh from a sibling directory and still resolve everything through the new chain."
+    }
+  ],
+  "risks": [
+    "None of the seven mtk_root consumers was executed: they talk to a phone over USB. The function-set diff plus the stubbed runs are the available evidence.",
+    "_MTK_LIB_DIR uses ${BASH_SOURCE[0]} because this file is only ever sourced; $0 would point at the calling script."
+  ],
+  "rollback": [
+    "git revert the commit; mtk_common.sh returns to 503 lines and the three parts disappear.",
+    "After rollback, re-run the declare -F diff and expect the same 28 functions."
+  ]
+}
