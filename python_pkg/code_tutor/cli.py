@@ -9,12 +9,8 @@ Commands:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-import subprocess
 import sys
-import time
-from typing import cast
 
 import requests
 from rich.console import Console
@@ -22,11 +18,14 @@ from rich.table import Table
 import typer
 
 from python_pkg.code_tutor._analyzer import extract_items
-from python_pkg.code_tutor._deps import codebase_fingerprint
+from python_pkg.code_tutor._cli_checks import (
+    _ensure_fresh_plan,
+    _ensure_ollama_running,
+    _find_codebase_for_file,
+)
 from python_pkg.code_tutor._llm import OllamaBackend
 from python_pkg.code_tutor._plan_builder import build_plan
 from python_pkg.code_tutor._progress import (
-    PlanData,
     append_session_record,
     config_dir,
     item_from_data,
@@ -42,91 +41,6 @@ _console = Console()
 
 _OLLAMA_API = "http://localhost:11434/api/tags"
 _OLLAMA_START_TIMEOUT = 30
-
-
-def _ensure_ollama_running(console: Console) -> bool:
-    """Start the Ollama systemd service if it is not already reachable.
-
-    Tries ``systemctl start ollama`` and polls the API for up to
-    ``_OLLAMA_START_TIMEOUT`` seconds.
-
-    Args:
-        console: Rich console for status messages.
-
-    Returns:
-        True when Ollama is reachable, False after timeout.
-    """
-    try:
-        requests.get(_OLLAMA_API, timeout=2)
-    except requests.exceptions.RequestException:
-        pass
-    else:
-        return True
-
-    console.print("[yellow]Ollama not running -- starting via systemctl...[/yellow]")
-    try:
-        subprocess.run(
-            ["systemctl", "start", "ollama"],
-            check=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        console.print(
-            f"[red]systemctl start ollama failed: {exc.stderr.decode().strip()}[/red]"
-        )
-        return False
-
-    deadline = time.monotonic() + _OLLAMA_START_TIMEOUT
-    while time.monotonic() < deadline:
-        try:
-            requests.get(_OLLAMA_API, timeout=2)
-        except requests.exceptions.RequestException:
-            time.sleep(1)
-        else:
-            console.print("[green]Ollama is up.[/green]")
-            return True
-
-    console.print("[red]Ollama did not become ready in time.[/red]")
-    return False
-
-
-def _ensure_fresh_plan(codebase: Path, plan: PlanData, console: Console) -> PlanData:
-    """Rebuild *plan* if the codebase source files have changed since it was created.
-
-    Compares the plan's stored fingerprint against the current one.  When they
-    differ, re-runs the full analyze pipeline, saves the new plan to disk, and
-    returns it.  Plans without a stored fingerprint (created before this feature)
-    are returned unchanged.
-
-    Args:
-        codebase: Root directory of the codebase.
-        plan: Plan dict loaded from ``plan.json``.
-        console: Rich console for status messages.
-
-    Returns:
-        The original plan when up-to-date, or a freshly built ``PlanData`` when
-        the fingerprint has changed.
-    """
-    saved = plan.get("source_fingerprint", "")
-    if not saved:
-        return plan
-    current = codebase_fingerprint(codebase)
-    if current == saved:
-        return plan
-
-    console.print(
-        "[yellow]Plan is stale -- source files changed.  Rebuilding...[/yellow]"
-    )
-    items = extract_items(codebase)
-    if not items:
-        console.print("[red]No extractable items found -- keeping existing plan.[/red]")
-        return plan
-
-    new_plan = build_plan(codebase, items)
-    save_plan(codebase, new_plan)
-    n = new_plan["total_items"]
-    console.print(f"[green]Plan rebuilt: {n} items.[/green]")
-    return cast("PlanData", new_plan)
 
 
 @app.command()
@@ -302,44 +216,6 @@ def drill(
         item = item_from_data(item_data)
         record = verifier.run_lesson(item, codebase_str)
         append_session_record(codebase, record)
-
-
-def _find_codebase_for_file(file: Path) -> Path | None:
-    """Search all saved plans and return the codebase that contains *file*.
-
-    Args:
-        file: Absolute path to the source file.
-
-    Returns:
-        The codebase ``Path`` whose plan contains *file*, or ``None``.
-    """
-    config_root = Path.home() / ".config" / "code_tutor"
-    if not config_root.exists():
-        return None
-    for plan_file in sorted(config_root.glob("*/plan.json")):
-        result = _check_plan_file(plan_file, file)
-        if result is not None:
-            return result
-    return None
-
-
-def _check_plan_file(plan_file: Path, file: Path) -> Path | None:
-    """Return the codebase path from *plan_file* if it contains *file*, else None.
-
-    Args:
-        plan_file: Path to a ``plan.json`` file.
-        file: Absolute path to look up.
-
-    Returns:
-        The codebase ``Path`` when *file* is relative to it, or ``None``.
-    """
-    try:
-        data = json.loads(plan_file.read_text(encoding="utf-8"))
-        codebase = Path(str(data.get("codebase_path", "")))
-        file.relative_to(codebase)
-    except (ValueError, KeyError, OSError):
-        return None
-    return codebase
 
 
 if __name__ == "__main__":

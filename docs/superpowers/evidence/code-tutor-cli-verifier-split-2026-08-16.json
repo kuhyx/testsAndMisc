@@ -1,0 +1,52 @@
+{
+  "intent": "Bring code_tutor's cli.py and _verifier.py under the 250-line cap, and fix the two lint rules the cli split would otherwise have forced onto a second suppression entry.",
+  "scope": [
+    "python_pkg/code_tutor/_cli_checks.py, _verifier_support.py (new)",
+    "python_pkg/code_tutor/cli.py (345 -> 222), _verifier.py (347 -> 228)",
+    "meta/pyproject.toml (two per-file-ignores removed)",
+    "python_pkg/code_tutor/tests/test_cli.py, test_verifier.py (import and patch paths, plus one new test)",
+    "Non-goal: no existing assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "Fixed S607 by resolving systemctl through shutil.which and invoking the absolute path, and PERF203 by extracting the API probe into _ollama_reachable so the readiness poll is a plain loop with no try/except in its body. Both ignores are deleted from meta/pyproject.toml rather than copied to a new entry: the repo's suppression count drops by two.",
+    "The shutil.which fix introduced a systemctl-is-None branch, so test_ensure_ollama_running_no_systemctl was added to cover it. That is the only reason the pass count moves from 216 to 217.",
+    "Moved the Ollama checks, _ensure_fresh_plan and the codebase-discovery helpers into _cli_checks.py, taking requests, subprocess, time, shutil and json with them. cli.py imports the four entry points back because the command tests patch them there.",
+    "Moved the verifier's prompt constants, _QUESTIONS, _class_header, _read_snippet and _parse_verdict into _verifier_support.py. The Verifier class stays in _verifier, which is what cli and _session construct.",
+    "Repointed 17 patch strings in test_cli.py per test: the seven _ensure_ollama_running and _ensure_fresh_plan tests name _cli_checks, the command tests keep cli."
+  ],
+  "verification": [
+    {
+      "command": "timeout 90 env PYTHONPATH=. python3 -m pytest python_pkg/code_tutor/tests -q",
+      "result": "pass",
+      "evidence": "217 passed - the 216 baseline plus exactly one new test. No existing test was lost; the delta is fully accounted for by the branch the S607 fix added."
+    },
+    {
+      "command": "pre-commit run ruff --files python_pkg/code_tutor/cli.py (with S607 and PERF203 deleted from per-file-ignores)",
+      "result": "pass",
+      "evidence": "Passed. This is the check that proves the lint was actually fixed rather than relocated - with the ignores gone, ruff has nothing left to suppress."
+    },
+    {
+      "command": "pre-commit run pytest-coverage --files python_pkg/code_tutor/cli.py",
+      "result": "fail then pass",
+      "evidence": "First run reported _cli_checks.py at 97%, missing lines 55-56 - the new systemctl-is-None branch. Covered with a real test rather than an exclusion, per the coverage rule, and the hook then passed."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -c \"<assert every patched name resolves on cli and _cli_checks>\"",
+      "result": "pass",
+      "evidence": "Caught that cli.codebase_fingerprint, cli.subprocess and cli.time no longer exist after the move, which is what identified the 17 patch strings needing repointing before the suite was run."
+    },
+    {
+      "command": "wc -l python_pkg/code_tutor/cli.py python_pkg/code_tutor/_cli_checks.py python_pkg/code_tutor/_verifier.py python_pkg/code_tutor/_verifier_support.py",
+      "result": "pass",
+      "evidence": "222, 175, 228 and 142 lines, all under the 250-line cap."
+    }
+  ],
+  "risks": [
+    "The Ollama startup path is not exercised against a real systemd here; only its mocked behaviour is pinned. The refactor preserves the call sequence (probe, start, poll to the same deadline, same messages), and the four existing tests plus the new one cover every branch, but a live run was not performed.",
+    "_verifier_support._QUESTIONS was missed on the first pass of the import block and only surfaced as a NameError in the suite. Any further split of a module with module-level tables should grep for every capitalised or underscore-prefixed module global, not just the functions."
+  ],
+  "rollback": [
+    "git revert the commit; cli.py and _verifier.py return to 345 and 347 lines, the two new modules disappear, and the S607/PERF203 ignores come back.",
+    "After rollback, re-run the package suite and confirm it reports 216 passed - the added test reverts with the branch it covers."
+  ]
+}

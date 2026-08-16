@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from python_pkg.code_tutor._analyzer import CodeItem
-from python_pkg.code_tutor._verifier import (
-    Verifier,
+from python_pkg.code_tutor._verifier import Verifier
+from python_pkg.code_tutor._verifier_support import (
     _class_header,
     _parse_verdict,
     _read_snippet,

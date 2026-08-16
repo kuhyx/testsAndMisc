@@ -51,10 +51,6 @@ unfixable = []
 "**/code_tutor/cli.py" = [
     "B008",    # typer.Argument(...) as a parameter default is the standard Typer
                #   dependency-injection pattern, not a mutable-default bug.
-    "S607",    # invoking "systemctl" by name (not full path) is fine for a
-               #   local developer tool that assumes a normal PATH.
-    "PERF203", # the try/except inside the Ollama readiness-poll loop is
-               #   intentional: retry once per second until the server answers.
 ]
 "**/tests/**/*.py" = [
     "ARG",     # @patch decorators inject mock params that aren't always referenced;

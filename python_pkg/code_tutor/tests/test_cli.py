@@ -9,13 +9,13 @@ from unittest.mock import MagicMock, patch
 import requests
 from typer.testing import CliRunner
 
-from python_pkg.code_tutor.cli import (
+from python_pkg.code_tutor._cli_checks import (
     _check_plan_file,
     _ensure_fresh_plan,
     _ensure_ollama_running,
     _find_codebase_for_file,
-    app,
 )
+from python_pkg.code_tutor.cli import app
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,9 +58,25 @@ def _make_plan(codebase: Path, fingerprint: str = "abc") -> dict:
 def test_ensure_ollama_running_already_up() -> None:
     mock_console = MagicMock()
     mock_resp = MagicMock()
-    with patch("python_pkg.code_tutor.cli.requests.get", return_value=mock_resp):
+    with patch(
+        "python_pkg.code_tutor._cli_checks.requests.get", return_value=mock_resp
+    ):
         result = _ensure_ollama_running(mock_console)
     assert result is True
+
+
+def test_ensure_ollama_running_no_systemctl() -> None:
+    """A machine without systemctl should say so, not raise."""
+    mock_console = MagicMock()
+    with (
+        patch(
+            "python_pkg.code_tutor._cli_checks.requests.get",
+            side_effect=requests.exceptions.ConnectionError(),
+        ),
+        patch("python_pkg.code_tutor._cli_checks.shutil.which", return_value=None),
+    ):
+        result = _ensure_ollama_running(mock_console)
+    assert result is False
 
 
 def test_ensure_ollama_running_systemctl_fails() -> None:
@@ -69,11 +85,11 @@ def test_ensure_ollama_running_systemctl_fails() -> None:
     mock_console = MagicMock()
     with (
         patch(
-            "python_pkg.code_tutor.cli.requests.get",
+            "python_pkg.code_tutor._cli_checks.requests.get",
             side_effect=requests.exceptions.ConnectionError(),
         ),
         patch(
-            "python_pkg.code_tutor.cli.subprocess.run",
+            "python_pkg.code_tutor._cli_checks.subprocess.run",
             side_effect=subprocess.CalledProcessError(1, "systemctl", stderr=b"failed"),
         ),
     ):
@@ -93,9 +109,12 @@ def test_ensure_ollama_running_starts_then_up() -> None:
         return MagicMock()
 
     with (
-        patch("python_pkg.code_tutor.cli.requests.get", side_effect=fake_get),
-        patch("python_pkg.code_tutor.cli.subprocess.run", return_value=mock_subprocess),
-        patch("python_pkg.code_tutor.cli.time.sleep"),
+        patch("python_pkg.code_tutor._cli_checks.requests.get", side_effect=fake_get),
+        patch(
+            "python_pkg.code_tutor._cli_checks.subprocess.run",
+            return_value=mock_subprocess,
+        ),
+        patch("python_pkg.code_tutor._cli_checks.time.sleep"),
     ):
         result = _ensure_ollama_running(mock_console)
     assert result is True
@@ -113,13 +132,16 @@ def test_ensure_ollama_running_times_out() -> None:
         raise requests.exceptions.ConnectionError
 
     with (
-        patch("python_pkg.code_tutor.cli.requests.get", side_effect=fake_get),
-        patch("python_pkg.code_tutor.cli.subprocess.run", return_value=mock_subprocess),
+        patch("python_pkg.code_tutor._cli_checks.requests.get", side_effect=fake_get),
         patch(
-            "python_pkg.code_tutor.cli.time.monotonic",
+            "python_pkg.code_tutor._cli_checks.subprocess.run",
+            return_value=mock_subprocess,
+        ),
+        patch(
+            "python_pkg.code_tutor._cli_checks.time.monotonic",
             side_effect=time_values,
         ),
-        patch("python_pkg.code_tutor.cli.time.sleep"),
+        patch("python_pkg.code_tutor._cli_checks.time.sleep"),
     ):
         result = _ensure_ollama_running(mock_console)
     assert result is False
@@ -146,7 +168,9 @@ def test_ensure_fresh_plan_no_fingerprint(tmp_path: Path) -> None:
 def test_ensure_fresh_plan_up_to_date(tmp_path: Path) -> None:
     plan = _make_plan(tmp_path, fingerprint="same")
     mock_console = MagicMock()
-    with patch("python_pkg.code_tutor.cli.codebase_fingerprint", return_value="same"):
+    with patch(
+        "python_pkg.code_tutor._cli_checks.codebase_fingerprint", return_value="same"
+    ):
         result = _ensure_fresh_plan(tmp_path, plan, mock_console)
     assert result is plan
 
@@ -155,8 +179,10 @@ def test_ensure_fresh_plan_stale_no_items(tmp_path: Path) -> None:
     plan = _make_plan(tmp_path, fingerprint="old")
     mock_console = MagicMock()
     with (
-        patch("python_pkg.code_tutor.cli.codebase_fingerprint", return_value="new"),
-        patch("python_pkg.code_tutor.cli.extract_items", return_value=[]),
+        patch(
+            "python_pkg.code_tutor._cli_checks.codebase_fingerprint", return_value="new"
+        ),
+        patch("python_pkg.code_tutor._cli_checks.extract_items", return_value=[]),
     ):
         result = _ensure_fresh_plan(tmp_path, plan, mock_console)
     assert result is plan
@@ -169,10 +195,14 @@ def test_ensure_fresh_plan_stale_rebuilds(tmp_path: Path) -> None:
     mock_items = [MagicMock()]
 
     with (
-        patch("python_pkg.code_tutor.cli.codebase_fingerprint", return_value="new"),
-        patch("python_pkg.code_tutor.cli.extract_items", return_value=mock_items),
-        patch("python_pkg.code_tutor.cli.build_plan", return_value=new_plan),
-        patch("python_pkg.code_tutor.cli.save_plan"),
+        patch(
+            "python_pkg.code_tutor._cli_checks.codebase_fingerprint", return_value="new"
+        ),
+        patch(
+            "python_pkg.code_tutor._cli_checks.extract_items", return_value=mock_items
+        ),
+        patch("python_pkg.code_tutor._cli_checks.build_plan", return_value=new_plan),
+        patch("python_pkg.code_tutor._cli_checks.save_plan"),
     ):
         result = _ensure_fresh_plan(tmp_path, plan, mock_console)
     assert result["source_fingerprint"] == "new"
