@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 from pathlib import Path
-import re
 import subprocess
 import tempfile
 import time
 
-from defusedxml.ElementTree import ParseError, fromstring
+from python_pkg.android_ui._elements import (
+    AmbiguousElementError,
+    ElementNotFoundError,
+    UiAutomationError,
+    UiElement,
+    _escape,
+    _parse_tree,
+)
+from python_pkg.android_ui._text_entry import TextEntryMixin
 
 _logger = logging.getLogger(__name__)
 
-_BOUNDS_RE = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
 _REMOTE_DUMP = "/sdcard/window_dump.xml"
 
 # A tree this small is a partial render, not a real screen. Flutter reports
@@ -23,61 +28,8 @@ _REMOTE_DUMP = "/sdcard/window_dump.xml"
 # the node count is taken into account.
 _SUSPICIOUSLY_SMALL_TREE = 4
 
-# Horizontal slack when re-identifying a field after typing: the keyboard can
-# shift a widget vertically, but not sideways, so the left edge stays put.
-_SAME_FIELD_X_TOLERANCE_PX = 50
 
-
-class UiAutomationError(RuntimeError):
-    """Base class for every failure this package reports."""
-
-
-class ElementNotFoundError(UiAutomationError):
-    """No element matched the query."""
-
-
-class AmbiguousElementError(UiAutomationError):
-    """More than one element matched, so acting would be a coin flip."""
-
-
-@dataclass(frozen=True)
-class UiElement:
-    """One node from the accessibility tree."""
-
-    text: str
-    content_desc: str
-    resource_id: str
-    class_name: str
-    bounds: tuple[int, int, int, int]
-    enabled: bool
-    focused: bool
-
-    @property
-    def label(self) -> str:
-        """The best human-facing name for this element."""
-        return self.text or self.content_desc or self.resource_id
-
-    @property
-    def center(self) -> tuple[int, int]:
-        """Tap point: the centre of the element's CURRENT bounds."""
-        left, top, right, bottom = self.bounds
-        return ((left + right) // 2, (top + bottom) // 2)
-
-    def matches(self, query: str, *, exact: bool = False) -> bool:
-        """Return True if ``query`` names this element."""
-        haystacks = (self.text, self.content_desc, self.resource_id)
-        if exact:
-            return any(h == query for h in haystacks)
-        return any(query.lower() in h.lower() for h in haystacks if h)
-
-    def __str__(self) -> str:
-        """Return a one-line description naming the element and its centre."""
-        cls = self.class_name.rsplit(".", 1)[-1]
-        x, y = self.center
-        return f"{self.label!r} <{cls}> at ({x},{y})"
-
-
-class AndroidUi:
+class AndroidUi(TextEntryMixin):
     """Drives one device. Every action re-reads the tree before acting."""
 
     def __init__(
@@ -180,63 +132,6 @@ class AndroidUi:
             raise AmbiguousElementError(msg)
         return matches[0]
 
-    def _clear_focused_field(self, length: int) -> None:
-        """Empty the focused field: select-all, then delete."""
-        if length == 0:
-            return
-        # KEYCODE_MOVE_END (123) then a run of deletes is more reliable across
-        # IMEs than CTRL+A, which not every keyboard honours.
-        self._run("shell", "input", "keyevent", "123")
-        for _ in range(length + 2):
-            self._run("shell", "input", "keyevent", "67")
-        time.sleep(self._settle)
-
-    def editable_fields(self) -> list[UiElement]:
-        """Return every editable field on screen, in top-to-bottom order.
-
-        An EMPTY text field carries no text, content-desc or resource-id, so
-        there is nothing to name it by — yet it is precisely the element a
-        caller needs to address in order to fill it in. Ordering by position
-        gives a stable handle ("the second field in the sync form") that does
-        not depend on a label the widget never had.
-        """
-        fields = [e for e in self.dump() if e.class_name.endswith("EditText")]
-        return sorted(fields, key=lambda e: (e.bounds[1], e.bounds[0]))
-
-    def type_into_field(self, index: int, text: str) -> None:
-        """Type ``text`` into the ``index``-th editable field on screen.
-
-        Verifies the field changed, exactly like :meth:`type_into`.
-        """
-        fields = self.editable_fields()
-        if index >= len(fields):
-            msg = f"asked for editable field #{index} but the screen has {len(fields)}"
-            raise ElementNotFoundError(msg)
-        target = fields[index]
-        before = target.text
-        x, y = target.center
-        self._run("shell", "input", "tap", str(x), str(y))
-        time.sleep(max(self._settle, 0.8))
-        # REPLACE, don't append. `input text` inserts at the cursor, so typing
-        # into a field that already holds something silently concatenates --
-        # producing e.g. "old@example.comnew@example.com", which is accepted by
-        # the widget, passes a "did the text change?" check, and is wrong.
-        self._clear_focused_field(len(before))
-        self._run("shell", "input", "text", _escape(text))
-        time.sleep(self._settle)
-        after = self.editable_fields()
-        changed = any(
-            f.text != before
-            and abs(f.bounds[0] - target.bounds[0]) < _SAME_FIELD_X_TOLERANCE_PX
-            for f in after
-        )
-        if not changed:
-            msg = (
-                f"typed {len(text)} character(s) into editable field #{index} "
-                f"but its contents did not change — the tap did not focus it"
-            )
-            raise UiAutomationError(msg)
-
     def wait_for(
         self, query: str, *, timeout: float = 15.0, exact: bool = False
     ) -> UiElement:
@@ -305,107 +200,3 @@ class AndroidUi:
             f"did not change — the tap probably did not focus the field"
         )
         raise UiAutomationError(msg)
-
-    def dismiss_keyboard(self) -> None:
-        """Close the soft keyboard WITHOUT popping the current route.
-
-        ``KEYCODE_BACK`` is the obvious way and the wrong one: Flutter treats
-        it as a route pop, so it navigates out of the screen and discards
-        anything typed. ``KEYCODE_ESCAPE`` leaves the route alone but does not
-        close every IME (Gboard ignores it), and a keyboard that stays up hides
-        the button you are about to tap -- so the tap lands on a key instead,
-        silently doing nothing useful.
-
-        So: ask the IME to hide, verify with ``dumpsys input_method``, and only
-        then report success. Raises if the keyboard is still up, because
-        "tapped a letter key" is indistinguishable from "tapped the button"
-        unless somebody checks.
-        """
-        for keyevent in ("111", "4"):
-            if not self.keyboard_is_up():
-                return
-            self._run("shell", "input", "keyevent", keyevent)
-            time.sleep(max(self._settle, 0.6))
-        if self.keyboard_is_up():
-            msg = (
-                "the soft keyboard is still covering the screen after ESCAPE "
-                "and BACK — any tap below it will hit a key, not your target"
-            )
-            raise UiAutomationError(msg)
-
-    def keyboard_is_up(self) -> bool:
-        """Return True while the soft keyboard is shown.
-
-        Without this, a caller cannot tell "the button is absent" from "the
-        button is behind the keyboard", and the accessibility tree reports the
-        button's laid-out position either way.
-        """
-        out = self._run("shell", "dumpsys", "input_method")
-        match = re.search(r"mInputShown=(\w+)", out)
-        return match is not None and match.group(1) == "true"
-
-    def current_focus(self) -> str:
-        """Return the focused window, for asserting which screen is up."""
-        out = self._run("shell", "dumpsys", "window")
-        match = re.search(r"mCurrentFocus=\S+ \S+ (\S+)}", out)
-        return match.group(1) if match else ""
-
-
-def _escape(text: str) -> str:
-    r"""Escape text for ``adb shell input text``.
-
-    Backslash is escaped FIRST and excluded from the loop below. Escaping it
-    inside the loop double-escapes every backslash the loop itself just added
-    (``&`` -> ``\\&`` -> ``\\\\&``), which silently types the wrong password.
-    """
-    out = text.replace("\\", "\\\\")
-    out = out.replace("%", "%%").replace(" ", "%s")
-    for char in "()<>|;&*~\"'`$":
-        out = out.replace(char, "\\" + char)
-    return out
-
-
-def _parse_tree(xml: str) -> list[UiElement]:
-    """Return every labelled node in an accessibility-tree dump."""
-    try:
-        root = fromstring(xml)
-    except ParseError as exc:
-        _logger.warning(
-            "UI dump is not valid XML (%s) — treating it as an empty screen; "
-            "this is usually a snapshot taken mid-animation",
-            exc,
-        )
-        return []
-
-    elements: list[UiElement] = []
-    for node in root.iter("node"):
-        bounds = _BOUNDS_RE.match(node.get("bounds", ""))
-        if bounds is None:
-            continue
-        text = node.get("text", "")
-        desc = node.get("content-desc", "")
-        res = node.get("resource-id", "")
-        cls = node.get("class", "")
-        # An EMPTY text field has no text, content-desc or resource-id, so a
-        # "must be labelled" filter drops it -- and an empty field is exactly
-        # the thing a caller needs to find in order to type into it. Keep every
-        # editable node regardless of label.
-        if not (text or desc or res or cls.endswith("EditText")):
-            continue
-        elements.append(
-            UiElement(
-                text=text,
-                content_desc=desc,
-                resource_id=res,
-                class_name=cls,
-                bounds=(
-                    int(bounds.group(1)),
-                    int(bounds.group(2)),
-                    int(bounds.group(3)),
-                    int(bounds.group(4)),
-                ),
-                enabled=node.get("enabled") == "true",
-                focused=node.get("focused") == "true",
-            )
-        )
-    return elements

@@ -1,0 +1,48 @@
+{
+  "intent": "Clear the five smaller python_pkg packages under the 250-line cap, leaving only wsg_grabber's test modules.",
+  "scope": [
+    "python_pkg/android_ui/driver.py (411 -> 205) + _elements.py, _text_entry.py (new)",
+    "python_pkg/android_ui/tests/test_driver.py (377 -> 211) + test_text_entry.py, test_shell_helpers.py (new)",
+    "python_pkg/app_icons/glyphs.py (291 -> 93) + _glyph_art.py (new)",
+    "python_pkg/token_audit/tests/test_parse.py (271 -> 209) + test_parse_events.py (new)",
+    "python_pkg/focus_policy/tests/test_model.py (269 -> 148), test_export.py (255 -> 161) + two new modules",
+    "python_pkg/random_jpg/tests/test_generate_jpeg.py (251 -> 138) + test_generate_jpeg_io.py (new)",
+    "Non-goal: no assertion changed, no test deleted, skipped or weakened"
+  ],
+  "changes": [
+    "android_ui/driver.py needed two cuts and a class split. The UiElement dataclass, the three error types and the XML parser moved to _elements.py; the text-entry and keyboard methods became a TextEntryMixin in _text_entry.py. The mixin shape is the one docs/python-split-recipes.md settled on: an ABC declaring _run, dump and wait_for as abstract, because test_driver.py calls the moved methods as bound attributes of a real driver, so module-level functions would not have worked.",
+    "AndroidUi stays in driver.py and driver re-imports the moved names, so android_ui/__init__.py's public re-exports are untouched.",
+    "app_icons/glyphs.py: the twelve SVG path fragments moved to _glyph_art.py, leaving the dataclass, registry and lookup. Pure data with no patch targets.",
+    "The four remaining test modules were partitioned at topic boundaries with a splitter that copies the whole preamble - docstring, imports and local fixture builders - and lets ruff prune what each half does not use."
+  ],
+  "verification": [
+    {
+      "command": "timeout 120 env PYTHONPATH=. python3 -m pytest python_pkg/<pkg>/tests -q, for each of the five",
+      "result": "pass",
+      "evidence": "token_audit 81, focus_policy 137, random_jpg 14, app_icons 44, android_ui 57 - each identical to its baseline measured before any edit."
+    },
+    {
+      "command": "timeout 120 env PYTHONPATH=. python3 -m pytest python_pkg/android_ui/tests -q (intermediate runs)",
+      "result": "fail then pass",
+      "evidence": "Three intermediate failures, all module-level globals that travelled with their code and were not in my hand-written header: _logger (used by the moved XML parser), then re and _SAME_FIELD_X_TOLERANCE_PX (used by the mixin). Same class of miss as _make_verifier and _QUESTIONS earlier - a def or constant between sections, which ruff cannot flag."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all | grep -E 'android_ui|app_icons|focus_policy|token_audit|random_jpg'",
+      "result": "pass",
+      "evidence": "No output - all five packages are entirely under the cap."
+    },
+    {
+      "command": "pre-commit run --files <the touched files and artifacts>",
+      "result": "fail then pass",
+      "evidence": "ruff E402 and pylint C0413 on glyphs.py: I had placed the new import after the dataclass rather than in the import block. Moved; the gate then passed with ruff, ruff format, mypy, pylint, bandit and pytest-with-coverage all clean."
+    }
+  ],
+  "risks": [
+    "TextEntryMixin declares wait_for with the concrete class's exact signature (timeout default 15.0). A future change to AndroidUi.wait_for that does not update the abstract declaration would pass tests but mislead type checkers and readers.",
+    "driver.py imports from both _elements and _text_entry, and _text_entry imports from _elements. That order must hold; _elements must never import from driver."
+  ],
+  "rollback": [
+    "git revert the commit; the five packages return to their previous file sizes and the six new modules disappear.",
+    "After rollback, re-run each package's suite and confirm the same five counts."
+  ]
+}
