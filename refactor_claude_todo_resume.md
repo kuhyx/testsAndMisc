@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**87 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `0aa78ea`; the tree is clean.
+**83 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `093e2f6`; the tree is clean.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
 package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
@@ -15,7 +15,7 @@ at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
 `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
 `wsg_grabber`'s six test modules (277).
 
-**`linux_configuration` is 84 → 44**, in thirteen batches. **All 12 prose files
+**`linux_configuration` is 84 → 42**, in fourteen batches. **All 12 prose files
 are done** (8 split, 2 deleted as completed-work records on the user's ruling).
 **`kcd2_dice_solver` is 12 → 4**, all four remaining being source files. The
 shell pattern is settled and scripted — read `docs/shell-split-recipes.md`
@@ -32,15 +32,14 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 ## What is left
 
-| Directory                             | Count        |
-| ------------------------------------- | ------------ |
-| `linux_configuration`                 | 44           |
-| `phone_focus_mode`                    | 12 (do LAST) |
-| `kcd2_dice_solver`                    | 4            |
-| `focus_owner`                         | 11           |
-| `billsplit`                           | 6            |
-| `reverse_survivors` / `meta` / `docs` | 4 each       |
-| `.github` / `bucket_catch`            | 2 each       |
+| Directory                          | Count        |
+| ---------------------------------- | ------------ |
+| `linux_configuration`              | 42           |
+| `phone_focus_mode`                 | 12 (do LAST) |
+| `focus_owner`                      | 11           |
+| `billsplit`                        | 6            |
+| `meta` / `kcd2_dice_solver`        | 4 each       |
+| `reverse_survivors`/`bucket_catch` | 2 each       |
 
 **Four `linux_configuration` files are deliberately over the cap**, all for
 one reason: **state crosses the seam.** Pass it explicitly first, then split;
@@ -56,15 +55,15 @@ never suppress. See "When to give up on a seam".
 | `clean_audio.sh` (419)                | probe-result globals through two libs        |
 | `setup_passwordless_system.sh` (374)  | no `main()`; top-level block kept by hand    |
 
-Same in `kcd2_dice_solver`: `search.ts` and `badgeValue.ts` are mutually
-recursive across any seam.
+Same in TypeScript: `kcd2`'s `search.ts` and `badgeValue.ts`, and
+`reverse_survivors`' `sim.ts` (`step` ⇄ `survivorStep`) and `types.ts`.
 
 **The pre-commit `shellcheck` hook lints each lib alone**, with no view of the
 caller's globals — stricter than `shellcheck -x` on the entry, and the check
 that decides whether a seam is real. Run it before believing a split.
 
-Next: the remaining `main()`-shaped shell scripts, then `focus_owner` /
-`billsplit` / `reverse_survivors` (Kotlin+Dart+TS, untouched so far).
+Next: the remaining `main()`-shaped shell scripts, then `focus_owner` and
+`billsplit` (Kotlin+Dart, untouched so far — check for a test command first).
 
 ## The live worklist
 
