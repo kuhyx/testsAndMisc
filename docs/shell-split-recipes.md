@@ -164,6 +164,18 @@ file, and the entry itself still linted clean with `-x`.
 still heredoc-unaware, so check for `<<` in the region you are moving before
 choosing a boundary.
 
+### Extracting an embedded program pulls it into the Python gate
+
+`install_plagiarism_tools.sh` (534) is mostly two heredocs emitting a 224-line
+and a 90-line Python program. Extracting them to real files under
+`plagiarism/` gets all three under the cap in one move and is what the shell
+rules ask for — but those files then face `ruff select = ["ALL"]`, `pylint`
+and `mypy`, and they arrived with **22 violations**. Fixing those means
+rewriting a plagiarism checker, and it changes code that gets _installed_.
+
+So: extracting an embedded program is the right shape, but budget it as a
+**Python cleanup task, not a line-count split**. Reverted for now.
+
 ### When to give up on a seam
 
 `clean_audio.sh` was reverted. Two probe-result globals were read by functions
