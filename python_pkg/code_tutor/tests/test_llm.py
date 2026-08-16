@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from python_pkg.code_tutor._claude_backend import ClaudeBackend
 from python_pkg.code_tutor._llm import (
-    ClaudeBackend,
     OllamaBackend,
     _is_weak,
     complete_with_fallback,
@@ -94,7 +94,8 @@ def test_claude_complete_with_text_block() -> None:
     mock_client.messages.create.return_value = mock_message
 
     with patch(
-        "python_pkg.code_tutor._llm.anthropic.Anthropic", return_value=mock_client
+        "python_pkg.code_tutor._claude_backend.anthropic.Anthropic",
+        return_value=mock_client,
     ):
         backend = ClaudeBackend()
         result = backend.complete("sys", "user")
@@ -111,7 +112,8 @@ def test_claude_complete_no_text_attr() -> None:
     mock_client.messages.create.return_value = mock_message
 
     with patch(
-        "python_pkg.code_tutor._llm.anthropic.Anthropic", return_value=mock_client
+        "python_pkg.code_tutor._claude_backend.anthropic.Anthropic",
+        return_value=mock_client,
     ):
         backend = ClaudeBackend()
         result = backend.complete("sys", "user")
@@ -135,7 +137,8 @@ def test_claude_stream_success() -> None:
 
     tokens: list[str] = []
     with patch(
-        "python_pkg.code_tutor._llm.anthropic.Anthropic", return_value=mock_client
+        "python_pkg.code_tutor._claude_backend.anthropic.Anthropic",
+        return_value=mock_client,
     ):
         backend = ClaudeBackend()
         result = backend.stream("sys", "user", tokens.append)
@@ -161,7 +164,8 @@ def test_claude_stream_api_error_fallback() -> None:
 
     tokens: list[str] = []
     with patch(
-        "python_pkg.code_tutor._llm.anthropic.Anthropic", return_value=mock_client
+        "python_pkg.code_tutor._claude_backend.anthropic.Anthropic",
+        return_value=mock_client,
     ):
         backend = ClaudeBackend()
         result = backend.stream("sys", "user", tokens.append)
