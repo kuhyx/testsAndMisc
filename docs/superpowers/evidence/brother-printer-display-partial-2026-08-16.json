@@ -1,0 +1,41 @@
+{
+  "intent": "Reduce python_pkg/brother_printer/display.py by extracting the parts no test patches, and collapse the duplicated toner/drum bar rendering into one helper. This does NOT bring display.py under the 250-line cap -- it is 342 and needs a further ~92 lines removed, which is blocked on a decision about editing test files.",
+  "scope": [
+    "python_pkg/brother_printer/display.py",
+    "python_pkg/brother_printer/_supply.py (new)",
+    "python_pkg/brother_printer/_severity.py (new)",
+    "Non-goal: no assertion changed, no test deleted or weakened"
+  ],
+  "changes": [
+    "Extracted the supply-level arithmetic into _supply.py: _classify_percentage_level, _classify_supply_level, _format_supply_bar, _process_supply_item, _parse_supply_value, _collect_supply_items. These are imported by the tests, not patched, so they were free to move.",
+    "Extracted the three _SEVERITY_* lookup tables into _severity.py. Pure data, patched by nothing.",
+    "Added _supply.render_life_bar and used it for both the toner and drum bars in _display_page_count_estimate. Those two blocks were the same logic with different colours and notes -- this removes the duplication rather than just relocating it.",
+    "display.py re-exports the moved supply names through __all__, because tests/test_display.py imports them from display.",
+    "display.py 427 -> 342 lines; _supply.py 131; _severity.py 44."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/brother_printer/tests/ -q",
+      "result": "pass",
+      "evidence": "402 passed in 1.76s -- the same count as before the change, run after each of the three extractions."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/brother_printer/display.py python_pkg/brother_printer/_supply.py python_pkg/brother_printer/_severity.py",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit and the coverage-gated pytest all pass. Only the evidence-artifact hook remained, which this file satisfies. No suppression added; a pylint C0104 on the name 'bar' was fixed by renaming it, not disabling the check."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "fail",
+      "evidence": "display.py is still 342 lines and remains a violation. Stated explicitly: this commit reduces it and removes real duplication, but does not clear it."
+    }
+  ],
+  "risks": [
+    "The remaining ~92 lines cannot be extracted without either editing test files or adding ~8 pure-indirection delegate functions. brother_printer's test modules patch roughly 90 names across the package via patch(f'{MOD}.<name>'), and mock.patch pins a name to the module it is patched on: a function that moves to a new module resolves its collaborators through the new module's globals, so the patch no longer reaches it. An earlier attempt to move the page-count block was reverted for exactly this reason (AttributeError: module display does not have the attribute 'estimate_consumable_life').",
+    "_display_report_header is patched from both test_display.py and test_display_part2.py, so any split of display.py into USB and network halves has to keep that function reachable from both patch sites."
+  ],
+  "rollback": [
+    "git revert the commit; display.py returns to 427 lines and the two new modules are deleted.",
+    "After rollback, run python3 -m pytest python_pkg/brother_printer/tests/ -q and confirm it still reports 402 passed."
+  ]
+}

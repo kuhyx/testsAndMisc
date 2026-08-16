@@ -3,20 +3,34 @@
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING
 
+# ── Shared display helpers ───────────────────────────────────────────
+# Re-exported through __all__: tests/test_display.py imports these names from
+# this module. Only the un-patched supply *maths* moved to _supply -- everything
+# the tests reach with mock.patch has to stay resolvable here.
+from python_pkg.brother_printer._severity import (
+    _SEVERITY_COLORS,
+    _SEVERITY_ICONS,
+    _SEVERITY_SUMMARIES,
+)
+from python_pkg.brother_printer._supply import (
+    _classify_percentage_level,
+    _classify_supply_level,
+    _collect_supply_items,
+    _format_supply_bar,
+    _parse_supply_value,
+    _process_supply_item,
+    render_life_bar,
+)
 from python_pkg.brother_printer.constants import (
     BOLD,
     CYAN,
     DIM,
     DRUM_RATED_PAGES,
     GREEN,
-    PROGRESS_BAR_WIDTH,
     RED,
     RESET,
-    SNMP_LEVEL_LOW,
-    SNMP_LEVEL_OK,
-    SUPPLY_LOW_PCT,
-    SUPPLY_WARN_PCT,
     TONER_RATED_PAGES,
     YELLOW,
     _out,
@@ -30,13 +44,23 @@ from python_pkg.brother_printer.cups_queue import (
     display_cups_queue_status,
     get_cups_queue_status,
 )
-from python_pkg.brother_printer.data_classes import (
-    NetworkResult,
-    SupplyStatus,
-    USBResult,
-)
 
-# ── Shared display helpers ───────────────────────────────────────────
+if TYPE_CHECKING:
+    from python_pkg.brother_printer.data_classes import (
+        NetworkResult,
+        USBResult,
+    )
+
+__all__ = [
+    "_classify_percentage_level",
+    "_classify_supply_level",
+    "_collect_supply_items",
+    "_format_supply_bar",
+    "_parse_supply_value",
+    "_process_supply_item",
+    "display_network_results",
+    "display_usb_results",
+]
 
 
 def _display_report_header() -> None:
@@ -101,36 +125,20 @@ def _display_page_count_estimate(printer_total: int = 0) -> None:
             f" and reads high.{RESET}"
         )
     _out()
-    # Toner bar
-    toner_pct = estimate.toner_pct_remaining
-    toner_filled = toner_pct * PROGRESS_BAR_WIDTH // 100
-    toner_empty = PROGRESS_BAR_WIDTH - toner_filled
-    toner_bar = f"[{'█' * toner_filled}{'░' * toner_empty}]"
-    if estimate.toner_exhausted:
-        toner_color = RED
-        toner_note = " ← REPLACE NOW"
-    elif estimate.toner_low:
-        toner_color = YELLOW
-        toner_note = " ← order soon"
-    else:
-        toner_color = GREEN
-        toner_note = ""
-    _out(
-        f"  {BOLD}Toner:{RESET} {toner_color}{toner_bar} ~{toner_pct}%"
-        f"{toner_note}{RESET}"
+    render_life_bar(
+        "Toner:",
+        estimate.toner_pct_remaining,
+        exhausted=estimate.toner_exhausted,
+        low=estimate.toner_low,
+        exhausted_note=" ← REPLACE NOW",
+        low_note=" ← order soon",
     )
-    # Drum bar
-    drum_pct = estimate.drum_pct_remaining
-    drum_filled = drum_pct * PROGRESS_BAR_WIDTH // 100
-    drum_empty = PROGRESS_BAR_WIDTH - drum_filled
-    drum_bar = f"[{'█' * drum_filled}{'░' * drum_empty}]"
-    if estimate.drum_near_end:
-        drum_color = YELLOW
-        drum_note = " ← nearing end"
-    else:
-        drum_color = GREEN
-        drum_note = ""
-    _out(f"  {BOLD}Drum:{RESET}  {drum_color}{drum_bar} ~{drum_pct}%{drum_note}{RESET}")
+    render_life_bar(
+        "Drum: ",
+        estimate.drum_pct_remaining,
+        low=estimate.drum_near_end,
+        low_note=" ← nearing end",
+    )
     _out(
         f"  {DIM}Based on pages since last replacement"
         f" vs rated capacity (toner ~{TONER_RATED_PAGES},"
@@ -181,34 +189,6 @@ def _display_usb_device_info(result: USBResult) -> None:
             )
         else:
             _out(f"{BOLD}Toner Save:{RESET} OFF")
-
-
-_SEVERITY_ICONS: dict[str, str] = {
-    "ok": "✓",
-    "info": "i",
-    "warn": "⚡",
-    "critical": "⚠",
-}
-_SEVERITY_COLORS: dict[str, str] = {
-    "ok": GREEN,
-    "info": CYAN,
-    "warn": YELLOW,
-    "critical": RED,
-}
-_SEVERITY_SUMMARIES: dict[str, str] = {
-    "ok": f"{GREEN}{BOLD}✓  Printer is healthy. No replacements needed.{RESET}",
-    "info": (
-        f"{CYAN}{BOLD}i  Printer is busy/processing. No replacements needed.{RESET}"
-    ),
-    "warn": (
-        f"{YELLOW}{BOLD}⚡ WARNING: Maintenance will be needed"
-        f" soon.{RESET}\n{YELLOW}   Order replacement parts"
-        f" now to avoid interruption.{RESET}"
-    ),
-    "critical": (
-        f"{RED}{BOLD}⚠  ACTION REQUIRED: Replacement or fix needed now!{RESET}"
-    ),
-}
 
 
 def _format_status_detail(
@@ -291,49 +271,6 @@ def display_usb_results(result: USBResult) -> None:
 # ── Network supply level helpers ─────────────────────────────────────
 
 
-def _classify_percentage_level(desc: str, pct: int) -> tuple[int, str, str, str, bool]:
-    """Classify a supply by its calculated percentage."""
-    if pct <= SUPPLY_LOW_PCT:
-        return pct, f"{pct}%", RED, f"{desc} at {pct}%.", True
-    if pct <= SUPPLY_WARN_PCT:
-        return pct, f"{pct}%", YELLOW, f"{desc} at {pct}% -- order soon.", False
-    return pct, f"{pct}%", GREEN, "", False
-
-
-def _classify_supply_level(
-    desc: str, max_val: int, level: int
-) -> tuple[int, str, str, str, bool]:
-    """Classify a supply level. Returns (pct, status, color, warning, replace)."""
-    if level == SNMP_LEVEL_OK:
-        return -1, "OK", GREEN, "", False
-    if level == SNMP_LEVEL_LOW:
-        return -1, "LOW", RED, f"{desc} is LOW.", True
-    if level == 0:
-        return 0, "EMPTY", RED, f"{desc} is EMPTY -- replace now!", True
-    if max_val > 0:
-        pct = min(level * 100 // max_val, 100)
-        return _classify_percentage_level(desc, pct)
-    return -1, "", GREEN, "", False
-
-
-def _format_supply_bar(pct: int) -> str:
-    """Build a progress bar string for a supply percentage."""
-    if pct < 0:
-        return ""
-    filled = pct * PROGRESS_BAR_WIDTH // 100
-    empty = PROGRESS_BAR_WIDTH - filled
-    return f"[{'█' * filled}{'░' * empty}]"
-
-
-def _process_supply_item(desc: str, max_val: int, level: int) -> SupplyStatus:
-    """Process a single supply item into display info."""
-    pct, status_text, color, warning, needs_replacement = _classify_supply_level(
-        desc, max_val, level
-    )
-    bar_text = _format_supply_bar(pct)
-    return SupplyStatus(color, bar_text, status_text, warning, needs_replacement)
-
-
 def _display_supply_warnings(*, needs_replacement: bool, warnings: list[str]) -> None:
     """Display supply level warnings summary."""
     _out()
@@ -347,28 +284,6 @@ def _display_supply_warnings(*, needs_replacement: bool, warnings: list[str]) ->
             _out(f"   {YELLOW}• {w}{RESET}")
     else:
         _out(f"{GREEN}{BOLD}✓  All consumables are at healthy levels.{RESET}")
-
-
-def _parse_supply_value(values: list[str], index: int) -> int:
-    """Safely parse an integer from a supply value list."""
-    try:
-        return int(values[index])
-    except (IndexError, ValueError):
-        return 0
-
-
-def _collect_supply_items(
-    result: NetworkResult,
-) -> tuple[list[SupplyStatus], list[str]]:
-    """Parse and collect supply items with their descriptions."""
-    items: list[SupplyStatus] = []
-    descs: list[str] = []
-    for i, desc in enumerate(result.supplies.descriptions):
-        max_val = _parse_supply_value(result.supplies.max_values, i)
-        level = _parse_supply_value(result.supplies.levels, i)
-        items.append(_process_supply_item(desc, max_val, level))
-        descs.append(desc)
-    return items, descs
 
 
 def _display_supply_levels(result: NetworkResult) -> None:
