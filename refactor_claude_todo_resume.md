@@ -22,24 +22,18 @@ files.
 
 `git log --oneline --grep='[Ss]plit'` is the authoritative list.
 
-## What is left (61)
+## What is left
 
-| Directory             | Count         |
-| --------------------- | ------------- |
-| `linux_configuration` | 32            |
-| `phone_focus_mode`    | 11 (do LAST)  |
-| `focus_owner`         | 5             |
-| `kcd2_dice_solver`    | 4             |
-| `meta`                | 3             |
-| `bucket_catch`        | 2             |
-| `reverse_survivors`   | 2             |
-| `billsplit`           | 1 (generated) |
-
-**Do not work from this table.** Run:
+60 files, plus this handoff whenever an edit pushes it over. A per-directory
+table used to live here and went stale every session; get the real list from:
 
 ```bash
 bash ~/utils/scripts/check_file_length.sh --all
 ```
+
+Rough shape: `linux_configuration` dominates, `phone_focus_mode` (11) is last
+by policy, then `focus_owner`, `kcd2_dice_solver`, `meta`, `bucket_catch`,
+`reverse_survivors`.
 
 ### Deliberately over the cap — a NAMED blocker, not a line-count job
 
@@ -108,22 +102,10 @@ reachable by any static check:
 thing**: stub only what mutates the system, and diff the generated artifacts
 against a detached worktree at the pre-split commit.
 
-**`meta/scripts/trace_shell_split.sh` now does this** (added 2026-08-16). It
-shadows ~30 mutating binaries (`sudo`, `pacman`, `systemctl`, `adb`, `nft`,
-`mount`, `reboot`, …) with `PATH` stubs that record their calls and exit 0,
-runs the script, and prints a diffable trace of exit status + stubbed calls +
-stdout + stderr. Capture before and after a split, then diff.
-
-Verified against both documented bug classes: it catches the `set -e`
-function-tail abort (exit 1, later calls missing from the trace) and the
-self-referencing nameref (exit 0 and correct stdout, but `circular name
-reference` in stderr). Two caveats: stubs always exit 0, so a script branching
-on a real failure status needs a hand-written stub; and a mutating command
-**not** in `STUBBED_COMMANDS` runs for real — grep the script for mutating
-verbs and extend the list before tracing something new.
-
-This is what lets Decision 6 and "verify by running" coexist: the enforcement
-and installer scripts are executed against stubs, never against the system.
+**`meta/scripts/trace_shell_split.sh` now does this** (added 2026-08-16) — it
+runs the script with mutating binaries stubbed and prints a diffable trace, so
+Decision 6 and Decision 12 can both hold. Usage, caveats and the proof it
+catches both bug classes are in `docs/shell-split-verification.md`.
 
 ### `--skip-install` is not permission to run a script
 
@@ -190,12 +172,12 @@ delete it.
 
 ## Concurrency: check for another agent FIRST
 
-This session collided with a **second Claude** started by
-`~/.claude/scripts/claude-autoresume.sh`, running the same refactor in the same
-tree. Shared git index → its files landed in my staging area and it won a commit
-race. Then it **stalled for 17 minutes** and never recovered.
-
-Its signature, if it happens again:
+A past session collided with a second Claude from
+`~/.claude/scripts/claude-autoresume.sh` on the same tree: shared git index, so
+its files landed in the other's staging area, it won a commit race, then hung
+for 17 minutes on an API request with no read timeout. **Run this before
+touching the index**, and `kill` anything live (it commits in-flight work on
+the way out):
 
 ```bash
 pgrep -af 'claude -p' | grep -v grep     # autoresume runs `claude -p ... --continue`
@@ -204,25 +186,9 @@ pgrep -P <pid> -a                        # only MCP servers = no command running
 ss -tnp | grep <pid>                     # ESTAB to :443 with 0/0 queued = half-open
 ```
 
-**Root cause:** a request to the API got no response, and there is no read
-timeout — so it waits forever in `epoll_wait`. Its log is 0 bytes because
-`claude -p` buffers all output until the run completes. `kill <pid>` is safe;
-it committed its in-flight work on the way out.
-
-**Before starting work:** run the `pgrep` above. If another agent is live in
-this repo, deal with that before touching the index.
-
-### If the tree looks suspiciously clean
-
-Killing a process mid-`pre-commit` strands the unstaged changes it stashed.
-They are recoverable — do **not** re-create them by hand:
-
-```bash
-ls -lt ~/.cache/pre-commit/patch* | head
-git apply ~/.cache/pre-commit/patch<newest>
-```
-
-That is how `focus_owner/analysis_options.yaml` came back this session.
+**If the tree looks suspiciously clean**, killing a process mid-`pre-commit`
+stranded the changes it stashed. Recover them, do not retype them:
+`ls -lt ~/.cache/pre-commit/patch* | head` then `git apply` the newest.
 
 ## Traps that still cost time
 

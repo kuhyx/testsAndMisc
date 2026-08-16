@@ -52,6 +52,43 @@ the system, and diff the generated artifacts against a detached worktree at the
 pre-split commit. That comparison is what proved the fix — same file set, every
 text artifact byte-identical.
 
+### `trace_shell_split.sh` — the run, made routine
+
+`meta/scripts/trace_shell_split.sh` (added 2026-08-16) does the stubbed run for
+you. It shadows ~30 mutating binaries (`sudo`, `pacman`, `systemctl`, `adb`,
+`nft`, `mount`, `mkinitcpio`, `reboot`, …) with `PATH` stubs that record each
+call and exit 0, runs the script, and prints a diffable trace: exit status,
+stubbed calls in order with arguments, stdout, stderr.
+
+```bash
+# baseline, in a detached worktree at the pre-split commit
+meta/scripts/trace_shell_split.sh <script> --out /tmp/before.txt
+# after the split
+meta/scripts/trace_shell_split.sh <script> --out /tmp/after.txt
+diff /tmp/before.txt /tmp/after.txt
+```
+
+It was verified against both bugs above: the `set -e` function tail shows up as
+exit 1 with the later calls missing from the trace, and the nameref shows up as
+`circular name reference` in stderr despite exit 0 and correct stdout. A run
+against a fixture calling `systemctl` left the real unit untouched.
+
+Two things it does not do:
+
+- **Stubs always exit 0.** A script that branches on a real failure status
+  takes a path it would not take live. Hand-write a stub for those and say so
+  in the split's evidence file.
+- **Anything not stubbed runs for real.** `git`, `curl`, `wget` and `makepkg`
+  are deliberately excluded from the default set, because many scripts read git
+  state harmlessly and a blanket stub would change what they see. Grep the
+  target for network and build verbs, then pass them:
+  `--stub git,curl,makepkg`.
+
+Note it does not need a `main()`, which matters: none of the remaining
+near-miss shell targets (`install_usage_monitoring.sh`,
+`install_pacman_wrapper.sh`, `disk_cleanup_check.sh`, `fresh-install/main.sh`)
+have one, so `verify_shell_split.sh` cannot check any of them.
+
 Note the knock-on: renaming the nameref local hides the array from shellcheck
 (SC2034), because it is then only ever named as a bare word. Pass the name
 through a variable (`CODE_FILES_MAP="LANG_CODE_FILES"`) so the reference is
