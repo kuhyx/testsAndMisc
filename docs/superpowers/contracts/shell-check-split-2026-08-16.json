@@ -1,0 +1,19 @@
+{
+  "title": "Split shell_check.sh (428 lines) into an entry script and three libs",
+  "objective": "Bring linux_configuration/scripts/meta/shell_check.sh under the repo-wide 250-line cap by moving its install, discovery and linting functions into lib/shell_check_{install,discover,lint}.sh, without changing which files it discovers or which linters it runs.",
+  "acceptance_criteria": [
+    "shell_check.sh and each new lib/shell_check_*.sh file is at most 250 lines.",
+    "shellcheck reports zero findings across the entry script and all three libs, at the repo's no-severity-filter setting, with no suppression added.",
+    "The set of functions defined across the entry and the libs is identical to the nine defined at HEAD, each defined exactly once.",
+    "Every executable line of the original survives; the only additions are the three source lines.",
+    "Running the script with --skip-install --list-only --verbose discovers exactly the same file list as the same invocation at HEAD, plus the three new lib files themselves and nothing else.",
+    "No lib sources another lib; the entry sources all three, after the option parsing and the temp-file paths they read.",
+    "The entry keeps the mktemp -d and its EXIT trap, so cleanup still happens on every exit path."
+  ],
+  "out_of_scope": [
+    "Running the script without --list-only. Its install_linters path invokes sudo pacman and an AUR helper, and --skip-install does not gate the AUR branch; decision 6 forbids mutating the live system.",
+    "Fixing the --skip-install flag so it also suppresses the AUR install path. That is a real defect but a behaviour change, not a line-count split.",
+    "Changing the 2-space indentation this file uses, which differs from the tab-indented scripts elsewhere in the repo."
+  ],
+  "verifier": "shellcheck over the entry plus all three libs (expects zero findings), bash -n on each, bash ~/utils/scripts/check_file_length.sh over the four files (expects none listed), a diff of the --list-only --verbose file list against the same run from a detached worktree at HEAD (expects only the three new libs added), a function-set diff against HEAD (expects identical), and a sorted line-set diff (expects only the three source lines added)."
+}

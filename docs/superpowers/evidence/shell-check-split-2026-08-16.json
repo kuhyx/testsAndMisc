@@ -1,0 +1,57 @@
+{
+  "intent": "Bring shell_check.sh under the 250-line cap by moving its nine functions into three sourced libs, leaving discovery and linting behaviour unchanged.",
+  "scope": [
+    "linux_configuration/scripts/meta/shell_check.sh (428 -> 121 lines)",
+    "New: lib/shell_check_{install,discover,lint}.sh",
+    "Non-goal: fixing --skip-install, which does not gate the AUR install path",
+    "Non-goal: changing the file's 2-space indentation style"
+  ],
+  "changes": [
+    "Moved is_cmd, is_arch, have_aur_helper, install_if_missing and install_linters into lib/shell_check_install.sh.",
+    "Moved discover_shell_files and print_file_list into lib/shell_check_discover.sh.",
+    "Moved run_linters, the 163-line body holding the shellcheck, shfmt, checkbashisms, bashate and per-dialect syntax passes, into lib/shell_check_lint.sh.",
+    "The entry keeps the header, common.sh source, option defaults, usage, argument parsing, the mktemp -d with its EXIT trap, the ABS_FILES_Z / REL_FILES_Z paths, and the main dispatch. The three libs are sourced after the options and paths they read.",
+    "The temp-file paths are set once in the entry before any lib is sourced and are only read thereafter, so no mutable state crosses a file boundary."
+  ],
+  "verification": [
+    {
+      "command": "shellcheck shell_check.sh lib/shell_check_*.sh",
+      "result": "pass",
+      "evidence": "Zero findings across all four files at the repo's no-severity-filter setting, on the first attempt, with no suppression added."
+    },
+    {
+      "command": "bash -n on the entry and each lib",
+      "result": "pass",
+      "evidence": "All four parse."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh",
+      "result": "pass",
+      "evidence": "entry 121, lint 171, install 86, discover 78. None of the four appears in the violation list."
+    },
+    {
+      "command": "bash scripts/meta/shell_check.sh --skip-install --list-only --verbose, diffed against the same run from a detached worktree at HEAD",
+      "result": "pass",
+      "evidence": "318 files at HEAD, 321 now. The delta is exactly the three new lib files, which the discovery walk correctly picks up as shell scripts; nothing was removed and no other path changed. An earlier version of this check used a grep that matched nothing and silently compared two empty lists -- it needed --verbose, since print_file_list only enumerates in verbose mode."
+    },
+    {
+      "command": "function-set diff against HEAD",
+      "result": "pass",
+      "evidence": "Identical: all nine functions preserved (discover_shell_files, have_aur_helper, install_if_missing, install_linters, is_arch, is_cmd, print_file_list, run_linters, usage), each defined exactly once across the four files."
+    },
+    {
+      "command": "sorted line-set diff of HEAD:shell_check.sh against entry+libs concatenated",
+      "result": "pass",
+      "evidence": "Zero lines lost. The only additions are the three source lines."
+    }
+  ],
+  "risks": [
+    "The linting path itself was not executed. run_linters cannot be exercised without the install path running first, and --skip-install does not gate the AUR branch: a full run during this session began installing python-bashate and pulled in python-pbr, python-fixtures, python-discover and python-reno before it was killed. The user chose to leave those four installed. Verification is therefore static plus the --list-only runtime path, which does exercise every source line and the discovery function.",
+    "Because run_linters was moved as one intact 163-line block with no interior edit, and the line-set diff proves nothing was lost or reordered, the risk of a behavioural change inside it is confined to the seam at its boundaries, both of which are function braces.",
+    "CI invokes this script as `bash scripts/meta/shell_check.sh --skip-install` from linux_configuration/.github/workflows/shell-check.yml. The entry keeps its path and its ${BASH_SOURCE[0]}-based SCRIPT_DIR, so the libs resolve there the same way they do locally."
+  ],
+  "rollback": [
+    "git revert the commit; shell_check.sh returns to its 428-line single-file form and the three libs disappear.",
+    "After rollback, re-run bash scripts/meta/shell_check.sh --skip-install --list-only --verbose and confirm it discovers 318 files again."
+  ]
+}
