@@ -19,10 +19,15 @@
 # is never touched. That is what makes this safe for the enforcement and
 # installer scripts Decision 6 forbids executing for real.
 #
+# Scripts whose job is PLACING FILES need --prefix: shell redirections cannot
+# be stubbed via PATH, so without it the choice is an empty trace or a rewritten
+# live system. See lib/trace_prefix.sh for the two layers that solves.
+#
 # Usage:
 #   trace_shell_split.sh <script> [-- <script args>]
 #   trace_shell_split.sh <script> --out <file> [-- <script args>]
 #   trace_shell_split.sh <script> --stub git,curl,makepkg --out <file>
+#   trace_shell_split.sh <script> --prefix <dir> [--bind-abs /etc/modprobe.d]
 # ============================================================================
 
 set -euo pipefail
@@ -30,30 +35,23 @@ set -euo pipefail
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
 
-# Commands that change the system, the phone, or the package set. Each becomes
-# a stub that records its invocation and exits 0. Extend deliberately: a
-# missing name here means the real binary runs.
-#
-# Deliberately NOT here: `git`, `curl`, `wget`, `makepkg`. Those are stubbed
-# per-run via --stub, because plenty of scripts read git state harmlessly and a
-# blanket git stub would change what they see rather than protect anything.
-# Grep the target for network and build verbs before tracing it.
-readonly DEFAULT_STUBBED_COMMANDS=(
-	sudo pacman yay paru systemctl systemd-run
-	adb fastboot
-	nft iptables ip6tables firewall-cmd
-	mount umount swapoff modprobe
-	useradd usermod visudo chpasswd
-	mkinitcpio grub-mkconfig bootctl
-	npm pip pip3 flutter gradle
-	reboot shutdown poweroff halt
-)
+# readlink -f, not dirname alone: this repo's root-level entry points are
+# symlinks into meta/, and an unresolved SCRIPT_DIR turns a source line into an
+# instant exit under set -e. See docs/shell-split-verification.md.
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly SCRIPT_DIR
+# shellcheck source=lib/trace_prefix.sh
+source "$SCRIPT_DIR/lib/trace_prefix.sh"
+# shellcheck source=lib/trace_stubs.sh
+source "$SCRIPT_DIR/lib/trace_stubs.sh"
 
 TARGET=""
 OUT=""
 TEMP_DIR=""
+PREFIX=""
 declare -a SCRIPT_ARGS=()
 declare -a EXTRA_STUBS=()
+declare -a BIND_ABS=()
 
 cleanup() {
 	if [[ -n "${TEMP_DIR:-}" && -d "$TEMP_DIR" ]]; then
@@ -68,6 +66,8 @@ usage() {
 	echo "  <script>      script to trace (not modified)"
 	echo "  --out <file>  write the trace here (default: stdout)"
 	echo "  --stub a,b    also shadow these binaries (e.g. git,curl,makepkg)"
+	echo "  --prefix <d>  redirect HOME/XDG writes into <d> and list them"
+	echo "  --bind-abs <p>  bind absolute path <p> into the prefix (repeatable)"
 	echo "  --            everything after this is passed to the script"
 	exit 0
 }
@@ -81,44 +81,19 @@ validate_requirements() {
 		echo "Error: no such script: $TARGET" >&2
 		exit 1
 	fi
-}
-
-# One stub per mutating command: append the call to the trace, succeed.
-# Stubs report success because the point is to reach later code paths, not to
-# simulate failure. A script whose logic branches on a real exit status needs a
-# hand-written stub instead -- note that in the split's evidence file.
-#
-# A stub may carry an output value as `name=text` (from --stub). This matters
-# more than it looks: a stub that prints nothing makes every `size=$(du ...)`
-# empty, so every `((size > 0))` is false and the trace walks straight past all
-# the branches you wanted to compare. Two such traces are identical and
-# meaningless. Give value-producing commands a plausible non-zero output.
-write_stubs() {
-	local bin_dir="$1" entry name value
-	mkdir -p "$bin_dir"
-	for entry in "${DEFAULT_STUBBED_COMMANDS[@]}" ${EXTRA_STUBS[@]+"${EXTRA_STUBS[@]}"}; do
-		name="${entry%%=*}"
-		value=""
-		if [[ $entry == *=* ]]; then
-			value="${entry#*=}"
+	# Refuse rather than quietly writing to the real path: a script with
+	# hardcoded absolute destinations and no --bind-abs would either mutate the
+	# live system or take a different branch on EPERM, and both look like a
+	# clean trace.
+	if [[ -n "$PREFIX" && ${#BIND_ABS[@]} -eq 0 ]]; then
+		local -a found=()
+		mapfile -t found < <(trace_prefix_scan_absolute "$TARGET")
+		if [[ ${#found[@]} -gt 0 ]]; then
+			echo "Error: $TARGET writes to absolute paths; pass --bind-abs for each:" >&2
+			printf '  --bind-abs %s\n' "${found[@]}" >&2
+			exit 1
 		fi
-		# Quoted heredoc: everything is literal, so $* and $TRACE_FILE reach
-		# the generated stub instead of expanding here. Only $name and $value
-		# are interpolated, via the unquoted echo lines around it.
-		{
-			echo "#!/usr/bin/env bash"
-			echo "STUB_NAME=$(printf '%q' "$name")"
-			echo "STUB_VALUE=$(printf '%q' "$value")"
-			cat <<'STUB'
-printf '%s %s\n' "$STUB_NAME" "$*" >>"$TRACE_FILE"
-if [[ -n $STUB_VALUE ]]; then
-	printf '%s\n' "$STUB_VALUE"
-fi
-exit 0
-STUB
-		} >"$bin_dir/$name"
-		chmod +x "$bin_dir/$name"
-	done
+	fi
 }
 
 main() {
@@ -133,21 +108,32 @@ main() {
 	local bin_dir="$TEMP_DIR/bin"
 	local trace="$TEMP_DIR/trace.txt"
 	: >"$trace"
-	write_stubs "$bin_dir"
+	write_stubs "$bin_dir" ${EXTRA_STUBS[@]+"${EXTRA_STUBS[@]}"}
 
 	# xtrace to a dedicated fd so the script's own stdout stays separate.
 	local xtrace="$TEMP_DIR/xtrace.txt"
+
+	# Under --prefix the run happens inside bwrap when absolute destinations
+	# were bound; otherwise it is a plain subshell with a redirected HOME.
+	local -a runner=()
+	if [[ -n "$PREFIX" && ${#BIND_ABS[@]} -gt 0 ]]; then
+		mapfile -t runner < <(trace_prefix_bwrap_argv "$PREFIX" "${BIND_ABS[@]}" --)
+	fi
 
 	set +e
 	(
 		export TRACE_FILE="$trace"
 		export PATH="$bin_dir:$PATH"
-		# A stubbed run must never believe it is root.
-		export EUID_OVERRIDE=1000
+		if [[ -n "$PREFIX" ]]; then
+			local assignment
+			while IFS= read -r assignment; do
+				export "${assignment?}"
+			done < <(trace_prefix_env "$PREFIX")
+		fi
 		exec 9>"$xtrace"
 		export BASH_XTRACEFD=9
 		set -x
-		bash "$TARGET" "${SCRIPT_ARGS[@]+"${SCRIPT_ARGS[@]}"}"
+		"${runner[@]+"${runner[@]}"}" bash "$TARGET" "${SCRIPT_ARGS[@]+"${SCRIPT_ARGS[@]}"}"
 	) >"$TEMP_DIR/stdout.txt" 2>"$TEMP_DIR/stderr.txt"
 	local status=$?
 	set -e
@@ -156,10 +142,16 @@ main() {
 		echo "=== exit status: $status"
 		echo "=== mutating calls (stubbed)"
 		cat "$trace"
+		# Emitted only under --prefix, so traces taken without the flag stay
+		# byte-identical to the ones already captured.
+		if [[ -n "$PREFIX" ]]; then
+			echo "=== files written (prefix)"
+			trace_prefix_manifest "$PREFIX"
+		fi
 		echo "=== stdout"
-		cat "$TEMP_DIR/stdout.txt"
+		sed "s#${PREFIX:-__no_prefix__}#@PREFIX@#g" "$TEMP_DIR/stdout.txt"
 		echo "=== stderr"
-		cat "$TEMP_DIR/stderr.txt"
+		sed "s#${PREFIX:-__no_prefix__}#@PREFIX@#g" "$TEMP_DIR/stderr.txt"
 	} >"${OUT:-/dev/stdout}"
 }
 
@@ -172,6 +164,14 @@ while [[ $# -gt 0 ]]; do
 	--stub)
 		# Comma-separated extra binaries to shadow for this run only.
 		IFS=',' read -r -a EXTRA_STUBS <<<"$2"
+		shift 2
+		;;
+	--prefix)
+		PREFIX="$2"
+		shift 2
+		;;
+	--bind-abs)
+		BIND_ABS+=("$2")
 		shift 2
 		;;
 	-h | --help)

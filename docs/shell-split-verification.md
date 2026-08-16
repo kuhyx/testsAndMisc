@@ -93,11 +93,88 @@ Three things to watch:
   target for network and build verbs, then pass them:
   `--stub git,curl,makepkg`.
 
-**Scripts whose job is placing files** (`install_pacman_wrapper.sh`,
-`block_compulsive_opening.sh`) are not yet tractable here: stub `cp`/`chmod`/
-`ln` and the trace is nearly empty, don't stub them and the run rewrites the
-live system. Those need a fakeroot-style prefix redirect — a harness change,
-not a split. Do not trace one until that exists.
+### `--prefix` — scripts whose job is placing files
+
+Shell redirections (`cat > /etc/modprobe.d/x.conf`) are builtins, so no `PATH`
+stub can intercept them. Stub `cp`/`chmod`/`ln` and the trace is nearly empty;
+don't, and the run rewrites the live system. `--prefix` (added 2026-08-16)
+resolves that in two layers — see `meta/scripts/lib/trace_prefix.sh`:
+
+```bash
+# $HOME-rooted destinations: no bwrap, no root needed
+meta/scripts/trace_shell_split.sh install_usage_monitoring.sh --prefix /tmp/pfx
+
+# hardcoded absolutes: bind each LEAF directory
+meta/scripts/trace_shell_split.sh nvidia_troubleshoot.sh --prefix /tmp/pfx \
+  --bind-abs /etc/modprobe.d --bind-abs /etc/X11 --stub git,lsmod,nvidia-smi
+```
+
+`HOME` **and every `XDG_*` base** are redirected. Exporting the XDG vars
+explicitly is not belt-and-braces: `install_leechblock.sh` reads
+`XDG_DATA_HOME` directly and then runs `rsync -a --delete` at it, so inheriting
+the caller's real value would delete live data.
+
+The trace gains a `=== files written (prefix)` section listing every file with
+its size and a content hash. **That section is the point**: without it a
+dropped `cat >` shows up as nothing at all — same exit status, same stubbed
+calls, same stdout — and the traces match while one lost a file. Measured on
+the `dropped_write_{before,after}.sh` fixture pair: with the manifest the lost
+`.timer` is a one-line diff; with the section stripped the two traces are
+byte-identical, i.e. the pre-`--prefix` harness passed that broken split.
+
+Four traps, each of which cost a debugging round:
+
+- **Bind leaf directories, never `/etc`.** Binding `/etc` wholesale shadows
+  `/etc/passwd` and `/etc/os-release`. Measured: `$SUDO_USER` lookup collapsed
+  to `/home//pyroveil`, `/etc/profile` became "No such file or directory", and
+  a nested `/etc/X11` bind was masked so its write vanished from the manifest.
+  All three look like a broken split. The scanner therefore never emits a bare
+  `/etc`.
+- **`require_root` truncates a stubbed run to nothing.** `lib/common.sh` does
+  `exec sudo "$0" "$@"`; under the `sudo` stub that records one line and exits
+  0 — a three-line trace that diffs clean against _any_ split. `--bind-abs`
+  runs under `bwrap --unshare-user --uid 0`, so `$EUID` is 0 and the script
+  proceeds for real. Without a bind there is no uid 0 and the truncation is
+  silent, so check the trace actually entered the code you moved.
+- **Unquoted heredocs bake the prefix into the artifact.**
+  `install_usage_monitoring.sh:222` uses `<< SCRIPT`, so `$HOME` interpolates
+  at write time. Hashes are taken over content with the prefix normalized to
+  `@PREFIX@`; without that, a `mktemp -d` prefix makes every run differ.
+- **A timestamp the target embeds still varies.** `nvidia_troubleshoot.sh`
+  writes `$(date)` into its config, so its hash changes every run; compare the
+  file list and sizes. Don't freeze the clock — that would hide real changes.
+
+Anything absolute that was _not_ bound fails read-only/EPERM rather than
+succeeding, so Decision 6 holds by construction. `--prefix` **refuses to run**
+when the target writes to absolute paths and no `--bind-abs` was given, listing
+the paths it found; the scan follows variables
+(`MODPROBE_DIR="/etc/modprobe.d"` → `cat >"$CONFIG_FILE"`), because a
+literal-only scan found nothing and produced a silent empty manifest.
+
+Verified untouched after the runs above: `~/.config/systemd/user`,
+`~/.local/bin`, `~/.local/share`, `/etc/modprobe.d` (identical listings), and
+`systemctl --user list-unit-files | grep -c usage-report` unchanged at 2.
+
+`block_compulsive_opening.sh` remains out of scope: `install_all` copies the
+running script into `/usr/local/bin`, and the handoff records that a bad split
+there breaks three daily-use apps plus the pacman rewrap hook.
+
+### Regression fixtures
+
+`meta/scripts/fixtures/` holds runnable reproductions of every trap above, so a
+harness change can be checked instead of trusted:
+
+| Fixture                           | Reproduces                                      |
+| --------------------------------- | ----------------------------------------------- |
+| `set_e_function_tail.sh`          | exit 1, later calls missing from the trace      |
+| `circular_nameref.sh`             | exit 0, correct stdout, warning only in stderr  |
+| `valued_stub_branch.sh`           | the silent-stub trap (`--stub du` vs `du=4096`) |
+| `dropped_write_{before,after}.sh` | a split that silently loses one write           |
+
+A lint fix once broke one of these invisibly: adding a trailing `echo` to
+satisfy SC2034 made _that_ echo the function's last statement, so the fixture
+exited 0 and reproduced nothing while still "passing". Re-run the fixtures
+after touching them, and check the exit status is still the one documented.
 
 **Run the baseline from the script's own directory** when it reads relative
 paths. `fresh-install/main.sh` reads `aur_packages.txt` and

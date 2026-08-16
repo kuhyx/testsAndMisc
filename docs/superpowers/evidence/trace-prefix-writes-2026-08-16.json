@@ -1,0 +1,73 @@
+{
+  "intent": "Make write-to-system installer scripts traceable, so splits of them can be verified by running them and diffing, without mutating the real system. Before this, scripts whose job is placing files were the one class of remaining file-length violations that could not be verified at all: shell redirections (cat > /etc/...) are builtins and cannot be intercepted by the existing PATH stubs, so the choice was a near-empty trace or a rewritten live system.",
+  "scope": [
+    "meta/scripts/trace_shell_split.sh - adds --prefix and --bind-abs; drops dead EUID_OVERRIDE; resolves SCRIPT_DIR through readlink -f",
+    "meta/scripts/lib/trace_prefix.sh - new: env redirect, absolute-path scan, bwrap argv, write manifest",
+    "meta/scripts/lib/trace_stubs.sh - new: stub generation extracted so the harness stays under the 250-line cap",
+    "meta/scripts/fixtures/ - new: five runnable fixtures (three existing regressions + a dropped-write pair)",
+    "docs/shell-split-verification.md - replaces the 'not yet tractable' paragraph with the --prefix section and its traps",
+    "NON-GOAL: no script was split this session; this is the harness change that unblocks those splits",
+    "NON-GOAL: block_compulsive_opening.sh stays out of scope (copies the running script into /usr/local/bin)"
+  ],
+  "changes": [
+    "--prefix <dir> redirects HOME and every XDG_* base into a temp tree. XDG_DATA_HOME is exported explicitly rather than left to default off HOME, because install_leechblock.sh reads it directly and then runs `rsync -a --delete` at it; inheriting the caller's real value would delete live data.",
+    "--bind-abs <path> binds hardcoded absolute destinations into the prefix via bwrap --dev-bind / / --unshare-user --uid 0. Only leaf directories are bound. uid 0 also makes require_root() pass, which matters because lib/common.sh does `exec sudo \"$0\"` and under the sudo stub that truncates the entire run to one recorded call.",
+    "The trace gains a '=== files written (prefix)' section: every file with size and a content hash. Emitted only under --prefix, so traces taken without the flag stay byte-identical to previously captured ones.",
+    "Hashes are computed over content with the prefix path normalized to a literal @PREFIX@, because install_usage_monitoring.sh:222 is an UNQUOTED heredoc that interpolates $HOME into the artifact at write time.",
+    "The harness refuses to run when the target writes to absolute paths and no --bind-abs was given, listing the paths found. The scan follows variable assignments (MODPROBE_DIR=\"/etc/modprobe.d\" then `cat >\"$CONFIG_FILE\"`), and never emits a bare /etc.",
+    "Stub generation moved to lib/trace_stubs.sh: --prefix pushed trace_shell_split.sh to 252 lines, over the cap it exists to serve. Now 197."
+  ],
+  "verification": [
+    {
+      "command": "trace_shell_split.sh install_usage_monitoring.sh --prefix <d>",
+      "result": "pass",
+      "evidence": "exit 0; manifest lists all 5 artifacts (.config/systemd/user/{nvidia-pmon.service,usage-report-catchup.service,usage-report-catchup.timer}, .local/bin/{nvidia-pmon-logger.sh,usage-report-catchup.sh}) with sizes and hashes."
+    },
+    {
+      "command": "ls -la ~/.config/systemd/user ~/.local/bin ~/.local/share /etc/modprobe.d; systemctl --user list-unit-files | grep -c usage-report",
+      "result": "pass",
+      "evidence": "Diffed before/after snapshots: all four listings byte-identical; usage-report unit count unchanged at 2. The live /etc/modprobe.d/nvidia-gsp-disable.conf and /etc/X11/xorg.conf.d/20-nvidia.conf are dated 2025-06-26 and their content differs from what the traced run generated, confirming no write escaped the prefix."
+    },
+    {
+      "command": "trace_shell_split.sh nvidia_troubleshoot.sh --prefix <d> --bind-abs /etc/modprobe.d --bind-abs /etc/X11 --stub git,lsmod,nvidia-smi",
+      "result": "pass",
+      "evidence": "Ran to section 3 under uid 0 instead of truncating at require_root; both /etc writes landed in the prefix. Unbound /etc/profile failed 'Permission denied' rather than writing live - fail-closed."
+    },
+    {
+      "command": "diff trace(dropped_write_before.sh) trace(dropped_write_after.sh)",
+      "result": "pass",
+      "evidence": "Dropped .timer write detected as a one-line diff. With the manifest section stripped, the two traces are IDENTICAL - i.e. the pre-change harness would have passed that broken split. This is the proof the harness catches a real break, not just that it runs."
+    },
+    {
+      "command": "trace_shell_split.sh fixtures/{set_e_function_tail,circular_nameref,valued_stub_branch}.sh",
+      "result": "pass",
+      "evidence": "R1 exit 1 with systemctl absent from the trace; R2 exit 0 + 4 'circular name reference' lines in stderr; R3 --stub du -> 'branch skipped', 0 sudo calls captured; --stub du=4096 -> 'BRANCH TAKEN', sudo rm captured."
+    },
+    {
+      "command": "trace_shell_split.sh install_usage_monitoring.sh --prefix <d1> vs <d2>",
+      "result": "pass",
+      "evidence": "Traces byte-identical across two different random prefix paths, so before/after diffing works. nvidia_troubleshoot.sh's hash varies only because the target embeds $(date) in its output; documented rather than papered over."
+    },
+    {
+      "command": "shellcheck + shfmt -d on all changed shell files",
+      "result": "pass",
+      "evidence": "Both clean with zero suppressions. SC2034 and SC2178 in the fixtures were fixed by restructuring (reading both flags before the failing tail; declaring the array indirectly), not by # shellcheck disable."
+    },
+    {
+      "command": "wc -l on changed files",
+      "result": "pass",
+      "evidence": "trace_shell_split.sh 197, lib/trace_prefix.sh 166, lib/trace_stubs.sh 71, docs/shell-split-verification.md 230 - all under the 250-line cap."
+    }
+  ],
+  "risks": [
+    "The absolute-path scan is static and deliberately over-reports (a variable holding a system path may only ever be read). Over-reporting costs a redundant --bind-abs; under-reporting would cost a live-system write, so the bias is chosen.",
+    "A target that computes a destination at runtime (from command substitution or an argument) would be missed by the scan. The bwrap layer still fails such a write closed rather than letting it through, but the refusal message would not name the path.",
+    "--bind-abs without bwrap, or with unprivileged user namespaces disabled, errors out. Verified present on this machine; the error names the package.",
+    "A fixture can be neutered by an edit that still 'passes' - this happened during this change, when adding a trailing echo to satisfy SC2034 made that echo the function's last statement and turned exit 1 into exit 0. Documented in the doc's fixture table."
+  ],
+  "rollback": [
+    "git revert the commit; trace_shell_split.sh returns to the stub-only harness and the lib/ and fixtures/ files disappear.",
+    "Traces captured WITHOUT --prefix remain valid across the revert: the manifest section and the prefix normalization are both gated on the flag, so default output is unchanged.",
+    "After rollback, re-run the three regression fixtures from a checkout that still has them (or the commands in docs/shell-split-verification.md) to confirm the stub path still behaves."
+  ]
+}
