@@ -6,10 +6,9 @@
 
 ## Where things stand
 
-**184 files** over 250 lines (was 198). All work so far is committed and pushed
-to `main`; the tree is clean. The three unrelated edits an earlier handoff
-warned about (`README.md`, the two `analysis_options.yaml`) are no longer
-present.
+**183 files** over 250 lines (was 198). Everything is committed and pushed to
+`main` at `9e688c5`; the tree is clean. The three unrelated edits an earlier
+handoff warned about (`README.md`, the two `analysis_options.yaml`) are gone.
 
 Done already (do not redo):
 
@@ -21,8 +20,12 @@ Done already (do not redo):
   `cli` 282→247, `review` 330→196, `net` 335→109, `store` 382→202,
   `downloader` 420→238, `player` 373→235, `ui` 398→242
 - `e03fbd1` `wsg_grabber/tests/test_review.py` 297 → 112 + two new modules
+- `2832b78` `brother_printer/display.py` 427 → 342 — **partial, still a
+  violation.** Extracted `_supply.py` + `_severity.py` and deduped the
+  toner/drum bars. The last ~92 lines were blocked on `mock.patch` pinning,
+  which the decision below now unblocks.
 
-`git log --oneline --grep='250-line cap'` is the authoritative list.
+`git log --oneline --grep='cap'` is the authoritative list.
 
 ## The live worklist
 
@@ -58,6 +61,13 @@ of you inventing a new boundary for them.
 6. Shell verification is `bash -n` + `shellcheck` + `systemctl cat` path checks.
    **Never execute enforcement scripts that mutate the phone or the live system.**
 7. One commit per logical unit.
+8. **Editing test files to follow moved code is allowed** (2026-08-16), bounded
+   by: no assertion changed, nothing deleted/skipped/weakened, and an identical
+   pass count before and after. See `docs/python-split-recipes.md`. Do not
+   re-ask this — an earlier session wrongly treated tests as untouchable and
+   stalled on `brother_printer` because of it.
+9. Per-commit gate is `pre-commit run --files <changed>`; the real `git commit`
+   is the full gate (it adds jscpd). Push per directory tranche, not per commit.
 
 ## The constraint that will bite you
 
