@@ -6,8 +6,9 @@
 
 ## Where things stand
 
-**83 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `093e2f6`; the tree is clean.
+**78 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `2ce86a5`. `focus_owner/analysis_options.yaml` has an uncommitted
+change from an earlier session — **leave it unstaged**, it is not ours.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
 package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
@@ -62,8 +63,12 @@ Same in TypeScript: `kcd2`'s `search.ts` and `badgeValue.ts`, and
 caller's globals — stricter than `shellcheck -x` on the entry, and the check
 that decides whether a seam is real. Run it before believing a split.
 
-Next: the remaining `main()`-shaped shell scripts, then `focus_owner` and
-`billsplit` (Kotlin+Dart, untouched so far — check for a test command first).
+Next: `billsplit` (Dart, untouched), then the remaining `main()`-shaped shell
+scripts. `focus_owner`'s six leftovers are four Kotlin sources that read a
+private `context`, one State class, and one test one line over.
+
+Baselines and the per-language traps (Dart `part`, Kotlin fixture objects, the
+TS import cycle) are in `docs/app-split-recipes.md`.
 
 ## The live worklist
 
@@ -136,10 +141,12 @@ Plus `.github/workflows/file-length.yml` modelled on
 
 ## Language recipes
 
-- `docs/python-split-recipes.md` — the seam-selection rule, the `__all__`
-  re-export form, the `TC001` trap, the mixin shape, and the coverage
-  behaviour of new sibling modules. `python_pkg` is done; read it if a stray
-  `.py` turns up, or for the seam rule, which generalises to any language.
+- `docs/python-split-recipes.md` — the seam-selection rule (generalises to
+  every language), the `__all__` re-export form, the `TC001` trap and the
+  mixin shape. `python_pkg` is done.
+- `docs/app-split-recipes.md` — Dart `part`, Kotlin fixture objects, the
+  TypeScript import cycle that compiles clean, and the per-project test
+  baselines. **Read before touching `billsplit` or `focus_owner`.**
 - `docs/shell-split-recipes.md` — **read this before the next
   `linux_configuration` split.** What replaces the pass count when there is no
   test suite, which scripts escape the repo, the lib shape that satisfies both
@@ -154,23 +161,10 @@ Each rule in both cost a failed gate run or a revert to establish.
 - **Shell** — extract into `lib/*.sh` sourced by a thin entry script. See
   `docs/shell-split-recipes.md` for the lib shape; note it corrects the old
   advice to repeat `set -euo pipefail` in every lib.
-- **Python** — extract cohesive helpers into sibling modules; keep the public
-  API stable by re-exporting.
-- **TS/Dart** — extract components; re-export from the original path so no
-  importer changes.
-- **Tests** — split by describe/test-group. Coverage must not drop, and
-  **verify by the pass _count_, not a green run**: a split that loses a whole
-  module still reports "passed".
-  In `python_pkg`, shared fixture builders go in the package's
-  **`tests/conftest.py`** — the `name-tests-test` hook rejects any other
-  non-`test_*.py` file under `tests/`, so a `_helpers.py` will fail the gate.
-  `python_pkg/syncyomi_guard/tests/conftest.py` is the precedent, and
-  `meta/pyproject.toml` omits `*/tests/*` from coverage by path so nothing
-  there is counted as production code (the opposite of the `poker-stakes`
-  trap below). Prefer one shared conftest over another `partN` file: the repo
-  already carries four, and each new one that redeclares the same fixture
-  scaffolding pushes jscpd toward its 2% duplication threshold — which only
-  fires on the real `git commit`.
+- **Python / TS / Dart / Kotlin** — see the two recipe docs above.
+- **Tests** — split by describe/test-group and **verify by the pass _count_,
+  not a green run**: a split that loses a whole module still reports "passed".
+  Shared fixtures go where the coverage config already excludes them.
 
 Never game the cap: no one-lining, no deleting tests, no moving code into an
 exempt extension, no suppressions.
