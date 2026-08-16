@@ -1,0 +1,18 @@
+{
+  "title": "Split setup_offline_docs.sh and optimize_arch_desktop.sh, deferring libre_translate.sh",
+  "objective": "Bring setup_offline_docs.sh (713) and optimize_arch_desktop.sh (623) under the 250-line cap, and confirm that a script with many globals written in one half and read in the other cannot be split cleanly.",
+  "acceptance_criteria": [
+    "Both entry scripts and all seven new libs are at most 250 lines.",
+    "The pre-commit shellcheck hook passes on every touched file, with no new suppression and no disable directive.",
+    "No lib sources a sibling: each entry sources every lib directly.",
+    "The stubbed run reports every moved function as defined for both scripts.",
+    "No script is executed. One downloads documentation archives, the other writes sysctl and udev settings.",
+    "libre_translate.sh is fully restored to 488 lines, leaving the unrelated lib already in that directory in place."
+  ],
+  "out_of_scope": [
+    "Executing any download or tuning step.",
+    "libre_translate.sh, which has nineteen globals crossing any seam.",
+    "Changing what any script does when run."
+  ],
+  "verifier": "meta/scripts/verify_shell_split.sh per script, plus pre-commit run --files, plus check_file_length.sh, plus ls of the shared lib/ directory after the revert."
+}
