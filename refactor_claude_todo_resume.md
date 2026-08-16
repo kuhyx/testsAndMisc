@@ -6,14 +6,17 @@
 
 ## Where things stand
 
-**142 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `4b2cd0c`; the tree is clean.
+**121 files** over 250 lines (was 183). Everything is committed and pushed to
+`main` at `dbc4d09`; the tree is clean.
 
-**`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared in
-this order, one package per tranche, pushing after each: `brother_printer`
-(15→0, suite pinned at 402), `code_tutor` (13→0, 216→217), then `android_ui`,
-`app_icons`, `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14),
-then `wsg_grabber`'s six test modules (277).
+**`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
+package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
+at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
+`token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
+`wsg_grabber`'s six test modules (277).
+
+**`linux_configuration` is 84 → 63**, in six batches. The pattern is settled
+and scripted — read `docs/shell-split-recipes.md` before touching another one.
 
 Earlier sessions had already done: the `~/utils` exemptions, the
 `no-inline-python` hook, `CLAUDE.md`, `poker-stakes/`, and every `wsg_grabber`
@@ -25,7 +28,7 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 | Directory                             | Count        |
 | ------------------------------------- | ------------ |
-| `linux_configuration`                 | 84           |
+| `linux_configuration`                 | 63           |
 | `phone_focus_mode`                    | 13 (do LAST) |
 | `kcd2_dice_solver`                    | 12           |
 | `focus_owner`                         | 11           |
@@ -33,9 +36,17 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 | `reverse_survivors` / `meta` / `docs` | 4 each       |
 | `.github` / `bucket_catch`            | 2 each       |
 
-Within `linux_configuration` the bulk is `scripts/single_use/` (39 across
-`features`/`utils`/`fixes`), then `scripts/periodic_background/` (10) and
-`tests/` (4).
+**Two `linux_configuration` files are deliberately left over the cap**, both
+recorded in the shell recipes doc:
+
+- `clean_audio.sh` (419) — probe-result globals threaded through what would be
+  two libs. Needs a real refactor, not a line-count split.
+- `setup_passwordless_system.sh` (374) — no `main()`, so the top-level
+  invocation block has to be preserved by hand.
+
+The next easy wins are the remaining `main()`-shaped shell scripts; after
+those, `kcd2_dice_solver` / `focus_owner` / `billsplit` (Dart+Kotlin, untouched
+this session), and the four prose files, which carry zero execution risk.
 
 ## The seam-selection rule
 
@@ -122,10 +133,12 @@ Plus `.github/workflows/file-length.yml` modelled on
   class, what the tests pin in place, and the coverage behaviour of new sibling
   modules. `python_pkg` is done, so this now matters only if a stray `.py`
   turns up outside it.
-- `docs/shell-split-recipes.md` — **read this before the first
+- `docs/shell-split-recipes.md` — **read this before the next
   `linux_configuration` split.** What replaces the pass count when there is no
-  test suite, the two live systemd units that point at repo paths, and the
-  jscpd trap on the first multi-lib commit.
+  test suite, which scripts escape the repo, the lib shape that satisfies both
+  shellcheck and the shebang hook, and six traps found the hard way. The
+  stubbed-run check is scripted at `meta/scripts/verify_shell_split.sh`; run it
+  on every split whose script ends in `main "$@"`.
 
 Each rule in both cost a failed gate run or a revert to establish.
 
