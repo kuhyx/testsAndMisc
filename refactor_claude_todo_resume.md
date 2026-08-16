@@ -6,11 +6,15 @@
 
 ## Where things stand
 
-**61 files** over 250 lines (was 183 — 67% cleared). Everything is committed
-**and pushed** to `main` at `c4bdaad`. `focus_owner/analysis_options.yaml` has an
-uncommitted change from an earlier session — **leave it unstaged**, it is not
-ours. (It was briefly lost to a pre-commit stash this session and recovered from
-`~/.cache/pre-commit/patch*`; see "If the tree looks suspiciously clean".)
+**60 files** over 250 lines (was 183 — 67% cleared). Everything is committed
+to `main`; see `git log` for the head.
+
+`focus_owner/analysis_options.yaml` is **resolved** (2026-08-16). It was not a
+stray edit: `flutter pub get` writes that `analyzer.exclude` block itself
+("Upgrading analysis_options.yaml to exclude build and platform directories"),
+reproduced byte-identically from a clean detached worktree. It is committed, so
+it will stop reappearing. Earlier handoffs called it "not ours" — that was
+wrong, and the reason it kept coming back.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it.
 **All 12 prose files are done.** `kcd2_dice_solver` is 12 → 4, all four source
@@ -60,6 +64,19 @@ Same in TypeScript: `kcd2`'s `search.ts` and `badgeValue.ts`, and
 `billsplit`'s last file is Flutter's generated `win32_window.cpp`; editing it
 would be undone by `flutter create`, so it needs an exemption or a shrug.
 
+**Resolved 2026-08-16 — and gitignore is NOT the mechanism.** The file is
+tracked and `billsplit/windows/runner/CMakeLists.txt:13` lists it as a build
+source, so a `.gitignore` entry does nothing (git keeps tracking it) and
+`git rm --cached` would break the Windows build for every fresh clone.
+`check.py` does skip git-ignored files, which is what makes gitignore look
+like it would work — it only works for untracked ones.
+
+**Prerequisite of the gate-wiring step:** add a Flutter-runner exemption to
+`~/utils/file_length/config.py` (a _different repo_, with its own gate and CI)
+covering `windows/runner/`, `linux/runner/` and `macos/Runner/`. That is
+platform scaffolding `flutter create` owns; it belongs beside the existing
+`GENERATED_PATTERN` rules. Land it there before wiring the hook here.
+
 ## Read these BEFORE the first split
 
 - `docs/shell-split-recipes.md` — how to **make** a shell split.
@@ -91,6 +108,23 @@ reachable by any static check:
 thing**: stub only what mutates the system, and diff the generated artifacts
 against a detached worktree at the pre-split commit.
 
+**`meta/scripts/trace_shell_split.sh` now does this** (added 2026-08-16). It
+shadows ~30 mutating binaries (`sudo`, `pacman`, `systemctl`, `adb`, `nft`,
+`mount`, `reboot`, …) with `PATH` stubs that record their calls and exit 0,
+runs the script, and prints a diffable trace of exit status + stubbed calls +
+stdout + stderr. Capture before and after a split, then diff.
+
+Verified against both documented bug classes: it catches the `set -e`
+function-tail abort (exit 1, later calls missing from the trace) and the
+self-referencing nameref (exit 0 and correct stdout, but `circular name
+reference` in stderr). Two caveats: stubs always exit 0, so a script branching
+on a real failure status needs a hand-written stub; and a mutating command
+**not** in `STUBBED_COMMANDS` runs for real — grep the script for mutating
+verbs and extend the list before tracing something new.
+
+This is what lets Decision 6 and "verify by running" coexist: the enforcement
+and installer scripts are executed against stubs, never against the system.
+
 ### `--skip-install` is not permission to run a script
 
 `shell_check.sh` gates only `install_if_missing`'s pacman branch on
@@ -121,6 +155,16 @@ grep the flag's variable and confirm it gates **every** mutation path.
 10. **When a seam splits code covered by a per-file-ignore, fix the lint — do
     not copy the ignore onto the new file.** Ask only if the fix looks like it
     changes behaviour.
+11. **The named blockers get real refactors, not exemptions** (user, 2026-08-16:
+    "yes, do a real refactoring, we can take risks"). Risk is accepted on the
+    blocker list — but "accepted risk" means verified against stubs, not
+    unverified. Pair it with 12.
+12. **Every split is verified by running, always** (user, 2026-08-16: "apply the
+    full run-and-diff always"). For scripts Decision 6 forbids executing live,
+    "running" means `meta/scripts/trace_shell_split.sh` — a real execution with
+    mutating binaries stubbed — and a trace diff against the pre-split commit.
+    Decisions 6 and 12 do not conflict; the harness is what reconciles them.
+    A split verified by static checks alone is not finished.
 
 ## The constraint that will bite you
 
