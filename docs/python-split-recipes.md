@@ -175,25 +175,25 @@ Generalised from `python_pkg`; full detail in `docs/python-split-recipes.md`.
 **A block may move if every MOD-relative patch that reaches it comes from one
 test module. If two test modules patch a shared collaborator, keep the
 collaborator and move its callers instead.** The caller resolves the name
-through its *own* module's globals, so importing it into the new module makes
+through its _own_ module's globals, so importing it into the new module makes
 the patch land there.
 
 Corollaries that each cost a failed run to learn:
 
 - **`test_X.py` needing no edit is the signal you cut in the right place.**
   It held on four of five source splits in `brother_printer`.
-- **Never blanket-`sed` a MOD.** Decide per test *by which function is under
-  test*. `test_challenge_part3.py` needed 13 of its strings repointed and 4
+- **Never blanket-`sed` a MOD.** Decide per test _by which function is under
+  test_. `test_challenge_part3.py` needed 13 of its strings repointed and 4
   left alone.
 - **A mispointed patch does not always fail — it can HANG or do real work.**
   `code_tutor` spun for two minutes running a real interactive flow;
   `cups_queue` would have restarted the live CUPS daemon. Always run under
-  `timeout`, and assert the targets resolve *before* invoking pytest.
+  `timeout`, and assert the targets resolve _before_ invoking pytest.
 - **When splitting a test file, copy the WHOLE preamble** (docstring, imports,
   fixture builders) into the new file and let ruff's `F401` pass prune it.
   Hand-writing the import block failed on every early attempt; the copy-then-
   prune order removed 82 imports correctly in `wsg_grabber` with none missed.
-  It does **not** cover module-level `def`s and constants sitting *between*
+  It does **not** cover module-level `def`s and constants sitting _between_
   sections — `_make_verifier`, `_QUESTIONS`, `_logger` and
   `_SAME_FIELD_X_TOLERANCE_PX` were each left behind that way. Grep for them.
 - **Budget two cuts.** Nine of the splits landed 1–20 lines over after the

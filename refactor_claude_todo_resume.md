@@ -23,15 +23,15 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 ## What is left
 
-| Directory | Count |
-|---|---|
-| `linux_configuration` | 84 |
-| `phone_focus_mode` | 13 (do LAST) |
-| `kcd2_dice_solver` | 12 |
-| `focus_owner` | 11 |
-| `billsplit` | 6 |
-| `reverse_survivors` / `meta` / `docs` | 4 each |
-| `.github` / `bucket_catch` | 2 each |
+| Directory                             | Count        |
+| ------------------------------------- | ------------ |
+| `linux_configuration`                 | 84           |
+| `phone_focus_mode`                    | 13 (do LAST) |
+| `kcd2_dice_solver`                    | 12           |
+| `focus_owner`                         | 11           |
+| `billsplit`                           | 6            |
+| `reverse_survivors` / `meta` / `docs` | 4 each       |
+| `.github` / `bucket_catch`            | 2 each       |
 
 Within `linux_configuration` the bulk is `scripts/single_use/` (39 across
 `features`/`utils`/`fixes`), then `scripts/periodic_background/` (10) and

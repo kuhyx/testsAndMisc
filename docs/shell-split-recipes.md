@@ -8,7 +8,7 @@ coverage gate**, so none of the above transfers. Decision 6 governs:
 `bash -n` + `shellcheck` + `systemctl cat` path checks, and **never execute an
 enforcement script that mutates the live system or the phone.**
 
-- After each split, `bash -n` and `shellcheck` the entry script *and* every new
+- After each split, `bash -n` and `shellcheck` the entry script _and_ every new
   lib. Neither catches a lib that is never sourced.
 - So also: for each new `lib/*.sh`, grep the entry script for the `source`/`.`
   line naming it, and confirm the path resolves from where the script actually
@@ -21,7 +21,8 @@ enforcement script that mutates the live system or the phone.**
     `scripts/single_use/utils/organize_downloads.sh`
 
   Every other in-repo unit references an installed copy under `/usr/local/`,
-  so those are only at risk if the *installer* is what you split.
+  so those are only at risk if the _installer_ is what you split.
+
 - Prefer files that **nothing** references first — pure lint risk.
 - Watch **jscpd** on the first multi-lib commit: repeated `set -euo pipefail` +
   source-guard headers across several new libs is exactly what pushes
