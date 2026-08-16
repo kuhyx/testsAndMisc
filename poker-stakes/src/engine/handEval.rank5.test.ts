@@ -1,41 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildDeck } from './deck'
-import { compareHandScore, evaluate7, rank5, rankLabel } from './handEval'
-import type { HandCategory, HandScore } from './handEval'
+import { compareHandScore, rank5 } from './handEval'
+import type { HandCategory } from './handEval'
 import type { Card } from './types'
-
-const card = (rank: Card['rank'], suit: Card['suit']): Card => ({ rank, suit })
-
-const five = (cards: readonly Card[]): [Card, Card, Card, Card, Card] => {
-  if (cards.length !== 5) {
-    throw new Error('five: expected exactly 5 cards')
-  }
-  const [a, b, c, d, e] = cards
-  return [a, b, c, d, e] as [Card, Card, Card, Card, Card]
-}
-
-const seven = (cards: readonly Card[]): [Card, Card, Card, Card, Card, Card, Card] => {
-  if (cards.length !== 7) {
-    throw new Error('seven: expected exactly 7 cards')
-  }
-  const [a, b, c, d, e, f, g] = cards
-  return [a, b, c, d, e, f, g] as [Card, Card, Card, Card, Card, Card, Card]
-}
-
-/** Generates all C(52,5) 5-card combinations from a 52-card deck as index tuples. */
-function* combinations5(length: number): Generator<readonly [number, number, number, number, number]> {
-  for (let a = 0; a < length; a += 1) {
-    for (let b = a + 1; b < length; b += 1) {
-      for (let c = b + 1; c < length; c += 1) {
-        for (let d = c + 1; d < length; d += 1) {
-          for (let e = d + 1; e < length; e += 1) {
-            yield [a, b, c, d, e]
-          }
-        }
-      }
-    }
-  }
-}
+import { card, combinations5, five } from '../test/handEvalFixtures'
 
 describe('rank5 exhaustive classification', () => {
   it('classifies every 5-card hand out of 52 into the correct standard-count category', () => {
@@ -202,68 +170,5 @@ describe('rank5 named fixtures', () => {
       five([card(9, 'hearts'), card(9, 'spades'), card(14, 'clubs'), card(4, 'diamonds'), card(2, 'hearts')]),
     )
     expect(compareHandScore(a, b)).toBe(0)
-  })
-})
-
-describe('evaluate7', () => {
-  it('picks the best 5 of 7 when the best hand uses only some hole+board cards', () => {
-    const hand = seven([
-      card(14, 'clubs'),
-      card(14, 'diamonds'),
-      card(14, 'hearts'),
-      card(14, 'spades'),
-      card(2, 'clubs'),
-      card(3, 'diamonds'),
-      card(4, 'hearts'),
-    ])
-    const score = evaluate7(hand)
-    expect(score.category).toBe('quads')
-  })
-
-  it('matches the best rank5 result across all 21 combinations', () => {
-    const cards = seven([
-      card(10, 'clubs'),
-      card(11, 'clubs'),
-      card(12, 'clubs'),
-      card(13, 'clubs'),
-      card(14, 'clubs'),
-      card(2, 'hearts'),
-      card(2, 'diamonds'),
-    ])
-    const score = evaluate7(cards)
-    expect(score.category).toBe('straightFlush')
-    expect(score.tiebreakers).toEqual([14])
-  })
-})
-
-describe('compareHandScore category comparison', () => {
-  it('ranks a lower category below a higher one in both directions', () => {
-    const high: HandScore = { category: 'quads', tiebreakers: [2] }
-    const low: HandScore = { category: 'highCard', tiebreakers: [14] }
-    expect(compareHandScore(high, low)).toBe(1)
-    expect(compareHandScore(low, high)).toBe(-1)
-  })
-})
-
-describe('compareHandScore tiebreaker padding', () => {
-  it('treats a missing tiebreaker slot as lower than a present one', () => {
-    const a: HandScore = { category: 'highCard', tiebreakers: [14, 10] }
-    const b: HandScore = { category: 'highCard', tiebreakers: [14] }
-    expect(compareHandScore(a, b)).toBe(1)
-    expect(compareHandScore(b, a)).toBe(-1)
-  })
-})
-
-describe('rankLabel', () => {
-  it('labels face cards and ace', () => {
-    expect(rankLabel(14)).toBe('A')
-    expect(rankLabel(13)).toBe('K')
-    expect(rankLabel(12)).toBe('Q')
-    expect(rankLabel(11)).toBe('J')
-  })
-
-  it('labels number cards as their numeral', () => {
-    expect(rankLabel(10)).toBe('10')
-    expect(rankLabel(2)).toBe('2')
   })
 })
