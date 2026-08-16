@@ -72,6 +72,30 @@ Plus `.github/workflows/file-length.yml` modelled on
 `.utils`), scoped to changed files. Then prove it fails: stage a deliberately
 251-line file, confirm `git commit` aborts, delete it.
 
+## The Python re-export form — settled empirically, do not re-derive
+
+When a split moves a **public** name out of a module that callers/tests still
+reach through the old path, the re-export must be marked with `__all__`:
+
+```python
+from python_pkg.pkg._new_module import show_logs, summarise
+
+__all__ = ["build_parser", "main", ..., "show_logs", "summarise"]
+```
+
+The PEP 484 alias form `from x import y as y` **does not work here**: ruff
+raises `PLC0414` (useless-import-alias), auto-fixes it away, and then removes
+the now-"unused" import under `F401` — silently breaking `cli.summarise`.
+Verified on `wsg_grabber/cli.py`; `__all__` passes ruff + mypy + pylint clean.
+
+Splits that only move **private** helpers (leading `_`, no external caller)
+need no shim at all — check with grep first, as in `catalog.py`.
+
+Coverage: `meta/pyproject.toml` sets `source = ["python_pkg"]`, so a new
+sibling module is measured automatically. Confirmed: new modules show up in
+the report at 100% rather than being silently skipped. Add no new branches
+(no `if TYPE_CHECKING` guards beyond what moved, no defensive `try/except`).
+
 ## Split recipes
 
 - **Shell** — extract into `lib/*.sh` sourced by a thin entry script,
