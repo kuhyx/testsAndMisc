@@ -1,0 +1,19 @@
+{
+  "title": "Split three large linux_configuration scripts, deferring a fourth",
+  "objective": "Bring organize_downloads.sh (513), setup_kcd2_dice_solver.sh (497) and fix_ubuntu_performance.sh (494) under the 250-line cap, and establish that a seam sharing mutable state with its caller must be abandoned rather than suppressed.",
+  "acceptance_criteria": [
+    "All three entry scripts and all seven new libs are at most 250 lines.",
+    "The pre-commit shellcheck hook passes on every touched file, with no new suppression and no disable directive. That hook lints each lib in isolation, which is stricter than shellcheck -x on the entry script.",
+    "No lib sources a sibling: the entry script sources every lib directly.",
+    "The stubbed run reports every moved function as defined, for all three scripts.",
+    "organize_downloads.sh is the ExecStart of the live media-organizer.service unit, so after the split that path must still resolve and the script must still parse.",
+    "No script is executed. These move files in ~/Downloads, write compose stacks and change sysctl and systemd settings.",
+    "diagnose_pacman_hook_stall.sh is fully restored to 493 lines, leaving no partial split behind."
+  ],
+  "out_of_scope": [
+    "Executing any organize, setup or fix step.",
+    "diagnose_pacman_hook_stall.sh, whose load generator assigns LAST_ELAPSED read by the caller and reads PACMAN_BIN defined by it; splitting it would need a suppression.",
+    "Changing what any script does when run."
+  ],
+  "verifier": "meta/scripts/verify_shell_split.sh per script, plus pre-commit run shellcheck over all touched files, plus systemctl cat media-organizer and test -f on its ExecStart, plus check_file_length.sh and the real git commit for jscpd."
+}
