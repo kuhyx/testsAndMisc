@@ -1,0 +1,38 @@
+{
+  "intent": "Bring python_pkg/wsg_grabber/catalog.py under the 250-line file cap by extracting its defensive JSON coercion helpers into a sibling module, without changing any public behaviour.",
+  "scope": [
+    "python_pkg/wsg_grabber/catalog.py",
+    "python_pkg/wsg_grabber/_coerce.py (new)",
+    "Non-goal: no behaviour change, no test changes, no public API change"
+  ],
+  "changes": [
+    "Extracted _get/_as_list/_as_int/_as_md5 plus the _MD5_SHAPE and _INT64_MIN/_INT64_MAX constants into python_pkg/wsg_grabber/_coerce.py as module-public get/as_list/as_int/as_md5.",
+    "catalog.py now imports those four helpers from _coerce; the six public functions (media_url, parse_thread_list, parse_archive, parse_thread, deleted_md5s, new_files) keep identical signatures and behaviour.",
+    "catalog.py 251 -> 175 lines; _coerce.py is 87 lines. Both under the 250-line cap."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/wsg_grabber/tests/ -q --cov=python_pkg.wsg_grabber --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "277 passed in 15.02s. catalog.py 61 stmts / 30 branches 100%; new _coerce.py 20 stmts / 6 branches 100%. Every wsg_grabber module at 100%, so no coverage was lost by the move and the new module is measured rather than silently skipped."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/wsg_grabber/catalog.py python_pkg/wsg_grabber/_coerce.py",
+      "result": "pass",
+      "evidence": "All hooks Passed, including ruff, ruff format, mypy, pylint, bandit, and 'pytest with coverage enforcement'. No noqa or suppression was added."
+    },
+    {
+      "command": "grep -rn 'catalog' --include='*.py' python_pkg/",
+      "result": "pass",
+      "evidence": "Only importer is downloader.py, which calls the public functions parse_thread_list/parse_archive/parse_thread/new_files/deleted_md5s/media_url. No caller and no test referenced the extracted private helpers, so no re-export shim was required."
+    }
+  ],
+  "risks": [
+    "A formatter stripped the new _coerce import once mid-edit (it ran while call sites still used the old _as_* names); the import was restored and re-verified by grep before the gate was run.",
+    "Low residual risk: the change is a pure move of private helpers with no signature change, covered by 277 existing tests at 100% branch coverage."
+  ],
+  "rollback": [
+    "git revert the commit; catalog.py returns to its 251-line single-file form and _coerce.py is deleted.",
+    "After rollback, run python3 -m pytest python_pkg/wsg_grabber/tests/ -q to confirm 277 tests still pass."
+  ]
+}
