@@ -1,0 +1,44 @@
+{
+  "intent": "Split kcd2_dice_solver's simulate.ts and inventoryIo.ts under the cap, and abandon two seams whose halves are mutually dependent.",
+  "scope": [
+    "kcd2_dice_solver/src/core/simulate.ts (384 -> 226) + simulateTurns.ts",
+    "kcd2_dice_solver/src/lib/inventoryIo.ts (287 -> 178) + inventoryHash.ts",
+    "Reverted: src/core/search.ts (417), src/core/badgeValue.ts (333)",
+    "Non-goal: no test edited, no behaviour changed"
+  ],
+  "changes": [
+    "simulate.ts: whole-turn and multi-turn simulation moved to simulateTurns.ts. Two private helpers it calls, sampleCategory and roll, are now exported rather than duplicated, and simulate.ts re-exports the moved functions so importers and tests are untouched.",
+    "inventoryIo.ts: hash serialisation and the browser ports moved to inventoryHash.ts, with the moved names re-exported from the original path so inventoryIo.test.ts's import block still resolves.",
+    "search.ts and badgeValue.ts were both reverted. findBestSet calls enumerateAll and hillClimb, which call back into expand and the leaderboard types; badgeValue's valueBadge and format are mutually recursive with the recommendation half. Splitting either means the two files import each other, which is the same shared-state problem the shell scripts hit, and TypeScript would compile it while it broke at runtime."
+  ],
+  "verification": [
+    {
+      "command": "npm test -- --run",
+      "result": "pass",
+      "evidence": "288 passed in 15 files, matching the baseline exactly."
+    },
+    {
+      "command": "npm run coverage",
+      "result": "pass",
+      "evidence": "100% statements (863/863), branches, functions and lines. The two new modules are inside the coverage include glob."
+    },
+    {
+      "command": "npm run lint",
+      "result": "fail repeatedly, then pass",
+      "evidence": "The split surfaced a genuine hazard: with Selection no longer imported, TypeScript silently resolved it to the DOM's global Selection type and reported 'Type number[] is missing anchorNode, anchorOffset, direction, focusNode and 19 more'. A local type name that collides with a DOM global fails in a confusing way rather than as 'cannot find name'."
+    },
+    {
+      "command": "git checkout HEAD -- search.ts badgeValue.ts, rm the new modules, npm run lint",
+      "result": "pass",
+      "evidence": "Clean after both reverts, with the two successful splits left in place."
+    }
+  ],
+  "risks": [
+    "search.ts and badgeValue.ts stay at 417 and 333 lines. Splitting them needs the recursion broken first - passing the strategy in, or hoisting the shared types into a third module - which is a design change, not a line-count split.",
+    "inventoryIo.ts re-exports eight names purely for compatibility. That indirection is invisible at the call site."
+  ],
+  "rollback": [
+    "git revert the commit; simulate.ts and inventoryIo.ts return to 384 and 287 lines.",
+    "After rollback, re-run npm test and expect 288 passed."
+  ]
+}
