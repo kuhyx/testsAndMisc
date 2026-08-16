@@ -181,6 +181,22 @@ bash -c 'source <lib>; declare -F | sed "s/declare -f //" | sort'
 Both gave an identical set (48 and 28 functions). Re-run it after **each**
 carve, not just at the end.
 
+### Extracting embedded _data_ is free; embedded _code_ is not
+
+`update_android_hosts.sh` was 870 lines, of which 247 were a heredoc of hosts
+entries. Moving that to `data/android_guardian_blocklist.hosts` and `cat`-ing
+it cleared the file in one step, and a data file **attracts no linter**.
+
+Verify with a hash of the heredoc body against the extracted file:
+
+```bash
+git show HEAD:<script> | awk "/<<'EOF'/,/^EOF$/" | sed '1d;$d' | md5sum
+md5sum < <the extracted file>
+```
+
+Contrast the next section: extracting an embedded _program_ is the same shape
+but a very different cost.
+
 ### Extracting an embedded program pulls it into the Python gate
 
 `install_plagiarism_tools.sh` (534) is mostly two heredocs emitting a 224-line
