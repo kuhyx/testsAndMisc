@@ -38,15 +38,64 @@ _defined_ in module X. **Always finish a re-export split with**
 PYTHONPATH=. python3 -c "from python_pkg.pkg import mod; mod.TheName"
 ```
 
-Two other things the gate will not catch for you:
+## `mock.patch` pins names to a module — run this grep FIRST
 
-- **Check what the tests patch before choosing a seam.** `test_ui.py` does
-  `patch.object(ui, "tk", fake)`, so every line touching `tkinter` had to stay
-  in `ui.py`; moving widget construction out errored 22 tests. Grep the test
-  file for `patch.object(<module>` first and treat those names as pinned.
-- **Tests that call private methods pin them too** — `test_player.py` calls
-  `mpv._note_errors(...)`, so that method stayed as a one-line delegate to the
-  moved implementation.
+**This is the constraint that decides where a seam can go.** `patch("mod.name")`
+rebinds an attribute on `mod`. If you move a function to `_new.py`, that
+function resolves its collaborators through `_new`'s globals, and the patch on
+`mod` no longer reaches it. Tests then fail with either
+`<module> does not have the attribute 'x'` or, worse, a real call to the thing
+that was supposed to be mocked.
+
+Before choosing any seam, list every pinned name in the package:
+
+```bash
+grep -ohP 'patch\((?:f")?(?:\{MOD\}|"[\w.]+)\.\K[\w]+' <pkg>/tests/*.py | sort -u
+```
+
+Everything it prints — **including plain imports like `subprocess`, `shutil`,
+`Path`, `time`, and collaborators imported from sibling modules** — must stay
+resolvable in the module the test names. Two consequences:
+
+- A function that _calls_ a patched collaborator has to stay in that module,
+  or move together with it.
+- `patch.object(mod, "tk", fake)` is the same rule in another spelling.
+  `test_ui.py` uses it, which is why every `tkinter` line had to stay in
+  `ui.py` — moving widget construction out errored 22 tests.
+
+`brother_printer` is the extreme case: its test modules patch ~90 distinct
+names across the package, including `estimate_consumable_life` on `display`.
+An otherwise clean extraction of the page-count block was reverted because of
+exactly that. Grep first, then pick the seam.
+
+**Tests that call private methods pin them too** — `test_player.py` calls
+`mpv._note_errors(...)`, so that method stayed as a one-line delegate to the
+moved implementation. That is the escape hatch for a **one-off** pinned name:
+leave a thin delegate behind. It does not scale — under `select = ["ALL"]`
+every delegate needs a full docstring with `Args:`, so a 25-line function
+leaves a 12-line stub. Eight of those to make a line count is the cap-gaming
+the spec forbids.
+
+### You may edit the tests to follow the code (agreed 2026-08-16)
+
+When a patch target moves, **update the patch target**. Bounded by:
+
+- no assertion changed,
+- no test deleted, skipped or weakened,
+- the pass **count** identical before and after (record it in the evidence).
+
+Updating `MOD = "python_pkg.pkg.display"` to the function's new home is
+bookkeeping, not weakening. Do it **per patched name**, never as a blanket
+swap: a name patched from two different test modules (`_display_report_header`
+is patched by both `test_display.py` and `test_display_part2.py`) has to stay
+reachable from both, so it belongs in whichever module keeps the shared entry
+points.
+
+The test modules are usually the best map of where the seam goes. In
+`brother_printer`, `test_display.py` patches only USB-side helpers,
+`test_display_part2.py` only network-side, and `test_display_part3.py` only the
+page-count collaborators — three concerns in one 427-line module. Split the
+source to match, and let each test module's `MOD` follow.
 
 **Budget the new import block and `__all__` before deciding a two-way split is
 enough.** Five splits so far landed 2–16 lines over the cap after the first cut
