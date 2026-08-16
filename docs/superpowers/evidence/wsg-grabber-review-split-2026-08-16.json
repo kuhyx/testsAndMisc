@@ -1,0 +1,37 @@
+{
+  "intent": "Bring python_pkg/wsg_grabber/review.py under the 250-line file cap by extracting its two independent concerns -- state-to-text rendering and undo -- into sibling modules, keeping every public name reachable at review.* for ui.py and the tests.",
+  "scope": [
+    "python_pkg/wsg_grabber/review.py",
+    "python_pkg/wsg_grabber/_render.py (new)",
+    "python_pkg/wsg_grabber/_undo.py (new)",
+    "Non-goal: no behaviour change, no test changes, no change to the ReviewCommand contract with ui.py"
+  ],
+  "changes": [
+    "Moved the pure presentation functions -- emptiness, status_line, filename_line, title_line, render -- plus the _BYTES_PER_MIB constant into _render.py.",
+    "Moved the undo group -- can_undo, on_undo, forget_last -- into _undo.py.",
+    "review.py re-exports all eight through __all__; both new modules import SessionState under TYPE_CHECKING only, so there is no runtime circular import.",
+    "Inlined the single-caller passthrough helper _worker_message (it only returned event.message) and dropped the now-unused WorkerFailed import.",
+    "render() now spells the undo predicate as `state.undoable > 0` rather than calling review.can_undo, which is the identical expression and avoids a runtime import cycle between _render and _undo.",
+    "review.py 330 -> 196 lines; _render.py 107; _undo.py 74. All three under the cap."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -c \"from python_pkg.wsg_grabber import review; [getattr(review, n) for n in review.__all__]\"",
+      "result": "pass",
+      "evidence": "Printed 'all 15 names resolve'. Every name in __all__ is a live attribute on review, so callers using the old review.<name> path are unaffected by the move."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/wsg_grabber/review.py python_pkg/wsg_grabber/_render.py python_pkg/wsg_grabber/_undo.py",
+      "result": "pass",
+      "evidence": "All hooks pass with no output after filtering Passed/Skipped: ruff, ruff format, mypy, pylint, bandit, and 'pytest with coverage enforcement' (which runs the full wsg_grabber suite at the 100% branch-coverage gate). No suppression was added."
+    }
+  ],
+  "risks": [
+    "_render and _undo both type-reference SessionState from review, which imports them back; this is only safe because those references sit under TYPE_CHECKING. Adding a runtime import of review to either module would create a cycle.",
+    "Inlining _worker_message removes a named seam; it was a pure one-line passthrough with a single caller and zero test references, so the behaviour is identical."
+  ],
+  "rollback": [
+    "git revert the commit; review.py returns to its 330-line form and _render.py / _undo.py are deleted.",
+    "After rollback, run python3 -m pytest python_pkg/wsg_grabber/tests/ -q to confirm the suite still passes."
+  ]
+}

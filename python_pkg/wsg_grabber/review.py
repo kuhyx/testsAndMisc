@@ -12,16 +12,24 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+# Re-exported through __all__ so review.render / review.status_line and friends
+# keep working for ui.py and test_review.py; the implementations live in
+# _render to keep this module under the 250-line cap. _render only needs
+# SessionState for typing, so this import is not circular at runtime.
+from python_pkg.wsg_grabber._render import (
+    emptiness,
+    filename_line,
+    render,
+    status_line,
+    title_line,
+)
+from python_pkg.wsg_grabber._undo import can_undo, forget_last, on_undo
 from python_pkg.wsg_grabber.models import (
     Downloaded,
-    Emptiness,
     FileReady,
     Indexed,
-    ReviewCommand,
-    ReviewedItem,
     ScanFinished,
     Verdict,
-    WorkerFailed,
 )
 
 if TYPE_CHECKING:
@@ -29,7 +37,23 @@ if TYPE_CHECKING:
 
     from python_pkg.wsg_grabber.models import DownloadEvent, ReviewItem
 
-_BYTES_PER_MIB = 1024 * 1024
+__all__ = [
+    "SessionState",
+    "can_undo",
+    "emptiness",
+    "filename_line",
+    "forget_last",
+    "initial_state",
+    "on_event",
+    "on_missing_locally",
+    "on_new_files",
+    "on_quit",
+    "on_undo",
+    "on_verdict",
+    "render",
+    "status_line",
+    "title_line",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,62 +135,6 @@ def on_verdict(state: SessionState, choice: Verdict) -> SessionState:
     return _advance(replace(counted, undoable=state.undoable + 1))
 
 
-def can_undo(state: SessionState) -> bool:
-    """Report whether there is a verdict to take back.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        bool: True when the index holds at least one reversible verdict.
-    """
-    return state.undoable > 0
-
-
-def on_undo(state: SessionState, action: ReviewedItem) -> SessionState:
-    """Show a restored video again after its verdict was reversed.
-
-    The video currently on screen goes to the front of the queue, so changing
-    your mind never skips anything.
-
-    Args:
-        state: Current state.
-        action: The verdict that was just reversed on disk and in the index.
-
-    Returns:
-        SessionState: Updated state showing the restored video.
-    """
-    queue = list(state.pending)
-    if state.current is not None:
-        queue.insert(0, state.current)
-    corrected = (
-        replace(state, kept=max(0, state.kept - 1))
-        if action.choice is Verdict.KEEP
-        else replace(state, passed=max(0, state.passed - 1))
-    )
-    return replace(
-        corrected,
-        undoable=max(0, state.undoable - 1),
-        pending=tuple(queue),
-        current=action.item,
-    )
-
-
-def forget_last(state: SessionState) -> SessionState:
-    """Drop one verdict from the undo count without reversing it.
-
-    Used when the file is no longer where the verdict left it, so a second
-    attempt does not keep failing on the same entry.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        SessionState: Updated state.
-    """
-    return replace(state, undoable=max(0, state.undoable - 1))
-
-
 def on_missing_locally(state: SessionState) -> SessionState:
     """Drop the current video because its file has disappeared.
 
@@ -199,7 +167,7 @@ def on_event(state: SessionState, event: DownloadEvent) -> SessionState:
         return replace(state, downloaded=event.count)
     if isinstance(event, ScanFinished):
         return replace(state, scan_complete=True)
-    return replace(state, error=_worker_message(event))
+    return replace(state, error=event.message)
 
 
 def on_quit(state: SessionState) -> SessionState:
@@ -214,96 +182,6 @@ def on_quit(state: SessionState) -> SessionState:
     return replace(state, quitting=True)
 
 
-def emptiness(state: SessionState) -> Emptiness:
-    """Explain why there is nothing to show, if that is the case.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        Emptiness: Whether the queue is merely waiting or genuinely exhausted.
-    """
-    if state.current is not None:
-        return Emptiness.NOT_EMPTY
-    return Emptiness.EXHAUSTED if state.scan_complete else Emptiness.WAITING
-
-
-def status_line(state: SessionState) -> str:
-    """Build the text under the video.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        str: One line summarising progress.
-    """
-    if state.error is not None:
-        return f"downloader stopped: {state.error}"
-    counts = (
-        f"kept {state.kept} · passed {state.passed} · "
-        f"queued {len(state.pending)} · downloaded {state.downloaded}"
-    )
-    if state.indexed:
-        counts = f"{counts}/{state.indexed}"
-    undo = f" · u undoes ({state.undoable})" if state.undoable else ""
-    mood = {
-        Emptiness.NOT_EMPTY: "",
-        Emptiness.WAITING: " · waiting for downloads…",
-        Emptiness.EXHAUSTED: " · all caught up",
-    }[emptiness(state)]
-    return f"{counts}{mood}{undo}"
-
-
-def filename_line(state: SessionState) -> str:
-    """Describe the video currently on screen.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        str: Original filename with size and dimensions, or a placeholder.
-    """
-    item = state.current
-    if item is None:
-        return "—"
-    size = item.fsize / _BYTES_PER_MIB
-    return f"{item.orig_name}  ·  {item.width}x{item.height}  ·  {size:.1f} MiB"
-
-
-def title_line(state: SessionState) -> str:
-    """Build the window title.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        str: Title including the running verdict tally.
-    """
-    return f"/wsg/ — kept {state.kept}, passed {state.passed}"
-
-
-def render(state: SessionState) -> ReviewCommand:
-    """Turn the state into instructions the window applies verbatim.
-
-    Args:
-        state: Current state.
-
-    Returns:
-        ReviewCommand: Everything the GUI should show or do.
-    """
-    item = state.current
-    return ReviewCommand(
-        play=None if item is None else item.path,
-        stop=item is None,
-        status=status_line(state),
-        title=title_line(state),
-        filename=filename_line(state),
-        verdicts_enabled=item is not None and not state.quitting,
-        undo_enabled=can_undo(state) and not state.quitting,
-        quit_app=state.quitting,
-    )
-
-
 def _advance(state: SessionState) -> SessionState:
     """Move to the next queued video.
 
@@ -316,15 +194,3 @@ def _advance(state: SessionState) -> SessionState:
     queue = list(state.pending)
     following = queue.pop(0) if queue else None
     return replace(state, pending=tuple(queue), current=following)
-
-
-def _worker_message(event: WorkerFailed) -> str:
-    """Extract the message from a worker failure.
-
-    Args:
-        event: The failure report.
-
-    Returns:
-        str: Text for the status bar.
-    """
-    return event.message
