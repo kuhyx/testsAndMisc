@@ -6,7 +6,7 @@
 
 ## Where things stand
 
-**60 files** over 250 lines (was 183 — 67% cleared). Everything is committed
+**57 files** over 250 lines (was 183 — 69% cleared). Everything is committed
 to `main`; see `git log` for the head.
 
 `focus_owner/analysis_options.yaml` is **resolved** (2026-08-16). It was not a
@@ -24,16 +24,46 @@ files.
 
 ## What is left
 
-60 files, plus this handoff whenever an edit pushes it over. A per-directory
-table used to live here and went stale every session; get the real list from:
+Get the real list — a per-directory table used to live here and went stale
+every session:
 
 ```bash
 bash ~/utils/scripts/check_file_length.sh --all
 ```
 
-Rough shape: `linux_configuration` dominates, `phone_focus_mode` (11) is last
-by policy, then `focus_owner`, `kcd2_dice_solver`, `meta`, `bucket_catch`,
-`reverse_survivors`.
+`linux_configuration` dominates; `phone_focus_mode` (11) is last by policy.
+This handoff counts too, whenever an edit pushes it over.
+
+### Pick targets by VERIFIABILITY, not by line count
+
+The suggested order below sorts by cheapness. That is the wrong axis: several
+"cheap" near-miss files turned out to be unverifiable, which costs more than a
+big file that can be run. Triage each candidate first:
+
+```bash
+grep -cE '^\s*(cat|tee)\s*>|>\s*"?(\$HOME|\$unit_dir|/etc|/usr|/var|/opt)' <f>
+grep -cE '\b(require_root|sudo -v|EUID -ne 0)\b' <f>
+```
+
+- **Both zero → take it.** Traceable, or runnable outright.
+- **Writes > 0 → skip for now.** Shell redirections (`cat > /etc/...`) cannot
+  be stubbed via `PATH`; running it mutates the system for real. This ruled out
+  `nvidia_troubleshoot.sh` (writes `/etc/modprobe.d/`) and
+  `install_usage_monitoring.sh` (writes `$HOME/.local/bin` + systemd units)
+  after they had already been picked as "easy".
+- **Best of all: something self-verifying.** `mtk_root/tests/run_tests.sh` was
+  421 lines and the easiest split of the session, because it reports
+  `58 passed, 0 failed` and the full output diffs byte-identical.
+
+Done this session on that basis: `disk_cleanup_check.sh` (329 → 230+124),
+`mtk_root/tests/run_tests.sh` (421 → 218+157+75), `meta/lint_python.sh`
+(353 → 175+116+96), `EnforcementLogTest.kt` (251 → 169+90).
+
+**Verify the branch you actually changed.** `lint_python.sh --quick` exits
+before the block that was extracted, so an identical `--quick` output proved
+almost nothing; the full-mode run is what mattered. Same shape as the silent-
+stub trap in `docs/shell-split-verification.md`. Ask every time: did this run
+enter the code I moved?
 
 ### Deliberately over the cap — a NAMED blocker, not a line-count job
 
@@ -55,21 +85,17 @@ Splitting one means fixing the blocker first. **Do not suppress to land one.**
 Same in TypeScript: `kcd2`'s `search.ts` and `badgeValue.ts`, and
 `reverse_survivors`' `sim.ts` (`step` ⇄ `survivorStep`) and `types.ts`.
 
-`billsplit`'s last file is Flutter's generated `win32_window.cpp`; editing it
-would be undone by `flutter create`, so it needs an exemption or a shrug.
-
-**Resolved 2026-08-16 — and gitignore is NOT the mechanism.** The file is
-tracked and `billsplit/windows/runner/CMakeLists.txt:13` lists it as a build
-source, so a `.gitignore` entry does nothing (git keeps tracking it) and
-`git rm --cached` would break the Windows build for every fresh clone.
-`check.py` does skip git-ignored files, which is what makes gitignore look
-like it would work — it only works for untracked ones.
+`billsplit`'s last file is Flutter's generated `win32_window.cpp`.
+**Resolved 2026-08-16 — gitignore is NOT the mechanism**: it is tracked and
+`billsplit/windows/runner/CMakeLists.txt:13` lists it as a build source, so a
+`.gitignore` entry does nothing and `git rm --cached` breaks the Windows build
+for every fresh clone. (`check.py` skips git-_ignored_ files, which is what
+makes gitignore look workable — it only works for untracked ones.)
 
 **Prerequisite of the gate-wiring step:** add a Flutter-runner exemption to
-`~/utils/file_length/config.py` (a _different repo_, with its own gate and CI)
-covering `windows/runner/`, `linux/runner/` and `macos/Runner/`. That is
-platform scaffolding `flutter create` owns; it belongs beside the existing
-`GENERATED_PATTERN` rules. Land it there before wiring the hook here.
+`~/utils/file_length/config.py` — a _different repo_, own gate and CI —
+covering `windows/runner/`, `linux/runner/`, `macos/Runner/`, beside the
+existing `GENERATED_PATTERN` rules. Land it there before wiring the hook here.
 
 ## Read these BEFORE the first split
 
@@ -80,40 +106,18 @@ platform scaffolding `flutter create` owns; it belongs beside the existing
   import cycle that compiles clean, per-project test baselines.
 - `docs/python-split-recipes.md` — the seam-selection rule, which generalises.
 
-### The single most expensive lesson this session
+### The single most expensive lesson
 
 **A green split can still be broken.** `analyze_repo.sh` passed `bash -n`,
-`shellcheck`, a function-set diff, a line-set diff **and** the stubbed run —
-and shipped a script that aborted after language detection. Two bugs, neither
-reachable by any static check:
+`shellcheck`, two diffs and a stubbed probe, then aborted at runtime. The two
+bugs (a `set -e` function tail, a self-referencing nameref), why
+`verify_shell_split.sh` cannot see either, how
+`meta/scripts/trace_shell_split.sh` does, and the traps in using it are all in
+**`docs/shell-split-verification.md`**. Read it before any shell split; do not
+re-derive it here.
 
-1. **`set -e` + function tail.** `((X > 0)) && HAS_Y=true` as a _top-level_
-   statement merely leaves `$?` non-zero. Wrapped into a function it becomes
-   that function's **return value**, and a false one kills the script. When you
-   wrap former top-level code, check the **last statement**; append `|| true`.
-2. **Self-referencing nameref.** `local -n FOO="$1"` pointing at a global also
-   named `FOO` still moves data on bash 5.3, but warns `circular name reference`
-   on _every access_, into the script's own output. Name the local `_foo`.
-   (Then shellcheck loses sight of the array → SC2034. Fix by passing the name
-   through a variable, not by suppressing.)
-
-`verify_shell_split.sh` **sources the libs and never calls them**. It proves
-`source` lines resolve, nothing more. When a seam passes state, **run the
-thing**: stub only what mutates the system, and diff the generated artifacts
-against a detached worktree at the pre-split commit.
-
-**`meta/scripts/trace_shell_split.sh` now does this** (added 2026-08-16) — it
-runs the script with mutating binaries stubbed and prints a diffable trace, so
-Decision 6 and Decision 12 can both hold. Usage, caveats and the proof it
-catches both bug classes are in `docs/shell-split-verification.md`.
-
-### `--skip-install` is not permission to run a script
-
-`shell_check.sh` gates only `install_if_missing`'s pacman branch on
-`SKIP_INSTALL`; the AUR branch in `install_linters` runs regardless. A
-backgrounded "baseline" run **installed four AUR packages** before it was
-killed. The user chose to leave them. Before running anything for a baseline,
-grep the flag's variable and confirm it gates **every** mutation path.
+Also there: why a `--skip-install` flag is not permission to run a script —
+one such "safe" baseline run installed four AUR packages.
 
 ## Decisions already made (do not re-ask)
 
@@ -172,23 +176,10 @@ delete it.
 
 ## Concurrency: check for another agent FIRST
 
-A past session collided with a second Claude from
-`~/.claude/scripts/claude-autoresume.sh` on the same tree: shared git index, so
-its files landed in the other's staging area, it won a commit race, then hung
-for 17 minutes on an API request with no read timeout. **Run this before
-touching the index**, and `kill` anything live (it commits in-flight work on
-the way out):
-
-```bash
-pgrep -af 'claude -p' | grep -v grep     # autoresume runs `claude -p ... --continue`
-ps -o pid=,etime=,time= -p <pid>         # 7s CPU over 17min = not working
-pgrep -P <pid> -a                        # only MCP servers = no command running
-ss -tnp | grep <pid>                     # ESTAB to :443 with 0/0 queued = half-open
-```
-
-**If the tree looks suspiciously clean**, killing a process mid-`pre-commit`
-stranded the changes it stashed. Recover them, do not retype them:
-`ls -lt ~/.cache/pre-commit/patch* | head` then `git apply` the newest.
+A past session collided with a second Claude on the same tree and lost a
+commit race to it. **Before touching the index**, run the `pgrep`/`ss` checks
+in `docs/shared-checkout-safety.md`, which also covers recovering changes
+stranded by a killed `pre-commit`.
 
 ## Traps that still cost time
 
@@ -227,14 +218,25 @@ Static check after each split: grep `deploy.sh`'s push list and every
 
 ## Suggested order
 
-1. The near-miss tail (251–310) — cheapest count-per-commit. `EnforcementLogTest.kt`
-   is over by **1**; `tether_enforcer.sh` by 17 (but that is `phone_focus_mode`,
-   so last); `fresh-install/main.sh` (309, zero heredocs) is a clean shell one.
-2. The remaining `main()`-shaped `linux_configuration` shell scripts.
-3. `focus_owner` (Kotlin/Dart), `kcd2_dice_solver`, `bucket_catch`,
-   `reverse_survivors` — read `docs/app-split-recipes.md` first.
-4. `phone_focus_mode` (11) — with the guard above.
-5. Gate wiring + CI workflow — last.
+Run the verifiability triage above first; it outranks this list.
+
+1. Anything self-verifying or read-only — test suites, linters, report
+   scripts. Cheapest to prove, regardless of size.
+2. `focus_owner` (Kotlin/Dart), `kcd2_dice_solver`, `bucket_catch`,
+   `reverse_survivors` — read `docs/app-split-recipes.md` first. These have
+   real test baselines (40 Kotlin, 94 Dart, 288, 160).
+3. The `linux_configuration` shell scripts that write nothing.
+4. The write-to-system installers, once the harness can redirect their writes
+   under a temp prefix. Not tractable before that.
+5. `phone_focus_mode` (11) — with the `deploy.sh` push-list guard above.
+6. Gate wiring + CI workflow — last, and only after the
+   `~/utils/file_length/config.py` Flutter-runner exemption lands.
+
+**`fresh-install/main.sh` is not the easy one it looks like**: `sudo -v` and
+package installs at top level, a `local -n` nameref in
+`all_subpackages_installed`, and it reads `aur_packages.txt` /
+`pacman_packages.txt` from the **cwd**, so a baseline must run from its own
+directory or it dies at the first read and looks like a broken split.
 
 ## Done condition
 
