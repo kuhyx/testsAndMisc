@@ -6,8 +6,8 @@
 
 ## Where things stand
 
-**116 files** over 250 lines (was 183). Everything is committed and pushed to
-`main` at `194b006`; the tree is clean.
+**92 files** over 250 lines (was 183 — exactly half cleared). Everything is
+committed and pushed to `main` at `776e04d`; the tree is clean.
 
 **`python_pkg/` is DONE — 50 violations → 0.** Do not reopen it. Cleared one
 package per tranche, pushing after each: `brother_printer` (15→0, suite pinned
@@ -15,8 +15,17 @@ at 402), `code_tutor` (13→0, 216→217), then `android_ui`, `app_icons`,
 `token_audit`, `focus_policy`, `random_jpg` (57/44/81/137/14), then
 `wsg_grabber`'s six test modules (277).
 
-**`linux_configuration` is 84 → 58**, in nine batches. The pattern is settled
-and scripted — read `docs/shell-split-recipes.md` before touching another one.
+**`linux_configuration` is 84 → 49**, in eleven batches. **All 12 prose files
+are done** (8 split, 2 deleted as completed-work records on the user's ruling).
+**`kcd2_dice_solver` is 12 → 4**, all four remaining being source files. The
+shell pattern is settled and scripted — read `docs/shell-split-recipes.md`
+before touching another one.
+
+**Four deferred for shared state across the seam** in `kcd2_dice_solver` and
+`linux_configuration` alike (see the table below); the TypeScript ones are
+`search.ts` (findBestSet ⇄ hillClimb) and `badgeValue.ts` (valueBadge ⇄
+format). In TS a bad seam **compiles clean and fails at runtime** — an import
+cycle leaves a constant `undefined` at module-init. Always run the suite.
 
 Earlier sessions had already done: the `~/utils` exemptions, the
 `no-inline-python` hook, `CLAUDE.md`, `poker-stakes/`, and every `wsg_grabber`
@@ -28,9 +37,9 @@ Earlier sessions had already done: the `~/utils` exemptions, the
 
 | Directory                             | Count        |
 | ------------------------------------- | ------------ |
-| `linux_configuration`                 | 58           |
-| `phone_focus_mode`                    | 13 (do LAST) |
-| `kcd2_dice_solver`                    | 12           |
+| `linux_configuration`                 | 49           |
+| `phone_focus_mode`                    | 12 (do LAST) |
+| `kcd2_dice_solver`                    | 4            |
 | `focus_owner`                         | 11           |
 | `billsplit`                           | 6            |
 | `reverse_survivors` / `meta` / `docs` | 4 each       |
@@ -55,14 +64,6 @@ script and is the check that decides whether a seam is real — run
 Next: the remaining `main()`-shaped shell scripts, then
 `kcd2_dice_solver` / `focus_owner` / `billsplit` (TS+Dart+Kotlin, untouched so
 far), then the four prose files — zero execution risk.
-
-## The seam-selection rule
-
-Settled over eight `python_pkg` packages and written up in
-`docs/python-split-recipes.md` under "The seam-selection rule". In one line:
-**a block may move if every patch reaching it comes from one test module; if
-two modules patch a shared collaborator, keep the collaborator and move its
-callers.** Read the doc before splitting anything with tests.
 
 ## The live worklist
 
@@ -135,11 +136,10 @@ Plus `.github/workflows/file-length.yml` modelled on
 
 ## Language recipes
 
-- `docs/python-split-recipes.md` — the `__all__` re-export form, the `TC001`
-  trap that lints clean and breaks at runtime, the mixin shape for splitting a
-  class, what the tests pin in place, and the coverage behaviour of new sibling
-  modules. `python_pkg` is done, so this now matters only if a stray `.py`
-  turns up outside it.
+- `docs/python-split-recipes.md` — the seam-selection rule, the `__all__`
+  re-export form, the `TC001` trap, the mixin shape, and the coverage
+  behaviour of new sibling modules. `python_pkg` is done; read it if a stray
+  `.py` turns up, or for the seam rule, which generalises to any language.
 - `docs/shell-split-recipes.md` — **read this before the next
   `linux_configuration` split.** What replaces the pass count when there is no
   test suite, which scripts escape the repo, the lib shape that satisfies both
