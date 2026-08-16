@@ -1,0 +1,18 @@
+{
+  "title": "Bring every markdown file under the 250-line cap",
+  "objective": "Clear all twelve over-cap prose files, by splitting genuine reference material and deleting completion reports whose guidance is now enforced by hooks, per decision 5.",
+  "acceptance_criteria": [
+    "bash ~/utils/scripts/check_file_length.sh --all lists no .md file anywhere in the repo.",
+    "For every file that is SPLIT rather than deleted, no content line is lost: a sorted diff of the original against the concatenated parts shows only additions (the new headings and index links).",
+    "The two SKILL.md files keep their YAML frontmatter and description in place, so skill discovery still works; the detail moves to references/ subdirectories.",
+    "Deletions are limited to unreferenced records of completed work whose rules are enforced elsewhere. Nothing referenced by a live doc, hook or script is deleted.",
+    "No dangling links remain: a repo-wide grep for the deleted paths returns nothing outside append-only evidence and contract artifacts.",
+    "No suppression is added and no file is exempted from the cap."
+  ],
+  "out_of_scope": [
+    "The remaining shell and source-code violations, which are separate commits.",
+    "Rewriting or condensing prose that is still current; splitting preserves it verbatim.",
+    "docs/superpowers/plans/** and sessions/**, which are already exempt."
+  ],
+  "verifier": "bash ~/utils/scripts/check_file_length.sh --all showing no .md entry, plus a per-file sorted diff against git HEAD proving zero lines lost for each split, plus a repo-wide grep for the deleted paths, plus pre-commit run --files."
+}
