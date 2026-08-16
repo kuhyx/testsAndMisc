@@ -1,0 +1,37 @@
+{
+  "intent": "Bring the last over-cap focus_owner Dart test file under the 250-line cap, and record why status_page_state.dart cannot follow.",
+  "scope": [
+    "test/status_page_test.dart (309 -> 175) + status_page_actions_test.dart",
+    "Not split: lib/status_page_state.dart (307)",
+    "Non-goal: no assertion changed"
+  ],
+  "changes": [
+    "The release, enforcement and polling widget tests moved to status_page_actions_test.dart, taking the _logLine helper with them since nothing in the original half still used it.",
+    "status_page_state.dart was attempted and reverted. It is one State class whose methods call setState and read seven private fields; extracting them as a mixin gives 'Undefined name _busy' because a mixin cannot see the concrete class's fields, and making it work would mean declaring those fields twice."
+  ],
+  "verification": [
+    {
+      "command": "flutter test",
+      "result": "pass",
+      "evidence": "94 passed, matching the baseline. An intermediate run showed 97, which was the tell that a git checkout had restored the original file while the split copy still held the same three tests - caught by comparing the count rather than trusting a green run."
+    },
+    {
+      "command": "grep -c 'testWidgets(' on both halves",
+      "result": "pass",
+      "evidence": "5 and 3, summing to the 8 the original had. Counting the cases directly is what confirmed the duplicates were gone."
+    },
+    {
+      "command": "flutter analyze",
+      "result": "pass",
+      "evidence": "'No issues found!' after removing the now-unused _logLine and a dart:convert import."
+    }
+  ],
+  "risks": [
+    "status_page_state.dart stays at 307 lines. Splitting it needs the State's fields moved into the mixin as well, which changes where the widget's state actually lives - a design change, not a line-count split.",
+    "An automated unused-declaration pass removed _logLine while it was still in use and broke two tests; it was reverted and redone by hand. Analyzer 'unused' output is per-file and cannot see a sibling test file."
+  ],
+  "rollback": [
+    "git revert the commit; status_page_test.dart returns to 309 lines and the new file disappears.",
+    "After rollback, re-run flutter test and expect 94 passed."
+  ]
+}
