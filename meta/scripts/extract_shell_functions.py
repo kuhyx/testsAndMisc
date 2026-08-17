@@ -69,7 +69,8 @@ def split_script(
     inserted = False
     for line in kept:
         out.append(line)
-        if not inserted and line.strip() in ("set -e", "set -eu", "set -euo pipefail"):
+        # `set -e # comment` is common here, so match the directive, not the line.
+        if not inserted and re.match(r"^set -[euo pipefail]+\b", line.strip()):
             out += ["", f"# shellcheck source={rel}", source_line]
             inserted = True
     if not inserted:
