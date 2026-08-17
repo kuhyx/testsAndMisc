@@ -1,0 +1,58 @@
+{
+  "intent": "Split fresh-install/main.sh (308 lines) into an entry script and a sourced package-helpers library, both under the 250-line cap, without changing the order of any top-level step.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fresh-install/main.sh 308 -> 200",
+    "New: .../fresh-install/lib/packages.sh 121 (the five installation functions)",
+    "Non-goal: any behaviour change; this script installs packages and was not executed"
+  ],
+  "changes": [
+    "Extracted the five top-level functions - play_error_sound, install_from_aur, try_aur_install, process_packages, all_subpackages_installed - into lib/packages.sh, each with the comment directly above it.",
+    "main.sh sources the library immediately after `set -e`, using the SCRIPT_DIR idiom with a `# shellcheck source=` directive relative to the script's own directory, per the repo convention for new sourced libs.",
+    "The first attempt sliced by line range and was discarded: this file interleaves top-level commands (sudo -v, git config, cp of makepkg.conf and pacman.conf) between the function definitions, so a range slice swept them into the library where they would have run at source time, out of order. The rebuild extracts function blocks by brace counting and leaves every other line where it was."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD .../main.sh .../lib/packages.sh .../main.sh",
+      "result": "pass",
+      "evidence": "IDENTICAL: all 5 top-level functions moved verbatim, via the shfmt-normalised per-function hash."
+    },
+    {
+      "command": "Structural comparison of the top-level flow before and after",
+      "result": "pass",
+      "evidence": "Exactly one line added to main.sh (the source line), zero lines missing, and the surviving order is preserved. Function blocks were removed structurally rather than by grep, so function bodies could not be mistaken for top-level code."
+    },
+    {
+      "command": "bash -c '. lib/packages.sh; declare -F <each of the five>'",
+      "result": "pass",
+      "evidence": "All five functions defined, and the source completes with no side effects. This is the check that caught the bad first attempt: sourcing that version hit `sudo -v` and blocked on a password prompt."
+    },
+    {
+      "command": "bash -n on both files",
+      "result": "pass",
+      "evidence": "Both parse. The script itself was deliberately NOT executed: it runs `sudo pacman -Sy`, copies over /etc/makepkg.conf and /etc/pacman.conf, and installs AUR packages."
+    },
+    {
+      "command": "grep triage for a deployed copy of main.sh",
+      "result": "pass",
+      "evidence": "No other script copies or installs it, so the entry+lib shape is safe here - unlike the phone_focus_mode scripts, whose deploy.sh copies a hardcoded per-file list and never deploys lib/."
+    },
+    {
+      "command": "pre-commit run --files <both files>",
+      "result": "pass",
+      "evidence": "All hooks pass, including shfmt and shellcheck."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "31 files over cap, down from 32. The two files are 200 and 121 lines."
+    }
+  ],
+  "risks": [
+    "main.sh at 200 lines has 50 lines of headroom. Its remaining bulk is the top-level package loop, which would need a different seam (a function extracted from inline code) to shrink further - that is a behaviour-preserving refactor rather than a move, so it was not attempted here.",
+    "This script is only ever run by hand on a fresh machine, so there is no test and no CI coverage for it. The verbatim proof and the source-time check are the whole of the evidence; a genuine end-to-end verification would mean reinstalling a machine."
+  ],
+  "rollback": [
+    "git revert the commit; main.sh returns to its 308-line form and lib/packages.sh disappears.",
+    "After rollback, confirm bash -n main.sh still passes and that the file contains all five function definitions again."
+  ]
+}
