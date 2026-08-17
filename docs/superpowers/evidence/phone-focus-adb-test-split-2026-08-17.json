@@ -1,0 +1,51 @@
+{
+  "intent": "Bring phone_focus_mode/lib/tests/test_adb_common.sh (287 lines) under the repo-wide 250-line cap without losing a single test, completing the adb_common split started in the previous commit.",
+  "scope": [
+    "phone_focus_mode/lib/tests/test_adb_common.sh — reduced to the ten logging, cooldown, lock, sanitiser, root and device-selection tests",
+    "phone_focus_mode/lib/tests/test_adb_trusted.sh — new: the six enrolled-device tests, mirroring the adb_trusted.sh split",
+    "phone_focus_mode/lib/tests/adb_test_harness.sh — new: the shared counters, run_test, TEST_TMPDIR, XDG_STATE_HOME redirect and adb() mock",
+    "Non-goal: adding, deleting or weakening any assertion; all sixteen are carried across verbatim"
+  ],
+  "changes": [
+    "Split the sixteen tests along the same seam as the source split in the previous commit: the six that exercise adb_verify_trusted_identity and adb_forget_trusted_device moved to test_adb_trusted.sh, matching adb_trusted.sh, and the other ten stayed.",
+    "Moved the shared fixtures into adb_test_harness.sh, sourced by both files from their own directory. It keeps the XDG_STATE_HOME redirect into a mktemp dir, so neither test file can touch the real ~/.local/state/phone_focus_mode — that redirect had to move as a unit with the mock, since a test file sourcing the library without it would write to live state.",
+    "Both test files keep the original exit convention ([[ FAIL -eq 0 ]] as the last statement), so each fails the shell with a non-zero status rather than merely printing a count.",
+    "The harness keeps the single-quoted injection payloads verbatim, including the comment explaining that expanding $evil or `cmd` there would execute them in the harness and test nothing."
+  ],
+  "verification": [
+    {
+      "command": "bash lib/tests/test_adb_common.sh && bash lib/tests/test_adb_trusted.sh",
+      "result": "pass",
+      "evidence": "10 passed / 0 failed and 6 passed / 0 failed. 10 + 6 = 16, exactly the pre-split count, which is the discriminating check for a test split: had a test been dropped or a file failed to source its fixtures, the total would have fallen while both files still reported success."
+    },
+    {
+      "command": "Exit-status check on both files",
+      "result": "pass",
+      "evidence": "Both exit 0. Checked explicitly rather than read off the printed summary, because the summary line prints regardless of outcome."
+    },
+    {
+      "command": "Mutation check: a copy of test_adb_common.sh with one assertion body replaced by `return 1`",
+      "result": "pass",
+      "evidence": "The mutated copy exits 1. This proves the split files are not vacuously green — that the run_test dispatch still reaches the test bodies and a genuine failure still fails the script."
+    },
+    {
+      "command": "pre-commit run --files on all three files",
+      "result": "pass",
+      "evidence": "Every hook passes, including shellcheck with no --severity filter, and the shebang/executable check that rejected the previous commit's first attempt. Zero suppressions added."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "test_adb_common.sh 134, test_adb_trusted.sh 105, adb_test_harness.sh 76 — no adb file of any kind appears in the over-cap listing now, source or test."
+    }
+  ],
+  "risks": [
+    "adb_test_harness.sh carries a shebang and the executable bit to match every sibling in lib/tests/, but it is not a test file — running it directly defines fixtures and exits 0 without asserting anything. Its header comment says so. A future test-runner that globs lib/tests/*.sh would count it as a passing suite.",
+    "The two test files now each source the library independently, so a fixture change has to satisfy both. That is the same tradeoff as the source split and is the reason the harness exists rather than the fixtures being duplicated.",
+    "This package has no CI workflow, so these tests only run when invoked by hand or by the pre-push ci-mirror; nothing runs them on every commit."
+  ],
+  "rollback": [
+    "git revert the commit — one edited file and two added files, with no data, config or schema migration.",
+    "After rollback, re-run bash phone_focus_mode/lib/tests/test_adb_common.sh; expect 16 passed, 0 failed from the single file."
+  ]
+}
