@@ -65,8 +65,12 @@ def _detect_gpu(hw: _Hw) -> None:
         if "vga" not in low and "3d" not in low:
             continue
         hw.gpu_model = line.rsplit(":", maxsplit=1)[-1].strip()
+        # Match the device description only. The full line always contains
+        # "VGA compATIble controller", so matching *low* lets "ati" fire on
+        # every display device and hides every vendor checked after it.
+        model_low = hw.gpu_model.lower()
         for kw, vendor in _VENDOR_KW.items():
-            if kw in low:
+            if kw in model_low:
                 hw.gpu_vendor = vendor
                 break
         if hw.gpu_vendor == "NVIDIA":

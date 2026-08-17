@@ -63,13 +63,16 @@ def test_detect_gpu_tolerates_nvidia_smi_being_absent(
     [
         ("03:00.0 VGA compatible controller: AMD Radeon RX 7900", "AMD"),
         ("03:00.0 VGA compatible controller: ATI Technologies Inc", "AMD"),
-        # Characterisation, not endorsement: see the xfail below. Every real
-        # lspci display line contains "VGA compATIble", so "ati" matches first
-        # and both of these are reported as AMD.
-        ("00:02.0 VGA compatible controller: Intel UHD Graphics 630", "AMD"),
-        ("04:00.0 VGA compatible controller: Some Unlisted Vendor", "AMD"),
-        # A 3D controller line has no "compatible" in it, so it escapes the trap.
+        ("00:02.0 VGA compatible controller: Intel UHD Graphics 630", "Intel"),
+        ("04:00.0 VGA compatible controller: Some Unlisted Vendor", "Unknown"),
         ("04:00.0 3D controller: Some Unlisted Vendor", "Unknown"),
+        # This machine's second display device: the description carries both
+        # "AMD" and "ATI", and either key gives the same answer.
+        (
+            "0d:00.0 VGA compatible controller: "
+            "Advanced Micro Devices, Inc. [AMD/ATI] Raphael",
+            "AMD",
+        ),
     ],
 )
 def test_detect_gpu_maps_each_vendor_keyword(
@@ -84,21 +87,15 @@ def test_detect_gpu_maps_each_vendor_keyword(
     assert hw.gpu_vendor == vendor
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Pre-existing bug carried verbatim through the move: _VENDOR_KW's 'ati' "
-        "key is a substring of 'VGA compatible controller', which appears in "
-        "every lspci display line, so it matches before 'intel' is ever tried. "
-        "Intel iGPUs are misreported as AMD, which wrongly enables the "
-        "GPU-accelerated terminal and AMD-only Electron flags. Fixing it is a "
-        "behaviour change and does not belong in a move commit."
-    ),
-    strict=True,
-)
-def test_detect_gpu_should_recognise_an_intel_igpu(
+def test_detect_gpu_recognises_an_intel_igpu(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An Intel iGPU ought to be detected as Intel."""
+    """An Intel iGPU is detected as Intel, not as AMD.
+
+    Regression guard: matching the whole lspci line let "ati" — a substring of
+    "VGA compATIble controller" — claim every display device before "intel"
+    was tried, so Intel iGPUs enabled the AMD-only Electron flags.
+    """
     line = "00:02.0 VGA compatible controller: Intel UHD Graphics 630"
     monkeypatch.setattr(subprocess, "run", _fake_run({"lspci": line}))
     hw = _Hw()

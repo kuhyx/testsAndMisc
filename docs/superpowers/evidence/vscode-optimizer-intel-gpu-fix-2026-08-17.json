@@ -1,0 +1,44 @@
+{
+  "intent": "Detect Intel iGPUs as Intel instead of AMD, so an Intel machine no longer enables the GPU-accelerated terminal and the AMD-only Electron flags that were chosen for a GPU it does not have.",
+  "scope": [
+    "python_pkg/vscode_optimizer/_hardware.py — _detect_gpu vendor matching",
+    "python_pkg/vscode_optimizer/tests/test_gpu_disk.py — one strict xfail removed, one parametrised characterisation test corrected",
+    "Non-goal: the _VENDOR_KW table itself is unchanged; only what it is matched against changed"
+  ],
+  "changes": [
+    "_detect_gpu now matches vendor keywords against hw.gpu_model (the device description after the last colon) rather than against the whole lspci line. Every display line contains 'VGA compATIble controller', so the 'ati' key matched unconditionally and 'intel' was unreachable.",
+    "Removed the strict=True xfail from test_detect_gpu_should_recognise_an_intel_igpu and renamed it to test_detect_gpu_recognises_an_intel_igpu; it now asserts the fixed behaviour as a regression guard.",
+    "test_detect_gpu_maps_each_vendor_keyword: the Intel case now expects 'Intel' (was 'AMD') and the unlisted-vendor case now expects 'Unknown' (was 'AMD').",
+    "Added a case for this machine's real second display device, 'Advanced Micro Devices, Inc. [AMD/ATI] Raphael', whose description carries both AMD and ATI and must still resolve to AMD."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m python_pkg.vscode_optimizer --dry-run",
+      "result": "pass",
+      "evidence": "GPU still reported as 'NVIDIA - NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1) (24576 MB VRAM)' and still '18 change(s) proposed.' — byte-identical to the pre-fix baseline captured on the same machine."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/vscode_optimizer/tests/test_gpu_disk.py -q --no-cov",
+      "result": "pass",
+      "evidence": "17 passed in 0.03s; no xfail/xpass remaining in the file."
+    },
+    {
+      "command": "systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 python3 -m pytest -q",
+      "result": "pass",
+      "evidence": "1984 passed in 22.14s; TOTAL 6560 statements, 1630 branches, 100% coverage; 'Required test coverage of 100.0% reached.'"
+    },
+    {
+      "command": "lspci | grep -iE 'vga|3d'",
+      "result": "pass",
+      "evidence": "Two display devices present: the RTX 3090 at 01:00.0 and an AMD Raphael iGPU at 0d:00.0. _detect_gpu breaks after the first line, so this machine reports NVIDIA either way; the real lines were used to build the test cases."
+    }
+  ],
+  "risks": [
+    "A device whose vendor name appears only in the bus/class prefix and not in the description after the last colon would now fall through to 'Unknown'. No such lspci format is known; every display line puts the vendor in the description.",
+    "A description containing a stray 'ati' substring (for example a product name ending in -ati-) would still map to AMD. This is the pre-existing keyword-matching design, deliberately left alone in this commit."
+  ],
+  "rollback": [
+    "git revert the commit; _detect_gpu returns to matching the whole line and the xfail returns with it.",
+    "After rollback, re-run python3 -m python_pkg.vscode_optimizer --dry-run and confirm 18 changes are still proposed, then run pytest and confirm the xfail is reported as expected-fail rather than as a failure."
+  ]
+}
