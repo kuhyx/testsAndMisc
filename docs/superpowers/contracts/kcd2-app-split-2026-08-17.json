@@ -1,0 +1,20 @@
+{
+  "title": "Split kcd2_dice_solver src/App.tsx under the 250-line cap",
+  "objective": "Bring kcd2_dice_solver/src/App.tsx (306 lines) under the repo-wide 250-line file cap by extracting the inventory state it owns -- the link-versus-storage resolution at mount, the deferred-persistence rule, and the three mutators -- into a useInventoryState custom hook under src/hooks/, leaving App.tsx as the view, with behaviour proven by the four existing App test files at 100% coverage.",
+  "acceptance_criteria": [
+    "App.tsx and the new hook are each at most 250 lines, and check_file_length.sh --all no longer lists any kcd2_dice_solver file.",
+    "npx vitest run still reports 24 files and 288 tests, all passing -- no test was added, deleted, or had an assertion weakened.",
+    "npx vitest run --coverage still reports 100% statements, 100% branches, 100% functions and 100% lines. Totals may move by at most one statement and one function, since promoting the inline Keep handler to a named callback in the hook is one added function; any larger movement, or any metric below 100%, means extracted code left test reach and the extraction must be made smaller rather than the threshold lowered.",
+    "npm run lint (tsc --noEmit && eslint src) still exits 0 with no output.",
+    "The hook re-exports nothing: App.tsx imports EMPTY from lib/inventoryIo.ts, its real home, rather than through the hook.",
+    "Zero suppressions added: no eslint-disable, no @ts-ignore, no @ts-expect-error, and vite.config.ts is byte-identical (thresholds and exclude untouched)."
+  ],
+  "out_of_scope": [
+    "Any change to the inventory rules: a link only wins when it carries dice or badges, persistence stays deferred until Keep or an edit, Discard restores this browser's stored inventory, and any URL fragment is cleared at mount.",
+    "Changing the rendered markup, class names, ARIA roles or copy -- the four App test files query on these.",
+    "Adding a dedicated test file for the new hook; its coverage comes from the existing App tests, and adding one would change the 288-test count this split is verified against.",
+    "Modifying vite.config.ts, including adding the new file to the coverage exclude list.",
+    "Wiring the file-length pre-commit hook -- it must land last, and 51 files elsewhere in the repo are still over."
+  ],
+  "verifier": "npx vitest run (expect 24 files / 288 tests passed); npx vitest run --coverage (expect 100% on all four metrics; totals 864/375/182/811, one statement and one function above the 863/375/181/810 baseline); npm run lint (expect exit 0, no output); bash ~/utils/scripts/check_file_length.sh --all (expect no kcd2_dice_solver entry at all); git diff --stat vite.config.ts (expect empty); grep -rn 'eslint-disable\\|ts-ignore\\|ts-expect-error' src/ (expect no hits); pre-commit run --files on every touched file."
+}

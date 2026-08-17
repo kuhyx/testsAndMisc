@@ -2,37 +2,29 @@
  * KCD2 Dice Solver.
  *
  * Enter what dice and badges you own; get the best six to bring and the best
- * badge for each tier you hold.
+ * badge for each tier you hold. Owning the inventory — where it came from and
+ * when it is written back — is `useInventoryState`'s job; this file is the view.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { JSX } from "react";
 import { BadgePicker } from "./components/BadgePicker.tsx";
 import { DiceList } from "./components/DiceList.tsx";
 import { InventoryIo } from "./components/InventoryIo.tsx";
 import { ResultPanel } from "./components/ResultPanel.tsx";
-import type { CountUpdater } from "./components/QuantityStepper.tsx";
 import { SET_SIZE } from "./core/searchGroups.ts";
 import type { SolveRequest } from "./core/solve.ts";
+import { useInventoryState } from "./hooks/useInventoryState.ts";
 import { useSolver } from "./hooks/useSolver.ts";
 import type { SolverPort } from "./hooks/useSolver.ts";
 import {
   EMPTY,
-  STORAGE_KEY,
   browserClipboard,
   browserSaveFile,
   browserUrlHash,
-  decodeInventoryHash,
   encodeInventoryHash,
-  isEmptyInventory,
-  loadInventory,
 } from "./lib/inventoryIo.ts";
-import type {
-  ClipboardPort,
-  SavedInventory,
-  SaveFilePort,
-  UrlHashPort,
-} from "./lib/inventoryIo.ts";
+import type { ClipboardPort, SaveFilePort, UrlHashPort } from "./lib/inventoryIo.ts";
 
 export interface AppProps {
   /** Overridden in tests to avoid depending on jsdom worker support. */
@@ -63,95 +55,18 @@ export function App({
   const store = storage ?? window.localStorage;
   const [query, setQuery] = useState("");
 
-  // What this browser already had. Kept around so a shared link can be turned
-  // down without losing it.
-  const [stored] = useState(() => loadInventory(store));
-
-  // A link beats whatever is in this browser: following one is a deliberate act
-  // in a way that "opening the page again" is not.
-  const [fromLink] = useState(() => decodeInventoryHash(urlHash.read()));
-
-  /*
-   * ...but only a link that actually carried dice or badges. Testing "did the
-   * parser complain?" is not the same question: a link encoding a count of zero
-   * parses perfectly and yields an EMPTY inventory, which would then replace the
-   * visitor's own dice on screen, disable Clear (nothing to clear), and leave
-   * Keep as the sole enabled control — writing that emptiness over their saved
-   * loadout. Requiring the link to actually carry something removes the case.
-   */
-  const linkApplied = fromLink !== null && !isEmptyInventory(fromLink.inventory);
-  const [saved, setSaved] = useState<SavedInventory>(() =>
-    linkApplied ? fromLink.inventory : stored.inventory,
-  );
-
-  // Whatever was discarded on the way in, from whichever source was used. The
-  // parser sanitises rather than rejects, so without surfacing this a die added
-  // in a later game patch — or a URL a chat client truncated — would vanish in
-  // complete silence.
-  const dropped = linkApplied ? fromLink.dropped : stored.dropped;
-
-  /*
-   * Nothing is written to storage until the visitor accepts it. Silently
-   * overwriting a saved loadout — with somebody else's dice, or with a
-   * sanitised copy of their own that just lost an entry — is unrecoverable, and
-   * a confirm() dialog is both untestable and hostile. Persistence is deferred
-   * until they do something that implies consent: press Keep, or simply edit
-   * anything. One boolean, and the banner clears itself the moment they engage.
-   */
-  const [persist, setPersist] = useState(!linkApplied && dropped.length === 0);
-
-  useEffect(() => {
-    if (persist) {
-      store.setItem(STORAGE_KEY, JSON.stringify(saved));
-    }
-  }, [saved, store, persist]);
-
-  useEffect(() => {
-    /*
-     * Clear ANY fragment, not just one that decoded. A fragment left in the bar
-     * is a loaded gun: it is read once, at mount, so a link arriving in an
-     * already-open tab is a same-document navigation that changes nothing now —
-     * but survives to be applied over edited state on the next reload.
-     */
-    if (urlHash.read() !== "") {
-      urlHash.clear();
-    }
-  }, [urlHash]);
-
-  const setDieCount = useCallback((id: string, update: CountUpdater): void => {
-    setPersist(true);
-    setSaved((previous) => {
-      // Applied to the previous state, not to a value captured at render time,
-      // so a burst of clicks or wheel ticks accumulates instead of collapsing.
-      const count = update(previous.diceCounts[id] ?? 0);
-      // Rebuilt rather than mutated so a count of zero simply never makes it
-      // into the saved object.
-      const diceCounts = Object.fromEntries(
-        Object.entries(previous.diceCounts).filter(([key]) => key !== id),
-      );
-      if (count > 0) {
-        diceCounts[id] = count;
-      }
-      return { ...previous, diceCounts };
-    });
-  }, []);
-
-  const toggleBadge = useCallback((id: string, owned: boolean): void => {
-    setPersist(true);
-    setSaved((previous) => ({
-      ...previous,
-      badgeIds: owned
-        ? [...previous.badgeIds, id]
-        : previous.badgeIds.filter((existing) => existing !== id),
-    }));
-  }, []);
-
-  const importInventory = useCallback((inventory: SavedInventory): void => {
-    setPersist(true);
-    setSaved(inventory);
-  }, []);
-
-  const total = Object.values(saved.diceCounts).reduce((sum, count) => sum + count, 0);
+  const {
+    saved,
+    stored,
+    dropped,
+    linkApplied,
+    persist,
+    total,
+    keep,
+    replace,
+    setDieCount,
+    toggleBadge,
+  } = useInventoryState(store, urlHash);
 
   const request = useMemo<SolveRequest | null>(
     () =>
@@ -205,8 +120,7 @@ export function App({
                 className="clear"
                 disabled={total === 0 && saved.badgeIds.length === 0}
                 onClick={() => {
-                  setPersist(true);
-                  setSaved(EMPTY);
+                  replace(EMPTY);
                 }}
               >
                 Clear
@@ -221,9 +135,7 @@ export function App({
                 <button
                   type="button"
                   className="clear"
-                  onClick={() => {
-                    setPersist(true);
-                  }}
+                  onClick={keep}
                 >
                   Keep
                 </button>{" "}
@@ -235,8 +147,7 @@ export function App({
                     type="button"
                     className="clear"
                     onClick={() => {
-                      setPersist(true);
-                      setSaved(stored.inventory);
+                      replace(stored);
                     }}
                   >
                     Discard
@@ -264,7 +175,7 @@ export function App({
 
             <InventoryIo
               inventory={saved}
-              onImport={importInventory}
+              onImport={replace}
               clipboard={clipboard}
               saveFile={saveFile}
               shareUrl={urlHash.base() + encodeInventoryHash(saved)}
