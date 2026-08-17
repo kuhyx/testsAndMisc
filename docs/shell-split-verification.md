@@ -128,8 +128,17 @@ the `dropped_write_{before,after}.sh` fixture pair: with the manifest the lost
 `.timer` is a one-line diff; with the section stripped the two traces are
 byte-identical, i.e. the pre-`--prefix` harness passed that broken split.
 
-Four traps, each of which cost a debugging round:
+Five traps, each of which cost a debugging round:
 
+- **`/usr/bin` cannot be bound at all.** `--bind-abs /usr/bin` overlays the
+  directory the sandbox needs to exec anything; the run dies with
+  `bwrap: execvp bash: No such file or directory`. So a script whose last act
+  replaces a binary there (`install_pacman_wrapper.sh:304`,
+  `ln -sf … /usr/bin/pacman`) traces with everything else bound and **stops at
+  that line with exit 1** on EPERM. That baseline is stable across runs, but
+  proves nothing at or after the failing line — keep those statements in the
+  entry script. The scanner does not list `/usr/bin`: it follows variables into
+  `cat >`/`cp` and misses a literal `ln -sf` target.
 - **Bind leaf directories, never `/etc`.** Binding `/etc` wholesale shadows
   `/etc/passwd` and `/etc/os-release`. Measured: `$SUDO_USER` lookup collapsed
   to `/home//pyroveil`, `/etc/profile` became "No such file or directory", and

@@ -1,4 +1,4 @@
-# Next session: split `install_usage_monitoring.sh`
+# Next session: split `install_pacman_wrapper.sh`
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
 > It is self-contained. Do not go looking for the previous session's context.
@@ -6,237 +6,174 @@
 ## The one job
 
 Split
-`linux_configuration/scripts/periodic_background/system-maintenance/bin/install_usage_monitoring.sh`
-(290 lines, over the 250-line cap by 40) into files that are each under the
+`linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh`
+(316 lines, over the 250-line cap by 66) into files that are each under the
 cap, and **prove by execution** that it still does exactly the same thing.
 
-This is a split, not a tooling task. The harness you need already exists and is
-already proven against this exact file — use it, don't rebuild it.
+The harness already exists and has already been run against this exact file —
+its baseline is captured and its one blind spot is mapped below. Use it, don't
+rebuild it.
 
-Then, if there is room left in the session, take the next target using the same
-method (see "If there is time" at the end).
+## What landed last session (do not redo)
 
-## Why this file, and why now
+`install_usage_monitoring.sh` (290 lines) is done, committed and pushed as
+`26965ba`: a 53-line entry plus five libs in a sibling `lib/`, with an empty
+before/after trace diff including all five generated-file hashes. That split is
+the worked example — read it before starting this one, the shape transfers.
 
-57 files remain over the cap. Until last session, six installer scripts could
-not be executed at all to verify a split: shell redirections (`cat > …`) are
-bash builtins, so no `PATH` stub can intercept them — stub `cp`/`chmod` and the
-trace comes back nearly empty, don't and the run rewrites the live system.
+Two things it discovered that this file inherits:
 
-`meta/scripts/trace_shell_split.sh --prefix` fixed that. This file is the
-smallest of the newly-unblocked set (over by only 40) and its trace is
-**deterministic across runs**, so a before/after diff is a real proof rather
-than a judgement call. It is the cheapest genuine win available.
+- The pre-commit hook runs **`shfmt -w` on every staged shell file** and
+  re-stages it. It rewrites `cat > "x" << 'EOF'` to `cat >"x" <<'EOF'`. If any
+  test greps a script's source text for a redirection, that rewrite silently
+  breaks extraction. Run `shfmt -w` on your files yourself, then re-verify, so
+  the state you tested is the state that gets committed.
+- Repo-wide `jscpd` currently reports **2.51% (over the 2% gate)** from the
+  working tree, but every clone above the HEAD baseline is vendored
+  `.venv`/`.ci-mirror-venv` site-packages (`tqdm/completion.sh`,
+  `virtualenv/activate.sh`). Measured at HEAD in a clean worktree it is 1.47%
+  with 27 clones, and the committed hook run passed. Don't chase it, and don't
+  "fix" it by touching vendored files.
 
-## The baseline you must reproduce, byte for byte
+## The baseline you must reproduce
 
-Captured on 2026-08-16 at commit `19e652d`. Re-capture it yourself with the
-procedure below rather than trusting this paste — but if your post-split trace
-differs from this in any line, you have broken something:
-
-```
-=== exit status: 0
-=== mutating calls (stubbed)
-sudo pacman -S --needed --noconfirm atop nvtop netdata xclip
-systemctl list-unit-files atop.service
-sudo systemctl enable --now atop.service
-systemctl list-unit-files atop-rotate.timer
-sudo systemctl enable --now atop-rotate.timer
-systemctl list-unit-files netdata.service
-sudo systemctl enable --now netdata.service
-systemctl --user daemon-reload
-systemctl --user enable --now nvidia-pmon.service
-systemctl --user daemon-reload
-systemctl --user enable --now usage-report-catchup.timer
-=== files written (prefix)
-.config/systemd/user/nvidia-pmon.service size=199 sha=af8da89074b49c3f
-.config/systemd/user/usage-report-catchup.service size=159 sha=bd685190626f72cb
-.config/systemd/user/usage-report-catchup.timer size=206 sha=020effbe805f4ee3
-.local/bin/nvidia-pmon-logger.sh size=972 sha=f307d0d3fe5f5e7f
-.local/bin/usage-report-catchup.sh size=757 sha=9f4803ab157c5527
-=== stdout
-=== stderr
-[install-usage] detected distro family: arch (Arch Linux)
-[install-usage] installing: atop nvtop netdata xclip
-[install-usage] enabling atop.service
-[install-usage] enabling atop-rotate.timer
-[install-usage] enabling netdata.service
-[install-usage] setting up nvidia-pmon user service
-[install-usage] usage reports will be generated hourly in @PREFIX@/.local/share/usage-reports/
-[install-usage] done. Wait for the first atop sample (default 10 min), then run:
-[install-usage]   python /home/kuhy/testsAndMisc/linux_configuration/scripts/periodic_background/system-maintenance/bin/usage_report.py
-```
-
-**The five content hashes are the real assertion.** The stubbed-call list only
-proves the same binaries were invoked; the hashes prove every generated file
-came out identical. A split that drops a heredoc shows up here and nowhere
-else.
-
-### How to capture and compare — capture the baseline IN PLACE
-
-**Do not trace the baseline from a detached worktree.** The obvious workflow is
-wrong for this file and it was measured: tracing
-`/tmp/basewt/…/install_usage_monitoring.sh` makes `REPO_DIR` resolve to
-`/tmp/basewt`, that path is interpolated into the generated
-`usage-report-catchup.sh`, and you get a 2-line diff (`size=745 sha=d15c970e…`
-instead of `size=757 sha=9f4803ab…`, plus the final stdout line) that looks
-exactly like a broken split but is pure harness artefact. Normalising the trace
-text does **not** fix it — the repo path is inside the hashed file content, not
-just the trace.
-
-Capture the baseline at the real repo path instead, by restoring `HEAD`'s
-version in place for one run:
+Captured at commit `26965ba`. **Verified deterministic**: two consecutive runs
+at HEAD produced byte-identical traces, so a before/after diff is real proof.
 
 ```bash
-F=linux_configuration/scripts/periodic_background/system-maintenance/bin/install_usage_monitoring.sh
+F=linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
 
-cp "$F" /tmp/split_version.sh          # keep your split work
-git show HEAD:"$F" > "$F"              # restore the pre-split file in place
-meta/scripts/trace_shell_split.sh "$F" --prefix /tmp/pfx-before --out /tmp/before.txt
-
-cp /tmp/split_version.sh "$F"          # put your split back
-meta/scripts/trace_shell_split.sh "$F" --prefix /tmp/pfx-after --out /tmp/after.txt
-
-diff /tmp/before.txt /tmp/after.txt    # must be empty
-git status --porcelain "$F"            # sanity: your split is back in place
+rm -rf /tmp/pfx-before          # fresh, NOT emptied — the harness refuses a non-empty prefix
+meta/scripts/trace_shell_split.sh "$F" --prefix /tmp/pfx-before \
+  --bind-abs /usr/local/bin \
+  --bind-abs /usr/local/share/digital_wellbeing \
+  --bind-abs /usr/local/share/digital_wellbeing/virtualbox \
+  --bind-abs /var/lib/pacman-wrapper \
+  --out /tmp/before.txt
 ```
 
-Verified pre-split: this produces an empty diff, so any diff you see after
-splitting is real signal. If your split moved code into new lib files, restore
-those too (or `git stash` is blocked — use `git show HEAD:<path>` per file).
-
-**Each run needs its own EMPTY prefix.** Reusing one leaves the first run's
-files behind, so the second manifest reports writes that never happened and a
-dropped write stops showing up at all. The harness refuses a non-empty prefix,
-so you will get an error rather than a false pass — don't work around it by
-deleting the directory contents and reusing the path out of habit.
-
-## Four hazards specific to THIS file
-
-Each of these was measured. Do not rediscover them.
-
-### 1. An existing test greps the installer's SOURCE TEXT
-
-`linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh`
-extracts the pmon-logger heredoc out of the installer with an awk pattern
-anchored on this exact line:
+Expect **exit status 1** (see the blind spot below — this is correct, not a
+failure), one stubbed call (`npm install --prefix …`), and 16 files written:
 
 ```
-cat > "$HOME/.local/bin/nvidia-pmon-logger.sh" << 'SCRIPT'
+abs/usr/local/bin/heavy_job_lock.sh size=7221 sha=3961b14e6a6a8b86
+abs/usr/local/bin/makepkg_capped size=2037 sha=3acf1189e93e5771
+abs/usr/local/bin/mkpkg size=178 sha=da4a2fa3e8f5b6ab
+abs/usr/local/bin/pacman_blocked_keywords.txt size=1042 sha=7bd951741c649b60
+abs/usr/local/bin/pacman_greylist.txt size=174 sha=2dc47dd4a25d6aca
+abs/usr/local/bin/pacman_lock_lib.sh size=6581 sha=147ea7a163000f82
+abs/usr/local/bin/pacman_whitelist.txt size=6079 sha=cfec8efc4a2330c1
+abs/usr/local/bin/pacman_wrapper size=29410 sha=548fc2b53ee4cea6
+abs/usr/local/bin/words.txt size=1375483 sha=f5c9d52b244f9973
+abs/usr/local/share/digital_wellbeing/install_leechblock.sh size=15965 sha=e4ec4b37fd9113a3
+abs/usr/local/share/digital_wellbeing/leechblock_defaults.json size=51084 sha=ca068b74282921c6
+abs/usr/local/share/digital_wellbeing/package.json size=258 sha=618fa688d2edfa4f
+abs/usr/local/share/digital_wellbeing/seed_leechblock_storage.js size=4176 sha=1611cb17124fd388
+abs/usr/local/share/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh size=12601 sha=ab039aedc3cd84cd
+abs/var/lib/pacman-wrapper/policy.sha256 size=412 sha=0aa8d95524660324
+abs/var/lib/pacman-wrapper/source.sha256 size=1374 sha=4c928a499d437070
 ```
 
-It then asserts five properties of the extracted template (no `read -t`
-busy-loop, sleeps to the day boundary, blocks on `wait`, uses the `printf`
-date builtin, no external `date`). **If you move that heredoc into a lib file,
-this test fails with `could not extract nvidia-pmon-logger template`** — and
-it is not in the pre-commit set, so nothing will tell you.
+The last stderr line is
+`ln: failed to create symbolic link '/usr/bin/pacman': Permission denied`.
 
-Run it before and after, every time:
+Capture the baseline at HEAD **before editing anything**, then diff your split
+against it. Unlike last file, a detached worktree is fine here — nothing
+interpolates the repo path into a generated artifact (verified: the drift
+manifest hashes source files by `readlink -f`, and those hashes are of file
+_contents_, not paths).
+
+## The one blind spot — this is the whole design constraint
+
+`--bind-abs /usr/bin` **cannot be used**: it mounts an empty overlay over the
+directory the sandbox needs to exec anything, and the run dies with
+`bwrap: execvp bash: No such file or directory` before reaching the script.
+Measured last session; it is a hard limit of the harness.
+
+So the trace reaches **line 304** (`ln -sf "$WRAPPER_DEST" /usr/bin/pacman`),
+hits EPERM, and exits 1. Lines 304 and 306 (the final `echo`) are the only
+statements that never execute — everything before them is covered, 16 files
+written and 19 stdout lines deep.
+
+**Therefore: keep lines 304–316 in the entry script.** Anything you move into a
+lib gets proven by the trace; anything at or after 304 does not, and a broken
+split there would diff clean. This is a constraint on where the seams go, not a
+reason to skip the file.
+
+Note the absolute-path scanner does **not** list `/usr/bin` when it refuses to
+run — it follows variables into `cat >`/`cp` and misses the literal `ln -sf`
+target. Don't read its list as complete.
+
+## Hazards specific to THIS file
+
+### 1. It self-sudos at line 9
 
 ```bash
-bash linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh
-# expect: "Usage monitoring installer efficiency tests passed."
+if [ "$EUID" -ne 0 ]; then
+	sudo "$0" "$@"
+	exit $?
+fi
 ```
 
-Either keep that heredoc in a file the test still reads, or update the test's
-`INSTALLER` path in the same commit. Deciding which is part of the job; don't
-leave it broken and don't weaken the assertions.
+Under `--bind-abs` the run is already uid 0 (bwrap `--unshare-user --uid 0`),
+so this branch is skipped and the script proceeds for real — that is why the
+trace is 16 files deep rather than the three-line `require_root` truncation.
+If you move this block, `$0` must still be the entry point.
 
-### 2. `REPO_DIR` is computed by walking up five levels from `$0`
+### 2. `source.sha256` is a drift manifest — but a split does not disturb it
 
-```bash
-REPO_DIR="$(dirname "$(readlink -f "$0")")/../../../../.."
-```
+Line ~247 hashes seven **source** files (`WRAPPER_SOURCE`, `LOCK_LIB_SOURCE`,
+`BLOCKED_SOURCE`, `GREYLIST_SOURCE`, `MAKEPKG_CAPPED_SOURCE`, `MKPKG_SOURCE`,
+`WHITELIST_SOURCE`) plus the installed lock lib. Checked: it does **not** hash
+the installer itself, and there is no glob that would pick up a new `lib/`.
+So `sha=4c928a499d437070` should stay put across a split — if it moves, you
+changed one of those seven copied files, which is a real regression.
 
-From `…/system-maintenance/bin/` that resolves to `/home/kuhy/testsAndMisc`.
-This value is **interpolated into the generated catch-up script**, so if a lib
-at a different directory depth recomputes it, the generated file silently
-points at the wrong repo — and the trace still exits 0. If the code that uses
-`REPO_DIR` moves, pass the value in rather than recomputing it, and check the
-`usage-report-catchup.sh` hash (`9f4803ab157c5527`) is unchanged.
+`check_and_enable_services.sh` replays this manifest with `sha256sum -c` from
+systemd with `cwd=/`, which is why the entries must be absolute
+(`readlink -f`). Don't make those paths relative while tidying.
 
-Note `$0` in a sourced lib is the _entry point_, not the lib — which is what
-makes this survivable if you pass the value, and silently wrong if you don't.
+### 3. `chattr +i` / immutability
 
-This is not theoretical: it already broke the _verification procedure_ for this
-file (see "capture the baseline IN PLACE" above), producing a convincing
-2-line diff out of nothing but a changed repo root. Treat any diff in
-`usage-report-catchup.sh`'s hash as a `REPO_DIR` question first.
+The script makes policy files immutable and has unlock/relock helpers
+(`is_immutable_file`, `unlock_immutable_file_if_needed`,
+`relock_files_on_exit`, lines 58–84) wired to a trap. Inside the sandbox these
+warn ("Could not make integrity file immutable") and continue — that warning is
+in the baseline and is expected. If you move the trap or the helpers, check the
+trap still fires from the entry script.
 
-### 3. The final stdout line contains the script's own absolute path
+### 4. It writes a _live_ system when run for real
 
-```
-[install-usage]   python /home/kuhy/…/bin/usage_report.py
-```
-
-It is built from `REPO_DIR`/`$0`. It is in the trace, so a change here fails
-the diff loudly — good. Just don't "fix" it into a relative path while
-splitting; that is a behaviour change disguised as tidying.
-
-### 4. Line 222 is an UNQUOTED heredoc
-
-`cat > "$HOME/.local/bin/usage-report-catchup.sh" << SCRIPT` — no quotes on
-`SCRIPT`, so `$HOME` and `$REPO_DIR` interpolate at write time, while `\$REPO`
-and `\$OUT_DIR` stay literal. The escaping inside it is load-bearing. If you
-move this block, move it verbatim; a single unescaped `$` changes the
-generated file and the hash will catch you.
-
-## The seams (already mapped — verify, don't re-derive)
-
-The file is banner-sectioned, so the seams are pre-marked:
-
-| Lines   | Section                                                    | Notes                              |
-| ------- | ---------------------------------------------------------- | ---------------------------------- |
-| 1–24    | preamble, `log()`, `die()`                                 | shared by everything               |
-| 25–55   | distro detection → `FAMILY`                                | `FAMILY` crosses into packages     |
-| 56–120  | package names, `pkg_name`, `clipboard_pkg`, resolve `pkgs` | `FAMILY` in, `pkgs` out            |
-| 121–136 | `enable_unit`, system services                             | uses `pkgs`                        |
-| 137–214 | NVIDIA pmon logger (guarded)                               | **holds the heredoc test 1 greps** |
-| 216–290 | usage-report catch-up timer                                | `REPO_DIR`, unquoted heredoc       |
-
-State crossing any seam: `FAMILY`, `pkgs`, `clip`, `unit_dir`, `REPO_DIR`.
-Five globals — few enough that this is a genuinely tractable split, unlike the
-named blockers in `refactor_claude_todo_resume.md`.
-
-`nvidia-smi` IS present on this machine, so the 137–214 branch really executes
-in the trace. That is why the baseline has `nvidia-pmon.service` in it. Don't
-assume the guarded block is untested — it is the opposite.
-
-There is **no `lib/` directory** in `…/system-maintenance/bin/` yet. Elsewhere
-in the repo the convention is a sibling `lib/` holding sourced `.sh` files with
-a shebang and the executable bit (see `meta/scripts/lib/`). Follow it.
+`/usr/bin/pacman` is currently a symlink to `/usr/local/bin/pacman_wrapper`.
+The sandbox protects this (the `ln` is denied — that denial is the positive
+proof the bind worked), but **never run this script outside the harness** to
+"check something".
 
 ## Rules that will bite you
 
 - **`SCRIPT_DIR` must resolve symlinks**:
-  `SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"`. Plain
-  `dirname` is string manipulation; adding a `source` line to a script reached
-  through a symlink turns a latent wrong value into an instant `set -e` exit.
-  This has already broken `lint_python.sh` once.
+  `SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"`. The
+  `SOURCE_*` vars are built from `dirname "$0"` and the code comments say so
+  explicitly — if you move that computation into a lib, pass the value in
+  rather than recomputing it at a different directory depth.
 - **Wrapping top-level code in a function changes what `set -e` sees.** A bare
-  `((x > 0)) && FLAG=true` as the last statement of a function becomes its
-  return value; if false, the script dies. Check the last statement of every
-  function you create; append `|| true` if it is a bare conditional.
-- **Don't make a clean file `shfmt`-dirty.** This file is _already_
-  `shfmt -d` dirty, so don't let that mislead you: the rule is not to make it
-  **worse**, and any NEW lib file you create must be clean. `shellcheck` on the
-  original is currently CLEAN — keep it that way.
-- **No suppressions.** No `# shellcheck disable`, no per-file ignores. Fix the
-  finding or restructure. If a lint fix seems to require touching behaviour,
-  stop and re-read — last session a lint fix silently neutered a regression
-  fixture by making an added `echo` the function's last statement, turning
-  exit 1 into exit 0 while still "passing".
+  `((x > 0)) && FLAG=true` as a function's last statement becomes its return
+  value; if false, the script dies. Check the last statement of every function
+  you create; append `|| true` if it is a bare conditional.
+- **No suppressions.** No `# shellcheck disable`, no per-file ignores.
+- New `.sh` files need the executable bit, a `#!/bin/bash` shebang, and **no
+  `set -euo pipefail`** (a sourced lib inherits the caller's strict mode).
+  Convention: a sibling `lib/` directory; see the `bin/lib/` that landed in
+  `26965ba`.
 - Every commit touching code needs an evidence JSON in
   `docs/superpowers/evidence/`; **≥4 staged code files** additionally needs a
-  fresh `docs/superpowers/contracts/*.json`
-  (`python3 meta/scripts/validate_contract.py <file>`).
-- New `.sh` files need the executable bit or the commit hook rejects them.
+  fresh `docs/superpowers/contracts/*.json`. Validate both with
+  `python3 meta/scripts/validate_contract.py` /
+  `meta/scripts/validate_evidence.py` before committing.
 - Markdown needs `npx prettier --write` — prettier is pre-push only, so a file
   that passes every per-commit gate can still fail the push.
 - Work directly on `main`; commit and push. `git stash` and branch creation are
-  blocked by hooks. `git worktree add --detach` is the usual way to get a clean
-  baseline — but **not for this file's trace**; see "capture the baseline IN
-  PLACE" above for why, and use `git show HEAD:<path>` instead.
+  blocked by hooks.
 - `git push` runs `ci-mirror` (clean-venv install + `pre-commit --all-files` +
   pytest) and takes minutes. Never edit files while a push is running.
 - **Do not wire the file-length pre-commit hook.** It must land last, only once
@@ -246,26 +183,23 @@ a shebang and the executable bit (see `meta/scripts/lib/`). Follow it.
 ## Read these first
 
 1. `docs/shell-split-verification.md` — how a green split is still broken. The
-   `--prefix` section covers the manifest, the empty-prefix rule, and the
-   `require_root` truncation trap.
+   `--prefix` section covers the manifest, the empty-prefix rule, the
+   `require_root` truncation trap, and the `/usr/bin` limit above.
 2. `docs/shell-split-recipes.md` — how to actually make a split.
-3. `meta/scripts/trace_shell_split.sh --help` — the harness.
+3. The `26965ba` diff — the worked example of the entry+lib shape.
 
 ## Definition of done
 
-- `install_usage_monitoring.sh` and every file split out of it are **under 250
+- `install_pacman_wrapper.sh` and every file split out of it are **under 250
   lines** (`bash ~/utils/scripts/check_file_length.sh --all` no longer lists
   any of them).
-- `diff /tmp/before.txt /tmp/after.txt` is **empty** — same exit status, same
-  stubbed calls in the same order, and all five content hashes identical.
-- `bash linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh`
-  still prints "Usage monitoring installer efficiency tests passed."
-- `shellcheck` clean on every touched file; no new `shfmt` damage; zero
+- `diff /tmp/before.txt /tmp/after.txt` is **empty** — same exit status (1),
+  same stubbed call, and all 16 content hashes identical.
+- Nothing you moved into a lib sits at or after line 304.
+- `shellcheck` clean and `shfmt` clean on every touched file; zero
   suppressions.
-- `~/.config/systemd/user/` and `~/.local/bin/` untouched by the verification
-  runs — confirm by `ls -la` before and after, and check the mtimes of
-  `nvidia-pmon-logger.sh` and `usage-report-catchup.sh` still read **May 2026**.
-  If either shows today's date, a run escaped the prefix; stop and say so.
+- `/usr/bin/pacman` still symlinks to `/usr/local/bin/pacman_wrapper` and
+  `pacman --version` still works, after every verification run.
 - Committed and pushed, with evidence (and a contract if ≥4 code files).
 
 ## If there is time
@@ -277,12 +211,12 @@ count — a big file you can run beats a small one you cannot:
 bash ~/utils/scripts/check_file_length.sh --all
 ```
 
-Newly unblocked by `--prefix`, in ascending difficulty:
-`install_pacman_wrapper.sh` (316), `nvidia_troubleshoot.sh` (336, needs
-`--bind-abs /etc/modprobe.d --bind-abs /etc/X11 --bind-abs /etc/profile`),
-`setup_thorium_startup.sh` (443), `install_leechblock.sh` (485 — confirm where
-`INSTALL_ROOT`/`VERSION_DIR` point BEFORE the first run, it uses
-`rsync -a --delete`).
+Remaining newly-unblocked targets, ascending difficulty: `nvidia_troubleshoot.sh`
+(336, needs `--bind-abs /etc/modprobe.d --bind-abs /etc/X11 --bind-abs
+/etc/profile`; it embeds `$(date)` in its config so that one hash varies every
+run — compare file list and sizes instead), `setup_thorium_startup.sh` (443),
+`install_leechblock.sh` (485 — confirm where `INSTALL_ROOT`/`VERSION_DIR` point
+BEFORE the first run, it uses `rsync -a --delete`).
 
 **Still out of scope:** `block_compulsive_opening.sh` (705) — `install_all`
 copies the running script into `/usr/local/bin`, and an entry+lib shape ships
