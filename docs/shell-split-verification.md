@@ -12,10 +12,8 @@ mutation.
 
 `shell_check.sh` gates only `install_if_missing`'s pacman branch on
 `SKIP_INSTALL`. The AUR branch inside `install_linters` runs regardless, so a
-backgrounded "baseline" run installed four packages (`python-pbr`,
-`python-fixtures`, `python-discover`, `python-reno`) before it was killed
-mid-`makepkg`. Decision 6 was violated by a flag that looked like it granted
-permission.
+backgrounded "baseline" run installed four packages before it was killed
+mid-`makepkg`. Decision 6 was violated by a flag that looked like permission.
 
 Before running any script to capture a baseline, grep the flag's variable and
 confirm it gates **every** mutation path, not just the first one:
@@ -69,21 +67,19 @@ diff /tmp/before.txt /tmp/after.txt
 ```
 
 It was verified against both bugs above: the `set -e` function tail shows up as
-exit 1 with the later calls missing from the trace, and the nameref shows up as
-`circular name reference` in stderr despite exit 0 and correct stdout. A run
-against a fixture calling `systemctl` left the real unit untouched.
+exit 1 with later calls missing, and the nameref as `circular name reference`
+in stderr despite exit 0. A fixture calling `systemctl` left the unit untouched.
 
-Three things to watch:
+Four things to watch:
 
 - **A silent stub produces an identical, meaningless trace.** This is the
   trap. `du` stubbed to print nothing makes `size=$(du -sk x)` empty, so every
   `((size > 0))` is false, every guarded branch is skipped, and two such traces
   match perfectly while exercising none of the code you changed. Give
   value-producing commands a plausible output: `--stub 'du=4096\t/some/dir'`.
-  Measured on a fixture: the empty stub printed `size=[]` / `branch skipped`
-  and never reached the guarded `sudo rm -rf`; the valued stub printed
-  `size=[4096]` / `BRANCH TAKEN` and captured it. Ask of every trace: _did this
-  actually go down the branch I touched?_
+  Measured on a fixture: the empty stub never reached the guarded
+  `sudo rm -rf`; the valued stub printed `BRANCH TAKEN` and captured it. Ask of
+  every trace: _did this actually go down the branch I touched?_
 - **Stubs always exit 0.** A script that branches on a real failure status
   takes a path it would not take live. Hand-write a stub for those and say so
   in the split's evidence file.
@@ -92,6 +88,11 @@ Three things to watch:
   state harmlessly and a blanket stub would change what they see. Grep the
   target for network and build verbs, then pass them:
   `--stub git,curl,makepkg`.
+- **`pkill` is NOT stubbed and `--prefix` cannot contain it** — signals are not
+  filesystem writes. `install_leechblock.sh:217` pkills every Chromium-family
+  browser before seeding, so tracing it closes the user's browsers (measured:
+  two probe runs fired it, harmless only because none was open). Grep a target
+  for `pkill`/`killall`/`systemctl stop` and pass `--stub pkill` first.
 
 ### `--prefix` — scripts whose job is placing files
 
@@ -110,10 +111,9 @@ meta/scripts/trace_shell_split.sh nvidia_troubleshoot.sh --prefix /tmp/pfx-nv \
 ```
 
 **Every run needs its own empty prefix**, hence the `-before`/`-after` naming.
-Reusing one leaves the first run's files in place, so the second run's manifest
-reports writes it never made and a dropped write stops showing up entirely —
-measured: the fixture pair below diffs _clean_ on a reused prefix. The harness
-refuses a non-empty prefix rather than deleting a path you named.
+Reusing one leaves the first run's files in place, so a dropped write stops
+showing up entirely — measured: the fixture pair below diffs _clean_ on a
+reused prefix. The harness refuses a non-empty prefix rather than deleting it.
 
 `HOME` **and every `XDG_*` base** are redirected. Exporting the XDG vars
 explicitly is not belt-and-braces: `install_leechblock.sh` reads
@@ -125,20 +125,18 @@ its size and a content hash. **That section is the point**: without it a
 dropped `cat >` shows up as nothing at all — same exit status, same stubbed
 calls, same stdout — and the traces match while one lost a file. Measured on
 the `dropped_write_{before,after}.sh` fixture pair: with the manifest the lost
-`.timer` is a one-line diff; with the section stripped the two traces are
-byte-identical, i.e. the pre-`--prefix` harness passed that broken split.
+`.timer` is a one-line diff; stripped, the two traces are byte-identical.
 
-Five traps, each of which cost a debugging round:
+Six traps, each of which cost a debugging round:
 
 - **`/usr/bin` cannot be bound at all.** `--bind-abs /usr/bin` overlays the
-  directory the sandbox needs to exec anything; the run dies with
-  `bwrap: execvp bash: No such file or directory`. So a script whose last act
-  replaces a binary there (`install_pacman_wrapper.sh:304`,
-  `ln -sf … /usr/bin/pacman`) traces with everything else bound and **stops at
-  that line with exit 1** on EPERM. That baseline is stable across runs, but
-  proves nothing at or after the failing line — keep those statements in the
-  entry script. The scanner does not list `/usr/bin`: it follows variables into
-  `cat >`/`cp` and misses a literal `ln -sf` target.
+  directory the sandbox needs to exec anything (`bwrap: execvp bash`). A script
+  whose last act replaces a binary there (`install_pacman_wrapper.sh:304`,
+  `ln -sf … /usr/bin/pacman`) therefore **stops at that line with exit 1** on
+  EPERM. Stable across runs, so still a usable baseline — but it proves nothing
+  at or after the failing line, so keep those statements in the entry script.
+  The scanner misses `/usr/bin` here: it follows variables into `cat >`/`cp`,
+  so a literal `ln -sf` (or `cp "$f" "$f.backup.$(date …)"`) escapes it.
 - **Bind leaf directories, never `/etc`.** Binding `/etc` wholesale shadows
   `/etc/passwd` and `/etc/os-release`. Measured: `$SUDO_USER` lookup collapsed
   to `/home//pyroveil`, `/etc/profile` became "No such file or directory", and
@@ -146,9 +144,10 @@ Five traps, each of which cost a debugging round:
   All three look like a broken split. The scanner therefore never emits a bare
   `/etc`. A `--bind-abs` naming a **file** (`/etc/profile`) is bound
   file-over-file, seeded with a copy of the original — bwrap cannot mount a
-  directory over a file, and binding the file's parent would be the wholesale
-  `/etc` bind again. The copy matters because a script that greps a config
-  before appending to it would otherwise read an empty file and branch wrong.
+  directory over a file. The copy matters because a script that greps a config
+  before appending would otherwise read an empty file and branch wrong. Note a
+  file bind cannot cover new _siblings_: `cp "$f" "$f.backup.<stamp>"` still
+  EPERMs, which is what truncates `nvidia_troubleshoot.sh`'s trace at step 3.
 - **`require_root` truncates a stubbed run to nothing.** `lib/common.sh` does
   `exec sudo "$0" "$@"`; under the `sudo` stub that records one line and exits
   0 — a three-line trace that diffs clean against _any_ split. `--bind-abs`
@@ -160,15 +159,16 @@ Five traps, each of which cost a debugging round:
   at write time. Hashes are taken over content with the prefix normalized to
   `@PREFIX@`; without that, a `mktemp -d` prefix makes every run differ.
 - **A timestamp the target embeds still varies.** `nvidia_troubleshoot.sh`
-  writes `$(date)` into its config, so its hash changes every run; compare the
-  file list and sizes. Don't freeze the clock — that would hide real changes.
+  writes `$(date)` into its config, so its hash changes every run. Don't freeze
+  the clock and don't fall back to comparing sizes — diff the written files'
+  _contents_ with the date pattern normalized away. That still catches a
+  dropped or altered line, which a size comparison does not.
 
 Anything absolute that was _not_ bound fails read-only/EPERM rather than
 succeeding, so Decision 6 holds by construction. `--prefix` **refuses to run**
-when the target writes to absolute paths and no `--bind-abs` was given, listing
-the paths it found; the scan follows variables
-(`MODPROBE_DIR="/etc/modprobe.d"` → `cat >"$CONFIG_FILE"`), because a
-literal-only scan found nothing and produced a silent empty manifest.
+when the target writes to absolute paths and no `--bind-abs` was given; the
+scan follows variables (`MODPROBE_DIR="/etc/modprobe.d"` → `cat >"$CONFIG_FILE"`),
+because a literal-only scan produced a silent empty manifest.
 
 Verified untouched after the runs above: `~/.config/systemd/user`,
 `~/.local/bin`, `~/.local/share`, `/etc/modprobe.d` (identical listings), and

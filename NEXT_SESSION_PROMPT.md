@@ -1,4 +1,4 @@
-# Next session: split `install_pacman_wrapper.sh`
+# Next session: split `install_leechblock.sh`
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
 > It is self-contained. Do not go looking for the previous session's context.
@@ -6,225 +6,197 @@
 ## The one job
 
 Split
-`linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh`
-(316 lines, over the 250-line cap by 66) into files that are each under the
+`linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh`
+(485 lines, over the 250-line cap by 235) into files that are each under the
 cap, and **prove by execution** that it still does exactly the same thing.
 
-The harness already exists and has already been run against this exact file —
-its baseline is captured and its one blind spot is mapped below. Use it, don't
-rebuild it.
+This is the best-conditioned target left: it is the only remaining one that
+traces **to completion with exit 0**, and its 93 written-file hashes are
+identical across runs. Read the safety note below before you run it, though —
+it kills browsers.
 
-## What landed last session (do not redo)
+## What landed in the last session (do not redo)
 
-`install_usage_monitoring.sh` (290 lines) is done, committed and pushed as
-`26965ba`: a 53-line entry plus five libs in a sibling `lib/`, with an empty
-before/after trace diff including all five generated-file hashes. That split is
-the worked example — read it before starting this one, the shape transfers.
+Two splits, both committed and pushed, both proven by an empty before/after
+trace diff:
 
-Two things it discovered that this file inherits:
+- `install_usage_monitoring.sh` 290 → 53-line entry + 5 libs (`26965ba`)
+- `install_pacman_wrapper.sh` 316 → 128-line entry + 4 libs (`4eedc17`)
 
-- The pre-commit hook runs **`shfmt -w` on every staged shell file** and
-  re-stages it. It rewrites `cat > "x" << 'EOF'` to `cat >"x" <<'EOF'`. If any
-  test greps a script's source text for a redirection, that rewrite silently
-  breaks extraction. Run `shfmt -w` on your files yourself, then re-verify, so
-  the state you tested is the state that gets committed.
-- Repo-wide `jscpd` currently reports **2.51% (over the 2% gate)** from the
-  working tree, but every clone above the HEAD baseline is vendored
-  `.venv`/`.ci-mirror-venv` site-packages (`tqdm/completion.sh`,
-  `virtualenv/activate.sh`). Measured at HEAD in a clean worktree it is 1.47%
-  with 27 clones, and the committed hook run passed. Don't chase it, and don't
-  "fix" it by touching vendored files.
+Read the `4eedc17` diff first — it is the closest worked example, and three of
+its lessons apply directly here:
 
-## The baseline you must reproduce
+- **Keep path/variable definitions in the ENTRY script, not a `lib/paths.sh`.**
+  A definitions-only lib assigns without referencing, which is SC2034 on every
+  variable, and suppressions are forbidden. Libs that only _reference_ globals
+  are fine. `export` silences it but leaks the variables into every child
+  process — a behaviour change the trace cannot see. Don't.
+- **The pre-commit hook runs `shfmt -w` on staged shell files** and re-stages
+  them, rewriting `cat > "x" << 'EOF'` into `cat >"x" <<'EOF'`. Run `shfmt -w`
+  yourself first, then verify, so the tested state is the committed state.
+- **Enumerate every test that greps the target's source text before designing
+  the seams.** The pacman split had eight such assertions across two test libs;
+  one (`chattr +i`) was missed on the first pass and failed loudly. Run:
+  ```bash
+  grep -rn 'install_leechblock' linux_configuration/tests/ meta/ .github/
+  ```
 
-Captured at commit `26965ba`. **Verified deterministic**: two consecutive runs
-at HEAD produced byte-identical traces, so a before/after diff is real proof.
+Repo-wide `jscpd` reports 2.51% from the working tree but 1.47% at HEAD in a
+clean worktree — the excess is entirely vendored `.venv`/`.ci-mirror-venv`
+site-packages. Don't chase it; measure in a worktree if you need a real number.
+
+## SAFETY: this script kills browsers and deletes directories
+
+Two hazards, both measured:
+
+1. **Line ~217 runs
+   `pkill -f 'google-chrome|chromium|brave-browser|vivaldi|thorium'`.** `pkill`
+   is NOT in the harness stub set, and `--prefix` cannot contain it — signals
+   are not filesystem writes. Tracing this script closes every open browser.
+   Check nothing is running (`pgrep -af 'chrome|chromium|thorium'`) and pass
+   `--stub pkill` before any run.
+2. **It runs `rsync -a --delete` at `$XDG_DATA_HOME/leechblockng`.** This is
+   safe under `--prefix` — the harness exports `XDG_DATA_HOME` into the prefix
+   explicitly _because of this script_ — but never run it outside the harness.
+
+Verified after the probe runs: `~/.local/share/leechblockng/` untouched (still
+dated Aug 9), no Chrome profile file modified, `/usr/local/bin/browser-preexec-wrapper`
+untouched. The node seeder resolves profiles via `os.homedir()`, which the
+prefix redirects, so it found no profiles and wrote nothing ("Seeding" appears
+zero times in the trace).
+
+## The baseline
 
 ```bash
-F=linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
+F=linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh
 
-rm -rf /tmp/pfx-before          # fresh, NOT emptied — the harness refuses a non-empty prefix
+rm -rf /tmp/pfx-before        # fresh, NOT emptied — the harness refuses a non-empty prefix
 meta/scripts/trace_shell_split.sh "$F" --prefix /tmp/pfx-before \
-  --bind-abs /usr/local/bin \
-  --bind-abs /usr/local/share/digital_wellbeing \
-  --bind-abs /usr/local/share/digital_wellbeing/virtualbox \
-  --bind-abs /var/lib/pacman-wrapper \
-  --out /tmp/before.txt
+  --stub pkill --out /tmp/before.txt
 ```
 
-Expect **exit status 1** (see the blind spot below — this is correct, not a
-failure), one stubbed call (`npm install --prefix …`), and 16 files written:
+Expect **exit 0** and **93 files written**. Note the probe baseline was
+captured _without_ `--stub pkill`; adding the stub is correct and may add one
+line to the stubbed-call list, so capture your own baseline with the same flags
+you will use afterwards.
 
+**Two things vary between runs and are NOT split defects** — normalize them
+before diffing:
+
+- The prefix path is echoed inside the six `sudo sed -i …--load-extension=…`
+  stubbed calls.
+- `curl`'s progress meter (download speeds/times) in stderr.
+
+Everything else is stable: all 93 content hashes were byte-identical across two
+consecutive HEAD runs. The manifest section alone is the real assertion:
+
+```bash
+sed -n '/=== files written/,/=== stdout/p' /tmp/before.txt > /tmp/before.man
+sed -n '/=== files written/,/=== stdout/p' /tmp/after.txt  > /tmp/after.man
+diff /tmp/before.man /tmp/after.man     # must be empty
 ```
-abs/usr/local/bin/heavy_job_lock.sh size=7221 sha=3961b14e6a6a8b86
-abs/usr/local/bin/makepkg_capped size=2037 sha=3acf1189e93e5771
-abs/usr/local/bin/mkpkg size=178 sha=da4a2fa3e8f5b6ab
-abs/usr/local/bin/pacman_blocked_keywords.txt size=1042 sha=7bd951741c649b60
-abs/usr/local/bin/pacman_greylist.txt size=174 sha=2dc47dd4a25d6aca
-abs/usr/local/bin/pacman_lock_lib.sh size=6581 sha=147ea7a163000f82
-abs/usr/local/bin/pacman_whitelist.txt size=6079 sha=cfec8efc4a2330c1
-abs/usr/local/bin/pacman_wrapper size=29410 sha=548fc2b53ee4cea6
-abs/usr/local/bin/words.txt size=1375483 sha=f5c9d52b244f9973
-abs/usr/local/share/digital_wellbeing/install_leechblock.sh size=15965 sha=e4ec4b37fd9113a3
-abs/usr/local/share/digital_wellbeing/leechblock_defaults.json size=51084 sha=ca068b74282921c6
-abs/usr/local/share/digital_wellbeing/package.json size=258 sha=618fa688d2edfa4f
-abs/usr/local/share/digital_wellbeing/seed_leechblock_storage.js size=4176 sha=1611cb17124fd388
-abs/usr/local/share/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh size=12601 sha=ab039aedc3cd84cd
-abs/var/lib/pacman-wrapper/policy.sha256 size=412 sha=0aa8d95524660324
-abs/var/lib/pacman-wrapper/source.sha256 size=1374 sha=4c928a499d437070
-```
 
-The last stderr line is
-`ln: failed to create symbolic link '/usr/bin/pacman': Permission denied`.
-
-Capture the baseline at HEAD **before editing anything**, then diff your split
-against it. Unlike last file, a detached worktree is fine here — nothing
-interpolates the repo path into a generated artifact (verified: the drift
-manifest hashes source files by `readlink -f`, and those hashes are of file
-_contents_, not paths).
-
-## The one blind spot — this is the whole design constraint
-
-`--bind-abs /usr/bin` **cannot be used**: it mounts an empty overlay over the
-directory the sandbox needs to exec anything, and the run dies with
-`bwrap: execvp bash: No such file or directory` before reaching the script.
-Measured last session; it is a hard limit of the harness.
-
-So the trace reaches **line 304** (`ln -sf "$WRAPPER_DEST" /usr/bin/pacman`),
-hits EPERM, and exits 1. Lines 304 and 306 (the final `echo`) are the only
-statements that never execute — everything before them is covered, 16 files
-written and 19 stdout lines deep.
-
-**Therefore: keep lines 304–316 in the entry script.** Anything you move into a
-lib gets proven by the trace; anything at or after 304 does not, and a broken
-split there would diff clean. This is a constraint on where the seams go, not a
-reason to skip the file.
-
-Note the absolute-path scanner does **not** list `/usr/bin` when it refuses to
-run — it follows variables into `cat >`/`cp` and misses the literal `ln -sf`
-target. Don't read its list as complete.
+Also diff the full traces with the two varying patterns normalized, so a change
+in stdout ordering or a dropped step still shows.
 
 ## Hazards specific to THIS file
 
-### 1. It self-sudos at line 9
+### 1. `SCRIPT_DIR` at line ~205 finds sibling data files
 
 ```bash
-if [ "$EUID" -ne 0 ]; then
-	sudo "$0" "$@"
-	exit $?
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULTS_SRC="$SCRIPT_DIR/leechblock_defaults.json"
 ```
 
-Under `--bind-abs` the run is already uid 0 (bwrap `--unshare-user --uid 0`),
-so this branch is skipped and the script proceeds for real — that is why the
-trace is 16 files deep rather than the three-line `require_root` truncation.
-If you move this block, `$0` must still be the entry point.
+It also locates `seed_leechblock_storage.js` and `node_modules/`. In a sourced
+lib `${BASH_SOURCE[0]}` resolves to `lib/`, so these would silently point at
+`lib/leechblock_defaults.json` and the defaults would be skipped with only a
+warning — exit status unchanged. Compute it once in the entry and let libs read
+it, exactly as `REPO_DIR` was handled in `26965ba`.
 
-### 2. `source.sha256` is a drift manifest — but a split does not disturb it
+### 2. Network downloads make timing non-deterministic
 
-Line ~247 hashes seven **source** files (`WRAPPER_SOURCE`, `LOCK_LIB_SOURCE`,
-`BLOCKED_SOURCE`, `GREYLIST_SOURCE`, `MAKEPKG_CAPPED_SOURCE`, `MKPKG_SOURCE`,
-`WHITELIST_SOURCE`) plus the installed lock lib. Checked: it does **not** hash
-the installer itself, and there is no glob that would pick up a new `lib/`.
-So `sha=4c928a499d437070` should stay put across a split — if it moves, you
-changed one of those seven copied files, which is a real regression.
+`curl` fetches the LeechBlockNG tarball and jQuery UI. Content is stable (same
+hashes across runs) but progress output is not. Do not `--stub curl` — that
+would skip the download and empty out most of the 93 files.
 
-`check_and_enable_services.sh` replays this manifest with `sha256sum -c` from
-systemd with `cwd=/`, which is why the entries must be absolute
-(`readlink -f`). Don't make those paths relative while tidying.
+### 3. A `trap 'rm -rf "$tmpdir"' EXIT` is set mid-script
 
-### 3. `chattr +i` / immutability
-
-The script makes policy files immutable and has unlock/relock helpers
-(`is_immutable_file`, `unlock_immutable_file_if_needed`,
-`relock_files_on_exit`, lines 58–84) wired to a trap. Inside the sandbox these
-warn ("Could not make integrity file immutable") and continue — that warning is
-in the baseline and is expected. If you move the trap or the helpers, check the
-trap still fires from the entry script.
-
-### 4. It writes a _live_ system when run for real
-
-`/usr/bin/pacman` is currently a symlink to `/usr/local/bin/pacman_wrapper`.
-The sandbox protects this (the `ln` is denied — that denial is the positive
-proof the bind worked), but **never run this script outside the harness** to
-"check something".
+Set inside the download branch (~line 143). If you move that branch into a lib,
+the trap still registers globally, but check it is not overwritten by another
+`trap … EXIT` you introduce.
 
 ## Rules that will bite you
 
-- **`SCRIPT_DIR` must resolve symlinks**:
-  `SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"`. The
-  `SOURCE_*` vars are built from `dirname "$0"` and the code comments say so
-  explicitly — if you move that computation into a lib, pass the value in
-  rather than recomputing it at a different directory depth.
+- **`SCRIPT_DIR` must resolve symlinks** in the entry:
+  `SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"`.
 - **Wrapping top-level code in a function changes what `set -e` sees.** A bare
-  `((x > 0)) && FLAG=true` as a function's last statement becomes its return
-  value; if false, the script dies. Check the last statement of every function
-  you create; append `|| true` if it is a bare conditional.
+  `[[ -n $x ]] && arr+=("$x")` as a function's last statement becomes its
+  return value; append `|| true` if so.
 - **No suppressions.** No `# shellcheck disable`, no per-file ignores.
-- New `.sh` files need the executable bit, a `#!/bin/bash` shebang, and **no
+- New `.sh` libs need the executable bit, a `#!/bin/bash` shebang, and **no
   `set -euo pipefail`** (a sourced lib inherits the caller's strict mode).
-  Convention: a sibling `lib/` directory; see the `bin/lib/` that landed in
-  `26965ba`.
+- **Verify with `pre-commit run shellcheck --files …`, not a bare
+  `shellcheck -x`.** The latter follows `source=` directives and hides SC2034
+  in a standalone lib; the former is the real gate and does not.
 - Every commit touching code needs an evidence JSON in
   `docs/superpowers/evidence/`; **≥4 staged code files** additionally needs a
   fresh `docs/superpowers/contracts/*.json`. Validate both with
   `python3 meta/scripts/validate_contract.py` /
-  `meta/scripts/validate_evidence.py` before committing.
-- Markdown needs `npx prettier --write` — prettier is pre-push only, so a file
-  that passes every per-commit gate can still fail the push.
+  `meta/scripts/validate_evidence.py`.
+- Markdown needs `npx prettier --write` — prettier is pre-push only.
 - Work directly on `main`; commit and push. `git stash` and branch creation are
   blocked by hooks.
-- `git push` runs `ci-mirror` (clean-venv install + `pre-commit --all-files` +
-  pytest) and takes minutes. Never edit files while a push is running.
+- `git push` runs `ci-mirror` and takes minutes. Never edit files while a push
+  is running.
 - **Do not wire the file-length pre-commit hook.** It must land last, only once
-  `bash ~/utils/scripts/check_file_length.sh --all` exits 0, or every push
-  fails.
+  `bash ~/utils/scripts/check_file_length.sh --all` exits 0.
 
 ## Read these first
 
-1. `docs/shell-split-verification.md` — how a green split is still broken. The
-   `--prefix` section covers the manifest, the empty-prefix rule, the
-   `require_root` truncation trap, and the `/usr/bin` limit above.
+1. `docs/shell-split-verification.md` — how a green split is still broken. Now
+   covers the `/usr/bin` bind limit, the unstubbed `pkill`, and how to compare
+   when the target embeds a timestamp.
 2. `docs/shell-split-recipes.md` — how to actually make a split.
-3. The `26965ba` diff — the worked example of the entry+lib shape.
+3. The `4eedc17` and `26965ba` diffs — two worked examples of the entry+lib
+   shape.
 
 ## Definition of done
 
-- `install_pacman_wrapper.sh` and every file split out of it are **under 250
-  lines** (`bash ~/utils/scripts/check_file_length.sh --all` no longer lists
-  any of them).
-- `diff /tmp/before.txt /tmp/after.txt` is **empty** — same exit status (1),
-  same stubbed call, and all 16 content hashes identical.
-- Nothing you moved into a lib sits at or after line 304.
-- `shellcheck` clean and `shfmt` clean on every touched file; zero
-  suppressions.
-- `/usr/bin/pacman` still symlinks to `/usr/local/bin/pacman_wrapper` and
-  `pacman --version` still works, after every verification run.
+- `install_leechblock.sh` and every file split out of it are **under 250
+  lines**.
+- The trace manifest (93 files, all hashes) is identical before and after, and
+  the normalized full traces are identical, both at exit 0.
+- Any test that greps the installer's source text still passes, with no
+  assertion weakened.
+- `pre-commit run shellcheck` clean, `shfmt` clean, zero suppressions.
+- `~/.local/share/leechblockng/` and all Chrome profile dirs unmodified by the
+  verification runs — check mtimes before and after.
 - Committed and pushed, with evidence (and a contract if ≥4 code files).
 
-## If there is time
+## Ruled out — do not attempt these
 
-Take the next target by the same method. Pick by **verifiability**, not by line
-count — a big file you can run beats a small one you cannot:
+- **`nvidia_troubleshoot.sh` (336).** Measured this session: its trace dies at
+  step 3 because `backup_file` writes `/etc/profile.backup.<stamp>`, a _new
+  sibling_ in unbound `/etc` (a file bind cannot cover siblings, and bare
+  `/etc` is refused). 239 of its 336 lines never execute. Keeping the unproven
+  ones in the entry — the rule the pacman split established — leaves the entry
+  at ~265, still over the cap. It cannot satisfy both the rule and the goal.
+- **`block_compulsive_opening.sh` (705)** — `install_all` copies the running
+  script into `/usr/local/bin`; an entry+lib shape ships an entry whose
+  `SCRIPT_DIR` has no `lib/`, breaking three daily-use apps plus the pacman
+  rewrap hook.
+- Blocked on NAMED blockers, not line count:
+  `check_and_enable_services.sh` (1337), `steam_compatibility.sh` (663),
+  `libre_translate.sh` (488), `enforce_vbox_hosts.sh` (443). See
+  `refactor_claude_todo_resume.md`.
 
-```bash
-bash ~/utils/scripts/check_file_length.sh --all
-```
+`setup_thorium_startup.sh` (443) is unprobed — trace it at HEAD before
+committing to it, the same way this one was probed.
 
-Remaining newly-unblocked targets, ascending difficulty: `nvidia_troubleshoot.sh`
-(336, needs `--bind-abs /etc/modprobe.d --bind-abs /etc/X11 --bind-abs
-/etc/profile`; it embeds `$(date)` in its config so that one hash varies every
-run — compare file list and sizes instead), `setup_thorium_startup.sh` (443),
-`install_leechblock.sh` (485 — confirm where `INSTALL_ROOT`/`VERSION_DIR` point
-BEFORE the first run, it uses `rsync -a --delete`).
+## Known pre-existing failure (not yours)
 
-**Still out of scope:** `block_compulsive_opening.sh` (705) — `install_all`
-copies the running script into `/usr/local/bin`, and an entry+lib shape ships
-an entry whose `SCRIPT_DIR` has no `lib/`, breaking three daily-use apps plus
-the pacman rewrap hook. Leave it.
-
-Also still blocked on a NAMED blocker, not on line count — do not "just split"
-these: `check_and_enable_services.sh` (1337, every `check_*` writes one
-`SERVICE_STATUS`), `steam_compatibility.sh` (663), `libre_translate.sh` (488,
-~19 globals cross any seam), `enforce_vbox_hosts.sh` (443, every seam falls
-inside a heredoc). See `refactor_claude_todo_resume.md`.
+`bash linux_configuration/tests/test_security_hardening.sh` exits 1 at HEAD
+with exactly one failure, `❌ FAIL: Compulsive block wrappers installed`. It
+belongs to `block_compulsive_opening.sh`. Capture it before and after your
+change and confirm it is unchanged; do not try to fix it.
