@@ -25,6 +25,25 @@ grep -n 'SKIP_INSTALL\|DRY_RUN' <script>   # then read each hit
 `--list-only` was the genuinely safe path here, because it returns before
 `install_linters` is reached at all.
 
+### Check whether the target is DEPLOYED as a single file — the trace cannot
+
+Before designing seams, find out whether some other script copies the target
+somewhere and runs it from there. An entry+`lib/` shape ships an entry whose
+deployed `SCRIPT_DIR` has no `lib/`, so it dies on its first `source` under
+`set -e` — while your trace stays green, because the trace runs the repo copy
+where `lib/` exists.
+
+```bash
+grep -rn '<target-basename>' linux_configuration/ --include='*.sh' \
+  | grep -v '<the target itself>:'
+```
+
+Confirmed blocked on this, not theoretically: `install_leechblock.sh` (the
+pacman installer `cp`s it to `/usr/local/share/digital_wellbeing/` and
+`pacman_wrapper.sh:831` prefers that copy on **every pacman invocation**) and
+`block_compulsive_opening.sh` (`install_all` copies itself to
+`/usr/local/bin`). A target invoked as `$CONFIG_DIR/scripts/...` is fine.
+
 ### A stubbed run cannot reach a bug in a seam that passes state
 
 `meta/scripts/verify_shell_split.sh` and the hand-rolled `declare -F` probe
@@ -92,7 +111,10 @@ Four things to watch:
   filesystem writes. `install_leechblock.sh:217` pkills every Chromium-family
   browser before seeding, so tracing it closes the user's browsers (measured:
   two probe runs fired it, harmless only because none was open). Grep a target
-  for `pkill`/`killall`/`systemctl stop` and pass `--stub pkill` first.
+  for `pkill`/`killall`/`systemctl stop` and pass `--stub pkill` first. The
+  mirror image also escapes the prefix: `setup_thorium_startup.sh` _launches_ a
+  browser mid-run ("Browser launched with PID: …"). Process spawning is not a
+  file write either — check `ps` after tracing anything that starts a program.
 
 ### `--prefix` — scripts whose job is placing files
 
