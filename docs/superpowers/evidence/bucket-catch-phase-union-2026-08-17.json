@@ -1,0 +1,51 @@
+{
+  "intent": "Remove the last fixable non-null assertion in bucket_catch by making the done phase carry its own result, so that 'finished with no result' cannot be represented rather than being asserted away.",
+  "scope": [
+    "bucket_catch/packages/frontend/src/types.ts - GamePhase and GameResult become tagged unions",
+    "bucket_catch/packages/frontend/src/App.tsx - two nullable result states collapse into the phase",
+    "Non-goal: no test changed, no component prop changed, no behaviour change"
+  ],
+  "changes": [
+    "GamePhase went from the string union \"drop\" | \"mode\" | \"playing\" | \"done\" to a tagged union whose done arm carries `result: GameResult`. Narrowing on phase.kind === \"done\" therefore yields a non-null result, which is what removes the assertion.",
+    "GameResult was an untagged FileGameResult | PuzzleGameResult that nothing consumed. It is now tagged with kind: \"file\" | \"puzzle\", so the done-phase render picks a screen from the discriminant instead of inferring it from which of two nullable states happened to be set.",
+    "Deleted both `useState<...|null>(null)` result states from App.tsx. handleFileDone and handlePuzzleDone now set the phase and the result in one call, and handleRestart no longer has to null two things it can no longer reach.",
+    "Replaced `result={fileResult!}` with `result={phase.result.value}`, and the `puzzleResult !== null` test with `phase.result.kind === \"puzzle\"`.",
+    "Three earlier attempts at this site were reverted before landing this one: a null guard returning null, a widened React.ReactElement | null return type, and a tagged GameResult with the phase left as a string. Each either added a branch no test could reach (dropping coverage below the 100% gate) or left the value nullable in the fall-through. The invariant lived in the phase, so the fix had to as well."
+  ],
+  "verification": [
+    {
+      "command": "npx eslint src",
+      "result": "pass",
+      "evidence": "5 errors before, 4 after; App.tsx is now clean. Session total for this package: 45 -> 4."
+    },
+    {
+      "command": "npm run coverage",
+      "result": "pass",
+      "evidence": "100% on all four measures, before and after. Statements 585 -> 579 and lines 536 -> 530, a drop of 6, which is exactly the two useState declarations and the setter calls that the collapse removed. Branches unchanged at 217 - the refactor swapped a nullable check for a discriminant check without adding a path, which is what allows it to keep the gate at 100%."
+    },
+    {
+      "command": "npx vitest run src/App.test.tsx",
+      "result": "pass",
+      "evidence": "All 10 App tests pass unmodified, including 'handleFileDone transitions to done phase showing ScoreScreen' and 'handlePuzzleDone transitions to done phase showing PuzzleResult'. Both done-phase arms are therefore exercised through the new union, and the tests needed no edit because they drive the app through its mocked onDone callbacks rather than touching phase directly."
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "result": "pass",
+      "evidence": "exit 0 on the first attempt after the refactor. The typechecker accepting phase.result.value with no assertion is the direct evidence that the null is now unrepresentable rather than merely unreported."
+    },
+    {
+      "command": "npx prettier --check src/App.tsx src/types.ts",
+      "result": "pass",
+      "evidence": "App.tsx was reformatted by prettier --write after the edit; both files then pass --check. prettier runs on pre-push in this repo, so an unformatted file would fail the push rather than the commit."
+    }
+  ],
+  "risks": [
+    "GamePhase is referenced by name in App.tsx only, so the union change has no other call sites. Its string form was also never persisted or serialised, so there is no stored state to migrate.",
+    "GameResult's old untagged form had no consumers, so retagging it could not break anything; had it been used anywhere, the tagged form would have been a breaking change to those sites.",
+    "usePuzzleGameLoop.ts:129 keeps its `!` on a Map.get whose key is set a few lines above. A `?? Infinity` default was tried and measured: it takes branches from 217 to 219 and coverage to 99.54%, because the default side is unreachable. Trading a lint error for a coverage failure is not a fix, so the assertion stays and is reported."
+  ],
+  "rollback": [
+    "git revert the commit. GamePhase returns to a string union, the two nullable result states come back, and App.tsx regains the fileResult! assertion.",
+    "After rollback, confirm npm run coverage reports 100% with 585/217/98/536 and 145 passing tests, and that npx eslint src reports 5 errors rather than 4."
+  ]
+}

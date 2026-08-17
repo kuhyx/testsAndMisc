@@ -1,4 +1,12 @@
-export type GamePhase = "drop" | "mode" | "playing" | "done";
+/**
+ * Where the app is. The done phase carries its result, so "finished with no
+ * result" cannot be represented and the render never has to assert one away.
+ */
+export type GamePhase =
+  | { kind: "drop" }
+  | { kind: "mode" }
+  | { kind: "playing" }
+  | { kind: "done"; result: GameResult };
 
 export type TransferMode = "download" | "upload" | "puzzle";
 
@@ -52,4 +60,7 @@ export interface PuzzleGameResult {
   gridSize: number;
 }
 
-export type GameResult = FileGameResult | PuzzleGameResult;
+/** The outcome of a finished game, tagged by which mode produced it. */
+export type GameResult =
+  | { kind: "file"; value: FileGameResult }
+  | { kind: "puzzle"; value: PuzzleGameResult };

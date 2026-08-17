@@ -13,55 +13,52 @@ import { ScoreScreen } from "./components/ScoreScreen";
 import { PuzzleResult } from "./components/PuzzleResult";
 
 export default function App(): React.ReactElement {
-  const [phase, setPhase] = useState<GamePhase>("drop");
+  const [phase, setPhase] = useState<GamePhase>({ kind: "drop" });
   const [files, setFiles] = useState<File[]>([]);
   const [mode, setMode] = useState<TransferMode>("download");
   const [puzzleGridSize, setPuzzleGridSize] = useState(4);
-  const [fileResult, setFileResult] = useState<FileGameResult | null>(null);
-  const [puzzleResult, setPuzzleResult] = useState<PuzzleGameResult | null>(null);
 
   const handleFiles = useCallback((incoming: File[]) => {
     setFiles(incoming);
-    setPhase("mode");
+    setPhase({ kind: "mode" });
   }, []);
 
-  const handlePuzzleDirect = useCallback((imageFile: File, gridSize: number) => {
-    setFiles([imageFile]);
-    setMode("puzzle");
-    setPuzzleGridSize(gridSize);
-    setPhase("playing");
-  }, []);
+  const handlePuzzleDirect = useCallback(
+    (imageFile: File, gridSize: number) => {
+      setFiles([imageFile]);
+      setMode("puzzle");
+      setPuzzleGridSize(gridSize);
+      setPhase({ kind: "playing" });
+    },
+    [],
+  );
 
   const handleStart = useCallback((selected: TransferMode, gridSize = 4) => {
     setMode(selected);
     if (selected === "puzzle") setPuzzleGridSize(gridSize);
-    setPhase("playing");
+    setPhase({ kind: "playing" });
   }, []);
 
-  const handleFileDone = useCallback((result: FileGameResult) => {
-    setFileResult(result);
-    setPhase("done");
+  const handleFileDone = useCallback((value: FileGameResult) => {
+    setPhase({ kind: "done", result: { kind: "file", value } });
   }, []);
 
-  const handlePuzzleDone = useCallback((result: PuzzleGameResult) => {
-    setPuzzleResult(result);
-    setPhase("done");
+  const handlePuzzleDone = useCallback((value: PuzzleGameResult) => {
+    setPhase({ kind: "done", result: { kind: "puzzle", value } });
   }, []);
 
   const handleRestart = useCallback(() => {
     setFiles([]);
-    setFileResult(null);
-    setPuzzleResult(null);
-    setPhase("drop");
+    setPhase({ kind: "drop" });
   }, []);
 
-  if (phase === "drop") {
+  if (phase.kind === "drop") {
     return <DropZone onFiles={handleFiles} onPuzzle={handlePuzzleDirect} />;
   }
-  if (phase === "mode") {
+  if (phase.kind === "mode") {
     return <ModeSelect files={files} onStart={handleStart} />;
   }
-  if (phase === "playing") {
+  if (phase.kind === "playing") {
     if (mode === "puzzle") {
       return (
         <PuzzleCanvas
@@ -73,13 +70,15 @@ export default function App(): React.ReactElement {
     }
     return <GameCanvas files={files} onDone={handleFileDone} />;
   }
-  // done phase — puzzleResult is non-null iff mode was "puzzle"
-  if (puzzleResult !== null) {
-    return <PuzzleResult result={puzzleResult} onRestart={handleRestart} />;
+  // done phase: the phase carries its result, so both arms are non-null.
+  if (phase.result.kind === "puzzle") {
+    return (
+      <PuzzleResult result={phase.result.value} onRestart={handleRestart} />
+    );
   }
   return (
     <ScoreScreen
-      result={fileResult!}
+      result={phase.result.value}
       mode={mode}
       onRestart={handleRestart}
     />
