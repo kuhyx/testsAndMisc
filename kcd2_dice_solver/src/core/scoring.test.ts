@@ -7,8 +7,9 @@
 import { describe, expect, it } from "vitest";
 import { BASE_RULES, DEFAULT_FORMATION_VALUES } from "../data/badges.ts";
 import type { ScoringRules } from "../data/badges.ts";
-import { CATEGORIES, Scorer, WILD_ALONE, WILD_COMBO, ofAKindValue, tripleBase } from "./scoring.ts";
+import { CATEGORIES, Scorer, WILD_ALONE, WILD_COMBO } from "./scoring.ts";
 import type { WildCounts } from "./scoring.ts";
+import { ofAKindValue, tripleBase } from "./scoringMoves.ts";
 
 const plain = (): Scorer => new Scorer(BASE_RULES);
 const withRules = (rules: Partial<ScoringRules>): Scorer =>

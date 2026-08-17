@@ -1,0 +1,57 @@
+{
+  "intent": "Bring kcd2_dice_solver/src/core/scoring.ts (361 lines) under the repo-wide 250-line cap with no change to Farkle scoring, so every roll still scores identically.",
+  "scope": [
+    "kcd2_dice_solver/src/core/scoring.ts — reduced to the Scorer class, its two caches and its two recursions",
+    "kcd2_dice_solver/src/core/scoringMoves.ts — new: ScoringConfig, ScoringMove, tripleBase, ofAKindValue, combinationValue, scoringMoves",
+    "Import site rewritten: core/scoring.test.ts (tripleBase, ofAKindValue)",
+    "Non-goal: any change to the scoring rules, to Scorer's caching, or to scoring.ts's pre-existing re-exports from counts.ts"
+  ],
+  "changes": [
+    "Extracted the 114-line private moves() method into scoringMoves.ts as a free function taking the count vector and a ScoringConfig. It was private and called only from Scorer's two recursions, so the seam is invisible to every consumer.",
+    "Moved combinationValue() alongside it — it is the only caller of ofAKindValue and encodes the Emperor/Tyche triple-only rule the move generator applies — and moved the tripleBase/ofAKindValue value helpers with it, since they describe combination values rather than the scorer's caching.",
+    "Moved ScoringConfig to scoringMoves.ts, since it is exactly the generator's parameter object; Scorer imports the type and still builds it in its constructor.",
+    "Repointed scoring.test.ts's import of tripleBase and ofAKindValue to scoringMoves.ts — an import-path-only edit, with no assertion, test case or expected value changed.",
+    "Function bodies moved verbatim; the only edit inside them was threading `config` as a parameter where the method previously read this.config, so no statement was added or removed."
+  ],
+  "verification": [
+    {
+      "command": "npx vitest run",
+      "result": "pass",
+      "evidence": "Test Files 24 passed (24); Tests 288 passed (288) — unchanged from the baseline, including the joker, straight, badge-formation and doubling-rule cases that exercise the moved generator."
+    },
+    {
+      "command": "npx vitest run --coverage",
+      "result": "pass",
+      "evidence": "Statements 100% (863/863), Branches 100% (375/375), Functions 100% (181/181), Lines 100% (810/810) — identical totals to the baseline, confirming no branch of the move generator fell out of test reach."
+    },
+    {
+      "command": "npm run lint (tsc --noEmit && eslint src)",
+      "result": "pass",
+      "evidence": "Exit 0, no output. Confirms ScoringConfig's move across the module boundary and the .ts import extensions typecheck."
+    },
+    {
+      "command": "wc -l src/core/scoring.ts src/core/scoringMoves.ts",
+      "result": "pass",
+      "evidence": "scoring.ts 172, scoringMoves.ts 203 — both under the 250-line cap, down from a single 361-line file."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "src/core/scoring.ts no longer appears in the over-cap listing; badgeValue.ts (333) and App.tsx (306) remain and are the next commits."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All configured hooks pass on the touched files."
+    }
+  ],
+  "risks": [
+    "combinationValue changed from a private method reading this.config to a free function taking config explicitly. Behaviour is identical because the method only ever read config, but the Emperor/Tyche multipliers now depend on the caller passing the right config — scoringMoves is its only caller and threads its own parameter through.",
+    "ScoringConfig is now defined in scoringMoves.ts rather than scoring.ts. Nothing outside scoring.ts imported it, so no consumer is affected.",
+    "kcd2_dice_solver has no CI workflow and is not covered by pre-commit, so the vitest and lint runs above are the only gate on this change."
+  ],
+  "rollback": [
+    "git revert the commit — two edited files and one added file, with no data, config or schema migration.",
+    "After rollback, re-run npx vitest run --coverage and npm run lint; expect 288 tests passing at 100% coverage and lint exit 0."
+  ]
+}
