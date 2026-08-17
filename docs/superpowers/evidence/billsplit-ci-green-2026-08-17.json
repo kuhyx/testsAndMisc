@@ -1,0 +1,38 @@
+{
+  "intent": "Restore the two billsplit CI gates that were already failing on main, so that subsequent billsplit changes can be verified against a green baseline instead of a red one.",
+  "scope": [
+    "billsplit/lib/ui/home_screen.dart - remove redundant unawaited() wrappers and the now-unused dart:async import",
+    "billsplit/test/people_flows_test.dart, receipt_flows_test.dart, receipt_items_test.dart - apply dart format (one trailing blank line each)",
+    "Non-goal: no behaviour change, no test added or removed, no platform-directory work (that is a separate commit)"
+  ],
+  "changes": [
+    "Removed four unawaited(...) wrappers around Navigator.push / nav.push at home_screen.dart lines 29, 73, 149, 192. Flutter now annotates Navigator.push with @awaitNotRequired, which makes the wrapper redundant and triggers the unnecessary_unawaited lint. Each removal is a pure unwrapping of the argument expression; no await was introduced and no control flow changed.",
+    "Removed 'import dart:async' from home_screen.dart, which was only present for unawaited(). Future is exported by dart:core, so the three async methods in the file still analyze clean.",
+    "Ran dart format on three test files left unformatted by commit a68313f (Split every over-cap billsplit Dart file). Each change is the deletion of a single trailing blank line."
+  ],
+  "verification": [
+    {
+      "command": "flutter analyze --fatal-infos (in billsplit/)",
+      "result": "pass",
+      "evidence": "Before this change, at HEAD 6713ef3: exit 1, '4 issues found', all four unnecessary_unawaited in lib/ui/home_screen.dart at 29:30, 73:38, 149:7, 192:5. After: exit 0, 'No issues found! (ran in 2.1s)'. This is the exact command .github/workflows/billsplit-ci.yml runs."
+    },
+    {
+      "command": "dart format --set-exit-if-changed . (in billsplit/)",
+      "result": "pass",
+      "evidence": "Before: 'Formatted 29 files (3 changed)' - people_flows_test.dart, receipt_flows_test.dart, receipt_items_test.dart were unformatted at HEAD. After: 'Formatted 29 files (0 changed)', exit 0. This is also a billsplit-ci.yml step."
+    },
+    {
+      "command": "flutter test (in billsplit/)",
+      "result": "pass",
+      "evidence": "60 tests passed both before and after the change. The unchanged count is the discriminating check: removing unawaited() could have altered navigation timing in the widget tests, and did not."
+    }
+  ],
+  "risks": [
+    "unawaited() communicates intent to a human reader as well as to the analyzer. Removing it makes the fire-and-forget nature of these navigation calls implicit rather than explicit. Accepted because the @awaitNotRequired annotation on Navigator.push now carries that same information at the API level, and the alternative is a permanently red --fatal-infos gate or a lint suppression.",
+    "The three formatting-only test edits touch files this task did not otherwise need to change. They are included because dart format runs repo-wide in CI, so the gate cannot be made green without them."
+  ],
+  "rollback": [
+    "git revert the commit. home_screen.dart returns to using unawaited() with the dart:async import, and the three test files regain their trailing blank lines.",
+    "After rollback, expect flutter analyze --fatal-infos to exit 1 with 4 unnecessary_unawaited issues and dart format --set-exit-if-changed to exit 1 with 3 changed files - i.e. billsplit CI red again, as it was at 6713ef3. flutter test should still report 60 passing."
+  ]
+}

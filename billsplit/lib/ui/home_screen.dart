@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:billsplit/domain/eparagon_parser.dart';
@@ -26,11 +25,9 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             tooltip: 'People & groups',
             icon: const Icon(Icons.group),
-            onPressed: () => unawaited(
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(builder: (_) => const PeopleScreen()),
-              ),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const PeopleScreen()),
             ),
           ),
         ],
@@ -70,12 +67,10 @@ class HomeScreen extends StatelessWidget {
                           formatPln(r.itemsTotalGr),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        onTap: () => unawaited(
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (_) => ReceiptScreen(receiptId: r.id),
-                            ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => ReceiptScreen(receiptId: r.id),
                           ),
                         ),
                       ),
@@ -146,11 +141,9 @@ class HomeScreen extends StatelessWidget {
       for (final w in result.warnings) {
         messenger.showSnackBar(SnackBar(content: Text(w)));
       }
-      unawaited(
-        nav.push(
-          MaterialPageRoute<void>(
-            builder: (_) => ReceiptScreen(receiptId: result.receipt.id),
-          ),
+      nav.push(
+        MaterialPageRoute<void>(
+          builder: (_) => ReceiptScreen(receiptId: result.receipt.id),
         ),
       );
     } on EParagonParseException catch (e) {
@@ -189,11 +182,9 @@ class HomeScreen extends StatelessWidget {
     if (title == null || title.trim().isEmpty) return;
     final r = Receipt(id: Ids.next(), title: title.trim());
     state.addReceipt(r);
-    unawaited(
-      nav.push(
-        MaterialPageRoute<void>(
-          builder: (_) => ReceiptScreen(receiptId: r.id),
-        ),
+    nav.push(
+      MaterialPageRoute<void>(
+        builder: (_) => ReceiptScreen(receiptId: r.id),
       ),
     );
   }

@@ -2,7 +2,6 @@
 
 // Receipt screen flows.
 
-
 import 'package:billsplit/domain/models.dart';
 import 'package:billsplit/state/app_state.dart';
 import 'package:billsplit/ui/receipt_screen.dart';
