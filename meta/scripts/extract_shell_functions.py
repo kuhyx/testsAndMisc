@@ -45,12 +45,15 @@ def split_script(
 ) -> tuple[int, int]:
     """Move the named functions (or all of them) into *lib_path*."""
     lines = path.read_text().split("\n")
+    before_len = len(lines)
     blocks = find_function_blocks(lines)
     if names:
         blocks = [b for b in blocks if b[2] in names]
         missing = set(names) - {b[2] for b in blocks}
         if missing:
             sys.exit(f"no such top-level function(s): {', '.join(sorted(missing))}")
+    if not blocks:
+        sys.exit(f"no top-level functions to move out of {path}")
 
     parts: list[str] = []
     drop: set[int] = set()
@@ -60,9 +63,6 @@ def split_script(
             head -= 1
         parts.append("\n".join(lines[head : end + 1]))
         drop.update(range(head, end + 1))
-
-    lib_path.parent.mkdir(parents=True, exist_ok=True)
-    lib_path.write_text(header.rstrip() + "\n\n" + "\n\n".join(parts) + "\n")
 
     kept = [ln for n, ln in enumerate(lines) if n not in drop]
     rel = lib_path.relative_to(path.parent)
@@ -75,9 +75,35 @@ def split_script(
         if not inserted and re.match(r"^set -[euo pipefail]+\b", line.strip()):
             out += ["", f"# shellcheck source={rel}", source_line]
             inserted = True
-    if not inserted:
-        sys.exit("no `set -e` line found to anchor the source directive")
+
+    # Both files are written only once the whole split is known to be
+    # expressible. Writing the library before this point and then exiting on a
+    # missing anchor left the functions defined in BOTH files, so the entry
+    # script came out longer than it started -- a duplicate-definition split
+    # that still lints clean and still passes a function-body hash check.
+    # A split that does not shrink the entry script did not move anything; it
+    # duplicated. Refuse rather than write, since the result lints clean and
+    # passes a function-body hash check while defining every function twice.
+    if len(out) >= before_len:
+        sys.exit(
+            f"refusing to write: {path} would go from {before_len} to {len(out)} "
+            f"lines, so nothing was actually moved out of it"
+        )
+
+    lib_path.parent.mkdir(parents=True, exist_ok=True)
+    lib_path.write_text(header.rstrip() + "\n\n" + "\n\n".join(parts) + "\n")
     path.write_text("\n".join(out))
+
+    if not inserted:
+        sys.stderr.write(
+            f"warning: no `set -e` line in {path} to anchor the source directive.\n"
+            f"         The functions were moved and {lib_path.name} was written, "
+            f"but nothing sources it yet.\n"
+            f'         Add this by hand, after the existing `. "$SCRIPT_DIR/..."` '
+            f"line:\n"
+            f"             # shellcheck source={rel}\n"
+            f'             . "$SCRIPT_DIR/{rel}"\n'
+        )
     return len(out), len(lib_path.read_text().split("\n"))
 
 

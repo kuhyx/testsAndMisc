@@ -1,0 +1,42 @@
+{
+  "intent": "Stop extract_shell_functions.py from producing a split in which every moved function is defined twice, which is what it did on any script lacking a `set -e` anchor.",
+  "scope": [
+    "meta/scripts/extract_shell_functions.py",
+    "Non-goal: changing how functions are located or how the source line is worded when the anchor IS found."
+  ],
+  "changes": [
+    "Moved both file writes to after the anchor search. The library was previously written before the anchor check and the process then exited, so the functions stayed in the entry script AND appeared in the new library.",
+    "A missing anchor is now a warning on stderr naming the exact two lines to paste by hand, not an exit. The move still completes, so the operator's remaining job is one paste rather than an undo.",
+    "Added a shrink guard: if the rewritten entry script would not be shorter than the original, the tool refuses to write anything. A duplicate-definition split lints clean and passes a function-body hash check, so nothing downstream would have caught it.",
+    "Added an explicit failure when the selected function set is empty, rather than writing an empty library."
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/extract_shell_functions.py <copy of dns_enforcer.sh> lg.sh --functions log,rotate_log",
+      "result": "pass",
+      "evidence": "Prints the warning naming `. \"$SCRIPT_DIR/lg.sh\"`, and the entry script drops 171 -> 158 lines with `grep -c '^log()|^rotate_log()'` returning 0. Before this change the same command left both functions in place and the file unchanged in length."
+    },
+    {
+      "command": "python3 meta/scripts/extract_shell_functions.py <copy of phone_backup.sh> pb_lib.sh --functions usage,verify_backup,dump_packages",
+      "result": "pass",
+      "evidence": "333 -> 264 lines, library 77 lines, and the source directive is auto-inserted at line 40 after `set -euo pipefail`. The anchored path is unchanged by this fix."
+    },
+    {
+      "command": "python3 meta/scripts/extract_shell_functions.py <script> none.sh --functions nonexistent_fn",
+      "result": "fail-as-expected",
+      "evidence": "'no such top-level function(s): nonexistent_fn' and no library is written."
+    },
+    {
+      "command": "pre-commit run --files meta/scripts/extract_shell_functions.py",
+      "result": "pass",
+      "evidence": "All applicable hooks pass, including ruff, mypy, pylint and bandit."
+    }
+  ],
+  "risks": [
+    "The warning is easy to miss in a long transcript, and a split left unsourced is a script whose functions have silently vanished. The shrink guard does not catch this case, because the file genuinely did shrink. Running the entry script, as this session does after each split, is what catches it."
+  ],
+  "rollback": [
+    "git revert the commit. The tool returns to writing the library before the anchor check.",
+    "After rollback, re-run the dns_enforcer.sh case above and confirm the duplicate definitions reappear, which is the behaviour this commit removes."
+  ]
+}
