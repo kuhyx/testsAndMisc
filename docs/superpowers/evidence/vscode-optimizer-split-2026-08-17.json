@@ -1,0 +1,61 @@
+{
+  "intent": "Split the 498-line _optimize.py into six modules, each well under the 250-line cap, moving every definition verbatim and leaving behaviour unchanged.",
+  "scope": [
+    "python_pkg/vscode_optimizer/_optimize.py 498 -> 100 (CLI entry: _apply_variant, main)",
+    "New: _types.py 48, _render.py 69, _config_io.py 104, _hardware.py 106, _plan.py 156",
+    "Re-pointed imports and patch targets in the six existing test modules",
+    "Non-goal: any behaviour change, including the known _VENDOR_KW bug"
+  ],
+  "changes": [
+    "Extracted the three dataclasses into _types.py so no module imports a sibling merely to name a type, which is what would have created a cycle.",
+    "Extracted _run and the four probes into _hardware.py, the pure planning functions into _plan.py, variant discovery plus JSONC parsing and all file reads/writes into _config_io.py, and the ANSI palette plus the printers into _render.py.",
+    "Definitions were moved with sed over line ranges rather than retyped, so no character could drift; the ast identity check below is what proves it.",
+    "Test imports now name the owning module (from ... import _plan as opt, and so on). No re-export barrels were added.",
+    "One patch target moved: test_main.py's guard-rail test patches _config_io.Path and calls _config_io._discover_variants, because that is the namespace resolving the name once it is called directly rather than through main(). The three patches inside main() correctly still target _optimize, whose namespace resolves them."
+  ],
+  "verification": [
+    {
+      "command": "python3 verify_split.py HEAD python_pkg/vscode_optimizer/_optimize.py <six modules>",
+      "result": "pass",
+      "evidence": "IDENTICAL: all 26 top-level definitions moved verbatim. Each def/class was normalised through ast.dump(ast.parse(ast.unparse(node))) and compared to the pre-split file at HEAD, so the check is formatting-blind but logic-sensitive."
+    },
+    {
+      "command": "AST scan for names used but not bound in each of the six modules",
+      "result": "pass",
+      "evidence": "Zero unbound names. Run after the first split attempt raised NameError: name '_BO' is not defined at _optimize.py:87 - _BO was used by main() but missing from the _render import list. Scanning all six modules at once was what confirmed nothing else was missing, rather than fixing one failure at a time."
+    },
+    {
+      "command": "pytest python_pkg/vscode_optimizer/ --cov=python_pkg/vscode_optimizer --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "98 passed, 1 xfailed - the same count as before the split, which is the discriminating check that no test file fell outside the runner's glob. Per-module: _types 26/0, _render 45/0, _plan 56/0, _optimize 58/0, _hardware 65/0, _config_io 66/0 statements missing, all 100% line and branch."
+    },
+    {
+      "command": "python3 -m python_pkg.vscode_optimizer --dry-run",
+      "result": "pass",
+      "evidence": "Same output as the pre-split run: Ryzen 9 7900X3D / RTX 3090 / NVME detected, 18 change(s) proposed, '(dry-run) No files modified.' Every unit test stubs subprocess, so only this real run proves the six-module import graph resolves. Re-run after ruff moved _Hw/_Variant into TYPE_CHECKING, since that rewrite is a known source of runtime-only failures."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "35 files over cap, down from 36. Largest new module is _plan.py at 156; largest test file is test_main.py at 241. No file in this package is now over the cap."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All hooks pass, including ruff, ruff format, mypy, pylint, bandit and the pytest coverage gate. Ruff moved two annotation-only imports into TYPE_CHECKING; the suite and the real run were both repeated afterwards."
+    },
+    {
+      "command": "pytest (whole repo, memory-capped)",
+      "result": "pass",
+      "evidence": "1846 passed at 100% total coverage, confirming the split did not disturb the repo-wide gate."
+    }
+  ],
+  "risks": [
+    "A six-way split multiplies import edges. Mitigated by keeping _types.py dependency-free and _plan.py/_render.py importing nothing from siblings except types, so the graph is a tree rather than a web; the real run confirms it resolves.",
+    "Patch targets that moved could silently stop patching, letting a test call the real function. Mitigated: the suite was run after re-pointing and the count is unchanged at 98, and the one target that genuinely moved failed loudly with AttributeError rather than passing vacuously."
+  ],
+  "rollback": [
+    "git revert the commit; _optimize.py returns to its 498-line form and the five new modules disappear.",
+    "After rollback, confirm python3 -m python_pkg.vscode_optimizer --dry-run still prints the 18-change plan and that pytest python_pkg/vscode_optimizer/ is still 98 passed at 100%."
+  ]
+}

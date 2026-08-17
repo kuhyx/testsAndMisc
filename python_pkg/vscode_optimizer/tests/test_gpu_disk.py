@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from python_pkg.vscode_optimizer import _optimize as opt
+from python_pkg.vscode_optimizer import _hardware as opt
+from python_pkg.vscode_optimizer._types import _Hw
 from python_pkg.vscode_optimizer.tests.conftest import fake_run as _fake_run
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def test_detect_gpu_reads_nvidia_vram(monkeypatch: pytest.MonkeyPatch) -> None:
         "run",
         _fake_run({"lspci": _NVIDIA_LINE, "nvidia-smi": "24576\n"}),
     )
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_gpu(hw)
 
@@ -49,7 +50,7 @@ def test_detect_gpu_tolerates_nvidia_smi_being_absent(
 ) -> None:
     """Without nvidia-smi the vendor is still known; VRAM stays unset."""
     monkeypatch.setattr(subprocess, "run", _fake_run({"lspci": _NVIDIA_LINE}))
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_gpu(hw)
 
@@ -76,7 +77,7 @@ def test_detect_gpu_maps_each_vendor_keyword(
 ) -> None:
     """Vendor keywords map to display names; 3D controllers count as GPUs."""
     monkeypatch.setattr(subprocess, "run", _fake_run({"lspci": line}))
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_gpu(hw)
 
@@ -100,7 +101,7 @@ def test_detect_gpu_should_recognise_an_intel_igpu(
     """An Intel iGPU ought to be detected as Intel."""
     line = "00:02.0 VGA compatible controller: Intel UHD Graphics 630"
     monkeypatch.setattr(subprocess, "run", _fake_run({"lspci": line}))
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_gpu(hw)
 
@@ -114,7 +115,7 @@ def test_detect_gpu_leaves_defaults_when_lspci_lists_no_display_device(
     monkeypatch.setattr(
         subprocess, "run", _fake_run({"lspci": "00:1f.3 Audio device: Intel\n"})
     )
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_gpu(hw)
 
@@ -130,7 +131,7 @@ def test_detect_gpu_skips_non_display_devices(
     monkeypatch.setattr(
         subprocess, "run", _fake_run({"lspci": listing, "nvidia-smi": "24576"})
     )
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_gpu(hw)
 
@@ -179,7 +180,7 @@ def test_detect_disk_classifies_the_root_device(
     """Partition suffixes are stripped, then rotational/nvme decide the type."""
     monkeypatch.setattr(subprocess, "run", _fake_run({"findmnt": device}))
     _disk_paths(monkeypatch, tmp_path, base, rotational)
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_disk(hw)
 
@@ -191,7 +192,7 @@ def test_detect_disk_gives_up_when_findmnt_says_nothing(
 ) -> None:
     """No root device means the type stays unknown."""
     monkeypatch.setattr(subprocess, "run", _fake_run({}))
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_disk(hw)
 
@@ -204,7 +205,7 @@ def test_detect_disk_gives_up_without_a_rotational_flag(
     """A device with no sysfs queue entry (e.g. dm-crypt) stays unknown."""
     monkeypatch.setattr(subprocess, "run", _fake_run({"findmnt": "/dev/mapper/root"}))
     _disk_paths(monkeypatch, tmp_path, "mapper/root", None)
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_disk(hw)
 
@@ -218,10 +219,10 @@ def test_detect_hardware_runs_every_probe(monkeypatch: pytest.MonkeyPatch) -> No
     """The aggregate calls all four detectors against one _Hw."""
     called: list[str] = []
 
-    def _recorder(name: str) -> Callable[[opt._Hw], None]:
+    def _recorder(name: str) -> Callable[[_Hw], None]:
         """Build a probe double that records the name it stands in for."""
 
-        def _probe(_hw: opt._Hw) -> None:
+        def _probe(_hw: _Hw) -> None:
             called.append(name)
 
         return _probe
@@ -231,5 +232,5 @@ def test_detect_hardware_runs_every_probe(monkeypatch: pytest.MonkeyPatch) -> No
 
     result = opt._detect_hardware()
 
-    assert isinstance(result, opt._Hw)
+    assert isinstance(result, _Hw)
     assert called == ["_detect_cpu", "_detect_ram", "_detect_gpu", "_detect_disk"]

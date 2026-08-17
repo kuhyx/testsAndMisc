@@ -1,0 +1,18 @@
+{
+  "title": "Split _optimize.py 498 -> six modules under the cap",
+  "objective": "python_pkg/vscode_optimizer/_optimize.py was the last python file over the 250-line cap at 498 lines. Now that it sits at 100% line and branch coverage, split it along its natural seams into shared types, hardware probes, the pure planning layer, filesystem I/O, terminal rendering, and the CLI entry. Code moves verbatim; the tests predate the seam and are re-pointed, not rewritten.",
+  "acceptance_criteria": [
+    "Every resulting module is under 250 lines; the over-cap total falls 36 -> 35",
+    "All 26 top-level definitions are AST-identical to the pre-split file, proved by a throwaway ast.dump comparison against HEAD",
+    "The same 98 tests pass, with every module at 100% line and branch coverage",
+    "python3 -m python_pkg.vscode_optimizer --dry-run reproduces the same 18-change plan and writes nothing",
+    "Import sites name the owning module - no re-export barrels, no sys.path manipulation",
+    "No suppression of any kind: no noqa, no type: ignore, no lowered threshold"
+  ],
+  "out_of_scope": [
+    "Fixing the _VENDOR_KW 'ati' substring bug, still pinned by a strict xfail and reported to the user",
+    "Any behaviour change: this commit is a pure relocation of definitions",
+    "The three transcribe_* files and the 29 over-cap shell scripts"
+  ],
+  "verifier": "A throwaway ast.dump identity check against HEAD for the verbatim claim; pytest python_pkg/vscode_optimizer/ --cov --cov-branch for tests and coverage; python3 -m python_pkg.vscode_optimizer --dry-run for the behaviour claim; bash ~/utils/scripts/check_file_length.sh --all for the cap; pre-commit run --files for lint."
+}

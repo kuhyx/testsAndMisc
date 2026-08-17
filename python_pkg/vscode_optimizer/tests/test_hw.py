@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from python_pkg.vscode_optimizer import _optimize as opt
+from python_pkg.vscode_optimizer import _hardware as opt
+from python_pkg.vscode_optimizer._types import _Hw
 from python_pkg.vscode_optimizer.tests.conftest import FakeProc as _Proc
 from python_pkg.vscode_optimizer.tests.conftest import fake_run as _fake_run
 
@@ -64,7 +65,7 @@ def test_detect_cpu_reads_model_cores_and_clock(
 ) -> None:
     """Each recognised lscpu key lands on its typed _Hw attribute."""
     monkeypatch.setattr(subprocess, "run", _fake_run({"lscpu": _LSCPU_OUT}))
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_cpu(hw)
 
@@ -81,7 +82,7 @@ def test_detect_cpu_ignores_unknown_keys(monkeypatch: pytest.MonkeyPatch) -> Non
         "run",
         _fake_run({"lscpu": "Architecture: x86_64\nBogoMIPS: 9000\n"}),
     )
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_cpu(hw)
 
@@ -99,7 +100,7 @@ def test_detect_ram_converts_kb_to_mb(
     meminfo = tmp_path / "meminfo"
     meminfo.write_text("MemTotal:       32768000 kB\nMemFree: 100 kB\n")
     monkeypatch.setattr(opt, "Path", lambda _p: meminfo)
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_ram(hw)
 
@@ -113,7 +114,7 @@ def test_detect_ram_leaves_zero_when_memtotal_is_absent(
     meminfo = tmp_path / "meminfo"
     meminfo.write_text("SwapTotal: 4096 kB\n")
     monkeypatch.setattr(opt, "Path", lambda _p: meminfo)
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_ram(hw)
 
@@ -125,7 +126,7 @@ def test_detect_ram_survives_an_unreadable_procfs(
 ) -> None:
     """An OSError reading /proc/meminfo leaves the default in place."""
     monkeypatch.setattr(opt, "Path", lambda _p: tmp_path / "does-not-exist")
-    hw = opt._Hw()
+    hw = _Hw()
 
     opt._detect_ram(hw)
 

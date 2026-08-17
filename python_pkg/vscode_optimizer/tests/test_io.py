@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from python_pkg.vscode_optimizer import _optimize as opt
+from python_pkg.vscode_optimizer import _config_io as opt
+from python_pkg.vscode_optimizer._types import _Opt
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -183,8 +184,8 @@ def test_write_settings_merges_the_plan_over_the_current_values(
     path = tmp_path / "nested" / "settings.json"
     current: dict[str, object] = {"editor.fontSize": 14, "a": 1}
     opts = [
-        opt._Opt("a", 2, "reason"),
-        opt._Opt(key="b", value=True, reason="reason"),
+        _Opt("a", 2, "reason"),
+        _Opt(key="b", value=True, reason="reason"),
     ]
 
     opt._write_settings(path, current, opts)

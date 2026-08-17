@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from python_pkg.vscode_optimizer import _optimize as opt
+from python_pkg.vscode_optimizer import _render as opt
+from python_pkg.vscode_optimizer._types import _Hw, _Opt
 
 if TYPE_CHECKING:
     import pytest
@@ -18,7 +19,7 @@ def test_show_hw_reports_every_detected_component(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """CPU, RAM, GPU and disk each appear, with RAM converted to GB."""
-    hw = opt._Hw(
+    hw = _Hw(
         cpu_model="AMD Ryzen 9 7900X3D",
         cpu_physical_cores=12,
         cpu_logical_cores=24,
@@ -46,7 +47,7 @@ def test_show_hw_omits_vram_when_it_is_unknown(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A card whose VRAM could not be read shows no empty parentheses."""
-    opt._show_hw(opt._Hw(gpu_vendor="AMD", gpu_model="Radeon"))
+    opt._show_hw(_Hw(gpu_vendor="AMD", gpu_model="Radeon"))
 
     assert "VRAM" not in capsys.readouterr().out
 
@@ -56,7 +57,7 @@ def test_show_plan_lists_new_flags_and_settings(
 ) -> None:
     """Each proposed change is numbered and shows before -> after."""
     opts = [
-        opt._Opt(
+        _Opt(
             key="editor.minimap.enabled",
             value=False,
             reason="Minimap costs GPU",
@@ -101,7 +102,7 @@ def test_show_plan_renders_an_addition_with_no_previous_value(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A setting that was never set shows a dash as its 'before'."""
-    opt._show_plan([opt._Opt("search.maxThreads", 12, "cores")], [], [])
+    opt._show_plan([_Opt("search.maxThreads", 12, "cores")], [], [])
 
     assert "-" in capsys.readouterr().out
 
@@ -112,7 +113,7 @@ def test_show_plan_truncates_very_long_values(
     """A large exclude dict is clipped so one setting cannot flood the screen."""
     big = {f"**/dir{i}": True for i in range(50)}
 
-    opt._show_plan([opt._Opt("files.watcherExclude", big, "exclude", big)], [], [])
+    opt._show_plan([_Opt("files.watcherExclude", big, "exclude", big)], [], [])
 
     for line in capsys.readouterr().out.splitlines():
         assert len(line) < 200

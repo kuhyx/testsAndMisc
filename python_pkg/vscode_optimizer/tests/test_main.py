@@ -14,15 +14,17 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from python_pkg.vscode_optimizer import _config_io as config_io
 from python_pkg.vscode_optimizer import _optimize as opt
+from python_pkg.vscode_optimizer._types import _Hw, _Variant
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _variant(tmp_path: Path) -> opt._Variant:
+def _variant(tmp_path: Path) -> _Variant:
     """A VS Code variant rooted entirely inside tmp_path."""
-    return opt._Variant(
+    return _Variant(
         name="Test Code",
         settings=tmp_path / "User" / "settings.json",
         flags=tmp_path / "code-flags.conf",
@@ -30,7 +32,7 @@ def _variant(tmp_path: Path) -> opt._Variant:
     )
 
 
-_HW = opt._Hw(cpu_physical_cores=8, ram_total_mb=32000, gpu_vendor="NVIDIA")
+_HW = _Hw(cpu_physical_cores=8, ram_total_mb=32000, gpu_vendor="NVIDIA")
 
 
 # --------------------------------------------------------------------------- #
@@ -232,8 +234,8 @@ def test_the_suite_never_touches_the_real_user_settings(
     A regression here would mean some test could rewrite the developer's own
     VS Code configuration, which is exactly what --dry-run exists to prevent.
     """
-    monkeypatch.setattr(opt.Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setattr(config_io.Path, "home", classmethod(lambda _cls: tmp_path))
 
-    for variant in opt._discover_variants():
+    for variant in config_io._discover_variants():
         assert tmp_path in variant.settings.parents
         assert tmp_path in variant.flags.parents

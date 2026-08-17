@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from python_pkg.vscode_optimizer import _optimize as opt
+from python_pkg.vscode_optimizer import _plan as opt
+from python_pkg.vscode_optimizer._types import _Hw, _Opt
 
 
-def _opts_by_key(opts: list[opt._Opt]) -> dict[str, object]:
+def _opts_by_key(opts: list[_Opt]) -> dict[str, object]:
     """Index a plan by setting key, for assertions that ignore ordering."""
     return {o.key: o.value for o in opts}
 
@@ -91,7 +92,7 @@ def test_dict_merge_opt_reports_no_current_value_when_the_key_is_absent() -> Non
 # --------------------------------------------------------------------------- #
 def test_compute_opts_scales_threads_and_memory_to_the_hardware() -> None:
     """Physical cores drive search threads; RAM drives the large-file budget."""
-    hw = opt._Hw(cpu_physical_cores=12, ram_total_mb=32000)
+    hw = _Hw(cpu_physical_cores=12, ram_total_mb=32000)
 
     plan = _opts_by_key(opt._compute_opts(hw, {}))
 
@@ -101,7 +102,7 @@ def test_compute_opts_scales_threads_and_memory_to_the_hardware() -> None:
 
 def test_compute_opts_keeps_a_floor_under_search_threads() -> None:
     """A dual-core machine still gets the four-thread minimum."""
-    hw = opt._Hw(cpu_physical_cores=2)
+    hw = _Hw(cpu_physical_cores=2)
 
     plan = _opts_by_key(opt._compute_opts(hw, {}))
 
@@ -110,7 +111,7 @@ def test_compute_opts_keeps_a_floor_under_search_threads() -> None:
 
 def test_compute_opts_enables_gpu_extras_for_a_dedicated_card() -> None:
     """A discrete GPU turns on terminal acceleration and smooth scrolling."""
-    hw = opt._Hw(gpu_vendor="NVIDIA")
+    hw = _Hw(gpu_vendor="NVIDIA")
 
     plan = _opts_by_key(opt._compute_opts(hw, {}))
 
@@ -122,7 +123,7 @@ def test_compute_opts_enables_gpu_extras_for_a_dedicated_card() -> None:
 
 def test_compute_opts_leaves_gpu_extras_alone_without_a_dedicated_card() -> None:
     """Integrated or unknown graphics get no GPU-dependent settings."""
-    plan = _opts_by_key(opt._compute_opts(opt._Hw(gpu_vendor="Intel"), {}))
+    plan = _opts_by_key(opt._compute_opts(_Hw(gpu_vendor="Intel"), {}))
 
     assert "terminal.integrated.gpuAcceleration" not in plan
     assert "editor.smoothScrolling" not in plan
@@ -130,7 +131,7 @@ def test_compute_opts_leaves_gpu_extras_alone_without_a_dedicated_card() -> None
 
 def test_compute_opts_proposes_nothing_already_set() -> None:
     """Settings that already hold the ideal value are not re-proposed."""
-    hw = opt._Hw(cpu_physical_cores=8, ram_total_mb=32000)
+    hw = _Hw(cpu_physical_cores=8, ram_total_mb=32000)
     current: dict[str, object] = {
         "search.maxThreads": 8,
         "files.maxMemoryForLargeFilesMB": 4096,
@@ -164,7 +165,7 @@ def test_compute_opts_raises_only_a_low_submodule_limit(
         {} if current_limit is None else {"git.detectSubmodulesLimit": current_limit}
     )
 
-    plan = _opts_by_key(opt._compute_opts(opt._Hw(), current))
+    plan = _opts_by_key(opt._compute_opts(_Hw(), current))
 
     assert ("git.detectSubmodulesLimit" in plan) is proposed
 
@@ -175,7 +176,7 @@ def test_compute_opts_records_the_previous_value_for_display() -> None:
 
     minimap = next(
         o
-        for o in opt._compute_opts(opt._Hw(), current)
+        for o in opt._compute_opts(_Hw(), current)
         if o.key == "editor.minimap.enabled"
     )
 
@@ -188,8 +189,8 @@ def test_compute_opts_records_the_previous_value_for_display() -> None:
 # --------------------------------------------------------------------------- #
 def test_gpu_flags_adds_a_video_decode_flag_only_for_nvidia() -> None:
     """NVIDIA gets the VAAPI extras on top of the shared rasterization flags."""
-    nvidia = opt._gpu_flags(opt._Hw(gpu_vendor="NVIDIA"))
-    amd = opt._gpu_flags(opt._Hw(gpu_vendor="AMD"))
+    nvidia = opt._gpu_flags(_Hw(gpu_vendor="NVIDIA"))
+    amd = opt._gpu_flags(_Hw(gpu_vendor="AMD"))
 
     assert "--enable-gpu-rasterization" in nvidia
     assert "--enable-zero-copy" in nvidia
@@ -199,7 +200,7 @@ def test_gpu_flags_adds_a_video_decode_flag_only_for_nvidia() -> None:
 
 def test_gpu_flags_gives_intel_a_reduced_set() -> None:
     """Intel gets rasterization and decode, but not zero-copy."""
-    flags = opt._gpu_flags(opt._Hw(gpu_vendor="Intel"))
+    flags = opt._gpu_flags(_Hw(gpu_vendor="Intel"))
 
     assert "--enable-gpu-rasterization" in flags
     assert "--enable-zero-copy" not in flags
@@ -207,4 +208,4 @@ def test_gpu_flags_gives_intel_a_reduced_set() -> None:
 
 def test_gpu_flags_are_empty_for_an_unknown_gpu() -> None:
     """No flags are forced on hardware the script could not identify."""
-    assert opt._gpu_flags(opt._Hw()) == []
+    assert opt._gpu_flags(_Hw()) == []
