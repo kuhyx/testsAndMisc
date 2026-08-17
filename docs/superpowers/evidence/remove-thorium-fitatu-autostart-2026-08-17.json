@@ -1,0 +1,63 @@
+{
+  "intent": "Remove the Thorium/Fitatu auto-startup feature entirely -- repo scripts, the self-healing checker that would recreate it, and the deployed units/files -- because Thorium was removed from this machine in favour of chromium/librewolf and the feature has been failing silently at every boot.",
+  "scope": [
+    "Deleted: linux_configuration/scripts/single_use/setup_thorium_startup.sh (443 lines)",
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh (check_thorium_startup, its THORIUM_STARTUP_SCRIPT path, the dispatch call, and the summary-loop key)",
+    "linux_configuration/scripts/single_use/fresh-install/main.sh (the setup invocation on a new machine)",
+    "Live system: both systemd units disabled and removed, the launcher and autostart .desktop deleted",
+    "Non-goal: the generic browser-probe lists that mention thorium among many browsers (hosts/install.sh, lib/periodic_browser.sh, install_ublock.sh) -- those enumerate candidates and are harmless with thorium absent",
+    "Non-goal: /usr/local/bin/thorium-browser, the leftover symlink into browser-preexec-wrapper -- left in place, since removing it is a separate decision about the browser wrapper set"
+  ],
+  "changes": [
+    "Deleted setup_thorium_startup.sh outright rather than splitting it under the 250-line cap, which was the original task for this file. Splitting a 443-line script to keep a dead feature compliant is the wrong work.",
+    "Removed check_thorium_startup() from check_and_enable_services.sh. This was load-bearing: report_and_fix would RE-RUN the installer whenever the service was not enabled, so deleting only the deployed artifacts would have let them be recreated.",
+    "Removed the invocation from fresh-install/main.sh so a new machine does not install the dead feature.",
+    "Disabled the system unit (the user unit was already disabled), removed /etc/systemd/system/thorium-fitatu-startup.service, ~/.config/systemd/user/thorium-fitatu-startup.service, ~/.config/autostart/thorium-fitatu.desktop and /usr/local/bin/thorium-fitatu-launcher.sh, then reloaded both daemons."
+  ],
+  "verification": [
+    {
+      "command": "journalctl -u thorium-fitatu-startup.service -b",
+      "result": "pass",
+      "evidence": "Confirmed the feature was already broken before any change: 'thorium-browser: line 33: /https://www.fitatu.com/app/planner: No such file or directory' at the Aug 16 boot, while systemd reported Main PID exited status=0/SUCCESS and 'Finished'. The success status is why the failure never surfaced."
+    },
+    {
+      "command": "command -v thorium-browser; ls -la /usr/local/bin/thorium-browser",
+      "result": "pass",
+      "evidence": "Resolves only to a leftover symlink to browser-preexec-wrapper. That wrapper routes by basename to /usr/bin/<name>; /usr/bin/thorium-browser does not exist, so it falls into its testing branch and treats the URL as the binary -- which is exactly the error above."
+    },
+    {
+      "command": "grep -rn 'setup_thorium_startup|check_thorium_startup|THORIUM_STARTUP|thorium_startup|thorium-fitatu' linux_configuration/ --include='*.sh'",
+      "result": "pass",
+      "evidence": "No matches. Every reference to the removed script, checker, status key and unit name is gone; the surviving 'thorium' hits are generic browser-candidate lists."
+    },
+    {
+      "command": "sudo bash linux_configuration/scripts/periodic_background/check_and_enable_services.sh --status",
+      "result": "pass",
+      "evidence": "Runs clean, exit 0. The Thorium section no longer appears and the summary lists the remaining 11 services. Pre-existing unrelated issues (hosts, compulsive_blocker, workout_locker) are unchanged."
+    },
+    {
+      "command": "pre-commit run shellcheck --files <the two edited scripts>; bash -n on both",
+      "result": "pass",
+      "evidence": "Passed, no suppressions added."
+    },
+    {
+      "command": "systemctl list-unit-files | grep thorium-fitatu; ls of the four deployed paths",
+      "result": "pass",
+      "evidence": "No unit files remain in either the system or user scope, and all four files are gone after daemon-reload."
+    },
+    {
+      "command": "grep -c thorium /usr/local/bin/periodic-system-maintenance.sh; grep -rn check_and_enable_services /etc/systemd/system /usr/local/bin",
+      "result": "pass",
+      "evidence": "The hourly periodic-system-maintenance timer runs a DEPLOYED script with zero thorium references, and nothing on any timer invokes check_and_enable_services.sh -- it is manual-only. So no automation recreates the removed artifacts. This mattered: the checker's report_and_fix would otherwise have reinstalled them."
+    }
+  ],
+  "risks": [
+    "The Fitatu planner no longer opens automatically at boot. That is the intended outcome, confirmed by the user; it has not actually opened since Thorium was removed anyway.",
+    "/usr/local/bin/thorium-browser remains as a dangling symlink into browser-preexec-wrapper. Anything invoking `thorium-browser` still fails the same way it did before this change. Left deliberately, as pruning the wrapper's symlink set is a separate decision.",
+    "check_and_enable_services.sh is 1337 lines and remains over the file-length cap; this change makes it ~33 lines shorter but does not address that."
+  ],
+  "rollback": [
+    "git revert restores setup_thorium_startup.sh, the checker function and the fresh-install invocation. Re-running `sudo linux_configuration/scripts/single_use/setup_thorium_startup.sh` would then recreate every deployed artifact, since that script is the sole installer for them.",
+    "Note the restored feature would still be broken until a browser named thorium-browser exists at /usr/bin, so a rollback should be paired with retargeting the launcher at chromium."
+  ]
+}

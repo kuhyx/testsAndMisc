@@ -42,7 +42,6 @@ HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
 HOSTS_GUARD_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/setup_hosts_guard.sh"
 HOSTS_PACMAN_HOOKS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/install_pacman_hooks.sh"
 COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
-THORIUM_STARTUP_SCRIPT="$CONFIG_DIR/scripts/single_use/setup_thorium_startup.sh"
 LEECHBLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_leechblock.sh"
 REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/remove_guest_mode.sh"
 VBOX_HOSTS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
@@ -991,40 +990,6 @@ check_compulsive_blocker() {
 	SERVICE_STATUS["compulsive_blocker"]=$status
 }
 
-check_thorium_startup() {
-	header "Thorium Browser Auto-Startup (Fitatu)"
-
-	local status="ok"
-	local issues=()
-
-	# Check system service
-	if systemctl is-enabled thorium-fitatu-startup.service &>/dev/null; then
-		msg "thorium-fitatu-startup.service is enabled (system)"
-	else
-		# Check user service as fallback
-		local user="${SUDO_USER:-$USER}"
-		if user_systemctl "$user" is-enabled thorium-fitatu-startup.service &>/dev/null 2>&1; then
-			msg "thorium-fitatu-startup.service is enabled (user service)"
-		else
-			issues+=("thorium-fitatu-startup.service is not enabled")
-			status="error"
-		fi
-	fi
-
-	# Check if thorium is available
-	if command -v thorium-browser &>/dev/null || [[ -x /opt/thorium/thorium ]] || [[ -x /opt/thorium-browser/thorium-browser ]]; then
-		msg "Thorium browser is installed"
-	else
-		issues+=("Thorium browser not found")
-		if [[ $status != "error" ]]; then status="warning"; fi
-	fi
-
-	report_and_fix issues status "thorium_startup" \
-		"Setting up Thorium startup..." \
-		"$THORIUM_STARTUP_SCRIPT" \
-		"thorium-fitatu-startup.service"
-}
-
 check_leechblock() {
 	header "LeechBlock Browser Extension"
 
@@ -1245,7 +1210,7 @@ print_summary() {
 	printf "%-25s %s\n" "Service" "Status"
 	printf "%-25s %s\n" "-------" "------"
 
-	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts compulsive_blocker thorium_startup leechblock guest_mode_removal vbox_hosts workout_locker; do
+	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts compulsive_blocker leechblock guest_mode_removal vbox_hosts workout_locker; do
 		local status="${SERVICE_STATUS[$service]:-unknown}"
 		local color
 		case "$status" in
@@ -1303,7 +1268,6 @@ main() {
 	check_periodic_systems
 	check_hosts
 	check_compulsive_blocker
-	check_thorium_startup
 	check_leechblock
 	check_guest_mode_removal
 	check_vbox_hosts
