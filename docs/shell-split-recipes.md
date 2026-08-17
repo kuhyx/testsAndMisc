@@ -23,7 +23,8 @@ enforcement script that mutates the live system or the phone.**
   state — `analyze_repo.sh` passed every static check plus the stub and still
   aborted at runtime. See **`docs/shell-split-verification.md`**, which now
   holds every "the split was green and still wrong" lesson, including the
-  `set -e` function-tail trap and the flag that looked safe and was not.
+  `set -e` function-tail trap and the flag that looked safe and was not, and
+  **`docs/shell-split-harness.md`** for running `trace_shell_split.sh` itself.
 
 ### Use `${BASH_SOURCE[0]}`, not `$0`
 
