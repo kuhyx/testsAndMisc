@@ -1,0 +1,21 @@
+{
+  "title": "Split hosts_enforcer.sh into mount and magisk halves, both tested to 100%",
+  "objective": "Take hosts_enforcer.sh from 421 lines to under the repo's 250-line cap by extracting its bind-mount logic and its Magisk/cache-invalidation logic into two flat siblings, and cover both at 100%. This is the code that decides whether the DNS blocklist is actually enforced; a probe that reports an OEM overlay as our blocklist means no blocking at all while the status reads green.",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all no longer lists phone_focus_mode/hosts_enforcer.sh, and no new file is over the cap.",
+    "shell_coverage.sh reports 100.00% for BOTH hosts_mount.sh and hosts_magisk.sh from the single test entry point.",
+    "Every assertion is mutation-proofed with zero survivors. A mutation that proves equivalent must be resolved by removing the equivalent code, not by weakening the mutation.",
+    "Ordering is asserted where it is load-bearing: /system must be remounted ro after rw, and the immutable flag re-set after being dropped.",
+    "meta/scripts/verify_shell_split.sh reports every function verbatim, except any deliberately changed — for which behavioural equivalence must be demonstrated across every input state.",
+    "Both new siblings are added to BOTH of deploy.sh's hardcoded lists, and the two lists remain in exact correspondence with no orphan in either direction.",
+    "shellcheck passes on each touched file individually, with no -x and no disable directive; sh -n passes on all three phone-side scripts.",
+    "No eval is introduced in test code."
+  ],
+  "out_of_scope": [
+    "Deploying to the phone or verifying on-device; there is no device in this session.",
+    "Splitting verify_and_restore or main out of the entry script, which is under the cap without the two extracted halves.",
+    "Adding the siblings to deploy.sh's chmod list: they are sourced, not executed, matching dns_iptables.sh, tether_iptables.sh and curfew_net.sh.",
+    "Changing which domains are blocked or how the canonical blocklist is generated."
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_hosts_libs.sh (expects 69 passed, 0 failed), plus shell_coverage.sh at 100.00% for hosts_mount.sh and hosts_magisk.sh, plus the mutation run at 17 killed / 0 survived, plus check_file_length.sh --all showing 19 files, plus deploy-list parity showing no orphans, plus pre-commit run --files on the touched files."
+}
