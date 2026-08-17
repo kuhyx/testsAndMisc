@@ -1,0 +1,62 @@
+{
+  "intent": "Move the untested 498-line optimize_vscode.py under python_pkg/ so the repo-wide 100% coverage gate measures it, and land a full test suite in the same commit, as the groundwork for splitting it under the 250-line cap.",
+  "scope": [
+    "meta/scripts/optimize_vscode.py -> python_pkg/vscode_optimizer/_optimize.py (pure rename)",
+    "New: python_pkg/vscode_optimizer/{__init__,__main__}.py and seven test modules",
+    "Non-goal: the split itself, which follows in its own commits",
+    "Non-goal: fixing the _VENDOR_KW bug these tests uncovered - pinned by a strict xfail, reported to the user"
+  ],
+  "changes": [
+    "git mv of the module with zero content change, verified by diffing against HEAD.",
+    "Added __main__.py so the script is run as `python3 -m python_pkg.vscode_optimizer`. Running it by path no longer works after the move, because sys.path[0] would be the module's own directory rather than the repo root; this follows the existing focus_policy convention rather than a sys.path insert.",
+    "Added 98 tests across five test modules plus a conftest for the two shared subprocess doubles, reaching 100% line and branch coverage.",
+    "Patched only at real boundaries - subprocess.run, the module-level Path name, builtins.input and sys.argv - so the forthcoming split has as few monkeypatch targets to re-point as possible. Settings and flags I/O uses real files under tmp_path.",
+    "Split the hardware tests into test_hw.py (runner, CPU, RAM) and test_gpu_disk.py (GPU, disk, aggregate) because the single module landed at 362 lines, over the cap it exists to help clear."
+  ],
+  "verification": [
+    {
+      "command": "git show HEAD:meta/scripts/optimize_vscode.py | diff - python_pkg/vscode_optimizer/_optimize.py",
+      "result": "pass",
+      "evidence": "No output: the moved file is byte-identical to HEAD. git diff --cached -M records it as a rename."
+    },
+    {
+      "command": "pytest python_pkg/vscode_optimizer/ --cov=python_pkg/vscode_optimizer --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "98 passed, 1 xfailed. _optimize.py: 295 statements, 0 missing, 120 branches, 0 partial, 100%. __main__.py and __init__.py both 100%. Coverage was driven from 0%; the last three gaps closed were __main__'s import, _detect_gpu's no-display-device loop exit, and _apply_variant's flags-only path."
+    },
+    {
+      "command": "python3 -m python_pkg.vscode_optimizer --dry-run",
+      "result": "pass",
+      "evidence": "Detects Ryzen 9 7900X3D / 30 GB / RTX 3090 / NVME and proposes the same 18 changes as the pre-move run of the old path, ending '(dry-run) No files modified.' Confirms the import graph resolves through the new entry point - the unit tests stub subprocess, so only a real run proves this."
+    },
+    {
+      "command": "ls -l ~/.config/VSCodium/User/settings.json",
+      "result": "pass",
+      "evidence": "No such file or directory, both before and after the dry run - the real user settings were never created or modified. A dedicated test also asserts that with Path.home redirected, every discovered variant path stays inside tmp_path."
+    },
+    {
+      "command": "pytest python_pkg/vscode_optimizer/ (test count across the test-file split)",
+      "result": "pass",
+      "evidence": "98 passed both before and after splitting test_hw.py, which is the discriminating check for a test-file split: a file outside the runner's glob would be silently uncollected."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "36 over-cap files, down from 37 at the moment test_hw.py stood at 362 lines. Every new test file is under 250: 235/133/227/239/210/111. _optimize.py is still 498 and is the next commit's target."
+    },
+    {
+      "command": "pre-commit run --files <11 staged files>",
+      "result": "pass",
+      "evidence": "All hooks pass, including ruff, ruff format, mypy, pylint, bandit, name-tests-test, check-python-location and the pytest coverage gate."
+    }
+  ],
+  "risks": [
+    "The module is no longer runnable as a path script. Mitigated: grep over .sh/.desktop/.service/.yml/.py found zero callers, so the only invocation was by hand, and __main__.py replaces it.",
+    "Running `python3 -m python_pkg.vscode_optimizer` from outside the repo root fails with ModuleNotFoundError. This is true of every python_pkg module here (focus_policy included) and is the established convention, not a regression from this move.",
+    "The strict xfail pinning the _VENDOR_KW bug will fail the suite if someone fixes the bug without removing the marker. That is intended: it forces the fix and its test to land together."
+  ],
+  "rollback": [
+    "git revert the commit; the module returns to meta/scripts/optimize_vscode.py and the tests disappear with it.",
+    "After rollback, confirm `python3 meta/scripts/optimize_vscode.py --dry-run` prints the 18-change plan again, and that the repo-wide `pytest` still passes with python_pkg back at its previous coverage."
+  ]
+}

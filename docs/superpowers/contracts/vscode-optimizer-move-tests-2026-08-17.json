@@ -1,0 +1,17 @@
+{
+  "title": "Move optimize_vscode.py under python_pkg/ and cover it to 100%",
+  "objective": "meta/scripts/optimize_vscode.py was 498 lines against a 250-line cap and completely untested, and at that path the repo-wide gate (--cov=python_pkg, fail_under = 100) could not see it. This commit moves it verbatim to python_pkg/vscode_optimizer/_optimize.py and lands a full test suite, so the module arrives already measured by the standing gate. The move and the tests are one commit by necessity: any intermediate state with the module under python_pkg/ but uncovered turns every pytest run in the repo red, including ci-mirror on pre-push for unrelated work. No production logic changes here; the split follows in later commits.",
+  "acceptance_criteria": [
+    "_optimize.py reaches 100% line and branch coverage, from 0%",
+    "_optimize.py is byte-identical to the file at HEAD - git records it as a pure rename",
+    "python3 -m python_pkg.vscode_optimizer --dry-run reproduces the pre-move plan (18 changes) and writes nothing",
+    "No suppression of any kind: no noqa, no type: ignore, no lowered threshold",
+    "Every new test file is under the 250-line cap, so the over-cap total falls to 36 rather than rising"
+  ],
+  "out_of_scope": [
+    "The 3+ way split of _optimize.py itself, which is the next commit",
+    "Fixing the _VENDOR_KW 'ati' substring bug found while writing these tests - a behaviour change that does not belong in a move commit; it is pinned by a strict xfail and reported to the user",
+    "The three transcribe_* files and the 29 over-cap shell scripts"
+  ],
+  "verifier": "pytest python_pkg/vscode_optimizer/ --cov=python_pkg/vscode_optimizer --cov-branch --cov-report=term-missing for the coverage claim; git diff --cached -M --stat to confirm the rename is content-identical; python3 -m python_pkg.vscode_optimizer --dry-run for the behaviour claim; pre-commit run --files for lint; bash ~/utils/scripts/check_file_length.sh --all for the cap."
+}
