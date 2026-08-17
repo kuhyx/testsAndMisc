@@ -1,0 +1,18 @@
+{
+  "title": "Split _usage_report_parsing.py at the subprocess seam",
+  "objective": "_usage_report_parsing.py was 425 lines against a 250-line cap, and the 61% of it that was uncovered was almost exactly the half a split would extract - the atop subprocess plumbing and the native atop_agg helper. The preceding commit took it to 100% coverage so this split could be verified against tests that predate the seam. Success means the file drops under the cap, every moved function is provably unchanged, both resulting modules stay at 100%, the test count is identical, and the program still generates a real report through the native path.",
+  "acceptance_criteria": [
+    "_usage_report_parsing.py is under 250 lines and the over-cap total drops (39 -> 38)",
+    "Every moved function is AST-identical to its HEAD version",
+    "Both _usage_report_parsing.py and _usage_report_atop.py hold 100% line and branch coverage",
+    "The test count is 179 both before and after, and no test file exceeds the cap either",
+    "No re-export barrel: every import site names the module that owns the symbol, including _usage_report_render.py's _run import",
+    "usage_report.py generates a report from the machine's real atop logs after the change"
+  ],
+  "out_of_scope": [
+    "usage_report.py itself, still 426 lines and over cap - it needs its own coverage-first commit",
+    "meta/scripts/optimize_vscode.py and the three transcribe_* files, also over cap and untested",
+    "Any behaviour change to the report output or the atop field indices"
+  ],
+  "verifier": "An AST comparison script for the verbatim-move claim; pytest with --cov of both modules and --cov-branch for coverage; pytest --collect-only per file for the test count; check_file_length.sh --all for the cap; python usage_report.py --date <today> for the runtime check; pre-commit run --files for lint."
+}
