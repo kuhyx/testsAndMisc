@@ -1,0 +1,20 @@
+{
+  "title": "Split phone_backup.sh's capture half into a tested library",
+  "objective": "Take phone_backup.sh from 333 lines to under the repo's 250-line cap by moving its five capture functions into lib/backup_capture.sh, and give that library 100% line coverage — the code that decides what a phone backup actually contains had no test at all.",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all no longer lists phone_focus_mode/phone_backup.sh, and no new file is over the cap.",
+    "bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_backup_capture.sh backup_capture.sh exits 0 at its default 100% minimum.",
+    "Every assertion is mutation-proofed, with zero survivors, including a mutation that reintroduces the stdin-draining bug pull_apks' comment documents.",
+    "meta/scripts/verify_shell_split.sh reports every function moved verbatim, except any function deliberately rewritten — for which the rendered output must be proven byte-identical instead.",
+    "shellcheck passes on each touched file individually, with no -x and no disable directive.",
+    "SDCARD_DIRS is assigned in the same file that reads it, so neither file assigns a global it never reads (SC2034).",
+    "phone_backup.sh --help exits 0 and --verify against an empty directory behaves exactly as it does at HEAD."
+  ],
+  "out_of_scope": [
+    "Editing deploy.sh's two hardcoded lists: phone_backup.sh is PC-side and appears in neither, so this split needs no list edits.",
+    "Splitting verify_backup, write_manifest, print_manual_checklist or main out of the entry script, which is already under the cap without them.",
+    "Any device deploy or verification against a real phone; there is none in this session.",
+    "Changing what a backup captures."
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_backup_capture.sh (expects 22 passed, 0 failed), plus bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_backup_capture.sh backup_capture.sh at 100.00%, plus the mutation run at 13 killed / 0 survived, plus bash meta/scripts/check_file_length.sh --all showing 21 files, plus pre-commit run --files on the touched files."
+}
