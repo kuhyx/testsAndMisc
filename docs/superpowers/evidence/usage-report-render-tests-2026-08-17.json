@@ -1,0 +1,39 @@
+{
+  "intent": "Take _usage_report_render.py from 21% to 100% line and branch coverage, so that the split which follows can be verified against tests that were written before the seam existed.",
+  "scope": [
+    "New file linux_configuration/tests/test_usage_report_render.py - 43 tests",
+    "No change to any production file. _usage_report_render.py is byte-identical to HEAD.",
+    "Non-goal: the split itself, which is a separate commit for exactly the reason this one exists"
+  ],
+  "changes": [
+    "Added 43 tests covering every function in the module: _fmt_h (8 parametrised cases pinning the 3600 s and 60 s unit boundaries), _md_escape, _cpu_table, _dedupe_ram, _ram_table, _gpu_table, _host_profile, _fingerprint_section, _methodology_section and _render_report.",
+    "Covered the branches that a happy-path test would miss: zero-length window and os.cpu_count() returning None in _cpu_table, non-positive RSS and the CPU/pid_count tie-break in _dedupe_ram, the sibling-list truncation boundary in _ram_table, zero total_samples in _gpu_table, OSError and unparseable MemTotal in _host_profile, and the single-sample unknown-interval path in both _methodology_section and _render_report.",
+    "_host_profile is the only impure function. Its two /proc reads are redirected through a monkeypatched Path.open returning canned text, and the nvidia-smi call is stubbed at the _run seam, so the tests never touch the real filesystem or spawn a subprocess - per the repo convention of mocking external calls.",
+    "No lint suppression was used. Two ANN401 findings were removed by replacing **kwargs: Any passthrough helpers with explicit typed keyword parameters, and a mypy arg-type ignore was removed by deleting a real-filesystem fallback branch that no caller reached."
+  ],
+  "verification": [
+    {
+      "command": "pytest linux_configuration/tests/test_usage_report_render.py --cov=_usage_report_render --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "Before this commit the same coverage command over the four existing usage_report test files reported: 117 stmts, 87 miss, 28 branch, 1 BrPart, 21%, missing 30-61, 66, 75-79, 83-104, 114-127, 131-159, 163-185, 189-190, 203-238, 273-310. After: 117 stmts, 0 miss, 28 branch, 0 BrPart, 100%, nothing missing. 43 passed."
+    },
+    {
+      "command": "pytest linux_configuration/tests/ (whole directory)",
+      "result": "pass",
+      "evidence": "143 passed, up from 100 at HEAD - exactly the 43 tests added and no collateral change. The pre-existing 34 usage_report tests across the four sibling files still pass untouched."
+    },
+    {
+      "command": "pre-commit run --files linux_configuration/tests/test_usage_report_render.py",
+      "result": "pass",
+      "evidence": "All applicable hooks pass, including ruff, ruff format, mypy, 'Block noqa comments', 'Block ruff noqa file-level comments' and 'python tests naming'. grep for 'noqa|type: ignore' in the new file returns 0."
+    }
+  ],
+  "risks": [
+    "Two of the 43 assertions initially failed against correct production code and were fixed in the test, not the source: a comma count that mis-stated how many separators join N names, and an assertion that 'GPU SM-seconds' is absent from a GPU-less report when that phrase also legitimately appears in the methodology prose. The second now asserts on the table header cell '| GPU SM-seconds |' instead. Both were my errors; no production behaviour was changed to make a test pass.",
+    "_host_profile's tests monkeypatch Path.open globally for the duration of each test. The fake raises KeyError for any path the test did not stub, which is deliberate - it fails loudly if the function starts reading a third file rather than silently falling through to the real disk."
+  ],
+  "rollback": [
+    "git rm the test file. No production code depends on it.",
+    "After rollback, coverage of _usage_report_render.py returns to 21% and linux_configuration/tests reports 100 passing tests. Note that rolling this back while keeping the subsequent split commit would leave that split unverified."
+  ]
+}
