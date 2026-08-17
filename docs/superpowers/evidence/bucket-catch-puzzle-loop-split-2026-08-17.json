@@ -1,0 +1,56 @@
+{
+  "intent": "Bring bucket_catch/packages/frontend/src/hooks/usePuzzleGameLoop.ts (386 lines) under the repo-wide 250-line cap with no change to how the puzzle game plays or looks.",
+  "scope": [
+    "bucket_catch/packages/frontend/src/hooks/usePuzzleGameLoop.ts — reduced to the hook and its per-frame tick",
+    "bucket_catch/packages/frontend/src/hooks/puzzleGeometry.ts — new: board constants, ScheduledPiece, assignXPositions, aabbCollision",
+    "bucket_catch/packages/frontend/src/hooks/puzzleRender.ts — new: drawBasket, drawPiece, drawHUD, drawBackdrop",
+    "Non-goal: the 45 pre-existing eslint errors in this package, fixed neither here nor in the preceding baseline commit",
+    "Non-goal: splitting usePuzzleGameLoop.test.ts (332 lines), which is a separate commit"
+  ],
+  "changes": [
+    "Extracted the board geometry and piece scheduling — the constants, the ScheduledPiece shape, the Union-Find interval clustering in assignXPositions that guarantees a 100% score is achievable, and aabbCollision — into puzzleGeometry.ts.",
+    "Extracted the four canvas drawing functions into puzzleRender.ts. All were module-private, so no consumer of the hook sees either seam.",
+    "Lifted the inline backdrop painting (clearRect plus the two-stop linear gradient) out of the tick into a named drawBackdrop, so the rendering module owns every canvas call. This is the one place code was reshaped rather than moved verbatim, and it is why the coverage totals rise by exactly one statement and one function."
+  ],
+  "verification": [
+    {
+      "command": "npm run coverage",
+      "result": "pass",
+      "evidence": "14 test files, 145 tests passed; Statements 100% (584/584), Branches 100% (217/217), Functions 100% (98/98), Lines 100% (535/535). Against the 583/217/97/534 baseline that is +1 statement and +1 function — exactly the extracted drawBackdrop — with branches unchanged, so no conditional left test reach. The 100% thresholds in vite.config.ts are still enforced and still met."
+    },
+    {
+      "command": "npm run build (tsc -b && vite build)",
+      "result": "pass",
+      "evidence": "Exit 0. Confirms the two new modules typecheck and bundle; this package's build was itself only repaired in the immediately preceding commit."
+    },
+    {
+      "command": "npx eslint src, compared against the pre-split count",
+      "result": "fail",
+      "evidence": "45 errors — identical to the 45 measured before this split. This is the discriminating check: the count did not rise, so the extraction introduced no new lint violation, and the two new files carry only errors that travelled with the moved code. The 45 are pre-existing and out of scope, as recorded in the baseline commit."
+    },
+    {
+      "command": "wc -l on the three files",
+      "result": "pass",
+      "evidence": "usePuzzleGameLoop.ts 194, puzzleGeometry.ts 127, puzzleRender.ts 110 — all three under the 250-line cap, down from a single 386-line file."
+    },
+    {
+      "command": "grep for the new imports in the hook",
+      "result": "pass",
+      "evidence": "4 references to puzzleGeometry/puzzleRender in usePuzzleGameLoop.ts, confirming the split is actually wired rather than leaving orphaned duplicate modules — a state this file briefly passed through when an editor hook reverted it, and which the line count alone would not have distinguished from success."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All configured hooks pass on the three touched files."
+    }
+  ],
+  "risks": [
+    "drawBackdrop is new code rather than moved code, so it is the only part of this change not proven identical by construction. It is covered by the existing tests and the canvas mock, and the clearRect/gradient calls it makes are byte-identical to the inline ones it replaced.",
+    "puzzleGeometry.ts exports constants that were previously module-private, widening the surface. They are plain numbers describing board dimensions, so there is no invariant an external consumer could break.",
+    "This package has no CI and is not covered by pre-commit, so the local coverage, build and eslint runs above are the only gate on this change."
+  ],
+  "rollback": [
+    "git revert the commit — one edited file and two added files, with no data, config or schema migration.",
+    "After rollback, re-run npm run coverage; expect 145 tests passing with totals returning to 583/217/97/534 at 100%."
+  ]
+}
