@@ -1,258 +1,107 @@
-# Next session: backfill monitor coverage, then keep splitting at 100%
+# Next session: §3 restructures, then §4's deployed-copy trap
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
 > It is self-contained. Do not go looking for the previous session's context.
 
-Over-cap: **22** (18 shell, 2 kotlin, 1 dart, 1 markdown — this file).
-Working tree clean, `main` in sync with origin.
+Over-cap: **15** (12 shell, 2 kotlin, 1 dart). `phone_focus_mode/` is **done** —
+no file there is over the cap. Working tree clean, `main` in sync.
 
 Two standing decisions from the user, already made — do **not** re-litigate:
 
-1. **100% line coverage, always.** Every shell file you touch gets there. Not
-   "100% where cheap"; 100%.
-2. **Split blind where there is no device.** Do not deploy to the phone, do not
-   ask to. Prove splits with tests, hashes and real runs instead.
+1. **100% line coverage on what you extract** — with the one measured
+   exception in §0.1, which is a prohibition, not a target to chase.
+2. **Split blind where there is no device.** Do not deploy to the phone, do
+   not ask to. Prove splits with tests, hashes and real runs instead.
 
 ---
 
-## 0. Read this first: coverage is measurable now
+## 0. Read this first — three rules that cost real time to learn
 
-`kcov 43` is installed and **works**, which changes what "tested" means here.
-Use the wrapper, not raw kcov:
+### 0.1 NEVER pipe a `while read` loop whose body calls `pm`/`adb`/`iptables`
 
-```bash
-bash meta/scripts/shell_coverage.sh <test-script> <subject-basename> [min-percent]
-# e.g.
-bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_dns_iptables.sh dns_iptables.sh
-# -> dns_iptables.sh: 74/74 lines = 100.00%
-```
+These lines are **deliberately uncovered** and must stay that way:
 
-Defaults to a 100% minimum and exits 1 below it, naming the uncovered lines.
+| file                              | lines                 | why                    |
+| --------------------------------- | --------------------- | ---------------------- |
+| `phone_focus_mode/daemon_apps.sh` | 35, 60, 110, 130, 158 | trailing `done < file` |
 
-Two kcov traps, both of which fail **silently** and both already handled inside
-the wrapper — do not go around it:
+Each is the redirect of a loop whose body calls `pm`. Piping the file in
+instead lets `pm` inherit and drain the loop's stdin, so it processes **one**
+package instead of all of them — measured in this repo as 1 of 54. kcov
+cannot attribute a trailing `done < file`, so those five lines read as
+uncovered forever; that is the price and it is paid knowingly. They are
+pinned by three mutations in `meta/scripts/fixtures/mutations/daemon_libs.json`
+that redirect them from `/dev/null` and fail the suite.
 
-- It must get the test script **directly**. Handed `bash script.sh` it
-  instruments the bash binary, finds no shell source, and reports `0/0 = 0.00%`,
-  which reads exactly like "nothing is covered" rather than "nothing was
-  measured".
-- Per-line detail lives only in `cov.xml`. The `coverage.json` summary has the
-  percentage and nothing else, so it cannot tell you which lines are missing.
+If you ever must remove such a redirect line, use `mapfile -t arr < file`
+then `for x in "${arr[@]}"` — **never a pipe** — and only after confirming
+nothing in the body reads stdin. Piping _is_ correct where the body is pure
+(`curfew_net.sh` did it safely); the body is what decides.
 
-kcov measures **lines, not branches**, so `[ -n "$x" ] && thing` counts as
-covered when only one side runs. That is why every new assertion must also be
-**mutation-proofed**: break the code under it, confirm the test fails, restore.
-That check caught three real defects last session and is not optional.
+### 0.2 kcov artifact taxonomy
 
-## 1. Backfill `lib/monitor.sh` to 100% — do this first
+Four constructs are instrumented but never reported, so they hold a file
+below 100% no matter how well tested:
 
-The split shipped verbatim-proven and green (9/9), but measuring it afterwards
-showed the tests barely touch it:
+| construct                       | safe to restructure?                        |
+| ------------------------------- | ------------------------------------------- |
+| multi-line array/list literal   | yes — put it on one line                    |
+| `{ ... } >file` group           | yes — redirect per statement, or one printf |
+| multi-line `mapfile < <(...)`   | yes — put the substitution on one line      |
+| embedded multi-line `awk '...'` | **no** — collapsing it destroys readability |
+| trailing `done < file`          | **only if the body is stdin-pure** (§0.1)   |
 
-| file                           | coverage              |
-| ------------------------------ | --------------------- |
-| `lib/monitor.sh`               | **44.44%** (48/108)   |
-| `lib/monitor_checks_policy.sh` | **7.69%** (5/65)      |
-| `lib/monitor_checks_health.sh` | **0%** — never loaded |
+Before restructuring, prove the lines actually execute with a mutation. Two
+files are knowingly below 100% for this reason and both are documented:
+`daemon_location.sh` 65.00% (the awk Haversine) and `daemon_apps.sh` 93.42%.
 
-This is pre-existing debt that the split merely made visible; the probes were
-untested before too. The user has asked for it closed now.
+### 0.3 An equivalent mutation means dead code, not a missing test
 
-**The work is an ADB stub layer.** Every `_check_*` probe shells out through
-`adb_root_shell`, so reaching them means a fake `adb` that models battery,
-storage, pidfiles, the hosts sha, launcher state, the companion package and the
-boot script. Budget for roughly four times the size of the `dns_iptables`
-harness.
+`meta/scripts/mutate_shell.py <spec>` runs one of the six specs in
+`meta/scripts/fixtures/mutations/` — 120 mutations, all killed.
 
-Copy the pattern that already works — `lib/tests/dns_iptables_harness.sh`:
+A **survivor** is either a missing assertion or _equivalent code_. Twice this
+session it was the latter, and both times the right fix was deleting the dead
+branch: an unreachable `-f` guard in `hosts_mount.sh`, and a redundant
+comment filter in `ctl_usage.sh`. Never resolve a survivor by weakening the
+mutation or adding a test that cannot fail.
 
-- stage the subject into a `mktemp -d` beside a fake `config.sh`;
-- put stubs on `PATH`, with **failure injection** (`_fail_op`) and state
-  seeding (`_seed_jumps`) so error branches are reachable — that is exactly how
-  `dns_iptables.sh` got from 91.89% to 100%, since all six missing lines were
-  error paths;
-- run each case as a subprocess via a quoted heredoc, so `$0` resolves to the
-  staged copy and any `$VAR` reaches the subject unexpanded.
+A **no-op** (the `find` string matched nothing) counts as a failure — a stale
+spec entry silently stops testing. Run specs **one at a time**: two runs at
+once edit the same subjects and leave a mutation applied, which reads as a
+survivor and dirties the tree.
 
-Keep the harness in its own file. Both test files must stay under 250 lines.
+## 1. §3 — the three restructures (start here)
 
-## 2. Then the remaining brief-scoped splits
+Verbatim moves cannot get these under the cap, so `verify_shell_split.sh`
+does not apply. Each needs a real test at 100%.
 
-Cheapest first. Each is one commit, each needs 100% on whatever it extracts.
-
-| file                 | lines | notes                                                      |
-| -------------------- | ----- | ---------------------------------------------------------- |
-| `phone_backup.sh`    | 333   | **PC-side** — bash, absent from `deploy.sh`, no list edits |
-| `curfew_enforcer.sh` | 367   | phone; both deploy lists                                   |
-| `hosts_enforcer.sh`  | 421   | phone; both deploy lists                                   |
-| `focus_daemon.sh`    | 543   | phone; both deploy lists; heavy device I/O                 |
-| `config.sh`          | 571   | **see the warning below**                                  |
-| `deploy.sh`          | 837   | **must come after every other phone split**                |
-| `focus_ctl.sh`       | 1091  | phone; largest; heavy device I/O                           |
-
-### Ordering constraints — getting these backwards is expensive
-
-- **`deploy.sh` goes last.** Every enforcer split adds an entry to its two
-  hardcoded lists. Split `deploy.sh` first and those lists move into a new file,
-  so the "add to BOTH lists" step then points at a stale location.
-- **`config.sh` is paired with `python_pkg/focus_policy/loader.py`.** Two
-  commits or one, but plan them together.
-
-### `config.sh`: the safety net the last brief promised does not exist
-
-The previous brief claimed `focus_policy`'s 100% tests would catch a bad
-`config.sh` split. **They will not**, and this was verified:
-
-- the `pytest with coverage enforcement` hook is `types: [python]`, so a
-  `config.sh`-only commit runs **no tests at all**;
-- `pre-push` `ci-mirror` runs pytest only for _changed packages_, and
-  `config.sh` is in no package;
-- the `focus_policy` tests build **synthetic** `config.sh` fixtures in
-  `tmp_path` — they never read the real file, so they cannot regress on it.
-
-Use a parse fingerprint instead. Baseline of the current file:
-
-```
-1624750c9636492d225b8bb8555f4e2fa75ea64abc670b37c9557b80b9e1883a
-```
-
-Recompute it after the split with `load_policy(Path("phone_focus_mode/config.sh"))`,
-`dataclasses.asdict`, `json.dumps(..., sort_keys=True, default=str)`, sha256.
-Same hash = the loader still sees an identical policy. `time` objects are not
-JSON-serialisable, hence the `default=`. Also run `pytest python_pkg/focus_policy`
-by hand regardless of what the hooks say.
-
-## 3. Then the three restructures
-
-Verbatim moves cannot get these under the cap, so the hash tool does **not**
-apply. Each needs a real test at 100%.
-
-- **`install_plagiarism_tools.sh` (534, only 3 tiny functions)** — ~500 lines of
-  top-level code. Wrap coherent stages in functions first, then move those. Most
-  mechanical of the three; do it first. Note `verify_shell_split.sh` only hashes
-  _function bodies_, so it is blind to top-level code — read `git diff` on the
-  entry script before committing.
-- **`libre_translate.sh` (488, 18 funcs)** — the user chose the approach: move
-  the whole config-globals cluster into **one lib that owns both the writes and
-  the reads**. Do not try relocating `parse_args` alone; four attempts failed.
+- **`install_plagiarism_tools.sh` (534, only 3 tiny functions)** — ~500 lines
+  of top-level code. Wrap coherent stages in functions first, then move them.
+  Most mechanical of the three; do it first. `verify_shell_split.sh` only
+  hashes _function bodies_, so it is blind to top-level code — read
+  `git diff` on the entry script before committing.
+- **`libre_translate.sh` (488, 18 funcs)** — the user chose the approach:
+  move the whole config-globals cluster into **one lib that owns both the
+  writes and the reads**. Do not try relocating `parse_args` alone; four
+  attempts failed.
 - **`diagnose_pacman_hook_stall.sh` (493, 15 funcs)** — `run_one` writes
   `LAST_ELAPSED`, `main` reads it. Emits **SC2153** (`PACMAN_BIN` vs
   `PACMAN_PID`) once split: a real finding to resolve, never to suppress.
 
-## 4. Last, and only after the rest
+## 2. §4 — last, and only after §3
 
-**`install_leechblock.sh` (485)** and **`block_compulsive_opening.sh` (705)** are
-copied to `/usr/local/…`, and `pacman_wrapper.sh:831` prefers the deployed copy
-on **every pacman invocation**. Split them naively and every `pacman -S` on this
-machine breaks. Teach the installer to deploy the directory first, in its own
-commit, re-baseline, then split.
+**`install_leechblock.sh` (485)** and **`block_compulsive_opening.sh` (705)**
+are copied to `/usr/local/…`, and `pacman_wrapper.sh:831` prefers the
+deployed copy on **every pacman invocation**. Split them naively and every
+`pacman -S` on this machine breaks. Teach the installer to deploy the
+directory first, in its own commit, re-baseline, then split.
 
-You cannot run `sudo pacman -S` from the Bash tool — it deadlocks on `db.lck`.
-Hand the user a `! sudo pacman -S <pkg>` line plus the expected output.
+You cannot run `sudo pacman -S` from the Bash tool — it deadlocks on
+`db.lck`. Hand the user a `! sudo pacman -S <pkg>` line plus the expected
+output.
 
----
-
-## Tooling — use it, do not rebuild it
-
-**`meta/scripts/check_file_length.sh --all`** — the 250-line gate. Run it
-**before every commit**: a split that fixes one file while pushing its new
-library over the cap is a net zero, and that happened twice in an earlier
-session. Source extensions only; `third_party/` and `docs/superpowers/` are
-excluded.
-
-**`meta/scripts/extract_shell_functions.py`** — moves functions into a library,
-brace-by-brace. **Never slice by line range**: these scripts interleave
-top-level commands between function definitions, and a range slice sweeps those
-into the library where they run at source time and out of order.
-
-It was fixed last session, so the old warning no longer applies: it used to
-write the library and then exit on a missing `set -e` anchor, leaving the
-functions in **both** files. It now completes the move, prints the source line
-to paste by hand, and refuses outright if the entry script would not shrink.
-Phone scripts are `#!/system/bin/sh` with no `set -e`, so expect the warning and
-place the source line yourself, after the existing `. "$SCRIPT_DIR/config.sh"`.
-
-**`meta/scripts/verify_shell_split.sh <rev> <old> <new>...`** — proves a move
-was verbatim by normalising each function through `shfmt -mn` and comparing
-hashes. Two things to know:
-
-- For a **partial** split, list the old path **among the new paths too**, or it
-  reports a false `DIFFERENCE` with an empty after-set:
-  `verify_shell_split.sh <rev> a.sh a.sh b.sh`.
-- `<rev>` must be the **pre-split commit**, not `HEAD`, once you have committed.
-
-Re-run it after pre-commit autofixes.
-
-## The rule that decides where a shell seam can fall
-
-**A file must not assign a global it never reads.** That is SC2034; the repo
-forbids suppressions; the pre-commit hook runs `shellcheck` with **no `-x`**, so
-a `# shellcheck source=` directive will not make it follow the link. Each file
-stands alone — run `shellcheck <lib>` on its own before committing.
-
-Constants must travel **with their readers**. In the `monitor.sh` split the
-`_MONITOR_*` constants were partitioned by who reads them: the five read only by
-the policy probes moved into that file, and the ones shared across both children
-stayed in the parent. That is what let all three files pass standalone.
-
-## Rules that will bite you
-
-- **No suppressions, ever.** No `# noqa`, `# type: ignore`, `# shellcheck
-disable`, no lowered coverage threshold. Every time this came up, the seam or
-  the code was wrong, not the linter. Two SC2016 findings were fixed
-  structurally last session — a `[$]` character class in a sed pattern, and a
-  quoted heredoc prelude — rather than disabled.
-- **Watch ruff's autofixer.** Its `T201` fix silently deleted a tool's own
-  `print()` output and left `pass` behind. Use `sys.stdout.write` for real
-  output, matching `extract_shell_functions.py`. A new `.py` under
-  `meta/scripts/` also needs a `#!/usr/bin/env python3` shebang or `INP001`
-  fires.
-- **Run the actual thing.** `run_phone.sh --help` exiting 0 is what proved the
-  monitor split's source chain resolved. For scripts too dangerous to run, say
-  so and rely on `sh -n` plus sourcing each library in a subshell.
-- **Every commit touching code needs evidence** in
-  `docs/superpowers/evidence/<slug>-<date>.json` (copy `template.json`). Staging
-  **≥4 code files also needs** a fresh `docs/superpowers/contracts/*.json`.
-  Validate with `meta/scripts/validate_{evidence,contract}.py`. Put the measured
-  coverage percentage in the evidence — the real number, not a rounded-up one.
-- New sourced libs need a shebang **and** the executable bit; the
-  `check-shebang-scripts-are-executable` hook reads the **git index**, so stage
-  the mode with `git add --chmod=+x`. A plain `git add` afterwards resets it.
-- `pre-commit run --files <changed>` before committing. **`prettier` and
-  `ci-mirror` run on pre-push, not pre-commit.** `npx prettier --write` any `.md`
-  you touch, including this one.
-- Work directly on `main`. `git stash` and branch creation are blocked by hooks;
-  use `git worktree add --detach` for a clean baseline. Confirm a push landed
-  with `git status -sb` showing no `[ahead N]`.
-- **Do not wire the file-length hook into pre-commit.** It lands last, once
-  `check_file_length.sh --all` exits 0. 22 files are still over.
-- Cap pytest memory:
-  `systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0`.
-- Watch `jscpd` (fails above 2% duplication). Per-file test harnesses are
-  near-identical by nature; there are already three. Run it after adding the
-  next one rather than discovering the failure at commit time.
-
-## Known pre-existing state — not yours, do not fix silently
-
-- `bash linux_configuration/tests/test_security_hardening.sh` exits 1 with
-  `❌ FAIL: Compulsive block wrappers installed`. Belongs to
-  `block_compulsive_opening.sh`.
-- **`bucket_catch/packages/frontend` has 4 eslint errors**, documented with
-  measured reasoning in
-  `docs/superpowers/evidence/bucket-catch-eslint-2026-08-17.json`.
-  `usePuzzleGameLoop.ts:129`'s `Map.get(...)!` cannot be fixed with
-  `?? Infinity` — tried, measured at 99.54%, because the default side is
-  unreachable. `npm run coverage` is green: 145 tests, 100%.
-- Repo-wide `jscpd` reports ~2.5% from the working tree but 1.47% at HEAD in a
-  clean worktree — the excess is vendored `.venv` site-packages. Don't chase it.
-- **Two enforcer splits are unverified on the phone**: `tether_enforcer.sh` and
-  now `dns_enforcer.sh`. Both have passing tests and both grew `deploy.sh`'s two
-  lists, but no deploy has run. If enforcement misbehaves after the next deploy,
-  look there first.
-
-## Ten over-cap files the brief has never covered
-
-Out of scope until the user says otherwise. Report, do not start:
+## 3. Out of scope until the user says otherwise
 
 `setup_midnight_shutdown.sh` (1734), `check_and_enable_services.sh` (1301),
 `generate_study_materials.sh` (1017), `pacman_wrapper.sh` (929),
@@ -260,36 +109,142 @@ Out of scope until the user says otherwise. Report, do not start:
 `setup_hosts_guard.sh` (576), `EnforcementRunner.kt` (564),
 `DevicePolicyBridge.kt` (415), `status_page_state.dart` (307).
 
-`pacman_wrapper.sh` carries the same live-deployment trap as the leechblock
-pair. The Kotlin and Dart files need a different verification stack —
-`focus_owner` gradle needs `JAVA_HOME=/usr/lib/jvm/java-21-openjdk` and
-`--rerun-tasks`; a plain `gradlew test` reports `UP-TO-DATE` and proves nothing.
+`pacman_wrapper.sh` carries the same live-deployment trap as §2. The Kotlin
+and Dart files need a different verification stack — `focus_owner` gradle
+needs `JAVA_HOME=/usr/lib/jvm/java-21-openjdk` and `--rerun-tasks`; a plain
+`gradlew test` reports `UP-TO-DATE` and proves nothing.
+
+## Tooling
+
+**`meta/scripts/check_file_length.sh --all`** — the 250-line gate. Run
+**before every commit**: a split that fixes one file while pushing its new
+library over the cap is a net zero, and that happened three times.
+
+**`meta/scripts/shell_coverage.sh <test> <subject> [min]`** — kcov wrapper,
+100% minimum. Hand it the test script **directly**; `bash script.sh`
+instruments the bash binary and silently reports 0/0.
+
+**`meta/scripts/mutate_shell.py <spec>`** — see §0.3.
+
+**`meta/scripts/extract_shell_functions.py`** — moves functions brace-by-
+brace. **Never slice by line range**: it also cut through a multi-line
+quoted string in `config.sh` and left an unterminated quote, which the policy
+loader's regex tolerated while the shell could no longer source the file.
+
+**Do not trust where it puts the source line.** It got the position wrong
+three times: before `SCRIPT_DIR` existed, before `STATE_DIR` (so every path
+expanded against an empty prefix), and on a _nested_ re-source rather than
+the top-level one. Always `grep -c` the anchor and check the placement.
+
+**`meta/scripts/verify_shell_split.sh <pre-split-rev> <old> <new>...`** — for
+a **partial** split list the old path among the new paths too, or it reports
+a false `DIFFERENCE`.
+
+## Rules that will bite you
+
+- **No suppressions, ever.** Every time this came up, the seam or the code
+  was wrong. A comment line starting with the word "shellcheck" is parsed as
+  a directive (SC1073) — reword it.
+- **A file must not assign a global it never reads** (SC2034). The hook runs
+  `shellcheck` with **no `-x`**, so each file stands alone. Constants travel
+  with their readers; a global genuinely written on both sides of a seam
+  stays in the entry script (`NET_BUILT`, `CURRENT_MODE`, `NEEDS_GPS_FETCH`).
+- **New sourced libs need a shebang AND the executable bit.** The hook reads
+  the **git index**: stage with `git add --chmod=+x`, and note that a plain
+  `git add` afterwards resets it. This cost three failed commits.
+- `pre-commit run --files <changed>` before committing. **`prettier` and
+  `ci-mirror` run on pre-push.** `npx prettier --write` any `.md` you touch.
+- **Every commit touching code needs evidence** in
+  `docs/superpowers/evidence/<slug>-<date>.json`. Staging **≥4 code files
+  also needs** a fresh `docs/superpowers/contracts/*.json`. Put the
+  **measured** coverage number in it, not a rounded-up one.
+- Work directly on `main`. `git stash` and branch creation are blocked; use
+  `git worktree add --detach` for a clean baseline.
+- **Do not wire the file-length hook into pre-commit.** It lands last, once
+  `check_file_length.sh --all` exits 0. 15 files are still over.
+- Cap pytest memory:
+  `systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0`.
+- Watch `jscpd` (fails above 2%). Measure in a **clean HEAD worktree** —
+  the working tree reads ~2.5% because of vendored `.venv`, but HEAD is
+  1.57%. Per-file test harnesses are near-identical by nature; drive repeated
+  shapes through a table rather than repeating the block.
+
+## `phone_focus_mode` — what changed, and its two live hazards
+
+Nine commits took it from 8 over-cap files to zero. `config.sh` 571→250,
+`focus_ctl.sh` 1091→171+8, `deploy.sh` 875→241+6, plus monitor,
+`phone_backup.sh`, `curfew_enforcer.sh`, `hosts_enforcer.sh` and
+`focus_daemon.sh`. 515 assertions across ten suites, from ~60 before.
+
+**Hazard 1 — `config.sh` is at EXACTLY 250 with no headroom.** 184 of those
+lines are the fifteen variables `python_pkg/focus_policy/loader.py` reads by
+regex **over `config.sh`'s own text**. Move one into a `config_*.sh` sibling
+and the loader does not error — it silently yields an empty set, which for
+`WHITELIST` reads as "hide everything". The list is in `config_paths.sh`'s
+header and enforced only by that comment.
+
+Verify **both** of these before and after touching it:
+
+```bash
+python3 -m python_pkg.focus_policy --config phone_focus_mode/config.sh | sha256sum
+# 83e05e82dd1683e1dff1c79a96fec0a4a56aa73295604c681ae355b40a590ba3
+```
+
+plus a diff of the **sourced environment** (79 variables) against the
+pre-change commit. The hash alone is not enough: it passed clean through
+both bugs hit this session — a mangled quote and a `STATE_DIR` ordering
+error. The previous brief's recipe (`asdict` + `json.dumps(default=str)`,
+baseline `1624750c…`) **cannot work**: four policy fields are `frozenset`, so
+`default=str` serialises them in per-process iteration order.
+
+**Hazard 2 — `deploy.sh`'s two hardcoded file lists are now in two files.**
+The push list is in `deploy_phases.sh`, the cp list in `deploy_install.sh`. A
+new phone-side sibling must go in **both**, or it is staged and never lands,
+and whatever sources it fails to start with no obvious cause. Check with
+`comm` in both directions; `config_secrets.sh` is deliberately asymmetric.
+
+## Known pre-existing state — not yours, do not fix silently
+
+- `bash phone_focus_mode/lib/tests/test_magisk_service.sh` **hangs**.
+  Confirmed identical at HEAD before this session's work; unrelated to it.
+- `bash linux_configuration/tests/test_security_hardening.sh` exits 1 with
+  `❌ FAIL: Compulsive block wrappers installed`. Belongs to §2.
+- `bucket_catch/packages/frontend` has 4 eslint errors, documented in
+  `docs/superpowers/evidence/bucket-catch-eslint-2026-08-17.json`.
+- **Eight splits are UNVERIFIED ON DEVICE**: `tether_enforcer`, `dns_enforcer`
+  (both pre-existing), plus `curfew_enforcer`, `hosts_enforcer`,
+  `focus_daemon`, `config.sh`, `focus_ctl` and `deploy.sh`. One real deploy
+  validates all of them at once — but `deploy.sh` is itself the untested one,
+  so watch it closely and keep an adb push of the directory as the fallback.
+- **Two copies of the Haversine** exist: `daemon_location.sh:calc_distance`
+  (the original, moved) and `ctl_daemon.sh:cmd_status`'s inline awk. Both are
+  tested against known city distances, but not against each other.
+  `ctl_is_curfew_now` likewise duplicates `daemon_location.sh`'s
+  `is_curfew_now`; those two **are** pinned by an agreement test.
+- The eight `ctl_*.sh` libraries are at **41.79–92.98%**, and unlike the two
+  files in §0.2 most of that is genuinely untested status-reporting code, not
+  a measurement artifact. Closing it means a device fixture per enforcer.
 
 ## Testing notes specific to this repo
 
-- `linux_configuration/tests` **is** in CI, but never by name: `pyproject.toml`
-  sets `testpaths`, so bare `pytest` collects it. Behaviour is gated; coverage is
-  not (`--cov=python_pkg` only).
-- **Non-`python_pkg` modules are tested via `linux_configuration/tests/`**, whose
-  `conftest.py` puts standalone script dirs on `sys.path`. Add a directory there
-  rather than moving code into `python_pkg/` — that move drags the file under a
-  `fail_under = 100` gate and breaks any by-path caller.
-- `name-tests-test` requires every `.py` under `tests/` to be `test_*.py`. Shared
-  helpers go in `conftest.py` as **fixtures** — `conftest` is not importable by
-  module name.
-- For a **test-file** split the discriminating check is the test **count**, not a
-  green run: a file outside the runner's glob is silently never collected.
-- `phone_focus_mode`'s shell tests are **not** in CI — `shell-tests.yml` uses an
-  explicit list covering `linux_configuration/tests/` only. Run them by hand:
+- `phone_focus_mode`'s shell tests are **not** in CI — `shell-tests.yml` uses
+  an explicit list covering `linux_configuration/tests/` only. Run by hand:
 
   ```bash
-  for t in test_dns_iptables test_monitor test_tether_enforcer; do
-    bash phone_focus_mode/lib/tests/$t.sh | tail -1
+  for t in test_dns_iptables test_monitor test_tether_enforcer test_curfew_net \
+           test_hosts_libs test_daemon_libs test_backup_capture test_ctl_libs \
+           test_adb_common test_adb_trusted; do
+    printf '%-22s %s\n' "$t" "$(bash phone_focus_mode/lib/tests/$t.sh | tail -1)"
   done
-  # expect: 24 passed / 9 passed / 17 passed
+  # expect: 24 / 82 / 17 / 41 / 69 / 108 / 22 / 136 / 10 / 6
   ```
 
 - A test that passes proves nothing on its own. `test_dns_enforcer.sh` was
   deleted last session because its six assertions targeted three functions
-  `dns_enforcer.sh` has never defined — it had never run a single assertion
-  since the commit that added it. Check the **count**, and check coverage.
+  that never existed. Check the **count**, the coverage, and the mutations.
+- Test files are subject to the 250-line cap too. Split them into a harness
+  plus sourced case files, keeping **one** entry point so a single coverage
+  command still measures every subject.
+- `set -e` kills a suite silently. Guard any subject call whose nonzero exit
+  is not part of its contract, and never seed `$$` as a pid a subcommand will
+  `kill` — the suite signals itself and dies mid-run with no error.

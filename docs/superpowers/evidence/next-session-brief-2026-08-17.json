@@ -1,0 +1,54 @@
+{
+  "intent": "Replace NEXT_SESSION_PROMPT.md with a brief that reflects what this session actually found, including three of its own instructions that turned out to be wrong.",
+  "scope": [
+    "NEXT_SESSION_PROMPT.md - rewritten, 295 lines down to 249",
+    "Non-goal: doing any of the §3 or §4 work the new brief describes."
+  ],
+  "changes": [
+    "Made the stdin-drain rule a PROHIBITION at the top rather than an observation. The old brief's standing decision reads '100% line coverage, always'; the repo now contains five deliberately-uncovered lines in daemon_apps.sh, and a reader following that rule literally would pipe them and reintroduce a measured 1-of-54 bug in the code that decides which apps get disabled. The file and line numbers are named, and mapfile is given as the only safe alternative.",
+    "Corrected the config.sh fingerprint recipe and baseline. The old one (asdict + json.dumps(default=str), baseline 1624750c) cannot work: four policy fields are frozenset, serialised in per-process iteration order. Replaced with the repo's own deterministic exporter and baseline 83e05e82, plus the sourced-environment diff, because the hash alone passed clean through both bugs hit this session.",
+    "Removed the claim that extract_shell_functions.py reliably places its source line. It got the position wrong three times, in three different ways, each of which produced a working-looking file that was broken.",
+    "Added the kcov artifact taxonomy with an explicit safe/unsafe column, the mutation tooling and the rule that an equivalent mutation means dead code to delete, and the two live hazards phone_focus_mode now carries.",
+    "Re-enumerated the over-cap list (22 -> 15) and dropped the fully-consumed §2 table."
+  ],
+  "verification": [
+    {
+      "command": "wc -l NEXT_SESSION_PROMPT.md",
+      "result": "pass",
+      "evidence": "249 lines, under the 250 cap. The old brief was 295 and counted itself among the over-cap files; check_file_length.sh skips .md, so this would not have been caught by the gate."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_daemon_libs.sh daemon_apps.sh 0",
+      "result": "pass",
+      "evidence": "Confirms the brief's claim exactly: 71/76 = 93.42%, uncovered 35, 60, 110, 130, 158 — the five line numbers the prohibition names."
+    },
+    {
+      "command": "wc -l phone_focus_mode/config.sh",
+      "result": "pass",
+      "evidence": "250, confirming the brief's 'exactly 250 with no headroom' warning."
+    },
+    {
+      "command": "count of mutations across meta/scripts/fixtures/mutations/*.json",
+      "result": "pass",
+      "evidence": "120 across six specs (13+22+17+33+17+18). The first draft said 127 from memory; counted and corrected before committing, since a wrong number in a handoff undermines the instructions around it."
+    },
+    {
+      "command": "grep -c '6371000' across phone_focus_mode/",
+      "result": "pass",
+      "evidence": "TWO copies of the Haversine, not three: daemon_location.sh (the original, moved out of focus_daemon.sh) and ctl_daemon.sh. An earlier commit message called it a third copy by double-counting the move; the brief records the verified count."
+    },
+    {
+      "command": "npx prettier --write NEXT_SESSION_PROMPT.md",
+      "result": "pass",
+      "evidence": "Clean; prettier runs on pre-push and would otherwise reformat it there."
+    }
+  ],
+  "risks": [
+    "The brief is at 249 of 250 lines, so the next person to add a finding has to remove one. Detail was pushed into the evidence files it references rather than inlined, which means it is one indirection away.",
+    "The stdin prohibition depends on line numbers in daemon_apps.sh staying accurate. Any edit that shifts them makes the table wrong; the three mutations pinning those loops are the durable guard, and the brief names them."
+  ],
+  "rollback": [
+    "git revert the commit to restore the previous brief. Note that doing so restores the broken config.sh fingerprint recipe and the missing stdin prohibition, so prefer editing forward.",
+    "After rollback, confirm with wc -l NEXT_SESSION_PROMPT.md that the file is back to 295 lines."
+  ]
+}
