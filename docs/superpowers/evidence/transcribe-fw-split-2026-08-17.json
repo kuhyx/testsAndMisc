@@ -1,0 +1,55 @@
+{
+  "intent": "Split the 302-line transcribe_fw.py into a progress-reporting module and the transcription entry point, both under the 250-line cap, moving every definition verbatim.",
+  "scope": [
+    "transcribe_fw.py 302 -> 236 (argument parsing, model loading, diarized output, main)",
+    "New: _transcribe_progress.py 91 (_run_progress_loop, _format_progress_line)",
+    "Re-pointed the module under test for the two progress functions",
+    "Non-goal: any behaviour change"
+  ],
+  "changes": [
+    "Extracted _run_progress_loop and _format_progress_line into _transcribe_progress.py, together with the two constants only they use (_PROGRESS_THROTTLE_SEC, _SECONDS_PER_DAY) and the hhmmss import they need.",
+    "transcribe_fw.py imports _run_progress_loop by name and no longer imports time, which only the progress code used.",
+    "The progress tests now patch _transcribe_progress - including its sys.stderr and time references, which is where the loop resolves them. _resolve_device_and_compute stayed in transcribe_fw, so its test was left pointing there.",
+    "_transcribe_progress.py was given the executable bit to match the repo convention for a file carrying a shebang."
+  ],
+  "verification": [
+    {
+      "command": "python3 verify_split.py HEAD .../transcribe_fw.py <both modules>",
+      "result": "pass",
+      "evidence": "IDENTICAL: all 8 top-level definitions moved verbatim. Re-run after ruff reordered the imports, and still identical."
+    },
+    {
+      "command": "AST scan for names used but not bound in each module",
+      "result": "pass",
+      "evidence": "Both modules report no unbound names, confirming the two constants and the hhmmss import travelled with the code that uses them."
+    },
+    {
+      "command": "pytest linux_configuration/tests/test_transcribe_fw_*.py --cov=transcribe_fw --cov=_transcribe_progress --cov-branch",
+      "result": "pass",
+      "evidence": "32 passed - the same count as before the split. _transcribe_progress.py: 43 statements, 16 branches, 100%. transcribe_fw.py: 95 statements, 16 branches, 100%."
+    },
+    {
+      "command": "python3 transcribe_fw.py --help and python3 transcribe_fw.py /nonexistent.wav",
+      "result": "pass",
+      "evidence": "Help prints the full usage; the missing-dependency path logs 'faster-whisper is not installed in this environment.' and returns exit 2, the code transcribe.sh branches on. Only a real run proves the sibling imports still resolve after a split."
+    },
+    {
+      "command": "pytest linux_configuration/tests/ -q",
+      "result": "pass",
+      "evidence": "275 passed, unchanged from before the split."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "33 files over cap, down from 34. The two modules are 236 and 91 lines."
+    }
+  ],
+  "risks": [
+    "transcribe_fw.py at 236 lines has only 14 lines of headroom under the cap. A further split is available if it grows: _parse_args and _load_whisper_model are an obvious next seam.",
+    "The progress module is imported by transcribe_fw by bare name, which resolves because they are siblings on sys.path[0]. That is the existing convention for this directory, shared with _transcribe_diarize, _transcribe_model and _transcribe_output, and the real run confirms it."
+  ],
+  "rollback": [
+    "git revert the commit; transcribe_fw.py returns to its 302-line form and _transcribe_progress.py disappears.",
+    "After rollback, confirm python3 transcribe_fw.py /nonexistent.wav still returns 2 and pytest linux_configuration/tests/ reports 275 passed."
+  ]
+}
