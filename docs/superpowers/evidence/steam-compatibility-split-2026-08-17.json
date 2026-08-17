@@ -1,0 +1,53 @@
+{
+  "intent": "Split steam_compatibility.sh (663 lines) into an entry script and four sourced libraries, all under the 250-line cap, moving every function verbatim.",
+  "scope": [
+    "steam_compatibility.sh 663 -> 140",
+    "New: lib/steam_requirements.sh 199, lib/steam_report.sh 156, lib/steam_api.sh 124, lib/steam_credentials.sh 103",
+    "Non-goal: any behaviour change"
+  ],
+  "changes": [
+    "Grouped by what each function touches rather than by size: requirement parsing and scoring with the hardware detection that feeds it, the Steam/ProtonDB API calls, credential and presentation helpers, and the run loop with the cache it reads.",
+    "The grouping was driven by the SC2034 writer/reader rule rather than chosen freely. Two arrangements were discarded first: detect_system alone in a lib writes SYSTEM_CPU_CLASS, SYSTEM_GPU_VENDOR and SYSTEM_RAM_GB without reading them, and load_cache_map alone writes CACHE_MAP without reading it. Both were fixed by moving the writer next to its reader - detect_system beside score_game, load_cache_map beside main.",
+    "The entry script is now colours, defaults, the four source lines, parse_args, the tiny log/die/vlog helpers, and `main \"$@\"`."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <entry> <four libs> <entry>",
+      "result": "pass",
+      "evidence": "IDENTICAL: all 33 top-level functions moved verbatim, re-checked after each regrouping."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/utils/steam_compatibility.sh --help",
+      "result": "pass",
+      "evidence": "Prints the full usage block and exits 0. This is a real run of the split script: it proves all four source lines resolve and that main dispatches, which no static check can show."
+    },
+    {
+      "command": "shellcheck on each of the four libraries standalone",
+      "result": "pass",
+      "evidence": "All clean, with no suppression added. The pre-commit hook runs shellcheck without -x, so each file has to stand on its own."
+    },
+    {
+      "command": "Sourcing each library in a subshell",
+      "result": "pass",
+      "evidence": "All four source with no side effects."
+    },
+    {
+      "command": "pre-commit run --files <all five>",
+      "result": "pass",
+      "evidence": "shellcheck and shfmt both pass."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "25 files over cap, down from 26. The five files are 140, 199, 156, 124 and 103 lines."
+    }
+  ],
+  "risks": [
+    "--help exits before any network call, so the run exercises argument parsing and the source graph but not the API paths. Those need Steam credentials and a network round-trip, which is not something to trigger from a split verification.",
+    "Four libraries is more indirection than three would be, but the writer/reader rule fixed the grouping: merging any two would either put a writer away from its reader or push a file back over the cap."
+  ],
+  "rollback": [
+    "git revert the commit; the entry script returns to 663 lines and the four libraries disappear.",
+    "After rollback, confirm steam_compatibility.sh --help still prints usage and exits 0."
+  ]
+}
