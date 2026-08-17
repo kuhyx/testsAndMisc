@@ -1,0 +1,17 @@
+{
+  "title": "split lib/monitor.sh under the 250-line cap",
+  "objective": "Move monitor.sh's eleven _check_* probes into two sibling libraries so every resulting file is under 250 lines, with monitoring behaviour byte-identical.",
+  "acceptance_criteria": [
+    "test_monitor.sh reports exactly 9 passed, 0 failed — the same count as before the split",
+    "verify_shell_split.sh reports all 25 top-level functions moved verbatim",
+    "run_phone.sh --help exits 0, proving the source chain resolves in the real consumer",
+    "shellcheck is clean on each of the three files checked standing alone, with no suppressions",
+    "check_file_length.sh --all drops from 24 over-cap files to 23, with no new file over the cap"
+  ],
+  "out_of_scope": [
+    "deploy.sh copy lists: lib/monitor.sh is PC-side and deploy.sh never references lib/",
+    "Any behavioural change to the probes themselves",
+    "Running the probes against a real device"
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_monitor.sh + meta/scripts/verify_shell_split.sh + shellcheck"
+}
