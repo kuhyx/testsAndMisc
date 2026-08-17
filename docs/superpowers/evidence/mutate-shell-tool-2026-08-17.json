@@ -1,0 +1,61 @@
+{
+  "intent": "Make the mutation-testing claims in this session's four evidence files reproducible from the repo. They cited runs from a scratch directory that will not survive the session, leaving committed evidence pointing at something nobody could repeat.",
+  "scope": [
+    "meta/scripts/mutate_shell.py - new: a spec-driven mutation runner",
+    "meta/scripts/fixtures/mutations/{monitor,backup_capture,curfew_net,hosts_libs}.json - new: the 65 mutations already used",
+    "Non-goal: wiring this into pre-commit. It runs the full shell suite once per mutation, which is far too slow for a commit hook.",
+    "Non-goal: changing any subject or test; this only relocates and formalises checks already performed."
+  ],
+  "changes": [
+    "Declared mutations in JSON with literal find/replace strings rather than sed expressions. The shell version escaped each pattern twice and used | as a field separator, which collided with || and silently reported six mutations as survivors when they had never been applied — a false negative in the exact tool meant to catch false negatives.",
+    "Counted a no-op (find matched nothing) as a failure rather than ignoring it. A stale spec entry otherwise stops testing its behaviour without ever saying so, which is the same silent-pass failure mode the tool exists to detect.",
+    "Restored the subject in a finally block, so an interrupted run cannot leave a deliberately broken file in the working tree.",
+    "Treated a timeout as killed: a mutation that makes the suite hang has still been detected by it."
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/monitor.json",
+      "result": "pass",
+      "evidence": "18 killed, 0 not killed — matching the figure in monitor-coverage-backfill-2026-08-17.json."
+    },
+    {
+      "command": "python3 meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/backup_capture.json",
+      "result": "pass",
+      "evidence": "13 killed, 0 not killed — matching phone-backup-capture-split-2026-08-17.json."
+    },
+    {
+      "command": "python3 meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/curfew_net.json",
+      "result": "pass",
+      "evidence": "17 killed, 0 not killed — matching curfew-net-split-2026-08-17.json."
+    },
+    {
+      "command": "python3 meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/hosts_libs.json",
+      "result": "pass",
+      "evidence": "17 killed, 0 not killed — matching hosts-enforcer-split-2026-08-17.json."
+    },
+    {
+      "command": "git status --short after every run",
+      "result": "pass",
+      "evidence": "Clean. The restore path returns each subject byte-for-byte; an earlier shell version left a mode-only diff behind, which is why this one uses copy2 and an unconditional finally."
+    },
+    {
+      "command": "pre-commit run --files meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/*.json",
+      "result": "pass",
+      "evidence": "Clean, including ruff, mypy and pylint. Ruff's autofixer removed a suppression during the first run; the tool was re-run afterwards and still reports 13 killed on backup_capture, so the autofix changed nothing behavioural."
+    },
+    {
+      "command": "first conversion run of all four specs",
+      "result": "pass",
+      "evidence": "Reported 8 no-ops rather than silently passing, caused by the sed-to-literal conversion mangling escapes. Each was corrected against the actual source line and re-run. That the tool surfaced them rather than counting them as killed is the behaviour being relied on."
+    }
+  ],
+  "risks": [
+    "The specs pin literal source text, so any edit to a mutated line makes its entry a no-op. That is reported loudly rather than passing quietly, but it does mean the specs need updating alongside the code they target.",
+    "This is not enforced by any hook. Nothing prevents a future shell library from being added with a coverage number and no mutation spec; the discipline remains a convention.",
+    "A full spec run takes minutes, since it executes the whole suite once per mutation. It is a deliberate, occasional check, not something to put in a tight loop."
+  ],
+  "rollback": [
+    "git revert the commit. The four evidence files then cite mutation runs with no reproducible path, which is the state this commit exists to fix — prefer fixing forward.",
+    "After rollback, nothing else breaks: no hook, test or script references the tool."
+  ]
+}
