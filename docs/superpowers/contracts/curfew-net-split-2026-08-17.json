@@ -1,0 +1,21 @@
+{
+  "title": "Split curfew_enforcer.sh's network layer into a tested sibling",
+  "objective": "Take curfew_enforcer.sh from 367 lines to under the repo's 250-line cap by moving its nine network-curfew functions into curfew_net.sh, and cover that library at 100%. The per-UID iptables allow-list decides which apps can reach the network overnight; a wrong rule order silently blocks everything or blocks nothing.",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all no longer lists phone_focus_mode/curfew_enforcer.sh, and no new file is over the cap.",
+    "bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_curfew_net.sh curfew_net.sh exits 0 at its default 100% minimum.",
+    "Every assertion is mutation-proofed with zero survivors, including mutations that invert the REJECT, cut off root, and pass non-numeric uids to iptables.",
+    "The rule ORDER is asserted, not just rule presence: every ACCEPT must precede the 10000-19999 REJECT.",
+    "meta/scripts/verify_shell_split.sh reports every function verbatim, except any rewritten for measurability — for which the emitted rule sequence must be proven identical instead.",
+    "curfew_net.sh is added to BOTH of deploy.sh's hardcoded lists (the push list and the cp list), as a flat sibling matching dns_iptables.sh and tether_iptables.sh — not under lib/, which deploy.sh does not create on the device.",
+    "shellcheck passes on each touched file individually, with no -x and no disable directive.",
+    "sh -n passes on both phone-side scripts, which run under ash, not bash."
+  ],
+  "out_of_scope": [
+    "Deploying to the phone or verifying on-device; there is no device in this session.",
+    "Splitting the grayscale or DND layers out of curfew_enforcer.sh, which is already under the cap without the net layer.",
+    "Adding curfew_net.sh to deploy.sh's chmod list: it is sourced, not executed, matching how dns_iptables.sh and tether_iptables.sh are handled.",
+    "Changing what the curfew blocks or allows."
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_curfew_net.sh (expects 41 passed, 0 failed), plus bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_curfew_net.sh curfew_net.sh at 100.00%, plus the mutation run at 17 killed / 0 survived, plus bash meta/scripts/check_file_length.sh --all showing 20 files, plus grep for curfew_net in both deploy.sh lists, plus pre-commit run --files on the touched files."
+}
