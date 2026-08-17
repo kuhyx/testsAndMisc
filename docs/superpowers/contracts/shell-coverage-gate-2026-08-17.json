@@ -1,0 +1,17 @@
+{
+  "title": "measurable shell coverage, and dns_iptables.sh at 100%",
+  "objective": "Provide a working kcov-based line-coverage gate for shell libraries, then use it to close every uncovered line in dns_iptables.sh.",
+  "acceptance_criteria": [
+    "shell_coverage.sh reports dns_iptables.sh at 100.00% and exits 0",
+    "Removing coverage-critical tests drops it below 100%, names the uncovered lines, and exits 1",
+    "test_dns_iptables.sh reports 24 passed, 0 failed",
+    "The subject under test is unchanged: verify_shell_split.sh against 728301c still reports all 14 functions verbatim",
+    "pre-commit passes on every changed file with zero lint suppressions"
+  ],
+  "out_of_scope": [
+    "Wiring coverage into pre-commit or CI — kcov is not installed on CI and most shell files have no test",
+    "Branch coverage, which kcov does not provide for shell",
+    "Any behavioural change to dns_iptables.sh"
+  ],
+  "verifier": "bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_dns_iptables.sh dns_iptables.sh"
+}
