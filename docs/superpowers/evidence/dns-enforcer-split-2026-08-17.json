@@ -1,0 +1,68 @@
+{
+  "intent": "Bring phone_focus_mode/dns_enforcer.sh under the 250-line cap by moving its iptables chain machinery into a sibling script, and give that code its first working test.",
+  "scope": [
+    "phone_focus_mode/dns_enforcer.sh — 325 lines, now 171",
+    "phone_focus_mode/dns_iptables.sh — new, 170 lines",
+    "phone_focus_mode/deploy.sh — both per-file lists grown by one entry",
+    "phone_focus_mode/lib/tests/test_dns_iptables.sh + dns_iptables_harness.sh — new tests",
+    "phone_focus_mode/lib/tests/test_dns_enforcer.sh — deleted"
+  ],
+  "changes": [
+    "Moved ensure_chain, trusted_dot_ips, fill_chain_v4, fill_chain_v6, expected_rule_count, chain_intact and enforce_iptables into dns_iptables.sh, a sibling of the entry script rather than a lib/ member: lib/ does not exist on the phone and deploy.sh copies these files flat into $REMOTE_DIR.",
+    "Placed the source line by hand after the existing config.sh line. extract_shell_functions.py refuses to anchor in a #!/system/bin/sh script, and when it refuses it still writes the library but does NOT remove the functions from the source, so a naive run leaves them defined twice. The excision was done separately and confirmed by hash.",
+    "Added dns_iptables.sh to BOTH deploy.sh lists — the adb_cmd push staging list and the adb_root cp install list — matching how tether_iptables.sh is handled. It is correctly absent from the chmod 755 line, since a sourced library needs read, not execute.",
+    "Deleted test_dns_enforcer.sh. Its six assertions targeted extract_ping_ip, extract_package_uid and append_unique_line, none of which dns_enforcer.sh has ever defined; it died at its source line and had never run a single assertion since the commit that added it.",
+    "Wrote test_dns_iptables.sh (20 assertions over all seven moved functions) in the staging style test_tether_enforcer.sh proves works, with the shared staging and stubs in dns_iptables_harness.sh so both files stay under the cap."
+  ],
+  "verification": [
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_dns_iptables.sh",
+      "result": "pass",
+      "evidence": "20 passed, 0 failed, covering expected_rule_count (5 cases), trusted_dot_ips (4), ensure_chain (2), fill_chain_v4/v6 (3), chain_intact (3) and enforce_iptables (3)."
+    },
+    {
+      "command": "mutation: expected_rule_count drops the trusted-resolver tally (n+1 -> n+0)",
+      "result": "fail-as-expected",
+      "evidence": "'FAIL: adds one ACCEPT per trusted v4 resolver address (want 7, got 6)' — the test catches the undercount that the function's own comment warns causes a rebuild every DNS_CHECK_INTERVAL seconds."
+    },
+    {
+      "command": "mutation: fill_chain_v4 moves the trusted ACCEPT loop after the blanket REJECT",
+      "result": "fail-as-expected",
+      "evidence": "'FAIL: puts the trusted-resolver ACCEPT before the blanket REJECT (want ACCEPT, got REJECT)' — first-match ordering is enforced, not assumed."
+    },
+    {
+      "command": "mutation: expected_rule_count counts 3 rules per DoH IP instead of 4",
+      "result": "fail-as-expected",
+      "evidence": "6 of the 20 assertions fail. Restoring the file returns 20 passed, 0 failed, so the suite is non-vacuous."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD phone_focus_mode/dns_enforcer.sh phone_focus_mode/dns_enforcer.sh phone_focus_mode/dns_iptables.sh",
+      "result": "pass",
+      "evidence": "'IDENTICAL: all 14 top-level functions moved verbatim'."
+    },
+    {
+      "command": "sh dns_enforcer.sh with main() disabled, then command -v each function",
+      "result": "pass",
+      "evidence": "All 11 probed functions resolve (the 7 moved plus log, rotate_log, acquire_lock, ensure_private_dns_off), proving the new source line loads the sibling at runtime and not merely at lint time."
+    },
+    {
+      "command": "shellcheck on all four changed shell files",
+      "result": "pass",
+      "evidence": "Clean, each standing alone, with zero suppressions. Two SC2016 findings were resolved structurally — a [$] character class in the sed pattern and a quoted heredoc prelude — rather than disabled."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "fail-as-expected",
+      "evidence": "23 files over the cap before, 22 after. dns_enforcer.sh 171, dns_iptables.sh 170, test 197, harness 133 — all under."
+    }
+  ],
+  "risks": [
+    "UNVERIFIED ON THE PHONE. No deploy has run, by explicit instruction. If DNS enforcement misbehaves after the next deploy, dns_iptables.sh reaching the device is the first thing to check — the two deploy.sh list entries are what carry it.",
+    "The iptables stub models only the subset of the interface these functions touch (-L/-N/-F/-A/-I/-D/-C/-S). A real iptables failure mode outside that subset, such as a locking error, is not represented.",
+    "tether_enforcer.sh remains unverified on the device from the previous session, so two enforcer splits are now in flight at once."
+  ],
+  "rollback": [
+    "git revert the commit; dns_enforcer.sh returns to 325 lines, dns_iptables.sh and both new test files disappear, and the two deploy.sh entries are removed together with the code they carry.",
+    "After rollback, run sh -n phone_focus_mode/dns_enforcer.sh and confirm the file no longer sources dns_iptables.sh, then grep deploy.sh for dns_iptables to confirm zero hits — a stale cp line pointing at a file that is no longer staged is the failure this ordering prevents."
+  ]
+}

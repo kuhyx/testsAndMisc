@@ -1,0 +1,18 @@
+{
+  "title": "split dns_enforcer.sh and give its chain code a real test",
+  "objective": "Move the iptables chain machinery out of dns_enforcer.sh so both files are under 250 lines, carry the new sibling in both deploy.sh lists, and replace the dead test_dns_enforcer.sh with a suite that actually exercises the moved code.",
+  "acceptance_criteria": [
+    "verify_shell_split.sh reports all 14 top-level functions moved verbatim",
+    "test_dns_iptables.sh reports 20 passed, 0 failed, and fails under each of three independent mutations",
+    "dns_iptables.sh appears in BOTH the adb_cmd push list and the adb_root cp list in deploy.sh",
+    "Sourcing dns_enforcer.sh with main() disabled resolves all seven moved functions at runtime",
+    "shellcheck is clean on every changed shell file, standing alone, with zero suppressions",
+    "check_file_length.sh --all drops from 23 over-cap files to 22, with no new file over the cap"
+  ],
+  "out_of_scope": [
+    "Deploying to the phone or verifying on-device behaviour — explicitly excluded by the user this session",
+    "Repairing test_dns_enforcer.sh, which is deleted rather than fixed",
+    "Any behavioural change to the chain functions themselves"
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_dns_iptables.sh + meta/scripts/verify_shell_split.sh + shellcheck + check_file_length.sh"
+}
