@@ -1,0 +1,18 @@
+{
+  "title": "Cover transcribe_helpers.py before splitting it",
+  "objective": "transcribe_helpers.py is 289 lines against a 250-line cap and was completely untested. This commit raises it to 100% line and branch coverage first, so the following split can be verified against tests that predate the seam. The module is left at its current path rather than moved under python_pkg/: transcribe.sh invokes it by path inside a dedicated ML venv, and transcribe_fw.py imports two siblings by bare name, so the closure is five files, not three. Tests instead go in linux_configuration/tests/, whose conftest already puts standalone script directories on sys.path - the same arrangement the usage_report work used. No production code changes here.",
+  "acceptance_criteria": [
+    "transcribe_helpers.py reaches 100% line and branch coverage, from 0%",
+    "transcribe_helpers.py is byte-identical to HEAD - this commit adds tests only",
+    "The tests run in CI without the ML dependencies present, reaching them only through the _try_import seam",
+    "No suppression of any kind: no noqa, no type: ignore, no lowered threshold",
+    "Every new test file is under the 250-line cap, so the over-cap total does not rise"
+  ],
+  "out_of_scope": [
+    "The split of transcribe_helpers.py itself, which is the next commit",
+    "transcribe_fw.py and _transcribe_diarize.py, covered separately",
+    "Moving any of these files under python_pkg/, which would break transcribe.sh's by-path invocation",
+    "Removing the unreachable dispatch guard at transcribe_helpers.py:284 - a behaviour change that does not belong in a coverage commit"
+  ],
+  "verifier": "pytest linux_configuration/tests/test_transcribe_*.py --cov=transcribe_helpers --cov-branch --cov-report=term-missing for the coverage claim and the test count; python3 transcribe_helpers.py {python-version,check-faster-whisper,generate-wav} for the real-run claim; pre-commit run --files for lint; bash ~/utils/scripts/check_file_length.sh --all to confirm no new over-cap file."
+}
