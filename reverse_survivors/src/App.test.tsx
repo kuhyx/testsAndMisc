@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
-import { makeEnemy } from './core/sim'
+import { makeEnemy } from './core/simUnit'
 import type { RafHarness } from './test/harness'
 import { installRaf, makeCtxStub } from './test/harness'
 

@@ -1,9 +1,8 @@
 /** Enemy behaviour, bombers and projectiles. */
 
 import { describe, expect, it } from 'vitest'
-import {
-  createInitialState, makeEnemy, step,
-  } from './sim'
+import { createInitialState, step } from './sim'
+import { makeEnemy } from './simUnit'
 import type { GameState, Projectile } from './types'
 import {
   ARENA, } from './types'

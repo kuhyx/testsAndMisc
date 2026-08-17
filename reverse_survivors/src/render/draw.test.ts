@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialState, makeEnemy } from '../core/sim'
+import { createInitialState } from '../core/sim'
+import { makeEnemy } from '../core/simUnit'
 import type { GameState } from '../core/types'
 import { makeCtxStub } from '../test/harness'
 import { draw } from './draw'

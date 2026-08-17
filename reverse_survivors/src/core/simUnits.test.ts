@@ -3,9 +3,8 @@
 /** Enemy behaviour, bombers and projectiles. */
 
 import { describe, expect, it } from 'vitest'
-import {
-  createInitialState, makeEnemy, SPLIT_RADIUS, step,
-  } from './sim'
+import { createInitialState, step } from './sim'
+import { makeEnemy, SPLIT_RADIUS } from './simUnit'
 import type { GameState, Projectile } from './types'
 import {
   ARENA, STATUS_POWER,

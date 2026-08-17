@@ -1,4 +1,4 @@
-import { FIRE_RANGE, SURVIVOR_RADIUS } from '../core/sim'
+import { FIRE_RANGE, SURVIVOR_RADIUS } from '../core/simUnit'
 import type { EnemyKind, GameState } from '../core/types'
 import { ARENA, ENEMY_SPECS, STATUS_ORDER } from '../core/types'
 

@@ -1,4 +1,4 @@
-import { makeEnemy } from './sim'
+import { makeEnemy } from './simUnit'
 import { nextFloat, pick } from './rng'
 import type { BossKind, DirectorAction, EdgeId, GameState, PowerKind, UnitKind } from './types'
 import {

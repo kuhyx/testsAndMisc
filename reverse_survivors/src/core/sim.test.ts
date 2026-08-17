@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import {
-  applyUpgrade, createInitialState, DANGER_RADIUS, grantXp, makeEnemy, step,
-  xpForLevel,
-} from './sim'
+import { createInitialState, step } from './sim'
+import { DANGER_RADIUS, makeEnemy } from './simUnit'
+import { applyUpgrade, grantXp, xpForLevel } from './simSurvivor'
 import type { GameState, } from './types'
 import {
   ARENA, GAME_DURATION, } from './types'
