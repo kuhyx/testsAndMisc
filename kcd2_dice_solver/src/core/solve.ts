@@ -10,7 +10,7 @@ import { BASE_RULES, DEFAULT_FORMATION_VALUES } from "../data/badges.ts";
 import { DICE_BY_ID } from "../data/dice.ts";
 import type { Die } from "../data/dice.ts";
 import { recommendBadges } from "./badgeValue.ts";
-import type { BadgeRecommendation } from "./badgeValue.ts";
+import type { BadgeRecommendation } from "./badgeBaseline.ts";
 import type { Evaluation } from "./evaluate.ts";
 import { Scorer } from "./scoring.ts";
 import { findBestSet } from "./search.ts";

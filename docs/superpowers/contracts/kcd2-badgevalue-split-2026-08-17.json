@@ -1,0 +1,20 @@
+{
+  "title": "Split kcd2_dice_solver src/core/badgeValue.ts under the 250-line cap",
+  "objective": "Bring kcd2_dice_solver/src/core/badgeValue.ts (334 lines) under the repo-wide 250-line file cap by extracting the measurement half -- the shared valuation types, the no-badge baseline a badge is compared against, and the throw/charge helpers that support it -- into a sibling module, leaving the per-effect valuation switch and the tier ranking, with badge point estimates proven unchanged by the project's own 288-test suite at 100% coverage.",
+  "acceptance_criteria": [
+    "badgeValue.ts and the new sibling module are each at most 250 lines, and check_file_length.sh --all no longer lists src/core/badgeValue.ts.",
+    "npx vitest run still reports 24 files and 288 tests, all passing -- no test was added, deleted, or had an assertion weakened.",
+    "npx vitest run --coverage still reports 100% statements, 100% branches, 100% functions and 100% lines, with the same 863/375/181/810 totals, since no statement is added or removed.",
+    "npm run lint (tsc --noEmit && eslint src) still exits 0 with no output.",
+    "Every importer of a moved symbol imports it from the module that now defines it, with no re-export barrel added to badgeValue.ts.",
+    "Zero suppressions added: no eslint-disable, no @ts-ignore, no @ts-expect-error, and vite.config.ts is byte-identical (thresholds and exclude untouched)."
+  ],
+  "out_of_scope": [
+    "Any change to how badges are valued: the exact-EV-delta model for scoring badges, the 90th-percentile model for multipliers, the best-k-throws model for doubleThrow, the per-charge simulation for extraDice/antibust/reroll/setDie, and the null for defence badges all keep their current semantics exactly.",
+    "Changing TURNS_PER_GAME, BADGE_SIMULATION_TURNS, or any seed, which would move every reported number.",
+    "Modifying vite.config.ts, including adding any new file to the coverage exclude list.",
+    "Splitting App.tsx -- it is its own separate commit.",
+    "Wiring the file-length pre-commit hook -- it must land last."
+  ],
+  "verifier": "npx vitest run (expect 24 files / 288 tests passed); npx vitest run --coverage (expect 100% on all four metrics, totals 863/375/181/810); npm run lint (expect exit 0, no output); bash ~/utils/scripts/check_file_length.sh --all (expect src/core/badgeValue.ts absent from the listing); git diff --stat vite.config.ts (expect empty); grep -rn 'eslint-disable\\|ts-ignore\\|ts-expect-error' src/ (expect no new hits); pre-commit run --files on every touched file."
+}

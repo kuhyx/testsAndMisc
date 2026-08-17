@@ -12,15 +12,14 @@ import { BADGES_BY_ID, DEFAULT_FORMATION_VALUES } from "../data/badges.ts";
 import type { Badge } from "../data/badges.ts";
 import { DICE_BY_ID } from "../data/dice.ts";
 import type { Die } from "../data/dice.ts";
+import { recommendBadges, valueBadge } from "./badgeValue.ts";
 import {
   bestThrowsValue,
   measureBaseline,
   rankValue,
-  recommendBadges,
   singleCharge,
-  valueBadge,
-} from "./badgeValue.ts";
-import type { BadgeContext } from "./badgeValue.ts";
+} from "./badgeBaseline.ts";
+import type { BadgeContext } from "./badgeBaseline.ts";
 import { NO_CHARGES, DEFAULT_POLICY } from "./simulate.ts";
 import type { InventoryEntry } from "./searchGroups.ts";
 
