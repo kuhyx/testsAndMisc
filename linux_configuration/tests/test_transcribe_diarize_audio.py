@@ -13,6 +13,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import _transcribe_diarize as diar
+import _transcribe_media as media
 import pytest
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ def test_transcode_returns_none_without_ffmpeg(
     """No ffmpeg binary means no fallback transcode."""
     monkeypatch.setattr(shutil, "which", lambda _b: None)
 
-    assert diar._ffmpeg_transcode_to_wav16_mono("clip.mp4") is None
+    assert media._ffmpeg_transcode_to_wav16_mono("clip.mp4") is None
 
 
 def test_transcode_returns_the_temp_path_on_success(
@@ -61,13 +62,13 @@ def test_transcode_returns_the_temp_path_on_success(
 
     monkeypatch.setattr(subprocess, "run", _record)
 
-    result = diar._ffmpeg_transcode_to_wav16_mono("clip.mp4")
+    result = media._ffmpeg_transcode_to_wav16_mono("clip.mp4")
 
     assert result is not None
     assert result.endswith(".wav")
     assert "16000" in commands[0]
     assert "-ac" in commands[0]
-    diar._cleanup_temp(result)
+    media._cleanup_temp(result)
 
 
 @pytest.mark.parametrize(
@@ -79,14 +80,14 @@ def test_transcode_cleans_up_after_a_failure(
     """A failed transcode removes the temp file it had already created."""
     monkeypatch.setattr(shutil, "which", lambda _b: "/usr/bin/ffmpeg")
     removed: list[str] = []
-    monkeypatch.setattr(diar.Path, "unlink", lambda self: removed.append(str(self)))
+    monkeypatch.setattr(media.Path, "unlink", lambda self: removed.append(str(self)))
 
     def _boom(*_a: object, **_k: object) -> None:
         raise error
 
     monkeypatch.setattr(subprocess, "run", _boom)
 
-    assert diar._ffmpeg_transcode_to_wav16_mono("clip.mp4") is None
+    assert media._ffmpeg_transcode_to_wav16_mono("clip.mp4") is None
     assert len(removed) == 1
 
 
@@ -95,19 +96,19 @@ def test_cleanup_temp_removes_an_existing_file(tmp_path: Path) -> None:
     victim = tmp_path / "scratch.wav"
     victim.write_bytes(b"RIFF")
 
-    diar._cleanup_temp(str(victim))
+    media._cleanup_temp(str(victim))
 
     assert not victim.exists()
 
 
 def test_cleanup_temp_ignores_none() -> None:
     """No temp file was created, so there is nothing to remove."""
-    diar._cleanup_temp(None)
+    media._cleanup_temp(None)
 
 
 def test_cleanup_temp_survives_an_already_deleted_file(tmp_path: Path) -> None:
     """A file removed by something else is not an error."""
-    diar._cleanup_temp(str(tmp_path / "never-existed.wav"))
+    media._cleanup_temp(str(tmp_path / "never-existed.wav"))
 
 
 def test_load_audio_returns_none_without_soundfile(

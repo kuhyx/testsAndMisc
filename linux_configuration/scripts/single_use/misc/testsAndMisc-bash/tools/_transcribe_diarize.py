@@ -1,15 +1,23 @@
-"""Speaker diarization and audio processing utilities."""
+#!/usr/bin/env python3
+"""Speaker diarization: embed each segment, then cluster the embeddings.
+
+Every heavy dependency (torch, speechbrain, soundfile) is reached through
+``_try_import``, so a machine without them degrades to no speaker labels
+rather than failing the transcription.
+"""
 
 from __future__ import annotations
 
-import contextlib
-import importlib
 import logging
 from pathlib import Path
-import shutil
-import subprocess
-import tempfile
 from typing import TYPE_CHECKING, Any
+
+from _transcribe_cluster import _kmeans_cosine, _resample_linear
+from _transcribe_media import (
+    _cleanup_temp,
+    _ffmpeg_transcode_to_wav16_mono,
+    _try_import,
+)
 
 if TYPE_CHECKING:
     import types
@@ -22,206 +30,6 @@ logger = logging.getLogger(__name__)
 _NDIM_2D = 2
 _SAMPLE_RATE_16K = 16000
 _MIN_SAMPLES_DIAR = 1600
-
-
-def _try_import(name: str) -> types.ModuleType | None:
-    """Attempt to import a module, returning None on failure."""
-    try:
-        return importlib.import_module(name)
-    except ImportError:
-        return None
-
-
-def _probe_with_ffmpeg_python(
-    path: str,
-) -> float | None:
-    """Try ffmpeg-python to get duration."""
-    ffmpeg_mod = _try_import("ffmpeg")
-    if ffmpeg_mod is None:
-        return None
-    try:
-        probe = ffmpeg_mod.probe(path)
-        fmt = probe.get("format", {})
-        if "duration" in fmt:
-            return float(fmt["duration"])
-    except (OSError, RuntimeError):
-        pass
-    return None
-
-
-def _probe_with_ffprobe(path: str) -> float | None:
-    """Try ffprobe CLI to get duration."""
-    ffprobe_bin = shutil.which("ffprobe")
-    if ffprobe_bin is None:
-        return None
-    try:
-        out = subprocess.check_output(
-            [
-                ffprobe_bin,
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                path,
-            ],
-            stderr=subprocess.DEVNULL,
-        )
-        return float(out.decode().strip())
-    except (
-        OSError,
-        subprocess.CalledProcessError,
-        ValueError,
-    ):
-        return None
-
-
-def get_media_duration(path: str) -> float | None:
-    """Try to get media duration in seconds.
-
-    Returns None if unavailable.
-    """
-    result = _probe_with_ffmpeg_python(path)
-    if result is not None:
-        return result
-    return _probe_with_ffprobe(path)
-
-
-def _resample_linear(
-    x: npt.NDArray[np.float32],
-    src_sr: int,
-    tgt_sr: int,
-) -> npt.NDArray[np.float32]:
-    """Linearly resample 1-D audio array."""
-    np_mod = _try_import("numpy")
-    if np_mod is None:
-        msg = "numpy is required for resampling"
-        raise RuntimeError(msg)
-
-    if src_sr == tgt_sr:
-        return x
-    ratio = float(tgt_sr) / float(src_sr)
-    n_out = max(1, round(x.shape[-1] * ratio))
-    xp = np_mod.linspace(0.0, 1.0, num=x.shape[-1], endpoint=False)
-    xq = np_mod.linspace(0.0, 1.0, num=n_out, endpoint=False)
-    y = np_mod.interp(xq, xp, x.astype(np_mod.float32))
-    return y.astype(np_mod.float32)
-
-
-def _kmeans_cosine(
-    embs: list[Any],
-    k: int,
-    iters: int = 50,
-    seed: int = 0,
-) -> npt.NDArray[np.int64]:
-    """Cluster embeddings with cosine-similarity k-means."""
-    np_mod = _try_import("numpy")
-    if np_mod is None:
-        msg = "numpy is required for clustering"
-        raise RuntimeError(msg)
-
-    rng = np_mod.random.default_rng(seed)
-    features = np_mod.asarray(embs, dtype=np_mod.float32)
-    if features.ndim != _NDIM_2D or features.shape[0] == 0:
-        return np_mod.zeros((0,), dtype=np_mod.int64)
-    features = features / (np_mod.linalg.norm(features, axis=1, keepdims=True) + 1e-8)
-    idxs = rng.choice(
-        features.shape[0],
-        size=min(k, features.shape[0]),
-        replace=False,
-    )
-    centroids = features[idxs]
-    if centroids.shape[0] < k:
-        pad = rng.standard_normal(
-            size=(
-                k - centroids.shape[0],
-                features.shape[1],
-            )
-        ).astype(np_mod.float32)
-        pad /= np_mod.linalg.norm(pad, axis=1, keepdims=True) + 1e-8
-        centroids = np_mod.concatenate([centroids, pad], axis=0)
-    return _run_kmeans_iterations(np_mod, features, centroids, k, iters)
-
-
-def _run_kmeans_iterations(
-    np_mod: types.ModuleType,
-    features: npt.NDArray[np.float32],
-    centroids: npt.NDArray[np.float32],
-    k: int,
-    iters: int,
-) -> npt.NDArray[np.intp]:
-    """Run k-means iteration loop and return labels."""
-    labels: Any = None
-    for _ in range(iters):
-        sims = features @ centroids.T
-        labels = sims.argmax(axis=1)
-        new_c = np_mod.zeros_like(centroids)
-        for j in range(k):
-            sel = features[labels == j]
-            if sel.shape[0] == 0:
-                new_c[j] = centroids[j]
-            else:
-                v = sel.mean(axis=0)
-                v /= np_mod.linalg.norm(v) + 1e-8
-                new_c[j] = v
-        if np_mod.allclose(new_c, centroids, atol=1e-4):
-            break
-        centroids = new_c
-    return labels
-
-
-def _ffmpeg_transcode_to_wav16_mono(
-    src_path: str,
-) -> str | None:
-    """Transcode input to a temporary 16k mono WAV.
-
-    Returns its path, or None if ffmpeg is unavailable.
-    """
-    ffmpeg_bin = shutil.which("ffmpeg")
-    if ffmpeg_bin is None:
-        return None
-    with tempfile.NamedTemporaryFile(
-        prefix="fw_diar_",
-        suffix=".wav",
-        delete=False,
-    ) as tmp:
-        tmp_path = tmp.name
-
-    cmd = [
-        ffmpeg_bin,
-        "-y",
-        "-v",
-        "error",
-        "-i",
-        src_path,
-        "-ac",
-        "1",
-        "-ar",
-        "16000",
-        "-f",
-        "wav",
-        tmp_path,
-    ]
-    try:
-        subprocess.run(
-            cmd,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        with contextlib.suppress(OSError):
-            Path(tmp_path).unlink()
-        return None
-    return tmp_path
-
-
-def _cleanup_temp(path: str | None) -> None:
-    """Remove a temporary file if it exists."""
-    if path is not None:
-        with contextlib.suppress(OSError):
-            Path(path).unlink()
 
 
 def _load_audio(

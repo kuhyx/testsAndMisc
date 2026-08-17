@@ -11,7 +11,8 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, Any
 
-from _transcribe_diarize import diarize_segments, get_media_duration
+from _transcribe_diarize import diarize_segments
+from _transcribe_media import get_media_duration
 from _transcribe_model import download_model_with_progress
 from _transcribe_output import (
     hhmmss,

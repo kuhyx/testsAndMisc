@@ -10,7 +10,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-import _transcribe_diarize as diar
+import _transcribe_media as diar
 import pytest
 
 

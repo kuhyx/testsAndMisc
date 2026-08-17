@@ -7,7 +7,7 @@ mocked numpy would prove nothing about whether two speakers get two labels.
 
 from __future__ import annotations
 
-import _transcribe_diarize as diar
+import _transcribe_cluster as diar
 import numpy as np
 import pytest
 
