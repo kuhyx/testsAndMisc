@@ -76,3 +76,61 @@ mode for scripts whose job is placing files, the regression fixtures, the
 entry-point and `shfmt` traps — moved to
 **`docs/shell-split-harness.md`** when this file hit the same 250-line cap it
 exists to serve. This file stays the _why_; that one is the _how_.
+
+### Prove the move was verbatim: `meta/scripts/verify_shell_split.sh`
+
+The Python splits in this repo are verified with a throwaway `ast` identity
+check. There is no `ast` for bash, so the shell equivalent normalises through
+`shfmt -mn` (minify: strips comments and indentation, keeps logic) and compares
+a hash per top-level function:
+
+```bash
+bash meta/scripts/verify_shell_split.sh HEAD <old-path> <new-path>...
+# IDENTICAL: all N top-level functions moved verbatim
+```
+
+It reports which function changed, so a diff points at the seam rather than the
+whole file. Run it after every split, and again after `shfmt`/pre-commit
+autofixes — reordering an import or reflowing a line is exactly what it is
+designed to see through.
+
+**Verify the harness before trusting it.** A normalizer that silently passes
+everything is worse than none. The three checks it must survive:
+
+| input                                            | expected                                |
+| ------------------------------------------------ | --------------------------------------- |
+| unchanged copy of the file                       | `IDENTICAL`                             |
+| comments/blank lines/indentation changed         | `IDENTICAL`                             |
+| one character of logic changed (`"$1"` → `"$2"`) | `DIFFERENCE FOUND`, naming the function |
+
+The first attempt at that mutation test used `sed 's/exit 1/exit 2/'` on a file
+containing no `exit 1`. It reported `IDENTICAL` — not because the harness was
+broken, but because the mutation never applied. Confirm the mutation actually
+changed the file (`diff` it) before concluding anything about the harness.
+
+### Deployment triage of the over-cap scripts (2026-08-17)
+
+Run before designing any seam, per the section above. `deploy.sh` copies a
+**hardcoded per-file list** into `/data/local/tmp/focus_mode` and never deploys
+`lib/`:
+
+- **`phone_focus_mode/*` (8 over-cap scripts)** — deployed individually.
+  A new sibling must be added to `deploy.sh`'s copy list **in the same commit**,
+  or focus mode dies on the phone at its first `source`. These scripts source
+  only `config.sh`, which is on that list, so a sibling-file seam is workable —
+  an entry+`lib/` seam is not.
+- **`install_leechblock.sh`, `block_compulsive_opening.sh`** — copied to
+  `/usr/local/…` and preferred there by `pacman_wrapper.sh:831` on every pacman
+  invocation. Teach the installer to deploy the directory first, in its own
+  commit. Highest blast radius; do these last.
+- **`hosts/install.sh`, `setup_hosts_guard.sh`, `lib/monitor.sh`** — install
+  helper scripts to `/usr/local/sbin` or `/usr/local/bin`; check whether the
+  file being split is itself the deployed one.
+- **The other 16** (`fresh-install/main.sh`, `nvidia_troubleshoot.sh`,
+  `setup_passwordless_system.sh`, `clean_audio.sh`, `enforce_vbox_hosts.sh`,
+  `migrate_hosts_guard_to_guard_lib.sh`, `libre_translate.sh`,
+  `diagnose_pacman_hook_stall.sh`, `install_plagiarism_tools.sh`,
+  `steam_compatibility.sh`, `deploy.sh`, `setup_night_lockdown.sh`,
+  `pacman_wrapper.sh`, `generate_study_materials.sh`,
+  `check_and_enable_services.sh`, `setup_midnight_shutdown.sh`) — no deployed
+  copy found, so an entry+`lib/` shape is safe.

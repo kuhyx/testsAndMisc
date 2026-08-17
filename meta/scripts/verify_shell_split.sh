@@ -1,71 +1,66 @@
-#!/usr/bin/env bash
-# Verify a shell script split into lib/*.sh: syntax, lint, libs reachable.
+#!/bin/bash
+# Prove a shell split moved every function verbatim.
 #
-# Usage: verify_shell_split.sh <script> <function> [function...]
+# Extracts each top-level `name() {` block from the pre-split file at a git rev
+# and from the post-split files, normalises both through `shfmt -mn`
+# (minify: strips comments and indentation, keeps logic), and asserts the set
+# of function bodies is identical. Formatting-blind, logic-sensitive.
 #
-# The stubbed run is the part that matters. bash -n and shellcheck both pass on
-# a script whose `source` line resolves to nothing, so this mirrors the repo
-# tree into a temp dir, replaces the final `main "$@"` with a probe that only
-# checks the named functions are defined, and runs that. Nothing else executes,
-# which is what makes it safe for installers and enforcement scripts.
-#
-# Across 18 splits it caught five bugs no static check did: SCRIPT_DIR computed
-# from $0, a redeclared readonly SCRIPT_DIR, a source line displaced by a second
-# split, and two libs sourcing a sibling. See docs/shell-split-recipes.md.
-#
-# Only works when the script ends in `main "$@"` or `main`. Scripts that run
-# top-level statements need the by-hand checks in that doc instead.
+# Usage: verify_shell_split.sh <rev> <old-path> <new-path>...
 
 set -euo pipefail
 
-script="$1"
-shift
-required_funcs=("$@")
+readonly REV="$1"
+readonly OLD_PATH="$2"
+shift 2
 
-dir="$(dirname "$script")"
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
 
-echo "--- $(basename "$script")"
-for lib in "$dir"/lib/*.sh; do
-	[[ -e $lib ]] || continue
-	# bash -n first: a split landing inside a heredoc produces a file the
-	# linter only warns about (SC1094 in the caller) but which bash rejects.
-	bash -n "$lib" || {
-		echo "  $lib does not parse -- the split probably cut inside a heredoc" >&2
-		exit 1
-	}
-	shellcheck "$lib" || exit 1
-done
-bash -n "$script" || exit 1
-shellcheck -x "$script" || exit 1
+# Write "<name>\t<shfmt-minified body hash>" for every top-level function.
+extract_functions() {
+    local src="$1" out="$2"
+    awk '
+        /^[a-zA-Z_][a-zA-Z0-9_]*\(\)[[:space:]]*\{/ {
+            name = $0; sub(/\(\).*/, "", name); gsub(/[[:space:]]/, "", name)
+            depth = 0; body = ""
+            inside = 1
+        }
+        inside {
+            body = body $0 "\n"
+            depth += gsub(/\{/, "{")
+            depth -= gsub(/\}/, "}")
+            if (depth <= 0) {
+                printf "%s\x01%s\x02", name, body
+                inside = 0
+            }
+        }
+    ' "$src" > "$TMP_DIR/raw"
 
-dollar='$'
-grep -q "source \"${dollar}SCRIPT_DIR/" "$script" || {
-	echo "no source line found" >&2
-	exit 1
+    : > "$out"
+    while IFS= read -r -d $'\x02' record; do
+        [[ -z "$record" ]] && continue
+        local fname="${record%%$'\x01'*}"
+        local fbody="${record#*$'\x01'}"
+        local norm
+        norm="$(printf '%s' "$fbody" | shfmt -mn 2>/dev/null | sha256sum | cut -d' ' -f1)"
+        printf '%s\t%s\n' "$fname" "$norm" >> "$out"
+    done < "$TMP_DIR/raw"
+    sort -o "$out" "$out"
 }
 
-# Mirror the repo tree so repo-relative sources (../../lib/common.sh) resolve.
-repo="$(git -C "$dir" rev-parse --show-toplevel)"
-rel="$(realpath --relative-to="$repo" "$script")"
-mkdir -p "$tmp/$(dirname "$rel")"
-cp -r "$repo/linux_configuration/scripts/lib" "$tmp/linux_configuration/scripts/" 2>/dev/null || true
-cp "$script" "$tmp/$rel"
-[[ -d "$dir/lib" ]] && cp -r "$dir/lib" "$tmp/$(dirname "$rel")/"
-entry="$tmp/$rel"
+git show "$REV:$OLD_PATH" > "$TMP_DIR/before.sh"
+extract_functions "$TMP_DIR/before.sh" "$TMP_DIR/before.txt"
 
-probe='for f in'
-for f in "${required_funcs[@]}"; do probe+=" $f"; done
-probe+="; do declare -F \"${dollar}f\" >/dev/null || { echo \"MISSING: ${dollar}f\"; exit 1; }; done"
-probe+='; echo "  libs sourced, functions defined"'
+: > "$TMP_DIR/after_all.sh"
+for f in "$@"; do cat "$f" >> "$TMP_DIR/after_all.sh"; printf '\n' >> "$TMP_DIR/after_all.sh"; done
+extract_functions "$TMP_DIR/after_all.sh" "$TMP_DIR/after.txt"
 
-python3 - "$entry" "$probe" <<'PY'
-import sys
-from pathlib import Path
-p, probe = Path(sys.argv[1]), sys.argv[2]
-out = [probe + "\n" if l.rstrip() in ('main "$@"', "main") else l
-       for l in p.read_text().splitlines(keepends=True)]
-p.write_text("".join(out))
-PY
-bash "$entry"
+before_count="$(wc -l < "$TMP_DIR/before.txt")"
+if diff -u "$TMP_DIR/before.txt" "$TMP_DIR/after.txt" > "$TMP_DIR/diff.txt"; then
+    echo "IDENTICAL: all ${before_count} top-level functions moved verbatim"
+    exit 0
+fi
+echo "DIFFERENCE FOUND (- before / + after):"
+grep -E '^[+-][a-zA-Z_]' "$TMP_DIR/diff.txt" || cat "$TMP_DIR/diff.txt"
+exit 1
