@@ -1,0 +1,18 @@
+{
+  "title": "Split usage_report.py into an entry point plus three concern modules",
+  "objective": "usage_report.py was 426 lines against a 250-line cap, the last over-cap file in its directory. The preceding commit took it from 47% to 100% coverage so this split could be verified against tests that predate the seam. Success means the entry point keeps only argument parsing and dispatch, the three extracted modules each hold one concern, every moved definition is provably unchanged, coverage stays at 100% everywhere, and both CLI modes still produce a real report.",
+  "acceptance_criteria": [
+    "usage_report.py is under 250 lines and the over-cap total drops (38 -> 37)",
+    "Every moved top-level def and class is AST-identical to its HEAD version",
+    "All four resulting modules hold 100% line and branch coverage",
+    "The test count is 204 both before and after",
+    "Every test names the module that owns the symbol it patches - no reaching a moved function through the module it left",
+    "Both `usage_report.py --date <today>` and `--since <today>` produce a report from the machine's real logs"
+  ],
+  "out_of_scope": [
+    "meta/scripts/optimize_vscode.py (498) and the three transcribe_* files, still over cap and untested",
+    "Deleting the dead _compute_window shim, still carried for backwards import compatibility with no callers",
+    "Any behaviour change to the report or the CLI surface"
+  ],
+  "verifier": "An AST comparison script for the verbatim-move claim; pytest with --cov of all four modules and --cov-branch; check_file_length.sh --all for the cap; both CLI modes run against the real logs; pre-commit run --files for lint."
+}

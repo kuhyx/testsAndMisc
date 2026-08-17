@@ -1,0 +1,53 @@
+{
+  "intent": "Split usage_report.py (426 lines, over the 250 cap) into an entry point plus three concern-shaped modules, verified by the 100%-coverage tests from the preceding commit.",
+  "scope": [
+    "usage_report.py 426 -> 101 (argument parser, mode dispatch, main)",
+    "New _usage_report_logs.py 117 (log discovery, the report-state file, per-day segment planning, log descriptions)",
+    "New _usage_report_emit.py 68 (preflight checks, stdout emission, clipboard)",
+    "New _usage_report_run.py 195 (the two run paths and the aggregation they drive)",
+    "Test files rewired to name the owning module for every moved symbol",
+    "Non-goal: any behaviour change"
+  ],
+  "changes": [
+    "Extracted three modules along concern boundaries: where the logs are and which slices to read; how the finished report leaves the process; and the two runs that tie those together. usage_report.py keeps only _is_single_day_mode, _build_parser and main.",
+    "_Segment moved to the logs module and _Aggregates to the run module, each next to the code that builds it.",
+    "_should_advance_state and _build_parser were relocated mid-split when the first placement created a cycle: _run_since needs the former, and the latter belongs with main. Both are AST-identical to HEAD wherever they landed.",
+    "Rewired every test reference to name the owning module. This was the bulk of the work and the source of every failure along the way: monkeypatch.setattr must target the module whose namespace resolves the name, which is the caller's module for an imported function. Patching run._run_since instead of usage_report._run_since made main() call the real function, which hit the machine's actual atop logs and hung the suite - fixed by patching where main resolves it."
+  ],
+  "verification": [
+    {
+      "command": "AST comparison of every top-level def and class against HEAD",
+      "result": "pass",
+      "evidence": "'compared: 22, mismatches: 0'. Every function and both dataclasses are AST-identical to their pre-split form across the four modules, so nothing was rewritten while being moved."
+    },
+    {
+      "command": "pytest linux_configuration/tests/ --cov of all four modules --cov-branch",
+      "result": "pass",
+      "evidence": "usage_report.py 25 stmts / 2 branches, _usage_report_logs.py 56 / 8, _usage_report_emit.py 29 / 10, _usage_report_run.py 91 / 24 - all 100%, zero missed statements and zero partial branches. 204 passed, the identical count to before the split."
+    },
+    {
+      "command": "python usage_report.py --date <today> and --since <today>",
+      "result": "pass",
+      "evidence": "Both entry points produced full reports from the machine's real logs (35 atop samples, 11988 pmon samples). Running both matters here because the split separated the two run paths into a new module; the unit tests stub their collaborators, so only a real run proves the import graph resolves at runtime."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "38 over-cap files before, 37 after. usage_report.py is off the list and all four modules are well under 250 (101/117/68/195)."
+    },
+    {
+      "command": "pre-commit run --files <all changed source and test files>",
+      "result": "pass",
+      "evidence": "All hooks pass after ruff auto-fixed 14 import-ordering findings created by the mechanical move. Coverage was re-measured after those fixes and still reports 100% on all four modules with 204 passing."
+    }
+  ],
+  "risks": [
+    "This split moved far more than the previous two and took several corrective passes: two names had to be relocated after their first placement created an import cycle, and four modules' worth of monkeypatch targets had to be re-pointed. Each step was verified, but a smaller first cut would have been cheaper - worth remembering for optimize_vscode.py, which is the next 498-line target.",
+    "Three source-level bugs were introduced and caught by the tests during the split: Path and _fmt_h left under TYPE_CHECKING while used at runtime, and dataclass missing where _Aggregates landed. All three were import-only and would have failed at first call; the 100% coverage from the previous commit is what surfaced them immediately.",
+    "_usage_report_run.py at 195 lines is the largest of the four and holds both run paths plus the aggregation helpers. If it grows, _aggregate_segments and _Aggregates are the natural next seam."
+  ],
+  "rollback": [
+    "git revert the commit. usage_report.py returns to 426 lines with everything in it, the three new modules disappear, and the test files return to referencing usage_report for every symbol.",
+    "After rollback, confirm pytest linux_configuration/tests reports 204 passed and that both `usage_report.py --date <today>` and `--since <today>` still produce reports."
+  ]
+}
