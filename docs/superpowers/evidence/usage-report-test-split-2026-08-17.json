@@ -1,0 +1,51 @@
+{
+  "intent": "Bring linux_configuration/tests/test_usage_report_since.py (480 lines) under the repo-wide 250-line cap without losing a single test.",
+  "scope": [
+    "linux_configuration/tests/test_usage_report_since.py — reduced to pmon timestamp filtering, atop command bounding, the persisted last-report state, and day-segment planning",
+    "linux_configuration/tests/test_usage_report_merge.py — new: aggregate merging, window merging, PID-count carry-over",
+    "linux_configuration/tests/test_usage_report_modes.py — new: start resolution, run-mode dispatch, report fragments, PRC HZ-field regression, native-helper selection",
+    "Non-goal: adding, deleting or weakening any assertion; all thirty are carried across verbatim",
+    "Non-goal: splitting the usage_report *source* files, which this session's coverage measurement rules out (see risks)"
+  ],
+  "changes": [
+    "Split the thirty tests three ways along the file's own section banners, which already grouped them by concern. The result is one file per theme rather than an arbitrary cut at a line number.",
+    "Rebuilt each file's import block from what that file actually uses, rather than copying the original's superset. The _at helper and its _LOCAL_TZ constant are duplicated into the two files that construct datetimes, since a shared conftest fixture would have been a larger change than the split itself.",
+    "Ruff auto-fixed one TC002 (typing-only-third-party-import) in the modes file during the gate run; that fix is included."
+  ],
+  "verification": [
+    {
+      "command": "pytest on all three files",
+      "result": "pass",
+      "evidence": "30 passed. 6 + 13 + 11 = 30, exactly the pre-split count. That sum is the discriminating check for a test split: a dropped test, or a file that failed to import and silently collected nothing, would lower the total while the run still reported success."
+    },
+    {
+      "command": "Mutation check: a copy of test_usage_report_modes.py with one assertion negated",
+      "result": "pass",
+      "evidence": "1 failed, 10 passed — the negated assertion fails as it must. This proves the split files are not vacuously green and that pytest is genuinely collecting and executing the moved bodies."
+    },
+    {
+      "command": "pre-commit run --files on all three files",
+      "result": "pass",
+      "evidence": "Every hook passes, including ruff with select = [\"ALL\"], mypy and pylint. Zero suppressions added — the one finding ruff raised was auto-fixed, not silenced."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "test_usage_report_since.py 186, test_usage_report_merge.py 145, test_usage_report_modes.py 178 — none appears in the over-cap listing, down from a single 480-line file."
+    },
+    {
+      "command": "Coverage measurement of the usage_report source files, run before choosing this target",
+      "result": "fail",
+      "evidence": "pytest --cov over the three usage_report test files reports _usage_report_render.py 21%, usage_report.py 47%, _usage_report_parsing.py 39%. Those source files are therefore NOT split in this commit: at that coverage a split would relocate code no test executes and the suite would pass either way. Only the test file itself, which is self-verifying by test count, was in scope."
+    }
+  ],
+  "risks": [
+    "The _at helper and _LOCAL_TZ are now duplicated in two files. A conftest.py fixture would avoid that, but conftest changes affect every test in the directory and would have widened this commit well beyond a file split.",
+    "These tests import the usage_report modules by bare name (import usage_report), which works because of the existing conftest path setup in linux_configuration/tests. All three files inherit it identically; none adds a new path manipulation.",
+    "The over-cap usage_report SOURCE files remain over-cap and are now the only usage_report entries in the listing. They stay that way until their coverage improves enough for a split to be verifiable."
+  ],
+  "rollback": [
+    "git revert the commit — one edited file and two added files, with no data, config or schema migration.",
+    "After rollback, re-run pytest linux_configuration/tests/test_usage_report_since.py; expect 30 passed from the single file."
+  ]
+}
