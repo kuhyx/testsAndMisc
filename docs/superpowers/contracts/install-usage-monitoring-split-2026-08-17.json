@@ -1,0 +1,18 @@
+{
+  "title": "Split install_usage_monitoring.sh under the 250-line cap",
+  "objective": "Bring linux_configuration/scripts/periodic_background/system-maintenance/bin/install_usage_monitoring.sh (290 lines) under the repo-wide 250-line file cap by moving its five banner-marked steps into a sibling lib/ directory, with byte-identical runtime behaviour proven by an executed before/after trace rather than by inspection.",
+  "acceptance_criteria": [
+    "install_usage_monitoring.sh and all five new lib/*.sh files are each at most 250 lines.",
+    "meta/scripts/trace_shell_split.sh --prefix produces an identical trace before and after the split: same exit status, same stubbed calls in the same order, and all five generated-file content hashes unchanged (notably usage-report-catchup.sh at sha=9f4803ab157c5527, which is where a wrong REPO_DIR would show up).",
+    "linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh still passes with all five of its property assertions unchanged.",
+    "shellcheck clean and shfmt clean on all seven touched files, with no suppression added -- no # shellcheck disable, no per-file ignores.",
+    "The verification runs write nothing outside the trace prefix: ~/.config/systemd/user/ and ~/.local/bin/ mtimes still read May 2026."
+  ],
+  "out_of_scope": [
+    "Any behaviour change, including 'tidying' the absolute path in the final log line into a relative one.",
+    "Weakening or rewriting the five property assertions in the efficiency test; only its INSTALLER path and the whitespace-tolerance of its extraction anchor may change.",
+    "Wiring the file-length pre-commit hook -- it must land last, once check_file_length.sh --all exits 0.",
+    "Fixing the pre-existing repo-wide jscpd overage caused by vendored .venv site-packages."
+  ],
+  "verifier": "meta/scripts/trace_shell_split.sh install_usage_monitoring.sh --prefix <fresh-empty-dir> captured at HEAD in place and again after the split, then diff of the two traces (must be empty); bash linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh; shellcheck and shfmt -d on all seven files; bash ~/utils/scripts/check_file_length.sh --all for the cap itself; ls -la on ~/.local/bin and ~/.config/systemd/user to confirm the live system was untouched."
+}

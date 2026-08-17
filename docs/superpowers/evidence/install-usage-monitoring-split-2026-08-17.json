@@ -1,0 +1,64 @@
+{
+  "intent": "Bring install_usage_monitoring.sh under the 250-line cap by splitting its five steps into a sibling lib/, without changing what the installer does to a machine.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/system-maintenance/bin/install_usage_monitoring.sh (290 -> 53 lines)",
+    "New: bin/lib/{distro_detect,packages,system_services,nvidia_pmon,catchup_timer}.sh",
+    "linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh (INSTALLER path + whitespace-tolerant anchor)",
+    "Non-goal: any behaviour change; the trace is the assertion that there is none",
+    "Non-goal: wiring the file-length hook, or the pre-existing jscpd venv overage"
+  ],
+  "changes": [
+    "Moved the five banner-marked sections into lib/ files sourced by the entry script, each wrapped in a named function called in the original order.",
+    "REPO_DIR is computed once in the entry script from its own SCRIPT_DIR and read as a global by catchup_timer.sh, rather than recomputed at a lib's directory depth -- recomputing would have silently interpolated the wrong repo root into the generated catch-up script while still exiting 0.",
+    "Entry SCRIPT_DIR uses readlink -f on ${BASH_SOURCE[0]} so a symlinked entry point still resolves lib/; the final log line's usage_report.py path is built from that same value so it keeps pointing at bin/, not bin/lib/.",
+    "The PKG_* associative arrays stay at lib top level, since `declare -A` inside a function is local and would make every pkg_name lookup return empty.",
+    "resolve_and_install_packages ends its bare `[[ -n $clip ]] && pkgs+=(...)` conditional with `|| true` so a false tail cannot become the function's return value under set -e.",
+    "Repointed the efficiency test's INSTALLER at lib/nvidia_pmon.sh (which now holds the heredoc it greps) and made its awk extraction anchor whitespace-insensitive, because the repo's pre-commit hook runs `shfmt -w` on staged shell files and rewrites `cat > \"x\" << 'SCRIPT'` to `cat >\"x\" <<'SCRIPT'`. All five property assertions are unchanged."
+  ],
+  "verification": [
+    {
+      "command": "meta/scripts/trace_shell_split.sh install_usage_monitoring.sh --prefix /tmp/pfx-before --out /tmp/before.txt (at HEAD, in place at the real repo path)",
+      "result": "pass",
+      "evidence": "exit 0; 11 stubbed calls; 5 files written matching the brief's recorded baseline byte for byte, including usage-report-catchup.sh size=757 sha=9f4803ab157c5527"
+    },
+    {
+      "command": "meta/scripts/trace_shell_split.sh install_usage_monitoring.sh --prefix /tmp/pfx-after2 --out /tmp/after2.txt; diff /tmp/before.txt /tmp/after2.txt",
+      "result": "pass",
+      "evidence": "Empty diff on the post-shfmt split: identical exit status, identical ordered stubbed calls, and all five content hashes unchanged. Each run used a fresh nonexistent prefix."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh",
+      "result": "pass",
+      "evidence": "'Usage monitoring installer efficiency tests passed.' -- all five assertions (no read -t busy-loop, sleeps to day boundary, blocks on wait, printf date builtin, no external date) run against the relocated heredoc."
+    },
+    {
+      "command": "shellcheck + shfmt -d on all seven touched files",
+      "result": "pass",
+      "evidence": "No shellcheck findings and no shfmt diff on any of the seven, after applying shfmt -w so the committed state equals what the pre-commit hook produces."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "None of the six files appear in the over-cap list. Line counts: entry 53, catchup_timer 82, nvidia_pmon 89, packages 73, distro_detect 36, system_services 20."
+    },
+    {
+      "command": "jscpd --pattern '**/*.sh' --min-lines 14 --threshold 2, run at HEAD in a clean worktree and again with the split applied",
+      "result": "pass",
+      "evidence": "27 clones / 1.47% in both cases -- the split adds zero duplication. The 2.51% seen from the main working tree is entirely vendored .venv and .ci-mirror-venv site-packages (tqdm/completion.sh, virtualenv activate.sh), pre-existing and unrelated."
+    },
+    {
+      "command": "ls -la ~/.local/bin/{nvidia-pmon-logger,usage-report-catchup}.sh ~/.config/systemd/user/nvidia-pmon.service",
+      "result": "pass",
+      "evidence": "mtimes still May 1 and May 6 2026 after every trace run -- no write escaped the prefix into the live system."
+    }
+  ],
+  "risks": [
+    "The efficiency test greps a lib's source text, so moving the pmon heredoc again -- or reformatting it -- will break extraction rather than an assertion. The lib header says so and the anchor is now whitespace-tolerant, but a rename of lib/nvidia_pmon.sh still requires updating the test's INSTALLER in the same commit.",
+    "REPO_DIR is a global read across a seam. A future lib that shadows it with `local` would change the generated catch-up script's contents while the installer still exits 0; only the trace hash catches that.",
+    "The installer was verified under trace stubs, not by a real run against a live machine, so package-manager behaviour on non-Arch families remains as untested as it was before the split."
+  ],
+  "rollback": [
+    "git revert the commit; the entry script returns to its 290-line form and lib/ disappears. The generated artifacts on disk are unaffected either way, since neither form was ever executed against the live system here.",
+    "After reverting, re-run bash linux_configuration/tests/test_usage_monitoring_installer_efficiency.sh -- it must still print the passed line, since the revert restores both the heredoc location and the original INSTALLER path together."
+  ]
+}
