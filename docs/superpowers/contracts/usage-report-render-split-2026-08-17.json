@@ -1,0 +1,18 @@
+{
+  "title": "Split _usage_report_render.py along a functional seam",
+  "objective": "_usage_report_render.py was 310 lines against a 250-line cap. The preceding commit took it from 21% to 100% line and branch coverage precisely so this split could be verified against tests that predate the seam. Success means the file drops under the cap, every moved function is provably unchanged, coverage stays at 100%, the test count is identical, and the program still generates a real report.",
+  "acceptance_criteria": [
+    "_usage_report_render.py is under 250 lines and the over-cap total drops (41 -> 39)",
+    "Every moved function is AST-identical to its HEAD version - verbatim movement, not a rewrite",
+    "All three resulting modules hold 100% line and branch coverage, matching the pre-split single-file figure",
+    "The test count is exactly 43 both before and after, summed across the split test files, so no test was lost to a collection glob",
+    "usage_report.py still runs and produces a complete report from the machine's real atop/pmon logs",
+    "No suppression of any kind, and no re-export barrel in _usage_report_render"
+  ],
+  "out_of_scope": [
+    "_usage_report_parsing.py and usage_report.py, both still 425 lines and over cap - each needs its own coverage-first commit",
+    "Any behaviour change to the report output",
+    "The pacman_wrapper.sh source-text test rewrite and the installer deploy-lib work, which are separate tasks in this session's brief"
+  ],
+  "verifier": "python3 scratchpad/verify_split.py for the AST-identity claim; pytest linux_configuration/tests with --cov of the three modules and --cov-branch for coverage; pytest --collect-only per file for the test count; python usage_report.py --date <today> for the runtime check; check_file_length.sh --all for the cap; pre-commit run --files for lint."
+}
