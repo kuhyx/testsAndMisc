@@ -51,8 +51,12 @@ describe("usePuzzleGameLoop play", () => {
     flushTick(); // tick 0: spawn, move, caught, flash, allDone → setResult
 
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caughtPieces).toHaveLength(1);
-    expect(result.current!.missedPieces).toHaveLength(0);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caughtPieces).toHaveLength(1);
+    expect(settled.missedPieces).toHaveLength(0);
   });
 
   it("misses piece (still-falling + missed branches)", async () => {
@@ -77,8 +81,12 @@ describe("usePuzzleGameLoop play", () => {
     }
 
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caughtPieces).toHaveLength(0);
-    expect(result.current!.missedPieces).toHaveLength(1);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caughtPieces).toHaveLength(0);
+    expect(settled.missedPieces).toHaveLength(1);
   });
 
   it("tests flash-during and flash-expired branches with 2 pieces", async () => {
@@ -114,8 +122,12 @@ describe("usePuzzleGameLoop play", () => {
     }
 
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caughtPieces).toHaveLength(1);
-    expect(result.current!.missedPieces).toHaveLength(1);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caughtPieces).toHaveLength(1);
+    expect(settled.missedPieces).toHaveLength(1);
   });
 
   it("uses drawImage when piece image is loaded (img.complete=true branch)", async () => {

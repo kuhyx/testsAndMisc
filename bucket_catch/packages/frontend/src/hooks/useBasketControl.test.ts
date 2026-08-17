@@ -4,8 +4,9 @@ import { fireEvent } from "@testing-library/react";
 import type React from "react";
 import { useBasketControl } from "./useBasketControl";
 
-const makeRef = <T>(val: T): React.RefObject<T> =>
-  ({ current: val }) as React.RefObject<T>;
+const makeRef = <T>(val: T): React.RefObject<T> => ({
+  current: val,
+});
 
 describe("useBasketControl", () => {
   it("initialises basket x to half of window.innerWidth", () => {

@@ -10,8 +10,9 @@ import type { PuzzlePiece } from "../types";
  * the 100% gate.
  */
 
-export const makeRef = <T>(val: T): React.RefObject<T> =>
-  ({ current: val }) as React.RefObject<T>;
+export const makeRef = <T>(val: T): React.RefObject<T> => ({
+  current: val,
+});
 
 export const makePiece = (row: number, col: number): PuzzlePiece => ({
   row,

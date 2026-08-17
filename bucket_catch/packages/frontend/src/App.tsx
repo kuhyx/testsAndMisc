@@ -65,7 +65,7 @@ export default function App(): React.ReactElement {
     if (mode === "puzzle") {
       return (
         <PuzzleCanvas
-          imageFile={files[0]!}
+          imageFile={files[0]}
           gridSize={puzzleGridSize}
           onDone={handlePuzzleDone}
         />

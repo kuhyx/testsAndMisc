@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { MockInstance } from "vitest";
 import { sliceImage } from "./sliceImage";
 
 // Captures the last Image instance created so tests can trigger onload/onerror.
@@ -22,10 +23,14 @@ class FakeImage {
 }
 
 describe("sliceImage", () => {
+  let revokeUrlSpy: MockInstance<typeof URL.revokeObjectURL>;
+
   beforeEach(() => {
     vi.stubGlobal("Image", FakeImage);
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
-    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    revokeUrlSpy = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -44,7 +49,7 @@ describe("sliceImage", () => {
     expect(pieces).toHaveLength(4); // 2×2 grid
     expect(pieces[0]).toMatchObject({ row: 0, col: 0, gridSize: 2 });
     expect(pieces[3]).toMatchObject({ row: 1, col: 1, gridSize: 2 });
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+    expect(revokeUrlSpy).toHaveBeenCalledWith("blob:mock");
   });
 
   it("includes pieceWidth and pieceHeight from image dimensions", async () => {
@@ -74,7 +79,7 @@ describe("sliceImage", () => {
     const promise = sliceImage(file, 1);
     capturedImg.onload?.();
     await expect(promise).rejects.toThrow("Canvas 2D context not available");
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+    expect(revokeUrlSpy).toHaveBeenCalledWith("blob:mock");
 
     // Restore so subsequent tests in this file have the mock context
     HTMLCanvasElement.prototype.getContext = savedImpl;
@@ -85,6 +90,6 @@ describe("sliceImage", () => {
     const promise = sliceImage(file, 2);
     capturedImg.onerror?.();
     await expect(promise).rejects.toThrow("Failed to load image for slicing");
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+    expect(revokeUrlSpy).toHaveBeenCalledWith("blob:mock");
   });
 });

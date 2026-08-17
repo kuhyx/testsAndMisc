@@ -129,9 +129,10 @@ describe("PuzzleResult", () => {
     const imgs = container.querySelectorAll("img");
     expect(imgs).toHaveLength(2);
     // The grid div has inline style with gridTemplateColumns; its non-img children are holes
-    const gridEl = container.querySelector(
-      '[style*="repeat"]',
-    ) as HTMLElement;
+    const gridEl = container.querySelector('[style*="repeat"]');
+    if (!(gridEl instanceof HTMLElement)) {
+      throw new Error("expected to find the puzzle grid element");
+    }
     const holeDivs = Array.from(gridEl.children).filter(
       (c) => c.tagName === "DIV",
     );

@@ -3,8 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import type React from "react";
 import { useGameLoop } from "./useGameLoop";
 
-const makeRef = <T>(val: T): React.RefObject<T> =>
-  ({ current: val }) as React.RefObject<T>;
+const makeRef = <T>(val: T): React.RefObject<T> => ({ current: val });
 
 describe("useGameLoop", () => {
   let rafCallbacks: FrameRequestCallback[];
@@ -88,8 +87,12 @@ describe("useGameLoop", () => {
 
     flushTick(); // allDone=true on first frame → setResult
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caught).toHaveLength(0);
-    expect(result.current!.missed).toHaveLength(0);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caught).toHaveLength(0);
+    expect(settled.missed).toHaveLength(0);
   });
 
   it("catches file and resolves result (caught branch + caught-draw branch)", async () => {
@@ -114,8 +117,12 @@ describe("useGameLoop", () => {
     flushTick(); // tick 1: draw caught + allDone=true → setResult
 
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caught).toHaveLength(1);
-    expect(result.current!.missed).toHaveLength(0);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caught).toHaveLength(1);
+    expect(settled.missed).toHaveLength(0);
   });
 
   it("misses file (still-falling + missed branches)", async () => {
@@ -142,8 +149,12 @@ describe("useGameLoop", () => {
     }
 
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caught).toHaveLength(0);
-    expect(result.current!.missed).toHaveLength(1);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caught).toHaveLength(0);
+    expect(settled.missed).toHaveLength(1);
   });
 
   it("does not start RAF when canvas.getContext returns null", () => {
@@ -187,7 +198,11 @@ describe("useGameLoop", () => {
     }
 
     await waitFor(() => { expect(result.current).not.toBeNull(); });
-    expect(result.current!.caught).toHaveLength(2);
-    expect(result.current!.missed).toHaveLength(0);
+    const settled = result.current;
+    if (settled === null) {
+      throw new Error('result never settled');
+    }
+    expect(settled.caught).toHaveLength(2);
+    expect(settled.missed).toHaveLength(0);
   });
 });

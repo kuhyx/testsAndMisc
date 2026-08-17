@@ -85,8 +85,10 @@ export function usePuzzleGameLoop(
           scheduleRef.current.length > 0 &&
           frame >= scheduleRef.current[0].spawnFrame
         ) {
-          // while condition guarantees length > 0, so shift() is always defined
-          const s = scheduleRef.current.shift()!;
+          // The while condition already indexes [0] unasserted, so this is
+          // the same non-null value; shift() only advances the queue.
+          const s = scheduleRef.current[0];
+          scheduleRef.current.shift();
           activeItemsRef.current.push({
             kind: "puzzle",
             id: `puzzle-${s.piece.row}-${s.piece.col}`,

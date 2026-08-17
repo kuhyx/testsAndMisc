@@ -39,7 +39,7 @@ describe("ScoreScreen", () => {
     expect(screen.getByText("Missed")).toBeInTheDocument();
   });
 
-  it("shows download button for download mode with multiple files", async () => {
+  it("shows download button for download mode with multiple files", () => {
     render(
       <ScoreScreen result={result1} mode="download" onRestart={() => undefined} />,
     );

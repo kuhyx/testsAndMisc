@@ -5,6 +5,20 @@ import { DropZone } from "./DropZone";
 const makeFile = (name: string, type = "text/plain"): File =>
   new File(["x"], name, { type });
 
+/**
+ * Query one element and narrow it, failing the test if it is absent.
+ *
+ * Both `as HTMLElement` and `!` are rejected here - the former by
+ * non-nullable-type-assertion-style, the latter by no-non-null-assertion - so
+ * the narrowing is done with a real check that also gives a useful message.
+ */
+const must = (el: Element | null, what: string): HTMLElement => {
+  if (!(el instanceof HTMLElement)) {
+    throw new Error(`expected to find ${what}`);
+  }
+  return el;
+};
+
 describe("DropZone", () => {
   it("renders title and subtitle", () => {
     render(<DropZone onFiles={() => undefined} onPuzzle={() => undefined} />);
@@ -23,7 +37,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={() => undefined} />,
     );
-    const zone = container.firstChild as HTMLElement;
+    const zone = must(
+      container.firstChild as Element | null,
+      "the drop zone",
+    );
     expect(zone.className).not.toContain("dragging");
     fireEvent.dragOver(zone);
     expect(zone.className).toContain("dragging");
@@ -36,7 +53,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const zone = container.firstChild as HTMLElement;
+    const zone = must(
+      container.firstChild as Element | null,
+      "the drop zone",
+    );
     const f1 = makeFile("a.txt");
     const f2 = makeFile("b.txt");
     fireEvent.drop(zone, { dataTransfer: { files: [f1, f2] } });
@@ -48,7 +68,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={() => undefined} />,
     );
-    const zone = container.firstChild as HTMLElement;
+    const zone = must(
+      container.firstChild as Element | null,
+      "the drop zone",
+    );
     fireEvent.drop(zone, { dataTransfer: { files: [makeFile("a.txt")] } });
     expect(screen.getByText("1 file ready")).toBeInTheDocument();
   });
@@ -58,7 +81,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const zone = container.firstChild as HTMLElement;
+    const zone = must(
+      container.firstChild as Element | null,
+      "the drop zone",
+    );
     fireEvent.drop(zone, { dataTransfer: { files: [] } });
     expect(onFiles).not.toHaveBeenCalled();
   });
@@ -68,9 +94,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const fileInput = container.querySelector(
+    const fileInput = must(
+      container.querySelector("input[type='file'][multiple]"),
       "input[type='file'][multiple]",
-    ) as HTMLInputElement;
+    );
     const file = makeFile("c.txt");
     Object.defineProperty(fileInput, "files", {
       value: [file],
@@ -85,9 +112,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const fileInput = container.querySelector(
+    const fileInput = must(
+      container.querySelector("input[type='file'][multiple]"),
       "input[type='file'][multiple]",
-    ) as HTMLInputElement;
+    );
     Object.defineProperty(fileInput, "files", {
       value: [],
       configurable: true,
@@ -101,9 +129,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const fileInput = container.querySelector(
+    const fileInput = must(
+      container.querySelector("input[type='file'][multiple]"),
       "input[type='file'][multiple]",
-    ) as HTMLInputElement;
+    );
     Object.defineProperty(fileInput, "files", {
       value: null,
       configurable: true,
@@ -117,9 +146,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={onPuzzle} />,
     );
-    const puzzleInput = container.querySelector(
+    const puzzleInput = must(
+      container.querySelector("input[accept='image/*']"),
       "input[accept='image/*']",
-    ) as HTMLInputElement;
+    );
     const imgFile = makeFile("photo.png", "image/png");
     Object.defineProperty(puzzleInput, "files", {
       value: [imgFile],
@@ -134,9 +164,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={onPuzzle} />,
     );
-    const puzzleInput = container.querySelector(
+    const puzzleInput = must(
+      container.querySelector("input[accept='image/*']"),
       "input[accept='image/*']",
-    ) as HTMLInputElement;
+    );
     Object.defineProperty(puzzleInput, "files", {
       value: null,
       configurable: true,
@@ -150,9 +181,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={onPuzzle} />,
     );
-    const puzzleInput = container.querySelector(
+    const puzzleInput = must(
+      container.querySelector("input[accept='image/*']"),
       "input[accept='image/*']",
-    ) as HTMLInputElement;
+    );
     Object.defineProperty(puzzleInput, "files", {
       value: [],
       configurable: true,
@@ -165,9 +197,10 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={() => undefined} />,
     );
-    const puzzleInput = container.querySelector(
+    const puzzleInput = must(
+      container.querySelector("input[accept='image/*']"),
       "input[accept='image/*']",
-    ) as HTMLInputElement;
+    );
     const clickSpy = vi.spyOn(puzzleInput, "click").mockImplementation(
       () => undefined,
     );
@@ -208,9 +241,10 @@ describe("DropZone", () => {
       <DropZone onFiles={() => undefined} onPuzzle={onPuzzle} />,
     );
     fireEvent.click(screen.getByText("3×3")); // change gridSize to 3
-    const puzzleInput = container.querySelector(
+    const puzzleInput = must(
+      container.querySelector("input[accept='image/*']"),
       "input[accept='image/*']",
-    ) as HTMLInputElement;
+    );
     const imgFile = makeFile("img.png", "image/png");
     Object.defineProperty(puzzleInput, "files", {
       value: [imgFile],
