@@ -134,3 +134,33 @@ Run before designing any seam, per the section above. `deploy.sh` copies a
   `pacman_wrapper.sh`, `generate_study_materials.sh`,
   `check_and_enable_services.sh`, `setup_midnight_shutdown.sh`) — no deployed
   copy found, so an entry+`lib/` shape is safe.
+
+### A lib must contain the readers of every global it assigns
+
+`install_pacman_wrapper.sh:29` records the constraint: a **definitions-only**
+lib "assigns without referencing, which is SC2034, and the repo forbids
+suppressions." The rule that follows from it is not "assignments stay in the
+entry script" — it is that a file must not assign a variable it never reads.
+A lib holding both the writer and its readers is clean.
+
+Getting this inverted is easy and costs several revert cycles.
+`libre_translate.sh` was split with `parse_args` (the writer) left in the entry
+and `health_check` / `sample_request` / `start_container_ephemeral` (the
+readers) moved to the lib — the worst of both, and SC2034 fired on nine
+globals. The fix is to colocate: move the writer **and** its consumers into the
+same file.
+
+The pre-commit hook is `shellcheck` with **no `-x`**, so each file is analysed
+standalone and a `# shellcheck source=` directive will not make the checker
+follow the link. Verify by running `shellcheck <lib>` on its own before
+committing; the hook will not be any more forgiving.
+
+This is the shell analogue of the `monkeypatch.setattr` target trap: the
+question is always which file's namespace owns the name.
+
+**`libre_translate.sh` (488) is parked.** What remains after its clean seams
+are taken is `parse_args` (111 lines), `write_env_file`, `detect_container_user`
+and `main`, which between them assign and read the same configuration globals.
+Getting the entry under the cap needs `parse_args` restructured rather than
+relocated — a refactor, not a verbatim move, so it is out of scope for this
+method. Attempt it with a test harness, or accept an entry that stays over.

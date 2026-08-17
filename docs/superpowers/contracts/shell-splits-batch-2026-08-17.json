@@ -1,0 +1,17 @@
+{
+  "title": "Split three more over-cap shell scripts",
+  "objective": "clean_audio.sh, enforce_vbox_hosts.sh and migrate_hosts_guard_to_guard_lib.sh are over the 250-line cap with no deployed copy, so the entry+lib shape is safe. Move each script's work functions into libraries beside it, verbatim, leaving the entry owning the CLI, the ordering and the globals it assigns.",
+  "acceptance_criteria": [
+    "All seven resulting files are under 250 lines; the over-cap total falls 29 -> 26",
+    "Every top-level function is verbatim, proved by meta/scripts/verify_shell_split.sh",
+    "Each library sources with no side effects and defines every function moved into it",
+    "shellcheck passes on every file standalone, with no suppression added",
+    "bash -n passes on all seven"
+  ],
+  "out_of_scope": [
+    "libre_translate.sh, whose remaining seam needs parse_args restructured rather than relocated - a refactor, not a verbatim move",
+    "Running any of the three scripts: they drive ffmpeg over real media, mutate VirtualBox guest disks, and rewrite systemd units",
+    "The phone_focus_mode scripts and the pacman-wrapper pair"
+  ],
+  "verifier": "bash meta/scripts/verify_shell_split.sh for the verbatim claim; sourcing each library in a subshell; shellcheck standalone on each new file; bash -n on all seven; bash ~/utils/scripts/check_file_length.sh --all."
+}

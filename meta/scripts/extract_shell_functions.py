@@ -30,7 +30,9 @@ def find_function_blocks(lines: list[str]) -> list[tuple[int, int, str]]:
             start, depth = index, 0
             while index < len(lines):
                 depth += lines[index].count("{") - lines[index].count("}")
-                if depth <= 0 and index > start:
+                # A one-line `name() { ...; }` closes on its opening line, so
+                # the depth check must accept index == start.
+                if depth <= 0:
                     break
                 index += 1
             blocks.append((start, index, lines[start].split("(")[0]))

@@ -1,0 +1,62 @@
+{
+  "intent": "Split three more over-cap shell scripts - clean_audio.sh, enforce_vbox_hosts.sh and migrate_hosts_guard_to_guard_lib.sh - into entry scripts plus sourced libraries, and record the SC2034 writer/reader rule that decides where a seam can fall.",
+  "scope": [
+    "clean_audio.sh 419 -> 230, new lib/clean_audio_filters.sh 204",
+    "enforce_vbox_hosts.sh 443 -> 220, new lib/vbox_disk_inject.sh 236",
+    "migrate_hosts_guard_to_guard_lib.sh 444 -> 167, new lib/hosts_guard_migrate.sh 162 and lib/hosts_guard_rollback.sh 141",
+    "extract_shell_functions.py: handle one-line `name() { ...; }` definitions",
+    "docs/shell-split-verification.md: the writer/reader rule and the parked libre_translate.sh",
+    "Non-goal: libre_translate.sh, parked with its reasoning recorded"
+  ],
+  "changes": [
+    "Each entry script keeps its CLI, its ordering and the globals it assigns; the libraries take the work functions.",
+    "migrate_hosts_guard needed two libraries rather than one: with all ten work functions moved, the single library was 295 lines, so migrate and rollback were separated.",
+    "The extractor's brace matcher required index > start, which silently skipped one-line functions like `warn() { ...; }`. Fixed and regression-checked against the already-verified fresh-install/main.sh split.",
+    "Documented that a lib must contain the readers of every global it assigns - the SC2034 constraint from install_pacman_wrapper.sh:29, which is about definitions-only libs rather than about assignments per se. The pre-commit hook runs shellcheck without -x, so a source= directive does not make it follow the link."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <entry> <libs> <entry>, for each of the three",
+      "result": "pass",
+      "evidence": "clean_audio: all 8 functions verbatim. enforce_vbox_hosts: all 13. migrate_hosts_guard: all 19. Re-run after the shellcheck fixes, and still identical."
+    },
+    {
+      "command": "The same harness on an earlier libre_translate attempt",
+      "result": "pass",
+      "evidence": "DIFFERENCE FOUND, naming parse_args and write_env_file: adding `export` to satisfy SC2034 had changed two function bodies, so it was no longer a verbatim move. The harness caught a change that lint had accepted, and the exports were reverted."
+    },
+    {
+      "command": "Sourcing each of the four new libraries in a subshell",
+      "result": "pass",
+      "evidence": "All four source cleanly with no side effects and define every function moved into them."
+    },
+    {
+      "command": "shellcheck via pre-commit on all seven changed files",
+      "result": "pass",
+      "evidence": "Passed. Reaching that took four attempts on libre_translate: a comment beginning 'shellcheck can see...' was parsed as a malformed directive (SC1073), a bare `declare` did not satisfy SC2034, and `export` satisfied it only by changing behaviour. No suppression was added; the one added mid-attempt was removed."
+    },
+    {
+      "command": "bash -n on all seven files",
+      "result": "pass",
+      "evidence": "All parse. None of the three scripts was executed: clean_audio drives ffmpeg over real media, enforce_vbox_hosts mutates VirtualBox guest disks, and migrate_hosts_guard rewrites systemd units for the hosts guard."
+    },
+    {
+      "command": "Regression check of the extractor after the one-line-function fix",
+      "result": "pass",
+      "evidence": "Re-derived the committed fresh-install/main.sh split in a worktree at HEAD~3; both files byte-identical."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "26 files over cap, down from 29."
+    }
+  ],
+  "risks": [
+    "enforce_vbox_hosts.sh's is_virtualbox is defined inside a heredoc that generates a guest-side script. The brace matcher counts it as part of the enclosing function, so it correctly stayed in the entry script - but this is the heredoc limitation recorded when the harness was built, and it happened to be safe here rather than by design. The verifier reporting 13 functions where grep counts 14 is how it surfaced.",
+    "None of the three scripts has a test, so the evidence is static: verbatim proof, side-effect-free sourcing, shellcheck and bash -n."
+  ],
+  "rollback": [
+    "git revert the commit; the three entry scripts return to their original sizes and the four libraries disappear.",
+    "After rollback, confirm bash -n passes on all three and that each contains its full set of function definitions again."
+  ]
+}
