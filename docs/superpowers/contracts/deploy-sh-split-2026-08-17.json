@@ -1,0 +1,19 @@
+{
+  "title": "Split deploy.sh, the last over-cap file in phone_focus_mode",
+  "objective": "Take deploy.sh from 875 lines to under the repo's 250-line cap. It goes last by design: every enforcer split this session grew its two hardcoded file lists, so splitting it earlier would have left the 'add to BOTH lists' step pointing at a stale location.",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all lists NO file under phone_focus_mode/, finishing that directory.",
+    "The two hardcoded file lists stay in exact correspondence after being moved into different files, and each carries a comment saying where its counterpart now lives.",
+    "do_deploy, at 421 lines, is cut at the phase boundaries it already prints, so each phase is a named function rather than an arbitrary line range.",
+    "Any function that stops being verbatim must have its behaviour proven unchanged against the pre-split version.",
+    "shellcheck passes on each file individually, with no -x and no disable directive; a global written in one file and read in another must not leave either file assigning something it never reads.",
+    "deploy.sh still runs: it reaches its usage message, which requires the whole source chain and config.sh to resolve.",
+    "Every phone-side test suite still passes at its previous count."
+  ],
+  "out_of_scope": [
+    "Deploying to the phone; there is no device in this session.",
+    "Changing what is deployed, in what order, or the conditional handling of config_secrets.sh (which is deliberately asymmetric between the two lists and was so before this change).",
+    "Writing a test harness for the deploy phases themselves: every one of them is an adb call against a real device, and a stub layer deep enough to be meaningful would model the phone rather than test the script."
+  ],
+  "verifier": "timeout 30 bash phone_focus_mode/deploy.sh (expects the usage message), plus check_file_length.sh --all showing no phone_focus_mode entry, plus the two-list parity check, plus every phone test suite at its previous count, plus pre-commit run --files on the touched files."
+}
