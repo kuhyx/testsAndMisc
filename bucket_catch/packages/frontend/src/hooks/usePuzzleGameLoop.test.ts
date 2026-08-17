@@ -228,7 +228,7 @@ describe("usePuzzleGameLoop", () => {
 
     // Use large canvas so piece doesn't collide on first tick
     const canvas = makeCanvas(800, 600); // basketY=520; piece reaches it at tick~190
-    const { result } = renderHook(() =>
+    renderHook(() =>
       usePuzzleGameLoop(
         makeRef<HTMLCanvasElement | null>(canvas),
         makeRef(500), // far from x=48 → piece will miss

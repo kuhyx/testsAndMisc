@@ -1,5 +1,7 @@
-/// <reference types="vitest" />
-import { defineConfig } from "vite";
+// vitest 4 no longer contributes the `test` key to vite's own defineConfig, so
+// the config is typed by importing defineConfig from vitest/config instead of
+// the (now inert) triple-slash reference.
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({

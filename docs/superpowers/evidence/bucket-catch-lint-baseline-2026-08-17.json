@@ -1,0 +1,49 @@
+{
+  "intent": "Repair bucket_catch/packages/frontend's typecheck so `npm run build` works again and eslint actually runs, before splitting the two over-cap files in that package.",
+  "scope": [
+    "bucket_catch/packages/frontend/vite.config.ts — defineConfig imported from vitest/config",
+    "bucket_catch/packages/frontend/src/hooks/usePuzzleGameLoop.test.ts — dropped one unused binding",
+    "Non-goal: the 45 eslint errors this change makes visible; they are pre-existing and tracked separately",
+    "Non-goal: any change to the coverage thresholds or exclude list in vite.config.ts"
+  ],
+  "changes": [
+    "vitest 4 no longer contributes the `test` key to vite's own defineConfig, so the `/// <reference types=\"vitest\" />` triple-slash directive had gone inert and `test: {...}` was an unknown property (TS2769). Switched the import to vitest/config, which is the canonical vitest-4 typing, and replaced the dead directive with a comment saying why.",
+    "Dropped the unused `const { result } =` destructuring at usePuzzleGameLoop.test.ts:231 (TS6133), keeping the renderHook call itself. The test asserts on mockCtx.drawImage rather than on the hook's return, so the binding was dead; the following test in the same file already calls renderHook bare."
+  ],
+  "verification": [
+    {
+      "command": "npm run build (tsc -b && vite build)",
+      "result": "pass",
+      "evidence": "Exit 0, 52 modules transformed, bundle 314.17 kB. This command FAILED at HEAD on both TS2769 and TS6133, so the package could not build before this change."
+    },
+    {
+      "command": "npm run coverage",
+      "result": "pass",
+      "evidence": "14 test files, 145 tests passed; Statements 100% (583/583), Branches 100% (217/217), Functions 100% (97/97), Lines 100% (534/534) — identical to the pre-change baseline. This is what proves vite.config.ts is still being read after changing its import: had the config stopped applying, jsdom would be gone and the suite would fail rather than pass at identical totals, and the 100% thresholds would no longer be enforced."
+    },
+    {
+      "command": "npm run lint >/dev/null 2>&1; echo $?",
+      "result": "fail",
+      "evidence": "Exits 1, reporting 45 errors across 10 files. This is NOT a regression and NOT a restored-green claim: `lint` is `tsc --noEmit && eslint src`, and because tsc was failing at HEAD the `&&` short-circuited, so eslint had never run on this package at all. Fixing tsc unmasked 45 pre-existing eslint errors — 18 no-non-null-assertion, 10 unbound-method, 9 non-nullable-type-assertion-style, 5 no-unnecessary-type-assertion, plus require-await, no-this-alias and no-deprecated. Fixing them needs per-site judgment and is out of scope for this commit."
+    },
+    {
+      "command": "npx eslint on the two over-cap files, as a pre-split baseline",
+      "result": "fail",
+      "evidence": "src/hooks/usePuzzleGameLoop.ts: 2 errors. src/hooks/usePuzzleGameLoop.test.ts: 7 errors. Captured so the upcoming split can be checked differentially — after it, the package total must still be 45 and the new files may carry only errors that travelled with the moved code."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All configured hooks pass on the two touched files."
+    }
+  ],
+  "risks": [
+    "This package has no CI workflow and is not covered by pre-commit, which is how a non-building, non-linting state persisted unnoticed. Nothing added here prevents a recurrence; wiring CI for bucket_catch is a separate piece of work.",
+    "45 eslint errors are now visible and will stay red until addressed. Anyone running `npm run lint` here will see failures where they previously saw a (misleading) short-circuit failure on tsc alone. The visible state is worse-looking but strictly more honest.",
+    "Dropping the unused binding leaves that test asserting only on the canvas mock. It was already doing so — the binding was never read — so this documents an existing narrowness rather than creating one. Adding assertions would be a behaviour change and is out of scope."
+  ],
+  "rollback": [
+    "git revert the commit — two edited files, no data, config or schema migration.",
+    "After rollback, expect npm run build and npm run lint to fail again on TS2769 and TS6133, and npm run coverage to still pass at 583/217/97/534."
+  ]
+}
