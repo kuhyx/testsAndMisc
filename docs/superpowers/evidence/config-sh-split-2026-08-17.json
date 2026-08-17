@@ -1,0 +1,87 @@
+{
+  "intent": "Bring config.sh under the 250-line cap without changing the policy it defines, and replace the brief's prescribed safety net — which does not work — with one that does.",
+  "scope": [
+    "phone_focus_mode/config.sh - 571 lines down to 250",
+    "phone_focus_mode/config_paths.sh, config_dns.sh, config_curfew.sh, config_tether.sh, config_launcher.sh - new siblings",
+    "phone_focus_mode/docs/policy-lists.md - new: the rationale prose moved out of config.sh",
+    "phone_focus_mode/deploy.sh - all five siblings added to both hardcoded lists",
+    "phone_focus_mode/lib/tests/daemon_cases_status.sh - new: split out so daemon_cases_state.sh stays under the cap",
+    "Non-goal: changing any list, threshold, interval or path value."
+  ],
+  "changes": [
+    "THE BRIEF'S FINGERPRINT RECIPE IS BROKEN AND WAS REPLACED. It prescribes load_policy + dataclasses.asdict + json.dumps(..., sort_keys=True, default=str) + sha256, with baseline 1624750c…. Four policy fields are frozenset, which json cannot encode, so default=str stringifies each in SET ITERATION ORDER — which depends on PYTHONHASHSEED and is therefore random per process. Measured: three consecutive runs produced three different digests, so the recipe can never match any recorded baseline and would flag every split as a regression. Pinning PYTHONHASHSEED=0 produced one stable digest, confirming the cause.",
+    "The repo already contains a deterministic serializer: python3 -m python_pkg.focus_policy. Before relying on it, its completeness was checked against dataclasses.asdict recursively — it emits all 16 dataclass fields plus 6 more (schema_version, always_blocked_packages, blockable_system_packages, always_on_vpn_package, private_dns_host, vpn_lockdown). It is strictly stronger than the brief's method, not a weaker proxy, so it is the fingerprint used here. Baseline 83e05e82….",
+    "Audited the loader BEFORE extracting. python_pkg/focus_policy/loader.py builds the policy by running a regex over the text of config.sh alone (plus a sibling config_secrets.sh). Fifteen variables are therefore pinned to config.sh; moving any of them would not raise an error, it would silently yield an empty set — which for WHITELIST reads as 'nothing is allowed'. That list is documented at the top of config.sh and in config_paths.sh.",
+    "Extractions are variable-scoped, not line-range. An initial line-range attempt cut through the middle of the WHITELIST string, leaving an unterminated quote; config.sh then failed to parse and 15 variables vanished from the environment — while the fingerprint still matched, because the loader's regex tolerated it. Reverted and redone with a helper that takes each variable from its assignment through the line closing its quote.",
+    "STATE_DIR moved into config_paths.sh rather than staying behind: every path in that file is built from it, and leaving it in config.sh after the source line produced paths like /status.json instead of /data/local/tmp/focus_mode/status.json. Caught by the environment diff, not the fingerprint.",
+    "Long rationale prose moved to docs/policy-lists.md with pointers left in place, including the two blocks inside the WHITELIST/NIGHT_WHITELIST strings. The loader and the shell both ignore '#' lines there, and the parsed lists were compared entry-by-entry to confirm it."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m python_pkg.focus_policy --config phone_focus_mode/config.sh | sha256sum",
+      "result": "pass",
+      "evidence": "83e05e82dd1683e1dff1c79a96fec0a4a56aa73295604c681ae355b40a590ba3 before the split and after every one of the six extractions. The loader sees an identical policy."
+    },
+    {
+      "command": "completeness check of policy_to_json against dataclasses.asdict, recursive over nested dicts",
+      "result": "pass",
+      "evidence": "16 dataclass fields, 22 exported fields, ZERO missing. The exporter is lossless, so its hash cannot be blind to a field the split might mangle."
+    },
+    {
+      "command": "determinism check of the brief's prescribed recipe",
+      "result": "fail",
+      "evidence": "Three runs gave 81e3a371…, 6f4595ce…, cfde0d59… — all different. With PYTHONHASHSEED=0 pinned, two runs gave the same 5f86c8ff…. The nondeterminism is the four frozenset fields being stringified in iteration order. This is why the brief's baseline could never be reproduced."
+    },
+    {
+      "command": "diff of the sourced shell environment against the pre-split commit, in a clean worktree",
+      "result": "pass",
+      "evidence": "79 variables on both sides, byte-identical. This is the check the fingerprint cannot do: it caught the STATE_DIR ordering bug, where paths expanded against an empty prefix while the policy hash stayed green."
+    },
+    {
+      "command": "entry-by-entry comparison of every parsed package list, comments and blanks stripped as the daemon strips them",
+      "result": "pass",
+      "evidence": "WHITELIST 29, NIGHT_WHITELIST 16, SYSTEM_NEVER_DISABLE 46, ALLOWED_PREFIXES 1, NIGHT_ALLOWED_PREFIXES 1, BROWSER_PACKAGES 2, WORKOUT_UNBLOCK_DOMAINS 15 — all identical. Only comment prose moved."
+    },
+    {
+      "command": "bash -n and sh -n on config.sh and all five siblings",
+      "result": "pass",
+      "evidence": "All parse. The failed line-range attempt was caught by exactly this check reporting 'unexpected EOF while looking for matching quote'."
+    },
+    {
+      "command": "timeout 30 bash phone_focus_mode/deploy.sh; timeout 60 bash phone_focus_mode/run_phone.sh --help",
+      "result": "pass",
+      "evidence": "deploy.sh reaches its usage message, proving it still sources the whole config chain from the checkout. run_phone.sh --help exits 0."
+    },
+    {
+      "command": "every phone-side shell suite",
+      "result": "pass",
+      "evidence": "dns_iptables 24, monitor 82, tether_enforcer 17, curfew_net 41, hosts_libs 69, daemon_libs 108, backup_capture 22, adb_common 10, adb_trusted 6 — 379 assertions, 0 failures."
+    },
+    {
+      "command": "systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 python3 -m pytest python_pkg/focus_policy -q",
+      "result": "pass",
+      "evidence": "137 passed. The reported coverage failure is the repo-wide 100% gate applied to a single-package run, not a regression."
+    },
+    {
+      "command": "deploy-list parity in both directions; shellcheck on each touched file",
+      "result": "pass",
+      "evidence": "10 new entries (5 push + 5 cp), comm returns empty both ways, and all eight touched shell files are clean standalone."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "17 over-cap files, down from 18. config.sh is exactly 250, and the five siblings are 29-118."
+    }
+  ],
+  "risks": [
+    "config.sh is at exactly 250 lines — the cap, with no headroom. The next comment added to it puts it back over, and the loader-pinned content alone is 184 lines, so there is little room to recover without moving more prose to docs.",
+    "The fifteen pinned variables are enforced only by a comment. Nothing mechanically prevents a future edit from moving WHITELIST into a sibling, and the failure would be silent: an empty allowlist parses fine and reads as 'hide everything'. The fingerprint catches it, but only if someone runs it.",
+    "UNVERIFIED ON DEVICE, and this one has the largest blast radius of the session: every phone script sources config.sh. If any of the five siblings fails to reach the device, nothing starts at all.",
+    "Rationale that used to sit beside the values now lives in docs/policy-lists.md. Pointers are left at each site, but a reader editing a list in place will no longer have the warnings about dollar-signs and quotes directly in front of them — the two mistakes that have previously broken this file."
+  ],
+  "rollback": [
+    "git revert the commit. config.sh returns to a single 571-line file, over the cap, and deploy.sh stops pushing the five siblings.",
+    "After rollback, run bash -n phone_focus_mode/config.sh, then python3 -m python_pkg.focus_policy --config phone_focus_mode/config.sh | sha256sum and confirm 83e05e82… — the policy must be unchanged in either direction.",
+    "A rollback AFTER a deploy leaves five stale config_*.sh files in $REMOTE_DIR. They are inert once config.sh no longer sources them, but remove them so a later audit is not misled."
+  ]
+}
