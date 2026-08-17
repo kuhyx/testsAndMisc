@@ -398,8 +398,12 @@ linux_configuration/scripts/periodic_background/digital_wellbeing/data/
 # Android: legacy mipmaps plus the adaptive foreground/monochrome layers that
 # flutter_launcher_icons writes into drawable-*/.
 !billsplit/android/app/src/main/res/**/*.png
-# Other platform targets, straight from `flutter create`.
-!billsplit/ios/Runner/Assets.xcassets/**/*.png
-!billsplit/macos/Runner/Assets.xcassets/**/*.png
-!billsplit/windows/runner/resources/app_icon.ico
-!billsplit/windows/runner/runner.exe.manifest
+# Android is the only platform target this repo ships. The ios/macos/windows/
+# linux runner dirs were unused `flutter create` scaffolding (96 tracked files,
+# nothing built them - billsplit-ci.yml runs analyze/test only) and were
+# removed. Ignore them so a stray `flutter create` cannot silently reintroduce
+# them as tracked files; regenerate locally when a platform is actually wanted.
+billsplit/ios/
+billsplit/macos/
+billsplit/windows/
+billsplit/linux/

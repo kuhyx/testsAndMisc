@@ -29,15 +29,19 @@ and .xlsx export.
 
 ## Running
 
-The repo ships `lib/`, `test/`, and `pubspec.yaml` without platform runner
-folders. Generate them once for the platforms you want:
+`android/` is the only platform runner folder the repo tracks. Generate the
+others locally for whatever you want to run on:
 
 ```sh
 cd billsplit
-flutter create . --platforms=linux,windows,macos,android,ios
+flutter create . --platforms=linux,windows,macos,ios
 flutter pub get
 flutter run          # picks a connected device / desktop
 ```
+
+Those four directories are gitignored, so a regenerated runner stays local
+instead of being committed back. CI never builds them: `billsplit-ci.yml` runs
+`flutter analyze` and `flutter test` only.
 
 Tested with Flutter 3.44.8 / Dart 3.10.
 

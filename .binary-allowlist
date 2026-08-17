@@ -21,7 +21,3 @@ billsplit/assets/icon/*.png
 billsplit/android/app/src/main/res/mipmap-*/ic_launcher.png
 billsplit/android/app/src/main/res/drawable-*/ic_launcher_foreground.png
 billsplit/android/app/src/main/res/drawable-*/ic_launcher_monochrome.png
-billsplit/ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png
-billsplit/ios/Runner/Assets.xcassets/LaunchImage.imageset/*.png
-billsplit/macos/Runner/Assets.xcassets/AppIcon.appiconset/*.png
-billsplit/windows/runner/resources/app_icon.ico
