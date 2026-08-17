@@ -1,0 +1,41 @@
+{
+  "intent": "Take _usage_report_parsing.py from 39% to 100% line and branch coverage, so the split that follows can be verified against tests written before the seam existed.",
+  "scope": [
+    "New linux_configuration/tests/test_usage_report_atop_io.py - 17 tests for the subprocess and native-helper machinery",
+    "New linux_configuration/tests/test_usage_report_parse_records.py - 19 tests for the pure-Python record parsing",
+    "No production file changed. _usage_report_parsing.py is byte-identical to HEAD.",
+    "Non-goal: the split itself, which is a separate commit"
+  ],
+  "changes": [
+    "Covered the subprocess seam: _run's success path plus its OSError and TimeoutExpired fallbacks, and _iter_atop_lines both with lines and with no stdout pipe. Every subprocess is faked; no test spawns atop, make or cc.",
+    "Covered all five _atop_agg_binary outcomes, which were entirely untested: fresh cache reused without rebuilding, no compiler, make raising, make exiting 0 without producing a binary, and a successful build that is copied to the cache and chmodded. The fresh-cache test asserts by installing a subprocess.run that fails the test if called.",
+    "Covered the native TSV path: _apply_native_name, _window_from_native with and without samples, and _aggregate_atop_native reading N and W rows, skipping malformed rows, and handling a helper with no stdout. The pipeline fake needed a stdout object answering .close(), since the real code closes the producer's end.",
+    "Covered the pure-Python parser: _parse_name's six paths (single token, multi-token rejoin, past-end, empty parens, bare token, unterminated parens), _parse_prm's three, _window_from_epochs including the median-interval calculation, _fold_pid_aggregates for both CPU and RAM folding, and aggregate_atop end to end including its delegation to the native path.",
+    "No suppression was used. Two mypy exit-return findings were fixed by giving the fake context managers' __exit__ a None return rather than silencing them."
+  ],
+  "verification": [
+    {
+      "command": "pytest linux_configuration/tests/ --cov=_usage_report_parsing --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "Before: 219 stmts, 127 miss, 62 branch, 3 BrPart, 39%, missing 53-63, 98-109, 120, 133, 140-141, 157-167, 172-181, 205-228, 233-241, 246-254, 273-305, 323-353, 361-372. After: 219 stmts, 0 miss, 62 branch, 0 BrPart, 100%, nothing missing."
+    },
+    {
+      "command": "pytest linux_configuration/tests/ (whole directory)",
+      "result": "pass",
+      "evidence": "179 passed, up from 143 - exactly the 36 tests added, with no collateral change to the 143 that were already there."
+    },
+    {
+      "command": "pre-commit run --files <both new test files>",
+      "result": "pass",
+      "evidence": "All applicable hooks pass, including ruff, ruff format, mypy and the two noqa blockers. grep for 'noqa|type: ignore' in both files returns 0."
+    }
+  ],
+  "risks": [
+    "The uncovered regions before this commit were almost exactly the code a split would extract - the subprocess plumbing and the native-helper path. That is the situation the brief warns about: extracting the untested half proves nothing. Writing these tests first is what makes the next commit's split verifiable.",
+    "These tests fake subprocess.Popen and subprocess.run at the module seam rather than running atop. They therefore verify the parsing and control flow, not that atop's real output format matches the field indices. That risk is covered separately by running the actual program, which the split commit does."
+  ],
+  "rollback": [
+    "git rm both test files. No production code depends on them.",
+    "After rollback, coverage of _usage_report_parsing.py returns to 39% and linux_configuration/tests reports 143 passing tests."
+  ]
+}
