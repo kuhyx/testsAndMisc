@@ -8,8 +8,10 @@
  * if these lived beside their callers.
  */
 
-import type { Enemy, EnemyKind, GameState } from './types'
-import { ARENA, ENEMY_SPECS } from './types'
+import type { Enemy, GameState } from './types'
+import type { EnemyKind } from './enemies'
+import { ARENA } from './types'
+import { ENEMY_SPECS } from './enemies'
 import type { Vec } from './vec'
 
 export const SURVIVOR_RADIUS = 12

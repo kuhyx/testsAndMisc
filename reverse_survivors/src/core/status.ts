@@ -1,5 +1,6 @@
-import type { StatusKind, Survivor } from './types'
-import { STATUS_ORDER } from './types'
+import type { Survivor } from './types'
+import type { StatusKind } from './statusKinds'
+import { STATUS_ORDER } from './statusKinds'
 
 /**
  * 1 while the timer is live, 0 once it has expired.

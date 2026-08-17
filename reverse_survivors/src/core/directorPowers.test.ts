@@ -4,10 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { applyAction, edgeSpawnPos, regenRate, tickDirector, } from './director'
 import { createInitialState } from './sim'
 import type { GameState } from './types'
-import {
-  AMBUSH_RADIUS, ARENA, ENEMY_SPECS, FRENZY_DURATION,
-  POWER_COOLDOWN, POWER_COST, RIFT_DURATION,
-} from './types'
+import { AMBUSH_RADIUS, ARENA, FRENZY_DURATION, POWER_COOLDOWN, POWER_COST, RIFT_DURATION } from './types'
+import { ENEMY_SPECS } from './enemies'
 
 const fresh = (seed = 1): GameState => createInitialState(seed)
 

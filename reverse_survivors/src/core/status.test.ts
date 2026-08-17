@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyStatus, factor, isOn, tickStatuses } from './status'
 import type { Survivor } from './types'
-import { STATUS_POWER } from './types'
+import { STATUS_POWER } from './statusKinds'
 
 const sv = (): Survivor => ({
   pos: { x: 0, y: 0 },

@@ -3,8 +3,8 @@ import { applyAction, edgeSpawnPos, regenRate, tickDirector, waveCost } from './
 import { createInitialState } from './sim'
 import { snapshotOf } from './snapshot'
 import type { GameState } from './types'
-import {
-  ARENA, BOSS_COOLDOWN, ENERGY_CAP, } from './types'
+import { ARENA, ENERGY_CAP } from './types'
+import { BOSS_COOLDOWN } from './enemies'
 
 const fresh = (seed = 1): GameState => createInitialState(seed)
 

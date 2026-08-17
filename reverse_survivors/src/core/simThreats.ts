@@ -8,8 +8,10 @@
  */
 
 import { applyStatus, factor } from './status'
-import type { Enemy, EnemyKind, EnemySpec, GameState, Survivor } from './types'
-import { ARENA, CONTACT_COOLDOWN, ENEMY_SPECS, FRENZY_DAMAGE, FRENZY_SPEED } from './types'
+import type { Enemy, GameState, Survivor } from './types'
+import type { EnemyKind, EnemySpec } from './enemies'
+import { ARENA, CONTACT_COOLDOWN, FRENZY_DAMAGE, FRENZY_SPEED } from './types'
+import { ENEMY_SPECS } from './enemies'
 import {
   ENEMY_PROJ_TTL, SPLIT_RADIUS, SURVIVOR_RADIUS, enemySpeed, makeEnemy,
 } from './simUnit'

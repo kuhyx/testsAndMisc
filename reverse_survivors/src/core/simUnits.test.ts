@@ -6,9 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, step } from './sim'
 import { makeEnemy, SPLIT_RADIUS } from './simUnit'
 import type { GameState, Projectile } from './types'
-import {
-  ARENA, STATUS_POWER,
-} from './types'
+import { ARENA } from './types'
+import { STATUS_POWER } from './statusKinds'
 
 const CENTER = { x: ARENA.w / 2, y: ARENA.h / 2 }
 

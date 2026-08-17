@@ -1,11 +1,10 @@
 import { waveCost } from './director'
-import type {
-  BossKind, EdgeId, GameState, PowerKind, Status, StatusKind, UnitKind, UpgradeId,
-} from './types'
-import {
-  BOSS_ORDER, BOSS_UNLOCK_AT, EDGE_NAMES, EDGE_ORDER, ENERGY_CAP, ENEMY_SPECS, POWER_COST,
-  POWER_NAMES, POWER_ORDER, STATUS_LABELS, STATUS_ORDER, UNIT_ORDER,
-} from './types'
+import type { EdgeId, GameState, PowerKind, Status, UpgradeId } from './types'
+import type { BossKind, UnitKind } from './enemies'
+import type { StatusKind } from './statusKinds'
+import { EDGE_NAMES, EDGE_ORDER, ENERGY_CAP, POWER_COST, POWER_NAMES, POWER_ORDER } from './types'
+import { BOSS_ORDER, BOSS_UNLOCK_AT, ENEMY_SPECS, UNIT_ORDER } from './enemies'
+import { STATUS_LABELS, STATUS_ORDER } from './statusKinds'
 
 export type BossPhase = 'locked' | 'cooling' | 'ready'
 

@@ -9,7 +9,8 @@
 import { pick } from './rng'
 import { factor, tickStatuses } from './status'
 import type { DifficultyConfig, Enemy, GameState, Survivor, UpgradeId } from './types'
-import { ARENA, STATUS_POWER, UPGRADE_POOL } from './types'
+import { ARENA, UPGRADE_POOL } from './types'
+import { STATUS_POWER } from './statusKinds'
 import {
   CENTER, DANGER_RADIUS, FIRE_RANGE, PROJ_SPEED, PROJ_TTL, SURVIVOR_RADIUS,
 } from './simUnit'

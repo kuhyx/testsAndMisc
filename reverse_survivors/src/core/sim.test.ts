@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, step } from './sim'
 import { DANGER_RADIUS, makeEnemy } from './simUnit'
 import { applyUpgrade, grantXp, xpForLevel } from './simSurvivor'
-import type { GameState, } from './types'
-import {
-  ARENA, GAME_DURATION, } from './types'
+import type { GameState } from './types'
+import { ARENA, GAME_DURATION } from './types'
 
 const CENTER = { x: ARENA.w / 2, y: ARENA.h / 2 }
 

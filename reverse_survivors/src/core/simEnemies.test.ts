@@ -4,8 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, step } from './sim'
 import { makeEnemy } from './simUnit'
 import type { GameState, Projectile } from './types'
-import {
-  ARENA, } from './types'
+import { ARENA } from './types'
 
 const CENTER = { x: ARENA.w / 2, y: ARENA.h / 2 }
 

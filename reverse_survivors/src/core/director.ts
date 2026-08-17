@@ -1,11 +1,9 @@
 import { makeEnemy } from './simUnit'
 import { nextFloat, pick } from './rng'
-import type { BossKind, DirectorAction, EdgeId, GameState, PowerKind, UnitKind } from './types'
-import {
-  AMBUSH_RADIUS, ARENA, BOSS_COOLDOWN, BOSS_ORDER, BOSS_UNLOCK_AT, EDGE_ORDER, ENERGY_CAP,
-  ENEMY_SPECS, FRENZY_DURATION, GOLDEN_ANGLE, POWER_COOLDOWN, POWER_COST, POWER_ORDER,
-  RIFT_DURATION,
-} from './types'
+import type { DirectorAction, EdgeId, GameState, PowerKind } from './types'
+import type { BossKind, UnitKind } from './enemies'
+import { AMBUSH_RADIUS, ARENA, EDGE_ORDER, ENERGY_CAP, FRENZY_DURATION, GOLDEN_ANGLE, POWER_COOLDOWN, POWER_COST, POWER_ORDER, RIFT_DURATION } from './types'
+import { BOSS_COOLDOWN, BOSS_ORDER, BOSS_UNLOCK_AT, ENEMY_SPECS } from './enemies'
 import type { Vec } from './vec'
 import { clamp } from './vec'
 

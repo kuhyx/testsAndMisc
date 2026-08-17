@@ -1,6 +1,9 @@
 import { FIRE_RANGE, SURVIVOR_RADIUS } from '../core/simUnit'
-import type { EnemyKind, GameState } from '../core/types'
-import { ARENA, ENEMY_SPECS, STATUS_ORDER } from '../core/types'
+import type { GameState } from '../core/types'
+import type { EnemyKind } from '../core/enemies'
+import { ARENA } from '../core/types'
+import { ENEMY_SPECS } from '../core/enemies'
+import { STATUS_ORDER } from '../core/statusKinds'
 
 /** Structural subset of CanvasRenderingContext2D — stubbable in tests. */
 export interface Ctx2D {

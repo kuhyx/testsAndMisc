@@ -1,0 +1,19 @@
+{
+  "title": "Split reverse_survivors src/core/types.ts under the 250-line cap",
+  "objective": "Bring reverse_survivors/src/core/types.ts (295 lines) under the repo-wide 250-line file cap by extracting the enemy roster (kind unions, the EnemySpec shape, the ENEMY_SPECS stat table and the unit/boss orders and unlocks) and the status vocabulary into two sibling modules, repointing all 36 import sites at the module that owns each symbol, with behaviour proven by the project's own 160-test suite at 100% coverage and by the same npm run check plus npm run build that CI runs.",
+  "acceptance_criteria": [
+    "types.ts and both new modules are each at most 250 lines, and check_file_length.sh --all lists no reverse_survivors file at all.",
+    "The three modules form an acyclic graph: statusKinds.ts imports nothing; enemies.ts imports only statusKinds.ts; types.ts imports both and neither imports back. A status module is required rather than optional, because enemy specs name the status they inflict while the survivor state carries seconds-remaining per status -- leaving StatusKind in types.ts would make types.ts and enemies.ts mutually dependent.",
+    "npm run check (typecheck && eslint . --max-warnings 0 && vitest run --coverage) passes: 13 test files, 160 tests, and 100% statements/branches/functions/lines with the same 531/159/101/514 totals, since no statement is added or removed.",
+    "npm run build (tsc --noEmit && vite build) succeeds, which is the gate that would expose an import cycle as a TDZ error.",
+    "Every importer of a moved symbol imports it from the module that now defines it, with no re-export barrel left in types.ts.",
+    "Zero suppressions added: no eslint-disable, no @ts-ignore, no @ts-expect-error, and no coverage threshold or exclude entry changed."
+  ],
+  "out_of_scope": [
+    "Any change to a stat value: every enemy's hp, speed, cost, damage, xp, radius, cooldown and debuff duration, and every difficulty multiplier, power cost and cooldown, must be carried across byte-identically. A balance change disguised as a move would pass the tests and silently alter the game.",
+    "Renaming any exported symbol, or changing any type's shape.",
+    "Reordering ENEMY_SPECS entries or the UNIT_ORDER/BOSS_ORDER arrays, which drive deterministic iteration in the director and the UI.",
+    "Wiring the file-length pre-commit hook -- it must land last."
+  ],
+  "verifier": "npm run check (expect 13 files / 160 tests passed and 100% on all four metrics, totals 531/159/101/514); npm run build (expect success); wc -l on types.ts and both new modules (expect all under 250); grep of statusKinds.ts and enemies.ts import lines to confirm neither imports types.ts; bash ~/utils/scripts/check_file_length.sh --all (expect no reverse_survivors entry); git diff of the moved ENEMY_SPECS/DIFFICULTIES blocks to confirm no numeric literal changed; grep -rn 'eslint-disable\\|ts-ignore\\|ts-expect-error' src/ (expect no hits); pre-commit run --files on every touched file."
+}
