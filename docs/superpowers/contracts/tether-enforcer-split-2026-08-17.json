@@ -1,0 +1,17 @@
+{
+  "title": "Split tether_enforcer.sh, the first phone_focus_mode target",
+  "objective": "tether_enforcer.sh is 17 lines over the cap - the cheapest file left. It is also the first split in phone_focus_mode, where deploy.sh copies a hardcoded per-file list into REMOTE_DIR and never deploys lib/, so the seam must be a sibling file and both of deploy.sh's lists must grow in the same commit. Establish that pattern here, where a runnable test can prove it.",
+  "acceptance_criteria": [
+    "Both resulting files are under 250 lines; the over-cap total falls 25 -> 24",
+    "All 20 top-level functions are verbatim",
+    "test_tether_enforcer.sh reports 17 passed, 0 failed - the same as the pre-split baseline",
+    "deploy.sh pushes AND copies the new sibling, mirroring how the entry script is handled",
+    "shellcheck passes on the sibling standalone with no suppression"
+  ],
+  "out_of_scope": [
+    "Deploying to the phone, which needs the device and a focus-mode window",
+    "The other seven phone_focus_mode scripts",
+    "The pacman-wrapper pair"
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_tether_enforcer.sh for the behaviour claim; bash meta/scripts/verify_shell_split.sh for the verbatim claim; grep for the sibling in both of deploy.sh's lists; shellcheck standalone; bash ~/utils/scripts/check_file_length.sh --all."
+}
