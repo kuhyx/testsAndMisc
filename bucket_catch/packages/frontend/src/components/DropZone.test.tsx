@@ -1,31 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { DropZone } from "./DropZone";
+import { must } from "../test/domQueries";
 
 const makeFile = (name: string, type = "text/plain"): File =>
   new File(["x"], name, { type });
-
-/**
- * Query one element and narrow it, failing the test if it is absent.
- *
- * Both `as HTMLElement` and `!` are rejected here - the former by
- * non-nullable-type-assertion-style, the latter by no-non-null-assertion - so
- * the narrowing is done with a real check that also gives a useful message.
- */
-const must = (el: Element | null, what: string): HTMLElement => {
-  if (!(el instanceof HTMLElement)) {
-    throw new Error(`expected to find ${what}`);
-  }
-  return el;
-};
 
 describe("DropZone", () => {
   it("renders title and subtitle", () => {
     render(<DropZone onFiles={() => undefined} onPuzzle={() => undefined} />);
     expect(screen.getByText("Bucket Catch")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Drop your files here/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Drop your files here/)).toBeInTheDocument();
   });
 
   it("shows initial grid equation", () => {
@@ -37,10 +22,7 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={() => undefined} />,
     );
-    const zone = must(
-      container.firstChild as Element | null,
-      "the drop zone",
-    );
+    const zone = must(container.firstChild as Element | null, "the drop zone");
     expect(zone.className).not.toContain("dragging");
     fireEvent.dragOver(zone);
     expect(zone.className).toContain("dragging");
@@ -53,10 +35,7 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const zone = must(
-      container.firstChild as Element | null,
-      "the drop zone",
-    );
+    const zone = must(container.firstChild as Element | null, "the drop zone");
     const f1 = makeFile("a.txt");
     const f2 = makeFile("b.txt");
     fireEvent.drop(zone, { dataTransfer: { files: [f1, f2] } });
@@ -68,10 +47,7 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={() => undefined} onPuzzle={() => undefined} />,
     );
-    const zone = must(
-      container.firstChild as Element | null,
-      "the drop zone",
-    );
+    const zone = must(container.firstChild as Element | null, "the drop zone");
     fireEvent.drop(zone, { dataTransfer: { files: [makeFile("a.txt")] } });
     expect(screen.getByText("1 file ready")).toBeInTheDocument();
   });
@@ -81,10 +57,7 @@ describe("DropZone", () => {
     const { container } = render(
       <DropZone onFiles={onFiles} onPuzzle={() => undefined} />,
     );
-    const zone = must(
-      container.firstChild as Element | null,
-      "the drop zone",
-    );
+    const zone = must(container.firstChild as Element | null, "the drop zone");
     fireEvent.drop(zone, { dataTransfer: { files: [] } });
     expect(onFiles).not.toHaveBeenCalled();
   });
@@ -201,9 +174,9 @@ describe("DropZone", () => {
       container.querySelector("input[accept='image/*']"),
       "input[accept='image/*']",
     );
-    const clickSpy = vi.spyOn(puzzleInput, "click").mockImplementation(
-      () => undefined,
-    );
+    const clickSpy = vi
+      .spyOn(puzzleInput, "click")
+      .mockImplementation(() => undefined);
     fireEvent.click(screen.getByText(/Play Puzzle Mode/));
     expect(clickSpy).toHaveBeenCalled();
   });

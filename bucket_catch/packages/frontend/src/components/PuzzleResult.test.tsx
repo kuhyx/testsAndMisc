@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PuzzleResult } from "./PuzzleResult";
+import { must } from "../test/domQueries";
 import type { FallingPuzzleItem, PuzzlePiece } from "../types";
 
 const makePiece = (row: number, col: number): PuzzlePiece => ({
@@ -129,10 +130,10 @@ describe("PuzzleResult", () => {
     const imgs = container.querySelectorAll("img");
     expect(imgs).toHaveLength(2);
     // The grid div has inline style with gridTemplateColumns; its non-img children are holes
-    const gridEl = container.querySelector('[style*="repeat"]');
-    if (!(gridEl instanceof HTMLElement)) {
-      throw new Error("expected to find the puzzle grid element");
-    }
+    const gridEl = must(
+      container.querySelector('[style*="repeat"]'),
+      "the puzzle grid element",
+    );
     const holeDivs = Array.from(gridEl.children).filter(
       (c) => c.tagName === "DIV",
     );
