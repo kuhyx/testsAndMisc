@@ -10,7 +10,7 @@ import logging
 from typing import TYPE_CHECKING
 import wave
 
-import transcribe_helpers as helpers
+import _transcribe_probes as helpers
 
 if TYPE_CHECKING:
     from pathlib import Path
