@@ -1,0 +1,20 @@
+{
+  "title": "Backfill monitor.sh and both probe libraries to 100% line coverage",
+  "objective": "Close the pre-existing test debt the monitor.sh split made visible: monitor.sh at 44.44%, monitor_checks_policy.sh at 7.69% and monitor_checks_health.sh never loaded at all. Every _check_* probe decides whether phone enforcement is reported as healthy, so an untested probe is an enforcement failure that reports itself as fine.",
+  "acceptance_criteria": [
+    "bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_monitor.sh <subject> exits 0 at its default 100% minimum for each of monitor.sh, monitor_checks_policy.sh and monitor_checks_health.sh.",
+    "bash phone_focus_mode/lib/tests/test_monitor.sh reports a test count strictly greater than the 9 it reported before this change, with 0 failures.",
+    "Every assertion is mutation-proofed: a scripted run breaks each _check_* status decision in turn and requires the suite to fail, with zero survivors.",
+    "bash meta/scripts/check_file_length.sh --all reports no more over-cap files than before this change (22), so no new file crosses the 250-line cap.",
+    "shellcheck passes on each touched file individually, with no -x and no disable directive, since the pre-commit hook reads each file standalone.",
+    "No suppression of any kind is added: no shellcheck disable, no lowered coverage threshold, no skipped assertion.",
+    "The mock reaches the probes through the adb_root_shell function, not a PATH stub, so adb_common.sh's device-detection and locking surface stays out of the test."
+  ],
+  "out_of_scope": [
+    "Deploying to the phone or otherwise verifying against a real device; there is no device in this session and the probes are proven with stubs, hashes and real runs instead.",
+    "Splitting any of the other brief-scoped files (phone_backup.sh, curfew_enforcer.sh, hosts_enforcer.sh, focus_daemon.sh, config.sh, deploy.sh, focus_ctl.sh), which are separate commits.",
+    "Fixing test_magisk_service.sh, which hangs identically at HEAD and is unrelated to the monitor seam.",
+    "Changing what any probe reports to the user beyond the two defects fixed here."
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_monitor.sh (expects 82 passed, 0 failed), plus bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_monitor.sh {monitor.sh,monitor_checks_policy.sh,monitor_checks_health.sh} each at 100.00%, plus the mutation run at 18 killed / 0 survived, plus bash meta/scripts/check_file_length.sh --all still showing 22 files, plus pre-commit run --files on the touched files."
+}
