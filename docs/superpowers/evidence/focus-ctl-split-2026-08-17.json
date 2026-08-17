@@ -1,0 +1,71 @@
+{
+  "intent": "Bring focus_ctl.sh, at 1091 lines the largest file in phone_focus_mode, under the 250-line cap by extracting one library per enforcer, and give the extracted logic its first tests.",
+  "scope": [
+    "phone_focus_mode/focus_ctl.sh - 1091 lines down to 171",
+    "phone_focus_mode/ctl_{usage,daemon,hosts,dns,launcher,workout,curfew,tether}.sh - new, one per enforcer plus the help text and the daemon's own commands",
+    "phone_focus_mode/deploy.sh - all eight added to both hardcoded lists",
+    "phone_focus_mode/lib/tests/ - a harness, three case files and one entry point, all new",
+    "meta/scripts/fixtures/mutations/ctl_libs.json - new: 22 reproducible mutations",
+    "Non-goal: any device deploy, and any de-duplication of the two drift hazards recorded under risks."
+  ],
+  "changes": [
+    "Ran the stdin-drain audit before extracting. focus_ctl.sh has three while-read loops; two call pm in their bodies and moved verbatim. The third (iter_whitelist_packages) is fed by a pipe from printf and reads nothing from stdin, so it was already safe -- noted in ctl_usage.sh's header so the distinction is not lost.",
+    "Checked for globals written inside functions: none. The seven *_PIDFILE paths were assigned in the entry script and read only in their libraries, so each moved to the file that reads it (SC2034).",
+    "Placed all eight as flat siblings and added them to both deploy lists, then checked the lists correspond exactly in both directions.",
+    "Built a device stub layer covering pm, am, settings, dumpsys, svc, sqlite3, getprop, content, sleep, setsid and both iptables binaries, plus a pinned clock. The harness sources the REAL config.sh for defaults and redirects only the paths, so the fixture cannot drift from the values the subcommands read.",
+    "Deleted a provably equivalent filter in iter_whitelist_packages. Its `\\#*)` case arm cannot be observed: `set -- $line` splits on whitespace, so a comment's first token is always '#', which the dot check then rejects. A mutation removing it survived against every input tried, so the dead arm was removed rather than covered by a test that would pass either way."
+  ],
+  "verification": [
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_ctl_libs.sh",
+      "result": "pass",
+      "evidence": "Results: 136 passed, 0 failed. None of this code had a test before."
+    },
+    {
+      "command": "python3 meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/ctl_libs.json",
+      "result": "pass",
+      "evidence": "22 killed, 0 not killed. Three survived the first run and all three were defects in my own assertions: the Haversine in cmd_status was only checked for printing 'some number' (a wrong Earth radius passed), and the two whitelist filters were tested with inputs that each OTHER filter also rejected. Fixed by asserting the actual distance (~4300 m for the seeded fix) and by using a punctuation-free undotted token and a dotted token carrying an illegal character, so each filter is independently observable."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh 7dc3c94 phone_focus_mode/focus_ctl.sh phone_focus_mode/focus_ctl.sh phone_focus_mode/ctl_*.sh",
+      "result": "pass",
+      "evidence": "IDENTICAL: all 55 top-level functions moved verbatim, before the one equivalent-code deletion described above."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh phone_focus_mode/lib/tests/test_ctl_libs.sh <each of the eight>",
+      "result": "fail",
+      "evidence": "NOT 100%, and these are mostly REAL gaps rather than measurement artifacts: ctl_tether 92.98%, ctl_dns 89.29%, ctl_daemon 64.86%, ctl_curfew 59.26%, ctl_hosts 58.46%, ctl_usage 55.81%, ctl_launcher 47.67%, ctl_workout 41.79%. Up from 5-22% before the tests. What remains uncovered is the per-enforcer status reporting -- the long echo blocks that print mount state, APK hashes, offload settings and database rows -- each of which needs its own device fixture. The exception is cmd_status's embedded awk, which is the same kcov-cannot-attribute class as daemon_location.sh and is proven executed by the Haversine mutation above."
+    },
+    {
+      "command": "jscpd, the pre-commit hook's exact invocation, in a clean HEAD worktree with these files applied",
+      "result": "pass",
+      "evidence": "1.57%, under the 2% threshold. Checked because eight files each carrying a near-identical start/stop/status trio is exactly what that gate exists to catch. The tests drive those trios through tables rather than repeating them, for the same reason."
+    },
+    {
+      "command": "shellcheck on each touched file individually (no -x); sh -n on every phone-side script",
+      "result": "pass",
+      "evidence": "All fifteen clean standalone. Six SC1073/SC1072 errors came from a comment line beginning with the word 'shellcheck', which the linter parsed as a directive; reworded rather than disabled. Several SC2034s were fixtures nothing read, and were deleted."
+    },
+    {
+      "command": "deploy-list parity in both directions",
+      "result": "pass",
+      "evidence": "comm returns empty both ways; the eight siblings appear in the push list and the cp list. deploy.sh's lists are now final, which is what unblocks splitting it next."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "16 over-cap files, down from 17. focus_ctl.sh is 171, the eight siblings 100-198, and the five test files 20-250. deploy.sh at 875 is now the only phone_focus_mode file left over the cap."
+    }
+  ],
+  "risks": [
+    "COVERAGE IS BELOW 100% ON ALL EIGHT LIBRARIES and the numbers above are the measured ones. Unlike the daemon split, most of the shortfall is genuinely untested code -- the status-reporting blocks -- not a kcov artifact. The 22 mutations prove the assertions that exist are load-bearing; they do not prove the untested branches work.",
+    "DRIFT HAZARD: ctl_is_curfew_now in ctl_curfew.sh is a verbatim duplicate of is_curfew_now in daemon_location.sh. The suite asserts the two agree across every boundary minute, so a one-sided edit fails rather than silently making the daemon and its control script disagree about whether it is night. The duplication itself remains.",
+    "DRIFT HAZARD: cmd_status carries a THIRD copy of the Haversine, after daemon_location.sh's calc_distance and focus_daemon's original. Only this copy and calc_distance are tested; the three are not checked against each other.",
+    "UNVERIFIED ON DEVICE. This is the fifth enforcer-family split of the session with no deploy behind it, and focus_ctl.sh now sources eight files -- a partial push leaves the control script unusable, which is how one recovers from the others misbehaving."
+  ],
+  "rollback": [
+    "git revert the commit. focus_ctl.sh returns to a single 1091-line file, over the cap and untested, and deploy.sh stops pushing the eight siblings.",
+    "After rollback, run sh -n phone_focus_mode/focus_ctl.sh expecting exit 0, and confirm grep -c 'ctl_' phone_focus_mode/deploy.sh returns 0.",
+    "A rollback AFTER a deploy leaves eight stale files in $REMOTE_DIR; they are inert once nothing sources them."
+  ]
+}

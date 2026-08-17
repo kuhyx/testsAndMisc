@@ -1,0 +1,21 @@
+{
+  "title": "Split focus_ctl.sh, the largest file in phone_focus_mode",
+  "objective": "Take focus_ctl.sh from 1091 lines to under the repo's 250-line cap by extracting one library per enforcer, and give the extracted logic its first tests. This must land BEFORE deploy.sh is split, because it grows deploy.sh's two hardcoded lists.",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all no longer lists phone_focus_mode/focus_ctl.sh, and no new file is over the cap.",
+    "Every stdin-draining while-read loop is identified before extraction and moved verbatim; none is converted to a pipe.",
+    "meta/scripts/verify_shell_split.sh reports every function moved verbatim.",
+    "All eight siblings are added to BOTH of deploy.sh's hardcoded lists, and the lists stay in exact correspondence.",
+    "A mutation spec lands in meta/scripts/fixtures/mutations/ and kills every mutation, including the escape-hatch commands and the third copy of the Haversine.",
+    "Any mutation that proves equivalent is resolved by deleting the dead code, not by weakening the mutation or adding a test that cannot fail.",
+    "shellcheck passes on each touched file individually; sh -n passes on every phone-side script.",
+    "jscpd stays under its 2% threshold, measured in a clean worktree so vendored .venv does not pollute the figure."
+  ],
+  "out_of_scope": [
+    "Deploying to the phone or verifying on-device.",
+    "Splitting deploy.sh, which is the next item and must come after this one.",
+    "De-duplicating ctl_is_curfew_now against daemon_location.sh's is_curfew_now, or the third Haversine copy in cmd_status — both are recorded as drift hazards for a later session.",
+    "Reaching 100% line coverage on the cmd_* subcommands, which would require modelling far more device behaviour than the split itself warrants."
+  ],
+  "verifier": "bash phone_focus_mode/lib/tests/test_ctl_libs.sh (expects 136 passed, 0 failed), plus python3 meta/scripts/mutate_shell.py meta/scripts/fixtures/mutations/ctl_libs.json at 22 killed / 0 not killed, plus check_file_length.sh --all showing 16 files, plus deploy-list parity, plus jscpd under 2%, plus pre-commit run --files on the touched files."
+}
