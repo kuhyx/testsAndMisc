@@ -1,0 +1,54 @@
+{
+  "intent": "Cover _transcribe_diarize.py from 0% to 100% line and branch, so the following split of the 356-line file is verified against tests written before the seam existed.",
+  "scope": [
+    "New: six test modules under linux_configuration/tests/ named test_transcribe_diarize_*",
+    "Non-goal: any change to _transcribe_diarize.py, which is byte-identical to HEAD",
+    "Non-goal: the split itself, which is the next commit"
+  ],
+  "changes": [
+    "Added 63 tests covering duration probing through both ffmpeg paths, the ffmpeg transcode fallback and temp-file cleanup, audio loading with its three outcomes, linear resampling, cosine k-means, the ECAPA classifier loader, per-segment embedding extraction, and diarize_segments end to end.",
+    "numpy is a declared dependency, so the resampling and clustering tests run against the real library rather than a double. The _try_import seam is patched to pass numpy through while stubbing torch and speechbrain: clustering that 'worked' against a mocked numpy would prove nothing about whether two speakers actually get two labels.",
+    "The clustering tests assert real properties - two opposed groups produce two labels, magnitude is ignored because the metric is cosine, and a fixed seed is reproducible.",
+    "Split across six test modules, each under the cap, after two intermediate arrangements went over it."
+  ],
+  "verification": [
+    {
+      "command": "git diff --stat -- .../tools/_transcribe_diarize.py",
+      "result": "pass",
+      "evidence": "No change: this commit adds tests only."
+    },
+    {
+      "command": "pytest linux_configuration/tests/test_transcribe_diarize_*.py --cov=_transcribe_diarize --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "63 passed. _transcribe_diarize.py: 180 statements, 0 missing, 52 branches, 0 partial, 100%. The final three gaps were _load_audio's ffmpeg fallback in both outcomes, the minimum-slice widening at line 312, and the zero-iteration k-means branch."
+    },
+    {
+      "command": "pytest linux_configuration/tests/test_transcribe_diarize_*.py (count across each test-file rearrangement)",
+      "result": "pass",
+      "evidence": "63 passed before and after every move. Two intermediate arrangements were rejected for going over the cap, and one move silently broke a test by separating it from its doubles - caught by the count, which is the discriminating check for a test-file split."
+    },
+    {
+      "command": "pytest linux_configuration/tests/ -q",
+      "result": "pass",
+      "evidence": "338 passed, up from 275 by exactly the 63 tests added; no existing test was altered."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All hooks pass. Fixed rather than suppressed: five ANN401 warnings by typing the doubles with npt.NDArray[np.float32] instead of Any, a mypy exit-return error on a context-manager double, two func-returns-value errors from append-inside-lambda, three S108 hardcoded /tmp paths replaced with tmp_path, and a codespell hit on 'unparseable'."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "33 files over cap, unchanged by this commit. The six test modules are 237/205/184/184/177/103 lines."
+    }
+  ],
+  "risks": [
+    "torch and speechbrain are doubled, so the embedding extraction is proved to slice, pad and batch correctly, but not that the real ECAPA model produces separable embeddings. That is inherent to testing without the models present in CI.",
+    "The clustering tests use fixed seeds. A change to numpy's default_rng stream would change the labels; the tests assert cluster structure (which points share a label) rather than specific label values, which is stable under that."
+  ],
+  "rollback": [
+    "git revert the commit; the six test modules disappear together.",
+    "After rollback, confirm pytest linux_configuration/tests/ reports 275 passed and _transcribe_diarize.py is unchanged."
+  ]
+}
