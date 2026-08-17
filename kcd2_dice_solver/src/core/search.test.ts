@@ -12,8 +12,9 @@ import { DICE_BY_ID } from "../data/dice.ts";
 import type { Die } from "../data/dice.ts";
 import { evaluateQuick } from "./evaluate.ts";
 import { Scorer } from "./scoring.ts";
-import { SET_SIZE, countCandidates, findBestSet, groupInventory } from "./search.ts";
-import type { InventoryEntry } from "./search.ts";
+import { findBestSet } from "./search.ts";
+import { SET_SIZE, countCandidates, groupInventory } from "./searchGroups.ts";
+import type { InventoryEntry } from "./searchGroups.ts";
 
 const die = (id: string): Die => {
   const found = DICE_BY_ID.get(id);

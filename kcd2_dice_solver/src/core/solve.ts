@@ -14,7 +14,8 @@ import type { BadgeRecommendation } from "./badgeValue.ts";
 import type { Evaluation } from "./evaluate.ts";
 import { Scorer } from "./scoring.ts";
 import { findBestSet } from "./search.ts";
-import type { InventoryEntry, SearchOptions } from "./search.ts";
+import type { InventoryEntry } from "./searchGroups.ts";
+import type { SearchOptions } from "./searchStrategies.ts";
 import { DEFAULT_POLICY, NO_CHARGES, simulateTurns } from "./simulate.ts";
 import type { SimulationResult, TurnPolicy } from "./simulate.ts";
 

@@ -29,7 +29,8 @@ import { evaluateSet, scoreDistribution } from "./evaluate.ts";
 import type { ScoreDistribution } from "./evaluate.ts";
 import { Scorer } from "./scoring.ts";
 import { findBestSet } from "./search.ts";
-import type { InventoryEntry, SearchOptions } from "./search.ts";
+import type { InventoryEntry } from "./searchGroups.ts";
+import type { SearchOptions } from "./searchStrategies.ts";
 import { DEFAULT_POLICY, NO_CHARGES, simulateTurns } from "./simulate.ts";
 import type { BadgeCharges, TurnPolicy } from "./simulate.ts";
 

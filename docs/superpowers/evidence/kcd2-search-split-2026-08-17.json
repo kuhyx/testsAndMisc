@@ -1,0 +1,57 @@
+{
+  "intent": "Bring kcd2_dice_solver/src/core/search.ts (417 lines) under the repo-wide 250-line cap with no change to solver behaviour, so the loadout search keeps returning identical recommendations.",
+  "scope": [
+    "kcd2_dice_solver/src/core/search.ts — reduced to findBestSet, EXHAUSTIVE_LIMIT and the result types",
+    "kcd2_dice_solver/src/core/searchGroups.ts — new: SET_SIZE, InventoryEntry, DiceGroup, Selection, groupInventory, countCandidates, expand",
+    "kcd2_dice_solver/src/core/searchStrategies.ts — new: SearchOptions, Leaderboard, enumerateAll, hillClimb, greedySeed, randomSeed",
+    "Import sites rewritten: App.tsx, core/solve.ts, core/badgeValue.ts, core/search.test.ts, core/badgeValue.test.ts",
+    "Non-goal: any behaviour change, any symbol rename, any edit to vite.config.ts"
+  ],
+  "changes": [
+    "Extracted the search vocabulary (inventory entry, pooled dice group, per-group selection) and the pooling/counting/expansion helpers into searchGroups.ts; DiceGroup and Selection were module-private and are now exported so the strategies module can consume them.",
+    "Extracted the Leaderboard class and both search strategies (exhaustive enumerateAll, multi-start hillClimb with its greedySeed and randomSeed) into searchStrategies.ts, leaving findBestSet as the only logic in search.ts.",
+    "Rewrote all five import sites to name the module that now defines each symbol rather than leaving a re-export barrel in search.ts. This deviates from the brief's suggested re-export method at the user's explicit instruction ('rewrite 24 import sites properly'), so two test files were touched — the edits are import-path-only, and no assertion, test case or fixture was changed.",
+    "Copied the four strategy/grouping function bodies verbatim; no statement was added, removed or reordered, which is why the coverage totals are unchanged rather than merely still 100%."
+  ],
+  "verification": [
+    {
+      "command": "npx vitest run",
+      "result": "pass",
+      "evidence": "Test Files 24 passed (24); Tests 288 passed (288) — identical to the pre-split baseline captured at HEAD."
+    },
+    {
+      "command": "npx vitest run --coverage",
+      "result": "pass",
+      "evidence": "Statements 100% (863/863), Branches 100% (375/375), Functions 100% (181/181), Lines 100% (810/810) — byte-identical totals to the baseline, confirming no statement moved out of test reach."
+    },
+    {
+      "command": "npm run lint (tsc --noEmit && eslint src)",
+      "result": "pass",
+      "evidence": "Exit 0, no output. Confirms the explicit .ts import extensions and export type usage on the widened DiceGroup/Selection surface are correct, and that eslint does not object to the newly exported types."
+    },
+    {
+      "command": "wc -l src/core/search.ts src/core/searchGroups.ts src/core/searchStrategies.ts",
+      "result": "pass",
+      "evidence": "search.ts 100, searchGroups.ts 109, searchStrategies.ts 232 — all three under the 250-line cap, down from a single 417-line file."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "src/core/search.ts no longer appears in the over-cap listing; the remaining kcd2 entries (scoring.ts 361, badgeValue.ts 333, App.tsx 306) are the next commits in this series."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "All configured hooks pass on the eight touched files."
+    }
+  ],
+  "risks": [
+    "search.ts's public surface widened: DiceGroup and Selection are now exported types that were previously module-private. They are structural types with no invariants attached, so external use cannot corrupt search state, but they are now part of the module's API.",
+    "Rewriting import sites rather than re-exporting means the two test files were modified. Verification stays honest because the edits are confined to import paths — the assertions that prove the search's behaviour are untouched and still 288 in number.",
+    "kcd2_dice_solver has no CI workflow and is not covered by pre-commit, so the vitest and lint runs above are the only gate; a regression here would not be caught by any hook or push."
+  ],
+  "rollback": [
+    "git revert the commit — the change is confined to five edited files and two added files, with no data, config or schema migration.",
+    "After rollback, re-run npx vitest run --coverage and npm run lint; expect 288 tests passing at 100% coverage and lint exit 0, the same baseline this change preserved."
+  ]
+}

@@ -22,7 +22,7 @@ import {
 } from "./badgeValue.ts";
 import type { BadgeContext } from "./badgeValue.ts";
 import { NO_CHARGES, DEFAULT_POLICY } from "./simulate.ts";
-import type { InventoryEntry } from "./search.ts";
+import type { InventoryEntry } from "./searchGroups.ts";
 
 const die = (id: string): Die => {
   const found = DICE_BY_ID.get(id);

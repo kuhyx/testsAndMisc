@@ -12,7 +12,7 @@ import { DiceList } from "./components/DiceList.tsx";
 import { InventoryIo } from "./components/InventoryIo.tsx";
 import { ResultPanel } from "./components/ResultPanel.tsx";
 import type { CountUpdater } from "./components/QuantityStepper.tsx";
-import { SET_SIZE } from "./core/search.ts";
+import { SET_SIZE } from "./core/searchGroups.ts";
 import type { SolveRequest } from "./core/solve.ts";
 import { useSolver } from "./hooks/useSolver.ts";
 import type { SolverPort } from "./hooks/useSolver.ts";
