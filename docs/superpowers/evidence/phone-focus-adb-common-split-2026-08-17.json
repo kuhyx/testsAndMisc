@@ -1,0 +1,56 @@
+{
+  "intent": "Bring phone_focus_mode/lib/adb_common.sh (346 lines) under the repo-wide 250-line cap without changing the API any consumer gets from one source line.",
+  "scope": [
+    "phone_focus_mode/lib/adb_common.sh — reduced to logging, device selection, root and identity helpers, plus two source lines",
+    "phone_focus_mode/lib/adb_trusted.sh — new: the enrolled-device record (save, list, forget, match, verify)",
+    "phone_focus_mode/lib/adb_locking.sh — new: the run lock and per-marker cooldowns",
+    "Non-goal: the other over-cap phone_focus_mode shell files, whose tests are source-text greps rather than behavioural (see risks)"
+  ],
+  "changes": [
+    "Split the two coherent, test-covered groups into siblings that adb_common.sh sources at the end of its own body, so every existing consumer keeps getting the complete API from its single existing `source .../lib/adb_common.sh` line. No consumer was edited.",
+    "Both new files are sourced via $(cd $(dirname ${BASH_SOURCE[0]}) && pwd), so they resolve relative to the library's own directory rather than the caller's — the failure mode the brief documents for install_leechblock.sh, where an entry whose SCRIPT_DIR has no lib/ dies on its first source. Nothing deploys a copy of this library elsewhere, so that blocker does not apply here.",
+    "Changed _load_trusted_device_values to take the record path as an optional first argument instead of reading a global that _matches_trusted_record shadowed with a `local`. Once the two functions lived in different files, shellcheck could no longer see that link and reported SC2034. Passing the path explicitly removes the cause rather than suppressing the finding, and is what the caller meant anyway; the default keeps the legacy single-device record working.",
+    "The two `# shellcheck source=` directives are written relative to the script's own directory, matching the repo's source-path=SCRIPTDIR setting in .shellcheckrc."
+  ],
+  "verification": [
+    {
+      "command": "bash phone_focus_mode/lib/tests/test_adb_common.sh",
+      "result": "pass",
+      "evidence": "Results: 16 passed, 0 failed — identical to the pre-split baseline. This suite sources the library, mocks adb, and asserts real behaviour including an injection payload reaching _sanitize_device_string literally, so it is a behavioural gate rather than a source-text grep."
+    },
+    {
+      "command": "pre-commit run --files on all three files",
+      "result": "pass",
+      "evidence": "Every hook passes, including shellcheck, which this repo runs with NO --severity filter so even info-level findings fail. Zero suppressions were added: the SC2034 the split initially caused was fixed by changing the function signature, and the SC1091s by correcting the source directives."
+    },
+    {
+      "command": "Sourcing adb_common.sh alone and checking declare -F for functions from all three files",
+      "result": "pass",
+      "evidence": "adb_list_serials (kept), adb_save_trusted_device and adb_verify_trusted_identity (moved to adb_trusted.sh), adb_acquire_lock and adb_check_cooldown (moved to adb_locking.sh) are all defined. This is the check that proves the split is transparent to consumers rather than merely syntactically valid."
+    },
+    {
+      "command": "bash -n on run_phone.sh, phone_backup.sh, distraction_purge.sh",
+      "result": "pass",
+      "evidence": "All three real consumers still parse."
+    },
+    {
+      "command": "Function coverage measurement, run before choosing the seam",
+      "result": "pass",
+      "evidence": "13 of 23 functions (56%) in adb_common.sh are named by the test file. Both extracted groups sit inside the covered set — all four locking functions and five of six trusted-device functions are exercised — so the 16 tests genuinely verify the moved code rather than passing around it."
+    },
+    {
+      "command": "bash ~/utils/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "adb_common.sh 155, adb_trusted.sh 136, adb_locking.sh 76 — none appears in the over-cap listing, down from a single 346-line file."
+    }
+  ],
+  "risks": [
+    "adb_trusted.sh and adb_locking.sh are not independently sourceable: both read globals and call logging helpers that adb_common.sh defines first. Each carries a header comment saying so. Sourcing one directly would fail under set -u rather than misbehave silently.",
+    "The _load_trusted_device_values signature change is the one behavioural edit in this commit. Its only in-repo caller now passes the path explicitly; the default preserves the previous global-reading behaviour for any caller that does not.",
+    "The other over-cap files in this package (focus_ctl.sh 1091, deploy.sh 833, config.sh 571, focus_daemon.sh 543, monitor.sh 449) are NOT split here. test_dns_enforcer.sh, test_monitor.sh and test_tether_enforcer.sh contain zero assertions of the form this suite uses, so those files have no behavioural gate — splitting them would be unverifiable in exactly the way the brief warns about."
+  ],
+  "rollback": [
+    "git revert the commit — one edited file and two added files, with no data, config or schema migration.",
+    "After rollback, re-run bash phone_focus_mode/lib/tests/test_adb_common.sh; expect 16 passed, 0 failed."
+  ]
+}
