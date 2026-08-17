@@ -1,0 +1,17 @@
+{
+  "title": "Cover usage_report.py before splitting it",
+  "objective": "usage_report.py is 426 lines against a 250-line cap and sat at 47% coverage, with the uncovered half being the CLI, the two run paths, the clipboard/emit side and the segment aggregation - i.e. most of what a split would move. This commit raises it to 100% line and branch coverage first, so the following split can be verified against tests that predate the seam. No production code changes here.",
+  "acceptance_criteria": [
+    "usage_report.py reaches 100% line and branch coverage, from 47%",
+    "usage_report.py is byte-identical to HEAD - this commit adds tests only",
+    "The directory test count rises by exactly the number of tests added (179 -> 204) with no existing test altered",
+    "No suppression of any kind: no noqa, no type: ignore, no lowered threshold",
+    "Every new test file is under the 250-line cap, so the over-cap total does not rise"
+  ],
+  "out_of_scope": [
+    "The split of usage_report.py itself, which is the next commit",
+    "Deleting the dead _compute_window shim - a behaviour change that does not belong in a coverage commit",
+    "meta/scripts/optimize_vscode.py and the three transcribe_* files, also over cap and untested"
+  ],
+  "verifier": "pytest linux_configuration/tests/ --cov=usage_report --cov-branch --cov-report=term-missing for the coverage claim and the test count; pre-commit run --files for lint; bash ~/utils/scripts/check_file_length.sh --all to confirm no new over-cap file."
+}
