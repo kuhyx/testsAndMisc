@@ -1,0 +1,53 @@
+{
+  "intent": "Provide the per-commit file-length gate that the shell-splitting work has been referring to. It did not exist: no check_file_length.sh was ever committed to this repo, so every split so far was checked by eye.",
+  "scope": [
+    "meta/scripts/check_file_length.sh — new script",
+    "Non-goal: wiring it into .pre-commit-config.yaml. 24 files are still over the cap, so a hook would block every commit. It lands as a hook once --all exits 0."
+  ],
+  "changes": [
+    "New meta/scripts/check_file_length.sh enforcing a 250-line cap, taking either --all (every tracked file) or an explicit file list.",
+    "Scope is source extensions only (sh/bash/zsh, py, kt/kts, dart, ts/tsx/js/jsx). Markdown, HTML, JSON, YAML, lockfiles and .gitignore are excluded: a length cap on data and prose is noise.",
+    "third_party/ and docs/superpowers/ are excluded as vendored or generated trees.",
+    "Reports each violation with its line count and the overage, sorted worst-first, on stderr; exits 1 when anything is over."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "fail-as-expected",
+      "evidence": "Reports exactly 24 files over the cap and exits 1. This independently reproduces the count carried in NEXT_SESSION_PROMPT.md (20 shell, 2 kotlin, 1 dart, plus the markdown brief which this scope correctly excludes), which is what confirms the extension scope matches the intended one."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh meta/scripts/check_file_length.sh",
+      "result": "pass",
+      "evidence": "'all checked files are within 250 lines', exit 0 — the gate passes its own cap at 135 lines."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh phone_focus_mode/dns_enforcer.sh",
+      "result": "fail-as-expected",
+      "evidence": "'325  phone_focus_mode/dns_enforcer.sh (+75)', exit 1 — named-file mode reports the overage."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh NEXT_SESSION_PROMPT.md third_party/agent-skills/hooks/simplify-ignore.sh",
+      "result": "pass",
+      "evidence": "Both exit 0: the markdown is out of extension scope and the 302-line vendored script is under an excluded prefix."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh",
+      "result": "fail-as-expected",
+      "evidence": "'Error: pass --all or one or more file paths', exit 1 — no-argument invocation cannot be mistaken for a clean run."
+    },
+    {
+      "command": "shellcheck meta/scripts/check_file_length.sh",
+      "result": "pass",
+      "evidence": "Clean. An initial SC2155 on the readonly SCRIPT_NAME assignment was fixed by splitting declaration from assignment, not suppressed."
+    }
+  ],
+  "risks": [
+    "The cap is a blunt measure: a 260-line file with one long data table is treated the same as a 260-line file with tangled control flow. The gate is an alarm, not a judgement.",
+    "Excluding docs/superpowers/ means generated evidence and contract artifacts are never capped. That is intended, but a genuinely oversized script placed there would go unchecked."
+  ],
+  "rollback": [
+    "git revert the commit and delete the script; nothing depends on it yet because it is deliberately not wired into pre-commit.",
+    "After rollback, confirm pre-commit run --all-files still passes, which it will, since no hook references the script."
+  ]
+}
