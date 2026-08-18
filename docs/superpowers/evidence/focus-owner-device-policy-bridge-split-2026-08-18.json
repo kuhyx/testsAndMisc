@@ -1,0 +1,40 @@
+{
+  "intent": "Phase 1 of NEXT_SESSION_PROMPT.md's 250-line-cap campaign: bring focus_owner/android/.../DevicePolicyBridge.kt (415 lines) under the cap.",
+  "scope": [
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyBridge.kt",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyVpnDns.kt (new)",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyLocation.kt (new)",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyUninstallGuard.kt (new)"
+  ],
+  "changes": [
+    "Kotlin has no part-of mechanism like Dart, so the class was split by extracting three cohesive method groups into standalone internal helper classes, each held as a private delegate field on DevicePolicyBridge: DevicePolicyVpnDns (always-on-VPN + Private DNS pinning), DevicePolicyLocation (self-grant location permissions + enable location), DevicePolicyUninstallGuard (self/package uninstall blocking)",
+    "DevicePolicyBridge's public API is unchanged -- every public method (setAlwaysOnVpn, setVpnConfigBlocked, grantLocationPermissions, setSelfUninstallBlocked, etc.) still exists on DevicePolicyBridge as a one-line delegating wrapper, since MainActivity.kt and EnforcementService.kt call these directly on a DevicePolicyBridge instance and were not touched",
+    "No behavioral change: all moved method bodies are verbatim, including doc comments explaining the DPM quirks and measured device behavior each guards against",
+    "DevicePolicyBridge.kt: 415 -> 219 lines; three new files at 146/92/79 lines"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "DevicePolicyBridge.kt off the list; file count over cap dropped from 10 to 9"
+    },
+    {
+      "command": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew compileDebugKotlin --rerun-tasks",
+      "result": "pass",
+      "evidence": "BUILD SUCCESSFUL, no compile errors -- confirms the delegate wiring (constructor params, function-reference callbacks for isDeviceOwner/isProfileOwner) type-checks correctly"
+    },
+    {
+      "command": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew test --rerun-tasks",
+      "result": "pass",
+      "evidence": "BUILD SUCCESSFUL; test-results XML shows 40 tests total (6+9+12+13 across 4 suites), 0 failures, 0 errors, 0 skipped. --rerun-tasks used per NEXT_SESSION_PROMPT.md's Kotlin verification note (a plain gradlew test can report UP-TO-DATE and prove nothing)"
+    }
+  ],
+  "risks": [
+    "No dedicated unit test exists for DevicePolicyBridge itself (it wraps the real Android DevicePolicyManager system service, not unit-testable without instrumentation), so this split relies on compile-time type-checking plus the unchanged public API surface as its correctness argument, not a passing test asserting DevicePolicyBridge's own behavior",
+    "The isDeviceOwner/isProfileOwner function-reference pattern used to wire delegates (::isDeviceOwner passed into constructors) means each helper calls back into DevicePolicyBridge on every check rather than caching a value -- matches the original code's behavior (which also called isDeviceOwner() fresh each time) but is a slightly less obvious pattern than a plain boolean field"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "After rollback, re-run gradlew compileDebugKotlin --rerun-tasks to confirm the pre-split file still compiles clean"
+  ]
+}

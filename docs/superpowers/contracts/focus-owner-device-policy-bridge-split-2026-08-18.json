@@ -1,0 +1,17 @@
+{
+  "title": "Split DevicePolicyBridge.kt under the 250-line cap",
+  "objective": "Bring focus_owner/android/.../DevicePolicyBridge.kt (415 lines) under the repo-wide 250-line cap by extracting cohesive method groups into standalone helper classes, without changing DevicePolicyBridge's public API.",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all no longer lists DevicePolicyBridge.kt.",
+    "Every public method DevicePolicyBridge exposed before the split (isDeviceOwner, isProfileOwner, setApplicationHidden, grantLocationPermissions, enableLocation, isApplicationHidden, isAdminActive, hasAccounts, setSelfUninstallBlocked, isSelfUninstallBlocked, setPackageUninstallBlocked, setAlwaysOnVpn, setPrivateDns, privateDnsHost, setPrivateDnsConfigBlocked, alwaysOnVpnPackage, setVpnConfigBlocked, status, releaseDeviceOwner) still exists on DevicePolicyBridge with the same signature, since MainActivity.kt and EnforcementService.kt call these directly.",
+    "gradlew compileDebugKotlin --rerun-tasks succeeds with no compile errors.",
+    "gradlew test --rerun-tasks succeeds with the same test count and zero failures as before the split.",
+    "No method body logic changed -- only extraction into new files plus delegate wiring."
+  ],
+  "out_of_scope": [
+    "Adding new unit tests for DevicePolicyBridge itself (it wraps the Android DevicePolicyManager system service; no prior test existed and none is required for a pure extraction).",
+    "Touching MainActivity.kt or EnforcementService.kt, whose call sites were verified but not modified.",
+    "Splitting EnforcementRunner.kt, the other over-cap focus_owner Kotlin file -- separate file, separate task."
+  ],
+  "verifier": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew compileDebugKotlin test --rerun-tasks (from focus_owner/android), plus bash meta/scripts/check_file_length.sh --all showing DevicePolicyBridge.kt no longer over cap."
+}
