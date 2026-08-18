@@ -1,0 +1,40 @@
+{
+  "intent": "Make the path-filtered Python tests workflow actually re-run when its own definition changes, and add workflow_dispatch so it can be fired manually -- closing the gap that let the prior rsvg-convert fix land without Python tests ever re-running against it.",
+  "scope": [
+    ".github/workflows/python-tests.yml",
+    "no code under python_pkg/ changed"
+  ],
+  "changes": [
+    "Added .github/workflows/python-tests.yml to both push and pull_request paths filters, so a change to the workflow's own definition triggers a run",
+    "Added workflow_dispatch: {} so the workflow can be fired manually without needing a matching path change"
+  ],
+  "verification": [
+    {
+      "command": "gh run rerun 32185366598 (the pre-fix Python tests run)",
+      "result": "fail",
+      "evidence": "gh run rerun replays the historical commit's workflow YAML (predating the librsvg fix), not main's current definition -- confirmed still failed with the same 99.98% / vector.py:156 signature. This proved rerun cannot verify a workflow-file-only fix and motivated this self-trigger change instead of relying on rerun."
+    },
+    {
+      "command": "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/python-tests.yml'))\"",
+      "result": "pass",
+      "evidence": "YAML OK"
+    },
+    {
+      "command": "pre-commit run --files .github/workflows/python-tests.yml docs/superpowers/evidence/ci-phase0-python-tests-self-trigger-2026-08-18.json",
+      "result": "pass",
+      "evidence": "all applicable hooks passed"
+    },
+    {
+      "command": "gh run list --workflow=\"Python tests\" --limit 1 (post-push)",
+      "result": "pending at evidence-authoring time",
+      "evidence": "to be confirmed green with headSha matching this commit before Phase 0 is declared complete; see NEXT_SESSION_PROMPT.md update"
+    }
+  ],
+  "risks": [
+    "If GitHub Actions path-filter evaluation for a self-referential workflow-file entry behaves unexpectedly (e.g. skips because the workflow wasn't running when the push landed), the run may still not fire -- must be confirmed by headSha, not just conclusion"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Manual re-verification would then require gh workflow run (now removed) or another path-matching commit"
+  ]
+}

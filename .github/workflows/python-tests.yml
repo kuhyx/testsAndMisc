@@ -10,6 +10,7 @@ on:
       - "linux_configuration/scripts/periodic_background/system-maintenance/bin/**"
       - "linux_configuration/tests/**"
       - "requirements.txt"
+      - ".github/workflows/python-tests.yml"
   pull_request:
     branches: [main]
     paths:
@@ -19,6 +20,8 @@ on:
       - "linux_configuration/scripts/periodic_background/system-maintenance/bin/**"
       - "linux_configuration/tests/**"
       - "requirements.txt"
+      - ".github/workflows/python-tests.yml"
+  workflow_dispatch: {}
 
 jobs:
   test:
