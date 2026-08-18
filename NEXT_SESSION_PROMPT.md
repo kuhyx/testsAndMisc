@@ -36,7 +36,7 @@ Not a blocking gate, just don't be surprised if the answer changes scope.
 
 ## 0.5. What just happened (this session) — libre_translate.sh archived, not split
 
-Asked the same one-line check-in the §0 lesson above recommends, *before*
+Asked the same one-line check-in the §0 lesson above recommends, _before_
 starting the split (grill-gate questions, before any code was touched this
 time). User confirmed `libre_translate.sh` is also unused. Same resolution as
 the plagiarism tools: moved to `kuhyx/testsAndMisc-archive` with full git
