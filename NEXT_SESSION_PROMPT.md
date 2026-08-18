@@ -112,9 +112,22 @@ baseline.
 
 ## Phase 1: Drive the 250-line cap to zero
 
-**Status as of 2026-08-18: 11 files over cap.** Re-run
-`bash meta/scripts/check_file_length.sh --all` at the start of every session
-in this phase — the exact list drifts as other work touches these files.
+**Status as of 2026-08-18 (session 2): 10 files over cap, one done this
+session.** Re-run `bash meta/scripts/check_file_length.sh --all` at the start
+of every session in this phase — the exact list drifts as other work touches
+these files.
+
+`focus_owner/lib/status_page_state.dart` (307 lines) is DONE — split into
+`status_page_state.dart` (248) + a new `status_page_dialogs.dart` (103),
+commit `47e05d1`. Pure verbatim extraction of the two `AlertDialog` builders
+and the `build()` body-selection logic into a new `part of 'main.dart'` file,
+following the exact pattern `status_body.dart` already established.
+Verified: `dart analyze lib/` clean, full `flutter test` 94/94 passing (no
+new tests needed — existing widget tests already drive both dialogs through
+the rendered UI). `focus_owner` was confirmed **live and enforcing** this
+session (`focus_owner/README.md`: "Live and enforcing... provisioned as
+device owner") — do not treat any `focus_owner` file on this list as a
+dead-code candidate without a much stronger signal than "it's long."
 
 ```
 1734  linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh
@@ -127,8 +140,37 @@ in this phase — the exact list drifts as other work touches these files.
  564  focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/EnforcementRunner.kt
  485  linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh
  415  focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyBridge.kt
- 307  focus_owner/lib/status_page_state.dart
 ```
+
+**`setup_midnight_shutdown.sh` needs a non-standard split plan, read this
+before touching it:** its 39 top-level-looking functions are NOT all real —
+several (`log`, `now_epoch`/`current_epoch`, `cmd_add`/`cmd_list`/`cmd_remove`,
+`require_root`, etc.) are duplicated because the outer script generates
+_inner_ standalone scripts via heredocs (`create_shutdown_check_script`,
+`create_override_manager_script`, `install_monitor_service`) that get written
+to `/usr/local/bin/`. `extract_shell_functions.py` and `verify_shell_split.sh`
+both assume real top-level functions and will mishandle a heredoc body.
+The plan that will work: extract only the genuine outer orchestration
+functions normally, treat each `create_*_script` heredoc as one atomic unit
+that moves whole (never split its interior), and verify by hashing the
+_emitted_ `/usr/local/bin/*` script content before and after the split
+(`sha256sum` on a rendered-heredoc temp file), not just by running
+`verify_shell_split.sh` on the outer file. This file also belongs on the
+live-deployment-trap list below (writes to `/etc/shutdown-schedule.conf`
+with `chattr +i`, integrates with guard-lib) — treat it with the same
+handle-last caution as `install_leechblock.sh`/`block_compulsive_opening.sh`.
+
+**Tooling bug found this session, fix opportunistically:**
+`~/.claude/scripts/dart_format_changed.sh <repo>` reports "No changed Dart
+files to format" even when files ARE changed, when invoked with an absolute
+or relative repo path from outside that repo. Root cause: it `cd`s into
+`$repo` first, then runs `git status --porcelain`, which returns paths
+relative to the git _worktree root_ (`testsAndMisc/`), not relative to
+`$repo` — so its `[[ -f $path ]]` check silently fails for every file. Not
+fixed this session (out of scope for Phase 1); `dart format <files>` run
+directly was used as a workaround. Worth a real fix (make the script `cd` to
+the git toplevel, or strip the repo-relative prefix) since this affects every
+future Dart split in `focus_owner`, `billsplit`, etc.
 
 **Two of these carry a live-deployment trap, handle last or very carefully:**
 `install_leechblock.sh` and `block_compulsive_opening.sh` are copied to
