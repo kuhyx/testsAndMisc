@@ -1,0 +1,16 @@
+{
+  "title": "Move install_plagiarism_tools.sh and siblings to testsAndMisc-archive",
+  "objective": "The user said they no longer use the plagiarism-detection tooling (built and just split this session per NEXT_SESSION_PROMPT.md §3). Move it out of testsAndMisc into testsAndMisc-archive with full git history preserved, rather than leaving unused code in the primary repo.",
+  "acceptance_criteria": [
+    "All 13 plagiarism-tool files (install_plagiarism_tools.sh, download_nltk_data.py, check_plagiarism.py, plagiarism_similarity.py, sherlock.py, the 3 lib/plagiarism_*.sh siblings, and the 5 lib/tests/*plagiarism* test files) exist in kuhyx/testsAndMisc-archive with their git history intact, including the pre-rename path (linux_configuration/scripts/utils/install_plagiarism_tools.sh) from before the single_use/periodic_background reorg.",
+    "The archive push completed and is verified live on GitHub before any deletion happens in the main repo -- deleting first and discovering a failed archive push would lose the only copy.",
+    "The same 13 files are removed from testsAndMisc via git rm, with no other files touched.",
+    "check_file_length.sh --all reports the same 14 over-cap files as immediately after the split commit (2a7b9d9) -- this deletion does not change that count, since none of the removed files were over cap.",
+    "pre-commit run --files passes on the deletion commit's staged set."
+  ],
+  "out_of_scope": [
+    "Any other unused or academic-tooling files (generate_study_materials.sh, repo_to_study.sh, etc.) -- user explicitly scoped this to just the plagiarism-tool files.",
+    "Re-running or re-verifying the split work itself; that was already proven correct before the archival decision was made (see install-plagiarism-tools-split-2026-08-18.json)."
+  ],
+  "verifier": "gh api repos/kuhyx/testsAndMisc-archive/contents/linux_configuration/scripts/single_use/utils confirming all 13 files present before the git rm commit; git log --oneline -- <each removed path> in testsAndMisc-archive confirming history depth matches the pre-archival testsAndMisc log; check_file_length.sh --all; pre-commit run --files on the deletion commit."
+}

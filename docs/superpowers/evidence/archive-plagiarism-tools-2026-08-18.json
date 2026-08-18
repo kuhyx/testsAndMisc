@@ -1,0 +1,43 @@
+{
+  "intent": "Move the just-split, unused plagiarism-detection tooling (install_plagiarism_tools.sh and its 12 extracted/test siblings) out of testsAndMisc into testsAndMisc-archive with full git history, per the user's explicit statement that they no longer use it.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/install_plagiarism_tools.sh, download_nltk_data.py, check_plagiarism.py, plagiarism_similarity.py, sherlock.py (deleted)",
+    "linux_configuration/scripts/single_use/utils/lib/plagiarism_python.sh, plagiarism_sherlock.sh, plagiarism_optional.sh (deleted)",
+    "linux_configuration/scripts/single_use/utils/lib/tests/plagiarism_harness.sh, test_plagiarism_python.sh, test_plagiarism_sherlock.sh, test_plagiarism_optional.sh, test_install_plagiarism_tools.sh (deleted)",
+    "kuhyx/testsAndMisc-archive: same 13 files added, with history",
+    "Not in scope: any other unused academic-tooling file the user did not name (e.g. generate_study_materials.sh)"
+  ],
+  "changes": [
+    "Cloned testsAndMisc into a throwaway scratchpad location (never a worktree of the real repo, since git filter-repo rewrites refs and a worktree shares the object store).",
+    "Ran git filter-repo --force with explicit --path for all 13 current-path files plus the pre-rename path (linux_configuration/scripts/utils/install_plagiarism_tools.sh, from before the single_use/periodic_background reorg) so history predating that rename was not silently dropped.",
+    "Cloned testsAndMisc-archive separately, added the filtered clone as a remote, and merged it in with --allow-unrelated-histories (required since the two repos share no common root commit).",
+    "Verified the merge landed all 13 files with git ls-tree, then pushed to testsAndMisc-archive and confirmed live via the GitHub API before touching the main repo.",
+    "Only after the archive push was confirmed live: git rm the same 13 files from testsAndMisc and committed the deletion.",
+    "Removed the plag remote from the archive-clone before pushing, so no stray remote-tracking branches from the filtered clone's other refs (copilot-wt, etc.) leaked into the push."
+  ],
+  "verification": [
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc-archive/contents/linux_configuration/scripts/single_use/utils",
+      "result": "pass",
+      "evidence": "Returned check_plagiarism.py, download_nltk_data.py, install_plagiarism_tools.sh, lib, plagiarism_similarity.py, sherlock.py -- confirmed live on GitHub before the main-repo deletion commit was made."
+    },
+    {
+      "command": "git log --oneline -- linux_configuration/scripts/single_use/utils/install_plagiarism_tools.sh (in the archive clone) vs the same command in testsAndMisc at commit 2a7b9d9",
+      "result": "pass",
+      "evidence": "Both show 4 commits with identical messages in the same order (the split, the no-inline-Python gate, the shellcheck fail-build change, the single_use/periodic_background rename) -- history genuinely carried over, not truncated at the rename."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "14 files over cap, unchanged from immediately after the split commit -- none of the deleted files were over cap, so this operation does not move that number."
+    }
+  ],
+  "risks": [
+    "The archive repo has no pre-commit hooks or CI, so nothing re-verifies the moved code still works there -- it is frozen at exactly the state it left testsAndMisc in.",
+    "git filter-repo was run with --force on a disposable clone rather than a truly fresh `git clone` from the remote; verified this clone's origin was the local repo path (harmless) and that no push was made to it, but noting the deviation from the tool's documented 'fresh clone' expectation."
+  ],
+  "rollback": [
+    "In testsAndMisc: git revert the deletion commit to restore the 13 files (their content and permissions are unchanged from the split commit, so a straight revert is safe).",
+    "The testsAndMisc-archive copy can stay regardless of rollback -- having the files in both places briefly is not harmful, just redundant. If it must be undone: git revert the merge commit there, though a merge revert needs the -m flag to pick which parent to keep."
+  ]
+}
