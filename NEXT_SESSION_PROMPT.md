@@ -36,7 +36,38 @@ Three decisions made when this campaign was scoped (2026-08-18) — also do
 
 ---
 
-## Phase 0: Fix current CI red state — **STATUS: in progress, check first**
+## Phase 0: Fix current CI red state — **STATUS: DONE, 2026-08-18. Re-verify before trusting.**
+
+Re-check with `gh run list --limit 5` before assuming this still holds —
+state can drift between sessions. As of commit `4a35be7`, `Pre-commit
+checks`, `Shell tests`, AND `Python tests` all show `success` with
+`headSha` matching `4a35be7` (verified via
+`gh run list --workflow="<name>" --limit 1 --json headSha,status,conclusion`
+for each, not just `gh run list`'s default view).
+
+Fixed in two commits:
+
+- `4326ea4` — added `librsvg2-bin` (provides `rsvg-convert`) to the
+  `apt-get install` steps in both `pre-commit.yml` and `python-tests.yml`.
+  This was the actual root-cause fix for the 99.98% coverage gap.
+- `4a35be7` — `python-tests.yml` is path-filtered (`python_pkg/**`,
+  `linux_configuration/tests/**`, etc.) and does NOT watch its own file, so
+  the `4326ea4` push never re-triggered it — its last run stayed red against
+  the old commit. `gh run rerun` does **not** help here: it replays the
+  *historical* commit's workflow YAML, not `main`'s current definition, so
+  it reran with the pre-fix workflow and failed identically. Fixed by adding
+  `.github/workflows/python-tests.yml` to the workflow's own `paths:`
+  filters (self-triggering) and adding `workflow_dispatch: {}` so it can
+  also be fired manually in the future.
+
+**Lesson for future CI-only fixes:** a workflow-file-only change does not
+retroactively verify itself if the touched workflow is path-filtered and
+excludes its own file. Either add the workflow's own path to its filter (now
+done for `python-tests.yml`), or make a real change under a path it already
+watches — never `gh run rerun`, which silently checks out the wrong
+definition. `pre-commit.yml` and `shell-tests.yml` have no path filter, so
+they self-trigger on every push already; only `python-tests.yml` had this
+gap.
 
 Three workflows were found red on `main` as of 2026-08-18, discovered while
 scoping this campaign:
