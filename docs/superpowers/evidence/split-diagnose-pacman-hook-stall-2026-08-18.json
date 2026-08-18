@@ -1,0 +1,79 @@
+{
+  "intent": "Take diagnose_pacman_hook_stall.sh from 493 lines to under the repo's 250-line cap, per NEXT_SESSION_PROMPT.md §1 -- this session's target, confirmed live (not dead code) via the required dead-code check-in before any code was touched.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/diagnose_pacman_hook_stall.sh (entry script, kept: usage/cleanup/main() minus its extracted print_summary tail, log_size, run_one, arg parsing -- these stay together because run_one shares PACMAN_PID/LAST_ELAPSED with cleanup()/main() across the EXIT trap)",
+    "linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_setup.sh (new: require_root, validate_requirements, resolve_package_file)",
+    "linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_load.sh (new: mem_available_mb, start_load, stop_load)",
+    "linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_capture.sh (new: descendant_pids, kill_tree, capture_stall)",
+    "linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_watch.sh (new: watch_forever)",
+    "linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_usage.sh (new: usage)",
+    "linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_summary.sh (new: print_summary, extracted from main()'s tail specifically to clear the 250-line cap)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/pacman_hook_stall_harness.sh + 6 lib test files (new: PATH-shim test suite for the 6 libs)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/pacman_hook_stall_entry_harness.sh + test_diagnose_pacman_hook_stall_args.sh + test_diagnose_pacman_hook_stall_timing.sh (new: subprocess test suite for the entry script, split into two files after the combined draft itself grew past the 250-line cap)",
+    "Not in scope: §3 (install_leechblock.sh/block_compulsive_opening.sh, deployed-copy trap) and everything else NEXT_SESSION_PROMPT.md §4 lists as out of scope this session."
+  ],
+  "changes": [
+    "Split into 6 libs plus the entry script. Verified via a scratch shellcheck dry-run (with .shellcheckrc's external-sources=true / source-path=SCRIPTDIR, matching the real pre-commit hook) that run_one/cleanup/main/log_size cannot move into a lib: any lib-file split of run_one produces a real SC2153 (PACMAN_BIN vs PACMAN_PID) and SC2034 (LAST_ELAPSED) because a sourced lib has no mechanism to declare where its globals come from -- this exact combination caused a prior session (commit 2527fb3) to revert this same split. Kept them together in the entry script instead of suppressing.",
+    "Made PACMAN_BIN, PACMAN_LOG, CACHE_DIR, PACMAN_LOCK, and (later) LOAD_FLOOR_MB/LOAD_MIN_FREE_MB env-overridable via `: \"${VAR:=default}\"` instead of hardcoded (readonly or bare) assignment -- required for the test harness to point at fakes instead of /usr/bin/pacman.orig, /var/log/pacman.log, /var/cache/pacman/pkg, /var/lib/pacman/db.lck, and the real MemAvailable. Production behavior is unchanged since nothing else in the environment sets these.",
+    "Found and fixed a real bug in print_summary's awk one-liner: `if (NR == 0) exit` was dead code, because `printf '%s\\n' \"${_durations[@]}\"` on an empty bash array still emits one blank line (printf cycles its format at least once), so NR is always >= 1. Reachable in production via `-n 0`. Replaced with a bash-side `((${#_durations[@]} > 0))` guard, which also let the whole median/min/max computation move out of an inline awk block into plain bash arithmetic (see next item).",
+    "Refactored mem_available_mb, descendant_pids+kill_tree, capture_stall's two output-capture blocks, and print_summary's median calculation specifically to reach 100% kcov line coverage, after empirically confirming (bash -x on isolated repros) that kcov's xtrace-based line instrumentation never emits a trace event for a `done <redirect>` loop-closing line, a `} >redirect` group-closing line, or lines inside an inline awk script -- all three are structurally invisible to kcov regardless of how thoroughly the code executes. User was asked (grill-gate question, since this crosses into 'refactor code to satisfy a linter/coverage tool') and explicitly chose 'refactor each site' over 'fix the coverage tool'. mem_available_mb/print_summary use an explicit fd (exec 9<...; ...<&9) instead of `done <redirect>`; kill_tree and capture_stall's two blocks use a real pipe (safe: their loop bodies don't need to survive a subshell). descendant_pids specifically could NOT become a pipe -- it appends to `pids` inside the loop, and a pipe/subshell would silently make it return only the root PID, breaking kill_tree/capture_stall's process-tree walk -- so it uses `exec 9< <(process substitution); ... <&9` instead, which is traceable and preserves the array mutation (verified by the existing 'walks the whole tree breadth-first' test, which passed unchanged before and after).",
+    "Confirmed (not just assumed) that converting capture_stall's `done < <(descendant_pids ...)` to a pipe doesn't introduce a pipefail hazard: descendant_pids seeds `pids=(\"$root\")` before its loop, so it can never produce empty output or a nonzero exit, so the pipeline's left side can never fail and abort capture_stall mid-write.",
+    "Extracted print_summary out of main() into its own lib (a real behavior-preserving refactor, not a mechanical move) specifically to make room under the 250-line cap once run_one/cleanup/log_size/main had to stay together; then further restructured main()'s `if (WATCH_MODE) { watch_forever; return }` into an if/else, since watch_forever never returns (intentional -- it's `while true`, killed externally) and the bare `return` after it was consequently unreachable and unfixable without changing watch_forever's contract.",
+    "Discovered (during the second advisor pass, before it was ever committed or the box put at real risk) that the new --with-load test case would otherwise dd 13-20+ GB into /dev/shm using this box's real available memory and the entry script's real LOAD_FLOOR_MB=800 default -- caught by review, not by an incident; fixed by making LOAD_FLOOR_MB/LOAD_MIN_FREE_MB env-overridable the same way as the other globals, and pinning the test's override 100 MB under actual MemAvailable so it allocates a small, bounded amount instead.",
+    "Used unshare -r (not real sudo) to drive the entry-script subprocess test as EUID 0, since require_root execs real sudo before argument parsing (even for -h). SIGINT delivery to a backgrounded child was observed to be unreliable in this Bash-tool environment (a plain `bash -c 'trap ...; sleep 30'` backgrounded and sent SIGINT never fired its trap, with or without disown); SIGTERM did. Since the entry script's `trap cleanup EXIT INT TERM` wires both signals to the identical handler, the cleanup/kill_tree-on-SIGINT test uses SIGTERM instead -- same code path, reliable delivery.",
+    "check_plagiarism-style precedent (lib/hosts_guard_migrate.sh) already carries the git-index executable bit despite being sourced, not executed; matched that convention for all 6 new libs rather than leaving them non-executable, after pre-commit's shebang-executable-bit hook flagged the mismatch.",
+    "The entry-script test file itself grew to 295 lines while adding -p/--with-load/log-advance/SIGTERM coverage (caught by check_file_length.sh --all, which does not exempt test files). Split it into pacman_hook_stall_entry_harness.sh (fake pacman.orig/ps/journalctl/pgrep/logger + the run_entry helper, shared) plus test_diagnose_pacman_hook_stall_args.sh (arg-parsing/basic runs) and test_diagnose_pacman_hook_stall_timing.sh (stall/hard-timeout/SIGTERM/--watch) -- both now under 150 lines. Re-measured coverage across both files together (kcov run twice into the same output dir, merged by shell_coverage_report.py) to confirm the split didn't lose any assertion; still 120/120=100.00%, still 13 assertions total, and jscpd re-measured unchanged (1.5%, 31 clones, none in these files) confirming the split was a clean extraction, not a copy-paste."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "12 files over cap (was 13); diagnose_pacman_hook_stall.sh no longer listed. Entry script itself is 249 lines."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh <test> <subject> for all 7 subjects",
+      "result": "pass",
+      "evidence": "pacman_hook_stall_setup.sh 27/27=100.00%, pacman_hook_stall_load.sh 25/25=100.00%, pacman_hook_stall_capture.sh 59/59=100.00%, pacman_hook_stall_watch.sh 24/24=100.00%, pacman_hook_stall_usage.sh 2/2=100.00%, pacman_hook_stall_summary.sh 18/18=100.00%, diagnose_pacman_hook_stall.sh 120/120=100.00%."
+    },
+    {
+      "command": "bash <each test file> individually and as a full suite, 3x for the timing-sensitive ones (load/watch/entry)",
+      "result": "pass",
+      "evidence": "43 lib-level assertions (8+7+8+5+4+11 across the 6 lib test files) + 13 entry-level assertions (7 args + 6 timing, after the entry test split) = 56 total, 0 failed, stable across repeated runs."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh 79829ec <entry> <entry> <6 libs>",
+      "result": "pass (with expected, explained DIFFERENCE)",
+      "evidence": "DIFFERENCE reported for exactly capture_stall, descendant_pids, kill_tree, main, mem_available_mb, print_summary, validate_requirements -- every one is a deliberate behavior-preserving refactor documented above (kcov-blind-spot fixes, PACMAN_LOCK injection, print_summary extraction/bugfix). Every other function (usage, cleanup, require_root, resolve_package_file, start_load, stop_load, log_size, run_one, watch_forever) verified byte-for-byte identical."
+    },
+    {
+      "command": "shellcheck on all 17 code files together (matches the pre-commit hook's batching)",
+      "result": "pass",
+      "evidence": "Zero findings, including SC2034/SC2153 on the entry script's env-overridable globals -- confirmed .shellcheckrc's external-sources=true + source-path=SCRIPTDIR resolves these correctly when the entry script (not a lib) carries the source= annotations."
+    },
+    {
+      "command": "jscpd --pattern **/*.sh --min-lines 14 --min-tokens 25 --threshold 2 . (run in a clean `git worktree add --detach` with the new files copied in)",
+      "result": "pass",
+      "evidence": "1.5% duplication overall (462 files, 63557 lines); none of the 31 reported clones involve any pacman_hook_stall_* file."
+    },
+    {
+      "command": "pre-commit run --files <full staged set> (after git add --chmod=+x, per this repo's stated ordering)",
+      "result": "pass",
+      "evidence": "All hooks passed after fixing the 6 libs' missing executable bit (git-index mode 100644 -> 100755, matching lib/hosts_guard_migrate.sh's existing convention) and adding this evidence/contract pair."
+    },
+    {
+      "command": "Manual memory-safety check after the --with-load fix",
+      "result": "pass",
+      "evidence": "grep MemAvailable /proc/meminfo before/after full suite run: 22381180 kB -> 22338908 kB (no meaningful drop); `ls /dev/shm/hook-stall-hog.*` empty after every run; no OOM entries in journalctl/dmesg for the session window."
+    }
+  ],
+  "risks": [
+    "Six functions (capture_stall, descendant_pids, kill_tree, main, mem_available_mb, print_summary) and one arg-parse-adjacent global block were rewritten, not mechanically moved -- verify_shell_split.sh's guarantee only covers the other 9 functions verbatim. Each rewrite is covered by an existing or new test that passed unchanged before and after, but this is a materially larger diff than a pure split.",
+    "PACMAN_BIN/PACMAN_LOG/CACHE_DIR/PACMAN_LOCK/LOAD_FLOOR_MB/LOAD_MIN_FREE_MB are now env-overridable in the shipped script. require_root re-execs with `sudo -E`, which preserves the caller's environment (including any injected PACMAN_BIN) into the root process. Harmless today since reaching that exec already requires full interactive sudo; would become arbitrary-code-as-root only if a future NOPASSWD sudoers rule were ever added for this script specifically -- noted, not hardened, since that's out of this session's scope.",
+    "The print_summary NR==0 bug fix and the descendant_pids array-mutation preservation were both caught and verified during this session (advisor review + empirical bash -x tracing), not found by an external report -- there is no independent second reviewer confirmation beyond the test suite and the checks documented above.",
+    "This session never ran the script against a real pacman transaction (per NEXT_SESSION_PROMPT.md's 'split blind where there is no device' equivalent instruction -- no live verification requested or performed); all verification is via the PATH-shim harness and the real-but-fake pacman.orig subprocess test."
+  ],
+  "rollback": [
+    "git revert the commit(s); the entry script and its 6 libs return to the single 493-line monolith with LOAD_FLOOR_MB/PACMAN_BIN/etc hardcoded and print_summary's dead awk NR==0 branch restored (bug re-introduced but never triggered in the original 40-run default flow, since -n 0 was not exercised in production use).",
+    "After rollback, confirm bash meta/scripts/check_file_length.sh --all reports diagnose_pacman_hook_stall.sh over cap again (493 lines)."
+  ]
+}

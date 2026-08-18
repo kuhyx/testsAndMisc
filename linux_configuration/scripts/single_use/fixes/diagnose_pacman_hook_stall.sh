@@ -29,11 +29,37 @@
 
 set -euo pipefail
 
+# shellcheck source=lib/pacman_hook_stall_summary.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/pacman_hook_stall_summary.sh"
+
+# shellcheck source=lib/pacman_hook_stall_usage.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/pacman_hook_stall_usage.sh"
+
+# shellcheck source=lib/pacman_hook_stall_watch.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/pacman_hook_stall_watch.sh"
+
+# shellcheck source=lib/pacman_hook_stall_capture.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/pacman_hook_stall_capture.sh"
+
+# shellcheck source=lib/pacman_hook_stall_load.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/pacman_hook_stall_load.sh"
+
+# shellcheck source=lib/pacman_hook_stall_setup.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/pacman_hook_stall_setup.sh"
+
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
-readonly PACMAN_BIN="/usr/bin/pacman.orig"
-readonly PACMAN_LOG="/var/log/pacman.log"
-readonly CACHE_DIR="/var/cache/pacman/pkg"
+# All four below are env-overridable (not hardcoded readonly) so the test
+# harness can point them at fakes instead of the real machine; production
+# gets the same defaults as before since nothing else sets these.
+: "${PACMAN_BIN:=/usr/bin/pacman.orig}"
+readonly PACMAN_BIN
+: "${PACMAN_LOG:=/var/log/pacman.log}"
+readonly PACMAN_LOG
+: "${CACHE_DIR:=/var/cache/pacman/pkg}"
+readonly CACHE_DIR
+: "${PACMAN_LOCK:=/var/lib/pacman/db.lck}"
+readonly PACMAN_LOCK
 
 # Defaults
 RUNS=40
@@ -43,8 +69,9 @@ HARD_TIMEOUT=120 # seconds before we give up and kill the stalled transaction
 OUT_DIR="/var/log/pacman-hook-stall"
 WITH_LOAD=0
 WATCH_MODE=0
-LOAD_FLOOR_MB=800     # never push MemAvailable below this
-LOAD_MIN_FREE_MB=1500 # refuse to start --with-load below this much available
+# Env-overridable like PACMAN_BIN etc above, so a test can force a tiny allocation.
+: "${LOAD_FLOOR_MB:=800}"     # never push MemAvailable below this
+: "${LOAD_MIN_FREE_MB:=1500}" # refuse to start --with-load below this much available
 
 HOG_FILE=""
 LOAD_PID=""
@@ -52,33 +79,6 @@ PACMAN_PID=""
 STALLS=0
 RUN_INDEX=0
 LAST_ELAPSED=0
-
-usage() {
-	cat <<EOF
-Usage: $SCRIPT_NAME [OPTIONS]
-
-Drives repeated pacman transactions and captures diagnostics when one stalls
-at its first PreTransaction hook.
-
-Options:
-  -n, --runs N          Number of transactions to drive (default: $RUNS)
-  -p, --package NAME    Package to reinstall from cache (default: $PACKAGE)
-  -t, --timeout S       Seconds of pacman.log silence => stall (default: $STALL_TIMEOUT)
-      --hard-timeout S  Seconds before killing a stalled run (default: $HARD_TIMEOUT)
-      --with-load       Also apply memory pressure (the hypothesis under test).
-                        Run this with nothing else going - it deliberately
-                        breaks the one-heavy-job-at-a-time rule.
-      --watch           Passive mode: drive nothing, just watch pacman.log and
-                        dump diagnostics when someone else's transaction stalls
-                        on a hook. Intended to run as a systemd service.
-  -o, --out DIR         Where to write stall dumps (default: $OUT_DIR)
-  -h, --help            Show this help
-
-Exit status: 0 if the loop completed (with or without stalls), non-zero on a
-setup failure. The stall count is reported in the summary.
-EOF
-	exit 0
-}
 
 cleanup() {
 	local rc=$?
@@ -96,190 +96,13 @@ trap cleanup EXIT INT TERM
 # Preconditions
 # ----------------------------------------------------------------------------
 
-require_root() {
-	if [[ $EUID -ne 0 ]]; then
-		exec sudo -E bash "$0" "$@"
-	fi
-}
-
-validate_requirements() {
-	local tool
-	for tool in "$PACMAN_BIN" ps awk sed journalctl; do
-		command -v "$tool" >/dev/null 2>&1 || [[ -x "$tool" ]] || {
-			echo "Error: required tool '$tool' not found" >&2
-			exit 1
-		}
-	done
-
-	[[ -r "$PACMAN_LOG" ]] || {
-		echo "Error: cannot read $PACMAN_LOG" >&2
-		exit 1
-	}
-
-	# Refuse to run alongside another *transaction*: a collision would look
-	# exactly like the stall we are hunting. db.lck is the authoritative signal
-	# - pacman holds it for the whole transaction. Deliberately NOT a pgrep for
-	# "pacman": read-only queries (pacman -Qi) take no lock, are harmless, and
-	# run constantly here from background services.
-	if [[ -e /var/lib/pacman/db.lck ]]; then
-		echo "Error: /var/lib/pacman/db.lck exists - another transaction is in" >&2
-		echo "flight (or a stale lock remains). Resolve it before running." >&2
-		exit 1
-	fi
-}
-
-# Resolve the cached package file for the installed version of $PACKAGE.
-resolve_package_file() {
-	local version
-	version="$("$PACMAN_BIN" -Q "$PACKAGE" 2>/dev/null | awk '{print $2}')"
-	[[ -n "$version" ]] || {
-		echo "Error: package '$PACKAGE' is not installed" >&2
-		exit 1
-	}
-
-	local candidate
-	for candidate in "$CACHE_DIR/$PACKAGE-$version"-*.pkg.tar.zst; do
-		[[ -e "$candidate" ]] || continue
-		printf '%s\n' "$candidate"
-		return 0
-	done
-
-	echo "Error: no cached package for $PACKAGE-$version in $CACHE_DIR" >&2
-	echo "Hint: run '$PACMAN_BIN -Sw $PACKAGE' first" >&2
-	exit 1
-}
-
 # ----------------------------------------------------------------------------
 # Load generator (tmpfs allocation = real anonymous-ish memory, no extra deps)
 # ----------------------------------------------------------------------------
 
-mem_available_mb() {
-	local kb=0 key value rest
-	while read -r key value rest; do
-		if [[ $key == "MemAvailable:" ]]; then
-			kb="$value"
-			break
-		fi
-	done </proc/meminfo
-	printf '%d\n' $((kb / 1024))
-}
-
-start_load() {
-	((WITH_LOAD == 1)) || return 0
-
-	local avail
-	avail="$(mem_available_mb)"
-	if ((avail < LOAD_MIN_FREE_MB)); then
-		echo "Error: only ${avail} MB available; --with-load needs >= ${LOAD_MIN_FREE_MB} MB" >&2
-		echo "Close Chromium / builds first." >&2
-		exit 1
-	fi
-
-	local target=$((avail - LOAD_FLOOR_MB))
-	HOG_FILE="$(mktemp /dev/shm/hook-stall-hog.XXXXXX)"
-	echo "Applying memory pressure: allocating ${target} MB (floor ${LOAD_FLOOR_MB} MB available)"
-	dd if=/dev/zero of="$HOG_FILE" bs=1M count="$target" status=none 2>/dev/null || true
-	echo "MemAvailable now: $(mem_available_mb) MB"
-}
-
-stop_load() {
-	if [[ -n "$LOAD_PID" ]] && kill -0 "$LOAD_PID" 2>/dev/null; then
-		kill "$LOAD_PID" 2>/dev/null || true
-	fi
-	if [[ -n "$HOG_FILE" && -e "$HOG_FILE" ]]; then
-		rm -f "$HOG_FILE"
-		HOG_FILE=""
-	fi
-}
-
 # ----------------------------------------------------------------------------
 # Diagnostics capture
 # ----------------------------------------------------------------------------
-
-# Print every descendant PID of $1, including $1 itself.
-descendant_pids() {
-	local root="$1"
-	local pids=("$root")
-	local i=0
-	while ((i < ${#pids[@]})); do
-		local parent="${pids[i]}"
-		local child
-		while read -r child; do
-			[[ -n "$child" ]] && pids+=("$child")
-		done < <(ps -o pid= --ppid "$parent" 2>/dev/null | tr -d ' ')
-		i=$((i + 1))
-	done
-	printf '%s\n' "${pids[@]}"
-}
-
-kill_tree() {
-	local root="$1"
-	local pid
-	while read -r pid; do
-		kill -9 "$pid" 2>/dev/null || true
-	done < <(descendant_pids "$root" | tac)
-}
-
-capture_stall() {
-	local root_pid="$1"
-	local run="$2"
-	local stamp
-	printf -v stamp '%(%Y%m%d-%H%M%S)T' -1
-
-	# Classify before capturing. The stall we are hunting leaves pacman.log
-	# ending on a hook's "running '...hook'..." line; anything else stalled
-	# somewhere unrelated and must not be counted as a reproduction.
-	local kind="other"
-	if tail -1 "$PACMAN_LOG" 2>/dev/null | grep -q "running '.*\.hook'"; then
-		kind="hook"
-	fi
-
-	local dir="$OUT_DIR/${stamp}-run${run}-${kind}"
-	mkdir -p "$dir"
-
-	echo "  !! STALL ($kind) - capturing diagnostics to $dir"
-	tail -1 "$PACMAN_LOG" >"$dir/last-log-line.txt" 2>&1 || true
-
-	ps -eo pid,ppid,stat,wchan:32,etime,args --forest >"$dir/ps-forest.txt" 2>&1 || true
-
-	local pid
-	while read -r pid; do
-		[[ -d "/proc/$pid" ]] || continue
-		{
-			echo "=== pid $pid ==="
-			echo "--- cmdline ---"
-			tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true
-			echo
-			echo "--- wchan ---"
-			cat "/proc/$pid/wchan" 2>/dev/null || true
-			echo
-			echo "--- syscall ---"
-			cat "/proc/$pid/syscall" 2>/dev/null || true
-			echo "--- stack ---"
-			cat "/proc/$pid/stack" 2>/dev/null || echo "(unavailable - needs CONFIG_STACKTRACE)"
-			echo "--- status ---"
-			grep -E "^(Name|State|Threads|VmRSS|SigBlk|SigIgn|SigCgt)" "/proc/$pid/status" 2>/dev/null || true
-			echo "--- smaps_rollup (Pss) ---"
-			grep -E "^Pss:" "/proc/$pid/smaps_rollup" 2>/dev/null || true
-			echo
-		} >>"$dir/procs.txt" 2>&1
-	done < <(descendant_pids "$root_pid")
-
-	cp /proc/meminfo "$dir/meminfo.txt" 2>/dev/null || true
-	{
-		echo "--- pressure/memory ---"
-		cat /proc/pressure/memory 2>/dev/null || true
-		echo "--- pressure/io ---"
-		cat /proc/pressure/io 2>/dev/null || true
-		echo "--- pressure/cpu ---"
-		cat /proc/pressure/cpu 2>/dev/null || true
-	} >"$dir/pressure.txt" 2>&1
-
-	journalctl -k -n 50 --no-pager >"$dir/dmesg-tail.txt" 2>&1 || true
-	tail -30 "$PACMAN_LOG" >"$dir/pacman-log-tail.txt" 2>&1 || true
-
-	STALLS=$((STALLS + 1))
-}
 
 # ----------------------------------------------------------------------------
 # The repro loop
@@ -335,114 +158,47 @@ run_one() {
 	LAST_ELAPSED=$((ended - started))
 }
 
-# Passive mode: watch OTHER people's transactions instead of driving our own.
-#
-# This exists because the active repro loop could not reproduce the stall: 65
-# transactions (40 idle + 25 under 2.6 GB of memory pressure) ran clean, against
-# a historical rate of 4 in 56. At a uniform 7% the odds of 65 clean runs are
-# under 1%, so the trigger is conditional on something a synthetic loop does not
-# recreate - which means the evidence has to be captured from a real stall, when
-# it next happens, rather than manufactured.
-#
-# Runs as a systemd service; costs one stat(2) per second and nothing else.
-watch_forever() {
-	echo "Watching $PACMAN_LOG for hook stalls (>= ${STALL_TIMEOUT}s silent)"
-	echo "Dumps: $OUT_DIR"
-
-	local last_size last_change now armed=0 seq=0
-	last_size="$(log_size)"
-	printf -v last_change '%(%s)T' -1
-
-	while true; do
-		sleep 1
-		local size
-		size="$(log_size)"
-		printf -v now '%(%s)T' -1
-
-		if [[ $size != "$last_size" ]]; then
-			last_size="$size"
-			last_change="$now"
-			armed=0
-			continue
-		fi
-
-		# Silence alone is normal - no transaction is running most of the time.
-		# Only a LIVE pacman sitting on a hook line is the signature we want.
-		((armed == 1)) && continue
-		((now - last_change >= STALL_TIMEOUT)) || continue
-
-		local pacman_pid
-		pacman_pid="$(pgrep -x pacman.orig | head -1 || true)"
-		[[ -n $pacman_pid ]] || continue
-
-		seq=$((seq + 1))
-		capture_stall "$pacman_pid" "watch${seq}"
-		logger -t pacman-hook-stall "captured a stalled transaction (pid $pacman_pid)"
-		armed=1
-	done
-}
-
 main() {
 	validate_requirements
 
 	if ((WATCH_MODE == 1)); then
 		mkdir -p "$OUT_DIR"
 		watch_forever
-		return
-	fi
+	else
+		local pkg_file
+		pkg_file="$(resolve_package_file)"
 
-	local pkg_file
-	pkg_file="$(resolve_package_file)"
+		mkdir -p "$OUT_DIR"
 
-	mkdir -p "$OUT_DIR"
-
-	echo "============================================================================"
-	echo "pacman hook-stall diagnosis"
-	echo "============================================================================"
-	echo "  package     : $PACKAGE ($pkg_file)"
-	echo "  runs        : $RUNS"
-	echo "  stall after : ${STALL_TIMEOUT}s of pacman.log silence"
-	echo "  hard timeout: ${HARD_TIMEOUT}s"
-	local load_desc="idle"
-	((WITH_LOAD == 1)) && load_desc="memory pressure ON"
-	echo "  load        : $load_desc"
-	echo "  dumps       : $OUT_DIR"
-	echo
-
-	start_load
-
-	local durations=()
-	while ((RUN_INDEX < RUNS)); do
-		RUN_INDEX=$((RUN_INDEX + 1))
-		run_one "$pkg_file" "$RUN_INDEX"
-		durations+=("$LAST_ELAPSED")
-		local marker=""
-		((LAST_ELAPSED >= STALL_TIMEOUT)) && marker="   <-- slow"
-		printf '  run %2d/%d: %3ds%s\n' "$RUN_INDEX" "$RUNS" "$LAST_ELAPSED" "$marker"
-	done
-
-	stop_load
-
-	echo
-	echo "============================================================================"
-	echo "Summary"
-	echo "============================================================================"
-	printf '  transactions : %d\n' "$RUNS"
-	printf '  stalls       : %d\n' "$STALLS"
-	printf '  durations    : %s\n' "${durations[*]}"
-	printf '%s\n' "${durations[@]}" | sort -n | awk '
-        { d[NR] = $1 }
-        END {
-            if (NR == 0) exit
-            printf "  min/median/max: %ds / %ds / %ds\n", d[1], d[int((NR+1)/2)], d[NR]
-        }'
-	if ((STALLS > 0)); then
+		echo "============================================================================"
+		echo "pacman hook-stall diagnosis"
+		echo "============================================================================"
+		echo "  package     : $PACKAGE ($pkg_file)"
+		echo "  runs        : $RUNS"
+		echo "  stall after : ${STALL_TIMEOUT}s of pacman.log silence"
+		echo "  hard timeout: ${HARD_TIMEOUT}s"
+		local load_desc="idle"
+		((WITH_LOAD == 1)) && load_desc="memory pressure ON"
+		echo "  load        : $load_desc"
+		echo "  dumps       : $OUT_DIR"
 		echo
-		echo "  Captured dumps:"
-		find "$OUT_DIR" -mindepth 1 -maxdepth 1 -type d -printf '    %p\n' \
-			2>/dev/null | sort | tail -"$STALLS"
+
+		start_load
+
+		local durations=()
+		while ((RUN_INDEX < RUNS)); do
+			RUN_INDEX=$((RUN_INDEX + 1))
+			run_one "$pkg_file" "$RUN_INDEX"
+			durations+=("$LAST_ELAPSED")
+			local marker=""
+			((LAST_ELAPSED >= STALL_TIMEOUT)) && marker="   <-- slow"
+			printf '  run %2d/%d: %3ds%s\n' "$RUN_INDEX" "$RUNS" "$LAST_ELAPSED" "$marker"
+		done
+
+		stop_load
+
+		print_summary durations
 	fi
-	echo "============================================================================"
 }
 
 # Escalate BEFORE parsing: after the parse loop "$@" has been shifted away, so

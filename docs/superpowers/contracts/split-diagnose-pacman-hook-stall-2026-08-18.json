@@ -1,0 +1,22 @@
+{
+  "title": "Split diagnose_pacman_hook_stall.sh, this session's NEXT_SESSION_PROMPT.md §1 target",
+  "objective": "Take diagnose_pacman_hook_stall.sh from 493 lines to under the repo's 250-line cap, confirmed live via the mandatory dead-code check-in before any code was touched. Split into 6 sourced libs by function group, keeping run_one/cleanup/log_size/main together in the entry script because they share PACMAN_PID/LAST_ELAPSED across the EXIT trap -- a prior session (commit 2527fb3) already demonstrated splitting run_one out produces a real SC2153/SC2034 pair, not a suppressible false positive. Reach 100% line coverage on every one of the 7 resulting files via a PATH-shim test harness, refactoring specific lines only where kcov's xtrace-based instrumentation cannot see them (done-with-redirect / group-with-redirect / inline-awk), per the user's explicit choice to fix the code rather than the coverage tool.",
+  "acceptance_criteria": [
+    "check_file_length.sh --all no longer lists diagnose_pacman_hook_stall.sh (12 files remain, down from 13); the entry script itself and all 6 libs are at or under 250 lines.",
+    "verify_shell_split.sh against the pre-split revision (79829ec) reports DIFFERENCE only for functions that were deliberately rewritten (capture_stall, descendant_pids, kill_tree, main, mem_available_mb, print_summary, validate_requirements) with each rewrite's reason documented in evidence; every other function moves verbatim.",
+    "Every one of the 6 new libs and the entry script reaches 100% line coverage via meta/scripts/shell_coverage.sh, with no suppression of any shellcheck or coverage finding -- genuine gaps get either a new test case or a documented, reviewed code change, never a # noqa/disable equivalent.",
+    "descendant_pids' array-mutation semantics (pids+=(\"$child\") surviving across loop iterations in the current shell) are preserved exactly -- verified by an existing multi-level-tree test passing unchanged before and after any refactor of that function.",
+    "shellcheck passes with zero findings across all 17 changed files run together (matching the pre-commit hook's actual batched invocation), relying on .shellcheckrc's external-sources=true + source-path=SCRIPTDIR to resolve cross-file globals correctly rather than any -x flag or suppression.",
+    "Every test file, including the ones this session writes, also stays under the 250-line cap -- the entry-script subprocess test grew past it while adding coverage and had to be split into a shared fixture (pacman_hook_stall_entry_harness.sh) plus two test files, re-verified for identical coverage/assertion count and no new jscpd duplication after the split.",
+    "jscpd stays under the repo's 2% duplication threshold, measured in a clean git worktree with the new files copied in (not the live working tree, which reads high off vendored .venv).",
+    "No test allocates unbounded real memory or otherwise touches the live machine's actual pacman state -- PACMAN_BIN/PACMAN_LOG/CACHE_DIR/PACMAN_LOCK/LOAD_FLOOR_MB/LOAD_MIN_FREE_MB are all env-overridable and every test points them at a throwaway tmpdir and a small, bounded allocation.",
+    "New sourced libs carry a shebang and the git-index executable bit (git add --chmod=+x), matching the existing lib/hosts_guard_migrate.sh convention in the same directory."
+  ],
+  "out_of_scope": [
+    "§3 (install_leechblock.sh / block_compulsive_opening.sh) -- explicitly deferred in NEXT_SESSION_PROMPT.md due to the deployed-/usr/local/-copy trap that would break every pacman invocation on this machine if split naively.",
+    "Any other file listed in NEXT_SESSION_PROMPT.md §4 as out of scope until the user says otherwise (setup_midnight_shutdown.sh, check_and_enable_services.sh, pacman_wrapper.sh, the Kotlin/Dart files, etc).",
+    "Running the script against a real pacman transaction on this machine -- only the PATH-shim harness and a fake-but-real pacman.orig subprocess were exercised.",
+    "Hardening require_root's sudo -E environment-preservation against a hypothetical future NOPASSWD sudoers rule -- noted as a risk in evidence, not acted on, since no such rule exists today."
+  ],
+  "verifier": "bash meta/scripts/check_file_length.sh --all; bash meta/scripts/verify_shell_split.sh 79829ec <entry> <entry> <6 libs>; bash meta/scripts/shell_coverage.sh <test> <subject> for each of the 7 subjects; shellcheck on all 17 changed files together; jscpd in a clean detached worktree; pre-commit run --files on the full staged set."
+}
