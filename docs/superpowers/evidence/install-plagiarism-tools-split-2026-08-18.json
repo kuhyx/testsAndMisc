@@ -60,7 +60,7 @@
   ],
   "risks": [
     "check_plagiarism.py/plagiarism_similarity.py/sherlock.py have no pytest coverage gate in this repo (only linux_configuration/tests/ and python_pkg/ are gated) -- correctness rests on the manual real-venv functional run recorded above, not an automated regression test. A future edit to these files could silently break plagcheck without pre-commit catching it.",
-      "This installer was not run against the real system (no venv creation, no pip install, no git clone against the actual network) -- only against the PATH-shim harness and a separate throwaway venv for the Python-level functional check. A real end-to-end `bash install_plagiarism_tools.sh` run was not performed."
+    "This installer was not run against the real system (no venv creation, no pip install, no git clone against the actual network) -- only against the PATH-shim harness and a separate throwaway venv for the Python-level functional check. A real end-to-end `bash install_plagiarism_tools.sh` run was not performed."
   ],
   "rollback": [
     "git revert the commit; the entry script and its libs/py files return to the single 534-line monolith with embedded heredocs.",
