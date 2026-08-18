@@ -1,0 +1,61 @@
+{
+  "intent": "Archive the pre-guard-lib hosts-guard subsystem (setup_hosts_guard.sh and everything that only existed to support it), since guardctl/guard-lib has fully replaced it on this machine, then update the one live script that still checked and self-repaired against the retired system.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/hosts/guard/{setup_hosts_guard.sh, enforce-hosts.sh, enforce-nsswitch.sh, enforce-resolved.sh, hosts-bind-mount.service, hosts-guard.path, hosts-guard.service, nsswitch-guard.path, nsswitch-guard.service, resolved-guard.path, resolved-guard.service, install_pacman_hooks.sh, pacman-hooks/*, psychological/unlock-hosts.sh, README.md, README_FOR_LLM.md} (deleted, moved to testsAndMisc-archive)",
+    "linux_configuration/scripts/periodic_background/hosts/guard/plugins/{nsswitch-plugin.sh, resolved-plugin.sh} left in place — these are guard-lib's live plugins, referenced by absolute path from /etc/guard-lib/targets/{nsswitch,resolved}.conf on this machine",
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh check_hosts() rewritten to check guard-lib state (guardctl file-guard status) instead of the legacy systemd units/enforce-scripts/canonical-snapshot paths",
+    "linux_configuration/.github/copilot-instructions.md: 8 references to the archived files updated to describe the guard-lib mechanism instead",
+    "linux_configuration/scripts/periodic_background/hosts/install.sh: one comment describing enforcement mechanism updated (mentioned hosts-guard.path/enforce-hosts.sh/hosts-bind-mount.service by name)",
+    "Not in scope: linux_configuration/docs/security-hardening/{01-current-state,03-implementation,04-agent-personas,05-llm-readmes}.md — these are dated design/planning docs that already predated the 2026-07-04 guard-lib migration (i.e. were already stale before this session, not freshly broken by it); fixing them is a larger doc-accuracy pass the user did not scope in"
+  ],
+  "changes": [
+    "Confirmed live-machine state before touching anything: legacy pacman hooks (10-unlock-etc-hosts.hook, 90-relock-etc-hosts.hook) absent from /etc/pacman.d/hooks/, legacy systemd units (hosts-guard.path/.service, nsswitch-guard.*, resolved-guard.*) all `disabled`, and /etc/guard-lib/targets/{hosts,nsswitch,resolved}.conf all populated — confirming the migration is complete and setup_hosts_guard.sh is dead code.",
+    "Asked the user (dead-code check-in per NEXT_SESSION_PROMPT.md §0/§0.5 lesson) whether to archive vs split; user confirmed archive.",
+    "Surveyed the whole hosts/guard/ directory and its cross-references (grep -rl) rather than archiving only the named file; found the legacy subsystem is 17 files across enforce-*.sh, systemd units, pacman-hooks/, psychological/, install_pacman_hooks.sh, and both READMEs, versus plugins/ (2 files) which is guard-lib's live plugin layer. Asked the user to confirm this larger scope before touching anything; confirmed.",
+    "Verified two potential blockers before archiving: hosts/install.sh's reference to enforce-hosts.sh is a descriptive comment only (not a live call — fixed for accuracy, not correctness); single_use/fixes/lib/hosts_guard_rollback.sh's do_rollback() restores from a captured $STATE_DIR snapshot and the deployed /usr/local/sbin/*.sh copies, not the repo checkout, so archiving the repo source does not break --rollback today.",
+    "Enumerated every historical path for the 17 files (git log --all --follow --name-only --diff-filter=A) to build a complete git filter-repo --path list, including two pre-reorg prefixes: hosts/guard/* (before the scripts/periodic_background/ reorg) and linux_configuration/hosts/guard/* (older still, before the scripts/ reorg — needed for enforce-resolved.sh and resolved-guard.path/.service specifically).",
+    "Cloned testsAndMisc into a throwaway scratchpad location (never a worktree — filter-repo rewrites refs and a worktree shares the object store), ran git filter-repo --force with the full 34-entry --path list, verified all 17 files present with history (17 relevant commits).",
+    "Cloned testsAndMisc-archive separately, added the filtered clone as a remote, merged with --allow-unrelated-histories, removed the stray remote-tracking branches (copilot-wt, copilot/worktree-*, fix-steam-backlog-needy-streamer) picked up from the source repo's other refs, removed the remote itself, then pushed to origin/main.",
+    "Verified the push landed via `gh api repos/kuhyx/testsAndMisc-archive/contents/.../hosts/guard` before touching the main repo — confirmed all 16 top-level entries (files + the 2 subdirs) present.",
+    "Only after the archive push was confirmed live: git rm the same 17 files from testsAndMisc.",
+    "Rewrote check_and_enable_services.sh's check_hosts(): replaced per-unit systemctl is-enabled/is-active checks and /usr/local/sbin/enforce-*.sh + /usr/local/share/locked-*.conf existence checks with a new guard_lib_instance_healthy() helper wrapping `guardctl file-guard status <name>` (checks 'path unit: active' and an immutable target attr) for the hosts/nsswitch/resolved instances. hosts_pacman_hooks_installed() lost its legacy-hook fallback branch (guard-lib hooks only, since they're confirmed installed). The repair path that used to re-run setup_hosts_guard.sh and install_pacman_hooks.sh now re-runs migrate_hosts_guard_to_guard_lib.sh instead, which the migration script's own header documents as idempotent. Removed the now-dead HOSTS_GUARD_SCRIPT/HOSTS_PACMAN_HOOKS_SCRIPT constants, added GUARD_LIB_MIGRATE_SCRIPT.",
+    "Updated linux_configuration/.github/copilot-instructions.md (an always-loaded instruction file) at all 8 locations that named archived files or the legacy mechanism by name, replacing them with the guard-lib equivalent (guardctl, migrate_hosts_guard_to_guard_lib.sh, the generic pacman hooks, plugins/)."
+  ],
+  "verification": [
+    {
+      "command": "bash -n linux_configuration/scripts/periodic_background/check_and_enable_services.sh && shellcheck linux_configuration/scripts/periodic_background/check_and_enable_services.sh",
+      "result": "pass",
+      "evidence": "Syntax OK; shellcheck clean, no warnings."
+    },
+    {
+      "command": "sudo bash linux_configuration/scripts/periodic_background/check_and_enable_services.sh --status",
+      "result": "pass",
+      "evidence": "Hosts File and Guards section: all 11 checks report [OK], including \"guard-lib 'hosts' instance is active and enforced\", \"guard-lib 'nsswitch' instance is active and enforced\", \"guard-lib 'resolved' instance is active and enforced\", and \"Pacman hooks installed\". Overall exit code 0; Summary table shows hosts=ok. Before this edit, the same run against the same live machine state would have reported hosts-guard.path/nsswitch-guard.path/resolved-guard.path as disabled (status=error) because those legacy checks were being run against a migrated machine — this is the actual bug this session's rewrite fixes, not just a cosmetic rename."
+    },
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc-archive/contents/linux_configuration/scripts/periodic_background/hosts/guard --jq '.[].name'",
+      "result": "pass",
+      "evidence": "Returned README.md, README_FOR_LLM.md, enforce-hosts.sh, enforce-nsswitch.sh, enforce-resolved.sh, hosts-bind-mount.service, hosts-guard.path, hosts-guard.service, install_pacman_hooks.sh, nsswitch-guard.path, nsswitch-guard.service, pacman-hooks, psychological, resolved-guard.path, resolved-guard.service, setup_hosts_guard.sh -- confirmed live on GitHub before the main-repo deletion commit was made."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "11 files over cap (was 12 before this session — setup_hosts_guard.sh at 576 lines is gone). check_and_enable_services.sh is still over cap (1225 lines, was 1301) but net shrank; it is on NEXT_SESSION_PROMPT.md §4's explicit out-of-scope list for splitting, so being over cap is expected and unchanged in kind, just smaller."
+    },
+    {
+      "command": "pre-commit run --files <all staged files>",
+      "result": "pass",
+      "evidence": "All hooks passed except ai-evidence-contract (expected — this file is what satisfies it) and workflow-contract, addressed by the accompanying contracts/ file. shellcheck, shfmt-equivalent whitespace/EOF checks, codespell, secret scanning all clean."
+    }
+  ],
+  "risks": [
+    "/etc/guard-lib/targets/{nsswitch,resolved}.conf point their PLUGIN= paths at the repo checkout (/home/kuhy/testsAndMisc/linux_configuration/scripts/periodic_background/hosts/guard/plugins/*.sh) instead of /usr/local/share/guard-lib-plugins/, which migrate_hosts_guard_to_guard_lib.sh's own header explicitly warns against ('an ABSOLUTE plugin path... pointing it at a repo checkout... silently breaks enforcement the day that directory moves'). /usr/local/share/guard-lib-plugins/ does not exist on this machine at all -- the migration's plugin-install step appears not to have run. This is a pre-existing defect, unrelated to and not caused by this session's archive (plugins/ was left in place specifically so this would keep working), but it means moving or renaming the testsAndMisc checkout will silently break nsswitch/resolved enforcement. Flagged for the user; not fixed in this commit since it requires a sudo mutation of a live security-enforcement system and guardctl re-registration, which is out of the two things the user approved this session.",
+    "linux_configuration/docs/security-hardening/{01-current-state,03-implementation,04-agent-personas,05-llm-readmes}.md still describe the pre-guard-lib system in detail and were not updated -- they were already stale before this session (guard-lib migration was 2026-07-04), so this is not a regression, but a reader following those docs today will find dead paths.",
+    "The 4 dated security-hardening docs above were left untouched by choice, not oversight -- see 'Not in scope' in scope[]."
+  ],
+  "rollback": [
+    "In testsAndMisc: git revert the deletion commit to restore the 17 files (content/permissions unchanged from their last live commit, so a straight revert is safe) and git revert the check_and_enable_services.sh/copilot-instructions.md/install.sh edit commit to restore the legacy-aware checks.",
+    "The testsAndMisc-archive copy can stay regardless of rollback -- redundant, not harmful.",
+    "Restoring the legacy hosts-guard system itself (not just the repo files) requires sudo scripts/single_use/fixes/migrate_hosts_guard_to_guard_lib.sh --rollback, which is unaffected by this commit since it restores from /var/lib/guard-lib-migration/ and the already-deployed /usr/local/sbin/*.sh copies, not the repo checkout."
+  ]
+}

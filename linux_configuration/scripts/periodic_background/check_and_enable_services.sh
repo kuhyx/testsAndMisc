@@ -39,8 +39,7 @@ MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbe
 STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
 PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/scripts/periodic_background/setup_periodic_system.sh"
 HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
-HOSTS_GUARD_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/setup_hosts_guard.sh"
-HOSTS_PACMAN_HOOKS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/guard/install_pacman_hooks.sh"
+GUARD_LIB_MIGRATE_SCRIPT="$CONFIG_DIR/scripts/single_use/fixes/migrate_hosts_guard_to_guard_lib.sh"
 COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
 LEECHBLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_leechblock.sh"
 REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/remove_guest_mode.sh"
@@ -105,10 +104,20 @@ user_systemctl() { # <user> <systemctl args...>
 # guard-lib pair as authoritative (see pacman_hooks_manage_guard_lib) — match it,
 # while still accepting the legacy pair if an older install is present.
 hosts_pacman_hooks_installed() {
-	{ [[ -f /etc/pacman.d/hooks/10-guard-lib-unlock-all.hook ]] &&
-		[[ -f /etc/pacman.d/hooks/90-guard-lib-relock-all.hook ]]; } ||
-		{ [[ -f /etc/pacman.d/hooks/10-unlock-etc-hosts.hook ]] &&
-			[[ -f /etc/pacman.d/hooks/90-relock-etc-hosts.hook ]]; }
+	[[ -f /etc/pacman.d/hooks/10-guard-lib-unlock-all.hook ]] &&
+		[[ -f /etc/pacman.d/hooks/90-guard-lib-relock-all.hook ]]
+}
+
+# True if guard-lib's file-guard instance <name> is installed AND healthy:
+# the path unit is active and the target carries the immutable attribute.
+# `guardctl file-guard status` exits 1 for an unregistered instance (missing
+# /etc/guard-lib/targets/<name>.conf), so a missing instance and an unhealthy
+# one both fail this check without needing separate handling.
+guard_lib_instance_healthy() { # <name>
+	local name="$1" out
+	out=$(guardctl file-guard status "$name" 2>/dev/null) || return 1
+	grep -q '^path unit: active$' <<<"$out" || return 1
+	grep -q '^target attrs: .*i' <<<"$out" || return 1
 }
 
 # Replay a drift manifest written at install time. The manifest holds plain
@@ -625,50 +634,15 @@ check_hosts() {
 		status="warning"
 	fi
 
-	# Check hosts guard path watcher
-	if systemctl is-enabled hosts-guard.path &>/dev/null; then
-		msg "hosts-guard.path is enabled"
+	# Check the guard-lib "hosts" file-guard instance (path unit active +
+	# immutable attribute on the target). Replaces the legacy hosts-guard.path
+	# / hosts-bind-mount.service / enforce-hosts.sh checks now that this
+	# machine's migration to guard-lib is complete — see
+	# migrate_hosts_guard_to_guard_lib.sh.
+	if guard_lib_instance_healthy hosts; then
+		msg "guard-lib 'hosts' instance is active and enforced"
 	else
-		issues+=("hosts-guard.path is not enabled")
-		status="error"
-	fi
-
-	if systemctl is-active hosts-guard.path &>/dev/null; then
-		msg "hosts-guard.path is active"
-	else
-		issues+=("hosts-guard.path is not active")
-		status="warning"
-	fi
-
-	# Check hosts bind mount service
-	if systemctl is-enabled hosts-bind-mount.service &>/dev/null; then
-		msg "hosts-bind-mount.service is enabled"
-	else
-		issues+=("hosts-bind-mount.service is not enabled")
-		status="warning"
-	fi
-
-	# Check enforcement script
-	if [[ -f /usr/local/sbin/enforce-hosts.sh ]]; then
-		msg "Enforcement script exists at /usr/local/sbin/enforce-hosts.sh"
-	else
-		issues+=("enforce-hosts.sh not found")
-		status="error"
-	fi
-
-	# Check unlock script
-	if [[ -f /usr/local/sbin/unlock-hosts ]]; then
-		msg "Unlock script exists at /usr/local/sbin/unlock-hosts"
-	else
-		issues+=("unlock-hosts not found")
-		status="warning"
-	fi
-
-	# Check locked hosts snapshot
-	if [[ -f /usr/local/share/locked-hosts ]]; then
-		msg "Canonical hosts snapshot exists at /usr/local/share/locked-hosts"
-	else
-		issues+=("Canonical hosts snapshot not found")
+		issues+=("guard-lib 'hosts' instance is missing or unhealthy")
 		status="error"
 	fi
 
@@ -695,27 +669,11 @@ check_hosts() {
 		status="error"
 	fi
 
-	# Check nsswitch guard
-	if systemctl is-enabled nsswitch-guard.path &>/dev/null; then
-		msg "nsswitch-guard.path is enabled"
+	# Check the guard-lib "nsswitch" file-guard instance
+	if guard_lib_instance_healthy nsswitch; then
+		msg "guard-lib 'nsswitch' instance is active and enforced"
 	else
-		issues+=("nsswitch-guard.path is not enabled")
-		status="error"
-	fi
-
-	# Check nsswitch enforcement script
-	if [[ -f /usr/local/sbin/enforce-nsswitch.sh ]]; then
-		msg "nsswitch enforcement script exists at /usr/local/sbin/enforce-nsswitch.sh"
-	else
-		issues+=("enforce-nsswitch.sh not found")
-		status="error"
-	fi
-
-	# Check canonical nsswitch snapshot
-	if [[ -f /usr/local/share/locked-nsswitch.conf ]]; then
-		msg "Canonical nsswitch snapshot exists at /usr/local/share/locked-nsswitch.conf"
-	else
-		issues+=("Canonical nsswitch snapshot not found at /usr/local/share/locked-nsswitch.conf")
+		issues+=("guard-lib 'nsswitch' instance is missing or unhealthy")
 		status="error"
 	fi
 
@@ -766,27 +724,11 @@ check_hosts() {
 		[[ "$status" == "ok" ]] && status="warning"
 	fi
 
-	# Check resolved guard
-	if systemctl is-enabled resolved-guard.path &>/dev/null; then
-		msg "resolved-guard.path is enabled"
+	# Check the guard-lib "resolved" file-guard instance
+	if guard_lib_instance_healthy resolved; then
+		msg "guard-lib 'resolved' instance is active and enforced"
 	else
-		issues+=("resolved-guard.path is not enabled")
-		status="error"
-	fi
-
-	# Check resolved enforcement script
-	if [[ -f /usr/local/sbin/enforce-resolved.sh ]]; then
-		msg "resolved enforcement script exists at /usr/local/sbin/enforce-resolved.sh"
-	else
-		issues+=("enforce-resolved.sh not found")
-		status="error"
-	fi
-
-	# Check canonical resolved.conf snapshot
-	if [[ -f /usr/local/share/locked-resolved.conf ]]; then
-		msg "Canonical resolved.conf snapshot exists at /usr/local/share/locked-resolved.conf"
-	else
-		issues+=("Canonical resolved.conf snapshot not found at /usr/local/share/locked-resolved.conf")
+		issues+=("guard-lib 'resolved' instance is missing or unhealthy")
 		status="error"
 	fi
 
@@ -881,46 +823,28 @@ check_hosts() {
 				fi
 			fi
 
-			# Run hosts guard setup (also installs nsswitch-guard and resolved-guard)
-			if ! systemctl is-enabled hosts-guard.path &>/dev/null ||
-				! systemctl is-enabled nsswitch-guard.path &>/dev/null ||
-				! systemctl is-enabled resolved-guard.path &>/dev/null ||
-				[[ ! -f /usr/local/sbin/enforce-hosts.sh ]] ||
-				[[ ! -f /usr/local/sbin/enforce-nsswitch.sh ]] ||
-				[[ ! -f /usr/local/sbin/enforce-resolved.sh ]] ||
-				[[ ! -f /usr/local/share/locked-nsswitch.conf ]] ||
-				[[ ! -f /usr/local/share/locked-resolved.conf ]]; then
-				note "Setting up hosts guard (includes nsswitch-guard and resolved-guard)..."
-				if [[ -f $HOSTS_GUARD_SCRIPT ]]; then
-					run bash "$HOSTS_GUARD_SCRIPT"
+			# Re-run the guard-lib migration if any instance is missing/unhealthy
+			# or the pacman hooks aren't installed. The migration script is
+			# documented as idempotent (see its header), so re-running it against
+			# an already-migrated, healthy machine is a no-op.
+			if ! guard_lib_instance_healthy hosts ||
+				! guard_lib_instance_healthy nsswitch ||
+				! guard_lib_instance_healthy resolved ||
+				! hosts_pacman_hooks_installed; then
+				note "Repairing guard-lib hosts/nsswitch/resolved instances..."
+				if [[ -f $GUARD_LIB_MIGRATE_SCRIPT ]]; then
+					run bash "$GUARD_LIB_MIGRATE_SCRIPT"
 					((FIXES_APPLIED++)) || true
 				else
-					err_missing_script "Hosts guard script not found: $HOSTS_GUARD_SCRIPT"
-				fi
-			fi
-
-			# Install pacman hooks if missing
-			if ! hosts_pacman_hooks_installed; then
-				note "Installing pacman hooks..."
-				if [[ -f $HOSTS_PACMAN_HOOKS_SCRIPT ]]; then
-					run bash "$HOSTS_PACMAN_HOOKS_SCRIPT"
-					((FIXES_APPLIED++)) || true
-				else
-					err_missing_script "Pacman hooks script not found: $HOSTS_PACMAN_HOOKS_SCRIPT"
+					err_missing_script "Guard-lib migration script not found: $GUARD_LIB_MIGRATE_SCRIPT"
 				fi
 			fi
 
 			# Re-verify after fixes
 			if [[ $DRY_RUN -eq 0 ]]; then
-				if systemctl is-enabled hosts-guard.path &>/dev/null &&
-					systemctl is-enabled nsswitch-guard.path &>/dev/null &&
-					systemctl is-enabled resolved-guard.path &>/dev/null &&
-					[[ -f /usr/local/sbin/enforce-hosts.sh ]] &&
-					[[ -f /usr/local/sbin/enforce-nsswitch.sh ]] &&
-					[[ -f /usr/local/sbin/enforce-resolved.sh ]] &&
-					[[ -f /usr/local/share/locked-hosts ]] &&
-					[[ -f /usr/local/share/locked-nsswitch.conf ]] &&
-					[[ -f /usr/local/share/locked-resolved.conf ]] &&
+				if guard_lib_instance_healthy hosts &&
+					guard_lib_instance_healthy nsswitch &&
+					guard_lib_instance_healthy resolved &&
 					hosts_pacman_hooks_installed; then
 					# Downgrade to warning if only minor issues remain (immutable attr, etc.)
 					status="ok"
