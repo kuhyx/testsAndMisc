@@ -410,3 +410,5 @@ billsplit/linux/
 
 # TypeScript incremental build cache - generated, never useful in a diff.
 *.tsbuildinfo
+# CocoIndex Code (ccc)
+/.cocoindex_code/
