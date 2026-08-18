@@ -1,0 +1,49 @@
+{
+  "intent": "Phase 1 of NEXT_SESSION_PROMPT.md's 250-line-cap campaign: bring focus_owner/lib/status_page_state.dart (307 lines) under the cap.",
+  "scope": [
+    "focus_owner/lib/status_page_state.dart",
+    "focus_owner/lib/status_page_dialogs.dart (new)",
+    "focus_owner/lib/main.dart"
+  ],
+  "changes": [
+    "Extracted the two AlertDialog builders (_lockVpnDialog, _releaseDialog) out of _lockVpn/_release into standalone functions in a new status_page_dialogs.dart part file",
+    "Extracted the build() method's body-selection if/else chain into a standalone _statusPageBody() helper in the same new part file",
+    "Registered the new part file in main.dart alongside the existing status_page_state.dart and status_body.dart parts, following the exact pattern already established by that prior split",
+    "No behavioral change: all extracted code moved verbatim (dialog content, button labels, callback wiring, hasAccounts branching) with no logic changes"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "status_page_state.dart now 248 lines, status_page_dialogs.dart 103 lines; file count over cap dropped from 11 to 10"
+    },
+    {
+      "command": "dart analyze lib/",
+      "result": "pass",
+      "evidence": "No issues found!"
+    },
+    {
+      "command": "flutter test test/status_page_test.dart test/status_page_actions_test.dart",
+      "result": "pass",
+      "evidence": "8/8 tests passed, including the release-confirmation dialog and lock-VPN dialog paths driven through the rendered widget tree"
+    },
+    {
+      "command": "flutter test (full suite)",
+      "result": "pass",
+      "evidence": "94/94 tests passed, no regressions elsewhere in focus_owner"
+    },
+    {
+      "command": "dart format focus_owner/lib/main.dart focus_owner/lib/status_page_state.dart focus_owner/lib/status_page_dialogs.dart",
+      "result": "pass",
+      "evidence": "Formatted 3 files (0 changed) -- already correctly formatted"
+    }
+  ],
+  "risks": [
+    "focus_owner has no dedicated CI workflow or coverage gate (confirmed: no .github/workflows/*focus_owner* file), so this split relies entirely on the local flutter test run performed this session, not an automated gate",
+    "No new tests were added since this is a pure verbatim extraction already covered by existing widget tests that drive the dialogs through the rendered UI -- if that coverage assumption is wrong, a future regression in these dialogs would not be caught by unit tests alone"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "After rollback, re-run flutter test to confirm the pre-split test count (94) still passes"
+  ]
+}
