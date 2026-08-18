@@ -1,0 +1,20 @@
+{
+  "title": "Split install_plagiarism_tools.sh, the first of §3's three restructures",
+  "objective": "Take install_plagiarism_tools.sh from 534 lines (only 3 tiny functions, ~500 lines of top-level install code) to under the repo's 250-line cap, per NEXT_SESSION_PROMPT.md §3. Wrap its four install stages in named functions, move each into its own lib/plagiarism_*.sh sibling, and extract the two embedded Python heredocs (check_plagiarism.py, sherlock.py's fallback) into real, lint-clean .py files so they stop being invisible to ruff/mypy/pylint/bandit.",
+  "acceptance_criteria": [
+    "check_file_length.sh --all no longer lists install_plagiarism_tools.sh (14 files remain, down from 15).",
+    "Every new .sh file (entry script + 3 libs) is at or under 250 lines; every new .py file (check_plagiarism.py, plagiarism_similarity.py, sherlock.py) is also under 250 lines since the repo's file-length gate covers .py too.",
+    "check_plagiarism.py and sherlock.py behave identically to the original heredoc content: verified by running the real CLI (in a throwaway venv with actual nltk/scikit-learn/PyPDF2/python-docx installed) against sample documents and confirming correct similarity scores.",
+    "check_plagiarism.py, plagiarism_similarity.py and sherlock.py pass ruff (select=ALL), mypy --strict, pylint (10.00/10), and bandit with zero suppressions -- no # noqa, no per-file-ignore added to meta/pyproject.toml.",
+    "Every lib/plagiarism_*.sh function reaches 100% line coverage via meta/scripts/shell_coverage.sh, driven by a PATH-shim test harness (fake python3/pip/git/java/wine) rather than mocking each call site.",
+    "The entry script's main()/print_summary(), which stay outside any lib since verify_shell_split.sh is blind to top-level code, are also covered at 100% by running the real script as a subprocess against the same fakes.",
+    "shellcheck passes on every file individually with no -x and no disable directive beyond the two pre-existing ones (SC1091 for the runtime-created venv activate script, SC2016 for literal $HOME/$PATH in an echo meant for the user's shell rc).",
+    "New sourced libs carry a shebang and the git-index executable bit (git add --chmod=+x), matching the existing lib/exercism_config.sh convention."
+  ],
+  "out_of_scope": [
+    "§3's other two restructures (libre_translate.sh, diagnose_pacman_hook_stall.sh) and all of §4 -- separate commits per the brief's stated order.",
+    "Modernizing check_plagiarism.py's PyPDF2 import to pypdf, or any other behavior change beyond what was needed to satisfy this repo's lint/coverage gates.",
+    "Testing check_plagiarism.py/sherlock.py/plagiarism_similarity.py with pytest: meta/scripts/pytest_changed_packages.py only coverage-measures python_pkg/ and only runs linux_configuration/tests/ as an extra suite, so these three files fall outside that gate the same way download_nltk_data.py already does."
+  ],
+  "verifier": "bash meta/scripts/check_file_length.sh --all; bash meta/scripts/shell_coverage.sh <test> <subject> for each of plagiarism_python.sh/plagiarism_sherlock.sh/plagiarism_optional.sh/install_plagiarism_tools.sh; shellcheck on every touched .sh; ruff/mypy/pylint/bandit on every touched .py; pre-commit run --files on the full staged set."
+}
