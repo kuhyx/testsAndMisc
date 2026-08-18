@@ -1,10 +1,10 @@
-# Next session: §3's second restructure — libre_translate.sh
+# Next session: §3's next restructure — diagnose_pacman_hook_stall.sh
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
 > It is self-contained. Do not go looking for the previous session's context.
 
-Over-cap: **14** (12 shell, 2 kotlin, 1 dart). Working tree clean, `main` in
-sync as of commit `071d706`.
+Over-cap: **13** (11 shell, 2 kotlin, 1 dart). Working tree clean, `main` in
+sync as of the libre_translate.sh archival commit (see §0.5).
 
 Two standing decisions from the user, already made — do **not** re-litigate:
 
@@ -34,45 +34,50 @@ be worth a one-line check-in — "do you still use this?" — for anything that
 looks like it could be dead code, especially in `single_use/` directories.
 Not a blocking gate, just don't be surprised if the answer changes scope.
 
-## 1. This session's task: `libre_translate.sh` (488 lines, 18 functions)
+## 0.5. What just happened (this session) — libre_translate.sh archived, not split
 
-Location: `linux_configuration/scripts/single_use/misc/testsAndMisc-bash/libre_translate.sh`
+Asked the same one-line check-in the §0 lesson above recommends, *before*
+starting the split (grill-gate questions, before any code was touched this
+time). User confirmed `libre_translate.sh` is also unused. Same resolution as
+the plagiarism tools: moved to `kuhyx/testsAndMisc-archive` with full git
+history via `git filter-repo`, and deleted from this repo. See the evidence
+file `docs/superpowers/evidence/archive-libre-translate-2026-08-18.json` for
+the exact recipe — this file's history was more tangled than the plagiarism
+tools' (two independent pre-reorg root paths, `libre_translate.sh` and
+`Bash/libre_translate.sh`, both genuine ancestors via a subtree-import merge)
+so both had to be passed to `--path` or history would have been silently
+truncated.
 
-**The user already chose the approach** (from the original brief, still
-valid): move the whole config-globals cluster into **one lib that owns both
-the writes and the reads**. Do not try relocating `parse_args` alone — four
-attempts at that failed in an earlier session. Read the file fully before
-planning the split; it has real functions already (unlike
-`install_plagiarism_tools.sh`, which had almost none), so
-`meta/scripts/extract_shell_functions.py` and
-`meta/scripts/verify_shell_split.sh` are the right tools here — they were
-mostly _inapplicable_ to the plagiarism installer because it lacked function
-structure, but this file has 18 functions and should fit their intended use
-case.
+**Lesson reinforced:** the §0 check-in is now 2 for 2 on `single_use/` files
+turning out to be dead code. Keep asking it before every future §3/§4 split,
+not just when something "looks like" it could be unused.
+
+## 1. This session's task: `diagnose_pacman_hook_stall.sh`
+
+Location: `linux_configuration/scripts/single_use/fixes/diagnose_pacman_hook_stall.sh`
+(493 lines, 15 functions).
+
+**Ask the dead-code check-in first** (see §0.5) — do not assume this one is
+live just because the first two candidates weren't.
+
+If it's confirmed live: `run_one` writes `LAST_ELAPSED`, `main` reads it —
+that global crosses the split seam deliberately (see the SC2034 rule in §5
+below), so it must stay in whichever file both functions land in, or get
+passed explicitly. Emits **SC2153** (`PACMAN_BIN` vs `PACMAN_PID`) once
+split — a real finding to resolve, never to suppress.
 
 **Before you start**, confirm scope hasn't drifted: `git status --short` and
-`wc -l` on the target file, same as the check that caught the plagiarism
-tools were unused this time — it's cheap insurance.
-
-## 2. Also outstanding in §3
-
-`diagnose_pacman_hook_stall.sh` (493 lines, 15 functions) —
-`linux_configuration/scripts/single_use/fixes/diagnose_pacman_hook_stall.sh`.
-`run_one` writes `LAST_ELAPSED`, `main` reads it — that global crosses the
-split seam deliberately (see the SC2034 rule in §5 below), so it must stay in
-whichever file both functions land in, or get passed explicitly. Emits
-**SC2153** (`PACMAN_BIN` vs `PACMAN_PID`) once split — a real finding to
-resolve, never to suppress. Do `libre_translate.sh` first; this one waits its
-turn.
+`wc -l` on the target file, same as the check that caught both prior files
+were unused — it's cheap insurance.
 
 ## 3. §4 — do not touch this session
 
 `install_leechblock.sh` (485) and `block_compulsive_opening.sh` (705) are
 copied to `/usr/local/…`, and `pacman_wrapper.sh:831` prefers the deployed
 copy on **every pacman invocation**. Splitting them naively breaks every
-`pacman -S` on this machine. Out of scope until `libre_translate.sh` and
-`diagnose_pacman_hook_stall.sh` are both done and the user explicitly says to
-continue into §4.
+`pacman -S` on this machine. Out of scope until `diagnose_pacman_hook_stall.sh`
+is done (or archived — see §0.5) and the user explicitly says to continue
+into §4.
 
 You cannot run `sudo pacman -S` from the Bash tool — it deadlocks on
 `db.lck`. Hand the user a `! sudo pacman -S <pkg>` line plus the expected
@@ -166,10 +171,10 @@ new paths too, or it reports a false `DIFFERENCE`.
 
 **`meta/scripts/mutate_shell.py <spec>`** — mutation testing against specs in
 `meta/scripts/fixtures/mutations/`. No spec currently exists for
-`libre_translate.sh` or anything outside `phone_focus_mode/`; creating one is
-optional, not required by the brief — 100% line coverage with real assertions
-is the stated bar, mutation testing is what `phone_focus_mode` additionally
-did.
+`diagnose_pacman_hook_stall.sh` or anything outside `phone_focus_mode/`;
+creating one is optional, not required by the brief — 100% line coverage with
+real assertions is the stated bar, mutation testing is what `phone_focus_mode`
+additionally did.
 
 ## 7. Testing pattern to follow
 
@@ -196,6 +201,7 @@ Last session's plagiarism-tools split established a working pattern for
     `exit` always terminates the process regardless of `if`/`&&` context. Run
     it in a subshell: `if (fn args); then ...`.
 
-Check `libre_translate.sh` for anything that shells out (curl? systemctl?
-some translate CLI?) before assuming the same fakes apply — it's a different
-domain from the plagiarism installer, so the PATH-shim list will differ.
+Check `diagnose_pacman_hook_stall.sh` for anything that shells out (pacman?
+systemctl? journalctl?) before assuming the same fakes apply — it's a
+different domain from the plagiarism installer, so the PATH-shim list will
+differ.

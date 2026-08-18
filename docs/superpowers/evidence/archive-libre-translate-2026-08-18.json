@@ -1,0 +1,47 @@
+{
+  "intent": "Move the unused libre_translate.sh (LibreTranslate Docker setup script, next §3 restructure target per NEXT_SESSION_PROMPT.md) out of testsAndMisc into testsAndMisc-archive with full git history, per the user's explicit statement that they no longer use it -- decided before any split work began, avoiding the wasted-split outcome from the prior plagiarism-tools session.",
+  "scope": [
+    "linux_configuration/scripts/single_use/misc/testsAndMisc-bash/libre_translate.sh (deleted)",
+    "kuhyx/testsAndMisc-archive: same file added, with full history including both pre-reorg root paths",
+    "Not in scope: diagnose_pacman_hook_stall.sh, install_leechblock.sh, block_compulsive_opening.sh, or any other §3/§4 file -- user only confirmed libre_translate.sh is unused"
+  ],
+  "changes": [
+    "Cloned testsAndMisc into a throwaway scratchpad location (never a worktree of the real repo, since git filter-repo rewrites refs and a worktree shares the object store).",
+    "Discovered the file has two independent pre-reorg root paths merged via subtree imports: libre_translate.sh (original, commit abba033) and Bash/libre_translate.sh (subtree-imported from the old Bash/ directory, commit 022f5c6, later moved to kuhyx/linux-configuration and re-imported into this repo's linux_configuration/ subtree at a0a2dc1). Both are genuine ancestors of the current file (verified with git merge-base --is-ancestor), unlike a simple single-path rename.",
+    "Ran git filter-repo --force with explicit --path for all three paths (current path, libre_translate.sh, Bash/libre_translate.sh) so history from both convergent lineages was preserved rather than only the most recent rename chain.",
+    "Cloned testsAndMisc-archive separately, added the filtered clone as a remote, and merged it in with --allow-unrelated-histories (required since the two repos share no common root commit).",
+    "Removed the filtered-clone remote and confirmed no stray remote-tracking branches (copilot-wt, etc.) leaked into the local branch list before pushing.",
+    "Verified the merge landed the file with git ls-tree and pushed to testsAndMisc-archive, then confirmed live via the GitHub contents API and commit-history API before touching the main repo.",
+    "Only after the archive push was confirmed live: git rm the file from testsAndMisc and committed the deletion."
+  ],
+  "verification": [
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc-archive/contents/linux_configuration/scripts/single_use/misc/testsAndMisc-bash",
+      "result": "pass",
+      "evidence": "Returned libre_translate.sh, sha 916bf1573edf5e797ac52e93403a47ce0391cb40, 13682 bytes -- confirmed live on GitHub before the main-repo deletion commit was made."
+    },
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc-archive/commits?path=linux_configuration/scripts/single_use/misc/testsAndMisc-bash/libre_translate.sh",
+      "result": "pass",
+      "evidence": "Most recent commit message matches the single_use/periodic_background reorg commit from testsAndMisc, confirming history was carried forward through the rename, not truncated."
+    },
+    {
+      "command": "git merge-base --is-ancestor 652341c HEAD && git merge-base --is-ancestor c45c17f HEAD (in testsAndMisc, before filtering)",
+      "result": "pass",
+      "evidence": "Both pre-reorg commits (root libre_translate.sh and Bash/libre_translate.sh) confirmed as true ancestors, justifying passing both paths to git filter-repo instead of just one."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "13 files over cap after deletion (was 14 immediately before, including libre_translate.sh at 488 lines) -- the removed file was the only one dropped from the list."
+    }
+  ],
+  "risks": [
+    "The archive repo has no pre-commit hooks or CI, so nothing re-verifies the moved script still works there -- it is frozen at exactly the state it left testsAndMisc in.",
+    "git filter-repo was run with --force on a disposable clone rather than a truly fresh git clone from the remote; verified this clone's origin was the local repo path (harmless) and that no push was made to it."
+  ],
+  "rollback": [
+    "In testsAndMisc: git revert the deletion commit to restore the file (content and permissions unchanged from before archival, so a straight revert is safe).",
+    "The testsAndMisc-archive copy can stay regardless of rollback -- having the file in both places briefly is not harmful, just redundant. If it must be undone: git revert the merge commit there, using -m to pick which parent to keep."
+  ]
+}
