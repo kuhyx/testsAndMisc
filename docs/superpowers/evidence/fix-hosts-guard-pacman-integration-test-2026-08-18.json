@@ -1,0 +1,43 @@
+{
+  "intent": "Fix a Shell tests CI regression caused by the prior commit in this session (327d48b, archiving the legacy hosts-guard subsystem): test_hosts_guard_pacman_integration.sh still referenced the now-archived pacman-hooks/*.sh and install_pacman_hooks.sh files, so it failed with 'No such file or directory' on every CI run since the archive commit.",
+  "scope": [
+    "linux_configuration/tests/test_hosts_guard_pacman_integration.sh (edited)",
+    "Not in scope: pacman_wrapper.sh itself (unaffected — its guard-lib fallback functions were already fully guard-lib-native, checking /etc/pacman.d/hooks/10-guard-lib-unlock-all.hook directly, with no dependency on the archived legacy files)"
+  ],
+  "changes": [
+    "Investigated why 'Shell tests' CI was red on the archive commit's own push: gh run view --log-failed showed 'bash: .../hosts/guard/pacman-hooks/pacman-pre-unlock-hosts.sh: No such file or directory' inside test_hosts_guard_pacman_integration.sh, which is run directly by .github/workflows/shell-tests.yml's side-effect-free test list — not gated by local pre-commit's --files scoping, so it wasn't caught before the archive commit was pushed.",
+    "Removed the test's PRE_HOOK_FILE/POST_HOOK_FILE/COMMON_FILE/INSTALLER_FILE path variables and the bash -n syntax check, assert_not_regex helper, and installer/hook-content assertions that depended on them — all four referenced files are now archived to testsAndMisc-archive and have no successor at those paths (guard-lib's generic hooks replace their function entirely).",
+    "Kept every assertion that checks pacman_wrapper.sh itself (pacman_hooks_manage_guard_lib(), should_use_wrapper_guard_lib_fallback(), the db-lock-before-fallback ordering, manual_guard_lib_fallback tracking) since the wrapper is live, unarchived, and already guard-lib-native.",
+    "Added two new assertions checking the wrapper's guard-lib hook detection references the actual generic hook paths (/etc/pacman.d/hooks/10-guard-lib-unlock-all.hook, 90-guard-lib-relock-all.hook) — makes the test assert on the guard-lib mechanism it's now actually testing, not just that some function exists.",
+    "Added a header comment explaining why the pre-guard-lib checks were removed and pointing at the archive evidence file, so a future reader doesn't wonder where they went."
+  ],
+  "verification": [
+    {
+      "command": "bash -n linux_configuration/tests/test_hosts_guard_pacman_integration.sh && shellcheck linux_configuration/tests/test_hosts_guard_pacman_integration.sh",
+      "result": "pass",
+      "evidence": "Syntax OK; shellcheck clean, no warnings."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_hosts_guard_pacman_integration.sh",
+      "result": "pass",
+      "evidence": "All 6 assertions PASS, script exits 0 with 'All hosts guard pacman integration regression tests passed.' — this is the exact command shell-tests.yml runs and the one that was failing with exit 1 on every push since the archive commit."
+    },
+    {
+      "command": "for t in test_android_guardian_post_fs_data.sh test_android_guardian_service.sh test_i3blocks_persist_common.sh test_music_parallelism.sh test_setup_dns_blocker.sh test_usage_monitoring_installer_efficiency.sh test_hosts_guard_pacman_integration.sh; do bash linux_configuration/tests/$t; done",
+      "result": "pass",
+      "evidence": "Ran the full side-effect-free test list from .github/workflows/shell-tests.yml locally (same 7 scripts); all 7 PASS."
+    },
+    {
+      "command": "bats linux_configuration/tests/*.bats",
+      "result": "pass",
+      "evidence": "All bats suites pass (30/30 in the largest one shown), exit code 0 — this is the other half of what shell-tests.yml runs."
+    }
+  ],
+  "risks": [
+    "This fixes the 'Shell tests' workflow only. 'Pre-commit checks' is separately red on every recent push (Total coverage: 99.98%, one line short in python_pkg/artgate/routes/vector.py:156, apparently caused by rsvg-convert being absent on the GitHub Actions runner) — that is a pre-existing, unrelated failure not touched by this commit. It predates this session (confirmed failing on commits before the hosts-guard archive) and is being scoped as separate follow-up work, not fixed here."
+  ],
+  "rollback": [
+    "git revert this commit to restore the old (now-broken) assertions — not recommended, since it would restore a test that fails against the current, intentionally-archived repo state.",
+    "If the pre-guard-lib subsystem is ever un-archived, restore the original test content from git history (commit 327d48b~1) rather than reverting this fix blindly."
+  ]
+}
