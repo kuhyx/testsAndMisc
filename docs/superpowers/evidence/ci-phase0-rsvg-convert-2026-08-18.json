@@ -1,0 +1,42 @@
+{
+  "intent": "Fix the persistent CI red state on Pre-commit checks and Python tests (Phase 0 of NEXT_SESSION_PROMPT.md) by installing rsvg-convert on the GitHub Actions runners.",
+  "scope": [
+    ".github/workflows/pre-commit.yml",
+    ".github/workflows/python-tests.yml",
+    "no code under python_pkg/ changed"
+  ],
+  "changes": [
+    "pre-commit.yml: added librsvg2-bin to the existing 'Install system dependencies' apt-get step, plus a rsvg-convert --version sanity check",
+    "python-tests.yml: added a new 'Install system dependencies' step that apt-get installs librsvg2-bin and verifies rsvg-convert is on PATH before pytest runs"
+  ],
+  "verification": [
+    {
+      "command": "gh run list --limit 5",
+      "result": "confirmed red before this fix",
+      "evidence": "Pre-commit checks run 32185830767 completed failure at 2026-08-18T21:04:59Z, matching the coverage-gap signature documented in NEXT_SESSION_PROMPT.md Phase 0"
+    },
+    {
+      "command": "grep -n rsvg-convert python_pkg/artgate/tests/test_routes.py",
+      "result": "pass",
+      "evidence": "test_render_writes_png is skipif'd on shutil.which('rsvg-convert') is None; this is the exact test that would exercise vector.py:156, confirming the diagnosed root cause"
+    },
+    {
+      "command": "python -m pytest python_pkg/artgate/tests/test_routes.py -k render_writes_png -v",
+      "result": "pass",
+      "evidence": "1 passed, 27 deselected -- test runs and passes locally where rsvg-convert is already installed"
+    },
+    {
+      "command": "pre-commit run --files .github/workflows/pre-commit.yml .github/workflows/python-tests.yml",
+      "result": "pass",
+      "evidence": "all applicable hooks passed (yaml checks, evidence-contract hook, secret scan, etc.)"
+    }
+  ],
+  "risks": [
+    "Confirmation is only local; the actual fix is only proven once the pushed commit's Pre-commit checks and Python tests workflows both go green on GitHub Actions",
+    "librsvg2-bin package name is Debian/Ubuntu-specific; correct for ubuntu-latest runners but would need adjustment if the runner image changes"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "After rollback, re-verify CI returns to the previously-known-red state with the same coverage-gap signature (99.98%, vector.py:156) to confirm the revert is clean"
+  ]
+}
