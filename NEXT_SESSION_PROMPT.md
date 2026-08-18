@@ -54,7 +54,7 @@ Fixed in two commits:
   `linux_configuration/tests/**`, etc.) and does NOT watch its own file, so
   the `4326ea4` push never re-triggered it — its last run stayed red against
   the old commit. `gh run rerun` does **not** help here: it replays the
-  *historical* commit's workflow YAML, not `main`'s current definition, so
+  _historical_ commit's workflow YAML, not `main`'s current definition, so
   it reran with the pre-fix workflow and failed identically. Fixed by adding
   `.github/workflows/python-tests.yml` to the workflow's own `paths:`
   filters (self-triggering) and adding `workflow_dispatch: {}` so it can
