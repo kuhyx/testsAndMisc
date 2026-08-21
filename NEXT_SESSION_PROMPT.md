@@ -12,7 +12,7 @@ it was non-interactive — a grilling round would have ended the turn with
 nothing delivered. **The user can still veto any of these cheaply**, since the
 gate is not yet in the hook chain:
 
-- **Q1 Scope → ratchet.** 115 pre-existing libraries are exempt via
+- **Q1 Scope → ratchet.** 106 pre-existing libraries are exempt via
   `meta/shell-coverage-allowlist.txt`; any library not on that list must be
   covered, so a new one cannot enter untested. Unrelated commits are never
   blocked (verified). **Exemption is static** — editing an allowlisted library
@@ -55,7 +55,7 @@ load-bearing and YAML will reject a flush-left paste.
 - id: shell-coverage-ratchet
   name: Shell libraries must have a test suite
   # Per-file (files:, NOT --all) is what makes this a ratchet rather than
-  # a repo-wide gate: the 115 libraries that predate it stay exempt via
+  # a repo-wide gate: the 106 libraries that predate it stay exempt via
   # meta/shell-coverage-allowlist.txt, so unrelated commits never block,
   # but a NEW library cannot enter without a tests/run_all.sh beside it.
   # Filenames must be passed — with pass_filenames: false the script
@@ -96,7 +96,7 @@ invocation; a loop that only inspected `$1` would have passed silently.
 After pasting, confirm the wiring end-to-end:
 
 ```bash
-pre-commit run shell-coverage-ratchet --all-files   # expect pass (115 exempt)
+pre-commit run shell-coverage-ratchet --all-files   # expect pass (106 exempt)
 grep -n "shell-coverage-ratchet" .pre-commit-config.yaml
 ```
 
@@ -108,13 +108,42 @@ not before.
 allowlist and silently exempt it. The list is shrink-only, and `--seed` now
 enforces that by exiting 1 rather than adding an entry.
 
-## Chipping away at the 115
+## Chipping away at the allowlist — 115 → 106, one batch done
 
-198 in-scope libraries: 115 exempt, 83 already covered. The allowlist is
-concentrated: `single_use/features/lib` (45), `single_use/fixes/lib` (22),
-`phone_focus_mode/lib` (9), `scripts/lib` (9). Adding one `tests/run_all.sh`
-to a directory enforces every file in it at once, so expect the work to arrive
-in batches rather than one file at a time.
+198 in-scope libraries: **106 exempt, 92 covered**. `scripts/lib` (9) was
+cleared on 2026-08-21 (commit `d42d8ff2`); the remaining concentration is
+`single_use/features/lib` (45), `single_use/fixes/lib` (22),
+`phone_focus_mode/lib` (9). Adding one `tests/run_all.sh` to a directory
+enforces every file in it at once, so expect the work to arrive in batches
+rather than one file at a time.
+
+**What the first batch cost, as a calibration point:** 139 assertions across
+four suites for nine libraries, and the pattern held — the decision logic was
+richly testable, the effecting code was not touched at all. The mtk toolkit
+was unusually cheap because `mtk_common.sh` already had a deliberate
+`MTK_ROOT_FIXTURE` seam; a directory without one will cost more.
+
+**Mutation-test before you reseed.** `is_covered()` only checks that
+`tests/run_all.sh` exists, so an empty file removes entries from the allowlist
+while testing nothing, and no downstream gate can tell. Mutate each rule the
+suite claims to protect and require the suite to go red. One of the four
+mutations here initially **survived**: dropping `10#$` from `is_hour_in_range`
+makes bash abort with "value too great for base", a non-zero exit that an
+exit-status-only assertion cannot distinguish from an honest out-of-range
+result. Assert on stderr when a mutation's failure mode is an arithmetic or
+syntax abort.
+
+**Two isolation traps found in `scripts/lib`**, both likely elsewhere:
+`android.sh` runs `ensure_dir "$ANDROID_WORK_DIR"` at _source_ time, so merely
+sourcing it writes under `$HOME` — redirect `HOME` to a tmpdir first.
+`mtk_common.sh` declares `readonly` patterns and sources three siblings at its
+bottom, so sourcing it twice in one shell aborts under `set -e`; run one suite
+per process, which `run_all.sh` already does by invoking `"$t"` directly.
+
+Anything time-, host- or device-dependent becomes a **push-blocking flake**,
+since these suites run in `shell-tests.yml` _and_ on every pre-push via
+`ci-mirror`. Shim the clock, point `MTK_ROOT_CACHE` at a tmpdir, and assert
+`/proc/uptime` readers on shape rather than value.
 
 **`--seed` is shrink-only and now enforces it** — it exits 1 rather than adding
 an entry, so you cannot exempt a new library by reseeding. It reads tracked
@@ -155,8 +184,8 @@ gh run list --limit 5
 
 ```bash
 git ls-files '*.sh' | wc -l                          # 560 tracked
-git ls-files '*/lib/tests/run_all.sh'                # 4 suites
-bash meta/scripts/check_shell_coverage.sh --all      # 115 uncovered, 115 exempt
+git ls-files '*/lib/tests/run_all.sh'                # 5 suites
+bash meta/scripts/check_shell_coverage.sh --all      # 106 uncovered, 106 exempt
 ```
 
 A bare `find` reports 565 `.sh` files because it walks `.venv/`,
