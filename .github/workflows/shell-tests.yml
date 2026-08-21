@@ -48,6 +48,39 @@ jobs:
             exit 1
           fi
 
+      # The lib/tests/ suites that came out of the 250-line-cap splits. These
+      # are DISCOVERED rather than listed: every split adds another
+      # lib/tests/run_all.sh, and a hardcoded list silently leaves each new
+      # suite running only on the author's machine. Four such runners already
+      # existed and none of them ran in CI until this step was added.
+      #
+      # Each runner is invoked directly, not as `bash <runner>`: the same
+      # invocation the coverage wrapper needs, and it keeps the shebang
+      # authoritative.
+      - name: Run lib/tests suites
+        run: |
+          set -euo pipefail
+          mapfile -t runners < <(find . -path ./node_modules -prune -o \
+            -path '*/lib/tests/run_all.sh' -print | sort)
+          if [ "${#runners[@]}" -eq 0 ]; then
+            printf 'No lib/tests/run_all.sh found — the discovery glob is wrong\n'
+            exit 1
+          fi
+          failed=0
+          for r in "${runners[@]}"; do
+            printf '\n=== %s ===\n' "$r"
+            if "$r"; then
+              printf 'PASS %s\n' "$r"
+            else
+              printf 'FAIL %s\n' "$r"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            printf '\n%d lib/tests suite(s) failed\n' "$failed"
+            exit 1
+          fi
+
   # Tests that assume Arch: they exercise the pacman wrapper, makepkg wrapper
   # and hosts-guard hooks, so they need an Arch userland rather than Ubuntu.
   # They run as root here, which is what lets them touch /etc safely — the

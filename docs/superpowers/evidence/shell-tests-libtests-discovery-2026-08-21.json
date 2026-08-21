@@ -1,0 +1,32 @@
+{
+  "intent": "Make the lib/tests/ suites produced by the 250-line-cap splits actually run in CI. Four such runners existed and none of them were executed by any workflow, so every assertion in them only ever ran on the author's machine.",
+  "scope": [
+    ".github/workflows/shell-tests.yml: new 'Run lib/tests suites' step in the shell-tests job",
+    "Non-goal: changing any test, or adding the Arch-only suites to the Ubuntu job"
+  ],
+  "changes": [
+    "Added a discovery-based step that finds every */lib/tests/run_all.sh and runs it, failing the job on any non-zero runner. Discovery rather than a hardcoded list: each cap split adds another runner, and a list silently leaves new suites unrun — which is exactly the state this fixes.",
+    "The step fails loudly if discovery matches zero runners, so a future path change cannot degrade into a vacuous green step.",
+    "Each runner is invoked directly rather than as `bash <runner>`, matching how the coverage wrapper must invoke it."
+  ],
+  "verification": [
+    {
+      "command": "bash -c 'mapfile -t runners < <(find . -path ./node_modules -prune -o -path \"*/lib/tests/run_all.sh\" -print | sort); ...' (the step's logic, run verbatim under bash)",
+      "result": "pass",
+      "evidence": "Discovered 4 runners (digital_wellbeing, hosts, periodic_background, single_use/utils) and all 4 exited 0. failed=0."
+    },
+    {
+      "command": "grep for Arch-only externals in the suites",
+      "result": "pass",
+      "evidence": "The only `command -v` probe across the harnesses is `unshare`, which exists on ubuntu-latest and is guarded by the probe. No suite invokes pacman, chattr, systemctl or adb at top level, so none of them need the Arch container job."
+    }
+  ],
+  "risks": [
+    "The suites have only ever been executed on Arch. If one proves environment-sensitive on ubuntu-latest the shell-tests job goes red; the failure would be a genuine portability defect in that suite rather than a problem with this step.",
+    "Discovery runs whatever it finds, so a future runner that is slow or has side effects would be picked up automatically. The lib/tests convention is side-effect-free by design (that is why these suites exist), and the zero-match guard is the tripwire if the convention moves."
+  ],
+  "rollback": [
+    "git revert the commit; the step disappears and the lib/tests suites go back to running only locally.",
+    "After rollback, confirm the shell-tests workflow still parses and the bats + side-effect-free steps still run."
+  ]
+}
