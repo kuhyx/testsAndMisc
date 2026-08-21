@@ -1,0 +1,65 @@
+{
+  "intent": "Bring pacman_wrapper.sh (929 lines) under the 250-line cap. This file IS /usr/bin/pacman on this machine — /usr/bin/pacman is a symlink to the deployed copy — so the overriding constraint is that no failure mode may leave the box without a working package manager.",
+  "scope": [
+    "pacman_wrapper.sh: 929 -> 217 lines",
+    "New libs, FLAT beside the wrapper: pw_policy.sh (188), pw_challenge.sh (177), pw_cleanup.sh (153), pw_guard.sh (145), pw_ui.sh (90)",
+    "install_pacman_wrapper.sh + lib/install_files.sh: deploy the five libs",
+    "lib/integrity.sh: checksum them in the policy manifest",
+    "Non-goal: redeploying to /usr/local/bin, and any live `pacman -S` transaction"
+  ],
+  "changes": [
+    "All 31 functions moved into five libs by responsibility. This needed a fix to extract_shell_functions.py first (committed separately): 17 of the 31 use bash's `function name() {` spelling, which the extractor did not recognise and would have silently left behind.",
+    "Libs are deployed FLAT beside the wrapper, matching pacman_lock_lib.sh and heavy_job_lock.sh, which already live and are sourced that way in /usr/local/bin. No lib/ subdirectory is created there.",
+    "The source block sits at the TOP of the file, before the fast path, because the fast path calls needs_unlock() to decide whether to exec real pacman and that function now lives in pw_guard.sh.",
+    "FAIL OPEN, unlike every other split in this campaign. A missing lib prints a warning to stderr and execs real pacman unwrapped. Failing closed here would mean a missing lib leaves no way to install anything — including the missing lib. This mirrors the choice the pre-existing pacman_lock_lib.sh block already makes.",
+    "The five libs are registered in install_files.sh as REQUIRED copies and added to the integrity manifest. They are sourced before verify_policy_integrity runs (the fast path forces that ordering), so the manifest entry is what makes tampering detectable — the check still refuses the transaction afterwards.",
+    "BOLD and MAKEPKG_CAPPED_BIN are exported: they are read by pw_ui.sh and pw_cleanup.sh, which shellcheck cannot see across the source boundary without -x."
+  ],
+  "verification": [
+    {
+      "command": "PACMAN_BIN=/usr/bin/pacman.orig bash pacman_wrapper.sh -Qi bash  /  -Q",
+      "result": "pass",
+      "evidence": "REAL pacman queries through the split wrapper, byte-identical to the pre-split baseline: -Qi bash matches exactly, and -Q lists the same 2824 packages. This is execution, not textual proof — better than the --help-only baseline the prompt expected for this file."
+    },
+    {
+      "command": "fail-open simulation: flat layout in a scratch dir with pw_guard.sh removed",
+      "result": "pass",
+      "evidence": "THE critical safety property. With needs_unlock's lib missing, the wrapper prints 'pacman wrapper libraries missing; running pacman unwrapped.' to stderr, execs real pacman, returns rc=0 and real -Qi output. A missing lib cannot brick package management."
+    },
+    {
+      "command": "integrity round-trip in a fake root",
+      "result": "pass",
+      "evidence": "Built the manifest exactly as the patched installer does: 8 entries (2 policy lists + lock lib + 5 new libs). Untampered libs verify clean. Appending one line to pw_challenge.sh is DETECTED and the wrapper denies operation. The new libs are genuinely covered, not a hole in the check."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <old> <old> <5 libs>",
+      "result": "pass",
+      "evidence": "'IDENTICAL: all 14 top-level functions moved verbatim' — no body changed."
+    },
+    {
+      "command": "python3 line-multiset check",
+      "result": "pass",
+      "evidence": "Two apparent losses, both explained: BOLD and MAKEPKG_CAPPED_BIN now carry an `export` prefix. Both confirmed present in the entry script; no code line was lost."
+    },
+    {
+      "command": "sha256sum /usr/local/bin/pacman_wrapper vs the backup taken before any edit",
+      "result": "pass",
+      "evidence": "548fc2b53ee4cea6... on both. The deployed copy is untouched by this commit, which is why live pacman is unaffected. `pacman -Qi bash` through the real /usr/bin/pacman symlink still works, and the symlink is intact."
+    },
+    {
+      "command": "shellcheck (no -x), shfmt idempotence, hyphenated-key canary, check_file_length --all",
+      "result": "pass",
+      "evidence": "shellcheck rc=0 with no new suppression; shfmt a no-op on all eight touched files; canary clean. The over-cap list is down to a single file."
+    }
+  ],
+  "risks": [
+    "NOT VERIFIED against a live `pacman -S` transaction. The Bash tool deadlocks on db.lck for interactive pacman, and a failed experiment here costs the package manager. The evidence is instead: identical real read-only queries, a proven fail-open path, and a proven integrity round-trip. Running `sudo install_pacman_wrapper.sh` followed by a real install remains the one check only the user can perform.",
+    "The deployed copy still lacks the pw_*.sh libs until install_pacman_wrapper.sh is re-run. That ordering is safe in both directions: the deployed monolith is unchanged and self-contained, and if the new entry script were deployed without libs it would fail open to plain pacman rather than break.",
+    "The libs are sourced before verify_policy_integrity, so a tampered lib executes before the manifest is checked. Unavoidable given the fast path needs needs_unlock, and the same was already true of the wrapper file itself; the transaction is still refused."
+  ],
+  "rollback": [
+    "git revert the commit; pacman_wrapper.sh returns to one 929-line file and the pw_*.sh libs disappear.",
+    "No live rollback needed — the deployed copy was never written.",
+    "If the split HAD been deployed: `sudo cp /tmp/.../restore/pacman_wrapper.deployed.bak /usr/local/bin/pacman_wrapper` restores the byte-identical monolith, and /usr/bin/pacman.orig (a real 157 KB ELF, verified running Pacman v7.1.0) is the escape hatch if even that fails."
+  ]
+}
