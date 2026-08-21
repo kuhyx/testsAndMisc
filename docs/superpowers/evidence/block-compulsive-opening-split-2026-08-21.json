@@ -1,64 +1,73 @@
 {
-  "intent": "Bring block_compulsive_opening.sh (705 lines) under the 250-line cap by moving its state, wrapper, install and reporting logic into four sourced libs, without changing behaviour and without breaking the already-installed app wrappers that hard-code the deployed script's path.",
+  "intent": "Bring block_compulsive_opening.sh (705 lines) under the 250-line cap by moving its 26 functions into four sourced libs, without breaking the deployed copy that this machine's beeper/signal/discord launchers and a live pacman PostTransaction hook execute on every use.",
   "scope": [
-    "linux_configuration/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh: 705 -> 182 lines",
-    "New: lib/cco_install.sh (238), lib/cco_report.sh (102), lib/cco_state.sh (149), lib/cco_wrapper.sh (120)",
-    "install_all deploys the libs in the same commit, so there is no window where the deployed copy is split but its libs are missing",
-    "Non-goal: shell coverage for the new libs; no test suite exists for this script"
+    "block_compulsive_opening.sh: 705 -> 182 lines",
+    "New: lib/cco_state.sh (147), lib/cco_wrapper.sh (119), lib/cco_install.sh (238), lib/cco_report.sh (101)",
+    "New: lib/tests/cco_harness.sh + lib/tests/test_cco_state.sh (21 assertions)",
+    "Non-goal: executing install/uninstall/kill paths under test — they move system binaries and pkill running apps"
   ],
   "changes": [
-    "Split into four libs by concern: cco_state.sh (hour-bucket state files), cco_wrapper.sh (the launch gate), cco_install.sh (install/uninstall, the generated app wrapper and the pacman hook), cco_report.sh (status and help).",
-    "The entry script keeps its exact deployed path, /usr/local/bin/block-compulsive-opening.sh, and stays a real file there rather than a symlink. Already-installed app wrappers on disk hard-code that path, and the pacman hook at 96-restore-pkg-wrappers.hook invokes it; a symlink would also break dirname \"${BASH_SOURCE[0]}\" resolution.",
-    "_CCO_LIB_DIR probes for lib/ beside the script (repo tree) and falls back to the script's own directory (the flat /usr/local/bin deploy layout). Both branches are exercised below.",
-    "install_all copies the four libs flat into /usr/local/bin alongside the entry script, and uninstall_all removes them so no orphans are stranded. The copy runs even when the script is already at install_path, so a lib changed upstream still reaches the deployed copy that `rewrap-quiet` executes.",
-    "A guard before the source lines fails closed with an explicit message when any lib is unreadable, rather than dying on a bare `source` error.",
-    "Ran shfmt -w on the entry script, which removed a block of ~26 consecutive blank lines. No associative-array keys were affected: unlike install_leechblock.sh, this file's hyphenated keys (\"signal-desktop\") were already quoted, so the shfmt arithmetic-parsing bug does not apply here. Verified by grep after the run."
+    "Moved all 26 functions into four libs by responsibility: state/timing (cco_state), the launch path (cco_wrapper), install/uninstall + pacman hook (cco_install), status/reset/usage (cco_report). Extracted with meta/scripts/extract_shell_functions.py, which walks brace-by-brace rather than slicing line ranges.",
+    "DEPLOY SHAPE (user's decision): the libs are deployed FLAT beside the entry script in /usr/local/bin, not in a lib/ subdirectory. This matches the existing precedent — /usr/local/bin/pacman_lock_lib.sh and heavy_job_lock.sh are already deployed and sourced exactly that way. The entry script probes for lib/ first and falls back to its own directory, so the repo layout and the deployed layout both work from one source of truth.",
+    "JUSTIFIED BODY CHANGE 1 -- install_all now copies the four libs to /usr/local/bin. Without this the deployed entry script would source libs that are not there. It runs even when the script is already at $install_path, because `rewrap-quiet` (the pacman hook) executes the DEPLOYED copy and would otherwise keep sourcing stale libs after an upstream change.",
+    "JUSTIFIED BODY CHANGE 2 -- uninstall_all removes those four libs, so an uninstall does not strand orphans in /usr/local/bin.",
+    "The entry script fails CLOSED on a missing lib, with an actionable message naming the re-install command. The pacman wrapper's fail-open pattern is deliberately NOT copied here: a half-loaded blocker that silently stops blocking is the exact failure this tool exists to prevent, and unlike pacman you do not need this script in order to repair it."
   ],
   "verification": [
     {
       "command": "bash meta/scripts/check_file_length.sh --all",
       "result": "pass",
-      "evidence": "Over-cap list went from 4 files to 3; block_compulsive_opening.sh no longer listed. All five files 182/238/149/120/102 lines, under 250."
+      "evidence": "Over-cap list went from 4 files to 3. block_compulsive_opening.sh is 182 lines; the largest new lib is cco_install.sh at 238."
     },
     {
-      "command": "python3 line-multiset check of entry+4 libs against HEAD's block_compulsive_opening.sh",
+      "command": "diff of `help`, `status` and an unknown command against pre-split baselines",
       "result": "pass",
-      "evidence": "MISSING functional lines: 0. Every non-comment, non-blank line from the pre-split file is accounted for across the five files."
+      "evidence": "All three byte-identical, exit codes 0/0/1 unchanged. Re-verified after shfmt. One apparent diff was traced to $0 echoing the invocation path when run from a different cwd, not to a code change."
     },
     {
-      "command": "Heredoc body extraction and diff for all three heredocs",
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <old> <old> <4 libs>",
       "result": "pass",
-      "evidence": "This is the check verify_shell_split.sh cannot perform, because it cannot see inside a heredoc body. WRAPPER_EOF (5 lines, the generated app wrapper), HOOK_EOF (14 lines, the generated pacman hook) and EOF (26 lines, the help text) are each byte-identical between HEAD and the split. The two deployed artifacts this script generates are therefore provably unchanged."
+      "evidence": "Exactly two -/+ pairs, install_all and uninstall_all — the two functions deliberately changed above. The other 24 functions moved byte-identically."
     },
     {
-      "command": "bash block_compulsive_opening.sh status vs /usr/local/bin/block-compulsive-opening.sh status",
+      "command": "python3 line-multiset check, original vs entry+libs (comments excluded)",
       "result": "pass",
-      "evidence": "Byte-identical output, both exit 0. The deployed copy is still the pre-split monolith and sha256-identical to HEAD, so this compares the split against the real pre-split behaviour rather than against itself. `help` differs only in the $0 invocation path, as expected."
+      "evidence": "0 code lines from the 705-line original missing from the split."
     },
     {
-      "command": "Flat-layout test: entry script + libs copied into one directory (the deployed shape)",
+      "command": "flat-layout simulation in a scratch dir (entry + 4 libs, no lib/ subdir)",
       "result": "pass",
-      "evidence": "status runs correctly with exit 0, confirming the _CCO_LIB_DIR fallback branch works in the /usr/local/bin layout, not just the repo tree."
+      "evidence": "This is the shape install_all writes to /usr/local/bin. `help` and `status` both exit 0 from the flat layout. Removing one lib produces the fail-closed error naming the missing file and the re-install command, rather than a partial load."
     },
     {
-      "command": "Missing-lib guard: delete cco_report.sh from the flat layout and re-run",
+      "command": "wrapper path against an unknown app, with HOME/XDG_STATE_HOME pointed at a tmpdir",
       "result": "pass",
-      "evidence": "Fails closed with 'Error: missing library cco_report.sh in <dir>' and exit code 1 (measured directly, not through a pipeline). A partially-deployed install cannot look successful to the pacman hook."
+      "evidence": "Rejects cleanly. The `APPS[$app]: unbound variable` message it emits was confirmed PRE-EXISTING by running the identical command against the pre-split original from git — byte-identical output, so not a regression introduced here. The real ~/.local/state/compulsive-block was confirmed untouched afterwards."
     },
     {
-      "command": "shellcheck (no -x) + shfmt idempotence + bash -n on all five files",
+      "command": "lib/tests/run_all.sh",
       "result": "pass",
-      "evidence": "shellcheck rc=0 with no suppressions; shfmt -w is a no-op on all five, so the pre-commit auto-format-and-re-stage cannot alter them; all five parse."
+      "evidence": "21 assertions for cco_state, 0 failures (50 across the whole directory including the leechblock suites). Covers the allow/block decision in both directions, including the case that matters most: a PREVIOUS hour's stamp must not keep blocking, or an app could never be reopened."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh <run_all.sh> cco_state.sh 0",
+      "result": "measured, below 100%",
+      "evidence": "MEASURED: cco_state.sh 62/66 lines = 93.94%. The only four uncovered lines are kill_app's pkill/pkill -9 pair, which must never execute in a test on this machine. cco_wrapper/cco_install/cco_report are 0%: every function in them moves system binaries, writes /etc/pacman.d/hooks or kills processes."
+    },
+    {
+      "command": "shellcheck (no -x) + shfmt -w idempotence on all 8 files",
+      "result": "pass",
+      "evidence": "shellcheck rc=0, no suppressions added. shfmt is a no-op on every file. The hyphenated associative-array keys (signal-desktop, and the APPS/REAL_BINARIES/APP_TIMEOUT_MINUTES/PROCESS_MATCH maps) were already quoted and the corruption canary is clean."
     }
   ],
   "risks": [
-    "The deployed copy at /usr/local/bin/block-compulsive-opening.sh is still the pre-split monolith and keeps working untouched; nothing breaks until someone runs `sudo block-compulsive-opening.sh install`, which now deploys the libs too. Verified that the pacman hook's `rewrap-quiet` path does not call install_all, so the hook cannot trigger a partial deploy.",
-    "The libs deploy flat into /usr/local/bin rather than into /usr/local/share/digital_wellbeing/lib. That is deliberate: install_leechblock_payload does an `rm -rf` mirror of the latter, which would delete these libs on the next pacman-wrapper install.",
-    "No test suite exists for this script, so coverage is 0% and the verification above is behavioural and textual rather than test-driven."
+    "The deployed /usr/local/bin copy is NOT updated by this commit. Until `sudo block_compulsive_opening.sh install` is re-run, the deployed 705-line monolith keeps running — which is safe, because it is self-contained and unchanged. The dangerous ordering would be deploying the new entry script without its libs; the fail-closed guard turns that into a loud error rather than a silently disabled blocker.",
+    "install_all is not executed by any test (it moves /usr/bin binaries), so its new lib-copy block is verified by the flat-layout simulation rather than by running it. The simulation reproduces exactly what it writes.",
+    "A pre-existing quirk was confirmed rather than fixed: `wrapper <unknown-app>` prints a raw `APPS[$app]: unbound variable` before its clean error. Identical pre-split; out of scope for a behaviour-preserving split."
   ],
   "rollback": [
-    "git revert this commit; block_compulsive_opening.sh returns to a single 705-line file and lib/cco_*.sh disappear.",
-    "If the split had already been deployed, re-run `sudo block-compulsive-opening.sh install` from the reverted tree to restore the monolith and remove the deployed libs.",
-    "Validate with: block-compulsive-opening.sh status (expect exit 0 and the per-app status table)."
+    "git revert the commit; block_compulsive_opening.sh returns to a single 705-line file and lib/cco_*.sh disappear.",
+    "The deployed copy needs no rollback — this commit never touched it.",
+    "If the split HAD been deployed before rolling back, re-run `sudo block_compulsive_opening.sh install` from the reverted tree and then confirm `ls /usr/local/bin/cco_*.sh` returns nothing and a wrapped app still launches."
   ]
 }
