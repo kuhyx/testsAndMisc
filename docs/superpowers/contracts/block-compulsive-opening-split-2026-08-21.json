@@ -1,0 +1,20 @@
+{
+  "title": "Split block_compulsive_opening.sh under the 250-line cap",
+  "objective": "Bring linux_configuration/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh (705 lines) under the repo-wide 250-line file cap by moving its state, wrapper, install and reporting concerns into four sourced libs, preserving behaviour exactly and keeping the deployed /usr/local/bin entry path intact so already-installed app wrappers and the pacman hook continue to work.",
+  "acceptance_criteria": [
+    "The entry script and all four lib/cco_*.sh files are each at most 250 lines.",
+    "A line-multiset check against the pre-split file reports zero missing functional lines.",
+    "All three heredoc bodies -- the generated app wrapper, the generated pacman hook, and the help text -- are byte-identical to the pre-split versions, since they define deployed artifacts that verify_shell_split.sh cannot inspect.",
+    "status output is byte-identical to the still-monolithic deployed copy, and both exit 0.",
+    "The script runs correctly in BOTH layouts: lib/ beside the script (repo) and libs flat beside the script (deployed), and fails closed with exit 1 when a lib is missing.",
+    "install_all deploys the libs and uninstall_all removes them, in this same commit, so the deployed copy is never split-without-libs.",
+    "shellcheck passes without -x and shfmt -w is a no-op on all five files, with no suppression added."
+  ],
+  "out_of_scope": [
+    "Shell test coverage for the new libs -- no suite exists for this script; the split is verified behaviourally and textually.",
+    "Changing the deployed entry path or converting it to a symlink -- installed app wrappers hard-code /usr/local/bin/block-compulsive-opening.sh.",
+    "Deploying the libs under /usr/local/share/digital_wellbeing/lib, which install_leechblock_payload mirrors with rm -rf.",
+    "Any change to the app timeout policy, the hour-bucket semantics, or the managed app list."
+  ],
+  "verifier": "bash meta/scripts/check_file_length.sh --all for the cap; a python3 line-multiset diff and per-heredoc body diffs against HEAD for content equivalence; status output compared against the pre-split deployed copy; a flat-layout run plus a deleted-lib run for the two _CCO_LIB_DIR branches and the fail-closed guard; shellcheck, shfmt idempotence and bash -n on all five files; pre-commit run --files on the staged set."
+}
