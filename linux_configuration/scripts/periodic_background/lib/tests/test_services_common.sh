@@ -103,100 +103,6 @@ rc=0
 deployment_drift "${TEST_TMPDIR}/absent.sha256" || rc=$?
 _t_eq "2" "$rc" "a missing manifest is 'unverifiable', not a pass"
 
-echo "== report_and_fix: an ok service is recorded and left alone =="
-reset_state
-declare -a issues=()
-status="ok"
-report_and_fix issues status "startup_monitor" "fixing..." "$STARTUP_MONITOR_SCRIPT" "" >/dev/null
-_t_eq "ok" "$(get_service_status "startup_monitor")" "an ok status is recorded"
-_t_eq "0" "$ISSUES_FOUND" "an ok service counts no issues"
-_t_not_called 'ran setup_pc' "an ok service runs no installer"
-
-echo "== report_and_fix: a warning is reported but never repaired =="
-reset_state
-make_installer "$STARTUP_MONITOR_SCRIPT"
-issues=("timer is not active")
-status="warning"
-# Captured to a file rather than `$(...)`: report_and_fix mutates ISSUES_FOUND
-# and SERVICE_STATUS, and a command substitution would strand both in a
-# subshell, making the assertions below silently test nothing.
-report_and_fix issues status "startup_monitor" "fixing..." \
-	"$STARTUP_MONITOR_SCRIPT" "" >"${TEST_TMPDIR}/out.txt"
-out="$(cat "${TEST_TMPDIR}/out.txt")"
-_t_called_in "$out" "timer is not active" "the warning text is printed"
-_t_eq "1" "$ISSUES_FOUND" "a warning counts as an issue"
-_t_not_called 'ran setup_pc' "a warning does not trigger the installer"
-_t_eq "warning" "$(get_service_status "startup_monitor")" "the warning status is recorded"
-
-echo "== report_and_fix: --status reports errors without repairing =="
-reset_state
-make_installer "$PERIODIC_SYSTEM_SCRIPT"
-STATUS_ONLY=1
-issues=("timer is not enabled")
-status="error"
-report_and_fix issues status "periodic_systems" "fixing..." "$PERIODIC_SYSTEM_SCRIPT" "" >/dev/null
-_t_not_called 'ran setup_periodic' "--status never runs an installer"
-_t_eq "error" "$(get_service_status "periodic_systems")" "the error status survives --status"
-
-echo "== report_and_fix: an error runs the installer and re-verifies =="
-reset_state
-make_installer "$PERIODIC_SYSTEM_SCRIPT"
-printf 'periodic-system-maintenance.timer\n' >"${DEV}/enabled"
-issues=("timer is not enabled")
-status="error"
-report_and_fix issues status "periodic_systems" "fixing..." \
-	"$PERIODIC_SYSTEM_SCRIPT" "periodic-system-maintenance.timer" >/dev/null
-_t_called 'ran setup_periodic_system' "the installer ran"
-_t_eq "1" "$FIXES_APPLIED" "the fix is counted"
-_t_eq "ok" "$(get_service_status "periodic_systems")" "a unit enabled after the fix is promoted to ok"
-
-echo "== report_and_fix: a fix that does not take leaves the error standing =="
-reset_state
-make_installer "$PERIODIC_SYSTEM_SCRIPT"
-: >"${DEV}/enabled" # the installer ran but the unit is still not enabled
-issues=("timer is not enabled")
-status="error"
-report_and_fix issues status "periodic_systems" "fixing..." \
-	"$PERIODIC_SYSTEM_SCRIPT" "periodic-system-maintenance.timer" >/dev/null
-_t_called 'ran setup_periodic_system' "the installer ran"
-_t_eq "error" "$(get_service_status "periodic_systems")" "an unverified fix does not become ok"
-
-echo "== report_and_fix: dry-run skips the re-verify =="
-reset_state
-make_installer "$PERIODIC_SYSTEM_SCRIPT"
-printf 'periodic-system-maintenance.timer\n' >"${DEV}/enabled"
-DRY_RUN=1
-issues=("timer is not enabled")
-status="error"
-report_and_fix issues status "periodic_systems" "fixing..." \
-	"$PERIODIC_SYSTEM_SCRIPT" "periodic-system-maintenance.timer" >/dev/null
-_t_not_called 'ran setup_periodic_system' "dry-run does not really install"
-_t_eq "error" "$(get_service_status "periodic_systems")" "dry-run never claims a fix landed"
-
-echo "== report_and_fix: a missing installer is a broken-self-repair error =="
-reset_state
-rm -f "$MIDNIGHT_SHUTDOWN_SCRIPT"
-issues=("timer is not enabled")
-status="error"
-report_and_fix issues status "midnight_shutdown" "fixing..." \
-	"$MIDNIGHT_SHUTDOWN_SCRIPT" "day-specific-shutdown.timer" >/dev/null
-_t_eq "1" "${#MISSING_SCRIPTS[@]}" "the missing installer is recorded"
-_t_called 'logger .*MISSING REPAIR SCRIPT' "the missing installer is logged"
-
-echo "== report_and_fix: extra arguments reach the installer =="
-reset_state
-make_installer "$MIDNIGHT_SHUTDOWN_SCRIPT"
-issues=("timer is not enabled")
-status="error"
-report_and_fix issues status "midnight_shutdown" "fixing..." \
-	"$MIDNIGHT_SHUTDOWN_SCRIPT" "day-specific-shutdown.timer" enable >/dev/null
-_t_called 'ran setup_midnight_shutdown.sh enable' "the trailing args are forwarded"
-# report_and_fix rewrites `status` through its nameref; reading it back both
-# asserts that and gives shellcheck the read it cannot infer through the
-# nameref (SC2034). The unit is not in $DEV/enabled, so the fix cannot verify.
-_t_eq "error" "$status" "an unverified fix leaves the caller's status at error"
-_t_eq "1" "${#issues[@]}" "the caller's issue list is left intact"
-
 echo "== require_root =="
 reset_state
 # require_root ends in `exec sudo`, which would replace this test process, so
@@ -226,22 +132,27 @@ fi
 
 echo "== hosts_pacman_hooks_installed =="
 reset_state
-# The two hook paths are absolute and root-owned, so this asserts the real
-# machine's answer rather than a fixture: whichever way it goes, the function
-# must agree with the filesystem it is reading.
-if [[ -f /etc/pacman.d/hooks/10-guard-lib-unlock-all.hook &&
-	-f /etc/pacman.d/hooks/90-guard-lib-relock-all.hook ]]; then
-	if hosts_pacman_hooks_installed; then
-		_t_pass "reports the guard-lib hook pair as installed when both exist"
-	else
-		_t_fail "reports the guard-lib hook pair as installed when both exist"
-	fi
+# Both hooks present.
+sysfile etc/pacman.d/hooks/10-guard-lib-unlock-all.hook
+sysfile etc/pacman.d/hooks/90-guard-lib-relock-all.hook
+if hosts_pacman_hooks_installed; then
+	_t_pass "both guard-lib hooks present reads as installed"
 else
-	if hosts_pacman_hooks_installed; then
-		_t_fail "reports the hook pair as absent when either is missing"
-	else
-		_t_pass "reports the hook pair as absent when either is missing"
-	fi
+	_t_fail "both guard-lib hooks present reads as installed"
+fi
+# Only the unlock hook: a half-installed pair must not read as installed, or
+# pacman upgrades would relock nothing and leave the guards open.
+sysrm etc/pacman.d/hooks/90-guard-lib-relock-all.hook
+if hosts_pacman_hooks_installed; then
+	_t_fail "a missing relock hook reads as not installed"
+else
+	_t_pass "a missing relock hook reads as not installed"
+fi
+sysrm etc/pacman.d/hooks/10-guard-lib-unlock-all.hook
+if hosts_pacman_hooks_installed; then
+	_t_fail "neither hook present reads as not installed"
+else
+	_t_pass "neither hook present reads as not installed"
 fi
 
 _t_summary

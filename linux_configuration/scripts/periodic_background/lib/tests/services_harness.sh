@@ -8,71 +8,18 @@
 # do rather than on the state of this machine. Nothing here touches a real unit,
 # a real /etc file, or a real installer.
 #
-# The paths the checks probe (/usr/bin/pacman, /etc/hosts, ...) are absolute and
-# cannot be redirected, so the shims answer questions about them from files
-# under $DEV instead: a test declares "pretend /etc/hosts has 200 lines" by
-# writing $DEV/etc_hosts_lines rather than by creating the file.
+# The paths the checks probe (/usr/bin/pacman, /etc/hosts, ...) are prefixed
+# with $SYSROOT in every lib, so this harness points SERVICES_ROOT at a fixture
+# tree under the tmpdir. A test declares "pretend /etc/hosts has 200 lines" by
+# actually creating $SYSROOT/etc/hosts with 200 lines -- the checks then run
+# their real logic against a filesystem this process owns.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-PASS=0
-FAIL=0
-
-_t_pass() {
-	PASS=$((PASS + 1))
-	printf '  OK: %s\n' "$1"
-}
-
-_t_fail() {
-	FAIL=$((FAIL + 1))
-	printf '  FAIL: %s\n' "$1"
-}
-
-_t_eq() {
-	local want="$1"
-	local got="$2"
-	local what="$3"
-	if [[ "$got" == "$want" ]]; then
-		_t_pass "$what"
-	else
-		_t_fail "$what (want '${want}', got '${got}')"
-	fi
-}
-
-# Assert $DEV/calls contains a line matching a regex.
-_t_called() {
-	local pattern="$1"
-	local what="$2"
-	if grep -qE "$pattern" "${DEV}/calls" 2>/dev/null; then
-		_t_pass "$what"
-	else
-		_t_fail "$what (no call matching /${pattern}/)"
-	fi
-}
-
-_t_not_called() {
-	local pattern="$1"
-	local what="$2"
-	if grep -qE "$pattern" "${DEV}/calls" 2>/dev/null; then
-		_t_fail "$what (unexpected call matching /${pattern}/)"
-	else
-		_t_pass "$what"
-	fi
-}
-
-_t_summary() {
-	printf '\n%s: %d passed, %d failed\n' "$(basename "$0")" "$PASS" "$FAIL"
-	[[ $FAIL -eq 0 ]]
-}
-
-TEST_TMPDIR="$(mktemp -d)"
-trap 'rm -rf "${TEST_TMPDIR}"' EXIT
-
-readonly DEV="${TEST_TMPDIR}/device"
-readonly FAKE_BIN="${TEST_TMPDIR}/fake_bin"
-mkdir -p "${DEV}" "${FAKE_BIN}"
+# shellcheck source=services_assert.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/services_assert.sh"
 
 # --- fake external tools ----------------------------------------------------
 
@@ -134,9 +81,9 @@ set -euo pipefail
 DEV="${SERVICES_TEST_DEV}"
 target="${1:-}"
 if grep -qxF "$target" "${DEV}/immutable" 2>/dev/null; then
-	printf '----i---------e---- %s\n' "$target"
+	printf '%s %s\n' '----i---------e----' "$target"
 else
-	printf -- '------------------e---- %s\n' "$target"
+	printf '%s %s\n' '------------------e----' "$target"
 fi
 exit 0
 LSATTRSHIM
@@ -151,9 +98,9 @@ SIMPLESHIM
 	chmod +x "${FAKE_BIN}/${tool}"
 done
 
-# `command -v <browser>` decides whether the browser/VBox checks apply. bash's
-# builtin `command` cannot be shimmed on PATH, so the tests instead create the
-# fake executables themselves under $FAKE_BIN via present_command below.
+# shellcheck source=services_path.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/services_path.sh"
+
 present_command() { # <name>...
 	local name
 	for name in "$@"; do
@@ -170,7 +117,45 @@ absent_command() { # <name>...
 }
 
 export SERVICES_TEST_DEV="${DEV}"
-export PATH="${FAKE_BIN}:${PATH}"
+export PATH="${FAKE_BIN}:${REAL_BIN}"
+
+# --- fixture filesystem -----------------------------------------------------
+
+# Every absolute path the check libs probe is prefixed with $SYSROOT, which they
+# read from SERVICES_ROOT. Pointing it at the tmpdir is what makes the
+# file-existence branches reachable: the checks run their real logic, against a
+# tree this process created. SERVICES_ROOT is deliberately un-defaulted in the
+# libs, so a test file that forgets this line dies instead of touching /etc.
+readonly SYSROOT_DIR="${TEST_TMPDIR}/sysroot"
+export SERVICES_ROOT="${SYSROOT_DIR}"
+
+mkdir -p \
+	"${SYSROOT_DIR}/usr/bin" \
+	"${SYSROOT_DIR}/usr/local/bin" \
+	"${SYSROOT_DIR}/etc/systemd/system" \
+	"${SYSROOT_DIR}/etc/pacman.d/hooks" \
+	"${SYSROOT_DIR}/var/lib"
+
+# Create a file under the fixture root, making its parent as needed.
+# `sysfile etc/hosts 200` writes 200 filler lines, which is how the
+# StevenBlack-list line-count check is driven.
+sysfile() { # <relative-path> [line-count]
+	local target="${SYSROOT_DIR}/$1"
+	mkdir -p "$(dirname "$target")"
+	if [[ -n "${2:-}" ]]; then
+		seq 1 "$2" >"$target"
+	else
+		: >"$target"
+	fi
+}
+
+# Remove a file or directory from the fixture root.
+sysrm() { # <relative-path>...
+	local rel
+	for rel in "$@"; do
+		rm -rf "${SYSROOT_DIR:?}/${rel}"
+	done
+}
 
 # --- globals the libs read --------------------------------------------------
 
@@ -227,6 +212,13 @@ make_installer() { # <path>
 # happened yet", so each test group starts from a known machine.
 reset_state() {
 	rm -f "${DEV:?}"/* 2>/dev/null || true
+	rm -rf "${SYSROOT_DIR:?}"
+	mkdir -p \
+		"${SYSROOT_DIR}/usr/bin" \
+		"${SYSROOT_DIR}/usr/local/bin" \
+		"${SYSROOT_DIR}/etc/systemd/system" \
+		"${SYSROOT_DIR}/etc/pacman.d/hooks" \
+		"${SYSROOT_DIR}/var/lib"
 	: >"${DEV}/calls"
 	DRY_RUN=0
 	STATUS_ONLY=0
@@ -234,5 +226,12 @@ reset_state() {
 	FIXES_APPLIED=0
 	SERVICE_STATUS=()
 	MISSING_SCRIPTS=()
+	# Staged fake executables are part of the machine a test describes, so they
+	# reset too. Without this a `present_command discord` leaks into every later
+	# group, which makes a forgetful test pass for the wrong reason.
+	rm -f "${FAKE_BIN:?}"/beeper "${FAKE_BIN}"/signal-desktop "${FAKE_BIN}"/discord \
+		"${FAKE_BIN}"/thorium-browser "${FAKE_BIN}"/chromium \
+		"${FAKE_BIN}"/google-chrome "${FAKE_BIN}"/brave-browser \
+		"${FAKE_BIN}"/VBoxManage
 }
 reset_state

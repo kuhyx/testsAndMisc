@@ -1,0 +1,68 @@
+{
+  "intent": "Finish the check_and_enable_services split at 100% line coverage by making the absolute root-owned paths its check libs probe redirectable, so the file-existence branches become reachable in tests. This is the follow-up commit the user chose (option b): split first with measured coverage, then a separate rewrite to close the gap.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/lib/services_{common,wrappers,units,hosts,hosts_fix,apps,browser}.sh — 87 absolute paths prefixed with $SYSROOT",
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh — sets SERVICES_ROOT=\"\"",
+    "lib/tests/ — four new test files, plus services_assert.sh / services_path.sh / run_all.sh split out of the harness for the 250-line cap",
+    "Non-goal: the latent status-downgrade bug in the three unit checks, still pinned and named by the tests",
+    "Non-goal: behaviour change of any kind — the prefix is empty in production"
+  ],
+  "changes": [
+    "Every absolute path the check libs probe is now \"${SYSROOT}/etc/...\" where SYSROOT comes from SERVICES_ROOT. The prefix is deliberately NOT defaulted: the libs read ${SERVICES_ROOT?...} so an unset value is a hard error and only an explicitly empty value means the real filesystem. This matters because three commands in hosts_fix_resolved run outside `run` and are therefore not stopped by --dry-run (chattr -i on resolved.conf.d, find -delete over its *.conf, and an append to resolved.conf); with an empty default, a test that forgot to set SERVICES_ROOT would really delete this machine's resolved.conf drop-ins.",
+    "check_and_enable_services.sh exports SERVICES_ROOT=\"\" beside its other configuration, so production paths are byte-identical to before.",
+    "The test harness points SERVICES_ROOT at a fixture tree it builds under its tmpdir, and owns PATH outright: $FAKE_BIN holds the shims and staged fake apps, $REAL_BIN a curated set of symlinks to genuine coreutils. The machine's /usr/bin is deliberately absent, because a really-installed discord and chromium otherwise make the \"no target apps present\" branches untestable — which they did until these tests caught it.",
+    "reset_state now also clears staged fake executables, so a present_command in one group cannot leak into a later one and make it pass for the wrong reason.",
+    "Fixed a bug in the harness's own lsattr shim: printf with a leading-dash format string parsed the dashes as options, so the immutable-attribute fixture silently produced no output at all."
+  ],
+  "verification": [
+    {
+      "command": "diff <(sudo bash <worktree@6691cb26>/…/check_and_enable_services.sh --status --dry-run) <(sudo bash …/check_and_enable_services.sh --status --dry-run)",
+      "result": "pass",
+      "evidence": "Byte-identical modulo the Date: line, re-run after the prefix rewrite. With SERVICES_ROOT empty the 87 rewritten paths resolve exactly as the literals did."
+    },
+    {
+      "command": "sha256sum /etc/hosts /etc/nsswitch.conf /etc/systemd/resolved.conf; ls -1 /etc/systemd/resolved.conf.d — before vs after the full suite",
+      "result": "pass",
+      "evidence": "No difference. This is the falsification check for a missed prefix site: the repair paths really do write, so any unprefixed one would have shown up here as an edited or deleted /etc file."
+    },
+    {
+      "command": "grep -nE '(^|[^A-Za-z_}\"])/(usr|etc|var)/' lib/services_*.sh | grep -v /usr/bin/env",
+      "result": "pass",
+      "evidence": "Only two hits remain, both literal /etc/hosts inside services_report.sh's usage help text, where a literal is correct."
+    },
+    {
+      "command": "lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "220 assertions across 8 test files, 0 failures: apps 24, browser 34, common 27, hosts 51, report_and_fix 21, report 11, units 23, wrappers 29."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/run_all.sh <lib> 100",
+      "result": "pass",
+      "evidence": "100.00% on seven of eight libs: services_common.sh 55/55, services_report.sh 27/27, services_units.sh 72/72 (was 84.51%), services_wrappers.sh 100/100, services_apps.sh 66/66, services_browser.sh 79/79. Measured against run_all.sh rather than a single test file, because services_common.sh is covered jointly by two test files that were split apart for the line cap."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/run_all.sh services_hosts.sh 100",
+      "result": "below target — kcov artifact, diagnosed not waived",
+      "evidence": "86.05% (74/86); services_hosts_fix.sh 97.30% (72/74). The 14 lines are a kcov attribution artifact, not missing coverage. Falsified directly: running the suite under kcov prints '51 passed, 0 failed', so no group is skipped, and each supposedly-uncovered line is an issues+=(\"...\") whose string can only reach stdout via the print loop below it — and a passing assertion matches that exact string (line 30 'may not be installed', 34 '/etc/hosts does not exist', 44 'not immutable', 52 'StevenBlack cache not found', 64/150 \"'nsswitch'/'resolved' instance is missing or unhealthy\"). Lines 102/113 and 51/70 are continuation lines of multi-line pipelines."
+    },
+    {
+      "command": "shellcheck lib/tests/*.sh lib/services_*.sh check_and_enable_services.sh",
+      "result": "pass",
+      "evidence": "Exit 0, zero findings, standalone and with -x. No suppression added."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "No check_and_enable_services file over 250, test files included. The harness needed splitting twice to get there (services_assert.sh, services_path.sh), and test_services_common.sh once (test_services_report_and_fix.sh)."
+    }
+  ],
+  "risks": [
+    "87 rewritten path sites is the largest surface in this work, and this script runs hourly as root repairing the hosts blocking stack. The two falsification checks above are what makes a missed site detectable rather than a matter of inspection: an unprefixed path would either change the live output diff or leave a fingerprint in /etc, and neither happened.",
+    "SERVICES_ROOT is now load-bearing: a future caller that sources these libs without setting it gets a hard error rather than silently operating on the real filesystem. That is the intended direction of failure, but it does mean a new caller must set it explicitly.",
+    "The tests no longer read the state of this machine at all, so they can no longer catch a real-machine regression — that job belongs to the live output diff, which is run against the pre-split revision each time."
+  ],
+  "rollback": [
+    "git revert this commit: it leaves the split from 9085a4e5 intact and only restores literal paths plus the smaller test suite.",
+    "After rollback, re-run sudo bash check_and_enable_services.sh --status --dry-run and confirm the same 11-row summary."
+  ]
+}

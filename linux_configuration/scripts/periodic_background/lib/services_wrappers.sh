@@ -5,6 +5,13 @@
 # .orig backup, the installed files AND the install-time drift manifest, then
 # reinstalls via the matching installer when STATUS_ONLY is off.
 
+# Absolute paths the checks below probe are prefixed with $SYSROOT, which is
+# empty in production and a fixture tree under test. It is deliberately NOT
+# defaulted here: several repairs in this family write outside `run` (chattr,
+# find -delete, an append to resolved.conf), so a test that forgot to set it
+# would edit the real /etc. Unset is a hard error; empty is the real filesystem.
+SYSROOT="${SERVICES_ROOT?SERVICES_ROOT must be set (empty = the real filesystem)}"
+
 check_pacman_wrapper() {
 	header "Pacman Wrapper"
 
@@ -12,13 +19,13 @@ check_pacman_wrapper() {
 	local issues=()
 
 	# Check if wrapper is installed
-	if [[ -L /usr/bin/pacman ]]; then
+	if [[ -L "${SYSROOT}/usr/bin/pacman" ]]; then
 		local target
-		target=$(readlink -f /usr/bin/pacman)
-		if [[ $target == "/usr/local/bin/pacman_wrapper" ]]; then
+		target=$(readlink -f "${SYSROOT}/usr/bin/pacman")
+		if [[ $target == "${SYSROOT}/usr/local/bin/pacman_wrapper" ]]; then
 			msg "Pacman symlink points to wrapper"
 		else
-			issues+=("Pacman symlink points to: $target (expected /usr/local/bin/pacman_wrapper)")
+			issues+=("Pacman symlink points to: $target (expected ${SYSROOT}/usr/local/bin/pacman_wrapper)")
 			status="error"
 		fi
 	else
@@ -27,27 +34,27 @@ check_pacman_wrapper() {
 	fi
 
 	# Check if original pacman is backed up
-	if [[ -f /usr/bin/pacman.orig ]]; then
-		msg "Original pacman backed up at /usr/bin/pacman.orig"
+	if [[ -f "${SYSROOT}/usr/bin/pacman.orig" ]]; then
+		msg "Original pacman backed up at ${SYSROOT}/usr/bin/pacman.orig"
 	else
-		issues+=("Original pacman backup not found at /usr/bin/pacman.orig")
+		issues+=("Original pacman backup not found at ${SYSROOT}/usr/bin/pacman.orig")
 		status="error"
 	fi
 
 	# Check if wrapper script exists
-	if [[ -f /usr/local/bin/pacman_wrapper ]]; then
-		msg "Wrapper script exists at /usr/local/bin/pacman_wrapper"
+	if [[ -f "${SYSROOT}/usr/local/bin/pacman_wrapper" ]]; then
+		msg "Wrapper script exists at ${SYSROOT}/usr/local/bin/pacman_wrapper"
 	else
-		issues+=("Wrapper script not found at /usr/local/bin/pacman_wrapper")
+		issues+=("Wrapper script not found at ${SYSROOT}/usr/local/bin/pacman_wrapper")
 		status="error"
 	fi
 
 	# Check supporting files
 	for file in words.txt pacman_blocked_keywords.txt pacman_whitelist.txt; do
-		if [[ -f "/usr/local/bin/$file" ]]; then
-			msg "Supporting file exists: /usr/local/bin/$file"
+		if [[ -f "${SYSROOT}/usr/local/bin/$file" ]]; then
+			msg "Supporting file exists: ${SYSROOT}/usr/local/bin/$file"
 		else
-			warn "Supporting file missing: /usr/local/bin/$file"
+			warn "Supporting file missing: ${SYSROOT}/usr/local/bin/$file"
 		fi
 	done
 
@@ -81,8 +88,8 @@ check_pacman_wrapper() {
 				((FIXES_APPLIED++)) || true
 				# Re-verify after fix. Content is part of "fixed": a reinstall
 				# that leaves the manifest failing has repaired nothing.
-				if [[ $DRY_RUN -eq 0 ]] && [[ -L /usr/bin/pacman ]] && [[ -f /usr/bin/pacman.orig ]] &&
-					[[ -f /usr/local/bin/pacman_wrapper ]] && deployment_drift "$PACMAN_WRAPPER_MANIFEST"; then
+				if [[ $DRY_RUN -eq 0 ]] && [[ -L "${SYSROOT}/usr/bin/pacman" ]] && [[ -f "${SYSROOT}/usr/bin/pacman.orig" ]] &&
+					[[ -f "${SYSROOT}/usr/local/bin/pacman_wrapper" ]] && deployment_drift "$PACMAN_WRAPPER_MANIFEST"; then
 					status="ok"
 				fi
 			else
@@ -101,13 +108,13 @@ check_makepkg_wrapper() {
 	local issues=()
 
 	# Wrapper symlink
-	if [[ -L /usr/bin/makepkg ]]; then
+	if [[ -L "${SYSROOT}/usr/bin/makepkg" ]]; then
 		local target
-		target=$(readlink -f /usr/bin/makepkg)
-		if [[ $target == "/usr/local/bin/makepkg_wrapper" ]]; then
+		target=$(readlink -f "${SYSROOT}/usr/bin/makepkg")
+		if [[ $target == "${SYSROOT}/usr/local/bin/makepkg_wrapper" ]]; then
 			msg "Makepkg symlink points to wrapper"
 		else
-			issues+=("Makepkg symlink points to: $target (expected /usr/local/bin/makepkg_wrapper)")
+			issues+=("Makepkg symlink points to: $target (expected ${SYSROOT}/usr/local/bin/makepkg_wrapper)")
 			status="error"
 		fi
 	else
@@ -116,36 +123,36 @@ check_makepkg_wrapper() {
 	fi
 
 	# Original makepkg backup
-	if [[ -f /usr/bin/makepkg.orig ]]; then
-		msg "Original makepkg backed up at /usr/bin/makepkg.orig"
+	if [[ -f "${SYSROOT}/usr/bin/makepkg.orig" ]]; then
+		msg "Original makepkg backed up at ${SYSROOT}/usr/bin/makepkg.orig"
 	else
-		issues+=("Original makepkg backup not found at /usr/bin/makepkg.orig")
+		issues+=("Original makepkg backup not found at ${SYSROOT}/usr/bin/makepkg.orig")
 		status="error"
 	fi
 
 	# Wrapper, shared lib, rewrap helper, survival hook
-	if [[ -f /usr/local/bin/makepkg_wrapper ]]; then
-		msg "Wrapper script exists at /usr/local/bin/makepkg_wrapper"
+	if [[ -f "${SYSROOT}/usr/local/bin/makepkg_wrapper" ]]; then
+		msg "Wrapper script exists at ${SYSROOT}/usr/local/bin/makepkg_wrapper"
 	else
-		issues+=("Wrapper script not found at /usr/local/bin/makepkg_wrapper")
+		issues+=("Wrapper script not found at ${SYSROOT}/usr/local/bin/makepkg_wrapper")
 		status="error"
 	fi
-	if [[ -f /usr/local/bin/pacman_lock_lib.sh ]]; then
-		msg "Shared lock library exists at /usr/local/bin/pacman_lock_lib.sh"
+	if [[ -f "${SYSROOT}/usr/local/bin/pacman_lock_lib.sh" ]]; then
+		msg "Shared lock library exists at ${SYSROOT}/usr/local/bin/pacman_lock_lib.sh"
 	else
-		issues+=("Shared lock library not found at /usr/local/bin/pacman_lock_lib.sh")
+		issues+=("Shared lock library not found at ${SYSROOT}/usr/local/bin/pacman_lock_lib.sh")
 		status="error"
 	fi
-	if [[ -f /usr/local/bin/rewrap_pkg_managers.sh ]]; then
-		msg "Rewrap helper exists at /usr/local/bin/rewrap_pkg_managers.sh"
+	if [[ -f "${SYSROOT}/usr/local/bin/rewrap_pkg_managers.sh" ]]; then
+		msg "Rewrap helper exists at ${SYSROOT}/usr/local/bin/rewrap_pkg_managers.sh"
 	else
-		issues+=("Rewrap helper not found at /usr/local/bin/rewrap_pkg_managers.sh")
+		issues+=("Rewrap helper not found at ${SYSROOT}/usr/local/bin/rewrap_pkg_managers.sh")
 		status="error"
 	fi
-	if [[ -f /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook ]]; then
+	if [[ -f "${SYSROOT}/etc/pacman.d/hooks/96-restore-pkg-wrappers.hook" ]]; then
 		msg "Upgrade-survival hook installed"
 	else
-		issues+=("Upgrade-survival hook not installed at /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook")
+		issues+=("Upgrade-survival hook not installed at ${SYSROOT}/etc/pacman.d/hooks/96-restore-pkg-wrappers.hook")
 		status="error"
 	fi
 
@@ -176,7 +183,7 @@ check_makepkg_wrapper() {
 			if [[ -f $MAKEPKG_WRAPPER_INSTALL ]]; then
 				run bash "$MAKEPKG_WRAPPER_INSTALL"
 				((FIXES_APPLIED++)) || true
-				if [[ $DRY_RUN -eq 0 ]] && [[ -L /usr/bin/makepkg ]] && [[ -f /usr/bin/makepkg.orig ]] && [[ -f /usr/local/bin/makepkg_wrapper ]]; then
+				if [[ $DRY_RUN -eq 0 ]] && [[ -L "${SYSROOT}/usr/bin/makepkg" ]] && [[ -f "${SYSROOT}/usr/bin/makepkg.orig" ]] && [[ -f "${SYSROOT}/usr/local/bin/makepkg_wrapper" ]]; then
 					status="ok"
 				fi
 			else

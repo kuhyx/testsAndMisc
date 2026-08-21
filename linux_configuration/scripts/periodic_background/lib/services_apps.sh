@@ -4,6 +4,13 @@
 #
 # Sourced by check_and_enable_services.sh.
 
+# Absolute paths the checks below probe are prefixed with $SYSROOT, which is
+# empty in production and a fixture tree under test. It is deliberately NOT
+# defaulted here: several repairs in this family write outside `run` (chattr,
+# find -delete, an append to resolved.conf), so a test that forgot to set it
+# would edit the real /etc. Unset is a hard error; empty is the real filesystem.
+SYSROOT="${SERVICES_ROOT?SERVICES_ROOT must be set (empty = the real filesystem)}"
+
 check_compulsive_blocker() {
 	header "Compulsive Opening Blocker"
 
@@ -11,17 +18,17 @@ check_compulsive_blocker() {
 	local issues=()
 
 	# Check if main script is installed
-	if [[ -f /usr/local/bin/block-compulsive-opening.sh ]]; then
-		msg "Blocker script installed at /usr/local/bin/block-compulsive-opening.sh"
+	if [[ -f "${SYSROOT}/usr/local/bin/block-compulsive-opening.sh" ]]; then
+		msg "Blocker script installed at ${SYSROOT}/usr/local/bin/block-compulsive-opening.sh"
 	else
-		issues+=("block-compulsive-opening.sh not found in /usr/local/bin")
+		issues+=("block-compulsive-opening.sh not found in ${SYSROOT}/usr/local/bin")
 		status="error"
 	fi
 
 	# Check if wrappers are installed for known apps
 	local checked_any=false
 	for app in beeper signal-desktop discord; do
-		local wrapper_path="/usr/bin/$app"
+		local wrapper_path="${SYSROOT}/usr/bin/$app"
 		if [[ -f "${wrapper_path}.orig" ]] || [[ -L "$wrapper_path" ]]; then
 			if [[ -f "${wrapper_path}.orig" ]]; then
 				msg "$app wrapper installed (original backed up)"
@@ -69,7 +76,7 @@ check_leechblock() {
 	local issues=()
 	local user="${SUDO_USER:-$USER}"
 	local user_home
-	user_home="/home/$user"
+	user_home="${SYSROOT}/home/$user"
 
 	# Check if LeechBlock is installed for any browser
 	local leechblock_dir="$user_home/.local/share/leechblockng"

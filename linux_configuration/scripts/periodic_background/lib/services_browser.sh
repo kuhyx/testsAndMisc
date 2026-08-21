@@ -6,6 +6,13 @@
 # unit from root and must go through user_systemctl (see its comment) rather
 # than `sudo -u ... systemctl --user`.
 
+# Absolute paths the checks below probe are prefixed with $SYSROOT, which is
+# empty in production and a fixture tree under test. It is deliberately NOT
+# defaulted here: several repairs in this family write outside `run` (chattr,
+# find -delete, an append to resolved.conf), so a test that forgot to set it
+# would edit the real /etc. Unset is a hard error; empty is the real filesystem.
+SYSROOT="${SERVICES_ROOT?SERVICES_ROOT must be set (empty = the real filesystem)}"
+
 check_guest_mode_removal() {
 	header "Chromium Guest Mode Removal"
 
@@ -15,10 +22,10 @@ check_guest_mode_removal() {
 	# Check if managed policy files exist for any browser
 	local policy_found=false
 	for policy_dir in \
-		/etc/chromium/policies/managed \
-		/etc/opt/chrome/policies/managed \
-		/etc/thorium/policies/managed \
-		/etc/brave/policies/managed; do
+		"${SYSROOT}/etc/chromium/policies/managed" \
+		"${SYSROOT}/etc/opt/chrome/policies/managed" \
+		"${SYSROOT}/etc/thorium/policies/managed" \
+		"${SYSROOT}/etc/brave/policies/managed"; do
 		if [[ -d $policy_dir ]] && ls "$policy_dir"/*.json &>/dev/null 2>&1; then
 			# Check for guest mode policy
 			if grep -rl 'BrowserGuestModeEnabled' "$policy_dir" &>/dev/null 2>&1; then
@@ -78,7 +85,7 @@ check_vbox_hosts() {
 	fi
 
 	# Check if enforcement marker exists
-	if [[ -f /var/lib/vbox-hosts-enforced ]]; then
+	if [[ -f "${SYSROOT}/var/lib/vbox-hosts-enforced" ]]; then
 		msg "VirtualBox hosts enforcement marker exists"
 	else
 		issues+=("VirtualBox hosts enforcement not applied")

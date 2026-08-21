@@ -9,6 +9,13 @@
 ######################################################################
 # Helpers
 ######################################################################
+# Absolute paths the checks below probe are prefixed with $SYSROOT, which is
+# empty in production and a fixture tree under test. It is deliberately NOT
+# defaulted here: several repairs in this family write outside `run` (chattr,
+# find -delete, an append to resolved.conf), so a test that forgot to set it
+# would edit the real /etc. Unset is a hard error; empty is the real filesystem.
+SYSROOT="${SERVICES_ROOT?SERVICES_ROOT must be set (empty = the real filesystem)}"
+
 msg() { printf "${GREEN}[✓]${NC} %s\n" "$*"; }
 
 note() { printf "${BLUE}[i]${NC} %s\n" "$*"; }
@@ -48,8 +55,8 @@ user_systemctl() { # <user> <systemctl args...>
 # guard-lib pair as authoritative (see pacman_hooks_manage_guard_lib) — match it,
 # while still accepting the legacy pair if an older install is present.
 hosts_pacman_hooks_installed() {
-	[[ -f /etc/pacman.d/hooks/10-guard-lib-unlock-all.hook ]] &&
-		[[ -f /etc/pacman.d/hooks/90-guard-lib-relock-all.hook ]]
+	[[ -f "${SYSROOT}/etc/pacman.d/hooks/10-guard-lib-unlock-all.hook" ]] &&
+		[[ -f "${SYSROOT}/etc/pacman.d/hooks/90-guard-lib-relock-all.hook" ]]
 }
 
 # True if guard-lib's file-guard instance <name> is installed AND healthy:

@@ -11,6 +11,14 @@
 
 set -euo pipefail
 
+# Prefix for every absolute path the checks probe. Empty means the real
+# filesystem, which is the only value production ever uses; the test harness
+# points it at a fixture tree instead. The libs read it via `${SERVICES_ROOT?}`
+# with no default, so this assignment is required rather than optional: several
+# repairs write outside `run` (chattr, find -delete, an append to
+# resolved.conf), and a caller that forgot to set it would edit the real /etc.
+export SERVICES_ROOT=""
+
 # Every check lives in a lib beside this file; this script keeps only the
 # configuration, argument parsing and the order the checks run in.
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"

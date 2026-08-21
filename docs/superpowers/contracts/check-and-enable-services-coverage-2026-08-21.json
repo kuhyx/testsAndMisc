@@ -1,0 +1,19 @@
+{
+  "title": "Reach 100% coverage on the check_and_enable_services libs via a redirectable path prefix",
+  "objective": "Make the absolute root-owned paths the check libs probe redirectable through a $SYSROOT prefix, so the file-existence branches become reachable in tests and the eight libs from 9085a4e5 reach 100% line coverage. This is the follow-up the user chose (option b): split first with measured coverage recorded, then close the gap in its own commit.",
+  "acceptance_criteria": [
+    "Every absolute /usr, /etc and /var path in the seven check libs is prefixed with $SYSROOT; the only literals left are inside services_report.sh's usage help text.",
+    "SERVICES_ROOT has no default in the libs: unset is a hard error, empty means the real filesystem, and check_and_enable_services.sh sets it explicitly.",
+    "sudo bash check_and_enable_services.sh --status --dry-run stays byte-identical to the same command at rev 6691cb26, modulo the Date: line.",
+    "sha256sum of /etc/hosts, /etc/nsswitch.conf and /etc/systemd/resolved.conf plus the contents of /etc/systemd/resolved.conf.d are unchanged across a full suite run.",
+    "shell_coverage.sh against lib/tests/run_all.sh reports 100% for every lib, or records a measured figure with a falsified diagnosis for any shortfall.",
+    "Every file including the test files is at or under 250 lines.",
+    "shellcheck reports zero findings standalone and with -x, with no suppression added."
+  ],
+  "out_of_scope": [
+    "The latent status-downgrade bug in the three unit checks, where an unconditional status=\"warning\" on the is-active branch overwrites the status=\"error\" from is-enabled, so a timer that is both disabled and inactive is never repaired. Still pinned and named by the tests; it changes live enforcement and earns its own commit.",
+    "Any behaviour change: the prefix is empty in production and the live output diff is the proof.",
+    "The other six files still over the 250-line cap."
+  ],
+  "verifier": "lib/tests/run_all.sh (220 assertions, 0 failures), bash meta/scripts/shell_coverage.sh lib/tests/run_all.sh <lib> 100 for all eight libs, a diff of sudo bash check_and_enable_services.sh --status --dry-run against rev 6691cb26, a before/after sha256sum of the three /etc files, grep for unprefixed absolute paths, shellcheck, and check_file_length.sh --all."
+}

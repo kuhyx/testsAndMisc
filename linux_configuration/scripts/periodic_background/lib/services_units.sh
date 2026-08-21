@@ -6,6 +6,13 @@
 # Sourced by check_and_enable_services.sh. All three funnel their findings
 # through report_and_fix, which owns the reinstall-and-reverify path.
 
+# Absolute paths the checks below probe are prefixed with $SYSROOT, which is
+# empty in production and a fixture tree under test. It is deliberately NOT
+# defaulted here: several repairs in this family write outside `run` (chattr,
+# find -delete, an append to resolved.conf), so a test that forgot to set it
+# would edit the real /etc. Unset is a hard error; empty is the real filesystem.
+SYSROOT="${SERVICES_ROOT?SERVICES_ROOT must be set (empty = the real filesystem)}"
+
 check_midnight_shutdown() {
 	header "Midnight Shutdown (Day-Specific Auto-Shutdown)"
 
@@ -28,7 +35,7 @@ check_midnight_shutdown() {
 	fi
 
 	# Check service file exists
-	if [[ -f /etc/systemd/system/day-specific-shutdown.service ]]; then
+	if [[ -f "${SYSROOT}/etc/systemd/system/day-specific-shutdown.service" ]]; then
 		msg "day-specific-shutdown.service file exists"
 	else
 		issues+=("day-specific-shutdown.service file missing")
@@ -36,7 +43,7 @@ check_midnight_shutdown() {
 	fi
 
 	# Check management script
-	if [[ -f /usr/local/bin/day-specific-shutdown-manager.sh ]]; then
+	if [[ -f "${SYSROOT}/usr/local/bin/day-specific-shutdown-manager.sh" ]]; then
 		msg "Shutdown manager script exists"
 	else
 		issues+=("day-specific-shutdown-manager.sh not found")
@@ -72,7 +79,7 @@ check_startup_monitor() {
 	fi
 
 	# Check service file exists
-	if [[ -f /etc/systemd/system/pc-startup-monitor.service ]]; then
+	if [[ -f "${SYSROOT}/etc/systemd/system/pc-startup-monitor.service" ]]; then
 		msg "pc-startup-monitor.service file exists"
 	else
 		issues+=("pc-startup-monitor.service file missing")
@@ -80,7 +87,7 @@ check_startup_monitor() {
 	fi
 
 	# Check monitor script
-	if [[ -f /usr/local/bin/pc-startup-check.sh ]]; then
+	if [[ -f "${SYSROOT}/usr/local/bin/pc-startup-check.sh" ]]; then
 		msg "Startup check script exists"
 	else
 		issues+=("pc-startup-check.sh not found")
@@ -138,7 +145,7 @@ check_periodic_systems() {
 	fi
 
 	# Check maintenance script
-	if [[ -f /usr/local/bin/periodic-system-maintenance.sh ]]; then
+	if [[ -f "${SYSROOT}/usr/local/bin/periodic-system-maintenance.sh" ]]; then
 		msg "Maintenance script exists"
 	else
 		issues+=("periodic-system-maintenance.sh not found")

@@ -7,6 +7,13 @@
 # Sourced by check_and_enable_services.sh. The repair half lives in
 # services_hosts_fix.sh so both files stay under the 250-line cap.
 
+# Absolute paths the checks below probe are prefixed with $SYSROOT, which is
+# empty in production and a fixture tree under test. It is deliberately NOT
+# defaulted here: several repairs in this family write outside `run` (chattr,
+# find -delete, an append to resolved.conf), so a test that forgot to set it
+# would edit the real /etc. Unset is a hard error; empty is the real filesystem.
+SYSROOT="${SERVICES_ROOT?SERVICES_ROOT must be set (empty = the real filesystem)}"
+
 check_hosts() {
 	header "Hosts File and Guards"
 
@@ -14,9 +21,9 @@ check_hosts() {
 	local issues=()
 
 	# Check /etc/hosts exists and has content
-	if [[ -f /etc/hosts ]]; then
+	if [[ -f "${SYSROOT}/etc/hosts" ]]; then
 		local line_count
-		line_count=$(wc -l </etc/hosts)
+		line_count=$(wc -l <"${SYSROOT}/etc/hosts")
 		if [[ $line_count -gt 100 ]]; then
 			msg "/etc/hosts exists with $line_count lines (StevenBlack list likely installed)"
 		else
@@ -30,7 +37,7 @@ check_hosts() {
 
 	# Check if hosts file is immutable
 	local attrs
-	attrs=$(lsattr /etc/hosts 2>/dev/null | cut -d' ' -f1 || echo "")
+	attrs=$(lsattr "${SYSROOT}/etc/hosts" 2>/dev/null | cut -d' ' -f1 || echo "")
 	if [[ $attrs == *"i"* ]]; then
 		msg "/etc/hosts has immutable attribute set"
 	else
@@ -39,8 +46,8 @@ check_hosts() {
 	fi
 
 	# Check cached hosts file
-	if [[ -f /etc/hosts.stevenblack ]]; then
-		msg "StevenBlack cache exists at /etc/hosts.stevenblack"
+	if [[ -f "${SYSROOT}/etc/hosts.stevenblack" ]]; then
+		msg "StevenBlack cache exists at ${SYSROOT}/etc/hosts.stevenblack"
 	else
 		issues+=("StevenBlack cache not found")
 		status="warning"
@@ -67,13 +74,13 @@ check_hosts() {
 	fi
 
 	# Check nsswitch.conf has 'files' in hosts line
-	if [[ -f /etc/nsswitch.conf ]]; then
+	if [[ -f "${SYSROOT}/etc/nsswitch.conf" ]]; then
 		local nsswitch_hosts
-		nsswitch_hosts=$(grep '^hosts:' /etc/nsswitch.conf 2>/dev/null || echo "")
+		nsswitch_hosts=$(grep '^hosts:' "${SYSROOT}/etc/nsswitch.conf" 2>/dev/null || echo "")
 		if echo "$nsswitch_hosts" | grep -qw 'files'; then
 			msg "nsswitch.conf hosts line includes 'files'"
 		else
-			issues+=("nsswitch.conf hosts line missing 'files' — /etc/hosts is bypassed!")
+			issues+=("nsswitch.conf hosts line missing 'files' — ${SYSROOT}/etc/hosts is bypassed!")
 			status="error"
 		fi
 	else
@@ -90,32 +97,32 @@ check_hosts() {
 	fi
 
 	# Check resolved.conf has ReadEtcHosts=yes
-	if [[ -f /etc/systemd/resolved.conf ]]; then
+	if [[ -f "${SYSROOT}/etc/systemd/resolved.conf" ]]; then
 		local read_etc_hosts
-		read_etc_hosts=$(grep -E '^\s*ReadEtcHosts\s*=' /etc/systemd/resolved.conf 2>/dev/null |
+		read_etc_hosts=$(grep -E '^\s*ReadEtcHosts\s*=' "${SYSROOT}/etc/systemd/resolved.conf" 2>/dev/null |
 			tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
 		if [[ "$read_etc_hosts" == "yes" ]]; then
 			msg "resolved.conf ReadEtcHosts=yes"
 		else
-			issues+=("resolved.conf ReadEtcHosts='$read_etc_hosts' — /etc/hosts is bypassed by systemd-resolved!")
+			issues+=("resolved.conf ReadEtcHosts='$read_etc_hosts' — ${SYSROOT}/etc/hosts is bypassed by systemd-resolved!")
 			status="error"
 		fi
 
 		# Check DNSOverTLS is not enabled
 		local dns_over_tls
-		dns_over_tls=$(grep -E '^\s*DNSOverTLS\s*=' /etc/systemd/resolved.conf 2>/dev/null |
+		dns_over_tls=$(grep -E '^\s*DNSOverTLS\s*=' "${SYSROOT}/etc/systemd/resolved.conf" 2>/dev/null |
 			tail -1 | sed 's/.*=\s*//' | tr -d '[:space:]') || true
 		if [[ -z "$dns_over_tls" || "$dns_over_tls" == "no" ]]; then
 			msg "resolved.conf DNSOverTLS is disabled"
 		else
-			issues+=("resolved.conf DNSOverTLS='$dns_over_tls' — can bypass /etc/hosts!")
+			issues+=("resolved.conf DNSOverTLS='$dns_over_tls' — can bypass ${SYSROOT}/etc/hosts!")
 			status="error"
 		fi
 
 		# Check for drop-in overrides
-		if [[ -d /etc/systemd/resolved.conf.d ]]; then
+		if [[ -d "${SYSROOT}/etc/systemd/resolved.conf.d" ]]; then
 			local dropin_count
-			dropin_count=$(find /etc/systemd/resolved.conf.d -name '*.conf' -type f 2>/dev/null | wc -l)
+			dropin_count=$(find "${SYSROOT}/etc/systemd/resolved.conf.d" -name '*.conf' -type f 2>/dev/null | wc -l)
 			if [[ "$dropin_count" -gt 0 ]]; then
 				issues+=("Found $dropin_count resolved.conf drop-in override(s) — potential bypass!")
 				status="error"
@@ -124,7 +131,7 @@ check_hosts() {
 
 		# Check immutable attribute
 		if command -v lsattr &>/dev/null; then
-			if lsattr /etc/systemd/resolved.conf 2>/dev/null | grep -q '.*i.*e.*'; then
+			if lsattr "${SYSROOT}/etc/systemd/resolved.conf" 2>/dev/null | grep -q '.*i.*e.*'; then
 				msg "resolved.conf has immutable attribute"
 			else
 				issues+=("resolved.conf missing immutable attribute")
