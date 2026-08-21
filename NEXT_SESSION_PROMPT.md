@@ -13,12 +13,23 @@ nothing delivered. **The user can still veto any of these cheaply**, since the
 gate is not yet in the hook chain:
 
 - **Q1 Scope → ratchet.** 115 pre-existing libraries are exempt via
-  `meta/shell-coverage-allowlist.txt`; only new or modified libraries must be
-  covered. Unrelated commits are never blocked (verified).
-- **Q2 Bar → presence, not a percentage.** A numeric bar is unreachable here:
-  Phase 1 measured the effecting code at 0% because it sudos, pkills and
-  installs, so hitting a number needs either mass shimming or the suppressions
-  this repo forbids. The gate asserts a `tests/run_all.sh` exists beside the lib.
+  `meta/shell-coverage-allowlist.txt`; any library not on that list must be
+  covered, so a new one cannot enter untested. Unrelated commits are never
+  blocked (verified). **Exemption is static** — editing an allowlisted library
+  is allowed and does not demand tests. An entry leaves the list only when its
+  directory gains a suite.
+- **Q2 Bar → presence, not a percentage — but NOT because a percentage is
+  impossible.** An earlier session on 2026-08-21 reached **100% (38/38) on
+  `setup_night_lockdown.sh` with no source changes and no suppressions**, using
+  a user-namespace jail, with containment verified by canary. The generic
+  runner then got **75% (57/76) on `pacman_wrapper.sh`**, because each subject
+  needs its own mount analysis. So a numeric bar is reachable but costs bespoke
+  per-file work — presence is the floor that can land today, and a percentage
+  can layer on top later. See
+  `docs/superpowers/evidence/phase3-namespace-jail-feasibility-2026-08-21.json`
+  and `meta/scripts/shell_coverage.sh`. **Both jail subjects were entry
+  scripts, which Q3 puts out of scope**, so nothing is yet measured for the 198
+  `lib/` files.
 - **Q3 Which files → `.sh` under a `lib/` dir**, excluding `lib/tests/` and
   `lib/payloads/`. Entry scripts are orchestration whose bodies are untestable.
 
@@ -56,6 +67,17 @@ in batches rather than one file at a time.
 **`--seed` is shrink-only and now enforces it** — it exits 1 rather than adding
 an entry, so you cannot exempt a new library by reseeding. It reads tracked
 files only, so stage before trusting its output.
+
+## Phase 4 (later): a percentage bar on top of the ratchet
+
+The namespace-jail evidence above is the load-bearing input. The technique
+works and is contained; what is unmeasured is whether it generalises to `lib/`
+files rather than entry scripts, and what per-file mount analysis costs at
+scale. The `pacman_wrapper.sh` result names the dominant failure mode: masking
+`/usr/local/bin` makes the wrapper take its "libraries missing → exec pacman
+unwrapped" escape hatch at lines 44-45 and exit before doing any real work, so
+coverage collapses from 75% to 29%. Measure a handful of `lib/` files through
+`jail_run.sh` before proposing any number.
 
 ## What is already true (verify, do not redo)
 

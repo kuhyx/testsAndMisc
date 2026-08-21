@@ -15,8 +15,14 @@
 # whose bodies are the untestable part, so capping them would buy nothing.
 #
 # The ratchet: files listed in the allowlist predate the gate and are exempt.
-# A file that is NEW or MODIFIED must be covered, and a covered file can never
-# go back on the allowlist. The list only ever shrinks.
+# Any library NOT on it must be covered, so a new library cannot enter without
+# a suite. The list only ever shrinks, and --seed enforces that.
+#
+# Exemption is static, NOT "until the file is next modified": editing an
+# allowlisted library is allowed and does not demand tests. Making a mere edit
+# trip the gate would block routine work across most of the repo's shell
+# surface, which is the repo-wide gate this ratchet exists to avoid. An entry
+# leaves the list when someone gives its directory a suite.
 #
 #   check_shell_coverage.sh <file>...   # gate the named files (hook mode)
 #   check_shell_coverage.sh --all       # report every uncovered lib
@@ -115,9 +121,11 @@ seed_allowlist() {
 	{
 		echo "# Shell libraries that predate the coverage ratchet."
 		echo "#"
-		echo "# Each line is a file exempt from check_shell_coverage.sh until it is"
-		echo "# next modified. Modifying an exempt file requires giving its lib/"
-		echo "# directory a tests/run_all.sh suite and deleting the line."
+		echo "# Each line is a file exempt from check_shell_coverage.sh. The exemption"
+		echo "# is static: editing one of these files is fine and does not require"
+		echo "# tests. An entry goes away when its lib/ directory gains a"
+		echo "# tests/run_all.sh, at which point every file in that directory is"
+		echo "# enforced."
 		echo "#"
 		echo "# This list only ever shrinks. Never add a path to it by hand -- a new"
 		echo "# library must ship with its tests."
@@ -167,9 +175,9 @@ check_files() {
 		printf '    needs: %s/tests/run_all.sh\n' "$(dirname "$path")" >&2
 	done
 	echo >&2
-	echo "  A new or modified shell library must ship with a suite that" >&2
-	echo "  sources it. Extend the nearest existing tests/ directory rather" >&2
-	echo "  than cloning a harness -- jscpd fails above 2% duplication." >&2
+	echo "  A shell library must ship with a suite that sources it. Extend" >&2
+	echo "  the nearest existing tests/ directory rather than cloning a" >&2
+	echo "  harness -- jscpd fails above 2% duplication." >&2
 	return 1
 }
 
