@@ -1,0 +1,37 @@
+{
+  "intent": "Repair the Shell tests workflow, which has been red on main since 72e1b6a8: two security-hardening assertions grep block_compulsive_opening.sh for code that the 250-line-cap split moved into lib/cco_*.sh.",
+  "scope": [
+    "linux_configuration/tests/lib/security_apps.sh: two greps now search the entry script plus its libs",
+    "Non-goal: any change to block_compulsive_opening.sh or its libs -- the code is correct; only the test's idea of where it lives was stale"
+  ],
+  "changes": [
+    "Built a compulsive_sources array from the entry script plus every lib/cco_*.sh, and pointed the 'Auto-close timer configuration exists' and 'launch_with_timer function exists' greps at that set instead of at the entry script alone.",
+    "The glob means the next split of this script does not break these assertions again. Each lib is added only if it exists, so the array degrades to just the entry script if lib/ is ever absent.",
+    "Kept both assertions about the FEATURE existing, which is what they were always for. Deleting them, or pinning them to a specific lib filename, would have traded a false failure for a weaker test."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh",
+      "result": "pass",
+      "evidence": "'Auto-close timer configuration exists' and 'launch_with_timer function exists' both PASS, where launch_with_timer failed before this change. 18 passed."
+    },
+    {
+      "command": "gh run view 32489396229 --log-failed (the red CI run being fixed)",
+      "result": "pass",
+      "evidence": "CI's sole failure was 'launch_with_timer function exists' -- the assertion this commit repairs. Confirms the fix targets the actual break rather than a guess."
+    },
+    {
+      "command": "Attribution check for the one remaining local failure",
+      "result": "pass",
+      "evidence": "'Compulsive block wrappers installed' fails on THIS MACHINE only, and is unrelated: signal-desktop and discord are installed but not wrapped, which the blocker's own `status` independently reports as 'installed (not wrapped)'. The same assertion PASSES in CI, where neither app exists. Pre-existing environmental state, not a regression from the split."
+    }
+  ],
+  "risks": [
+    "The glob makes the assertions insensitive to WHICH file holds the code. That is the intent -- they assert the feature exists -- but they would now also pass if the code were duplicated across libs.",
+    "The unwrapped signal-desktop and discord on this machine remain unwrapped; this commit does not touch them. Running `sudo block-compulsive-opening.sh install` would wrap them, which is a user decision and outside this scope."
+  ],
+  "rollback": [
+    "git revert this commit; the two greps return to searching only block_compulsive_opening.sh and Shell tests goes red again on launch_with_timer.",
+    "Validate with: bash linux_configuration/tests/test_security_hardening.sh and confirm 'launch_with_timer function exists' PASSes."
+  ]
+}
