@@ -112,22 +112,52 @@ baseline.
 
 ## Phase 1: Drive the 250-line cap to zero
 
-**Status as of 2026-08-18 (session 2): 10 files over cap, one done this
-session.** Re-run `bash meta/scripts/check_file_length.sh --all` at the start
-of every session in this phase — the exact list drifts as other work touches
-these files.
+**Status as of 2026-08-18 (session 2): 8 files over cap. All three
+`focus_owner` files are DONE; everything left is shell.** Re-run
+`bash meta/scripts/check_file_length.sh --all` at the start of every session
+in this phase — the exact list drifts as other work touches these files.
 
-`focus_owner/lib/status_page_state.dart` (307 lines) is DONE — split into
-`status_page_state.dart` (248) + a new `status_page_dialogs.dart` (103),
-commit `47e05d1`. Pure verbatim extraction of the two `AlertDialog` builders
-and the `build()` body-selection logic into a new `part of 'main.dart'` file,
-following the exact pattern `status_body.dart` already established.
-Verified: `dart analyze lib/` clean, full `flutter test` 94/94 passing (no
-new tests needed — existing widget tests already drive both dialogs through
-the rendered UI). `focus_owner` was confirmed **live and enforcing** this
-session (`focus_owner/README.md`: "Live and enforcing... provisioned as
-device owner") — do not treat any `focus_owner` file on this list as a
-dead-code candidate without a much stronger signal than "it's long."
+`focus_owner` was confirmed **live and enforcing** this session
+(`focus_owner/README.md`: "Live and enforcing... provisioned as device
+owner") — it is not a dead-code candidate. Three files cleared:
+
+1. **`focus_owner/lib/status_page_state.dart`** (307) → 248 + new
+   `status_page_dialogs.dart` (103), commit `47e05d1`. Verbatim extraction of
+   the two `AlertDialog` builders and the `build()` body-selection logic into
+   a new `part of 'main.dart'` file, following `status_body.dart`'s pattern.
+   Verified: `dart analyze lib/` clean, `flutter test` 94/94.
+2. **`DevicePolicyBridge.kt`** (415) → 219 + `DevicePolicyVpnDns.kt` (146),
+   `DevicePolicyLocation.kt` (92), `DevicePolicyUninstallGuard.kt` (79),
+   commit `6efb4ba`.
+3. **`EnforcementRunner.kt`** (564) → 237 + `LocationAcquisition.kt` (198),
+   `HomeLocationStore.kt` (116), `PolicyPinning.kt` (94),
+   `SweepablePackages.kt` (42), commit `7d7b3c7`.
+
+**The Kotlin split pattern that worked, reuse it:** Kotlin has no `part of`
+like Dart, so a long class is split by extracting cohesive method groups into
+standalone `internal class` helpers held as **private delegate fields**, with
+the original class keeping every public method as a one-line delegating
+wrapper. This matters because `MainActivity.kt` / `EnforcementService.kt`
+call these methods directly on the original class — moving them outright
+would break those call sites. Where a helper needs to ask the parent
+something (`isDeviceOwner()`), pass a function reference (`::isDeviceOwner`)
+into its constructor rather than duplicating the logic.
+
+**Watch for companion functions a test calls by name.**
+`EnforcementRunnerBestTest.kt` calls `EnforcementRunner.best(...)` directly,
+so `best` was deliberately left on `EnforcementRunner` and the extracted
+`LocationAcquisition` calls _back into it_ — that kept the test file
+untouched. `grep -rn "<ClassName>\." <test-dir>` before moving anything out
+of a companion object.
+
+Verification for both Kotlin splits:
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew compileDebugKotlin test
+--rerun-tasks` from `focus_owner/android` — BUILD SUCCESSFUL, 40 tests
+(6+9+12+13), 0 failures. `--rerun-tasks` is mandatory; a plain `gradlew test`
+reports `UP-TO-DATE` and proves nothing. Note `BUILD SUCCESSFUL` alone can
+hide "0 tests ran", so read the counts out of the XML:
+`find focus_owner -path "*/test-results/*" -name "*.xml"` then grep
+`tests="N" ... failures="N"`.
 
 ```
 1734  linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh
@@ -137,10 +167,20 @@ dead-code candidate without a much stronger signal than "it's long."
  918  linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh
  913  linux_configuration/scripts/periodic_background/hosts/install.sh
  705  linux_configuration/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh
- 564  focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/EnforcementRunner.kt
  485  linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh
- 415  focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyBridge.kt
 ```
+
+**Every remaining file is a shell script, and 4 of the 8 carry the
+live-deployment trap** (`setup_midnight_shutdown.sh`, `pacman_wrapper.sh`,
+`install_leechblock.sh`, `block_compulsive_opening.sh`). The three that do
+NOT are `check_and_enable_services.sh`, `generate_study_materials.sh` and
+`hosts/install.sh` — those are the safer next targets. All three were
+confirmed live/referenced this session (`grep -rl` each: they are wired into
+`install_core_system.sh`, `setup_periodic_system.sh`,
+`install_makepkg_wrapper.sh`, `repo_to_study.sh` and others), so none is an
+archive candidate. `hosts/install.sh` has by far the widest reference
+surface (13 referencing files) — handle it with more care than its line
+count suggests.
 
 **`setup_midnight_shutdown.sh` needs a non-standard split plan, read this
 before touching it:** its 39 top-level-looking functions are NOT all real —
@@ -172,7 +212,9 @@ directly was used as a workaround. Worth a real fix (make the script `cd` to
 the git toplevel, or strip the repo-relative prefix) since this affects every
 future Dart split in `focus_owner`, `billsplit`, etc.
 
-**Two of these carry a live-deployment trap, handle last or very carefully:**
+**Four of these carry a live-deployment trap, handle last or very carefully**
+(the two named below, plus `pacman_wrapper.sh` itself and
+`setup_midnight_shutdown.sh` — see its own note above)**:**
 `install_leechblock.sh` and `block_compulsive_opening.sh` are copied to
 `/usr/local/…`, and `pacman_wrapper.sh:831` prefers the deployed copy on
 **every pacman invocation**. Splitting them naively breaks every
