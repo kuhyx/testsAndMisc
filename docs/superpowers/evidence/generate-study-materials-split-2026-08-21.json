@@ -1,0 +1,58 @@
+{
+  "intent": "Split generate_study_materials.sh (1017 lines) under the 250-line cap with 100% covered libs, and fix the four latent defects the tests exposed. File 2 of the Phase 1 queue.",
+  "scope": [
+    "linux_configuration/scripts/single_use/utils/generate_study_materials.sh — 1017 lines down to 148",
+    "lib/study_doc_urls.sh, study_doc_urls_more.sh, study_doc_lookup.sh, study_gen_docs.sh, study_gen_anki.sh, study_gen_llm.sh — new",
+    "lib/tests/ — a harness, four test files and a runner",
+    "Non-goal: changing the generated output for any input the pre-split script handled correctly"
+  ],
+  "changes": [
+    "Wrapped the 335-line top-level Main Processing block into generate_doc_links / generate_anki_cards / generate_llm_prompt so it could be moved at all: extract_shell_functions.py only relocates functions. The bodies were deliberately NOT re-indented, because five heredocs with quoted terminators must keep those terminators at column 0.",
+    "Moved the ten pre-existing functions verbatim into six libs grouped by subject: the per-language URL builders, the lookup/dispatch layer, and one lib per generation phase.",
+    "FIX 1 — python_doc_url required a $2 it never reads. get_doc_url has always called it with one argument, which only worked because the entry script runs `set -e` without `-u`. Any caller enabling `set -u` aborted. Defaulted it, and did the same for the three other positionals documented as optional but declared required.",
+    "FIX 2 — the two imports loops hardcoded `head -20` while the other seven honoured TOP_N, so --top was silently ignored for imports.",
+    "FIX 3 — only one of the nine term loops skipped comment lines, so a '#' line in an analysis file became a flashcard whose front was a comment. All nine now filter.",
+    "FIX 4 — introduced and then fixed within this change: `grep -v '^#'` must run BEFORE `head -n`, or comment lines count against the limit, and it needs `|| true`, because grep exits 1 when it filters every line and the callers run under `set -e`."
+  ],
+  "verification": [
+    {
+      "command": "sha256sum -c against a golden fixture captured before any edit",
+      "result": "pass",
+      "evidence": "All three outputs — anki_cards.txt, documentation_links.md, llm_anki_prompt.md — byte-identical, and stdout identical, re-checked after every step including the four fixes and the final shfmt."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh 08f3c764 <old> <old> lib/study_*.sh",
+      "result": "pass",
+      "evidence": "Only additions reported (generate_doc_links, generate_anki_cards), which are the new wrappers around previously top-level code. Every pre-existing function hashes identically."
+    },
+    {
+      "command": "A second fixture with 25 imports and comment lines, run at --top 3",
+      "result": "pass",
+      "evidence": "Before the fixes: 20 imports emitted regardless of --top, and the comment line appeared as a card in both anki_cards.txt and documentation_links.md. After: exactly 3 imports, zero comment leakage. The golden fixture cannot show this because it has no comments and fewer than 20 imports — which is why the defects survived."
+    },
+    {
+      "command": "lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "166 assertions across 4 test files, 0 failures: doc_urls 57, doc_urls_more 45, doc_lookup 24, gen 49."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/run_all.sh <lib> 100",
+      "result": "pass on 4 of 6",
+      "evidence": "study_doc_urls.sh 38/38, study_doc_urls_more.sh 30/30, study_doc_lookup.sh 49/49, study_gen_llm.sh 54/54 — all 100.00%. study_gen_docs.sh 93.10% and study_gen_anki.sh 96.15%; every remaining line is a `} >>\"$DOCS_FILE\"` or `} >>\"$ANKI_FILE\"` closing a brace group whose output is asserted by a passing test, i.e. the same kcov attribution artifact diagnosed for services_hosts.sh."
+    },
+    {
+      "command": "shellcheck generate_study_materials.sh lib/study_*.sh lib/tests/*.sh; bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "Zero findings, no suppression. No file over 250 lines; largest lib is study_gen_docs.sh at 239."
+    }
+  ],
+  "risks": [
+    "Fixes 2 and 3 deliberately change output for inputs the pre-split script handled wrongly: a repo with more than TOP_N imports now gets the number asked for rather than 20, and comment lines no longer become cards. Both are corrections, but a user comparing against an old documentation_links.md will see a diff.",
+    "The wrapper functions are the one part not proven verbatim. Their bodies are unchanged text, and the golden fixture covers all three phases end to end, but the wrapping itself is structural rather than hash-verified.",
+    "TOP_N now applies to imports, so a very large --top produces a correspondingly larger prompt file. That is the documented meaning of the flag."
+  ],
+  "rollback": [
+    "git revert this commit: the split is additive (six libs, six test files) plus one rewritten entry script; nothing outside the repo is touched.",
+    "After rollback, re-run the script against any results dir and confirm the three output files are still produced."
+  ]
+}
