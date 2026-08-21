@@ -1,8 +1,10 @@
 # Shell libraries that predate the coverage ratchet.
 #
-# Each line is a file exempt from check_shell_coverage.sh until it is
-# next modified. Modifying an exempt file requires giving its lib/
-# directory a tests/run_all.sh suite and deleting the line.
+# Each line is a file exempt from check_shell_coverage.sh. The exemption
+# is static: editing one of these files is fine and does not require
+# tests. An entry goes away when its lib/ directory gains a
+# tests/run_all.sh, at which point every file in that directory is
+# enforced.
 #
 # This list only ever shrinks. Never add a path to it by hand -- a new
 # library must ship with its tests.
@@ -10,15 +12,6 @@
 # Regenerate (only ever to REMOVE now-covered entries):
 #   bash meta/scripts/check_shell_coverage.sh --seed
 linux_configuration/.githooks/lib/common.sh
-linux_configuration/scripts/lib/android.sh
-linux_configuration/scripts/lib/common_datetime.sh
-linux_configuration/scripts/lib/common_packages.sh
-linux_configuration/scripts/lib/common_services.sh
-linux_configuration/scripts/lib/common.sh
-linux_configuration/scripts/lib/mtk_classify.sh
-linux_configuration/scripts/lib/mtk_common.sh
-linux_configuration/scripts/lib/mtk_device.sh
-linux_configuration/scripts/lib/mtk_partitions.sh
 linux_configuration/scripts/meta/lib/shell_check_discover.sh
 linux_configuration/scripts/meta/lib/shell_check_install.sh
 linux_configuration/scripts/meta/lib/shell_check_lint.sh

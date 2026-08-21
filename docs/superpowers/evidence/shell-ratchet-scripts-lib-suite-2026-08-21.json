@@ -1,0 +1,72 @@
+{
+  "intent": "Shrink the shell-coverage allowlist from 115 entries to 106 by giving linux_configuration/scripts/lib a real test suite, so the ratchet narrows instead of merely holding the line. Nine libraries lose their exemption at once, because coverage is per-directory.",
+  "scope": [
+    "New: linux_configuration/scripts/lib/tests/ — run_all.sh, mtk_harness.sh, and four test_*.sh suites",
+    "Modified: meta/shell-coverage-allowlist.txt — reseeded, 115 -> 106 entries, all nine linux_configuration/scripts/lib/ entries removed",
+    "No change to any library under test. This commit adds tests and removes exemptions; it does not touch the code being tested.",
+    "Non-goal: wiring shell-coverage-ratchet into .pre-commit-config.yaml — denied as a sensitive file, so it stays with the user (see NEXT_SESSION_PROMPT.md)",
+    "Non-goal: the effecting half of these libraries (sudo re-exec, umount -l, pacman, adb against real hardware) and mtk_udev_catchall_files, which has no seam"
+  ],
+  "changes": [
+    "Covered the mtk toolkit through its existing MTK_ROOT_FIXTURE seam, which mtk_common.sh documents as the only boundary with real hardware — props.txt and by-name.txt fixtures make the whole suite offline and hermetic",
+    "Asserted the three safety rules that a plausible refactor would break: classify_device requires a MediaTek signal AND a vendor match (never either, so a third phone lands in UNKNOWN); discover_partitions prefers init_boot over boot; mtk_select_device refuses to guess between two attached devices",
+    "Shimmed adb onto a narrowed PATH for the device-selection suite, with the shim exiting 97 on any unexpected subcommand rather than returning an empty string that would read as 'no devices'",
+    "Kept every assertion independent of wall-clock time: get_hour and get_day_of_week are shimmed where a specific value is needed, and the real /proc/uptime readers are asserted on shape only. This suite runs in shell-tests.yml and again on every pre-push via ci-mirror, so a time-dependent assertion would be a push-blocking flake.",
+    "Redirected HOME to a tmpdir before sourcing, because android.sh runs ensure_dir on a $HOME path at source time — merely loading the library writes to ~/.cache otherwise",
+    "Named the deliberately-untested functions and the reason for each in mtk_harness.sh's header, since the gate checks only that run_all.sh exists and cannot tell a real suite from an empty one"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/scripts/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "exit 0; 139 assertions across 4 suites, 0 failed (common_datetime 55, mtk_partitions 36, mtk_device 26, mtk_classify 22)."
+    },
+    {
+      "command": "mutation: classify_device's `$mtk_match -eq 1 && $ulefone_match -eq 1` -> `||`, on a throwaway copy",
+      "result": "pass",
+      "evidence": "Suite exits 1. This is the regression that would classify a stranger's MediaTek phone as the target device; the ULEFONE and PIXEL cases still pass under the mutation, so only the third-phone case catches it."
+    },
+    {
+      "command": "mutation: discover_partitions' `for candidate in init_boot boot` -> `boot init_boot`",
+      "result": "pass",
+      "evidence": "Suite exits 1. Checking boot first picks the wrong ramdisk carrier on Android 13+ hardware, silently, because both partitions exist and both reads succeed."
+    },
+    {
+      "command": "mutation: mtk_select_device's `${#serials[@]} -gt 1` -> `-gt 99`",
+      "result": "pass",
+      "evidence": "Suite exits 1. A version that took serials[0] with two phones attached passes every other assertion in that file."
+    },
+    {
+      "command": "mutation: is_hour_in_range's `$((10#$current_hour))` -> `$((current_hour))`",
+      "result": "pass",
+      "evidence": "Suite exits 1 — but only after the assertion was strengthened. The first version checked exit status alone and the mutation SURVIVED: bash aborts with 'value too great for base (error token is \"09\")', a non-zero exit indistinguishable from an honest out-of-range result. The assertion now checks stderr is empty."
+    },
+    {
+      "command": "grep -vc '^#\\|^$' meta/shell-coverage-allowlist.txt (before, after)",
+      "result": "pass",
+      "evidence": "115 -> 106. `grep -c 'linux_configuration/scripts/lib/'` goes 9 -> 0, matching the predicted delta exactly."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh linux_configuration/scripts/lib/mtk_classify.sh linux_configuration/scripts/lib/common_datetime.sh",
+      "result": "pass",
+      "evidence": "exit 0 — the nine libraries are now covered on their merits rather than exempt."
+    },
+    {
+      "command": "git ls-files -s linux_configuration/scripts/lib/tests/",
+      "result": "pass",
+      "evidence": "All six files staged 100755. Staged with `git add --chmod=+x`; a plain `git add` afterwards would reset the bit and the shebang hook rejects 100644."
+    }
+  ],
+  "risks": [
+    "Coverage is presence, not a percentage. The gate cannot distinguish these 139 assertions from an empty run_all.sh, and the nine libraries are now permanently off the allowlist — if a later commit guts the suite, nothing detects it. The harness header naming what is and is not exercised is the only durable record.",
+    "The effecting halves of android.sh, common_packages.sh and common_services.sh remain at 0%, so the exemption has been traded for partial coverage rather than full coverage. This is Phase 1's measured pattern, not a regression, but the allowlist no longer records it.",
+    "The adb shim narrows PATH to a shim dir plus /usr/bin and /bin. If mtk_device.sh later reaches for an external not seeded there, the suite aborts under `set -e` with no stderr — the exact failure that cost twenty minutes in Phase 1.",
+    "mtk_check_venv is asserted only on its 'missing' branch, reached by pointing MTK_ROOT_CACHE at an empty tmpdir. The 'broken' branch (a venv that exists but fails `import usb`) is unexercised.",
+    "This suite now runs on every pre-push via ci-mirror, so it is on the critical path for pushing any change to this repo, not just shell changes."
+  ],
+  "rollback": [
+    "git revert this commit. It restores the nine allowlist entries and deletes the tests directory; no library under test changes, so nothing executable is affected.",
+    "After rollback, confirm `bash meta/scripts/check_shell_coverage.sh --all` reports 115 exempt entries and exits 0.",
+    "To keep the suite but restore the exemptions, delete linux_configuration/scripts/lib/tests/run_all.sh only — is_covered() checks for that one file, so the other suites can stay in place while the directory reverts to exempt."
+  ]
+}
