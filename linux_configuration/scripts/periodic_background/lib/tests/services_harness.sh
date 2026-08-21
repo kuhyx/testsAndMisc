@@ -208,6 +208,19 @@ make_installer() { # <path>
 # shellcheck source=../services_common.sh
 . "${LIB_DIR}/services_common.sh"
 
+# Stage a fully healthy blocking stack: a long hosts file, the guard-lib trio
+# active, both pacman hooks, and a resolved.conf that reads /etc/hosts.
+stage_hosts_ok() {
+	sysfile etc/hosts 200
+	sysfile etc/hosts.stevenblack 200
+	printf '%s\n' "${SERVICES_ROOT}/etc/hosts" >"${DEV}/immutable"
+	printf 'hosts: files resolve dns\n' >"${SERVICES_ROOT}/etc/nsswitch.conf"
+	printf '[Resolve]\nReadEtcHosts=yes\n' >"${SERVICES_ROOT}/etc/systemd/resolved.conf"
+	printf '%s\n' hosts nsswitch resolved >"${DEV}/guard_healthy"
+	sysfile etc/pacman.d/hooks/10-guard-lib-unlock-all.hook
+	sysfile etc/pacman.d/hooks/90-guard-lib-relock-all.hook
+}
+
 # reset_state — return every mutable global and every $DEV fact to "nothing has
 # happened yet", so each test group starts from a known machine.
 reset_state() {

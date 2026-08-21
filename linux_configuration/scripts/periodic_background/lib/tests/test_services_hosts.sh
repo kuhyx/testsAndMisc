@@ -28,19 +28,6 @@ _t_called_in() { # <haystack> <needle> <what>
 	fi
 }
 
-# Stage a fully healthy blocking stack: a long hosts file, the guard-lib trio
-# active, both pacman hooks, and a resolved.conf that reads /etc/hosts.
-stage_hosts_ok() {
-	sysfile etc/hosts 200
-	sysfile etc/hosts.stevenblack 200
-	printf '%s\n' "${SERVICES_ROOT}/etc/hosts" >"${DEV}/immutable"
-	printf 'hosts: files resolve dns\n' >"${SERVICES_ROOT}/etc/nsswitch.conf"
-	printf '[Resolve]\nReadEtcHosts=yes\n' >"${SERVICES_ROOT}/etc/systemd/resolved.conf"
-	printf '%s\n' hosts nsswitch resolved >"${DEV}/guard_healthy"
-	sysfile etc/pacman.d/hooks/10-guard-lib-unlock-all.hook
-	sysfile etc/pacman.d/hooks/90-guard-lib-relock-all.hook
-}
-
 echo "== check_hosts: a fully healthy stack records ok =="
 reset_state
 stage_hosts_ok
@@ -107,51 +94,6 @@ make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
 sysrm etc/nsswitch.conf
 check_hosts >"${TEST_TMPDIR}/out.txt"
 _t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "/etc/nsswitch.conf does not exist" "the missing file is reported"
-
-echo "== check_hosts: ReadEtcHosts=no is an error and is repaired =="
-reset_state
-stage_hosts_ok
-make_installer "$HOSTS_INSTALL_SCRIPT"
-make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
-printf '[Resolve]\nReadEtcHosts=no\n' >"${SERVICES_ROOT}/etc/systemd/resolved.conf"
-check_hosts >"${TEST_TMPDIR}/out.txt"
-_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "bypassed by systemd-resolved" "the resolved bypass is called out"
-_t_called_in "$(cat "${SERVICES_ROOT}/etc/systemd/resolved.conf")" "ReadEtcHosts=yes" "the setting is repaired"
-_t_called 'systemctl restart systemd-resolved' "systemd-resolved is restarted so the change takes"
-
-echo "== check_hosts: DNSOverTLS enabled is an error and is repaired =="
-reset_state
-stage_hosts_ok
-make_installer "$HOSTS_INSTALL_SCRIPT"
-make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
-printf '[Resolve]\nReadEtcHosts=yes\nDNSOverTLS=yes\n' >"${SERVICES_ROOT}/etc/systemd/resolved.conf"
-check_hosts >"${TEST_TMPDIR}/out.txt"
-# The message interpolates $SYSROOT, so match on the stable part of it.
-_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "DNSOverTLS='yes'" "DNSOverTLS is called out as a bypass"
-_t_called_in "$(cat "${SERVICES_ROOT}/etc/systemd/resolved.conf")" "#DNSOverTLS=no" "it is commented out"
-
-echo "== check_hosts: drop-in overrides are an error and are removed =="
-reset_state
-stage_hosts_ok
-make_installer "$HOSTS_INSTALL_SCRIPT"
-make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
-# A drop-in can re-enable either bypass without touching resolved.conf, so the
-# repairs above are not durable while one survives.
-sysfile etc/systemd/resolved.conf.d/99-override.conf
-check_hosts >"${TEST_TMPDIR}/out.txt"
-_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "drop-in override" "the drop-in is called out"
-if [[ -f "${SERVICES_ROOT}/etc/systemd/resolved.conf.d/99-override.conf" ]]; then
-	_t_fail "the drop-in is deleted"
-else
-	_t_pass "the drop-in is deleted"
-fi
-
-echo "== check_hosts: a missing resolved.conf warns =="
-reset_state
-stage_hosts_ok
-sysrm etc/systemd/resolved.conf
-check_hosts >"${TEST_TMPDIR}/out.txt"
-_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "resolved.conf does not exist" "the missing file is reported"
 
 echo "== check_hosts: an unhealthy guard-lib instance is repaired =="
 reset_state
@@ -224,77 +166,6 @@ printf 'nsswitch\n' >"${DEV}/guard_degraded"
 check_hosts >/dev/null
 _t_eq "2" "${#MISSING_SCRIPTS[@]}" "both missing repair scripts are recorded"
 
-echo "== hosts_fix_nsswitch: each resolver shape =="
-reset_state
-printf 'hosts: mymachines dns\n' >"${SERVICES_ROOT}/etc/nsswitch.conf"
-if hosts_fix_nsswitch >/dev/null; then :; fi
-_t_called_in "$(cat "${SERVICES_ROOT}/etc/nsswitch.conf")" "files dns" "'files' is inserted before dns"
-
-reset_state
-printf 'hosts: mymachines myhostname\n' >"${SERVICES_ROOT}/etc/nsswitch.conf"
-if hosts_fix_nsswitch >/dev/null; then :; fi
-_t_called_in "$(cat "${SERVICES_ROOT}/etc/nsswitch.conf")" "hosts: files" "'files' is prepended when no resolver is named"
-
-reset_state
-printf 'hosts: files resolve\n' >"${SERVICES_ROOT}/etc/nsswitch.conf"
-if hosts_fix_nsswitch >/dev/null; then :; fi
-_t_eq "hosts: files resolve" "$(cat "${SERVICES_ROOT}/etc/nsswitch.conf")" "an already-correct line is left alone"
-
-reset_state
-sysrm etc/nsswitch.conf
-if hosts_fix_nsswitch >/dev/null; then :; fi
-_t_pass "a missing nsswitch.conf is a no-op rather than an error"
-
-reset_state
-printf 'passwd: files\n' >"${SERVICES_ROOT}/etc/nsswitch.conf"
-if hosts_fix_nsswitch >/dev/null; then :; fi
-_t_pass "an nsswitch.conf with no hosts line at all is a no-op"
-
-echo "== hosts_fix_resolved: adds the setting when the file lacks it =="
-# Called through `if` rather than bare. When resolved.conf carries no
-# ReadEtcHosts line at all, the leading `grep` in the assignment pipeline exits
-# 1; with `set -o pipefail` that makes the whole assignment non-zero, so a bare
-# call aborts the test under `set -e`. Production never hits this because
-# check_hosts only ever calls it from inside an `if`, which suppresses `set -e`
-# for the callee -- so this is a property of calling it bare, not a defect.
-reset_state
-printf '[Resolve]\n' >"${SERVICES_ROOT}/etc/systemd/resolved.conf"
-if hosts_fix_resolved >/dev/null; then :; fi
-_t_called_in "$(cat "${SERVICES_ROOT}/etc/systemd/resolved.conf")" "ReadEtcHosts=yes" "the setting is inserted under [Resolve]"
-
-reset_state
-printf '# no section here\n' >"${SERVICES_ROOT}/etc/systemd/resolved.conf"
-if hosts_fix_resolved >/dev/null; then :; fi
-_t_called_in "$(cat "${SERVICES_ROOT}/etc/systemd/resolved.conf")" "[Resolve]" "a whole [Resolve] section is appended when absent"
-
-reset_state
-sysrm etc/systemd/resolved.conf
-if hosts_fix_resolved >/dev/null; then :; fi
-_t_pass "a missing resolved.conf is a no-op rather than an error"
-
-echo "== hosts_repair_all: dry-run refuses to claim success =="
-reset_state
-stage_hosts_ok
-make_installer "$HOSTS_INSTALL_SCRIPT"
-make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
-DRY_RUN=1
-if hosts_repair_all >/dev/null; then
-	_t_fail "hosts_repair_all returns non-zero under --dry-run"
-else
-	_t_pass "hosts_repair_all returns non-zero under --dry-run"
-fi
-
-echo "== hosts_repair_all: a healthy machine verifies after repair =="
-reset_state
-stage_hosts_ok
-make_installer "$HOSTS_INSTALL_SCRIPT"
-make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
-if hosts_repair_all >/dev/null; then
-	_t_pass "hosts_repair_all returns zero when the post-repair check passes"
-else
-	_t_fail "hosts_repair_all returns zero when the post-repair check passes"
-fi
-
 echo "== check_hosts: resolved.conf immutable attribute is recognised =="
 reset_state
 stage_hosts_ok
@@ -316,5 +187,37 @@ for inst in hosts nsswitch resolved; do
 		"a failing '${inst}' guard is named"
 	_t_called 'ran migrate_hosts_guard' "and the migration is re-run for '${inst}'"
 done
+
+echo "== check_hosts: a warning must never mask an error =="
+# Regression test for the status-downgrade bug: several checks assigned
+# status="warning" unconditionally, so a check running LATER in the function
+# could overwrite the status="error" an earlier one had set. Because
+# report_and_fix (and check_hosts' own repair gate) only act on "error", the
+# downgraded fault was reported and then silently never repaired.
+#
+# Here the guard-lib 'hosts' instance is broken (an error) AND the pacman hook
+# pair is missing (a warning, and checked afterwards). The row must stay
+# "error" and the repair must run.
+reset_state
+stage_hosts_ok
+make_installer "$HOSTS_INSTALL_SCRIPT"
+make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
+printf '%s\n' nsswitch resolved >"${DEV}/guard_healthy"
+sysrm etc/pacman.d/hooks/10-guard-lib-unlock-all.hook
+sysrm etc/pacman.d/hooks/90-guard-lib-relock-all.hook
+check_hosts >"${TEST_TMPDIR}/out.txt"
+_t_called 'ran migrate_hosts_guard' "a broken guard is still repaired when a later check warns"
+
+# The same shape with the short-hosts-file warning, which is checked FIRST and
+# so cannot mask anything -- but the immutable/cache warnings after it can.
+reset_state
+stage_hosts_ok
+make_installer "$HOSTS_INSTALL_SCRIPT"
+make_installer "$GUARD_LIB_MIGRATE_SCRIPT"
+printf '%s\n' nsswitch resolved >"${DEV}/guard_healthy"
+: >"${DEV}/immutable"
+sysrm etc/hosts.stevenblack
+check_hosts >/dev/null
+_t_called 'ran migrate_hosts_guard' "a broken guard survives the immutable and cache warnings"
 
 _t_summary

@@ -1,0 +1,61 @@
+{
+  "intent": "Fix the status-downgrade bug in check_and_enable_services, where a later check assigning status=\"warning\" unconditionally could overwrite the status=\"error\" an earlier check had set — so a genuinely broken service was reported and then silently never repaired.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/lib/services_units.sh — 4 unguarded sites, the load-bearing ones",
+    "linux_configuration/scripts/periodic_background/lib/services_hosts.sh — 4 unguarded sites, cosmetic but wrong",
+    "lib/tests/test_services_units.sh — 7 pinning assertions converted to regression assertions",
+    "lib/tests/test_services_hosts.sh — 2 new masking regression cases",
+    "lib/tests/ — test_services_hosts_fix.sh and test_services_hosts_resolved.sh split out for the 250-line cap; stage_hosts_ok moved into the harness so both files can use it",
+    "Non-goal: the 5 sites that were already guarded correctly"
+  ],
+  "changes": [
+    "All 8 bare `status=\"warning\"` assignments now read `if [[ $status != \"error\" ]]; then status=\"warning\"; fi`, which is the idiom services_apps.sh and services_browser.sh already used — so this makes the family internally consistent rather than inventing a convention.",
+    "The blast radius differs between the two files and only one is load-bearing. services_units.sh reports through report_and_fix, which repairs ONLY on \"error\", so a downgrade there meant no repair ran at all. services_hosts.sh gates its own repair on `status != \"ok\"`, so repair still ran; there the bug printed a real error as a yellow [!] warning and understated the summary row.",
+    "The three unit checks were the worst case because the is-active check is the LAST status assignment in each function, so it could overwrite any error set above it. In check_periodic_systems that is hosts-file-monitor.service, which sits after three separate is-enabled checks."
+  ],
+  "verification": [
+    {
+      "command": "lib/tests/test_services_units.sh (before the fix)",
+      "result": "7 failures, as intended",
+      "evidence": "The pinning assertions were rewritten to assert correct behaviour first, and failed: 'disabled+inactive stays an error (want error, got warning)' and 'so the disabled timer IS repaired (no call matching /ran setup_midnight_shutdown.sh enable/)' for all three unit checks."
+    },
+    {
+      "command": "A/B against a simulated broken machine: timer disabled AND inactive, unit files present",
+      "result": "pass",
+      "evidence": "Without the fix: status=warning, repair ran 0 times — the timer stays dead. With the fix: status=error, repair ran 1 time — the timer is re-enabled. Run by reverting only the 4 guards in services_units.sh and restoring them afterwards."
+    },
+    {
+      "command": "lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "222 assertions across 10 test files, 0 failures."
+    },
+    {
+      "command": "diff <(sudo bash <worktree@6691cb26>/…/check_and_enable_services.sh --status --dry-run) <(sudo bash …/check_and_enable_services.sh --status --dry-run)",
+      "result": "identical",
+      "evidence": "Still byte-identical modulo Date:. This machine has no disabled timer and no missing pacman hook, so the buggy path is not taken here — which is exactly why the fault went unnoticed. The A/B above is what demonstrates the behaviour change, since the live diff cannot."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/run_all.sh <lib> 100",
+      "result": "pass on 6 of 8",
+      "evidence": "services_units.sh holds 100.00% (72/72) through the change. services_hosts.sh rose from 86.05% to 93.02% as the new masking cases exercised more branches; the 6 remaining lines are the kcov attribution artifact diagnosed in check-and-enable-services-coverage-2026-08-21.json. services_hosts_fix.sh 97.30% (2 pipeline continuation lines)."
+    },
+    {
+      "command": "grep -n '^\\s*status=\"warning\"$' lib/services_*.sh",
+      "result": "pass",
+      "evidence": "No unguarded site remains."
+    },
+    {
+      "command": "shellcheck lib/tests/*.sh lib/services_*.sh check_and_enable_services.sh; bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "Zero shellcheck findings, no suppression. No file over 250 lines; the hosts test file needed splitting twice to stay under it."
+    }
+  ],
+  "risks": [
+    "This deliberately changes live enforcement behaviour: services that previously sat in a warning state without being repaired will now be repaired on the next hourly run. That is the point of the fix, but it means the next run on a machine with a disabled timer will actually execute a setup script rather than doing nothing.",
+    "A service whose repair script is broken will now retry every run instead of staying quiet at warning. err_missing_script already logs that case at journal error priority, so it surfaces rather than looping silently."
+  ],
+  "rollback": [
+    "git revert this commit restores the unguarded assignments and the pinning tests together, so the suite stays green either way.",
+    "After rollback, confirm with the A/B: a disabled+inactive timer should report warning and run no repair."
+  ]
+}

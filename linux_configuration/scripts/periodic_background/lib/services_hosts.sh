@@ -28,7 +28,7 @@ check_hosts() {
 			msg "/etc/hosts exists with $line_count lines (StevenBlack list likely installed)"
 		else
 			issues+=("/etc/hosts has only $line_count lines (StevenBlack list may not be installed)")
-			status="warning"
+			if [[ $status != "error" ]]; then status="warning"; fi
 		fi
 	else
 		issues+=("/etc/hosts does not exist")
@@ -42,7 +42,7 @@ check_hosts() {
 		msg "/etc/hosts has immutable attribute set"
 	else
 		issues+=("/etc/hosts is not immutable")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check cached hosts file
@@ -50,7 +50,7 @@ check_hosts() {
 		msg "StevenBlack cache exists at ${SYSROOT}/etc/hosts.stevenblack"
 	else
 		issues+=("StevenBlack cache not found")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check the guard-lib "hosts" file-guard instance (path unit active +
@@ -70,7 +70,7 @@ check_hosts() {
 		msg "Pacman hooks installed"
 	else
 		issues+=("Pacman hooks not installed")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check nsswitch.conf has 'files' in hosts line

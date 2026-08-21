@@ -58,15 +58,13 @@ stage_midnight_files
 : >"${DEV}/enabled"
 : >"${DEV}/active"
 check_midnight_shutdown >/dev/null
-# LATENT BUG, pinned deliberately rather than fixed here: the is-active check
-# assigns status="warning" unconditionally, so it overwrites the "error" the
-# is-enabled check set immediately above. A timer that is BOTH disabled and
-# inactive therefore ends up "warning", and report_and_fix only repairs on
-# "error" -- so the timer is never re-enabled. Identical in the pre-split file
-# (verified against rev 6691cb26), so this split neither caused nor hides it.
-# Fixing it changes enforcement behaviour and belongs in its own commit.
-_t_eq "warning" "$(get_service_status "midnight_shutdown")" "disabled+inactive is (wrongly) only a warning"
-_t_not_called 'ran setup_midnight_shutdown' "so the disabled timer is never repaired"
+# Regression test. The is-active check used to assign status="warning"
+# unconditionally, overwriting the "error" the is-enabled check set just above;
+# since report_and_fix only repairs on "error", a timer that was BOTH disabled
+# and inactive -- the normal shape of a genuinely broken timer -- was reported
+# and then never re-enabled.
+_t_eq "error" "$(get_service_status "midnight_shutdown")" "disabled+inactive stays an error"
+_t_called 'ran setup_midnight_shutdown.sh enable' "so the disabled timer IS repaired"
 
 echo "== check_midnight_shutdown: --status reports without repairing =="
 reset_state
@@ -76,7 +74,7 @@ STATUS_ONLY=1
 : >"${DEV}/enabled"
 check_midnight_shutdown >/dev/null
 _t_not_called 'ran setup_midnight_shutdown' "--status never runs the setup script"
-_t_eq "warning" "$(get_service_status "midnight_shutdown")" "the verdict is still recorded"
+_t_eq "error" "$(get_service_status "midnight_shutdown")" "the error is still recorded"
 
 echo "== check_startup_monitor: fully healthy records ok =="
 reset_state
@@ -104,9 +102,9 @@ sysfile usr/local/bin/pc-startup-check.sh
 : >"${DEV}/enabled"
 : >"${DEV}/active"
 check_startup_monitor >/dev/null
-# Same latent downgrade as check_midnight_shutdown above.
-_t_eq "warning" "$(get_service_status "startup_monitor")" "disabled+inactive is (wrongly) only a warning"
-_t_not_called 'ran setup_pc_startup_monitor' "so the disabled timer is never repaired"
+# Same regression as check_midnight_shutdown above.
+_t_eq "error" "$(get_service_status "startup_monitor")" "disabled+inactive stays an error"
+_t_called 'ran setup_pc_startup_monitor' "so the disabled timer IS repaired"
 
 echo "== check_startup_monitor: enabled but inactive is a warning, not a fix =="
 reset_state
@@ -153,10 +151,10 @@ sysfile usr/local/bin/periodic-system-maintenance.sh
 : >"${DEV}/enabled"
 : >"${DEV}/active"
 check_periodic_systems >/dev/null
-# hosts-file-monitor.service's is-active check is the last status assignment
-# here, and it too downgrades unconditionally -- same bug, same pinning.
-_t_eq "warning" "$(get_service_status "periodic_systems")" "a fully disabled stack is (wrongly) only a warning"
-_t_not_called 'ran setup_periodic_system' "so the disabled stack is never repaired"
+# hosts-file-monitor.service's is-active check is the LAST status assignment in
+# this function, so before the fix it downgraded everything above it.
+_t_eq "error" "$(get_service_status "periodic_systems")" "a fully disabled stack stays an error"
+_t_called 'ran setup_periodic_system' "so the disabled stack IS repaired"
 
 echo "== check_periodic_systems: startup service disabled alone still repairs =="
 reset_state

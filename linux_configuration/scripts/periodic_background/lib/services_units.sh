@@ -31,7 +31,7 @@ check_midnight_shutdown() {
 		msg "day-specific-shutdown.timer is active"
 	else
 		issues+=("day-specific-shutdown.timer is not active")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check service file exists
@@ -75,7 +75,7 @@ check_startup_monitor() {
 		msg "pc-startup-monitor.timer is active"
 	else
 		issues+=("pc-startup-monitor.timer is not active")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check service file exists
@@ -118,7 +118,7 @@ check_periodic_systems() {
 		msg "periodic-system-maintenance.timer is active"
 	else
 		issues+=("periodic-system-maintenance.timer is not active")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check startup service
@@ -141,7 +141,7 @@ check_periodic_systems() {
 		msg "hosts-file-monitor.service is active"
 	else
 		issues+=("hosts-file-monitor.service is not active")
-		status="warning"
+		if [[ $status != "error" ]]; then status="warning"; fi
 	fi
 
 	# Check maintenance script
