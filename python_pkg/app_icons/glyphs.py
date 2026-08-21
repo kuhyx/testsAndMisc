@@ -28,8 +28,8 @@ from python_pkg.app_icons._glyph_art import (
     _RECEIPT_SPLIT,
     _SHIELD_CUTLERY,
     _STORAGE_BOX,
-    _TRACK_BARS,
 )
+from python_pkg.app_icons._glyph_art_more import _NOTE_ASCENDER, _TRACK_BARS
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,11 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("receipt-split", "Torn receipt with a perforated split", _RECEIPT_SPLIT),
         Glyph("quill-nib", "Dip-pen nib with vent hole and slit", _QUILL_NIB),
         Glyph("anvil", "Blacksmith's anvil with horn and flared foot", _ANVIL),
+        Glyph(
+            "note-ascender",
+            "Eighth note whose stem doubles as a letterform ascender on a baseline",
+            _NOTE_ASCENDER,
+        ),
         Glyph("track-bars", "Rising log bars with a plotted trend point", _TRACK_BARS),
         Glyph(
             "decision-tree",

@@ -163,6 +163,16 @@ APPS: Final[dict[str, AppIcon]] = {
             # so it still wants the hicolor set.
             linux=True,
         ),
+        AppIcon(
+            key="lyricanki",
+            repo=_HOME / "lyricanki",
+            accent="#B8862E",
+            glyph="note-ascender",
+            icon_name="lyricanki",
+            # Mobile-primary by decision Q6: the pack builder is a Python tool
+            # run on the desktop, but the Flutter app itself has no Linux target.
+            linux=False,
+        ),
     )
 }
 

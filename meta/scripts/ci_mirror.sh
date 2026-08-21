@@ -112,6 +112,61 @@ run_gates_in_clean_worktree() {
 	log "changed-packages pytest in the clean venv (OOM-safe runner)"
 	(cd "$CHECKOUT" && "$VENV_DIR/bin/python" meta/scripts/pytest_changed_packages.py) ||
 		fail "pytest_changed_packages (clean requirements.txt venv)"
+
+	run_shell_test_gate
+}
+
+# Mirror the shell-tests workflow's side-effect-free half.
+#
+# Without this, ci-mirror covered the pre-commit and python-tests workflows but
+# not Shell tests, so a shell change could pass every local gate and still go
+# red on push — which is exactly what happened repeatedly during the
+# 250-line-cap campaign: three separate test files asserted on code that a
+# split had moved, and each was only caught after the push.
+#
+# The Arch-container half of that workflow is deliberately NOT mirrored: it
+# needs an Arch userland running as root to touch /etc, which is what the
+# disposable container provides and a developer machine must not.
+run_shell_test_gate() {
+	log "lib/tests suites (mirrors the shell-tests workflow)"
+	local runners=()
+	while IFS= read -r runner; do
+		runners+=("$runner")
+	done < <(cd "$CHECKOUT" && find . -path ./node_modules -prune -o \
+		-path '*/lib/tests/run_all.sh' -print | sort)
+
+	if [[ ${#runners[@]} -eq 0 ]]; then
+		fail "no lib/tests/run_all.sh found — the discovery glob is wrong"
+	fi
+
+	local runner
+	for runner in "${runners[@]}"; do
+		(cd "$CHECKOUT" && "$runner" >/dev/null) ||
+			fail "lib/tests suite failed: $runner"
+	done
+
+	log "side-effect-free shell tests (mirrors the shell-tests workflow)"
+	# Parsed OUT of the workflow rather than duplicated here. A hardcoded copy
+	# drifts the moment someone adds a test to the workflow, and a mirror that
+	# silently checks less than CI is worse than no mirror: it reports safe.
+	# The awk range is the shell-tests job's `tests=( ... )` array, taking the
+	# first one only — the second belongs to the Arch container job, which is
+	# deliberately not mirrored.
+	local shell_tests=()
+	while IFS= read -r shell_test; do
+		shell_tests+=("$shell_test")
+	done < <(awk '/^ *tests=\(/{n++} n==1 && /^ *test_.*\.sh *$/{gsub(/ /,"");print} n==1 && /^ *\)/{exit}' \
+		"$CHECKOUT/.github/workflows/shell-tests.yml")
+
+	if [[ ${#shell_tests[@]} -eq 0 ]]; then
+		fail "could not parse the test list out of shell-tests.yml"
+	fi
+
+	local shell_test
+	for shell_test in "${shell_tests[@]}"; do
+		(cd "$CHECKOUT" && bash "linux_configuration/tests/$shell_test" >/dev/null 2>&1) ||
+			fail "shell test failed: $shell_test"
+	done
 }
 
 main() {

@@ -1,0 +1,47 @@
+{
+  "intent": "Bring python_pkg/app_icons/_glyph_art.py (253 lines) back under the 250-line cap without discarding the lyricanki note-ascender glyph that pushed it over. This is the last blocker to wiring the cap into pre-commit.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art.py: 253 -> 208 lines",
+    "New: python_pkg/app_icons/_glyph_art_more.py (50)",
+    "python_pkg/app_icons/glyphs.py: imports _NOTE_ASCENDER and _TRACK_BARS from the new module",
+    "Non-goal: any change to the glyph artwork itself"
+  ],
+  "changes": [
+    "Moved the two most recent glyph constants (_TRACK_BARS, _NOTE_ASCENDER) with their comments into a companion module. The division carries no meaning beyond the cap, and the module docstring says so, because a reader would otherwise look for a taxonomy that is not there.",
+    "glyphs.py imports from both modules. Nothing else changed: the Glyph dataclass, the registry and the lookup all stay put, so no caller or test needs to know which file a glyph lives in — the same contract the original _glyph_art split established."
+  ],
+  "verification": [
+    {
+      "command": "python3 -c 'from python_pkg.app_icons.glyphs import GLYPHS ...'",
+      "result": "pass",
+      "evidence": "13 glyphs load; both moved names ('note-ascender', 'track-bars') are present in the registry."
+    },
+    {
+      "command": "build_svg(GLYPHS[name], '#7C9CF5', with_background=True) for the moved glyphs",
+      "result": "pass",
+      "evidence": "Ran the real renderer, not just the import: note-ascender produces 641 bytes and track-bars 444, both with the accent colour substituted. A control glyph (anvil, untouched) renders alongside them at 496 bytes."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons -q",
+      "result": "pass",
+      "evidence": "44 passed. The coverage gate reports below 100% only because a single-package run does not exercise the rest of the repo."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "'all checked files are within 250 lines'. Both modules are under: 208 and 50."
+    },
+    {
+      "command": "pre-commit run --files <the four python files>",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, pytest-with-coverage and codespell all pass. No suppression added."
+    }
+  ],
+  "risks": [
+    "A mid-edit slip removed the _NOTE_ASCENDER argument from its Glyph(...) call site as well as from the import list, which surfaced immediately as a TypeError on import. Repaired and re-verified by rendering; recorded because the import-only check would not have caught it — the registry has to be built for that failure to appear.",
+    "Two modules now hold glyph data, so someone adding a glyph must pick one. The docstring directs them to the cap rather than to a false distinction."
+  ],
+  "rollback": [
+    "git revert the commit; _glyph_art.py returns to 253 lines and the file-length gate cannot be wired until it is under 250 again."
+  ]
+}

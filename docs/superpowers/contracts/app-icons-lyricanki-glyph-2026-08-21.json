@@ -1,0 +1,19 @@
+{
+  "title": "note-ascender glyph and lyricanki registry entry for the icon family",
+  "objective": "Give ~/lyricanki an on-style launcher icon so it stops shipping the stock Flutter 'beach' icon, by extending the shared generator rather than hand-rolling a one-off. The glyph is a note whose stem drops past the head onto a flat baseline foot, so a single vertical stroke reads as both a music stem and a letterform ascender on a text line - the app turns songs into vocabulary. Success means lyricanki renders a family icon that is unambiguous at 48dp and clears the adaptive-icon safe box.",
+  "acceptance_criteria": [
+    "glyphs.get_glyph('note-ascender') resolves, and the registry holds 13 glyphs with every pre-existing one still importable.",
+    "apps.get_app('lyricanki') returns repo=~/lyricanki, accent=#B8862E (the shared family accent, not an app-specific colour), glyph=note-ascender, linux=False.",
+    "generate --app lyricanki --android emits six assets and rewrites the Android mipmaps with no safe-box warning, i.e. the glyph ink is within 560px on both axes.",
+    "The note-head's lowest point clears the baseline foot by at least MIN_NEGATIVE_SPACE (36px), computed as sqrt((rx*sin t)^2 + (ry*cos t)^2) below the ellipse centre rather than ry, so the head does not merge into the foot at launcher size.",
+    "python_pkg.app_icons keeps 100% line and branch coverage and passes ruff, mypy, pylint and bandit; every touched file stays under the 250-line cap.",
+    "The rendered icon is inspected at both 1024px and 48px and reads as a note on a baseline - not as a mailbox, which is what the first draft produced."
+  ],
+  "out_of_scope": [
+    "The lyricanki repository's own generated assets and pubspec wiring - committed separately in ~/lyricanki.",
+    "Any change to the shared family constants in style.py (background, stroke weight, safe box, accent) - those govern every existing app's icon.",
+    "iOS, web, Windows and macOS icon targets; lyricanki is Android-only per decision Q6.",
+    "Re-rendering any other app's icons."
+  ],
+  "verifier": "pre-commit run --files <staged>; python3 -m pytest python_pkg/app_icons --cov=python_pkg.app_icons --cov-report=term-missing (100% required); PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app lyricanki --android must print no safe-box warning; visual check of assets/icon/icon.png downscaled to 48px."
+}

@@ -76,6 +76,28 @@ repos:
         entry: meta/scripts/check_no_binaries.sh
         language: script
         always_run: false
+      - id: file-length-cap
+        name: Enforce the 250-line file cap
+        # Repo-wide (--all), not per-file: a file that grows past the cap
+        # without being staged in this commit must still be caught. Wired only
+        # after the campaign that brought every file under it — turning this on
+        # earlier would have blocked every unrelated commit in the repo.
+        entry: bash meta/scripts/check_file_length.sh --all
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ci-baseline-green
+        name: Refuse to build on a red CI baseline
+        # Checks the last COMPLETED run of each required workflow on main.
+        # Fails closed on a definitively red baseline; warns and passes on
+        # anything it cannot determine (offline, no gh, no runs yet), because
+        # the real per-change guarantee is the pre-push ci-mirror hook and
+        # blocking every commit on network reachability is not worth it.
+        # Bypass a deliberate fix-forward commit with CI_GREEN_SKIP=1.
+        entry: bash meta/scripts/check_ci_green.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: ai-evidence-contract
         name: Require AI evidence artifacts for code changes
         entry: meta/scripts/check_ai_evidence.sh
