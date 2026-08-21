@@ -1,0 +1,70 @@
+{
+  "intent": "Bring install_leechblock.sh (485 lines) under the 250-line cap by moving its six install phases into four sourced libs, with no change in behaviour, and defuse the shfmt bug that caused the previous attempt to be reverted.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh: 485 -> 114 lines",
+    "New: lib/leechblock_fetch.sh (114), lib/leechblock_config.sh (36), lib/leechblock_browsers.sh (171), lib/leechblock_firefox.sh (100)",
+    "Non-goal: 100% coverage for the new libs (separate follow-up commit, per the standing split-first decision)",
+    "Non-goal: deploying lib/ to /usr/local/share/digital_wellbeing/ (its own commit; must land before the split is deployed)"
+  ],
+  "changes": [
+    "Moved six phases into libs: resolve_version + download_extension + get_latest_tag (fetch), inject_default_config (config), detect_browsers + replace_browser_in_place + wire_up_browsers (browsers, kept together because detect_browsers writes the BROWSERS/FIREFOXES arrays that wire_up_browsers reads), install_firefox_policy (firefox).",
+    "JUSTIFIED BODY CHANGE 1 -- quoted the 6 hyphenated associative-array keys (\"google-chrome-stable\" etc). shfmt 3.13.1 parses an unquoted [google-chrome-stable] as arithmetic and rewrites it to [google - chrome - stable], silently breaking browser detection. Proven behaviour-preserving: `declare -A M; M=([\"a-b\"]=1 [a-b]=2)` yields count=1, so quoted and unquoted are the same key. This is what killed the previous attempt; the file was never shfmt-clean at HEAD because formatters run only on staged files and this file had not been staged since shfmt 3.13.1 landed.",
+    "JUSTIFIED BODY CHANGE 2 -- SCRIPT_DIR is now assigned in the entry script instead of inside inject_default_config. Left in the lib, ${BASH_SOURCE[0]} would resolve to lib/, so DEFAULTS_SRC would miss, the whole block would fall to its warn/else branch and default blocking rules would never be seeded -- silently, since --help never reaches that code. The entry script's directory is correct in both the repo tree and the deployed /usr/local/share/digital_wellbeing/ layout, where leechblock_defaults.json and seed_leechblock_storage.js are siblings of the entry script.",
+    "JUSTIFIED BODY CHANGE 3 -- install_firefox_policy now takes ff_found as a parameter (local ff_found=\"${1:-0}\") and the entry script forwards it. ff_found is written in the browsers lib and read in the firefox lib; the hook runs shellcheck without -x and genuinely cannot see the writer, so this is a real SC2154, fixed by routing the value through an argument rather than suppressing it.",
+    "JUSTIFIED BODY CHANGE 4 (defect fix) -- added `require_cmd unzip`. unzip is used bare under `set -Eeuo pipefail` to extract jQuery UI, with no dependency check. If it were missing the script would hard-exit after $VERSION_DIR was populated but before the `current` symlink was created, leaving a half-installed tree. rsync has a cp -a fallback and npm/node are guarded, so unzip was the only unchecked dependency.",
+    "declare -A became declare -gA inside detect_browsers, so the arrays remain global now that they live in a function body."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "Over-cap list went from 5 files to 4; install_leechblock.sh no longer listed. New files: 114/114/36/171/100 lines, all under 250."
+    },
+    {
+      "command": "diff <baseline --help> <post-split --help>; diff <baseline --bogus> <post-split --bogus>",
+      "result": "pass",
+      "evidence": "Both byte-identical, exit codes 0 and 2 unchanged. Re-run after every step including after shfmt. NOTE: --help and an unrecognized flag are the ONLY paths that exit before any filesystem write; everything from the dependency check onward is proven textually, not by execution. This baseline does not exercise any extracted phase body."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <old> <old> <4 new libs>",
+      "result": "pass",
+      "evidence": "Six additions only (detect_browsers, download_extension, inject_default_config, install_firefox_policy, resolve_version, wire_up_browsers) -- the new phase wrappers. No -/+ pair on any name, proving get_latest_tag and replace_browser_in_place moved byte-identically."
+    },
+    {
+      "command": "python3 line-multiset check of each lib against the pre-split source ranges",
+      "result": "pass",
+      "evidence": "Every functional line accounted for. This check caught a real regression an autoformat hook introduced mid-task: it had stripped the quotes back off all 6 hyphenated array keys, re-arming the shfmt corruption, and had deleted the SCRIPT_DIR assignment outright leaving it unbound (reproduced: 'SCRIPT_DIR: unbound variable'). Both were fixed and re-verified. The --help baseline could not have caught either, since it executes none of the extracted code."
+    },
+    {
+      "command": "for f in <all 5>; do cp $f /tmp/chk.sh; shfmt -w /tmp/chk.sh; diff $f /tmp/chk.sh; done",
+      "result": "pass",
+      "evidence": "shfmt -w is a no-op on all five files. This matters because linux_configuration/.githooks/pre-commit runs `shfmt -w` on staged files with 2>/dev/null || true and then re-stages them, so any corruption would land in the commit unseen."
+    },
+    {
+      "command": "shellcheck install_leechblock.sh lib/leechblock_*.sh (no -x, as the hook invokes it)",
+      "result": "pass",
+      "evidence": "rc=0, no findings, no suppressions added. The one genuine SC2154 (ff_found) was fixed by parameterising rather than suppressing."
+    },
+    {
+      "command": "bash -c 'source libs; detect_browsers; wire_up_browsers; install_firefox_policy \"$ff_found\"'",
+      "result": "pass",
+      "evidence": "BROWSERS has 8 entries and BROWSERS[\"google-chrome-stable\"] resolves to 'Google Chrome', confirming the quoted keys are intact at runtime. ff_found=1 after wire_up_browsers and install_firefox_policy returns 0. Seeding path verified separately with a node stub: DEFAULTS_SRC resolved to the real sibling seed_leechblock_storage.js, proving the SCRIPT_DIR fix works."
+    },
+    {
+      "command": "bash -n on all five files",
+      "result": "pass",
+      "evidence": "All parse cleanly."
+    }
+  ],
+  "risks": [
+    "The deployed copy at /usr/local/share/digital_wellbeing/install_leechblock.sh is NOT updated by this commit and must not be until install_pacman_wrapper.sh learns to copy lib/. Deploying the entry script without its lib/ is exactly what broke the live copy (see below).",
+    "Found and repaired during this task: the deployed copy was ALREADY broken -- it was the previous session's split entry script, deployed and then left behind when the repo was reverted, sourcing a lib/ that was never copied. It failed with 'No such file or directory' on every invocation. Restored from the repo's pre-split version and verified working (--help). The broken copy is preserved at /tmp/lb_deployed_broken.sh. Severity was latent rather than active: pacman_wrapper.sh:843 returns early when ~/.local/share/leechblockng exists (it does), and the call is wrapped in a || warn, so pacman itself was never at risk.",
+    "install_ublock.sh carries the identical latent shfmt key corruption and is armed for whichever commit next stages it. Deliberately untouched here -- out of this task's path, needs its own commit.",
+    "Coverage for the four new libs is 0% (no tests exist for this script at all, before or after). Deferred to the follow-up commit by the standing split-first decision."
+  ],
+  "rollback": [
+    "git revert the commit; install_leechblock.sh returns to a single 485-line file and lib/leechblock_*.sh disappear.",
+    "After rollback, re-run `bash install_leechblock.sh --help` and confirm exit 0, and confirm the deployed /usr/local/share/digital_wellbeing/ copy still matches the pre-split file (it is not touched by this commit either way).",
+    "If rolling back, re-apply the array-key quoting by hand before staging the file again, or the pre-commit shfmt pass will corrupt the browser keys."
+  ]
+}
