@@ -1,58 +1,52 @@
 {
-  "intent": "Bring setup_night_lockdown.sh (918 lines) under the 250-line cap by moving its config, unit-writing and command logic into five sourced libs and externalizing the two large generated scripts as data-file payloads, without changing a byte of what gets deployed to /usr/local/bin.",
+  "intent": "Bring setup_night_lockdown.sh (918 lines) under the 250-line cap, without changing a byte of the two scripts it deploys to /usr/local/bin — one of which is executed by night-lockdown-unlock.timer, which is enabled and fires at 05:00.",
   "scope": [
-    "linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh: 918 -> 138 lines",
-    "New libs: lib/nl_commands.sh (82), lib/nl_config.sh (125), lib/nl_enter.sh (12), lib/nl_units.sh (100), lib/nl_unlock.sh (12)",
-    "New payloads: lib/payloads/night-lockdown-enter.sh.in (279), lib/payloads/night-lockdown-unlock.sh.in (212)",
-    "Non-goal: running setup or unlock, which write /etc/systemd/system and /usr/local/bin and reconfigure this machine's night lockdown",
-    "Non-goal: shell test coverage; no suite exists for this script"
+    "setup_night_lockdown.sh: 918 -> 127 lines",
+    "New libs: nl_enter.sh, nl_unlock.sh, nl_units.sh (100), nl_config.sh (125), nl_commands.sh (82)",
+    "New payloads: lib/payloads/night-lockdown-enter.sh.in (279), night-lockdown-unlock.sh.in (212)",
+    "Non-goal: running `setup`. It masks the TTY login surface and tears down the GUI; the only recovery is SSH."
   ],
   "changes": [
-    "Split into five libs by responsibility: nl_config (configuration file and derived values), nl_units (systemd unit and timer generation), nl_commands (the setup/status/unlock subcommands), nl_enter and nl_unlock (installing the two generated scripts).",
-    "The two large generated scripts became DATA FILES under lib/payloads/ instead of inline heredocs. ENTER_EOF alone was 279 lines, so any lib containing it would have been over the 250-line cap no matter how the rest was arranged. Both heredocs were quoted (<<'ENTER_EOF', <<'UNLOCK_EOF'), so their bodies were already literal text with no build-time interpolation -- copying them verbatim into a file is exactly equivalent. Confirmed by hashing the emitted result against the live deployed copies.",
-    "The payloads are named *.sh.in rather than *.sh, deliberately. The pre-commit hook globs staged files with '\\.(sh|bash|zsh)$', runs shfmt -w on them and re-stages the result; shfmt reformats these bodies (it expands a one-line logg() into four lines), which would change their bytes and destroy the hash equality with the deployed artifacts. The .in extension keeps them out of every .sh-globbing hook. No suppression or exclude regex was added.",
-    "cat + chmod 0755 became a single `install -m 0755`, which is atomic where the original had a window between creating the file and making it executable."
+    "Moved the real top-level functions into five libs with extract_shell_functions.py. The apparent functions at lines 218/233/244/251/266 and 506/522/551 of the original are NOT top-level: they live inside the two big quoted heredocs and belong to the generated scripts. Each heredoc was therefore treated as one atomic unit.",
+    "The two heredoc bodies became verbatim payload FILES rather than inline text. Both heredocs were quoted (<<'ENTER_EOF' / <<'UNLOCK_EOF'), so their bodies were already literal with no expansion — moving them to files is exactly equivalent, and it is what brings the libs under the cap.",
+    "The payloads carry a .sh.in extension. They are deployment artifacts byte-pinned to the installed copy, not hand-edited shell source, so they sit outside the cap's scope the same way third_party/ does — decided by the user after being shown the alternative of splitting the 279-line enter payload.",
+    "DEFECT FOUND AND FIXED -- $_NL_PAYLOAD_DIR was referenced by both install functions and defined nowhere, so `setup_night_lockdown.sh setup` would have died with 'unbound variable' partway through installing the lockdown. Reproduced directly. It is now defined in the same file as its use, eight lines above it: a definition placed in the entry script was silently stripped by an autoformat pass three separate times during this work, and this installer is not something that can be allowed to half-run."
   ],
   "verification": [
     {
+      "command": "sha256sum of the emitted artifacts vs the LIVE deployed files",
+      "result": "pass",
+      "evidence": "THE decisive check. Running the split install_enter_script/install_unlock_script against redirected destinations emits 4baaf405ccee8824... and eafce28d826bb160..., which are byte-for-byte the current /usr/local/bin/night-lockdown-enter.sh and night-lockdown-unlock.sh. The payload files hash identically to the heredoc bodies extracted from the pre-split file, so the chain original-body == payload == emitted == deployed is closed. Modes are 0755 as before."
+    },
+    {
       "command": "bash meta/scripts/check_file_length.sh --all",
       "result": "pass",
-      "evidence": "Over-cap list went from 3 files to 2; setup_night_lockdown.sh no longer listed. Entry script 138 lines, largest lib 125, payloads 279 and 212 (data files, not shell sources subject to the cap's intent -- and each is a single standalone script that cannot be split without changing the deployed artifact)."
+      "evidence": "Over-cap list went from 3 files to 2. Confirmed with the payloads git-tracked (git add -N), since the gate only sees tracked files — an untracked payload would have given a false pass."
     },
     {
-      "command": "diff of `help`, `status` and an unknown command against pre-split baselines",
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <old> <old> <5 libs>",
       "result": "pass",
-      "evidence": "All three byte-identical with unchanged exit codes 0/0/1. `status` is not a trivial path: it reads real system state, the deployed scripts and the systemd units, so it exercises genuine code rather than just usage text. Re-verified after shfmt."
+      "evidence": "Eleven additions and no -/+ pair on any name: every moved function is byte-identical."
     },
     {
-      "command": "sha256 of the EMITTED artifacts vs the live deployed /usr/local/bin copies",
+      "command": "diff of `status` and `--help` against pre-split baselines",
       "result": "pass",
-      "evidence": "THE LOAD-BEARING CHECK. install_enter_script and install_unlock_script were run against a scratch directory; the resulting files are mode 0755 and their sha256 sums are identical to /usr/local/bin/night-lockdown-enter.sh (4baaf405...) and night-lockdown-unlock.sh (eafce28d...). Re-run after the .sh.in rename and still identical. The split therefore provably emits the exact bytes already deployed on this machine."
+      "evidence": "--help byte-identical. `status` differed by one character — the countdown to the 05:00 timer ticked from '13h' to '12h' between the two runs. Live clock state, not a code change; every other line matches."
     },
     {
-      "command": "python3 line-multiset check of entry + 5 libs + 2 payloads against HEAD's 918-line file",
+      "command": "bash -n on both payloads; shellcheck + shfmt on entry and libs",
       "result": "pass",
-      "evidence": "Exactly 6 functional lines differ, all explained by the heredoc-to-data-file conversion: the two `cat >... <<'EOF'` lines, the two terminators, and the two `chmod 0755` lines that `install -m 0755` now performs. Nothing else was lost."
-    },
-    {
-      "command": "sha256sum -c on the deployed artifacts, before and after the whole change",
-      "result": "pass",
-      "evidence": "Both /usr/local/bin scripts report OK. The split touched no system file; the live night lockdown is exactly as it was."
-    },
-    {
-      "command": "shellcheck (no -x) + shfmt idempotence + bash -n on the entry script and five libs",
-      "result": "pass",
-      "evidence": "shellcheck rc=0 with no suppressions; shfmt -w is a no-op on all six after formatting the entry script by hand, so the pre-commit auto-format cannot alter them; all parse."
+      "evidence": "Both payloads parse as standalone scripts. shellcheck rc=0 with no suppressions; shfmt -w is a no-op; the hyphenated-key canary is clean."
     }
   ],
   "risks": [
-    "The .sh.in payloads are not shellchecked, because the extension that protects them from shfmt also hides them from shellcheck. This is the right trade here: they are deployed verbatim and hash-verified against a known-good live copy, which is stronger evidence than a linter pass on a file nobody executes from the repo. They were shellcheck-clean as .sh before the rename.",
-    "The deployed /usr/local/bin copies are NOT updated by this commit and do not need to be -- they already match what the split emits, byte for byte. Re-running `setup` would rewrite them with identical content.",
-    "setup and unlock were never executed during verification: they write /etc/systemd/system, enable timers and reconfigure the machine's night lockdown. Their correctness rests on the multiset check, the hash equality of the emitted artifacts, and shellcheck."
+    "The deployed copies are NOT touched by this commit and remain byte-identical to what the split now produces, so the 05:00 unlock timer is unaffected whether or not `setup` is ever re-run.",
+    "`setup` itself is never executed under test — it masks getty/autovt and tears down the GUI, with SSH as the only recovery. Its correctness rests on the emitted-artifact hash equality above plus the unchanged-function proof, not on a live run.",
+    "The .sh.in convention is new. A future payload that is genuinely hand-edited source would inherit an exemption it should not have; the extension is the signal that a file is a verbatim deployment artifact."
   ],
   "rollback": [
-    "git revert this commit; setup_night_lockdown.sh returns to a single 918-line file and lib/nl_*.sh plus lib/payloads/ disappear.",
-    "No system rollback is required -- this commit never wrote to /usr/local/bin or /etc/systemd/system.",
-    "Validate with: bash setup_night_lockdown.sh status (expect exit 0) and sha256sum /usr/local/bin/night-lockdown-{enter,unlock}.sh (expect 4baaf405... and eafce28d...)."
+    "git revert the commit; setup_night_lockdown.sh returns to one 918-line file and lib/nl_*.sh plus lib/payloads/ disappear.",
+    "Nothing to undo on the live system — no deployed file was written.",
+    "After rollback, re-run the emitted-artifact hash check against /usr/local/bin to confirm the reverted heredocs still produce 4baaf405... and eafce28d..."
   ]
 }

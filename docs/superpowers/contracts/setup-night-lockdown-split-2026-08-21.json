@@ -1,20 +1,18 @@
 {
   "title": "Split setup_night_lockdown.sh under the 250-line cap",
-  "objective": "Bring linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh (918 lines) under the repo-wide 250-line cap by moving config, systemd-unit generation and the subcommands into five sourced libs, and externalizing the two large generated scripts as data-file payloads -- while emitting byte-identical artifacts to the ones already deployed in /usr/local/bin on this machine.",
+  "objective": "Bring setup_night_lockdown.sh (918 lines) under the cap by moving its top-level functions into five libs and its two quoted heredocs into verbatim payload files, while guaranteeing the two scripts it deploys to /usr/local/bin are unchanged — night-lockdown-unlock.timer is enabled and fires at 05:00.",
   "acceptance_criteria": [
-    "The entry script and all five lib/nl_*.sh files are each at most 250 lines.",
-    "`help`, `status` and an unknown-command run are byte-identical to the pre-split baselines, with exit codes 0, 0 and 1.",
-    "The artifacts emitted by install_enter_script and install_unlock_script are mode 0755 and sha256-identical to the live /usr/local/bin/night-lockdown-{enter,unlock}.sh.",
-    "A line-multiset check accounts for every functional line of the 918-line original, with the only differences being the six lines the heredoc-to-data-file conversion replaces.",
-    "The payload files are not reformatted by the pre-commit shfmt pass, since any byte change there breaks the hash equality above.",
-    "shellcheck passes without -x on the entry script and libs, and shfmt -w is a no-op on all of them, with no suppression added.",
-    "The live deployed artifacts are unchanged by the work: sha256sum -c passes at the end."
+    "The entry script and every lib is at most 250 lines, verified with the payloads git-tracked so the gate actually sees them.",
+    "The emitted night-lockdown-enter.sh and night-lockdown-unlock.sh hash identically to the files currently deployed in /usr/local/bin, with mode 0755.",
+    "verify_shell_split.sh reports additions only — no moved function's body changed.",
+    "`--help` is byte-identical to the pre-split baseline and `status` differs only in live clock state.",
+    "Both payloads parse as standalone scripts; shellcheck passes without -x and shfmt is a no-op, with no suppression added.",
+    "install_enter_script and install_unlock_script run without an unbound variable."
   ],
   "out_of_scope": [
-    "Running `setup` or `unlock`: they write /etc/systemd/system, enable timers and reconfigure the machine's night lockdown.",
-    "Re-deploying to /usr/local/bin -- unnecessary, since the split emits the bytes already there.",
-    "Shell test coverage for the new libs; no suite exists for this script.",
-    "Any change to the lockdown schedule, the monitored units, or the RGB/i2c behaviour."
+    "Running `setup_night_lockdown.sh setup`: it masks the TTY login surface and tears down the GUI, with SSH as the only recovery path.",
+    "Re-deploying to /usr/local/bin — unnecessary, since the split provably emits the same bytes already there.",
+    "Splitting the 279-line enter payload: it is one generated artifact, and the user chose the .sh.in convention over splitting it."
   ],
-  "verifier": "bash meta/scripts/check_file_length.sh --all for the cap; diff of help/status/unknown against captured baselines; a scratch-directory run of install_enter_script and install_unlock_script with sha256 comparison against the live deployed copies; a python3 line-multiset diff including the payload files; shellcheck, shfmt idempotence and bash -n; sha256sum -c on the deployed artifacts as the final step; pre-commit run --files on the staged set."
+  "verifier": "sha256 of emitted artifacts vs /usr/local/bin (the decisive check); check_file_length.sh --all with payloads tracked; verify_shell_split.sh; diff of --help/status against baselines; bash -n on payloads; shellcheck + shfmt idempotence."
 }
