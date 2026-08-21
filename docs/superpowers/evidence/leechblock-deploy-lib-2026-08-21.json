@@ -1,0 +1,51 @@
+{
+  "intent": "Teach the pacman-wrapper installer to deploy install_leechblock.sh's lib/ directory alongside the entry script, so the deployed copy at /usr/local/share/digital_wellbeing/ can actually run after the split.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/protect_and_extras.sh: install_leechblock_payload also mirrors lib/",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh: two new path variables",
+    "Non-goal: any change to install_leechblock.sh or its libs -- they shipped in 1dceca66 and are untouched here"
+  ],
+  "changes": [
+    "install_leechblock_payload now mirrors the four leechblock_*.sh libs into ${LEECHBLOCK_INSTALL_DIR}/lib and marks them executable. Before this, the deployer copied the entry script and three data files but no lib/, so after the split the deployed installer would die on its first `source`.",
+    "The copy is a mirror (rm -rf then recreate), not a merge, so a lib removed upstream does not linger in the deployed tree.",
+    "The glob is leechblock_*.sh, not *.sh, on purpose: lib/ is shared with unrelated music_detect.sh / music_monitor.sh / music_status.sh helpers that this payload has no business shipping to /usr/local.",
+    "A missing lib/ now emits an explicit warning that the deployed installer will not run, rather than silently deploying a broken entry script."
+  ],
+  "verification": [
+    {
+      "command": "install_leechblock_payload against a fake root (/tmp/fakeroot) with the real sources",
+      "result": "pass",
+      "evidence": "Deployed tree contains exactly install_leechblock.sh, leechblock_defaults.json, seed_leechblock_storage.js and lib/{browsers,config,fetch,firefox}.sh -- the four leechblock libs and none of the three music_* helpers."
+    },
+    {
+      "command": "bash /tmp/fakeroot/digital_wellbeing/install_leechblock.sh --help",
+      "result": "pass",
+      "evidence": "Exit 0 with the normal usage text, proving the deployed entry script resolves its libs from the deployed lib/ rather than dying on `source`."
+    },
+    {
+      "command": "inject_default_config in the deployed layout with a node stub",
+      "result": "pass",
+      "evidence": "DEFAULTS_SRC and the seeder resolved to /tmp/fakeroot/digital_wellbeing/*, not to lib/. This is the specific silent failure the SCRIPT_DIR fix in 1dceca66 targets, now confirmed in the deployed layout as well as the repo tree."
+    },
+    {
+      "command": "Real deploy to /usr/local/share/digital_wellbeing/ + bash <deployed> --help + sha256sum comparison",
+      "result": "pass",
+      "evidence": "Live deployed copy runs (exit 0, usage text) and its sha256 is identical to the repo's install_leechblock.sh. The deployed lib/ holds the four libs, executable."
+    },
+    {
+      "command": "shellcheck + shfmt idempotence + bash -n on both changed files",
+      "result": "pass",
+      "evidence": "shellcheck rc=0, shfmt -w is a no-op on both, both parse. 70 and 130 lines, under the 250-line cap."
+    }
+  ],
+  "risks": [
+    "This commit closes a window that the split itself opened: between 1dceca66 and this change, running the deployer would have overwritten a working deployed copy with a split entry script and no libs. The live copy was repaired by hand during this session and is now deployed correctly from the fixed path.",
+    "The deployer is reached via /etc/pacman.d/hooks/96-restore-pkg-wrappers.hook -> rewrap_pkg_managers.sh on pacman/pacman-git transactions, so the window was real but narrow.",
+    "npm install --prefix still runs against LEECHBLOCK_INSTALL_DIR when package.json is present; unchanged by this commit."
+  ],
+  "rollback": [
+    "git revert this commit; install_leechblock_payload returns to copying the entry script without lib/.",
+    "After rollback the deployed installer would break again on its next deploy, so also either revert 1dceca66 or hand-restore the pre-split entry script to /usr/local/share/digital_wellbeing/.",
+    "Validate with: bash /usr/local/share/digital_wellbeing/install_leechblock.sh --help (expect exit 0)."
+  ]
+}
