@@ -1,0 +1,35 @@
+{
+  "intent": "Repair the Shell tests failure introduced by the block_compulsive_opening split: test_security_hardening.sh grepped the entry script for code that the split moved into lib/cco_wrapper.sh.",
+  "scope": [
+    "linux_configuration/tests/lib/security_apps.sh: tests 17 and 18 now search the entry script and its libs",
+    "Non-goal: test 19, which inspects this machine's live /usr/bin wrappers"
+  ],
+  "changes": [
+    "Tests 17 and 18 search block_compulsive_opening.sh plus lib/cco_*.sh instead of the entry script alone. Both assertions are about a FEATURE existing (the auto-close timeout config, and the launch_with_timer function); after the split that code sits one file over, so grepping only the entry script reported 'not found' for code that is present and working — a false failure. Searching the set restores the original intent and survives the next split.",
+    "The lib list is built with a loop and an -f test rather than a bare glob, so an unmatched pattern cannot enter the array as a literal string and no shellcheck suppression is needed."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh",
+      "result": "pass",
+      "evidence": "'Auto-close timer configuration exists' and 'launch_with_timer function exists' both PASS. Passed: 18. The single remaining local failure is test 19 ('Compulsive block wrappers installed'), which inspects /usr/bin: signal-desktop and discord are not currently wrapped on this machine and beeper is not installed. That check is machine-state, was failing before this change, and is not what CI reported."
+    },
+    {
+      "command": "gh run view 32489396229 --log-failed",
+      "result": "diagnosed",
+      "evidence": "CI's only failing assertion was 'launch_with_timer function exists — Not found at expected location', in the arch-tests job. It was NOT the new lib/tests discovery step, which passed."
+    },
+    {
+      "command": "shellcheck linux_configuration/tests/lib/security_apps.sh",
+      "result": "pass",
+      "evidence": "rc=0, no suppression added."
+    }
+  ],
+  "risks": [
+    "The checks are still greps, so they prove the text exists rather than that the timer works. That was true before the split; broadening the search does not weaken them, and genuinely testing the launch path is the job of lib/tests/, which cannot execute it (it pkills live apps).",
+    "Test 19 remains red locally until the wrappers are reinstalled on this machine. Out of scope here and unrelated to the split."
+  ],
+  "rollback": [
+    "git revert the commit; the two checks return to grepping the entry script only and will fail again while the split is in place."
+  ]
+}

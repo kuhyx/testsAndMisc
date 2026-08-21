@@ -9,11 +9,23 @@ sec_tests_compulsive_block() {
 	# ==================================================================
 	echo "--- COMPULSIVE OPENING BLOCK ---"
 
-	compulsive_file="$REPO_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
+	compulsive_dir="$REPO_DIR/scripts/periodic_background/digital_wellbeing"
+	compulsive_file="$compulsive_dir/block_compulsive_opening.sh"
+
+	# The blocker was split into lib/cco_*.sh under the 250-line cap, so these
+	# two checks search the entry script AND its libs. Grepping the entry
+	# script alone made them report "not found" for code that had simply moved
+	# one file over — a false failure that says nothing about the feature.
+	# Searching the set keeps the assertion about the FEATURE existing, which
+	# is what it was always for, and survives the next split too.
+	compulsive_sources=("$compulsive_file")
+	for compulsive_lib in "$compulsive_dir"/lib/cco_*.sh; do
+		[[ -f "$compulsive_lib" ]] && compulsive_sources+=("$compulsive_lib")
+	done
 
 	# Test 17: Auto-close timer configuration exists
 	if [[ -f "$compulsive_file" ]]; then
-		if grep -q "AUTO_CLOSE_TIMEOUT_MINUTES" "$compulsive_file"; then
+		if grep -qs "AUTO_CLOSE_TIMEOUT_MINUTES" "${compulsive_sources[@]}"; then
 			test_result "Auto-close timer configuration exists" "pass"
 		else
 			test_result "Auto-close timer configuration exists" "fail" "Variable not found"
@@ -24,7 +36,7 @@ sec_tests_compulsive_block() {
 
 	# Test 18: launch_with_timer function exists
 	if [[ -f "$compulsive_file" ]]; then
-		if grep -q "launch_with_timer" "$compulsive_file"; then
+		if grep -qs "launch_with_timer" "${compulsive_sources[@]}"; then
 			test_result "launch_with_timer function exists" "pass"
 		else
 			test_result "launch_with_timer function exists" "fail" "Function not found"
