@@ -1,0 +1,34 @@
+{
+  "intent": "Repair the Shell tests failure from the setup_midnight_shutdown split: the installer-template checks searched an array that was never populated, so they grepped nothing and failed.",
+  "scope": [
+    "linux_configuration/tests/test_shutdown_timer_monitor.sh: the SETUP_SOURCES definition",
+    "Non-goal: the template assertions themselves, which are unchanged"
+  ],
+  "changes": [
+    "SETUP_SOURCES was initialised as SETUP_SOURCES=(\"${SETUP_SOURCES[@]}\") — a self-reference to an array that did not exist yet, so it started EMPTY and never contained $SETUP_SCRIPT. The lib-discovery loop then called dirname on that empty array. Every template check was grepping an argument list with no entry script in it. Now seeded with (\"$SETUP_SCRIPT\") before the libs are appended.",
+    "The intent it was reaching for is preserved: the checks search the entry script together with lib/ms_*.sh, because the monitor template moved into lib/ms_monitor.sh during the split."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_shutdown_timer_monitor.sh",
+      "result": "pass",
+      "evidence": "'shutdown-timer-monitor.sh regression checks passed.' The failure reproduced locally first — 'FAIL: setup_midnight_shutdown.sh should install the D-Bus monitor helper' — which is the same assertion CI reported, so the fix is verified against the actual failure and not a guess."
+    },
+    {
+      "command": "shellcheck linux_configuration/tests/test_shutdown_timer_monitor.sh",
+      "result": "pass",
+      "evidence": "rc=0. No suppression added; the two pre-existing SC2016 disables are unrelated and untouched."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_pacman_wrapper_security.sh; bash .../test_hosts_guard_pacman_integration.sh",
+      "result": "pass",
+      "evidence": "Both rc=0. These failed on the pacman-split commit and were repaired by ef12e9c6; re-checked here so the whole Shell tests set is green before the file-length gate is wired in Phase 2."
+    }
+  ],
+  "risks": [
+    "These remain grep-based template checks: they prove the text exists somewhere in the entry script or its libs, not that the generated monitor behaves. That was equally true before the split. The behavioural coverage is the rest of this same file, which executes the real shutdown-timer-monitor.sh."
+  ],
+  "rollback": [
+    "git revert the commit; SETUP_SOURCES returns to the empty self-reference and the template checks fail again."
+  ]
+}
