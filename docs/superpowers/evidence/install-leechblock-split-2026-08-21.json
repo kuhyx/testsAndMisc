@@ -1,9 +1,9 @@
 {
   "intent": "Bring install_leechblock.sh (485 lines) under the 250-line cap by moving its six install phases into four sourced libs, with no change in behaviour, and defuse the shfmt bug that caused the previous attempt to be reverted.",
   "scope": [
-    "linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh: 485 -> 114 lines",
-    "New: lib/leechblock_fetch.sh (114), lib/leechblock_config.sh (36), lib/leechblock_browsers.sh (171), lib/leechblock_firefox.sh (100)",
-    "Non-goal: 100% coverage for the new libs (separate follow-up commit, per the standing split-first decision)",
+    "linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh: 485 -> 119 lines",
+    "New: lib/leechblock_fetch.sh (114), lib/leechblock_config.sh (36), lib/leechblock_browsers.sh (184), lib/leechblock_firefox.sh (108)",
+    "In scope after all: a first test suite for the new libs (lib/tests/), with measured coverage recorded below. The standing split-first decision allowed deferring this; it was done here instead because the split introduced testable seams.",
     "Non-goal: deploying lib/ to /usr/local/share/digital_wellbeing/ (its own commit; must land before the split is deployed)"
   ],
   "changes": [
@@ -54,13 +54,24 @@
       "command": "bash -n on all five files",
       "result": "pass",
       "evidence": "All parse cleanly."
+    },
+    {
+      "command": "linux_configuration/.../digital_wellbeing/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "29 assertions, 0 failures (test_leechblock_fetch 14, test_leechblock_browsers 15). Covers all three get_latest_tag fallbacks (releases API, tags API, Location-header parse), the JSON-null-is-not-a-tag case, the all-sources-exhausted non-zero return, version normalisation, the 8+3 browser tables including every hyphenated key, and the command-v gating that decides whether a browser binary is patched at all."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh <run_all.sh> leechblock_<lib>.sh 0",
+      "result": "measured, below 100%",
+      "evidence": "MEASURED, not rounded: leechblock_fetch.sh 27/70 lines = 38.57%; leechblock_browsers.sh 31/85 = 36.47%; leechblock_config.sh and leechblock_firefox.sh 0% (never sourced by a test). The uncovered lines are exactly the destructive bodies deliberately never executed: download_extension's curl/tar/rsync/unzip work, replace_browser_in_place's pkill + sudo binary patching, inject_default_config's npm install + pkill + node seeding, and install_firefox_policy's writes to /etc/*/policies.json. Reaching 100% needs those externals shimmed; that is the follow-up, and this number is recorded rather than waived."
     }
   ],
   "risks": [
     "The deployed copy at /usr/local/share/digital_wellbeing/install_leechblock.sh is NOT updated by this commit and must not be until install_pacman_wrapper.sh learns to copy lib/. Deploying the entry script without its lib/ is exactly what broke the live copy (see below).",
     "Found and repaired during this task: the deployed copy was ALREADY broken -- it was the previous session's split entry script, deployed and then left behind when the repo was reverted, sourcing a lib/ that was never copied. It failed with 'No such file or directory' on every invocation. Restored from the repo's pre-split version and verified working (--help). The broken copy is preserved at /tmp/lb_deployed_broken.sh. Severity was latent rather than active: pacman_wrapper.sh:843 returns early when ~/.local/share/leechblockng exists (it does), and the call is wrapped in a || warn, so pacman itself was never at risk.",
     "install_ublock.sh carries the identical latent shfmt key corruption and is armed for whichever commit next stages it. Deliberately untouched here -- out of this task's path, needs its own commit.",
-    "Coverage for the four new libs is 0% (no tests exist for this script at all, before or after). Deferred to the follow-up commit by the standing split-first decision."
+    "Coverage for the four new libs is partial and measured (38.57% / 36.47% / 0% / 0%), not 0% across the board as originally planned. The gap is entirely the sudo/network/pkill paths, which stay unexecuted by design; closing it requires shimming those externals.",
+    "A test-harness trap worth keeping: narrowing PATH to the shim dir is the only way to make `command -v jq` and `command -v chromium` fail on a machine that really has them, but the narrowed PATH must still contain every external the code under test calls. A missing mkdir aborted the suite under `set -e` with NO stderr, which under kcov looked like a coverage-tool failure rather than a PATH failure."
   ],
   "rollback": [
     "git revert the commit; install_leechblock.sh returns to a single 485-line file and lib/leechblock_*.sh disappear.",

@@ -7,10 +7,11 @@
     "verify_shell_split.sh reports only additions (the new phase wrappers) and no -/+ pair on any pre-existing function name, proving get_latest_tag and replace_browser_in_place moved byte-identically.",
     "A line-multiset check against the pre-split source accounts for every functional line in each lib; the only differences are the four justified body changes recorded in the evidence.",
     "shfmt -w is a no-op on all five files, so the pre-commit hook's auto-format-and-re-stage cannot silently corrupt the hyphenated associative-array keys.",
-    "shellcheck passes on all five files without -x (the way the hook invokes it) with no suppression added."
+    "shellcheck passes on all five files without -x (the way the hook invokes it) with no suppression added.",
+    "The new lib/tests/ suite passes (run_all.sh exits 0) and per-lib coverage is measured and recorded as a real number in the evidence rather than waived."
   ],
   "out_of_scope": [
-    "Reaching 100% shell coverage for the new libs -- a separate follow-up commit per the standing decision to split first.",
+    "Reaching 100% shell coverage for the new libs. A first suite ships in this commit (29 assertions) with measured coverage recorded in the evidence; closing the remaining gap requires shimming sudo/network/pkill externals and is the follow-up.",
     "Teaching install_pacman_wrapper.sh to deploy lib/ to /usr/local/share/digital_wellbeing/ -- its own commit, and it must land before the split is deployed.",
     "Fixing install_ublock.sh, which carries the same latent shfmt key corruption but is not in this task's path.",
     "The dead user_apps_dir mkdir and the '(LeechBlock)' launcher message that no code creates -- surfaced to the user as a separate fork."
