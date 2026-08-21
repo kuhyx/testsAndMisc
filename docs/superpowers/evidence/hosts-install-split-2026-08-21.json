@@ -1,0 +1,68 @@
+{
+  "intent": "Split hosts/install.sh (913 lines) under the 250-line cap, cover its two anti-tamper guards at 100%, and fix the defects the tests exposed. File 3 of the Phase 1 queue, and the one with the widest reference surface (13 files) and the highest blast radius.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/hosts/install.sh — 913 lines down to 150",
+    "lib/hosts_protect_custom.sh, hosts_protect_unblock.sh, hosts_guard.sh, hosts_cache.sh, hosts_write.sh, hosts_browser_doh.sh — new",
+    "custom_entries.hosts — the ~320-line blocklist heredoc, now a data file",
+    "lib/tests/ — a harness, two test files and a runner",
+    "Non-goal: running the installer end to end, which would rewrite /etc/hosts and take down the guard"
+  ],
+  "changes": [
+    "Wrapped the 712-line top-level block into eight phase functions and moved them into libs. Bodies were not re-indented at wrap time (five heredocs need column-0 terminators); shfmt indented them afterwards, which is why the verification below compares content rather than exact lines.",
+    "Moved the ~320-line custom-blocklist heredoc into custom_entries.hosts. It was 321 of the 370 lines of hosts_write.sh and could not be split, so the lib could not otherwise fit the cap. A hosts-format data file is also easier to audit than a quoted heredoc.",
+    "FIX 1 — moving the blocklist broke extract_custom_entries_from_script, which sliced between '# Custom blocking entries' and the heredoc terminator. With no terminator in the data file it would have extracted NOTHING, silently disabling the guard that refuses to drop blocked domains. It now reads the data file directly; the extracted set is identical (254 domains, diffed).",
+    "FIX 2 — extract_unblock_entries_from_script matched its own marker lines. PROTECTED_UNBLOCK_LIST_START and _END are word characters, so the '^# [a-zA-Z0-9._-]+$' pattern pulled both into the whitelist as if they were domains. They are in the live state file on this machine right now. Renaming either marker would have read as the whitelist growing and blocked the install.",
+    "Made three call sites overridable so the guards could be tested at all: HOSTS_INSTALL_SCRIPT_PATH for `readlink -f $0` and HOSTS_FILE_PATH for the /etc/hosts fallback read. Both default to the production value."
+  ],
+  "verification": [
+    {
+      "command": "Per-phase body diff against the pre-wrap file",
+      "result": "pass",
+      "evidence": "All 8 wrapped phase bodies byte-identical to their original line ranges at wrap time — enable_resolved_reads_hosts (23), stop_hosts_guard (24), refresh_upstream_cache (49), write_hosts_file (354), restart_hosts_guard (20), save_protection_state (25), disable_browser_doh (63), restart_browsers (33). A line-multiset comparison confirmed 0 original lines lost and only 62 wrapper lines added."
+    },
+    {
+      "command": "Content comparison of the final tree against the pre-split file, ignoring indentation",
+      "result": "pass",
+      "evidence": "Exactly 8 original lines absent, each an intentional edit: 2 from the rewritten custom-entries extractor, 3 `readlink -f \"$0\"` made overridable, 1 /etc/hosts fallback made overridable, and the heredoc opener/terminator replaced by the data-file read. Nothing else changed."
+    },
+    {
+      "command": "diff of the 254 custom-blocked domains, old heredoc vs new data file",
+      "result": "pass",
+      "evidence": "Identical sets. This is what proves FIX 1 preserved the guard's input rather than merely making it run."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh 241652ca <old> <old> lib/hosts_*.sh",
+      "result": "pass",
+      "evidence": "8 additions (the phase wrappers) and one changed body — extract_custom_entries_from_script, the deliberate rewrite. Every other pre-existing function hashes identically."
+    },
+    {
+      "command": "bash install.sh --help; sha256sum -c on /etc/hosts",
+      "result": "pass",
+      "evidence": "--help output identical to pre-split, and /etc/hosts unchanged across the entire session. --help is the only execution path that exits before any write; there is no dry-run or status mode, which is why end-to-end execution was not used as proof."
+    },
+    {
+      "command": "lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "36 assertions, 0 failures: test_hosts_protect.sh 25, test_hosts_cache.sh 11. Both directions of both guards are covered — removing a blocked domain is refused, adding one is allowed; growing the whitelist is refused, shrinking it is allowed. A same-count swap is also refused, which a count-only check would have passed."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/test_hosts_protect.sh <guard> 100",
+      "result": "pass",
+      "evidence": "hosts_protect_custom.sh 75/75 = 100.00%, hosts_protect_unblock.sh 49/49 = 100.00%. These are the two functions where a silent regression matters most."
+    },
+    {
+      "command": "shellcheck install.sh lib/hosts_*.sh lib/tests/*.sh; check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "Zero findings standalone and with -x, no suppression. No shell file over 250 lines; largest is install.sh at 150."
+    }
+  ],
+  "risks": [
+    "The install phases have NO test coverage, and that is deliberate: they write /etc/hosts, unmount the guard's bind mount and restart systemd-resolved, so running them under test would take down the protection they install. Their proof is textual (byte-identical bodies) rather than behavioural, which is genuinely weaker evidence than the previous two splits had. Making them testable needs the SERVICES_ROOT-style prefix, which is a separate change.",
+    "FIX 2 changes what the unblock guard sees: the live state file still holds the two phantom marker entries, so the next install reads the whitelist as having SHRUNK by 2. Shrinking is always allowed, so the install proceeds and rewrites the state without the phantoms. No manual step is needed, but the next run's output will report 2 removed entries.",
+    "custom_entries.hosts is now the file to edit to change the blocklist, and check_custom_entries_protection watches it. Editing install.sh instead would no longer have any effect on what gets blocked."
+  ],
+  "rollback": [
+    "git revert this commit restores the single file, the heredoc and the original extractors together.",
+    "After rollback, run `bash install.sh --help` and confirm it still exits 0, and check that /etc/hosts is untouched — the revert changes no system state by itself."
+  ]
+}

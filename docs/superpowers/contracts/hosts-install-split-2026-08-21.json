@@ -1,0 +1,20 @@
+{
+  "title": "Split hosts/install.sh under the 250-line cap with its anti-tamper guards fully covered",
+  "objective": "Bring linux_configuration/scripts/periodic_background/hosts/install.sh from 913 lines under the repo-wide 250-line cap by moving its 712-line top-level block into eight phase functions across six libs, without changing what a real install would do. File 3 of the Phase 1 queue: 13 referencing files and the highest blast radius, since it rewrites /etc/hosts and takes the guard down to do it.",
+  "acceptance_criteria": [
+    "Every shell file — entry script, libs and tests — is at or under 250 lines.",
+    "Each wrapped phase body is byte-identical to its original line range, proven by diff, because end-to-end execution is not available as evidence here.",
+    "A content comparison against the pre-split file accounts for every absent line as an intentional edit.",
+    "The 254 custom-blocked domains extracted by the guard are identical before and after the blocklist becomes a data file.",
+    "Both anti-tamper guards reach 100% line coverage, with both directions of each covered: removal refused / addition allowed for the custom list, growth refused / shrinkage allowed for the whitelist.",
+    "/etc/hosts is unchanged, verified by sha256sum, and the installer is never run end to end.",
+    "shellcheck reports zero findings with no suppression added."
+  ],
+  "out_of_scope": [
+    "Running the install phases under test, which would rewrite /etc/hosts, unmount the guard's bind mount and restart systemd-resolved.",
+    "Adding a dry-run or status mode, which would make end-to-end testing possible but is a feature change rather than a split.",
+    "The SERVICES_ROOT-style path prefix that would make the phases testable; that is a separate follow-up.",
+    "The three files still over the cap."
+  ],
+  "verifier": "A per-phase body diff against the pre-wrap file, a line-multiset check for lost content, a diff of the 254 extracted domains, bash meta/scripts/verify_shell_split.sh 241652ca, lib/tests/run_all.sh (36 assertions), bash meta/scripts/shell_coverage.sh on both guards at 100, `bash install.sh --help` compared to pre-split, sha256sum -c on /etc/hosts, shellcheck, and check_file_length.sh --all."
+}
