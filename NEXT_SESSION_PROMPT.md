@@ -15,149 +15,51 @@ shell test-coverage gate, then add a pre-commit rule that blocks commits when
 any file is over 250 lines AND checks that GitHub Actions is green on this
 repo.
 
-Two standing decisions from the user, already made — do **not** re-litigate:
+## How to run this session (read before anything else)
+
+**Do not ask "should I continue?" between files.** The queue below is already
+approved. Work it to completion, or until you hit a genuine design fork or an
+irreversible action. Ending a turn to narrate progress mid-queue is a bug —
+summarise once, at the end. This was violated twice in the previous session
+despite being written in `~/.claude/memories/workflow-rules.md`; it is
+repeated here because the standing rule alone did not hold.
+
+**Standing decisions — do NOT re-litigate:**
 
 1. **100% line coverage on what you extract/write tests for** — same bar
    every prior split has used.
 2. **Split blind where there is no device.** Do not deploy to the phone, do
    not ask to. Prove splits with tests, hashes and real runs instead.
+3. **CI must be fixed before any new gate is added.** (Phase 0 is done; this
+   just means don't add a gate on top of a red baseline if CI regresses.)
+4. **The shell coverage gate is a NEW, separate requirement** covering every
+   `.sh` file repo-wide. That is Phase 3 — do not conflate it with Phase 1.
 
-Three decisions made when this campaign was scoped (2026-08-18) — also do
-**not** re-litigate without asking first:
-
-3. **This is a recurring driver, not a single mega-session.** One phase step
-   per session (usually one file split, or one CI fix), same pace as every
-   split so far. Update this file at the end of each session for the next.
-4. **CI must be fixed before any new gate is added.** A "must be green" gate
-   is meaningless while CI is already red for unrelated reasons.
-5. **The new shell coverage gate is a NEW, separate requirement** covering
-   every `.sh` file repo-wide (not just newly-split ones). This is Phase 3,
-   explicitly the largest phase — do not conflate it with Phase 1's cap work.
+The old "one file split per session" pacing decision is **superseded**: the
+user explicitly asked for multiple files per session ("this is a very slow
+way of doing it"). Batch through the queue.
 
 ---
 
-## Phase 0: Fix current CI red state — **STATUS: DONE, 2026-08-18. Re-verify before trusting.**
+## Phase 0: CI green — **DONE 2026-08-18, re-verify only**
 
-Re-check with `gh run list --limit 5` before assuming this still holds —
-state can drift between sessions. As of commit `4a35be7`, `Pre-commit
-checks`, `Shell tests`, AND `Python tests` all show `success` with
-`headSha` matching `4a35be7` (verified via
-`gh run list --workflow="<name>" --limit 1 --json headSha,status,conclusion`
-for each, not just `gh run list`'s default view).
+`gh run list --limit 5` should show `Pre-commit checks`, `Shell tests` and
+`Python tests` green on `main`. Fixed by adding `librsvg2-bin` to both
+workflows (`4326ea4`) and making `python-tests.yml` self-triggering +
+`workflow_dispatch` (`4a35be7`).
 
-Fixed in two commits:
+**Two traps worth keeping:**
 
-- `4326ea4` — added `librsvg2-bin` (provides `rsvg-convert`) to the
-  `apt-get install` steps in both `pre-commit.yml` and `python-tests.yml`.
-  This was the actual root-cause fix for the 99.98% coverage gap.
-- `4a35be7` — `python-tests.yml` is path-filtered (`python_pkg/**`,
-  `linux_configuration/tests/**`, etc.) and does NOT watch its own file, so
-  the `4326ea4` push never re-triggered it — its last run stayed red against
-  the old commit. `gh run rerun` does **not** help here: it replays the
-  _historical_ commit's workflow YAML, not `main`'s current definition, so
-  it reran with the pre-fix workflow and failed identically. Fixed by adding
-  `.github/workflows/python-tests.yml` to the workflow's own `paths:`
-  filters (self-triggering) and adding `workflow_dispatch: {}` so it can
-  also be fired manually in the future.
+- `python-tests.yml` is path-filtered. A commit touching only workflow files
+  or only non-Python paths will NOT trigger it — that is expected, not a
+  failure. Check the workflow's own last run rather than assuming.
+- `gh run rerun` replays the **historical commit's** workflow YAML, not
+  `main`'s current one. It cannot verify a workflow-file fix. Push a real
+  commit under a watched path instead.
 
-**Lesson for future CI-only fixes:** a workflow-file-only change does not
-retroactively verify itself if the touched workflow is path-filtered and
-excludes its own file. Either add the workflow's own path to its filter (now
-done for `python-tests.yml`), or make a real change under a path it already
-watches — never `gh run rerun`, which silently checks out the wrong
-definition. `pre-commit.yml` and `shell-tests.yml` have no path filter, so
-they self-trigger on every push already; only `python-tests.yml` had this
-gap.
+## Phase 1: Drive the 250-line cap to zero — **IN PROGRESS, 8 files left**
 
-Three workflows were found red on `main` as of 2026-08-18, discovered while
-scoping this campaign:
-
-1. **`Pre-commit checks` AND `Python tests` workflows — same root cause,
-   both persistent and predating this campaign.** Both fail with
-   `FAIL Required test coverage of 100% not reached. Total coverage: 99.98%`
-   (6565 lines/1 miss, 1630 branches/1 miss). The gap is
-   `python_pkg/artgate/routes/vector.py:156` (95% coverage in CI). Root
-   cause: CI logs show `SKIPPED python_pkg/artgate/tests/test_routes.py:124:
-rsvg-convert not installed` — the `ubuntu-latest` GitHub Actions runner
-   lacks `rsvg-convert`, so a test that would cover line 156 doesn't run
-   there, while it passes locally (and in the pre-push `ci-mirror` hook,
-   confirmed — that hook passed on both of this session's pushes) where
-   `rsvg-convert` is installed. **This predates this campaign by at least a
-   day** — `Python tests` was already failing with the identical signature
-   on 2026-08-17 commits (`vscode_optimizer: split...`,
-   `transcribe_helpers: split...`, etc.), long before the hosts-guard
-   archive started. **Not yet fixed** — pick this up first, it blocks BOTH
-   workflows simultaneously since they share the same coverage command.
-   Likely fix: add `rsvg-convert` (librsvg) to whichever GitHub Actions
-   runner setup step precedes pytest in `.github/workflows/pre-commit.yml`
-   and `.github/workflows/python-tests.yml`, OR make the skipped test's
-   coverage line conditionally excludable when the tool is genuinely absent
-   (ask the user which they'd rather have — installing the real dependency
-   in CI is almost certainly correct here, but confirm before choosing an
-   `# pragma: no cover`-style route given the no-suppressions rule).
-2. **`Shell tests` workflow** — was also red (this campaign's own earlier
-   commit broke `test_hosts_guard_pacman_integration.sh` by archiving files
-   it referenced). **Already fixed** this session, commit `e48f253`, and
-   confirmed green on the very next push (`gh run view 32185366621` →
-   `success`). Re-verify it's still green before trusting this note
-   (`gh run list --limit 3`) — don't assume it stayed fixed if something
-   else touched shell tests since.
-
-**Exit condition for Phase 0:** `gh run list --limit 5` shows the most
-recent run of `Pre-commit checks`, `Python tests`, AND `Shell tests` on
-`main` all as `success`. Do not proceed to Phase 1 until this is true. If a
-session starts and Phase 0 isn't done, finish it before touching anything
-else — don't let it linger while new work piles on top of a broken
-baseline.
-
-## Phase 1: Drive the 250-line cap to zero
-
-**Status as of 2026-08-18 (session 2): 8 files over cap. All three
-`focus_owner` files are DONE; everything left is shell.** Re-run
-`bash meta/scripts/check_file_length.sh --all` at the start of every session
-in this phase — the exact list drifts as other work touches these files.
-
-`focus_owner` was confirmed **live and enforcing** this session
-(`focus_owner/README.md`: "Live and enforcing... provisioned as device
-owner") — it is not a dead-code candidate. Three files cleared:
-
-1. **`focus_owner/lib/status_page_state.dart`** (307) → 248 + new
-   `status_page_dialogs.dart` (103), commit `47e05d1`. Verbatim extraction of
-   the two `AlertDialog` builders and the `build()` body-selection logic into
-   a new `part of 'main.dart'` file, following `status_body.dart`'s pattern.
-   Verified: `dart analyze lib/` clean, `flutter test` 94/94.
-2. **`DevicePolicyBridge.kt`** (415) → 219 + `DevicePolicyVpnDns.kt` (146),
-   `DevicePolicyLocation.kt` (92), `DevicePolicyUninstallGuard.kt` (79),
-   commit `6efb4ba`.
-3. **`EnforcementRunner.kt`** (564) → 237 + `LocationAcquisition.kt` (198),
-   `HomeLocationStore.kt` (116), `PolicyPinning.kt` (94),
-   `SweepablePackages.kt` (42), commit `7d7b3c7`.
-
-**The Kotlin split pattern that worked, reuse it:** Kotlin has no `part of`
-like Dart, so a long class is split by extracting cohesive method groups into
-standalone `internal class` helpers held as **private delegate fields**, with
-the original class keeping every public method as a one-line delegating
-wrapper. This matters because `MainActivity.kt` / `EnforcementService.kt`
-call these methods directly on the original class — moving them outright
-would break those call sites. Where a helper needs to ask the parent
-something (`isDeviceOwner()`), pass a function reference (`::isDeviceOwner`)
-into its constructor rather than duplicating the logic.
-
-**Watch for companion functions a test calls by name.**
-`EnforcementRunnerBestTest.kt` calls `EnforcementRunner.best(...)` directly,
-so `best` was deliberately left on `EnforcementRunner` and the extracted
-`LocationAcquisition` calls _back into it_ — that kept the test file
-untouched. `grep -rn "<ClassName>\." <test-dir>` before moving anything out
-of a companion object.
-
-Verification for both Kotlin splits:
-`JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew compileDebugKotlin test
---rerun-tasks` from `focus_owner/android` — BUILD SUCCESSFUL, 40 tests
-(6+9+12+13), 0 failures. `--rerun-tasks` is mandatory; a plain `gradlew test`
-reports `UP-TO-DATE` and proves nothing. Note `BUILD SUCCESSFUL` alone can
-hide "0 tests ran", so read the counts out of the XML:
-`find focus_owner -path "*/test-results/*" -name "*.xml"` then grep
-`tests="N" ... failures="N"`.
+Re-run `bash meta/scripts/check_file_length.sh --all` first; the list drifts.
 
 ```
 1734  linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh
@@ -170,282 +72,176 @@ hide "0 tests ran", so read the counts out of the XML:
  485  linux_configuration/scripts/periodic_background/digital_wellbeing/install_leechblock.sh
 ```
 
-**Every remaining file is a shell script, and 4 of the 8 carry the
-live-deployment trap** (`setup_midnight_shutdown.sh`, `pacman_wrapper.sh`,
-`install_leechblock.sh`, `block_compulsive_opening.sh`). The three that do
-NOT are `check_and_enable_services.sh`, `generate_study_materials.sh` and
-`hosts/install.sh` — those are the safer next targets. All three were
-confirmed live/referenced this session (`grep -rl` each: they are wired into
-`install_core_system.sh`, `setup_periodic_system.sh`,
-`install_makepkg_wrapper.sh`, `repo_to_study.sh` and others), so none is an
-archive candidate. `hosts/install.sh` has by far the widest reference
-surface (13 referencing files) — handle it with more care than its line
-count suggests.
+**Everything remaining is a shell script.** All three `focus_owner` files are
+done (`47e05d1`, `6efb4ba`, `7d7b3c7`) — that repo is confirmed live and
+enforcing, not a dead-code candidate.
 
-**`setup_midnight_shutdown.sh` needs a non-standard split plan, read this
-before touching it:** its 39 top-level-looking functions are NOT all real —
-several (`log`, `now_epoch`/`current_epoch`, `cmd_add`/`cmd_list`/`cmd_remove`,
-`require_root`, etc.) are duplicated because the outer script generates
-_inner_ standalone scripts via heredocs (`create_shutdown_check_script`,
+### The queue, in this order
+
+**Safe tier — do these first, no deployment trap:**
+
+1. `check_and_enable_services.sh` (1225) — a `lib/` already exists beside it
+   at `linux_configuration/scripts/periodic_background/lib/` (currently holds
+   only `periodic_browser.sh`), but **no `lib/tests/` yet** — you will create
+   it. Referenced by `install_makepkg_wrapper.sh` and
+   `pacman/lib/integrity.sh`.
+2. `generate_study_materials.sh` (1017) — referenced by `repo_to_study.sh`
+   and `lib/repo_study_steps.sh`; a `lib/` with `repo_study_steps.sh` already
+   exists beside it.
+3. `hosts/install.sh` (913) — **widest reference surface of the three: 13
+   referencing files**, including `install_core_system.sh`,
+   `setup_periodic_system.sh`, `fresh-install/main.sh` and
+   `phone_focus_mode/deploy_phases.sh`. Handle with more care than its line
+   count suggests; `grep -rl` before and after.
+
+All three were confirmed live/referenced — **none is an archive candidate**,
+so don't spend a round asking "do you still use this?" for these three.
+
+**Deployment-trap tier — 4 files, handle last and very carefully:**
+
+`setup_midnight_shutdown.sh`, `pacman_wrapper.sh`, `install_leechblock.sh`,
+`block_compulsive_opening.sh`. These are copied to `/usr/local/…` and
+`pacman_wrapper.sh` prefers the deployed copy on **every pacman invocation**
+— a naive split breaks `pacman -S` on this machine. Re-verify the mechanism
+before assuming (`grep -n "prefer\|deployed" pacman_wrapper.sh` near line
+831). You cannot run `sudo pacman -S` from the Bash tool (deadlocks on
+`db.lck`); hand the user a `! sudo pacman -S <pkg>` line plus the expected
+output if live verification is ever needed.
+
+**`setup_midnight_shutdown.sh` additionally needs a non-standard plan.** Its
+39 top-level-looking functions are NOT all real: several (`log`,
+`now_epoch`/`current_epoch`, `cmd_add`/`cmd_list`/`cmd_remove`,
+`require_root`) are duplicated because the outer script _generates_ inner
+standalone scripts via heredocs (`create_shutdown_check_script`,
 `create_override_manager_script`, `install_monitor_service`) that get written
-to `/usr/local/bin/`. `extract_shell_functions.py` and `verify_shell_split.sh`
-both assume real top-level functions and will mishandle a heredoc body.
-The plan that will work: extract only the genuine outer orchestration
-functions normally, treat each `create_*_script` heredoc as one atomic unit
-that moves whole (never split its interior), and verify by hashing the
-_emitted_ `/usr/local/bin/*` script content before and after the split
+to `/usr/local/bin/`. `extract_shell_functions.py` and
+`verify_shell_split.sh` both assume real top-level functions and will
+mishandle a heredoc body. The plan that will work: extract only the genuine
+outer orchestration functions, treat each `create_*_script` heredoc as one
+atomic unit that moves whole (never split its interior), and verify by
+hashing the _emitted_ `/usr/local/bin/*` content before and after
 (`sha256sum` on a rendered-heredoc temp file), not just by running
-`verify_shell_split.sh` on the outer file. This file also belongs on the
-live-deployment-trap list below (writes to `/etc/shutdown-schedule.conf`
-with `chattr +i`, integrates with guard-lib) — treat it with the same
-handle-last caution as `install_leechblock.sh`/`block_compulsive_opening.sh`.
+`verify_shell_split.sh` on the outer file.
 
-**Tooling bug found this session, fix opportunistically:**
-`~/.claude/scripts/dart_format_changed.sh <repo>` reports "No changed Dart
-files to format" even when files ARE changed, when invoked with an absolute
-or relative repo path from outside that repo. Root cause: it `cd`s into
-`$repo` first, then runs `git status --porcelain`, which returns paths
-relative to the git _worktree root_ (`testsAndMisc/`), not relative to
-`$repo` — so its `[[ -f $path ]]` check silently fails for every file. Not
-fixed this session (out of scope for Phase 1); `dart format <files>` run
-directly was used as a workaround. Worth a real fix (make the script `cd` to
-the git toplevel, or strip the repo-relative prefix) since this affects every
-future Dart split in `focus_owner`, `billsplit`, etc.
+### Reference split to copy
 
-**Four of these carry a live-deployment trap, handle last or very carefully**
-(the two named below, plus `pacman_wrapper.sh` itself and
-`setup_midnight_shutdown.sh` — see its own note above)**:**
-`install_leechblock.sh` and `block_compulsive_opening.sh` are copied to
-`/usr/local/…`, and `pacman_wrapper.sh:831` prefers the deployed copy on
-**every pacman invocation**. Splitting them naively breaks every
-`pacman -S` on this machine. `pacman_wrapper.sh` itself carries the same
-trap (it IS the thing that prefers the deployed copies). Re-verify this is
-still true before assuming the old note holds — a lot changed guard-lib-side
-in the session that wrote this doc, worth the 30-second re-check
-(`grep -n "prefer\|deployed" pacman_wrapper.sh` near line 831).
+`linux_configuration/scripts/single_use/fixes/lib/` + `lib/tests/` is the
+worked example — look at the `pacman_hook_stall_*` family:
 
-You cannot run `sudo pacman -S` from the Bash tool — it deadlocks on
-`db.lck`. Hand the user a `! sudo pacman -S <pkg>` line plus the expected
-output if `pacman_wrapper.sh` ever needs live verification.
+- `lib/tests/pacman_hook_stall_harness.sh` — sourced, not executed;
+  `_t_pass`/`_t_fail`/`_t_eq`, `mktemp -d` + `trap cleanup EXIT`, PATH-shim
+  fakes for external tools.
+- `lib/tests/pacman_hook_stall_entry_harness.sh` — separate fixture setup for
+  the entry-script test, split out early so neither file passes 250 lines.
+- One `test_<lib>.sh` per lib, asserting against real function calls.
+- `test_diagnose_pacman_hook_stall_*.sh` — runs the **actual entry script as
+  a subprocess** against the same fakes.
 
-The Kotlin and Dart files need a different verification stack —
-`focus_owner` gradle needs `JAVA_HOME=/usr/lib/jvm/java-21-openjdk` and
-`--rerun-tasks`; a plain `gradlew test` reports `UP-TO-DATE` and proves
-nothing.
+### Tooling
 
-**Before splitting ANY file in this list, run the dead-code check-in first**
-(ask the user: "do you still use this?"). This lesson has held 3 of the last
-4 sessions — files on this list have turned out to be fully superseded by
-something else (guard-lib replaced the entire hosts-guard subsystem this
-way). Don't assume a file needs splitting just because it's long; it might
-need archiving instead. When surveying a candidate for archival, survey its
-**whole directory and cross-references** (`grep -rl <name>` repo-wide), not
-just the named file — this has changed scope from "split one file" to
-"archive 17 files" once already.
+- `meta/scripts/check_file_length.sh --all` — the gate. Run before every
+  commit. Applies to test files too.
+- `meta/scripts/extract_shell_functions.py` — moves functions brace-by-brace.
+  **Never slice by line range.** Verify placement with `grep -c` on the
+  anchor.
+- `meta/scripts/verify_shell_split.sh <pre-split-rev> <old> <new>...` —
+  proves every function moved verbatim. For a **partial** split, list the old
+  path among the new paths too.
+- `meta/scripts/shell_coverage.sh <test> <subject> [min]` — kcov wrapper,
+  100% minimum. Hand it the test script **directly**; `bash script.sh`
+  instruments the bash binary and silently reports 0/0.
 
-**Exit condition for Phase 1:**
-`bash meta/scripts/check_file_length.sh --all` exits 0 with no files listed.
-Do not proceed to Phase 2 until this is true.
+### Sharp edges that have bitten before
+
+- `local a="$1" b="${a}"` **fails under `set -u`** — separate `local`
+  statements.
+- A function that calls `exit` (not `return`) kills the whole test script if
+  called directly in an `if` condition. Use a subshell: `if (fn args); then`.
+- A backgrounded process needs `disown` before `kill`/`wait` behaves.
+- **SIGINT to a backgrounded job was unreliable here; SIGTERM was not.**
+- If a script computes a real resource allocation from live system state,
+  make the constants env-overridable and pin them tiny in every test.
+- **A file must not assign a global it never reads** (SC2034). The hook runs
+  `shellcheck` with no `-x`, but `.shellcheckrc`'s `external-sources=true` +
+  `source-path=SCRIPTDIR` means a `source=` annotation on the _sourcing_ file
+  still resolves.
+- **New sourced libs need a shebang AND the executable bit**, staged with
+  `git add --chmod=+x` — a plain `git add` afterwards resets it.
+
+**Exit condition for Phase 1:** `check_file_length.sh --all` exits 0.
 
 ## Phase 2: Wire the file-length gate into pre-commit
 
-**Do NOT do this until Phase 1's exit condition is met.** Wiring it early
-breaks every commit repo-wide, including unrelated ones, for as long as
-Phase 1 remains incomplete.
+**Do NOT start until Phase 1 exits 0** — wiring it early breaks every commit
+repo-wide, including unrelated ones.
 
-Once `check_file_length.sh --all` exits 0:
+1. Add a `local` hook to `.pre-commit-config.yaml` running
+   `bash meta/scripts/check_file_length.sh --all`, following the existing
+   `language: system` + `pass_filenames: false` shape (see
+   `ai-evidence-contract` / `no-polling-antipatterns`). Repo-wide, not
+   per-file: a file that grows past 250 lines without being staged this
+   commit should still be caught.
+2. **GitHub-Actions-green check — GENUINE DESIGN FORK, ask the user first.**
+   A pre-commit hook cannot block on "is CI green" for a commit that does not
+   exist yet. Two real options:
+   - **(a)** check the latest run on `main` is green before allowing a new
+     commit — catches "building on a known-broken baseline", not "did MY
+     change break it";
+   - **(b)** a **pre-push** hook running the CI workflows' local equivalent
+     before allowing the push — closer to the real guarantee, and `ci-mirror`
+     already does this for the Python/pre-commit side. Extending it to also
+     run `Shell tests`' local equivalent is likely the more honest answer.
 
-1. Add a `local` hook to `.pre-commit-config.yaml` that runs
-   `bash meta/scripts/check_file_length.sh --all` and fails the commit
-   (non-zero exit) if any file is found. Follow the existing local-hook
-   pattern already in the file (see e.g. the `ai-evidence-contract` or
-   `no-polling-antipatterns` hooks for the `language: system` +
-   `pass_filenames: false` shape — this check is repo-wide, not
-   per-file, since a file that grows past 250 lines without being staged
-   this commit should still be caught).
-2. Also add the GitHub-Actions-green check here (see below) if it hasn't
-   been added yet — the user asked for both in the same pre-commit rule,
-   though they can land as two hooks in the same commit rather than one
-   combined script if that's cleaner.
-3. **GitHub-Actions-green check, exact mechanism to decide with the user
-   first (ask, don't assume):** a pre-commit hook cannot literally block a
-   commit on "is CI green" for a commit that doesn't exist yet — CI runs
-   AFTER a push, not before a commit. Two real options:
-   - **(a) Check the LATEST run on `main` is green** before allowing a new
-     commit — catches "you're building on top of a known-broken baseline"
-     but not "did MY change break something," since that can only be known
-     after pushing.
-   - **(b) A pre-PUSH hook** (this repo already has a pre-push stage, see
-     `ci-mirror`) that runs the equivalent of the CI workflows locally
-     before allowing the push — closer to the actual guarantee wanted, and
-     `ci-mirror` already does exactly this for the Python/pre-commit side.
-     Extending it (or adding a sibling hook) to also run the `Shell tests`
-     workflow's local-equivalent commands before push may be the more
-     honest way to satisfy "checks GitHub workflow outputs green" than
-     querying `gh run list` for a run that hasn't happened yet.
+   This is the one place in Phases 1–2 where stopping to ask is correct.
 
-   Ask the user which they want (or both) before implementing — this is a
-   genuine design fork, not a mechanical step.
+3. Verify by making a throwaway file exceed 250 lines, confirming the commit
+   is blocked with a clear message, then removing it.
 
-4. Verify by making a throwaway file exceed 250 lines and confirming the
-   commit is actually blocked with a clear error message, then removing the
-   throwaway file, before considering this phase done.
+## Phase 3: Repo-wide 100% shell coverage gate — largest phase, many sessions
 
-**Exit condition for Phase 2:** the new hook(s) exist in
-`.pre-commit-config.yaml`, `pre-commit run --files <touched>` fails when a
-file exceeds 250 lines (verified with a throwaway test), and the mechanism
-chosen for the CI-green check is documented in this doc's next revision.
+**Do NOT start until Phases 1 AND 2 are done.**
 
-## Phase 3: Repo-wide 100% shell coverage gate — **the largest phase, expect many sessions**
+487 `.sh` files exist repo-wide vs ~15 `lib/tests/` dirs following the
+established pattern — on the order of 450+ untested scripts, roughly an order
+of magnitude more work than Phase 1. Re-count before starting.
 
-**Do NOT start this until Phase 1 AND Phase 2 are both done.** This is
-explicitly scoped as separate, much larger work — do not let it bleed into
-or block the 250-cap campaign.
-
-**Scale, measured 2026-08-18:** 487 `.sh` files exist repo-wide (excluding
-`.venv/`, vendored, and build-output dirs) versus only 14 `lib/tests/`
-directories following the established split-and-test pattern. A genuinely
-repo-wide "100% line coverage, every shell script" gate would immediately
-demand test suites for on the order of 450+ currently-untested scripts. This
-is roughly an order of magnitude more work than Phase 1's 11 files. Re-count
-before starting (`find . -name '*.sh' -not -path '*/.venv/*' -not -path
-'*/node_modules/*' -not -path '*/testsAndMisc_builds/*' -not -path
-'*/testsAndMisc_binaries/*' -not -path '*/.git/*' | wc -l`), since Phase 1
-will have grown the tested-file count somewhat.
-
-**Ask the user to confirm scope before starting Phase 3 at all** — 487
-files is a genuinely large body of future work and deserves an explicit
-"yes, still want this" check before a session starts writing hundreds of
-test files, not just a paste of an old plan. Also ask whether the gate
-should apply repo-wide from day one (blocking ANY commit touching an
-untested `.sh` file) or ratchet in incrementally (e.g. only newly-added or
-newly-modified files must be covered, with a frozen allowlist of
-pre-existing untested files that shrinks over time) — a hard repo-wide gate
-turned on immediately would block unrelated commits to any of the 450+
-untested files until every one of them gets a test suite, which could stall
-unrelated work for a long time. A ratcheting gate is the much more common
-pattern for retrofitting coverage onto an existing codebase and is worth
-raising as the recommended default, but it's the user's call.
-
-Use `meta/scripts/shell_coverage.sh <test> <subject> [min]` (kcov wrapper)
-and the established `lib/tests/` + harness + PATH-shim pattern from every
-split so far (see Phase 1's testing-pattern reference below) — there is no
-reason for shell test infrastructure to differ between "coverage added
-because we split the file" and "coverage added because a new gate demands
-it."
-
-**Exit condition for Phase 3:** every `.sh` file in the repo (or every file
-not on an explicitly agreed allowlist, if ratcheting was chosen) has a test
-suite reaching the agreed minimum coverage, and a pre-commit/CI gate enforces
-it going forward. Given the scale, expect this phase's "exit condition" to
-itself be revised into something more incremental once the user weighs in.
+**Ask the user to confirm scope before starting Phase 3 at all**, and ask
+whether the gate should be repo-wide from day one or **ratchet** (only new or
+modified files must be covered, with a shrinking allowlist of pre-existing
+untested files). A hard repo-wide gate would block unrelated commits to any
+of 450+ files until every one has tests. Recommend the ratchet, but it is the
+user's call.
 
 ---
 
-## Rules that will bite you (carried forward, still true)
+## Rules that will bite you
 
-- **Ask before large scope changes.** Repeatedly, a check-in or a directory
-  survey has surfaced something bigger than the named task. That's expected —
-  don't assume silence means "keep going as originally scoped."
-- **Survey the whole directory before scoping an archive, not just the named
-  file.** `grep -rl <filename-stem>` across the repo, then `ls` the file's
-  own directory.
-- **No suppressions, ever.** No `# noqa`, no per-file-ignore added without
-  asking every time, no shellcheck disable beyond what's already justified
-  inline. This applies to Phase 0's coverage gap too — don't reach for a
-  coverage-exclude pragma without asking first; installing the missing
-  dependency in CI is the more likely correct fix.
-- **A file must not assign a global it never reads** (SC2034). The hook runs
-  `shellcheck` with **no `-x`**, but `.shellcheckrc`'s
-  `external-sources=true` + `source-path=SCRIPTDIR` means a `source=`
-  annotation on the _sourcing_ file still resolves correctly.
-- **New sourced libs need a shebang AND the executable bit**, staged with
-  `git add --chmod=+x` — a plain `git add` afterwards resets it.
-- `pre-commit run --files <changed>` before committing, but run it **after**
-  `git add`. **`prettier` and `ci-mirror` run on pre-push.** `npx prettier
---write` any `.md`/`.json` you touch (evidence/contract files included).
+- **No suppressions, ever.** No `# noqa`, no per-file-ignore without asking
+  every time, no new shellcheck disable.
 - **Every commit touching code needs evidence** in
   `docs/superpowers/evidence/<slug>-<date>.json`. Staging **≥4 code files
   also needs** a fresh `docs/superpowers/contracts/*.json`. Put the
-  **measured** number in it, not a rounded-up one.
-- **An archive does not need new tests.** The 100%-coverage standing
-  decision binds code that gets _split_ or newly _written_, not code that
-  gets _deleted_.
-- **A test file broken by an archive commit is a same-session bug, not a
-  future TODO.** This campaign already hit this once
-  (`test_hosts_guard_pacman_integration.sh`, fixed in `e48f253`) — `gh run
-list` after every push, not just `pre-commit run --files <staged>`
-  locally, since CI-only test suites (like `linux_configuration/tests/*.sh`
-  run directly by `shell-tests.yml`) aren't caught by pre-commit's
-  file-scoped hooks.
+  **measured** number in it, not a rounded one.
+- **An archive does not need new tests.** The 100%-coverage rule binds code
+  that is _split_ or newly _written_, not code that is _deleted_.
+- **A test file broken by your commit is a same-session bug, not a TODO.**
+  Run `gh run list` after every push — CI-only suites (like
+  `linux_configuration/tests/*.sh` run directly by `shell-tests.yml`) are not
+  caught by pre-commit's file-scoped hooks.
+- `pre-commit run --files <changed>` **after** `git add`. `prettier` and
+  `ci-mirror` run on **pre-push**. `npx prettier --write` any `.md`/`.json`
+  you touch, evidence and contract files included.
 - Work directly on `main`. `git stash` and branch creation are blocked; use
   `git worktree add --detach` for a clean baseline (but NEVER
-  `git filter-repo` inside a worktree — it shares the object store with the
-  main repo and will corrupt it; always a throwaway `git clone` for that).
-- Watch `jscpd` (fails above 2%). Measure in a **clean HEAD worktree**.
+  `git filter-repo` inside a worktree — it shares the object store and will
+  corrupt the main repo; always a throwaway `git clone` for that).
+- Watch `jscpd` (fails above 2%). Measure in a clean HEAD worktree.
 - Cap pytest memory:
   `systemd-run --user --scope -p MemorySwapMax=0 -p MemoryMax=2G`.
-- **Never let a test allocate unbounded real memory.**
-
-## Tooling reference
-
-**`meta/scripts/check_file_length.sh --all`** — the 250-line gate. Run
-**before every commit**. Applies to test files too, not just the file
-you're splitting.
-
-**`meta/scripts/shell_coverage.sh <test> <subject> [min]`** — kcov wrapper,
-100% minimum. Hand it the test script **directly**; `bash script.sh`
-instruments the bash binary and silently reports 0/0.
-
-**`meta/scripts/extract_shell_functions.py`** — moves functions
-brace-by-brace. **Never slice by line range**. Verify placement with
-`grep -c` on the anchor.
-
-**`meta/scripts/verify_shell_split.sh <pre-split-rev> <old> <new>...`** —
-proves a split moved every function verbatim. For a **partial** split list
-the old path among the new paths too.
-
-**`meta/scripts/mutate_shell.py <spec>`** — mutation testing; optional, not
-required.
-
-**Archiving a dead file/subsystem** (no dedicated script — hand-run each
-time): clone to a scratch dir, `git filter-repo --force --path <each
-current path> --path <each historical path from `git log --all --follow
---name-only`>`, clone `testsAndMisc-archive` separately, add the filtered
-clone as a remote, `git merge --allow-unrelated-histories`, remove stray
-remote-tracking branches and the remote, push, verify with `gh api
-repos/kuhyx/testsAndMisc-archive/contents/<dir>`, **then** `git rm` from
-`testsAndMisc`. Read
-`docs/superpowers/evidence/archive-setup-hosts-guard-2026-08-18.json` for
-the full worked example.
-
-## Testing pattern to follow (Phase 1 splits and Phase 3 new coverage alike)
-
-The established pattern for shell scripts with no prior test coverage:
-
-- A `lib/tests/` directory sibling to the split libs.
-- A `*_harness.sh` file (sourced, not executed) with `_t_pass`/`_t_fail`/
-  `_t_eq` helpers, `mktemp -d` + `trap cleanup EXIT`, and PATH-shim fakes for
-  any external tool the code shells out to.
-- One `test_<lib>.sh` per lib, sourcing the harness, asserting against real
-  function calls (not mocks at the call-site level).
-- A `test_<entry-script>.sh` that runs the **actual entry script as a
-  subprocess** against the same fakes. If this test file threatens to grow
-  past 250 lines, split the fixture setup into its own `*_entry_harness.sh`
-  early.
-- Sharp edges hit and fixed across sessions, watch for all of them again:
-  - `local a="$1" b="${a}"` **fails under `set -u`** — split into separate
-    `local` statements.
-  - A function that calls `exit` (not `return`) on a fatal condition will
-    kill the whole test script if called directly inside an `if` condition.
-    Run it in a subshell: `if (fn args); then ...`.
-  - A backgrounded process needs `disown` before `kill`/`wait` reliably
-    affects only it.
-  - **SIGINT delivery to a backgrounded job was unreliable in this
-    environment; SIGTERM was not.**
-  - If a script under test computes a real resource allocation (memory,
-    disk) from live system state, make the relevant constants
-    env-overridable and pin them to something tiny in every test.
-
-Check the target file for anything that shells out before assuming a prior
-session's fakes apply — each file is a different domain.
+- **Known tooling bug, fix opportunistically:**
+  `~/.claude/scripts/dart_format_changed.sh <repo>` reports "No changed Dart
+  files" even when files changed, if invoked with a repo path from outside
+  that repo — it `cd`s into `$repo` then runs `git status --porcelain`, whose
+  paths are relative to the **git worktree root**, so its `[[ -f $path ]]`
+  check fails for every file. Workaround used: `dart format <files>` directly.
+  Real fix: `cd` to the git toplevel, or strip the prefix.
