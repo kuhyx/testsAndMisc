@@ -1,0 +1,68 @@
+{
+  "intent": "Establish empirically, before writing tests for 565 .sh files, whether Phase 3's constraints are jointly satisfiable: a repo-wide gate at 100% line coverage over ALL shell files, with no suppressions. Phase 1 measured effecting code at 0% under PATH shims; if that were the ceiling, 100% would require either forbidden suppressions or source seams in 17+46 files.",
+  "scope": [
+    "Measurement only - no production file was modified",
+    "Subjects: setup_night_lockdown.sh (entry script, 127 lines) and pacman_wrapper.sh (215 lines)",
+    "Non-goal: writing the test suites themselves; this answers the feasibility question that gates them"
+  ],
+  "changes": [
+    "Added this evidence artifact recording the feasibility result",
+    "No source, script, or configuration file was changed; probe scripts live only in the session scratchpad"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/shell_coverage.sh <digital_wellbeing run_all.sh> <lib> 0",
+      "result": "pass - baseline reproduces NEXT_SESSION_PROMPT.md exactly",
+      "evidence": "leechblock_fetch.sh 38.57%, leechblock_browsers.sh 36.47%, cco_state.sh 93.94% (uncovered 125-128 = kill_app's pkill lines)"
+    },
+    {
+      "command": "kcov 'help' alone into a fresh dir, vs 4 subcommands accumulated into one dir",
+      "result": "pass - kcov unions across runs, so the union number is real",
+      "evidence": "help alone = 26/38 (68.42%); four cases accumulated = 31/38 (81.58%). Different numbers prove merging works rather than overwriting."
+    },
+    {
+      "command": "scratchpad/probe2.sh - PATH shims for sudo/systemctl/modprobe/pkill plus HOME and XDG redirected into the jail",
+      "result": "pass - establishes the PATH-shim-only ceiling at 81.58%",
+      "evidence": "31/38 = 81.58%. Uncovered 86,87,93,95,96 (install_i2c_modules: a bare `cat >` to /etc with no sudo to intercept) and 115,117 (dispatch arms behind require_root's EUID branch)."
+    },
+    {
+      "command": "unshare --user --map-root-user --mount --fork, with /etc bind-mounted to a jail copy",
+      "result": "pass - the namespace closes the require_root residue with zero source changes",
+      "evidence": "EUID becomes 0 so require_root falls through naturally and lines 115/117 execute. Coverage rose 81.58% -> 86.84% (33/38)."
+    },
+    {
+      "command": "unshare --user --map-root-user --mount, binding /etc, /usr/local/bin and /var/lib, plus a jail passwd/group/nsswitch in which the invoking user resolves",
+      "result": "pass - 100% reached with no source changes and no suppressions",
+      "evidence": "38/38 = 100.00%. Installer artifacts night-lockdown-enter.sh, night-lockdown-unlock.sh and night-lockdown-i2c.conf all landed INSIDE the jail."
+    },
+    {
+      "command": "canary write to /etc/modules-load.d/CANARY_TEST.conf inside the namespace, then ls the real dir; plus ls -la /etc/modules-load.d/night-lockdown-i2c.conf after every probe",
+      "result": "pass - containment holds; the real system was never touched",
+      "evidence": "The canary appeared only in the jail copy. The real night-lockdown-i2c.conf kept its original Jul 23 11:56 mtime across all probes, and git status stayed clean."
+    },
+    {
+      "command": "scratchpad/jail_run.sh <subject> <arg-sets> - a generalised runner rebuilt from the proven mounts",
+      "result": "pass - the jail is reusable, not hand-tuned to one subject",
+      "evidence": "Reproduced 38/38 = 100.00% on setup_night_lockdown.sh through the generic runner."
+    },
+    {
+      "command": "jail_run.sh on pacman_wrapper.sh with /usr/local/bin bind-mounted, vs the same cases without that mount",
+      "result": "pass - generalises, and exposes the dominant failure mode",
+      "evidence": "28.95% (22/76) with /usr/local/bin masked vs 75.00% (57/76) without it. The wrapper sources sibling libs from /usr/local/bin and takes its 'libraries missing -> exec pacman unwrapped' escape hatch at lines 44-45 when they vanish, exiting before any real work."
+    }
+  ],
+  "risks": [
+    "DECISIVE FINDING: 100% line coverage on an entry script is achievable with NO source changes and NO suppressions, so the earlier estimate that 17 files need path seams and 46 need require_root seams is superseded.",
+    "--map-root-user ALONE is insufficient for /etc writes: CAP_DAC_OVERRIDE inside a userns only covers files whose owner uid is mapped in. The bind-mount over the write target is what makes the write land.",
+    "The jail must supply its own /etc/passwd, /etc/group and /etc/nsswitch.conf. Inside the userns the invoking user does not resolve, so `id -u <user>` fails and aborts any script using it under set -e. This cost three iterations to find.",
+    "Entry scripts cannot be staged into a temp dir the way libs can: they resolve libs via BASH_SOURCE and common.sh via `readlink -f \"$0\"`, so they must be executed in place as $0.",
+    "The jail must be PER-SCRIPT: mount only what a script WRITES and preserve what it READS. A blanket jail masking /usr/local/bin cut pacman_wrapper.sh from 75.00% to 28.95%. An over-aggressive mount looks exactly like unreachable code, which is the same misdiagnosis class that produced the false 81.58% ceiling.",
+    "Arbitrary argument sets do not drive coverage; cases must be designed from each script's own dispatch logic. This, not the jail, is the dominant per-file cost across 565 files.",
+    "Running installers for real as uid 0 inside a namespace is safe only while every write target is mounted; a missing mount plus a writable real path would modify the live system.",
+    "An uncommitted file meta/scripts/check_shell_coverage.sh appeared in the working tree during this session. It was never committed (git log across all refs is empty for it) and this session's probes never reference that path, so its origin is unknown. Its content implements the lib-only presence-ratchet design that was overruled, so it must not be wired in. Left untouched deliberately."
+  ],
+  "rollback": [
+    "Nothing to revert: no production file was changed. Deleting this evidence file restores the prior tree state.",
+    "After rollback, confirm with `git status` that the tree is clean and `bash meta/scripts/check_file_length.sh --all` still passes."
+  ]
+}

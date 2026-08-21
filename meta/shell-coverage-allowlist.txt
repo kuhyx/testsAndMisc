@@ -10,7 +10,6 @@
 # Regenerate (only ever to REMOVE now-covered entries):
 #   bash meta/scripts/check_shell_coverage.sh --seed
 linux_configuration/.githooks/lib/common.sh
-linux_configuration/scripts/boot_recovery/tests/lib/boot_repair_cases.sh
 linux_configuration/scripts/lib/android.sh
 linux_configuration/scripts/lib/common_datetime.sh
 linux_configuration/scripts/lib/common_packages.sh
@@ -27,8 +26,6 @@ linux_configuration/scripts/mtk_root/lib/dump_partitions.sh
 linux_configuration/scripts/mtk_root/lib/dump_verify.sh
 linux_configuration/scripts/mtk_root/lib/mtk_udev.sh
 linux_configuration/scripts/mtk_root/lib/recon_report.sh
-linux_configuration/scripts/mtk_root/tests/lib/assertions.sh
-linux_configuration/scripts/mtk_root/tests/lib/dump_tests.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/install_files.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/integrity.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/managed_copy.sh
@@ -113,13 +110,6 @@ linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_dep
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_pkgmgr.sh
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_venv.sh
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/unity_handler.sh
-linux_configuration/tests/lib/i3blocks_claude_usage.sh
-linux_configuration/tests/lib/i3blocks_config_checks.sh
-linux_configuration/tests/lib/pacman_wrapper_makepkg.sh
-linux_configuration/tests/lib/pacman_wrapper_syntax.sh
-linux_configuration/tests/lib/security_apps.sh
-linux_configuration/tests/lib/security_hosts_shutdown.sh
-linux_configuration/tests/lib/security_pacman.sh
 meta/lib/lint_full_tools.sh
 meta/lib/lint_output.sh
 meta/scripts/lib/disk_cleanup_common.sh

@@ -12,7 +12,7 @@ it was non-interactive — a grilling round would have ended the turn with
 nothing delivered. **The user can still veto any of these cheaply**, since the
 gate is not yet in the hook chain:
 
-- **Q1 Scope → ratchet.** 125 pre-existing libraries are exempt via
+- **Q1 Scope → ratchet.** 115 pre-existing libraries are exempt via
   `meta/shell-coverage-allowlist.txt`; only new or modified libraries must be
   covered. Unrelated commits are never blocked (verified).
 - **Q2 Bar → presence, not a percentage.** A numeric bar is unreachable here:
@@ -45,12 +45,17 @@ must exit 0 (an unrelated entry script must never block a commit).
 allowlist and silently exempt it. The list is shrink-only; nothing mechanically
 enforces that yet.
 
-## Chipping away at the 125
+## Chipping away at the 115
 
-The allowlist is concentrated: `single_use/features/lib` (45),
-`single_use/fixes/lib` (22), `phone_focus_mode/lib` (9), `scripts/lib` (9).
-Adding one `tests/run_all.sh` to a directory enforces every file in it at once,
-so expect the work to arrive in batches rather than one file at a time.
+198 in-scope libraries: 115 exempt, 83 already covered. The allowlist is
+concentrated: `single_use/features/lib` (45), `single_use/fixes/lib` (22),
+`phone_focus_mode/lib` (9), `scripts/lib` (9). Adding one `tests/run_all.sh`
+to a directory enforces every file in it at once, so expect the work to arrive
+in batches rather than one file at a time.
+
+**`--seed` is shrink-only and now enforces it** — it exits 1 rather than adding
+an entry, so you cannot exempt a new library by reseeding. It reads tracked
+files only, so stage before trusting its output.
 
 ## What is already true (verify, do not redo)
 
@@ -76,9 +81,8 @@ gh run list --limit 5
 
 ```bash
 git ls-files '*.sh' | wc -l                          # 560 tracked
-git ls-files '*/lib/*.sh' | grep -v '/lib/tests/' | wc -l   # 208 libraries
 git ls-files '*/lib/tests/run_all.sh'                # 4 suites
-bash meta/scripts/check_shell_coverage.sh --all      # 125 uncovered, 125 exempt
+bash meta/scripts/check_shell_coverage.sh --all      # 115 uncovered, 115 exempt
 ```
 
 A bare `find` reports 565 `.sh` files because it walks `.venv/`,

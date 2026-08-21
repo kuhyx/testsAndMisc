@@ -48,11 +48,18 @@ usage() {
 # True for a shell library: a .sh under a lib/ dir, excluding the tests
 # themselves and vendored trees. Payloads are data emitted onto other
 # machines, not logic this repo's suites can source.
+#
+# Both nestings of "library" and "tests" are test code and are out of scope:
+# lib/tests/ (a suite beside its libs) and tests/lib/ (helpers beside their
+# tests). Missing the second made the gate demand tests/lib/tests/run_all.sh,
+# which is incoherent — and it would have fired precisely while editing test
+# helpers to add the suites this ratchet asks for.
 is_shell_lib() {
 	local path="$1"
 	[[ "$path" == *.sh ]] || return 1
 	[[ "$path" == */lib/* ]] || return 1
 	[[ "$path" == */lib/tests/* ]] && return 1
+	[[ "$path" == */tests/lib/* ]] && return 1
 	[[ "$path" == */lib/payloads/* ]] && return 1
 	[[ "$path" == third_party/* ]] && return 1
 	return 0
@@ -81,6 +88,29 @@ report_uncovered() {
 seed_allowlist() {
 	local -a libs=()
 	mapfile -t libs < <(collect_libs)
+
+	# Shrink-only, enforced rather than merely documented: a reseed may drop
+	# entries that gained a suite, never add one. Without this, running --seed
+	# after writing an untested library would silently exempt it and quietly
+	# widen the hole the gate exists to close.
+	if [[ -f "$ALLOWLIST" ]]; then
+		local -a added=()
+		mapfile -t added < <(comm -13 \
+			<(exempt_paths | sort) \
+			<(report_uncovered "${libs[@]}" | sort))
+
+		if ((${#added[@]} > 0)); then
+			echo "$SCRIPT_NAME: refusing to seed — that would ADD ${#added[@]} entr(ies):" >&2
+			local entry
+			for entry in "${added[@]}"; do
+				printf '  %s\n' "$entry" >&2
+			done
+			echo >&2
+			echo "  The allowlist only ever shrinks. Give these libraries a" >&2
+			echo "  tests/run_all.sh instead of exempting them." >&2
+			return 1
+		fi
+	fi
 
 	{
 		echo "# Shell libraries that predate the coverage ratchet."
