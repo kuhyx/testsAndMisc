@@ -1,0 +1,17 @@
+{
+  "title": "Split EnforcementRunner.kt under the 250-line cap",
+  "objective": "Bring focus_owner/android/.../EnforcementRunner.kt (564 lines) under the repo-wide 250-line cap by extracting cohesive concerns into standalone files, without changing EnforcementRunner's public API or EnforcementRunnerBestTest.kt's direct call to EnforcementRunner.best(...).",
+  "acceptance_criteria": [
+    "bash meta/scripts/check_file_length.sh --all no longer lists EnforcementRunner.kt.",
+    "EnforcementRunner still exposes decide(), apply(decision, bridge), setHomeToCurrentLocation(), hasHomeLocation(), acquireLocation(...), and the companion best(...) with identical signatures, since MainActivity.kt and EnforcementRunnerBestTest.kt call these directly.",
+    "gradlew compileDebugKotlin --rerun-tasks succeeds with no compile errors.",
+    "gradlew test --rerun-tasks succeeds with the same test count (40) and zero failures as before the split, with EnforcementRunnerBestTest's 6 tests specifically still passing unmodified.",
+    "No method body logic changed -- only extraction into new files plus delegate wiring."
+  ],
+  "out_of_scope": [
+    "Adding new unit tests for EnforcementRunner's decide()/apply() (they depend on Android system services not unit-testable without instrumentation; no prior test existed for them and none is required for a pure extraction).",
+    "Touching MainActivity.kt or EnforcementService.kt, whose call sites were verified but not modified.",
+    "Further splitting the remaining focus_owner Kotlin/Dart files or any of the other 8 files still over the 250-line cap."
+  ],
+  "verifier": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew compileDebugKotlin test --rerun-tasks (from focus_owner/android), plus bash meta/scripts/check_file_length.sh --all showing EnforcementRunner.kt no longer over cap."
+}

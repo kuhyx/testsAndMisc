@@ -1,0 +1,43 @@
+{
+  "intent": "Phase 1 of NEXT_SESSION_PROMPT.md's 250-line-cap campaign: bring focus_owner/android/.../EnforcementRunner.kt (564 lines) under the cap.",
+  "scope": [
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/EnforcementRunner.kt",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/LocationAcquisition.kt (new)",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/HomeLocationStore.kt (new)",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/PolicyPinning.kt (new)",
+    "focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/SweepablePackages.kt (new)"
+  ],
+  "changes": [
+    "Extracted four cohesive concerns out of EnforcementRunner into standalone files: LocationAcquisition (fix acquisition -- cached/active/stale fallback), HomeLocationStore (read/write home_location.json), PolicyPinning (VPN/DNS pin + visibility sweep applied during apply()), SweepablePackages (the installed-package enumeration used by decide())",
+    "EnforcementRunner's public API is unchanged -- acquireLocation, setHomeToCurrentLocation, hasHomeLocation all still exist as delegating wrappers, since MainActivity.kt calls setHomeToCurrentLocation/hasHomeLocation directly on an EnforcementRunner instance",
+    "EnforcementRunner.best(...) -- a companion object function called directly by the existing EnforcementRunnerBestTest.kt -- was deliberately NOT moved; it stays on EnforcementRunner and LocationAcquisition's internal cachedFix() calls back into it, avoiding any test-file change",
+    "EnforcementRunner.ACQUIRE_TIMEOUT_MS and FRESH_WINDOW_MS constants kept as aliases pointing at LocationAcquisition's copies, to preserve the public constant names without duplicating the values",
+    "EnforcementRunner.kt: 564 -> 237 lines; four new files at 198/116/94/42 lines",
+    "No behavioral change: every moved method/function body is verbatim"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "EnforcementRunner.kt off the list; file count over cap dropped from 9 to 8"
+    },
+    {
+      "command": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew compileDebugKotlin --rerun-tasks",
+      "result": "pass",
+      "evidence": "BUILD SUCCESSFUL, no compile errors"
+    },
+    {
+      "command": "JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew test --rerun-tasks",
+      "result": "pass",
+      "evidence": "BUILD SUCCESSFUL; test-results XML shows 40 tests total (6+9+12+13), 0 failures, 0 errors, 0 skipped. EnforcementRunnerBestTest (6 tests) specifically confirms EnforcementRunner.best(...) still resolves and behaves identically after the split, since that test calls it by name and was not modified"
+    }
+  ],
+  "risks": [
+    "No dedicated unit test exists for EnforcementRunner.decide()/apply() themselves (they depend on Android system services -- LocationManager, PackageManager, DevicePolicyManager -- not unit-testable without instrumentation), so the decide/apply orchestration split relies on compile-time type-checking plus the unchanged public API surface, same limitation as the DevicePolicyBridge split this session",
+    "PolicyPinning.kt bundles two only loosely related concerns (policy pinning + visibility sweep) in one file rather than two, to keep the file count and per-file complexity down given how much was already extracted from EnforcementRunner this session -- a future split could separate them further if PolicyPinning.kt itself grows"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "After rollback, re-run gradlew compileDebugKotlin test --rerun-tasks to confirm the pre-split file still compiles and the same 40 tests pass"
+  ]
+}
