@@ -1,0 +1,74 @@
+{
+  "intent": "Bring check_and_enable_services.sh (1225 lines) under the repo-wide 250-line cap by splitting its 21 functions into eight sourced libraries, while leaving what the tool actually does on this machine bit-for-bit unchanged.",
+  "scope": [
+    "linux_configuration/scripts/periodic_background/check_and_enable_services.sh — 1225 lines down to 202",
+    "linux_configuration/scripts/periodic_background/lib/services_{common,wrappers,units,hosts,hosts_fix,apps,browser,report}.sh — new",
+    "linux_configuration/scripts/periodic_background/lib/tests/{services_harness,test_services_common,test_services_report,test_services_units}.sh — new",
+    "Non-goal: fixing the latent status-downgrade bug this work uncovered in the three unit checks",
+    "Non-goal: making the 29 absolute root-owned probe paths redirectable, which the six path-gated libs would need for full coverage"
+  ],
+  "changes": [
+    "Moved all 21 top-level functions into eight libs grouped by subject (wrappers, systemd units, hosts stack, per-app blockers, browser/VM/user-service, reporting), leaving the entry script holding only configuration, argument parsing and the order the checks run in.",
+    "Factored check_hosts' 107-line repair half into hosts_fix_nsswitch, hosts_fix_resolved and hosts_repair_all in services_hosts_fix.sh, because check_hosts alone was 260 lines and would have stayed over the cap. Repair order is preserved: resolver config first, then the hosts file, then the guard-lib migration. hosts_repair_all returns non-zero under --dry-run so a dry run can never promote a status to ok on the strength of repairs that did not happen.",
+    "Replaced the write-only cross-file SERVICE_STATUS global with set_service_status / get_service_status in services_common.sh. This removes SC2034 in five libs without a suppression, and the setter rejects a duplicate write, since each check owns exactly one summary row and a second write would mean two checks silently fighting over it.",
+    "Gave check_periodic_systems an early return when its status is already ok: it skips a report_and_fix call that had nothing to report, and is the genuine read of `status` that shellcheck cannot infer through report_and_fix's nameref.",
+    "Added a shared test harness that shims systemctl, guardctl, lsattr, chattr, logger and sudo onto PATH and answers from a throwaway $DEV directory, so the tests assert what the checks tried to do rather than the state of this machine."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "No linux_configuration/scripts/periodic_background entry remains. Entry script 202 lines; libs 74-189; largest new file services_wrappers.sh at 189."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh 6691cb26 check_and_enable_services.sh check_and_enable_services.sh lib/services_*.sh",
+      "result": "pass",
+      "evidence": "Exactly one difference reported: check_hosts, whose hash changed because its repair half was deliberately extracted, plus the three new hosts_* helpers. The other 20 functions hash identically after shfmt minification."
+    },
+    {
+      "command": "diff <(sudo bash <worktree@6691cb26>/…/check_and_enable_services.sh --status --dry-run) <(sudo bash …/check_and_enable_services.sh --status --dry-run)",
+      "result": "pass",
+      "evidence": "Byte-identical modulo the Date: line, run against the live machine. All 11 checks execute; summary reports pacman_wrapper/makepkg_wrapper/midnight_shutdown/startup_monitor/periodic_systems/hosts/guest_mode_removal ok, compulsive_blocker/leechblock/workout_locker warning, vbox_hosts n/a."
+    },
+    {
+      "command": "lib/tests/test_services_common.sh; lib/tests/test_services_report.sh; lib/tests/test_services_units.sh",
+      "result": "pass",
+      "evidence": "46 passed / 0 failed, 11 passed / 0 failed, 15 passed / 0 failed — 72 assertions total."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/test_services_common.sh services_common.sh 100",
+      "result": "pass",
+      "evidence": "services_common.sh: 54/54 lines = 100.00%"
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/test_services_report.sh services_report.sh 100",
+      "result": "pass",
+      "evidence": "services_report.sh: 27/27 lines = 100.00%"
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage.sh lib/tests/test_services_units.sh services_units.sh 100",
+      "result": "below target, recorded not waived",
+      "evidence": "services_units.sh: 60/71 lines = 84.51%. The 11 uncovered lines (34, 35, 42, 43, 68, 78, 79, 86, 87, 144, 145) are the else-branches of [[ -f /etc/systemd/system/*.service ]] and [[ -f /usr/local/bin/*.sh ]] probes: absolute root-owned paths that exist on this machine and that no PATH shim can redirect. Reaching them needs the root-prefix rewrite recorded as out of scope."
+    },
+    {
+      "command": "shellcheck lib/tests/*.sh lib/services_*.sh check_and_enable_services.sh",
+      "result": "pass",
+      "evidence": "Exit 0, zero findings, standalone (as the hook runs it, no -x) and again with -x. No suppression added anywhere."
+    },
+    {
+      "command": "shfmt -d on all thirteen touched shell files",
+      "result": "pass",
+      "evidence": "Exit 0, no diff."
+    }
+  ],
+  "risks": [
+    "check_and_enable_services.sh runs hourly as root and repairs the hosts blocking stack, so a behavioural regression here would silently disable enforcement. Mitigated by the byte-identical live-output diff against the pre-split revision, which is a stronger check than the test suite alone.",
+    "check_hosts is the one function not proven verbatim. Its extracted repair half is only reached when a guard is already unhealthy — a state this machine is not currently in, so the live diff exercises the detection path but not the repair path. The repair path's ordering was preserved by inspection, not by execution.",
+    "set_service_status now fails on a duplicate write. check_vbox_hosts writes vbox_hosts on two different paths; the early return on the not-installed path is what keeps them mutually exclusive. If a later edit removes that return, the second write becomes a visible error rather than a silent overwrite — noisy, but not a regression in enforcement.",
+    "Six of the eight libs sit below 100% coverage because their branches are gated by absolute paths. The measured figures are recorded above rather than waived."
+  ],
+  "rollback": [
+    "git revert the commit: the split is additive (eight libs, four test files) plus one rewritten entry script, with no state or deployed artifact touched.",
+    "After rollback, re-run sudo bash check_and_enable_services.sh --status --dry-run and confirm the same 11-row summary, since nothing outside the repo was modified in the first place."
+  ]
+}

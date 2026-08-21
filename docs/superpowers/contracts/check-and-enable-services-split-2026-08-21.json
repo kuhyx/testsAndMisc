@@ -1,0 +1,20 @@
+{
+  "title": "Split check_and_enable_services.sh under the 250-line cap with a tested lib/",
+  "objective": "Bring linux_configuration/scripts/periodic_background/check_and_enable_services.sh from 1225 lines to under the repo-wide 250-line cap by moving its 21 functions into eight sourced libraries beside it, without changing what the tool does on this machine. This is the first of the three safe-tier files in Phase 1 of the 250-cap campaign.",
+  "acceptance_criteria": [
+    "check_and_enable_services.sh and every lib/services_*.sh file is at or under 250 lines; bash meta/scripts/check_file_length.sh --all reports no entry under linux_configuration/scripts/periodic_background/.",
+    "meta/scripts/verify_shell_split.sh against rev 6691cb26 shows every moved function byte-identical after shfmt minification, with check_hosts as the single expected difference because its repair half was deliberately factored into hosts_fix_nsswitch / hosts_fix_resolved / hosts_repair_all.",
+    "sudo bash check_and_enable_services.sh --status --dry-run produces output byte-identical to the same command run from a worktree at rev 6691cb26, modulo the Date: line.",
+    "shellcheck reports zero findings on the entry script, all eight libs and all four test files, both standalone (as the pre-commit hook runs it, with no -x) and with -x.",
+    "shell_coverage.sh reports 100% line coverage for services_common.sh and services_report.sh.",
+    "No suppression of any kind is added: no shellcheck disable directive, no noqa, no per-file ignore.",
+    "New sourced libs carry a shebang and the executable bit, staged with git add --chmod=+x."
+  ],
+  "out_of_scope": [
+    "Fixing the latent status-downgrade bug found in services_units.sh, where an unconditional status=\"warning\" on the is-active check overwrites the status=\"error\" from the is-enabled check, so a timer that is both disabled and inactive is never repaired. It is identical in the pre-split file, it changes live enforcement behaviour, and it belongs in its own commit. The tests pin the current behaviour and name it.",
+    "Threading a root-prefix variable through the 29 absolute root-owned paths the check libs probe (/usr/bin/pacman, /etc/hosts, /etc/systemd/system/*.service, ...). That is a rewrite of live enforcement logic, not a line-count fix, and it would forfeit the verbatim-move proof for the other 20 functions.",
+    "Reaching 100% coverage on the six libs whose branches are gated by those absolute paths.",
+    "The other seven files still over the cap."
+  ],
+  "verifier": "bash meta/scripts/check_file_length.sh --all (no periodic_background entry), bash meta/scripts/verify_shell_split.sh 6691cb26 <old> <old> <new>... (check_hosts the only diff), the three lib/tests/test_services_*.sh scripts (72 assertions, 0 failures), bash meta/scripts/shell_coverage.sh for services_common.sh and services_report.sh (100.00% each), and a diff of sudo bash check_and_enable_services.sh --status --dry-run against the same command at rev 6691cb26."
+}
