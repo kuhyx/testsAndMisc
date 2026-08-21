@@ -1,0 +1,46 @@
+{
+  "intent": "Repair the Shell tests workflow, red on main since fbe9134c: three assertions in two test files look for wrapper code in pacman_wrapper.sh that the 250-line-cap split moved into the flat pw_*.sh libs.",
+  "scope": [
+    "linux_configuration/tests/test_hosts_guard_pacman_integration.sh: assert_contains now searches the wrapper plus its libs",
+    "linux_configuration/tests/lib/pacman_wrapper_syntax.sh: three definition greps widened to the libs",
+    "linux_configuration/tests/test_pacman_wrapper_security.sh: two sed extractions now read pw_policy.sh",
+    "Non-goal: any change to pacman_wrapper.sh or the pw_*.sh libs -- the wrapper is correct; only the tests' idea of where its functions live was stale"
+  ],
+  "changes": [
+    "test_hosts_guard_pacman_integration.sh builds a WRAPPER_SOURCES array from the entry script plus every pw_*.sh and passes it to assert_contains, which checks pacman_hooks_manage_guard_lib() and should_use_wrapper_guard_lib_fallback() -- both now defined in pw_guard.sh.",
+    "The two assert_order assertions in that file were deliberately left pointing at the entry script alone. They assert the ORDER of two call sites, and both calls remain in the entry script; widening them would have weakened a positional check into a meaningless one.",
+    "pacman_wrapper_syntax.sh: the definition greps for verify_policy_integrity() (now pw_policy.sh), auto_remove_virtualbox_vms() (now pw_cleanup.sh) and VBoxManage (now pw_cleanup.sh) search the entry script and the libs together. The 'CRITICAL near verify_policy_integrity' check and the auto_remove_virtualbox_vms call-site check were left alone -- verified that both still match in the entry script, so widening them was unnecessary.",
+    "test_pacman_wrapper_security.sh extracts strip_pkgfile_suffix and is_blocked_package_name with sed to run them in isolation; both moved to pw_policy.sh, so the extraction reads that file now. The sed patterns themselves were unchanged, since both functions kept the `function name() {` spelling.",
+    "Every widened grep uses a pw_*.sh glob rather than a named lib, so a future re-partition of the wrapper does not break these assertions again."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_pacman_wrapper_security.sh",
+      "result": "pass",
+      "evidence": "rc=0 with zero ✗ markers. Previously failed at '[TEST 4] Integrity verification function not found' and then, once that was fixed, at the strip_pkgfile_suffix/is_blocked_package_name extraction with 'command not found'."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_hosts_guard_pacman_integration.sh",
+      "result": "pass",
+      "evidence": "rc=0 with zero FAIL lines. Previously failed on \"wrapper detects when guard-lib's pacman hooks are installed\"."
+    },
+    {
+      "command": "Full linux_configuration/tests/test_*.sh sweep, as the arch-tests CI job runs it",
+      "result": "pass",
+      "evidence": "Both repaired files pass. Two other files still fail locally and neither is caused by this commit or the wrapper split: test_security_hardening.sh fails only on 'Compulsive block wrappers installed', which is this machine's state (signal-desktop and discord installed but unwrapped) and passes in CI where neither app exists; test_shutdown_timer_monitor.sh fails on the uncommitted setup_midnight_shutdown.sh split present in the working tree, and belongs to that commit."
+    },
+    {
+      "command": "Behavioural check that the widened greps still assert something",
+      "result": "pass",
+      "evidence": "Each moved function was located before widening: pacman_hooks_manage_guard_lib and should_use_wrapper_guard_lib_fallback in pw_guard.sh, verify_policy_integrity and the two -U helpers in pw_policy.sh, auto_remove_virtualbox_vms and VBoxManage in pw_cleanup.sh. The assertions now match in exactly one file each, so they still fail if the code is deleted."
+    }
+  ],
+  "risks": [
+    "Globbing pw_*.sh makes the definition assertions insensitive to WHICH lib holds a function. That is intended -- they assert the feature exists -- but they would also pass if a definition were duplicated across libs.",
+    "test_security_hardening.sh remains red on this machine for an unrelated, pre-existing reason. It is green in CI, so it does not block the workflow."
+  ],
+  "rollback": [
+    "git revert this commit; the greps return to searching pacman_wrapper.sh alone and Shell tests goes red again on three assertions.",
+    "Validate with: bash linux_configuration/tests/test_pacman_wrapper_security.sh and bash linux_configuration/tests/test_hosts_guard_pacman_integration.sh, both expected rc=0."
+  ]
+}
