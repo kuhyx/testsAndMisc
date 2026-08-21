@@ -18,7 +18,19 @@ from pathlib import Path
 import re
 import sys
 
-_FUNC_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*\(\)\s*\{")
+# Both bash spellings: `name() {` and `function name() {`. Accepting only the
+# first silently skipped 17 of the 30 functions in pacman_wrapper.sh, leaving
+# them in the entry script while reporting success -- a split that looks done
+# and is not.
+#
+# `()` is required unless the `function` keyword is present. Making the parens
+# optional in both branches would match plain brace groups and control blocks
+# (`while read -r x; do ... done {`-style constructs and `if ... {` in other
+# dialects), sweeping non-function code into the library.
+_FUNC_RE = re.compile(
+    r"^(?:function\s+(?P<kwname>[a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(\))?"
+    r"|(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)\s*\(\))\s*\{"
+)
 
 
 def find_function_blocks(lines: list[str]) -> list[tuple[int, int, str]]:
@@ -26,7 +38,11 @@ def find_function_blocks(lines: list[str]) -> list[tuple[int, int, str]]:
     blocks: list[tuple[int, int, str]] = []
     index = 0
     while index < len(lines):
-        if _FUNC_RE.match(lines[index]):
+        match = _FUNC_RE.match(lines[index])
+        if match:
+            # Take the name from the regex, not from splitting on "(": the
+            # `function name()` form would otherwise yield "function name".
+            name = match.group("kwname") or match.group("name")
             start, depth = index, 0
             while index < len(lines):
                 depth += lines[index].count("{") - lines[index].count("}")
@@ -35,7 +51,7 @@ def find_function_blocks(lines: list[str]) -> list[tuple[int, int, str]]:
                 if depth <= 0:
                     break
                 index += 1
-            blocks.append((start, index, lines[start].split("(")[0]))
+            blocks.append((start, index, name))
         index += 1
     return blocks
 
