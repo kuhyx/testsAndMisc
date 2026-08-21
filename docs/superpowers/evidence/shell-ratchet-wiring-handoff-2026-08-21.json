@@ -1,0 +1,54 @@
+{
+  "intent": "Record the measured behaviour of the shell-coverage ratchet gate and hand off the one remaining step -- pasting its hook block into .pre-commit-config.yaml -- which an agent cannot perform because that path is permission-denied as a sensitive file.",
+  "scope": [
+    "NEXT_SESSION_PROMPT.md -- rewrote 'The one thing left to do' with the exact block, its indentation, its anchor point, and the completed verification table",
+    "Non-goal: editing .pre-commit-config.yaml. The edit was denied in two separate sessions; routing around the denial via sed/heredoc/python is explicitly ruled out",
+    "Non-goal: chipping at the 115 allowlist entries. Mixing that in would blur the signal on whether the gate wired correctly",
+    "No behaviour change to meta/scripts/check_shell_coverage.sh -- this commit only measures and documents it"
+  ],
+  "changes": [
+    "Documented that the .pre-commit-config.yaml edit has now been denied twice, so a third agent attempt is not worth making and the paste belongs to the user",
+    "Added an explicit warning against copying pass_filenames: false from the adjacent file-length-cap hook -- that hook needs it because it runs --all, whereas this one is driven by files:. With it, the script receives zero arguments, report_uncovered iterates nothing, and the gate exits 0 forever while appearing green",
+    "Gave the pasted block the same 6-space indentation as its neighbours and named its anchor (after file-length-cap's always_run: true, before ci-baseline-green)",
+    "Recorded the four measured gate cases as a table so the next session does not re-derive them",
+    "Added the post-commit grep for shell-coverage-ratchet, because a Phase 1 autoformat pass silently stripped load-bearing lines three times"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh meta/scripts/check_file_length.sh",
+      "result": "pass",
+      "evidence": "exit 0; 'every checked shell library has a test suite'. An unrelated entry script must never block an unrelated commit."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh linux_configuration/scripts/lib/_ratchet_canary_tmp.sh (temporary canary, removed after the run)",
+      "result": "pass",
+      "evidence": "exit 1; named the offending file and the exact path it needs: linux_configuration/scripts/lib/tests/run_all.sh. Confirms a new untested library cannot enter."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh <3 covered files in one invocation>",
+      "result": "pass",
+      "evidence": "exit 0. pre-commit passes many filenames per invocation, so the multi-file path is the one that actually runs in production."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh <4 files, canary 3rd> >/dev/null 2>&1; echo $?",
+      "result": "pass",
+      "evidence": "exit 1. A loop that only inspected $1, or one whose exit code was overwritten by a later passing file, would have returned 0 here."
+    },
+    {
+      "command": "git status --short",
+      "result": "pass",
+      "evidence": "Clean after both canary runs -- the temporary library was removed, so no canary leaked into the tree or the allowlist."
+    }
+  ],
+  "risks": [
+    "The gate stays inert until a human pastes the YAML. Until then a new untested shell library can still land, exactly as before this commit -- the ratchet is documented, not active.",
+    "The highest-consequence paste error is silent: pass_filenames: false yields a permanently green dead gate. This is called out in the handoff, but nothing mechanically prevents it, and no test the next session would naturally run would reveal it.",
+    "The 115-entry allowlist is unchanged, so the pre-existing uncovered libraries stay exempt; this commit narrows nothing.",
+    "check_shell_coverage.sh --seed remains capable of rewriting the allowlist. It is shrink-only and exits 1 rather than adding an entry, so the documented failure mode is guarded."
+  ],
+  "rollback": [
+    "git revert this commit -- it touches only NEXT_SESSION_PROMPT.md and this evidence file, so nothing executable changes.",
+    "If the hook was already pasted and misbehaves, delete the shell-coverage-ratchet block from .pre-commit-config.yaml; the gate is self-contained and no other hook depends on it.",
+    "After rollback, confirm the ratchet script itself still behaves: bash meta/scripts/check_shell_coverage.sh --all should list 115 exempt entries and exit 0."
+  ]
+}

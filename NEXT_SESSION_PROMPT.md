@@ -36,25 +36,77 @@ gate is not yet in the hook chain:
 ## The one thing left to do
 
 `meta/scripts/check_shell_coverage.sh` works standalone but is **not in
-`.pre-commit-config.yaml`** — that edit was denied as a sensitive file. Add
-this block after the `file-length-cap` hook (note `files:`, **not** `--all`;
-per-file is what makes it a ratchet):
+`.pre-commit-config.yaml`**. That edit has now been **denied twice** as a
+sensitive file (2026-08-21, two separate sessions), so it is not an oversight
+and not worth a third agent attempt — **the user must paste it**. Do not try
+to route around the denial with `sed`/heredoc/`python`; the restriction is
+deliberate.
+
+Paste this block **directly after the `file-length-cap` hook** (which ends at
+`always_run: true`, immediately before `- id: ci-baseline-green`).
+
+**Indent every line below by 6 spaces** so `- id:` lines up with the
+neighbouring `- id: file-length-cap` and `- id: ci-baseline-green`. The block
+is shown unindented because prettier reformats fenced code and strips the
+leading whitespace; it is a `repo: local` hook list, so the indentation is
+load-bearing and YAML will reject a flush-left paste.
 
 ```yaml
 - id: shell-coverage-ratchet
   name: Shell libraries must have a test suite
+  # Per-file (files:, NOT --all) is what makes this a ratchet rather than
+  # a repo-wide gate: the 115 libraries that predate it stay exempt via
+  # meta/shell-coverage-allowlist.txt, so unrelated commits never block,
+  # but a NEW library cannot enter without a tests/run_all.sh beside it.
+  # Filenames must be passed — with pass_filenames: false the script
+  # would receive no arguments, iterate nothing, and pass forever.
   entry: bash meta/scripts/check_shell_coverage.sh
   language: system
   files: \.sh$
 ```
 
-Then re-verify the negative case before trusting it:
-`bash meta/scripts/check_shell_coverage.sh meta/scripts/check_file_length.sh`
-must exit 0 (an unrelated entry script must never block a commit).
+Or let `sed` do the indenting — copy the block above into `/tmp/hook.yaml`,
+then `sed 's/^/      /' /tmp/hook.yaml` and paste that output.
+
+**Do NOT copy `pass_filenames: false` from the neighbouring `file-length-cap`
+hook.** That hook uses it because it runs `--all`; this one is driven by
+`files:`. With `pass_filenames: false` the script gets zero arguments,
+`report_uncovered "$@"` iterates nothing, and the gate exits 0 forever — a
+dead gate that looks green in every test you would naturally run.
+
+### Verification already done (2026-08-21) — do not redo
+
+The script's own behaviour is measured; only the YAML wiring is outstanding.
+
+| Case                                  | Command                                                         | Result                                          |
+| ------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
+| Unrelated entry script must not block | `check_shell_coverage.sh meta/scripts/check_file_length.sh`     | exit **0**                                      |
+| New untested lib must block           | canary `linux_configuration/scripts/lib/_ratchet_canary_tmp.sh` | exit **1**, names the needed `tests/run_all.sh` |
+| Batch, all covered                    | 3 covered files in one call                                     | exit **0**                                      |
+| Batch, 3rd of 4 uncovered             | canary in the middle of a batch                                 | exit **1**                                      |
+| A `lib/tests/` harness must not block | `check_shell_coverage.sh <a lib/tests/*.sh>`                    | exit **0** — script self-filters                |
+
+That last row is why the block needs **no `exclude:`**. `files: \.sh$` does
+match `lib/tests/` and `lib/payloads/` files, but the script filters them
+itself, so the gate cannot block its own test suites.
+
+The batch cases matter because pre-commit passes many filenames per
+invocation; a loop that only inspected `$1` would have passed silently.
+
+After pasting, confirm the wiring end-to-end:
+
+```bash
+pre-commit run shell-coverage-ratchet --all-files   # expect pass (115 exempt)
+grep -n "shell-coverage-ratchet" .pre-commit-config.yaml
+```
+
+The `grep` is not redundant — an autoformat pass silently stripped
+load-bearing lines three times during Phase 1. Check after the commit lands,
+not before.
 
 **Do not run `--seed` after adding an untested library** — it would rewrite the
-allowlist and silently exempt it. The list is shrink-only; nothing mechanically
-enforces that yet.
+allowlist and silently exempt it. The list is shrink-only, and `--seed` now
+enforces that by exiting 1 rather than adding an entry.
 
 ## Chipping away at the 115
 
