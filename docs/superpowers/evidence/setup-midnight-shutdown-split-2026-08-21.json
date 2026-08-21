@@ -1,0 +1,52 @@
+{
+  "intent": "Bring setup_midnight_shutdown.sh (1734 lines) under the 250-line cap — the last file over it — without changing a byte of the five scripts it generates into /usr/local/bin.",
+  "scope": [
+    "setup_midnight_shutdown.sh: 1734 -> ~105 lines",
+    "New libs: ms_guard, ms_config_guard, ms_scripts, ms_override_mgr, ms_monitor, ms_units, ms_report, ms_setup_flow",
+    "New payload: lib/payloads/shutdown-config-unlock.sh.in (224 lines)",
+    "Non-goal: running `setup`. It installs systemd units, chattr +i's the config and arms a shutdown timer."
+  ],
+  "changes": [
+    "All 20 real top-level functions moved into eight libs. The prompt's '~39 functions' count included definitions that only LOOK top-level: log(), now_epoch(), cmd_add() and friends appear at column 0 because they are inside heredocs that generate standalone scripts. The brace-matching extractor keeps each heredoc inside its owning function, so those moved as part of their generator rather than being treated as separate functions.",
+    "create_config_guard's 224-line quoted heredoc became a verbatim payload file, the same convention already used for lib/payloads/night-lockdown-*.sh.in. It was the last thing keeping a lib over the cap.",
+    "$_MS_PAYLOAD_DIR is defined in the same file as its use, immediately above it — the placement lesson from _NL_PAYLOAD_DIR, which was stripped from the entry script by an autoformat pass three times."
+  ],
+  "verification": [
+    {
+      "command": "per-file heredoc body hashing, before vs after",
+      "result": "pass",
+      "evidence": "THE decisive check for a file whose product is generated scripts. All 12 heredoc bodies were hashed in the pre-split file. After the split, 11 are byte-identical and the only one absent is the 224-line config-unlock body — which hashes to 1a5c67cfd0244101, exactly matching the payload file that now holds it. No new bodies appeared. Re-run after shfmt with the same result.",
+      "note": "An earlier run reported a spurious 302-line body and a spurious 9-line one. Both were artifacts of my own measurement: concatenating the libs joined one terminator to the next opener, and a `<<'EOF'` inside a comment I had written was parsed as a real heredoc. Measuring per-file and rewording the comment resolved both; neither was a change to the code."
+    },
+    {
+      "command": "bash meta/scripts/verify_shell_split.sh HEAD <old> <old> <8 libs>",
+      "result": "pass",
+      "evidence": "Two entries, both explained. +create_config_guard is the deliberate heredoc-to-payload change. -log is the trap this file is known for: log() was counted as top level because it appears at column 0 twice INSIDE generated scripts. It is not lost — it now sits at line 17 of the payload, which is where it always executed from."
+    },
+    {
+      "command": "python3 line-multiset check against original (payload included)",
+      "result": "pass",
+      "evidence": "Two lines differ and both are the heredoc mechanics being replaced: `cat >\"$unlock_script\" <<'EOF'` and its `EOF` terminator, now a single `cat \"$_MS_PAYLOAD_DIR/...\"`. Every other code line is accounted for."
+    },
+    {
+      "command": "diff of --help against the pre-split baseline",
+      "result": "pass",
+      "evidence": "Byte-identical, rc=0, re-checked after shfmt. `status` was not used as a baseline: it re-execs under sudo and fails on PATH when invoked by relative path."
+    },
+    {
+      "command": "shellcheck (no -x), shfmt idempotence, canary, check_file_length --all",
+      "result": "pass",
+      "evidence": "shellcheck rc=0 with no suppression added; shfmt stable after one formatting pass; hyphenated-key canary clean. check_file_length reports 'all checked files are within 250 lines' — the campaign goal, with the payloads git-tracked so the gate genuinely sees them."
+    }
+  ],
+  "risks": [
+    "`setup` is never executed under test: it writes systemd units, makes the config immutable and arms a real shutdown timer. Correctness rests on the heredoc-hash equality (which is what determines the generated scripts) plus the unchanged-function proof.",
+    "The deployed /usr/local/bin scripts are not rewritten by this commit and do not need to be — the split provably emits the same content.",
+    "verify_shell_split.sh cannot distinguish a heredoc-internal function from a top-level one. That is why the heredoc hashing exists; anyone re-verifying this file should treat the -log entry as expected rather than as a lost function."
+  ],
+  "rollback": [
+    "git revert the commit; setup_midnight_shutdown.sh returns to one 1734-line file and lib/ms_*.sh plus the payload disappear.",
+    "Nothing to undo on the live system — no deployed file was written.",
+    "After rollback, re-run the heredoc hashing and confirm the combined fingerprint returns to dcf8be138f55dced."
+  ]
+}
