@@ -1,11 +1,11 @@
-# Next session: the 10 remaining untested `fixes/lib` libs
+# Next session: the 8 remaining untested `fixes/lib` libs
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
 > It is self-contained. Do not go looking for the previous session's context.
 
 ## The job
 
-`linux_configuration/scripts/single_use/fixes/lib/` has 22 libs. **Ten still
+`linux_configuration/scripts/single_use/fixes/lib/` has 22 libs. **Eight still
 have no tests.** Write them, to 100% line coverage, and take each one off
 `meta/shell-coverage-allowlist.txt`.
 
@@ -19,8 +19,6 @@ have no tests.** Write them, to 100% line coverage, and take each one off
 | 141   | `hosts_guard_rollback.sh` | same                                  |
 | 126   | `arch_cpu.sh`             | `optimize_arch_desktop.sh`            |
 | 122   | `arch_sysctl.sh`          | `optimize_arch_desktop.sh`            |
-| 121   | `arch_perf_fixes.sh`      | `fix_arch_performance.sh`             |
-| 80    | `ubuntu_perf_more.sh`     | `fix_ubuntu_performance.sh`           |
 
 **Suggested order: smallest first, grouped by entry script.** The three
 `optimize_arch_desktop.sh` libs (`arch_cpu`, `arch_sysctl`, `arch_hardware`)
@@ -87,7 +85,7 @@ timeout 900s bash meta/scripts/shell_coverage_jail.sh \
    # expect: "every checked shell library meets the coverage bar"
    ```
 
-Allowlist is at **93** entries — count with `grep -vc '^#'`, since the file
+Allowlist is at **91** entries — count with `grep -vc '^#'`, since the file
 also holds 13 comment lines.
 
 ## Work the jail in a detached worktree
@@ -116,6 +114,10 @@ Coverage = `(PS4-traced lines | kcov hits) & (kcov line set - continuation lines
 lines kcov instruments but bash attributes no statement to. It now handles:
 
 - continuation lines of a multi-line **quoted** argument (pre-existing);
+- **multi-line array literal elements and the closing paren** — bash reports
+  the whole assignment at its OPENING line. This alone took
+  `arch_perf_fixes.sh` 93.48% -> 100%, and it matters for the libs left:
+  `thorium_repairs.sh` has four such arrays and `ubuntu_perf_fixes.sh` one.
 - **a closing brace plus an operator** — `} |`, `} >>file` (added in
   `d989cd7e`). This alone took `bt_audio.sh` 96.97% -> 100% and
   `arch_perf_report.sh` 98.33% -> 100%.
@@ -216,12 +218,9 @@ asked has been "fix it in this commit".
 
 ## State as of 2026-08-22 (end of session)
 
-Allowlist **93**, down from 98 — five libs cleared. Nine commits,
-`4cfc3fdd`..`fa7b05da`.
-
-(Several commit _messages_ say "95 -> 93" etc. and are one low: they counted
-total file lines instead of entries. The diff against `503ba1fc` is the
-authority — five removals, 98 -> 93.)
+Allowlist **91**, down from 98 — seven libs cleared. Fourteen commits,
+`4cfc3fdd`..`28f2925c`. The `fixes/lib/tests` suite is 22 files / ~330
+assertions, all green, all shellcheck-clean with zero suppressions.
 
 | lib                   | coverage              | status                     |
 | --------------------- | --------------------- | -------------------------- |
@@ -230,21 +229,19 @@ authority — five removals, 98 -> 93.)
 | `bt_audio.sh`         | **127/127 = 100.00%** | CLEARED                    |
 | `arch_perf_report.sh` | **59/59 = 100.00%**   | CLEARED                    |
 | `arch_perf_probes.sh` | **93/93 = 100.00%**   | CLEARED                    |
+| `ubuntu_perf_more.sh` | **32/32 = 100.00%**   | CLEARED                    |
+| `arch_perf_fixes.sh`  | **43/43 = 100.00%**   | CLEARED                    |
 | `bt_adapter.sh`       | 68/69 = 98.55%        | exempt, see artifact above |
 
-Also still exempt and already measured by an earlier session — do NOT redo:
-`dwm_config.sh` 98.48%, `pacman_hook_stall_setup.sh` 96.30%, `aw_autostart.sh`
-97.56%, `rpi_nc_install.sh` 96.59%, `transcribe_pkgmgr.sh` 98.00%,
-`clean_audio_filters.sh` 91.40%, `transcribe_deps.sh` 92.31%.
+Measured by an earlier session, all still exempt: `dwm_config.sh` 98.48%,
+`pacman_hook_stall_setup.sh` 96.30%, `aw_autostart.sh` 97.56%,
+`rpi_nc_install.sh` 96.59%, `transcribe_pkgmgr.sh` 98.00%,
+`clean_audio_filters.sh` 91.40%, `transcribe_deps.sh` 92.31%. **All predate
+both instrument fixes and may now measure higher — re-measure before writing
+a single test for them.**
 
 `rpi_nc_ca.sh` (73/73) and `dot_resolver_install.sh` (39/39) are at 100% and
 could come off the allowlist whenever you want, by the three-step bar.
 
 **`nc_php.sh` does not measure at all** — "kcov instrumented no lines", on the
 pre-fix instrument too. Not a regression; treat as unverified.
-
-## Not caused by this campaign
-
-**`Python tests` CI has failed since 2026-08-17** — `pip` hits
-`resolution-too-deep` on `meta/requirements.txt`. Excluded from
-`check_ci_green.sh`; do not fold it into this work.
