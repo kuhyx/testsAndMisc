@@ -1,281 +1,183 @@
-# Next session: Phase 3 — finish wiring the shell-coverage ratchet
+# Next session: Phase 3 — keep clearing the shell-coverage allowlist
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
 > It is self-contained. Do not go looking for the previous session's context.
 
-**Phases 1 and 2 are DONE.** The 250-line cap is at zero and enforced; the CI
-gates are wired.
+## The scoping answers are SETTLED. Do not re-ask them.
 
-**Phase 3 is BUILT but NOT ENFORCED** (commit `3278bebd`). The three scoping
-questions below were answered without the user, because the session that built
-it was non-interactive — a grilling round would have ended the turn with
-nothing delivered. **The user can still veto any of these cheaply**, since the
-gate is not yet in the hook chain:
+The user answered these explicitly on 2026-08-22. An earlier session built a
+_presence-based, lib-only ratchet_ instead — the opposite of every answer. It
+has since been converted. **Do not re-propose the ratchet.**
 
-- **Q1 Scope → ratchet.** 106 pre-existing libraries are exempt via
-  `meta/shell-coverage-allowlist.txt`; any library not on that list must be
-  covered, so a new one cannot enter untested. Unrelated commits are never
-  blocked (verified). **Exemption is static** — editing an allowlisted library
-  is allowed and does not demand tests. An entry leaves the list only when its
-  directory gains a suite.
-- **Q2 Bar → presence, not a percentage — but NOT because a percentage is
-  impossible.** An earlier session on 2026-08-21 reached **100% (38/38) on
-  `setup_night_lockdown.sh` with no source changes and no suppressions**, using
-  a user-namespace jail, with containment verified by canary. The generic
-  runner then got **75% (57/76) on `pacman_wrapper.sh`**, because each subject
-  needs its own mount analysis. So a numeric bar is reachable but costs bespoke
-  per-file work — presence is the floor that can land today, and a percentage
-  can layer on top later. See
-  `docs/superpowers/evidence/phase3-namespace-jail-feasibility-2026-08-21.json`
-  and `meta/scripts/shell_coverage.sh`. **Both jail subjects were entry
-  scripts, which Q3 puts out of scope**, so nothing is yet measured for the 198
-  `lib/` files.
-- **Q3 Which files → `.sh` under a `lib/` dir**, excluding `lib/tests/` and
-  `lib/payloads/`. Entry scripts are orchestration whose bodies are untestable.
+| Question           | Answer                                               |
+| ------------------ | ---------------------------------------------------- |
+| **Scope**          | Repo-wide gate. NOT a ratchet.                       |
+| **Bar**            | **100%** line coverage. Shim every external.         |
+| **Files**          | **ALL** `.sh`, not just `lib/`.                      |
+| **Gates**          | pre-commit **AND** pre-push **AND** CI.              |
+| **Order**          | Tests first; arm the gate only once 100% is reached. |
+| **Target picking** | Hardest first.                                       |
 
-## The one thing left to do
-
-`meta/scripts/check_shell_coverage.sh` works standalone but is **not in
-`.pre-commit-config.yaml`**. That edit has now been **denied twice** as a
-sensitive file (2026-08-21, two separate sessions), so it is not an oversight
-and not worth a third agent attempt — **the user must paste it**. Do not try
-to route around the denial with `sed`/heredoc/`python`; the restriction is
-deliberate.
-
-Paste this block **directly after the `file-length-cap` hook** (which ends at
-`always_run: true`, immediately before `- id: ci-baseline-green`).
-
-**Indent every line below by 6 spaces** so `- id:` lines up with the
-neighbouring `- id: file-length-cap` and `- id: ci-baseline-green`. The block
-is shown unindented because prettier reformats fenced code and strips the
-leading whitespace; it is a `repo: local` hook list, so the indentation is
-load-bearing and YAML will reject a flush-left paste.
-
-```yaml
-- id: shell-coverage-ratchet
-  name: Shell libraries must have a test suite
-  # Per-file (files:, NOT --all) is what makes this a ratchet rather than
-  # a repo-wide gate: the 106 libraries that predate it stay exempt via
-  # meta/shell-coverage-allowlist.txt, so unrelated commits never block,
-  # but a NEW library cannot enter without a tests/run_all.sh beside it.
-  # Filenames must be passed — with pass_filenames: false the script
-  # would receive no arguments, iterate nothing, and pass forever.
-  entry: bash meta/scripts/check_shell_coverage.sh
-  language: system
-  files: \.sh$
-```
-
-Or let `sed` do the indenting — copy the block above into `/tmp/hook.yaml`,
-then `sed 's/^/      /' /tmp/hook.yaml` and paste that output.
-
-**Do NOT copy `pass_filenames: false` from the neighbouring `file-length-cap`
-hook.** That hook uses it because it runs `--all`; this one is driven by
-`files:`. With `pass_filenames: false` the script gets zero arguments,
-`report_uncovered "$@"` iterates nothing, and the gate exits 0 forever — a
-dead gate that looks green in every test you would naturally run.
-
-### Verification already done (2026-08-21) — do not redo
-
-The script's own behaviour is measured; only the YAML wiring is outstanding.
-
-| Case                                  | Command                                                         | Result                                          |
-| ------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
-| Unrelated entry script must not block | `check_shell_coverage.sh meta/scripts/check_file_length.sh`     | exit **0**                                      |
-| New untested lib must block           | canary `linux_configuration/scripts/lib/_ratchet_canary_tmp.sh` | exit **1**, names the needed `tests/run_all.sh` |
-| Batch, all covered                    | 3 covered files in one call                                     | exit **0**                                      |
-| Batch, 3rd of 4 uncovered             | canary in the middle of a batch                                 | exit **1**                                      |
-| A `lib/tests/` harness must not block | `check_shell_coverage.sh <a lib/tests/*.sh>`                    | exit **0** — script self-filters                |
-
-That last row is why the block needs **no `exclude:`**. `files: \.sh$` does
-match `lib/tests/` and `lib/payloads/` files, but the script filters them
-itself, so the gate cannot block its own test suites.
-
-The batch cases matter because pre-commit passes many filenames per
-invocation; a loop that only inspected `$1` would have passed silently.
-
-After pasting, confirm the wiring end-to-end:
-
-```bash
-pre-commit run shell-coverage-ratchet --all-files   # expect pass (106 exempt)
-grep -n "shell-coverage-ratchet" .pre-commit-config.yaml
-```
-
-The `grep` is not redundant — an autoformat pass silently stripped
-load-bearing lines three times during Phase 1. Check after the commit lands,
-not before.
-
-**Do not run `--seed` after adding an untested library** — it would rewrite the
-allowlist and silently exempt it. The list is shrink-only, and `--seed` now
-enforces that by exiting 1 rather than adding an entry.
-
-## Chipping away at the allowlist — 115 → 106, one batch done
-
-198 in-scope libraries: **106 exempt, 92 covered**. `scripts/lib` (9) was
-cleared on 2026-08-21 (commit `d42d8ff2`); the remaining concentration is
-`single_use/features/lib` (45), `single_use/fixes/lib` (22),
-`phone_focus_mode/lib` (9). Adding one `tests/run_all.sh` to a directory
-enforces every file in it at once, so expect the work to arrive in batches
-rather than one file at a time.
-
-**What the first batch cost, as a calibration point:** 139 assertions across
-four suites for nine libraries, and the pattern held — the decision logic was
-richly testable, the effecting code was not touched at all. The mtk toolkit
-was unusually cheap because `mtk_common.sh` already had a deliberate
-`MTK_ROOT_FIXTURE` seam; a directory without one will cost more.
-
-**Mutation-test before you reseed.** `is_covered()` only checks that
-`tests/run_all.sh` exists, so an empty file removes entries from the allowlist
-while testing nothing, and no downstream gate can tell. Mutate each rule the
-suite claims to protect and require the suite to go red. One of the four
-mutations here initially **survived**: dropping `10#$` from `is_hour_in_range`
-makes bash abort with "value too great for base", a non-zero exit that an
-exit-status-only assertion cannot distinguish from an honest out-of-range
-result. Assert on stderr when a mutation's failure mode is an arithmetic or
-syntax abort.
-
-**Two isolation traps found in `scripts/lib`**, both likely elsewhere:
-`android.sh` runs `ensure_dir "$ANDROID_WORK_DIR"` at _source_ time, so merely
-sourcing it writes under `$HOME` — redirect `HOME` to a tmpdir first.
-`mtk_common.sh` declares `readonly` patterns and sources three siblings at its
-bottom, so sourcing it twice in one shell aborts under `set -e`; run one suite
-per process, which `run_all.sh` already does by invoking `"$t"` directly.
-
-Anything time-, host- or device-dependent becomes a **push-blocking flake**,
-since these suites run in `shell-tests.yml` _and_ on every pre-push via
-`ci-mirror`. Shim the clock, point `MTK_ROOT_CACHE` at a tmpdir, and assert
-`/proc/uptime` readers on shape rather than value.
-
-**`--seed` is shrink-only and now enforces it** — it exits 1 rather than adding
-an entry, so you cannot exempt a new library by reseeding. It reads tracked
-files only, so stage before trusting its output.
-
-## Phase 4 (later): a percentage bar on top of the ratchet
-
-The namespace-jail evidence above is the load-bearing input. The technique
-works and is contained; what is unmeasured is whether it generalises to `lib/`
-files rather than entry scripts, and what per-file mount analysis costs at
-scale. The `pacman_wrapper.sh` result names the dominant failure mode: masking
-`/usr/local/bin` makes the wrapper take its "libraries missing → exec pacman
-unwrapped" escape hatch at lines 44-45 and exit before doing any real work, so
-coverage collapses from 75% to 29%. Measure a handful of `lib/` files through
-`jail_run.sh` before proposing any number.
+Because the gate arms last, it never freezes the repo — there is nothing left
+to block by the time it turns on. That ordering is what makes this safe.
 
 ## What is already true (verify, do not redo)
 
 ```bash
-bash meta/scripts/check_file_length.sh --all   # "all checked files are within 250 lines"
-bash meta/scripts/check_ci_green.sh            # exit 0 while main is green
-gh run list --limit 5
+git log --oneline -5          # bca70b67, 61ff5eac, b7523d16, 0e843c2a on main
+bash meta/scripts/check_file_length.sh --all          # all within 250 lines
+grep -vc '^#\|^$' meta/shell-coverage-allowlist.txt   # 105
 ```
 
-- **Every file is under 250 lines.** The five deployment-trap files were split:
-  `install_leechblock.sh` (485→119), `block_compulsive_opening.sh` (705→182),
-  `setup_night_lockdown.sh` (918→127), `pacman_wrapper.sh` (929→217),
-  `setup_midnight_shutdown.sh` (1734→109), plus `_glyph_art.py` (253→208).
-- **`file-length-cap`** runs `check_file_length.sh --all` on every commit.
-- **`ci-baseline-green`** refuses to commit onto a red `main` (fails closed on
-  red, warns and passes when it cannot tell). Bypass: `CI_GREEN_SKIP=1`.
-- **`ci-mirror`** on pre-push now also runs every `*/lib/tests/run_all.sh` and
-  the side-effect-free half of `shell-tests.yml`.
-- **`shell-tests.yml`** discovers and runs every `*/lib/tests/run_all.sh`. Four
-  such suites existed before and none of them ran in CI until this was added.
+- **`meta/scripts/shell_coverage_jail.sh`** measures a script's coverage while
+  it runs **for real** inside a user+mount namespace. This is the campaign's
+  core tool. **100% needs NO source changes and NO suppressions.**
+- **`meta/scripts/check_shell_coverage.sh`** now enforces a **measured 100%
+  bar** (it was a presence check that an empty suite could satisfy). It is
+  **deliberately NOT wired into any hook yet.**
+- **jscpd was already over its own 2% threshold at 2.45%** and would have
+  rejected every commit staging a `.sh` file. Vendored `.venv/` shell alone
+  accounted for it (2.50% -> 1.67%); `lib/tests/` is also excluded now (1.47%).
+- **5 commits are unpushed.** Push them when convenient.
 
-## Measuring the scale — use `git ls-files`, not `find`
+### Measured so far
+
+| lib                       | coverage                                     |
+| ------------------------- | -------------------------------------------- |
+| `dot_resolver_install.sh` | **39/39 = 100.00%** (off the allowlist)      |
+| `nc_php.sh`               | 84/85 = 98.82% (still exempt)                |
+| `rpi_nc_install.sh`       | 10/88 = 11.36% — **MIS-MEASURED, see below** |
+
+Suites are green: **28 + 30 + 29 = 87 assertions, 0 failures.**
+
+## Start here
+
+The hardest remaining, scored on root ops + system writes + destructive calls.
+**44 of the 105 allowlisted libs sit in `features/lib/`, where a harness
+already exists** — that directory is the cheapest place to keep going.
+
+```
+score  lines  file
+   53    221  linux_configuration/scripts/single_use/features/lib/dwm_config.sh
+   51    241  linux_configuration/scripts/single_use/features/lib/aw_autostart.sh
+   51    179  linux_configuration/scripts/single_use/features/lib/rpi_nc_ca.sh
+   50     92  linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_deps.sh
+```
+
+### The invocation that works
 
 ```bash
-git ls-files '*.sh' | wc -l                          # 560 tracked
-git ls-files '*/lib/tests/run_all.sh'                # 5 suites
-bash meta/scripts/check_shell_coverage.sh --all      # 106 uncovered, 106 exempt
+bash meta/scripts/shell_coverage_jail.sh \
+  --subject linux_configuration/scripts/single_use/features/lib/tests/run_all.sh \
+  --bind /etc --bind /usr/local/bin --bind /var --bind /root \
+  --seed-dir /var/www/nextcloud --seed-dir /var/lib \
+  --seed-dir /etc/php/8.2/apache2 --seed-dir /etc/php/8.2/mods-available \
+  --seed-dir /etc/apache2/sites-available \
+  --seed-file /etc/php/8.2/apache2/php.ini \
+  --measure <lib>.sh --min 100 --timeout 90s -- ""
 ```
 
-A bare `find` reports 565 `.sh` files because it walks `.venv/`,
-`.ci-mirror-venv/` and `node_modules/`. The earlier "roughly 487" figure in
-this file came from an unfiltered walk of a different tree state. Seeding an
-allowlist from an unfiltered `find` would bake vendored venv scripts into a
-tracked file, and `check_file_length.sh --all` passing would not reveal it,
-because that script carries its own separate exclusion list.
+`--bind` what a subject **writes**; **never** bind what it **reads**. Binding
+`/usr/local/bin` cut `pacman_wrapper.sh` from 75.00% to 28.95%, because it
+sources its sibling libs from there. **Never `--bind /tmp`** — the jail's own
+working dir lives there and the run dies with "cases: No such file".
 
-## What Phase 1 measured — why the bar is presence, not a percentage
+## THE OPEN PROBLEM — read before trusting any number
 
-Coverage of the new libs, measured with
-`bash meta/scripts/shell_coverage.sh <lib/tests/run_all.sh> <lib-basename> 0`:
+**kcov mis-measures `rpi_nc_install.sh`.** It reports 10/88 = 11.36%,
+recording lines 13-54 and nothing after — but the code past line 54 provably
+runs: `/root/.nextcloud_db_password` and
+`/etc/apache2/sites-available/nextcloud.conf` both exist after a run, and all
+29 assertions pass.
 
-| lib                                                       | coverage       | what is uncovered                                |
-| --------------------------------------------------------- | -------------- | ------------------------------------------------ |
-| `cco_state.sh`                                            | 93.94% (62/66) | only `kill_app`'s two `pkill` lines              |
-| `leechblock_fetch.sh`                                     | 38.57% (27/70) | `download_extension`: curl/tar/unzip             |
-| `leechblock_browsers.sh`                                  | 36.47% (31/85) | `replace_browser_in_place`: sudo binary patching |
-| `cco_wrapper/install/report`, `leechblock_config/firefox` | 0%             | every function pkills, sudo-writes or installs   |
+Three hypotheses were each tested against a minimal reproduction and
+**DISPROVEN** — do not retry them:
 
-**The pattern: the decision logic reaches ~90%+, the effecting code reaches 0%.**
-A 100% bar means shimming `sudo`, `pkill`, `systemctl`, `curl` and `npm` for
-every installer in the repo. That is the real cost to put in front of the user.
+1. kcov traces correctly **past a heredoc**.
+2. kcov traces correctly **into a `$(...)` command substitution**.
+3. kcov traces correctly **past a heredoc-fed stub reading stdin via `$(cat)`**.
 
-## The harness that works — extend it, do not clone it
+The cause is unknown. **This is a hole in the campaign's primary instrument.**
+The other two libs in the same directory measure sensibly, so it is not
+universal, but nobody has bounded which subjects it affects. If a suite's
+assertions pass while its percentage looks absurd, suspect this before
+suspecting the tests. **Never "fix" a number by weakening a test.**
 
-`linux_configuration/scripts/periodic_background/digital_wellbeing/lib/tests/`
-holds `leechblock_harness.sh` and `cco_harness.sh` plus a `run_all.sh` whose
-glob is `test_*.sh`. **One harness per directory, not per file** — `jscpd`
-fails above 2% duplication and five near-identical harnesses is exactly how
-that trips.
+## Traps that cost real time — all still live
 
-Two patterns worth copying:
-
-- **`_t_isolate_path`** narrows `PATH` to a shim dir. It is the only way to
-  make `command -v jq` or `command -v chromium` fail on a machine that has
-  them. **Every external the code under test calls must be seeded into that
-  dir** — a missing `mkdir` aborted the suite under `set -e` with _no stderr_,
-  which under kcov looked like a coverage-tool bug for twenty minutes.
-- **A fixture self-check.** `cco_harness.sh` asserts its own globals are
-  populated and calls `notify` for real. This is not linter appeasement: it is
-  what turns "a typo in a global name" from a silent skipped assertion into a
-  loud failure, and it happens to satisfy SC2034 honestly.
-
-## Traps that cost real time in Phase 1 — all still live
-
-- **`shfmt -w` corrupts `[hyphenated-keys]` in associative arrays**, turning
-  `${BROWSERS[google-chrome-stable]}` into a subtraction expression. **Quote the
-  subscripts.** Reproduced live in a test file during this campaign. Canary:
-  `grep -nE '\[[a-z0-9]+ - ' <file>` must be empty after every `shfmt` and
-  every `pre-commit run`.
-- **A comment line starting with `# shellcheck` is parsed as a directive** and
-  fails with SC1072/SC1073. Write "the linter", not "shellcheck", at the start
-  of a comment line.
-- **`verify_shell_split.sh` cannot see heredocs.** In
-  `setup_midnight_shutdown.sh` it reported a bare `-log`, because `log()` sits
-  at column 0 _inside a generated script_. For any file that emits scripts,
-  the real check is **hashing the emitted content**, not the function list.
-- **New sourced libs need a shebang AND the exec bit**, staged with
-  `git add --chmod=+x`. A plain `git add` afterwards resets it. Payload files
-  under `lib/payloads/` are `100755` too — the shebang hook rejects `100644`.
-- **`gh` and `git push` race.** Several pushes failed with "cannot lock ref";
-  `git fetch` then re-push. Not a divergence.
-
-## Known-broken, NOT caused by the campaign
-
-**`Python tests` has been failing since 2026-08-17** — before any of this work.
-The cause is `pip` hitting `error: resolution-too-deep` while installing
-`meta/requirements.txt`, on commits that touch no Python at all. It needs
-dependency pinning, and it is why `python-tests.yml` is deliberately **not** in
-`check_ci_green.sh`'s required list. Worth fixing on its own; do not fold it
-into Phase 3.
+- **Check assertion RESULTS, not just the coverage percentage.** The committed
+  `nc_php` suite shipped **2 failing assertions** because an earlier session
+  measured coverage and never read the output. Both were test bugs: the cron
+  entry arrives on `crontab`'s **stdin**, not argv, and `configure_mariadb`'s
+  stdout is eaten by `db_password=$(...)`. Run the suite and read it.
+- **A top-level stub function SHADOWS the subject's own function** for every
+  later assertion. Doing this for a phase-order test dropped coverage
+  83.53% -> 57.65% **while the tests still reported passing**, because they
+  were exercising the stubs. Put such redefinitions in a **subshell**.
+- **A stub for a piped-into command must drain stdin**, or the writer takes
+  SIGPIPE and the suite aborts under `set -e`. If its output feeds `grep -v`,
+  it must also **emit a line** — `grep` exits 1 on no match and `pipefail`
+  propagates that.
+- **A stub must materialise what the real tool creates.** `rm -rf
+/var/www/nextcloud` followed by a record-only `unzip` leaves the later `cd`
+  with nothing to enter; the function returns 1 and `set -e` aborts the suite
+  from inside a command substitution **with no stderr at all**.
+- **`sudo` cannot work inside a userns** (`setresuid` -> EINVAL). The jail
+  supplies a pass-through that drops flags and `exec`s. Do not add `sudo` to
+  `DEFAULT_SHIMS` — recording-and-exiting would skip the very writes the
+  suites exist to assert on.
+- **The jail needs its own `passwd`/`group`/`nsswitch`**, or `id -u "$USER"`
+  fails and aborts the subject under `set -e` before anything interesting.
+- **`--map-root-user` alone does not grant `/etc` writes.** `CAP_DAC_OVERRIDE`
+  in a userns only covers files whose owner uid is mapped in; the bind-mount
+  over the write target is what makes the write land.
+- **`shfmt` (run by the pre-commit hook) reformats and can push a file over
+  the 250-line cap** _after_ your own check passed. It also rewrites `case`
+  arms onto separate lines, so exact-match patches written against the old
+  layout silently fail to apply. Re-check the cap after staging.
+- **Commits exceed a 2-minute foreground timeout.** Run `git commit` with
+  `run_in_background: true` and read the output file.
+- **Two-strike rule.** Two failed attempts at the same line -> stop, document
+  it, keep the working state. `nc_php.sh` line 111 (the `crontab -l ||`
+  first-run fallback) hung the suite twice and is deliberately left uncovered.
 
 ## Rules that will bite you
 
-- **No suppressions, ever.** No `# noqa`, no `shellcheck disable`, no
-  per-file-ignore without asking every single time.
+- **No suppressions, ever.** SC2155 and SC2016 were both fixed at the source
+  rather than disabled; do the same.
 - **Every commit touching code needs evidence** in
-  `docs/superpowers/evidence/<slug>-<date>.json`, **plus a contract** in
-  `docs/superpowers/contracts/` once ≥4 code files are staged. Put the
-  **measured** number in it, never a rounded or hoped-for one.
-- **A test file broken by your commit is a same-session bug.** Three were
-  broken this way in Phase 1 (`security_apps.sh`, `test_shutdown_timer_monitor.sh`,
-  and the pacman pair) — each asserted on code a split had moved. Fix the
-  assertion to search the entry script _and_ its libs; do not weaken it.
-- `pre-commit run --files <changed>` **after** `git add`. `prettier` and
-  `ci-mirror` run on **pre-push**. `npx prettier --write` any `.md`/`.json`.
+  `docs/superpowers/evidence/<slug>-<date>.json` (schema: `intent`, `scope`,
+  `changes[]`, `verification[]` each with `command`/`result`/**`evidence`**,
+  `risks[]`, `rollback[]` — validate with
+  `python3 meta/scripts/validate_evidence.py <file>`), **plus a contract** in
+  `docs/superpowers/contracts/` once **>=4 code files** are staged.
+- **Put the MEASURED number in it**, never a rounded or hoped-for one.
+- **Stage narrowly.** Pre-commit hooks restage files; a `git add` of one path
+  once swept four unrelated files from a _concurrent session_ into a commit.
+  Check `git diff --cached --name-only` before committing.
+- **New test files need the exec bit**: `git add --chmod=+x`.
 - Work directly on `main`. `git stash` and branch creation are blocked.
-- **Verify what actually got committed.** Re-grep the file after committing;
-  an autoformat pass stripped a load-bearing variable definition three times in
-  Phase 1, once landing a `set -u` abort in `setup_night_lockdown.sh` that had
-  to be fixed in a follow-up commit.
+- **Another Claude session may be working in this repo simultaneously.** One
+  was on 2026-08-21/22. Check `git log` for commits you did not make before
+  assuming the tree is yours.
+
+## Not caused by this campaign
+
+**`Python tests` CI has been failing since 2026-08-17** — `pip` hits
+`error: resolution-too-deep` installing `meta/requirements.txt`, on commits
+touching no Python. It needs dependency pinning, and is why `python-tests.yml`
+is deliberately **not** in `check_ci_green.sh`'s required list. Worth fixing on
+its own; do not fold it into Phase 3.
+
+**The 2026-08-22 11:33 hard freeze was investigated and cleared.** No OOM, no
+hung task, no kernel message after 11:20; this campaign was idle at the time
+and left no residue. Steam crash-dumped two minutes prior on an RTX 3090.
+Correlation only — a hard hang leaves no log — but the jail was ruled out. Each
+jail case is now bounded by `timeout --kill-after=10s` with stdin closed.
+
+## When the allowlist reaches zero
+
+Only then, wire `check_shell_coverage.sh` into **pre-commit, pre-push and CI**
+(all three — that was the answer). Hook mode costs **0.42s per file**, so a
+normal commit stays sub-second; a full `--all` sweep is minutes and belongs in
+CI.
