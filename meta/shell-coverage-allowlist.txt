@@ -35,7 +35,6 @@ linux_configuration/scripts/single_use/features/lib/aw_service.sh
 linux_configuration/scripts/single_use/features/lib/dns_dhcp.sh
 linux_configuration/scripts/single_use/features/lib/dns_firewall.sh
 linux_configuration/scripts/single_use/features/lib/dns_units.sh
-linux_configuration/scripts/single_use/features/lib/dot_resolver_install.sh
 linux_configuration/scripts/single_use/features/lib/dwm_config.sh
 linux_configuration/scripts/single_use/features/lib/gitea_network.sh
 linux_configuration/scripts/single_use/features/lib/kcd2_autorebuild.sh

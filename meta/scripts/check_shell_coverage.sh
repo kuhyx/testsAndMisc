@@ -72,10 +72,9 @@ is_shell_lib() {
 }
 
 # A lib is covered when a run_all.sh sits in its directory's tests/ subdir.
-is_covered() {
-	local path="$1"
-	[[ -f "$(dirname "$path")/tests/run_all.sh" ]]
-}
+# The bar itself lives in lib/shell_coverage_bar.sh (250-line cap).
+# shellcheck source=./lib/shell_coverage_bar.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/shell_coverage_bar.sh"
 
 collect_libs() {
 	git -C "$REPO_ROOT" ls-files '*.sh'
@@ -165,17 +164,18 @@ check_files() {
 	done < <(report_uncovered "$@")
 
 	if ((${#offenders[@]} == 0)); then
-		echo "$SCRIPT_NAME: every checked shell library has a test suite"
+		echo "$SCRIPT_NAME: every checked shell library meets the coverage bar"
 		return 0
 	fi
 
-	echo "$SCRIPT_NAME: ${#offenders[@]} shell librar(ies) without a test suite:" >&2
+	echo "$SCRIPT_NAME: ${#offenders[@]} shell librar(ies) below the coverage bar:" >&2
 	for path in "${offenders[@]}"; do
 		printf '  %s\n' "$path" >&2
 		printf '    needs: %s/tests/run_all.sh\n' "$(dirname "$path")" >&2
 	done
 	echo >&2
-	echo "  A shell library must ship with a suite that sources it. Extend" >&2
+	echo "  A shell library must ship with a suite that drives it to
+  ${COVERAGE_BAR}% line coverage. Extend" >&2
 	echo "  the nearest existing tests/ directory rather than cloning a" >&2
 	echo "  harness -- jscpd fails above 2% duplication." >&2
 	return 1

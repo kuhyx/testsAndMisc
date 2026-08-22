@@ -1,0 +1,21 @@
+{
+  "title": "Convert the shell-coverage ratchet to a measured 100% bar and land the first library under it",
+  "objective": "Replace the presence-based shell-coverage check with the user's chosen 100% line-coverage bar, promote the proven namespace-jail runner out of a session scratchpad into meta/scripts/, unblock the jscpd duplication gate that would otherwise reject every commit staging a .sh file, and prove the new bar on the hardest library in the repo.",
+  "acceptance_criteria": [
+    "meta/scripts/shell_coverage_jail.sh reproduces 38/38 = 100.00% on setup_night_lockdown.sh, the result previously obtained only by a scratchpad prototype.",
+    "dot_resolver_install.sh reaches 39/39 = 100.00% through its new suite, with 28 assertions passing and zero failing.",
+    "check_shell_coverage.sh exits 0 for a library that meets the bar and exits 1 for a non-exempt library that does not; both verified after the 250-line split.",
+    "jscpd with the pre-commit hook's exact arguments reports under the 2% threshold (was 2.45%).",
+    "shellcheck is clean on every new and modified shell file, with no suppression added anywhere -- SC2155 and SC2016 fixed at the source.",
+    "bash meta/scripts/check_file_length.sh --all reports every file within 250 lines.",
+    "The jail's escape assertion fails the run when a subject writes outside it, and the real /etc is unmodified after every run.",
+    "dot_resolver_install.sh leaves the allowlist, which shrinks 106 -> 105 and never grows."
+  ],
+  "out_of_scope": [
+    "Wiring the gate into the pre-commit, pre-push or CI chain; nothing enforces the bar yet, and that is a deliberate separate step.",
+    "Touching the concurrent session's commits (7845ddfe..3338033c) or reverting its files; the user instructed that its work be left alone, so it is converted in place rather than removed.",
+    "Modifying any production shell script. The jail reaches 100% with zero source changes, which is the entire point of using it.",
+    "Bringing the remaining 105 allowlisted libraries to the bar."
+  ],
+  "verifier": "bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/features/lib/tests/run_all.sh --bind /etc --bind /usr/local/bin --bind /var/lib --measure dot_resolver_install.sh --min 100 -- \"\" (expects 39/39 = 100.00%), plus bash meta/scripts/check_shell_coverage.sh on a covered and an uncovered library (expects exit 0 then exit 1), plus bash meta/scripts/check_file_length.sh --all, plus shellcheck on the staged shell files."
+}
