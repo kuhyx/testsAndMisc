@@ -1,7 +1,7 @@
 # kcov under-reports shell coverage: two distinct defects
 
 > **RESOLVED 2026-08-22.** Both defects are fixed; the instrument now
-> corrects for them and the numbers below are the *historical* readings that
+> corrects for them and the numbers below are the _historical_ readings that
 > motivated the work. Kept because the disproven hypotheses are still worth
 > not retrying, and because the two root causes are the kind that silently
 > come back. What the fix does, and the three findings that make it work, is
@@ -110,15 +110,15 @@ failure and not an aborted suite.
 The instrument now runs **two passes over the same cases, in two fresh
 namespaces**, and combines them:
 
-* **denominator** = kcov's instrumentable line set, minus continuation lines
+- **denominator** = kcov's instrumentable line set, minus continuation lines
   of multi-line quoted arguments (defect (a), detected by tracking quote
   state across the file in `meta/scripts/lib/shell_coverage_lines.py`);
-* **numerator** = (PS4-traced lines ∪ kcov's own hits) ∩ denominator
+- **numerator** = (PS4-traced lines ∪ kcov's own hits) ∩ denominator
   (defect (b)).
 
 The trace cannot supply the denominator. A trace only ever reports lines that
-*ran*, so using it for both halves would make every subject 100.00% and gate
-on nothing. kcov's line set is what keeps the gate meaningful; kcov's *hits*
+_ran_, so using it for both halves would make every subject 100.00% and gate
+on nothing. kcov's line set is what keeps the gate meaningful; kcov's _hits_
 are what could not be trusted.
 
 ### Three findings, each of which silently produces a WRONG trace
@@ -127,14 +127,14 @@ are what could not be trusted.
    every line kcov had recorded as `hits="1"` comes back `hits="0"` —
    reproduced minimally, A/B, on the same subject. Hence two passes.
 2. **`SHELLOPTS` is a readonly variable inside bash.** `export
-   SHELLOPTS=xtrace` fails with "readonly variable" and tracing never turns
-   on. It only works placed in the environment *of* the process.
+SHELLOPTS=xtrace` fails with "readonly variable" and tracing never turns
+   on. It only works placed in the environment _of_ the process.
 3. **Decisive: bash under `unshare --user --map-root-user` runs in PRIVILEGED
    mode and DISCARDS an inherited `PS4`**, falling back to the default `+ `,
    while still honouring `SHELLOPTS=xtrace` and `BASH_XTRACEFD`. The trace
    then carries no `file:line` prefix at all, so every subject reads as 0%
    covered. This is why the trace is delivered through a **`BASH_ENV` file**
-   that assigns `PS4` and runs `set -x` from *inside* each shell — which also
+   that assigns `PS4` and runs `set -x` from _inside_ each shell — which also
    solves propagation into child processes, since `set -x` does not inherit.
 
 A fourth trap, in the report rather than the jail: **kcov records
@@ -144,15 +144,15 @@ a repo search; an ambiguous basename yields no exclusion rather than a guess.
 
 ### Measured effect, all through `run_all.sh`
 
-| lib | before | after |
-| --- | --- | --- |
+| lib                       | before          | after                        |
+| ------------------------- | --------------- | ---------------------------- |
 | `dot_resolver_install.sh` | 39/39 = 100.00% | 39/39 = 100.00% (acceptance) |
-| `rpi_nc_ca.sh` | 72/73 = 98.63% | **73/73 = 100.00%** |
-| `dwm_config.sh` | 35/73 = 47.95% | **65/66 = 98.48%** |
-| `rpi_nc_install.sh` | 10/88 = 11.36% | **85/88 = 96.59%** |
+| `rpi_nc_ca.sh`            | 72/73 = 98.63%  | **73/73 = 100.00%**          |
+| `dwm_config.sh`           | 35/73 = 47.95%  | **65/66 = 98.48%**           |
+| `rpi_nc_install.sh`       | 10/88 = 11.36%  | **85/88 = 96.59%**           |
 
 `rpi_nc_ca.sh` reaching 100.00% is the load-bearing check: its missing line
-141 was the *cross-process contagion* described above, and the trace pass has
+141 was the _cross-process contagion_ described above, and the trace pass has
 no kcov in it to be contaminated. Nothing went down.
 
 `dwm_config.sh`'s remaining uncovered line 39 is a `done < <(...)` process
@@ -172,21 +172,21 @@ outside kcov's line set (ran, but counted in neither half): 68, 70, 73, ...
 
 Measured across every lib with a harness, these fall into two classes:
 
-* **Not statements, correctly absent.** `dwm_config.sh:27` (`heal_config() {`,
+- **Not statements, correctly absent.** `dwm_config.sh:27` (`heal_config() {`,
   a function declaration), `transcribe_deps.sh:9` (a one-line function
   declaration), `clean_audio_filters.sh:197,200` (`((running++))`).
-* **Ordinary statements, wrongly absent.** `aw_autostart.sh` lines 68, 70, 73,
+- **Ordinary statements, wrongly absent.** `aw_autostart.sh` lines 68, 70, 73,
   79-81, 83-84, 87-88, 94 — plain `echo`, `local`, `if [[ ... ]]`, `sudo -u
-  ... mkdir` and a `cat >` heredoc. The trigger is a `{ ... } >>"$file"`
+... mkdir` and a `cat >` heredoc. The trigger is a `{ ... } >>"$file"`
   command group with a redirection at lines 61-65: kcov lists nothing after it
   in that function.
 
 **This cannot inflate a percentage, and cannot hide an untested line.** A line
-only reaches that list *because the trace saw it run*. Folding all 11 of
+only reaches that list _because the trace saw it run_. Folding all 11 of
 `aw_autostart.sh`'s into both halves moves it from 80/82 = 97.56% to
 91/93 = 97.85% — up, not down. The direction is structural: an off-set line is
-by construction an executed line, so it can only ever be a missing *covered*
-line, never a missing *uncovered* one.
+by construction an executed line, so it can only ever be a missing _covered_
+line, never a missing _uncovered_ one.
 
 What it does mean is that a subject with off-set lines is measured over a
 SUBSET of its statements. The percentage is honest about the subset; it is not
