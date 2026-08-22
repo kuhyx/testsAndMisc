@@ -127,6 +127,30 @@ run_gates_in_clean_worktree() {
 # The Arch-container half of that workflow is deliberately NOT mirrored: it
 # needs an Arch userland running as root to touch /etc, which is what the
 # disposable container provides and a developer machine must not.
+# A suite that writes to real system paths declares it with a `jail_args` file
+# beside its run_all.sh, holding the --bind/--seed-* flags it needs. Such a
+# suite REFUSES to run bare -- that guard is what stops a test run from
+# rewriting the developer's own /etc -- so invoking it directly fails the gate.
+#
+# Fails closed: a marker present but empty is a mistake, not a licence to skip.
+run_jailed_suite() {
+	local runner="$1"
+	local args_file="$CHECKOUT/${runner%/run_all.sh}/jail_args"
+
+	local jail_args=()
+	while IFS= read -r arg; do
+		jail_args+=("$arg")
+	done < <(grep -v '^#\|^$' "$args_file" || true)
+
+	if [[ ${#jail_args[@]} -eq 0 ]]; then
+		fail "jail_args is present but empty: $args_file"
+	fi
+
+	(cd "$CHECKOUT" && bash meta/scripts/shell_coverage_jail.sh \
+		--subject "$runner" "${jail_args[@]}" -- "" >/dev/null) ||
+		fail "jailed lib/tests suite failed: $runner"
+}
+
 run_shell_test_gate() {
 	log "lib/tests suites (mirrors the shell-tests workflow)"
 	local runners=()
@@ -141,8 +165,12 @@ run_shell_test_gate() {
 
 	local runner
 	for runner in "${runners[@]}"; do
-		(cd "$CHECKOUT" && "$runner" >/dev/null) ||
-			fail "lib/tests suite failed: $runner"
+		if [[ -f "$CHECKOUT/${runner%/run_all.sh}/jail_args" ]]; then
+			run_jailed_suite "$runner"
+		else
+			(cd "$CHECKOUT" && "$runner" >/dev/null) ||
+				fail "lib/tests suite failed: $runner"
+		fi
 	done
 
 	log "side-effect-free shell tests (mirrors the shell-tests workflow)"

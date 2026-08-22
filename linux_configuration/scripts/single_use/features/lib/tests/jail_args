@@ -1,0 +1,35 @@
+# Presence of this file next to run_all.sh declares: this suite executes its
+# subjects FOR REAL (root writes to /etc, /var, /usr/local/bin) and MUST run
+# inside shell_coverage_jail.sh. Running it bare is refused by the suite
+# itself; both ci_mirror.sh and shell-tests.yml read this file and wrap the
+# runner instead of invoking it directly.
+#
+# One shell-word per line, blank lines and #-comments ignored. These are the
+# jail flags only -- --subject and the trailing cases are supplied by the
+# caller.
+#
+# --bind what the subject WRITES; never what it READS (binding /usr/local/bin
+# for a subject that sources siblings from there cut a measurement 75% -> 29%).
+# Never --bind /tmp: the jail's own working dir lives there.
+--bind
+/etc
+--bind
+/usr/local/bin
+--bind
+/var
+--bind
+/root
+--seed-dir
+/var/www/nextcloud
+--seed-dir
+/var/lib
+--seed-dir
+/etc/php/8.2/apache2
+--seed-dir
+/etc/php/8.2/mods-available
+--seed-dir
+/etc/apache2/sites-available
+--seed-file
+/etc/php/8.2/apache2/php.ini
+--timeout
+90s

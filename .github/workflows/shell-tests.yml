@@ -12,8 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
+      # kcov + unshare back shell_coverage_jail.sh, which the jail_args-marked
+      # lib/tests suites below run under. util-linux (unshare) is preinstalled;
+      # kcov is not.
+      - name: Install bats and kcov
+        run: sudo apt-get update && sudo apt-get install -y bats kcov
 
       - name: Run bats suites
         run: bats linux_configuration/tests/*.bats
@@ -69,7 +72,23 @@ jobs:
           failed=0
           for r in "${runners[@]}"; do
             printf '\n=== %s ===\n' "$r"
-            if "$r"; then
+            # A suite that writes to real system paths ships a `jail_args`
+            # file and REFUSES to run bare; run it through the namespace jail
+            # with the flags it declares. Empty marker = configuration error.
+            args_file="${r%/run_all.sh}/jail_args"
+            if [ -f "$args_file" ]; then
+              mapfile -t jail_args < <(grep -v '^#\|^$' "$args_file" || true)
+              if [ "${#jail_args[@]}" -eq 0 ]; then
+                printf 'FAIL %s (jail_args present but empty)\n' "$r"
+                failed=$((failed + 1))
+                continue
+              fi
+              cmd=(bash meta/scripts/shell_coverage_jail.sh \
+                --subject "$r" "${jail_args[@]}" -- "")
+            else
+              cmd=("$r")
+            fi
+            if "${cmd[@]}"; then
               printf 'PASS %s\n' "$r"
             else
               printf 'FAIL %s\n' "$r"
