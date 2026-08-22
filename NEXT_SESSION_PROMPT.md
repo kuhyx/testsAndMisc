@@ -48,7 +48,7 @@ hardest first.
 
 ## START HERE — re-measure the allowlist
 
-103 libs are allowlisted on numbers produced by a broken instrument. Sweep
+98 libs are allowlisted on numbers produced by a broken instrument. Sweep
 them with the fixed one before writing tests. The invocation:
 
 ```bash
@@ -103,12 +103,20 @@ All through `run_all.sh` on the fixed instrument. `fixes/lib` needs no
 | `clean_audio_filters.sh`       | 85/93 = 91.40%      | uncovered incl. 52-58     |
 | `transcribe_deps.sh`           | 48/52 = 92.31%      | uncovered: 19, 52, 53, 55 |
 
-**The seven at 100.00% are allowlist-removal candidates.** They were NOT
-removed this session: `fixes/lib`'s suites drive `watch_forever` timing loops,
-and a timing-dependent suite can vary its line set run to run (`dwm_config.sh`
-was seen to). Reproduce each at `--min 100` twice before editing
-`meta/shell-coverage-allowlist.txt`. A flaky 100% becomes a red CI job whose
-cause is invisible.
+**Five were CLEARED this session** (`83de41f4`): the pacman_hook_stall libs
+`capture`, `load`, `summary`, `usage` and `watch`. Each was measured twice,
+the second time gating at `--min 100`, then confirmed through the real
+`check_shell_coverage.sh` with no exemption — all exit 0. **Allowlist:
+103 -> 98.**
+
+`rpi_nc_ca.sh` and `dot_resolver_install.sh` are also at 100.00% and measured
+3x / 2x, but they live in `features/lib`, where 39 other libs are still
+allowlisted. Removing them is safe by the same standard whenever you want.
+
+The bar to reuse: **two matching runs, the second at `--min 100`, then the
+real gate.** `fixes/lib`'s suites drive `watch_forever` timing loops, and a
+timing-dependent suite can vary its line set run to run (`dwm_config.sh` was
+seen to). A flaky 100% becomes a red CI job whose cause is invisible.
 
 Allowlist entries are **static per-file lines**, verified: adding
 `fixes/lib/tests/run_all.sh` did NOT start failing the 16 untested libs in
