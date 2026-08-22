@@ -33,7 +33,10 @@ check_journal_size() {
 	journal_line=$(journalctl --disk-usage 2>/dev/null || true)
 	echo "Journal usage: ${journal_line:-unknown}" >>"$REPORT_FILE"
 
-	if [[ $journal_line =~ ([0-9]+\.?[0-9]*)\ (G|M) ]]; then
+	# The space before the unit is OPTIONAL: journalctl prints "305.5M in
+	# the file system", with no separator, so requiring one made this check
+	# dead code that could never report a large journal.
+	if [[ $journal_line =~ ([0-9]+\.?[0-9]*)\ ?(G|M) ]]; then
 		local value unit
 		value="${BASH_REMATCH[1]}"
 		unit="${BASH_REMATCH[2]}"
@@ -62,7 +65,8 @@ apply_safe_fixes() {
 
 	local journal_line
 	journal_line=$(journalctl --disk-usage 2>/dev/null || true)
-	if [[ $journal_line =~ ([0-9]+\.?[0-9]*)\ G ]]; then
+	# Optional space, as in check_journal_size above.
+	if [[ $journal_line =~ ([0-9]+\.?[0-9]*)\ ?G ]]; then
 		journalctl --vacuum-size=300M
 		add_action "Vacuumed systemd journal to 300M."
 	fi
