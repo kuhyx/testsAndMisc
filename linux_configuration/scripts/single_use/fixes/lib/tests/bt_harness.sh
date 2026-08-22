@@ -99,11 +99,43 @@ SUDO_BODY
 	_t_stub sudo "$sudo_body"
 }
 
-# _t_only_path — restrict PATH to $FAKE_BIN plus coreutils, so a tool absent
-# from $FAKE_BIN is genuinely "not installed" as far as has_cmd/command -v is
-# concerned. Used for the has_cmd false branches.
-_t_only_path() {
-	PATH="${FAKE_BIN}"
+# _t_hide TOOL... — make TOOL genuinely unfindable, so has_cmd/command -v
+# report it absent.
+#
+# A prepended stub dir cannot do this: every tool these libs probe for
+# (usbreset, pactl, wpctl) really exists on an Arch desktop, so PATH has to
+# stop resolving it. Dropping PATH to $FAKE_BIN alone is NOT the answer
+# either -- that also hides grep, head, awk and sort, which these libs use
+# on the very branch under test, turning a "not installed" case into a
+# cascade of "command not found".
+#
+# Instead a shim dir is built containing a symlink to every real executable
+# on PATH EXCEPT the hidden ones, and PATH is pointed at it.
+_t_hide() {
+	local hide_dir="${TEST_TMPDIR}/hidden_path"
+	rm -rf "$hide_dir"
+	mkdir -p "$hide_dir"
+
+	local -A hidden=()
+	local tool
+	for tool in "$@"; do
+		hidden["$tool"]=1
+	done
+
+	local dir entry name
+	local IFS=':'
+	for dir in ${LIB_TEST_ORIG_PATH}; do
+		[[ -d "$dir" ]] || continue
+		for entry in "$dir"/*; do
+			name="${entry##*/}"
+			[[ -n "${hidden[$name]:-}" ]] && continue
+			[[ -x "$entry" && ! -d "$entry" ]] || continue
+			[[ -e "${hide_dir}/${name}" ]] && continue
+			ln -s "$entry" "${hide_dir}/${name}" 2>/dev/null || true
+		done
+	done
+
+	PATH="${FAKE_BIN}:${hide_dir}"
 	hash -r
 }
 

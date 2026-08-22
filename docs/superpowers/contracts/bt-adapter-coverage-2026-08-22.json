@@ -1,0 +1,17 @@
+{
+  "title": "Test bt_adapter.sh, and record why its last line is unreachable",
+  "objective": "Cover the third of the sixteen untested fixes/lib libs. Unlike the first two this one does NOT come off the allowlist: it tops out at 98.55% because line 97 is the opening line of a backslash-continued statement, which kcov instruments but bash never attributes a statement to. The deliverable is therefore the tests plus a proven diagnosis, not a cleared entry.",
+  "acceptance_criteria": [
+    "bt_adapter.sh measures 98.55% (68/69) through lib/tests/run_all.sh, with line 97 the only uncovered line.",
+    "The claim that line 97 is unreachable is proven by a PS4 trace showing bash attributing the statement to line 100, not asserted.",
+    "bt_report.sh and bt_pairing.sh still measure 100.00% at --min 100 with exit 0, since both are now gated with no exemption.",
+    "The whole suite passes bare: run_all.sh reports all test files passing.",
+    "Every test file stays under the repo's 250-line cap, and pre-commit passes with no suppression added."
+  ],
+  "out_of_scope": [
+    "Removing bt_adapter.sh from meta/shell-coverage-allowlist.txt. It is not at 100%, so it does not meet the bar.",
+    "Changing continuation_lines() in meta/scripts/lib/shell_coverage_lines.py to recognise backslash continuations. That alters the denominator for every measured lib and must land on its own, so a regression can be reverted without losing these tests.",
+    "Reformatting bt_adapter.sh to collapse the multi-line dbus-send call. Production source is not rewritten to please the coverage tool."
+  ],
+  "verifier": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh (expects all files passing, 14 + 27 for the two bt_adapter files), plus bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure bt_adapter.sh --min 1 --fail-on-case-error -- \"\" (expects 68/69 = 98.55%, uncovered: 97), plus the same command with --measure bt_report.sh and --measure bt_pairing.sh at --min 100 (expects 37/37 and 65/65, exit 0)."
+}

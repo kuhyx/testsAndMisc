@@ -85,6 +85,27 @@ STUB_PREAMBLE
 	hash -r
 }
 
+# _t_stub_writes NAME ARGNUM CONTENT — stub NAME so it writes CONTENT to the
+# path in its ARGNUM-th argument, then succeeds.
+#
+# Exists because downloaders take their destination positionally
+# (`wget -q "$url" -O "$dest"` puts it in $4), and writing that stub body as a
+# quoted string means embedding a literal $4 the writer must not expand. The
+# argument number is passed as data instead, so no caller needs to quote a $.
+_t_stub_writes() {
+	local name="$1" argnum="$2" content="$3"
+	# The dollar that selects the positional argument is assembled from a
+	# character rather than written literally, so nothing in this file is a
+	# quoted expression that only looks like it should expand.
+	local dollar
+	dollar="$(printf '\044')"
+	local body
+	body="printf %s '${content}' >\"${dollar}{${argnum}}\""
+	body+="
+exit 0"
+	_t_stub "$name" "$body"
+}
+
 # _t_unstub NAME... — remove stubs and drop bash's cached executable paths.
 #
 # `rm` alone does NOT hide a stub: bash caches the resolved location of every
