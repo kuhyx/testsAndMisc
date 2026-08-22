@@ -81,6 +81,41 @@ was wrong — 8 test files and 2 harnesses already existed; what was missing was
 all 8 test files pass through it. **16 of the 22 libs there still have no
 tests at all** — that is the largest remaining block of real test-writing work.
 
+## Already measured this session — do NOT redo these
+
+All through `run_all.sh` on the fixed instrument. `fixes/lib` needs no
+`jail_args`; the features libs use the one beside their `run_all.sh`.
+
+| lib                            | coverage            | note                      |
+| ------------------------------ | ------------------- | ------------------------- |
+| `rpi_nc_ca.sh`                 | **73/73 = 100.00%** | measured 3x, solid        |
+| `dot_resolver_install.sh`      | **39/39 = 100.00%** | acceptance baseline       |
+| `pacman_hook_stall_capture.sh` | **59/59 = 100.00%** | fixes/lib                 |
+| `pacman_hook_stall_load.sh`    | **25/25 = 100.00%** | fixes/lib                 |
+| `pacman_hook_stall_summary.sh` | **18/18 = 100.00%** | fixes/lib; off-set: 36    |
+| `pacman_hook_stall_watch.sh`   | **24/24 = 100.00%** | fixes/lib                 |
+| `pacman_hook_stall_usage.sh`   | **1/1 = 100.00%**   | body is one heredoc       |
+| `dwm_config.sh`                | 65/66 = 98.48%      | line 39 is `done < <(…)`  |
+| `pacman_hook_stall_setup.sh`   | 26/27 = 96.30%      | uncovered: 7              |
+| `aw_autostart.sh`              | 80/82 = 97.56%      | 11 off-set lines          |
+| `rpi_nc_install.sh`            | 85/88 = 96.59%      | uncovered: 70, 202, 216   |
+| `transcribe_pkgmgr.sh`         | 49/50 = 98.00%      | uncovered: 42             |
+| `clean_audio_filters.sh`       | 85/93 = 91.40%      | uncovered incl. 52-58     |
+| `transcribe_deps.sh`           | 48/52 = 92.31%      | uncovered: 19, 52, 53, 55 |
+
+**The seven at 100.00% are allowlist-removal candidates.** They were NOT
+removed this session: `fixes/lib`'s suites drive `watch_forever` timing loops,
+and a timing-dependent suite can vary its line set run to run (`dwm_config.sh`
+was seen to). Reproduce each at `--min 100` twice before editing
+`meta/shell-coverage-allowlist.txt`. A flaky 100% becomes a red CI job whose
+cause is invisible.
+
+Allowlist entries are **static per-file lines**, verified: adding
+`fixes/lib/tests/run_all.sh` did NOT start failing the 16 untested libs in
+that directory — `check_shell_coverage.sh <one of them>` still exits 0,
+because each is listed explicitly. The allowlist header's "every file in that
+directory is enforced" describes intent, not current mechanics.
+
 ## Two instrument bounds you must know
 
 **Defect (c): kcov's LINE SET is incomplete too.** The report now prints, per
@@ -122,6 +157,15 @@ reproduce — treat it as unverified.
   the 250-line cap after staging, and expect the pre-push prettier hook to
   reject markdown you hand-formatted.
 - **Commits and pushes exceed a 2-minute foreground timeout.** Background them.
+- **Never edit the working tree while a measurement runs.** The jail
+  fingerprints `git status --porcelain` before each case and aborts with
+  "the subject modified the working tree; a write escaped the jail" if it
+  changed. Editing an unrelated file mid-run produces that error and it is a
+  FALSE alarm — cost two runs this session, twice.
+- **A sweep's output file buffers.** `pgrep -f shell_coverage_jail` is the
+  liveness signal, not file growth. A measurement that has printed nothing for
+  minutes is usually still running; `fixes/lib`'s timing-loop suites take 30s+
+  per kcov pass.
 - **Two-strike rule.** Two failed attempts at the same thing -> stop, document,
   keep the working state.
 
