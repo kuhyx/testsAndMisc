@@ -33,8 +33,6 @@ validate_requirements() {
 	fi
 }
 
-
-
 install_plugins() {
 	run mkdir -p "$PLUGIN_INSTALL_DIR"
 	local src

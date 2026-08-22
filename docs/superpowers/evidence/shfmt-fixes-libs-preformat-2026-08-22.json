@@ -1,0 +1,43 @@
+{
+  "intent": "Normalize shfmt formatting of three fixes/lib shell libraries before writing tests against them, so that coverage denominators measured later are the ones that survive pre-commit.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/thorium_repairs.sh",
+    "linux_configuration/scripts/single_use/fixes/lib/hosts_guard_migrate.sh",
+    "linux_configuration/scripts/single_use/fixes/lib/arch_cpu.sh",
+    "Non-goal: any behavioural change; this is formatting only"
+  ],
+  "changes": [
+    "Ran shfmt -w on the three libs shfmt -l reported as drifted; thorium_repairs.sh converted from 2-space indent to tabs",
+    "Collapsed runs of three blank lines to one in arch_cpu.sh and hosts_guard_migrate.sh (shfmt's own normalization)"
+  ],
+  "verification": [
+    {
+      "command": "git diff -w -- arch_cpu.sh hosts_guard_migrate.sh",
+      "result": "pass",
+      "evidence": "Only blank-line collapsing (3 -> 1) appears; no token changed. thorium_repairs.sh is empty under -w, i.e. pure indent conversion."
+    },
+    {
+      "command": "shellcheck thorium_repairs.sh hosts_guard_migrate.sh arch_cpu.sh",
+      "result": "pass",
+      "evidence": "No findings, zero suppressions."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; ubuntu_perf_more: 24 passed, 0 failed. 20 test files green."
+    },
+    {
+      "command": "wc -l on all 8 target libs",
+      "result": "pass",
+      "evidence": "Post-format: thorium_repairs 179, hosts_guard_migrate 159, arch_cpu 124, ubuntu_perf_fixes 215, arch_hardware 202, nvidia_config 180, hosts_guard_rollback 141, arch_sysctl 122. All under the 250-line cap."
+    }
+  ],
+  "risks": [
+    "shfmt reformatting changes coverage denominators; doing it before any measurement is precisely what removes that risk for the upcoming test work",
+    "thorium_repairs.sh's indent change is large in diff terms (294 lines) despite being semantically inert"
+  ],
+  "rollback": [
+    "git revert the commit; the libs return to their prior indentation",
+    "Re-run tests/run_all.sh to confirm the suite is still green after rollback"
+  ]
+}
