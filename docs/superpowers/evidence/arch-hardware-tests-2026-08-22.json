@@ -1,0 +1,63 @@
+{
+  "intent": "Test arch_hardware.sh to 100% line coverage, fix an unreachable journal-vacuum branch found while writing those tests, and take the lib off the shell coverage allowlist.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/arch_hardware.sh (one bug fix plus test seams)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_arch_hardware.sh and test_arch_hardware_boot.sh (new, split to stay under the 250-line cap)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/arch_desktop_harness.sh (boot-loader overrides)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/lib_test_core.sh (_t_hide caching)",
+    "meta/shell-coverage-allowlist.txt (one line removed)"
+  ],
+  "changes": [
+    "PRODUCTION BUG FIX: tweak_journal's size regex required a space before the unit, but journalctl prints '305.5M' and '4.2G' with no separator, so the vacuum branch was unreachable and a multi-gigabyte journal would never have been vacuumed. The unit separator is now optional, the same defect and the same fix as arch_perf_report.sh:36,65 already carried. Verified against this host's real output.",
+    "Added SYSTEMD_UNIT_DIR, JOURNALD_CONF_DIR, LOADER_ENTRIES_DIR, GRUB_DEFAULT_FILE and GRUB_CFG_FILE overrides, each defaulting to the real path, so the mitigation tweak can be tested without touching this machine's boot configuration",
+    "Added the arch_hardware tests: 42 assertions over 26 cases across all five functions, split across test_arch_hardware.sh (fstrim/nvidia, 16) and test_arch_hardware_boot.sh (mitigations/nm/journal/ananicy, 26) because a single file was 307 lines and the file-length-cap hook rejected the commit",
+    "Cached _t_hide's shim farm in lib_test_core.sh: it symlinks every executable on PATH (~13.5k on this host) and was rebuilt on every call, which pushed a jail case past its 120s timeout"
+  ],
+  "verification": [
+    {
+      "command": "journalctl --disk-usage",
+      "result": "pass",
+      "evidence": "'Archived and active journals take up 305.5M in the file system.' -- no space before the unit, which is what proved the old regex could never match."
+    },
+    {
+      "command": "bash -c 'u=\"...4.2G...\"; [[ $u =~ ([0-9]+\\.?[0-9]*)\\ ?G ]]'",
+      "result": "pass",
+      "evidence": "The fixed regex matches 4.2G; case 19 asserts the spaced form still matches, so the change is a widening and not a swap."
+    },
+    {
+      "command": "shell_coverage_jail.sh --subject .../tests/run_all.sh --measure arch_hardware.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "arch_hardware.sh: 94/94 lines = 100.00%, exit 0, no case timeout, re-confirmed after the file split."
+    },
+    {
+      "command": "shell_coverage_jail.sh ... --measure arch_cpu.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "arch_cpu.sh: 57/57 = 100.00% still, so the _t_hide change did not regress the lib cleared in the previous commit."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../fixes/lib/arch_hardware.sh (allowlist line removed)",
+      "result": "pass",
+      "evidence": "check_shell_coverage.sh: every checked shell library meets the coverage bar. Allowlist 90 -> 89."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; arch_hardware: 42 passed, 0 failed. Suite runtime 92s -> 77s after the caching."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh equivalent via pre-commit file-length-cap",
+      "result": "pass",
+      "evidence": "test_arch_hardware.sh 121 lines and test_arch_hardware_boot.sh 212 lines, both under the 250-line cap; the 307-line single file had aborted the first commit attempt."
+    }
+  ],
+  "risks": [
+    "The journal fix changes production behaviour by design: a machine with a multi-gigabyte journal will now actually be vacuumed to 300M on the next run, which is what the code always intended",
+    "Two assertions initially passed for the wrong reason because a pacman stub tested $3 when `pacman -Qi <pkg>` puts the package in $2; both now fail if that indexing is wrong",
+    "_t_hide's cache is keyed by the tool list, so a caller that expects a rebuilt farm within one test file gets the cached one; the farm's contents depend only on that key",
+    "lib_test_core.sh is now 240 lines, close to the 250-line cap; the next addition to it needs a split."
+  ],
+  "rollback": [
+    "git revert the commit, then re-add the arch_hardware.sh line to meta/shell-coverage-allowlist.txt",
+    "Note that reverting restores the unreachable journal-vacuum branch; re-run check_shell_coverage.sh to confirm the gate passes with the exemption back"
+  ]
+}

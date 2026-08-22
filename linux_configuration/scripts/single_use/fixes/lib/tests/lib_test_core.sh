@@ -160,8 +160,18 @@ _t_unstub() {
 # Instead a shim dir is built containing a symlink to every real executable
 # on PATH EXCEPT the hidden ones, and PATH is pointed at it.
 _t_hide() {
-	local hide_dir="${TEST_TMPDIR}/hidden_path"
-	rm -rf "$hide_dir"
+	# Keyed by the tool list and reused: the farm holds a symlink per
+	# executable on PATH (~13.5k on this host), so rebuilding it on every
+	# call dominated the suite's runtime and pushed a jail case past its
+	# 120s timeout. The same hidden set always yields the same farm, so the
+	# second and later calls are a PATH assignment.
+	local key="${*}"
+	local hide_dir="${TEST_TMPDIR}/hidden_path/${key// /_}"
+	if [[ -d "$hide_dir" ]]; then
+		PATH="${FAKE_BIN}:${hide_dir}"
+		hash -r
+		return 0
+	fi
 	mkdir -p "$hide_dir"
 
 	local -A hidden=()

@@ -1,0 +1,18 @@
+{
+  "title": "Clear arch_hardware.sh and fix its unreachable journal vacuum",
+  "objective": "Bring arch_hardware.sh to 100% measured line coverage, repair the size regex that made its journal vacuum unreachable, and remove its allowlist exemption, finishing the optimize_arch_desktop.sh family's measurable libs.",
+  "acceptance_criteria": [
+    "The jail reports arch_hardware.sh at 100.00% through tests/run_all.sh, at --min 100, exiting 0 with no case timeout.",
+    "check_shell_coverage.sh passes on arch_hardware.sh with its allowlist line removed.",
+    "tweak_journal vacuums a journal reported as '4.2G' (no space, the form journalctl actually prints) AND one reported as '4.2 G', and leaves '305.5M' alone -- so the fix is a widening, not a swap.",
+    "All five functions are covered, including both boot-loader flavours, the no-boot-loader case, and an empty loader-entries directory.",
+    "arch_cpu.sh still measures 100.00%, proving the shared _t_hide change did not regress the previously cleared lib.",
+    "The suite stays green and shellcheck reports nothing, with zero suppressions."
+  ],
+  "out_of_scope": [
+    "arch_sysctl.sh's kcov registration failure, which stays on the allowlist.",
+    "Changing the coverage instrument or the jail's default case timeout.",
+    "The identical journal regex in any lib other than arch_hardware.sh; arch_perf_report.sh was fixed in an earlier session."
+  ],
+  "verifier": "timeout 900s bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure arch_hardware.sh --min 100 --fail-on-case-error -- \"\" (expects 94/94 = 100.00%, exit 0), then the same for arch_cpu.sh, then check_shell_coverage.sh on arch_hardware.sh."
+}

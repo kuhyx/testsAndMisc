@@ -42,7 +42,7 @@ tweak_nvidia_gpu() {
 	nvidia-smi -gps 0 >/dev/null 2>&1 || true
 
 	# Persist via systemd service
-	local service_file="/etc/systemd/system/nvidia-performance.service"
+	local service_file="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/nvidia-performance.service"
 	if [[ ! -f $service_file ]]; then
 		cat >"$service_file" <<'NVSVC'
 [Unit]
@@ -83,9 +83,14 @@ tweak_mitigations() {
 
 	# Detect boot loader
 	local boot_method=""
-	if [[ -d /boot/loader/entries ]]; then
+	# Both boot-loader locations are behind overrides defaulting to the real
+	# paths, so a test can present a systemd-boot or a GRUB machine without
+	# touching this host's boot configuration.
+	local entries_dir="${LOADER_ENTRIES_DIR:-/boot/loader/entries}"
+	local grub_default="${GRUB_DEFAULT_FILE:-/etc/default/grub}"
+	if [[ -d $entries_dir ]]; then
 		boot_method="systemd-boot"
-	elif [[ -f /etc/default/grub ]]; then
+	elif [[ -f $grub_default ]]; then
 		boot_method="grub"
 	else
 		log_warn "Could not detect boot loader — skipping mitigation tweak."
@@ -95,7 +100,7 @@ tweak_mitigations() {
 
 	if [[ $boot_method == "systemd-boot" ]]; then
 		local entry
-		entry=$(find /boot/loader/entries -name '*.conf' -print -quit 2>/dev/null || true)
+		entry=$(find "$entries_dir" -name '*.conf' -print -quit 2>/dev/null || true)
 		if [[ -n $entry ]]; then
 			if grep -q 'mitigations=off' "$entry" 2>/dev/null; then
 				log_ok "mitigations=off already set in systemd-boot — skipping."
@@ -107,12 +112,12 @@ tweak_mitigations() {
 			log_warn "This trades security for ~5-15% performance. Only for isolated desktops."
 		fi
 	elif [[ $boot_method == "grub" ]]; then
-		if grep -q 'mitigations=off' /etc/default/grub 2>/dev/null; then
+		if grep -q 'mitigations=off' "$grub_default" 2>/dev/null; then
 			log_ok "mitigations=off already set in GRUB — skipping."
 			return 0
 		fi
-		sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 mitigations=off"/' /etc/default/grub
-		grub-mkconfig -o /boot/grub/grub.cfg
+		sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 mitigations=off"/' "$grub_default"
+		grub-mkconfig -o "${GRUB_CFG_FILE:-/boot/grub/grub.cfg}"
 		log_warn "Added mitigations=off to GRUB config. REBOOT REQUIRED."
 	fi
 
@@ -140,7 +145,11 @@ tweak_journal() {
 	usage_line=$(journalctl --disk-usage 2>/dev/null || true)
 
 	local needs_vacuum=false
-	if [[ $usage_line =~ ([0-9]+\.?[0-9]*)\ G ]]; then
+	# The space before the unit is OPTIONAL: journalctl prints "305.5M in the
+	# file system", with no separator, so requiring one made this check --
+	# and the vacuum below it -- unreachable. Same defect as
+	# arch_perf_report.sh carried before it was fixed.
+	if [[ $usage_line =~ ([0-9]+\.?[0-9]*)\ ?G ]]; then
 		needs_vacuum=true
 	fi
 
@@ -150,7 +159,7 @@ tweak_journal() {
 		log_ok "Journal already under 1GiB."
 	fi
 
-	local dropin_dir="/etc/systemd/journald.conf.d"
+	local dropin_dir="${JOURNALD_CONF_DIR:-/etc/systemd/journald.conf.d}"
 	local dropin_file="$dropin_dir/size-limit.conf"
 
 	if [[ -f $dropin_file ]] && grep -q 'SystemMaxUse=300M' "$dropin_file"; then

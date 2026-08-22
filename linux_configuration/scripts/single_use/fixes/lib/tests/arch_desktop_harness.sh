@@ -43,6 +43,11 @@ export CPUPOWER_CONF_FILE="${TEST_TMPDIR}/cpupower"
 # not have (a rotational disk, a core not on the performance governor).
 export CPU_SYSFS_ROOT="${TEST_TMPDIR}/sys_cpu"
 export BLOCK_SYSFS_ROOT="${TEST_TMPDIR}/sys_block"
+# arch_hardware.sh's mitigation tweak edits the boot loader configuration;
+# these keep a test off this machine's real /boot and /etc/default/grub.
+export LOADER_ENTRIES_DIR="${TEST_TMPDIR}/loader_entries"
+export GRUB_DEFAULT_FILE="${TEST_TMPDIR}/grub_default"
+export GRUB_CFG_FILE="${TEST_TMPDIR}/grub.cfg"
 export SYSTEMD_UNIT_DIR="${TEST_TMPDIR}/systemd_units"
 export JOURNALD_CONF_DIR="${TEST_TMPDIR}/journald.conf.d"
 export DRY_RUN="false"
@@ -85,7 +90,7 @@ apply_tweak() {
 _arch_desktop_default_stubs() {
 	local tool
 	for tool in sysctl modprobe udevadm cpupower systemctl nvidia-smi \
-		lsblk lscpu journalctl pacman; do
+		lsblk lscpu journalctl pacman grub-mkconfig nvidia-persistenced; do
 		_t_stub "$tool" 'exit 0'
 	done
 }
@@ -103,7 +108,8 @@ arch_desktop_reset() {
 		"${JOURNALD_CONF_DIR}" "${CPU_SYSFS_ROOT}" "${BLOCK_SYSFS_ROOT}"
 	mkdir -p "${SYSCTL_DROPIN_DIR}" "${UDEV_RULES_DIR}" "${SYSTEMD_UNIT_DIR}" \
 		"${JOURNALD_CONF_DIR}" "${CPU_SYSFS_ROOT}" "${BLOCK_SYSFS_ROOT}"
-	rm -f "${CPUPOWER_CONF_FILE}"
+	rm -f "${CPUPOWER_CONF_FILE}" "${GRUB_DEFAULT_FILE}" "${GRUB_CFG_FILE}"
+	rm -rf "${LOADER_ENTRIES_DIR}"
 	_t_full_path
 	_arch_desktop_default_stubs
 }
