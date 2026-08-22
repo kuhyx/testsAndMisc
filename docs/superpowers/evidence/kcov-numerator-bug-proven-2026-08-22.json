@@ -1,0 +1,50 @@
+{
+  "intent": "Answer the question the campaign has been working around for three sessions: is rpi_nc_install.sh's 11.36% a testing gap or an instrument failure? Proven to be the latter, against an independent instrument, and the kcov problem is now split into two defects with different fixes.",
+  "scope": [
+    "docs/kcov-under-report.md: new, split out of shell-split-verification.md for the 250-line cap",
+    "docs/shell-split-verification.md: the kcov section replaced by a pointer",
+    "NEXT_SESSION_PROMPT.md: rewritten to lead with the instrument work",
+    "Non-goal: fixing either defect -- this commit establishes WHICH defect is which, so the next session does not fix the wrong one"
+  ],
+  "changes": [
+    "MEASURED, not hypothesised: driving rpi_nc_install.sh directly under PS4='+PS4:${BASH_SOURCE##*/}:${LINENO} ' with set -x traces 55 distinct lines as executed, and 45 of them are lines kcov reports as uncovered -- including 61, 62, 63, 66, 68, 102, 118 and 146. The lines run; kcov does not record them.",
+    "This splits the problem in two. (a) WRONG DENOMINATOR: continuation lines of a multi-line quoted argument counted as statements, which a bash -x tracer never calls executable -- fixable in shell_coverage_report.py, and it is what holds dwm_config.sh down. (b) WRONG NUMERATOR: ordinary statements executing unrecorded, which is what caps rpi_nc_install.sh and which no test can move.",
+    "The distinction matters because a denominator filter -- the obvious fix, and the one I nearly built last session -- does nothing for (b). Knowing which defect a lib suffers from tells you whether writing tests can help it.",
+    "Confirmed no test can raise rpi_nc_install.sh: the file is ONE 227-line function, called twice, and an `exit 88` sentinel proves the suite runs to completion with all 29 assertions passing. Its assertions on save_config (line 219) and the password message (line 227) PASS while kcov calls both lines uncovered."
+  ],
+  "verification": [
+    {
+      "command": "minimal repro: perl -0777 block under kcov, then the same file under PS4='+LINE:${LINENO} ' bash -x",
+      "result": "pass",
+      "evidence": "kcov reports lines 6,7,8 as instrumentable with hits=0; the PS4 tracer never emits them at all. Establishes defect (a) as a denominator error rather than a missed execution."
+    },
+    {
+      "command": "drive rpi_nc_install.sh's phase_install_nextcloud under PS4 with every external stubbed, outside the jail",
+      "result": "pass",
+      "evidence": "55 distinct lines traced, max line 166. Spot-checked against kcov's uncovered list: 61, 62, 63, 66, 68, 102, 118, 146 all SEEN EXECUTING. 45 of kcov's uncovered lines appear in the PS4 set. Establishes defect (b)."
+    },
+    {
+      "command": "append `exit 88` before _t_report in test_rpi_nc_install.sh, run under --fail-on-case-error, restore",
+      "result": "pass",
+      "evidence": "'case exited 88' fired: the suite reaches its end with all 29 assertions passing. Combined with the PS4 trace, this rules out 'the tests do not exercise the code' as an explanation."
+    },
+    {
+      "command": "kcov --version; pacman -Ss kcov",
+      "result": "pass",
+      "evidence": "kcov 43, which is the current release in extra/. Upgrading is not an available fix."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all after the doc split",
+      "result": "pass",
+      "evidence": "all files within 250 lines: shell-split-verification.md 173, kcov-under-report.md 99, NEXT_SESSION_PROMPT.md 173."
+    }
+  ],
+  "risks": [
+    "The PS4 measurement ran OUTSIDE the jail with a simplified fixture, so it reached line 166 and returned 1 rather than running the full 227 lines. That is sufficient for the discriminating question (do lines kcov calls uncovered execute at all?) but it is not a full-coverage figure and must not be quoted as one.",
+    "Replacing kcov's numerator with a PS4 tracer is a bigger change than a denominator filter and could introduce its own inaccuracies. The acceptance test is recorded in the handoff: dot_resolver_install.sh must stay at 39/39 and rpi_nc_ca.sh must not fall below 98.63%."
+  ],
+  "rollback": [
+    "git revert the commit; the kcov material returns to shell-split-verification.md and the handoff loses the (a)/(b) split.",
+    "After rollback, confirm shell-split-verification.md is back over 250 lines -- that cap violation is why the split happened."
+  ]
+}
