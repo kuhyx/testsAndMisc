@@ -100,7 +100,6 @@ linux_configuration/scripts/single_use/lib/joplin_server.sh
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/clean_audio_filters.sh
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_deps.sh
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_pkgmgr.sh
-linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_venv.sh
 meta/lib/lint_full_tools.sh
 meta/lib/lint_output.sh
 meta/scripts/lib/disk_cleanup_common.sh
