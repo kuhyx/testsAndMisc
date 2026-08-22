@@ -84,7 +84,6 @@ linux_configuration/scripts/single_use/fixes/lib/nvidia_config.sh
 linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_setup.sh
 linux_configuration/scripts/single_use/fixes/lib/thorium_repairs.sh
 linux_configuration/scripts/single_use/fixes/lib/ubuntu_perf_fixes.sh
-linux_configuration/scripts/single_use/fixes/lib/ubuntu_perf_more.sh
 linux_configuration/scripts/single_use/fresh-install/lib/packages.sh
 linux_configuration/scripts/single_use/lib/joplin_server.sh
 linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/clean_audio_filters.sh

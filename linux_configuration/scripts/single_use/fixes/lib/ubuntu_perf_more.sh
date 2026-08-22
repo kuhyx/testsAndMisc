@@ -9,8 +9,10 @@
 # Fix 6: Journal vacuum + permanent size cap
 # ===================================================================
 fix_journal() {
-	# Create permanent size cap via drop-in
-	local dropin_dir="/etc/systemd/journald.conf.d"
+	# Create permanent size cap via drop-in. JOURNALD_CONF_DIR defaults to the
+	# real path and is only overridden by the test suite, which must not write
+	# to /etc: lib/tests/run_all.sh runs un-jailed in ci_mirror.sh and in CI.
+	local dropin_dir="${JOURNALD_CONF_DIR:-/etc/systemd/journald.conf.d}"
 	local dropin_file="$dropin_dir/size-limit.conf"
 
 	if [[ -f $dropin_file ]] && grep -q 'SystemMaxUse=300M' "$dropin_file"; then
@@ -61,10 +63,10 @@ fix_snap_startup() {
 run_undo() {
 	local latest_undo
 	# shellcheck disable=SC2012
-	latest_undo=$(ls -1t /root/undo_ubuntu_performance_*.sh 2>/dev/null | head -1)
+	latest_undo=$(ls -1t "${UNDO_DIR:-/root}"/undo_ubuntu_performance_*.sh 2>/dev/null | head -1)
 
 	if [[ -z ${latest_undo:-} ]]; then
-		log_error "No undo script found in /root/"
+		log_error "No undo script found in ${UNDO_DIR:-/root}/"
 		exit 1
 	fi
 
