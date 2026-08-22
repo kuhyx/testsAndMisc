@@ -40,6 +40,8 @@ readonly REPO_ROOT
 
 SUBJECT=""
 MEASURE=""
+SEED_DIRS=()
+SEED_FILES=()
 MIN_PERCENT=100
 BIND_PATHS=()
 EXTRA_SHIMS=()
@@ -57,6 +59,11 @@ Usage: $SCRIPT_NAME --subject <file> [options] -- <case> [<case>...]
                      Use for every path the subject WRITES. Do NOT bind a
                      path the subject READS from -- that masks its inputs.
   --shim <name>      additionally stub <name> on PATH; repeatable
+  --seed-dir <path>  create <path> inside the jail; repeatable. Needed when a
+                     subject targets a platform this host is not -- a Debian
+                     script writing /etc/php/8.2/apache2/ finds nothing to
+                     mirror on an Arch box.
+  --seed-file <path> create an empty file at <path> inside the jail
   --min <percent>    fail below this (default 100)
   -- <case>...       one invocation each; "" means "no arguments"
 
@@ -84,6 +91,14 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--shim)
 		EXTRA_SHIMS+=("$2")
+		shift 2
+		;;
+	--seed-dir)
+		SEED_DIRS+=("$2")
+		shift 2
+		;;
+	--seed-file)
+		SEED_FILES+=("$2")
 		shift 2
 		;;
 	--min)
@@ -133,9 +148,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Effecting binaries are recorded, never executed. Anything that installs,
-# reboots, kills or reconfigures the host belongs here.
-# Jail construction lives in lib/shell_coverage_jail_setup.sh (250-line cap).
+# Jail construction, including the shim list, lives in
+# lib/shell_coverage_jail_setup.sh (250-line cap).
 # shellcheck source=./lib/shell_coverage_jail_setup.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/shell_coverage_jail_setup.sh"
 
@@ -184,6 +198,18 @@ while IFS= read -r line; do
 done <"$jail/cases"
 INNER
 	chmod +x "$JAIL/run_cases.sh"
+
+	# Seeds are created after the mounts, from inside the namespace: a path
+	# under a bound target does not exist until that target is mounted.
+	{
+		local seed
+		for seed in ${SEED_DIRS[@]+"${SEED_DIRS[@]}"}; do
+			printf 'mkdir -p %q\n' "$seed"
+		done
+		for seed in ${SEED_FILES[@]+"${SEED_FILES[@]}"}; do
+			printf 'mkdir -p %q && : >%q\n' "$(dirname "$seed")" "$seed"
+		done
+	} >>"$JAIL/mounts.sh"
 
 	unshare --user --map-root-user --mount --fork \
 		"$JAIL/run_cases.sh" "$JAIL" "$subject_dir" "$subject_base" "$measure_base"

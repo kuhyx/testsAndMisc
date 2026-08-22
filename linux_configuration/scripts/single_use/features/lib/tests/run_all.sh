@@ -7,6 +7,17 @@
 # These suites execute their subjects FOR REAL, including sudo-writes to
 # /etc/systemd/system and nftables rules. They must therefore run inside the
 # namespace jail; see the header of test_dot_resolver_install.sh.
+#
+# The full invocation, including the seeds the Debian/Raspberry-Pi subjects
+# need on an Arch host:
+#
+#   meta/scripts/shell_coverage_jail.sh \
+#       --subject linux_configuration/scripts/single_use/features/lib/tests/run_all.sh \
+#       --bind /etc --bind /usr/local/bin --bind /var/lib \
+#       --seed-dir /etc/php/8.2/apache2 \
+#       --seed-dir /etc/php/8.2/mods-available \
+#       --seed-file /etc/php/8.2/apache2/php.ini \
+#       --measure <lib>.sh --min 100 -- ""
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

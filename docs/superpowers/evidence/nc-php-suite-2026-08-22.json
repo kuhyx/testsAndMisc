@@ -1,0 +1,46 @@
+{
+  "intent": "Continue the Phase 3 campaign by covering the next-hardest shell library, nc_php.sh, and extend the jail runner with the seeding and bind-failure handling that a foreign-platform subject requires.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/lib/tests/test_nc_php.sh (new)",
+    "meta/scripts/shell_coverage_jail.sh + lib/shell_coverage_jail_setup.sh: --seed-dir/--seed-file, fatal bind failures, tolerate unreadable bind targets",
+    "Non-goal: removing nc_php.sh from the allowlist -- it is at 98.82%, below the 100% bar, so it stays exempt"
+  ],
+  "changes": [
+    "Added --seed-dir and --seed-file so a subject targeting another distribution can be measured: nc_php.sh edits /etc/php/<ver>/apache2/php.ini and installs to /var/www/nextcloud, none of which exist on this Arch host.",
+    "A failed bind-mount is now fatal instead of a warning, and missing mountpoints are created first. A silent bind failure is indistinguishable from unreachable code in the report, which is the exact misdiagnosis this runner exists to prevent.",
+    "Directory mirroring now skips unreadable bind targets (/root as a normal user) rather than aborting under set -e.",
+    "Added test_nc_php.sh: 24 assertions over configure_php, configure_redis, install_nextcloud, setup_nextcloud_cron, verify_nextcloud and phase_nextcloud."
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --measure nc_php.sh --min 0 with the documented binds and seeds",
+      "result": "pass - 84/85",
+      "evidence": "nc_php.sh: 84/85 lines = 98.82%. Only line 111 is uncovered: the `crontab -u www-data -l || echo \"\" | crontab -u www-data -` first-run fallback."
+    },
+    {
+      "command": "shell_coverage_jail.sh --measure dot_resolver_install.sh --min 100 after all runner changes",
+      "result": "pass - no regression",
+      "evidence": "dot_resolver_install.sh: 39/39 lines = 100.00%, unchanged by the seeding and bind-failure work."
+    },
+    {
+      "command": "run the suite inside the jail and read its assertions",
+      "result": "pass - the install order is pinned",
+      "evidence": "phase_nextcloud asserts 'root deps mariadb download apache php redis install cron verify', so php and redis must both be configured before the installer runs and cron must precede verification."
+    },
+    {
+      "command": "shellcheck on the new and modified files",
+      "result": "pass - clean, no suppressions",
+      "evidence": "test_nc_php.sh, shell_coverage_jail.sh and shell_coverage_jail_setup.sh all clean."
+    }
+  ],
+  "risks": [
+    "Line 111 of nc_php.sh is NOT covered, so nc_php.sh remains on the allowlist. Two attempts to cover it both hung the suite for the full timeout: with `crontab -l` failing, the fallback's second `crontab -` inherits the suite's stdin and blocks, and redirecting the call from /dev/null did not prevent it. Left uncovered deliberately rather than attempted a third time.",
+    "Stub functions defined at the top level of a suite SHADOW the subject's own functions for every later assertion. Doing this for the phase_nextcloud order test dropped coverage from 83.53% to 57.65% while the tests still reported passing, because they were exercising the stubs. The fix is a subshell, and the hazard is general to this style of harness.",
+    "A stub for a command the subject PIPES into must drain stdin, or the writer takes SIGPIPE and the suite aborts under set -e. A stub whose output is piped into `grep -v` must also emit a line, since grep exits 1 on no match and pipefail propagates it.",
+    "The bind list for this suite (/etc, /usr/local/bin, /var, /root) is wider than dot_resolver's. Binding all of /var rather than /var/lib and /var/www separately was necessary because a bind onto a non-existent host path cannot be created under a read-only real /var."
+  ],
+  "rollback": [
+    "git revert this commit; nothing is wired into a hook, so no commit path can break.",
+    "After rollback, confirm dot_resolver_install.sh still measures 39/39 through the runner."
+  ]
+}

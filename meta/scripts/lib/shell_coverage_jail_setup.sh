@@ -67,7 +67,10 @@ SUDO
 	local path idx=0
 	for path in ${BIND_PATHS[@]+"${BIND_PATHS[@]}"}; do
 		mkdir -p "$JAIL/mnt$idx"
-		if [[ -d $path ]]; then
+		# -r: an unreadable target (/root as a normal user) simply has no tree
+		# to mirror. That is not an error -- the caller seeds what it needs with
+		# --seed-dir -- but cd'ing into it would abort under `set -e`.
+		if [[ -d $path && -r $path && -x $path ]]; then
 			(cd "$path" && find . -type d -not -path '*/.*' -print0 2>/dev/null) |
 				(cd "$JAIL/mnt$idx" && xargs -0 -r mkdir -p 2>/dev/null) || true
 		fi
@@ -92,7 +95,13 @@ build_mount_script() {
 	local path idx=0
 	{
 		for path in ${BIND_PATHS[@]+"${BIND_PATHS[@]}"}; do
-			printf 'mount --bind %q %q 2>/dev/null || printf "warn: bind failed: %s\\n" %q >&2\n' \
+			# mkdir first: a bind onto a path this host does not have (/var/www on
+			# a machine with no webserver) fails outright, and a bind that fails
+			# silently is the exact misdiagnosis this runner exists to avoid --
+			# the subject then writes to the REAL path or dies, and the report
+			# shows unreachable lines either way. Hence fatal, not a warning.
+			printf 'mkdir -p %q 2>/dev/null || true\n' "$path"
+			printf 'mount --bind %q %q || { printf "Error: bind failed: %s\\n" %q >&2; exit 1; }\n' \
 				"$JAIL/mnt$idx" "$path" '%s' "$path"
 			idx=$((idx + 1))
 		done
