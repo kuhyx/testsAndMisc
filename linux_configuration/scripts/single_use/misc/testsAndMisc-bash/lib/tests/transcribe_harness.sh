@@ -70,7 +70,7 @@ _t_setup_env() {
 	# shebang, and env resolves it through the RESTRICTED PATH. Without it each
 	# stub dies with "env: 'bash': No such file or directory" and the branch it
 	# was standing in for is silently never taken.
-	for tool in basename bash cat chmod cp env grep ln mkdir mktemp printf rm sed; do
+	for tool in basename bash cat chmod cp dirname env find grep ln mkdir mktemp printf rm sed sort; do
 		if command -v "$tool" >/dev/null 2>&1; then
 			ln -sf "$(command -v "$tool")" "$TEST_TMPDIR/coreutils/$tool"
 		fi
