@@ -81,11 +81,11 @@ def _find_source(subject: str, trace_dir: Path | None) -> Path | None:
 
 def _measure(
     out_dir: Path, subject: str, trace_dir: Path | None
-) -> tuple[int, int, list[str], int]:
-    """Return (covered, total, uncovered line numbers, off-set trace count)."""
+) -> tuple[int, int, list[str], list[str]]:
+    """Return (covered, total, uncovered lines, lines outside kcov's line set)."""
     hits = _kcov_lines(out_dir, subject)
     if not hits:
-        return 0, 0, [], 0
+        return 0, 0, [], []
 
     source = _find_source(subject, trace_dir)
     excluded = continuation_lines(source) if source is not None else set()
@@ -97,14 +97,20 @@ def _measure(
         traced = traced_lines(trace_dir, subject)
 
     # Lines the trace saw executing that kcov never listed as instrumentable.
-    # Dropped from the numerator (they are not in the denominator), but
-    # surfaced: a non-zero count means kcov's LINE SET is wrong too, which is
-    # a third defect this design cannot correct for.
-    off_set = len(traced - set(hits) - excluded)
+    # Dropped from BOTH numerator and denominator, so if any of them is a real
+    # statement the percentage is an OVER-estimate -- the fail-open direction.
+    # They are listed individually, not counted, because deciding whether they
+    # are statements or non-statements needs the actual line numbers.
+    off_set = sorted(traced - set(hits) - excluded)
 
     covered_set = (executed | traced) & denominator
     uncovered = sorted(denominator - covered_set)
-    return len(covered_set), len(denominator), [str(n) for n in uncovered], off_set
+    return (
+        len(covered_set),
+        len(denominator),
+        [str(n) for n in uncovered],
+        [str(n) for n in off_set],
+    )
 
 
 # argv: <cov-dir> <subject> <minimum> [<trace-dir>]. The trace dir is optional
@@ -133,7 +139,8 @@ def main() -> None:
         sys.stdout.write(f"  uncovered: {', '.join(uncovered)}\n")
     if off_set:
         sys.stdout.write(
-            f"  note: {off_set} traced line(s) are absent from kcov's line set\n"
+            f"  outside kcov's line set (ran, but counted in neither half): "
+            f"{', '.join(off_set)}\n"
         )
 
     if percent < minimum:

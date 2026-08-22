@@ -160,3 +160,44 @@ substitution — the other half of defect (a). It is deliberately still in the
 denominator: every line removed from a denominator inflates coverage, which
 is the fail-open direction, so a second exclusion rule should be justified
 per line rather than generalised from one lib.
+
+## Defect (c): kcov's LINE SET is also incomplete — bounded, and fail-closed
+
+The report prints, per subject, any line the trace saw execute that kcov never
+listed as instrumentable at all:
+
+```
+outside kcov's line set (ran, but counted in neither half): 68, 70, 73, ...
+```
+
+Measured across every lib with a harness, these fall into two classes:
+
+* **Not statements, correctly absent.** `dwm_config.sh:27` (`heal_config() {`,
+  a function declaration), `transcribe_deps.sh:9` (a one-line function
+  declaration), `clean_audio_filters.sh:197,200` (`((running++))`).
+* **Ordinary statements, wrongly absent.** `aw_autostart.sh` lines 68, 70, 73,
+  79-81, 83-84, 87-88, 94 — plain `echo`, `local`, `if [[ ... ]]`, `sudo -u
+  ... mkdir` and a `cat >` heredoc. The trigger is a `{ ... } >>"$file"`
+  command group with a redirection at lines 61-65: kcov lists nothing after it
+  in that function.
+
+**This cannot inflate a percentage, and cannot hide an untested line.** A line
+only reaches that list *because the trace saw it run*. Folding all 11 of
+`aw_autostart.sh`'s into both halves moves it from 80/82 = 97.56% to
+91/93 = 97.85% — up, not down. The direction is structural: an off-set line is
+by construction an executed line, so it can only ever be a missing *covered*
+line, never a missing *uncovered* one.
+
+What it does mean is that a subject with off-set lines is measured over a
+SUBSET of its statements. The percentage is honest about the subset; it is not
+a claim about the whole file. Read the list before clearing such a lib off the
+allowlist.
+
+## `nc_php.sh` does not measure at all, on either instrument
+
+`nc_php.sh` reports "kcov instrumented no lines" — reproduced twice on the
+current instrument and once on the pre-fix instrument at commit `078d3463`,
+via a throwaway worktree. It is **not** a regression from the two-pass change.
+The 84/85 = 98.82% in earlier notes does not reproduce; whatever produced it
+is not what `run_all.sh` does today. `test_nc_php.sh` exists and runs. Treat
+the old figure as unverified and re-derive it before relying on it.

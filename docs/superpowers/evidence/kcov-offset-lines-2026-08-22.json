@@ -1,0 +1,50 @@
+{
+  "intent": "Make the third kcov defect readable and bounded: list the individual lines the trace saw execute that kcov never listed as instrumentable, so a human can judge whether a subject's percentage covers its whole file, and record that this cannot inflate a number.",
+  "scope": [
+    "meta/scripts/shell_coverage_report.py - off_set becomes a list of line numbers, not a count",
+    "python_pkg/tests/test_shell_coverage_report.py - assertions follow the new return type",
+    "docs/kcov-under-report.md - documents defect (c) and the nc_php.sh finding",
+    "Non-goal: fixing defect (c). kcov's line set cannot be repaired from outside kcov."
+  ],
+  "changes": [
+    "_measure returns the sorted off-set line numbers instead of len(); main prints them like the uncovered list, because deciding whether a line is a statement needs the number, not a count.",
+    "Documented that an off-set line is BY CONSTRUCTION an executed line, so folding them in can only raise a percentage -- aw_autostart.sh 80/82 = 97.56% becomes 91/93 = 97.85%. The list cannot hide an untested statement.",
+    "Documented that nc_php.sh fails to measure on the PRE-FIX instrument too, so it is not a regression from the two-pass change."
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --measure aw_autostart.sh (through run_all.sh)",
+      "result": "pass",
+      "evidence": "80/82 = 97.56%, and the report now names lines 68, 70, 73, 79, 80, 81, 83, 84, 87, 88, 94. Reading them showed ordinary echo/local/if/cat statements; the trigger is the `{ ... } >>\"$file\"` command group at lines 61-65, after which kcov lists nothing in that function."
+    },
+    {
+      "command": "shell_coverage_jail.sh --measure dwm_config.sh / transcribe_deps.sh / clean_audio_filters.sh",
+      "result": "pass",
+      "evidence": "Off-set lines are dwm_config.sh:27 (`heal_config() {`), transcribe_deps.sh:9 (one-line function declaration) and clean_audio_filters.sh:197,200 (`((running++))`). All correctly not statements -- the benign class."
+    },
+    {
+      "command": "git worktree add --detach /tmp/claude-1000/wt_base 078d3463; shell_coverage_jail.sh --measure nc_php.sh",
+      "result": "pass",
+      "evidence": "\"kcov instrumented no lines\" on the PRE-FIX instrument, identical to the current one. Confirms nc_php.sh is a pre-existing condition and the old 84/85 = 98.82% figure does not reproduce. Worktree removed afterwards."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/tests/test_shell_coverage_report.py python_pkg/tests/test_shell_coverage_lines.py",
+      "result": "pass",
+      "evidence": "29 passed; both modules hold 100% branch coverage (shell_coverage_report.py 62 stmts / 28 branches)."
+    },
+    {
+      "command": "pre-commit run --files (the four touched files)",
+      "result": "pass",
+      "evidence": "All hooks pass, no suppressions added."
+    }
+  ],
+  "risks": [
+    "A subject with off-set lines is measured over a SUBSET of its statements, so its percentage is honest about that subset rather than the whole file. Mitigated by printing the lines so the gap is visible before a lib is cleared.",
+    "Defect (c) is not fixed and cannot be fixed from outside kcov; it is only bounded and made visible.",
+    "nc_php.sh currently yields no measurement at all, so it cannot be assessed for the allowlist until that is diagnosed separately."
+  ],
+  "rollback": [
+    "git revert this commit; the previous behaviour (a count rather than a list) returns with no change to any percentage.",
+    "After rollback, re-run the two acceptance measurements (dot_resolver_install.sh 39/39, rpi_nc_ca.sh 73/73) to confirm the arithmetic is untouched."
+  ]
+}

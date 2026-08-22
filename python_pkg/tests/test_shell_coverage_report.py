@@ -70,7 +70,7 @@ def test_kcov_hits_alone_are_used_without_a_trace(
     """With no trace dir the result is kcov's own reading."""
     cov = _cov(tmp_path, "s.sh", {1: 1, 2: 0})
     covered, total, uncovered, off_set = mod._measure(cov, "s.sh", None)
-    assert (covered, total, uncovered, off_set) == (1, 2, ["2"], 0)
+    assert (covered, total, uncovered, off_set) == (1, 2, ["2"], [])
 
 
 def test_trace_rescues_a_line_kcov_missed(mod: ModuleType, tmp_path: Path) -> None:
@@ -109,13 +109,15 @@ def test_traced_line_outside_the_line_set_is_counted_not_credited(
     cov = _cov(tmp_path, "s.sh", {1: 1})
     trace = _trace(tmp_path, source, [1, 3])
     covered, total, _, off_set = mod._measure(cov, "s.sh", trace)
-    assert (covered, total, off_set) == (1, 1, 1)
+    # Line 3 ran but kcov never listed it: excluded from both halves, and
+    # named so a human can judge whether it is a statement.
+    assert (covered, total, off_set) == (1, 1, ["3"])
 
 
 def test_empty_kcov_output_reports_zero_total(mod: ModuleType, tmp_path: Path) -> None:
     """No instrumented lines is a distinct, reportable state."""
     cov = _cov(tmp_path, "other.sh", {1: 1})
-    assert mod._measure(cov, "s.sh", None) == (0, 0, [], 0)
+    assert mod._measure(cov, "s.sh", None) == (0, 0, [], [])
 
 
 def test_line_without_a_number_is_skipped(mod: ModuleType, tmp_path: Path) -> None:
@@ -210,7 +212,7 @@ def test_main_notes_lines_outside_the_line_set(
     cov = _cov(tmp_path, "s.sh", {1: 1})
     trace = _trace(tmp_path, source, [1, 2])
     _run_main(mod, monkeypatch, [str(cov), "s.sh", "100", str(trace)])
-    assert "absent from kcov's line set" in capsys.readouterr().out
+    assert "outside kcov's line set" in capsys.readouterr().out
 
 
 def test_main_exits_when_below_the_minimum(
