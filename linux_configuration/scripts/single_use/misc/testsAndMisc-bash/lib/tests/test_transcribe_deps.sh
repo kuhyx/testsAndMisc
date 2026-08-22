@@ -38,7 +38,7 @@ _t_has "$present_out" 'System deps present' "install_system_deps reports a satis
 _t_lacks "$(_t_calls)" 'pacman' "nothing is installed when ffmpeg and espeak-ng are both present"
 
 # --- offline with a missing dep exits 5 -------------------------------------
-rm -f "$TEST_TMPDIR/bin/ffmpeg"
+_t_unstub ffmpeg
 offline_rc=0
 (
 	OFFLINE=1
@@ -47,7 +47,7 @@ offline_rc=0
 _t_eq "5" "$offline_rc" "a missing dep in offline mode exits 5"
 
 # --- no sudo means the install is skipped, not failed -----------------------
-rm -f "$TEST_TMPDIR/bin/sudo"
+_t_unstub sudo
 _t_stub pacman
 no_sudo_out="$(install_system_deps 2>&1)"
 _t_has "$no_sudo_out" 'sudo not found' "a missing sudo skips the install instead of failing"
@@ -63,7 +63,7 @@ _t_has "$pac_calls" 'ffmpeg' "the pacman branch installs the missing ffmpeg"
 _t_lacks "$pac_calls" 'espeak-ng' "the pacman branch omits espeak-ng, which is already present"
 
 # --- the apt branch uses Debian package names and refreshes first -----------
-rm -f "$TEST_TMPDIR/bin/pacman"
+_t_unstub pacman
 _t_stub apt-get
 _t_reset_calls
 install_system_deps >/dev/null 2>&1
@@ -72,28 +72,28 @@ _t_has "$apt_calls" 'apt-get update -y' "the apt branch refreshes the package li
 _t_has "$apt_calls" 'python3-venv' "the apt branch asks for python3-venv, not python-virtualenv"
 
 # --- the dnf branch ---------------------------------------------------------
-rm -f "$TEST_TMPDIR/bin/apt-get"
+_t_unstub apt-get
 _t_stub dnf
 _t_reset_calls
 install_system_deps >/dev/null 2>&1
 _t_has "$(_t_calls)" 'dnf install -y python3-venv' "the dnf branch installs python3-venv"
 
 # --- the yum branch ---------------------------------------------------------
-rm -f "$TEST_TMPDIR/bin/dnf"
+_t_unstub dnf
 _t_stub yum
 _t_reset_calls
 install_system_deps >/dev/null 2>&1
 _t_has "$(_t_calls)" 'yum install -y python3-venv' "the yum branch installs python3-venv"
 
 # --- the zypper branch uses its own versioned python names ------------------
-rm -f "$TEST_TMPDIR/bin/yum"
+_t_unstub yum
 _t_stub zypper
 _t_reset_calls
 install_system_deps >/dev/null 2>&1
 _t_has "$(_t_calls)" 'python311-virtualenv' "the zypper branch asks for python311-virtualenv"
 
 # --- an unknown package manager warns rather than guessing ------------------
-rm -f "$TEST_TMPDIR/bin/zypper"
+_t_unstub zypper
 unknown_out="$(install_system_deps 2>&1)"
 _t_has "$unknown_out" 'Unknown package manager' "an unrecognised manager warns instead of installing"
 

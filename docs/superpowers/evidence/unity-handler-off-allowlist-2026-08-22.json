@@ -1,0 +1,51 @@
+{
+  "intent": "Cover unity_handler.sh to a measured 100% and take it OFF the shell-coverage allowlist -- the first entry removed this session, 105 -> 104. Fix the bash hash-cache bug found doing it, which had silently weakened the two suites committed just before.",
+  "scope": [
+    ".../testsAndMisc-bash/lib/tests/test_unity_handler.sh: new, 18 assertions across all 4 functions",
+    ".../tests/transcribe_harness.sh: new _t_unstub helper; basename added to the restricted PATH",
+    ".../tests/test_transcribe_deps.sh and test_transcribe_pkgmgr.sh: switched to _t_unstub",
+    "meta/shell-coverage-allowlist.txt: unity_handler.sh removed",
+    "Non-goal: no change to any subject; no latent bug surfaced in unity_handler.sh"
+  ],
+  "changes": [
+    "HARNESS BUG, found by an assertion that would not go green: bash caches executable locations in a hash table, so `command -v foo` keeps SUCCEEDING after foo is deleted from the stub dir. Every 'tool is missing' test therefore ran as a 'tool is present' test -- asserting the opposite of its own name while looking plausible. Reproduced minimally: after `rm`, STILL FOUND; after `hash -r`, gone.",
+    "The fix is a _t_unstub helper that removes the stub and clears the table, applied to all three suites in the directory. The two committed an hour earlier were affected and are corrected here; test_transcribe_pkgmgr.sh goes 15 -> 18 passing assertions as a result, so three of its checks had been vacuous.",
+    "`basename` was added to the restricted PATH because the SUBJECT calls it, unlike bash/env which the stubs' shebangs need. The suite avoids needing `tail` by taking the last line with a parameter expansion instead: every binary in that PATH is another thing a shebang can trip over.",
+    "The generated .desktop file is asserted on its CONTENT (Exec and MimeType lines), and xdg-mime registration on the BASENAME it is given -- a full path there would silently fail to register."
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --subject .../tests/run_all.sh --measure unity_handler.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "unity_handler.sh: 32/32 lines = 100.00%, exit 0 at --min 100. Measured through run_all.sh, the subject is_covered() builds."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../unity_handler.sh (AFTER removing it from the allowlist)",
+      "result": "pass",
+      "evidence": "'every checked shell library meets the coverage bar', exit 0. The lib passes the REAL gate with no exemption -- properly cleared, not merely measured."
+    },
+    {
+      "command": ".../lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "15 + 18 + 18 = 51 assertions, 0 failures, 'All transcribe lib test files passed.'"
+    },
+    {
+      "command": "minimal repro of the hash cache: stub a command, run it, rm it, then command -v",
+      "result": "pass",
+      "evidence": "'STILL FOUND (hash cache)' before `hash -r`, 'gone after hash -r'. This is what makes _t_unstub necessary rather than cosmetic."
+    },
+    {
+      "command": "re-measure the other two libs after the harness change",
+      "result": "pass",
+      "evidence": "transcribe_deps.sh 48/52 = 92.31% and transcribe_pkgmgr.sh 49/50 = 98.00%, both unchanged. Both stay on the allowlist."
+    }
+  ],
+  "risks": [
+    "Any other suite in the repo that removes a stub with a bare `rm` has the same latent defect: its 'missing tool' branch is not being tested. The features/lib suites use a jail and mostly add rather than remove stubs, but this is worth a sweep before the gate is armed.",
+    "The restricted PATH must list every binary the subjects use. A missing one surfaces as 'command not found' mid-suite rather than as a clear assertion failure."
+  ],
+  "rollback": [
+    "git revert the commit; unity_handler.sh returns to the allowlist and the three suites return to bare `rm` unstubbing.",
+    "After rollback, confirm the allowlist is back to 105 entries so the gate's view is unchanged."
+  ]
+}

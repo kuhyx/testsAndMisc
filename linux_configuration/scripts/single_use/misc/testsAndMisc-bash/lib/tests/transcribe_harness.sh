@@ -70,7 +70,7 @@ _t_setup_env() {
 	# shebang, and env resolves it through the RESTRICTED PATH. Without it each
 	# stub dies with "env: 'bash': No such file or directory" and the branch it
 	# was standing in for is silently never taken.
-	for tool in bash cat chmod cp env grep ln mkdir mktemp printf rm sed; do
+	for tool in basename bash cat chmod cp env grep ln mkdir mktemp printf rm sed; do
 		if command -v "$tool" >/dev/null 2>&1; then
 			ln -sf "$(command -v "$tool")" "$TEST_TMPDIR/coreutils/$tool"
 		fi
@@ -92,6 +92,16 @@ _t_stub_failing() {
 	printf '#!/usr/bin/env bash\nprintf "%%s %%s\\n" "%s" "$*" >>"%s/calls.log"\nexit 1\n' \
 		"$1" "$TEST_TMPDIR" >"$TEST_TMPDIR/bin/$1"
 	chmod +x "$TEST_TMPDIR/bin/$1"
+}
+
+# Remove a stub AND forget it. bash caches executable locations in a hash
+# table, so `command -v foo` keeps succeeding after foo is deleted until the
+# table is cleared -- which silently turns every "tool is missing" test into a
+# "tool is present" test that asserts the opposite of its own name. Verified:
+# without the `hash -r` the removed stub is STILL FOUND.
+_t_unstub() {
+	rm -f "$TEST_TMPDIR/bin/$1"
+	hash -r
 }
 
 _t_calls() {

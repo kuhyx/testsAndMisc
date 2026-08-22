@@ -76,7 +76,9 @@ _t_has "$no_sudo_out" 'sudo not found' "ensure_cuda_runtime reports a missing su
 # sudo is a pass-through so the manager stub below records the real argv.
 printf '#!/usr/bin/env bash\nexec "$@"\n' >"$TEST_TMPDIR/bin/sudo"
 chmod +x "$TEST_TMPDIR/bin/sudo"
-rm -f "$TEST_TMPDIR/bin/apt-get" "$TEST_TMPDIR/bin/dnf" "$TEST_TMPDIR/bin/yum"
+_t_unstub apt-get
+_t_unstub dnf
+_t_unstub yum
 _t_reset_calls
 pac_rc=0
 (ensure_cuda_runtime) >/dev/null 2>&1 || pac_rc=$?
@@ -90,27 +92,28 @@ _t_reset_calls
 _t_has "$(_t_calls)" 'apt-get install -y nvidia-cuda-toolkit' "the apt branch installs the CUDA toolkit"
 
 # --- ensure_cuda_runtime: dnf and yum share one branch ----------------------
-rm -f "$TEST_TMPDIR/bin/apt-get"
+_t_unstub apt-get
 _t_stub dnf
 _t_reset_calls
 (ensure_cuda_runtime) >/dev/null 2>&1 || true
 _t_has "$(_t_calls)" 'dnf install -y cuda cudnn' "the dnf branch installs cuda and cudnn"
 
-rm -f "$TEST_TMPDIR/bin/dnf"
+_t_unstub dnf
 _t_stub yum
 _t_reset_calls
 (ensure_cuda_runtime) >/dev/null 2>&1 || true
 _t_has "$(_t_calls)" 'yum install -y cuda cudnn' "the shared dnf|yum branch also drives yum"
 
 # --- ensure_cuda_runtime: the zypper branch ---------------------------------
-rm -f "$TEST_TMPDIR/bin/yum" "$TEST_TMPDIR/bin/pacman"
+_t_unstub yum
+_t_unstub pacman
 _t_stub zypper
 _t_reset_calls
 (ensure_cuda_runtime) >/dev/null 2>&1 || true
 _t_has "$(_t_calls)" 'zypper install -y cuda cudnn' "the zypper branch installs cuda and cudnn"
 
 # --- ensure_cuda_runtime: an unknown manager warns --------------------------
-rm -f "$TEST_TMPDIR/bin/zypper"
+_t_unstub zypper
 unknown_out="$( (ensure_cuda_runtime) 2>&1)" || true
 _t_has "$unknown_out" 'cannot install CUDA automatically' "an unknown package manager warns rather than guessing"
 
