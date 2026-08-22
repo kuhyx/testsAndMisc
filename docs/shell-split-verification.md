@@ -189,7 +189,23 @@ DISPROVEN. Do not retry them:**
    `mysql -u root <<EOF` with a `cat >/dev/null` stub, under strict mode.
    Lines after it are recorded.
 
-The cause remains unknown. The practical rule:
+**One CONFIRMED artifact (hypothesis 6), reproduced minimally:** kcov counts
+the _continuation lines of a multi-line quoted argument_ as instrumentable
+statements that never run. A `perl -0777 -i -pe '<newline>...s!a!b!;<newline>'`
+block reports its inner lines at zero hits while the line after it is covered.
+This accounts for `dwm_config.sh` lines 64-66 and 98-101, and for any
+`done < <(...)` process substitution. These lines are **not statements**, so
+the denominator is wrong, not the numerator.
+
+That artifact does NOT explain the second pattern: ordinary statements inside
+functions that provably execute. In `dwm_config.sh`, `build_install`,
+`build_pointer_confine`, `write_session_files` and `verify` all run -- proved
+with an `exit 43` sentinel placed after their assertions, which fired -- yet
+their bodies report zero hits. `rpi_nc_install.sh` behaves the same way. A
+sixth hypothesis (that the jail's `exec`-ing `sudo` shim or a pipeline loses
+the trace) was tested minimally and **DISPROVEN**: both trace correctly.
+
+The cause of that second pattern remains unknown. The practical rule:
 
 > **A suspicious percentage means re-measure, not re-write the test.** If a
 > suite's assertions pass while its number looks absurd, suspect the
@@ -199,3 +215,10 @@ The cause remains unknown. The practical rule:
 Note the failure is _silent and one-directional_: it under-reports, so it can
 only ever keep a lib on the allowlist that deserves to come off. It cannot
 promote an untested lib. That is why the campaign can continue around it.
+
+**Use an `exit <n>` sentinel to tell the two apart.** The jail discards a
+case's stdout, so a suite's own report is invisible; but a non-zero exit is
+surfaced by `--fail-on-case-error`. Temporarily ending the suite with
+`exit 42` at a chosen point turns "did execution reach here?" into a yes/no
+the jail will answer. That is what proved the second pattern is a tracing
+failure and not an aborted suite.

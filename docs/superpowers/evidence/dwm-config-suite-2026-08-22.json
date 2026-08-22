@@ -1,0 +1,56 @@
+{
+  "intent": "Add a test suite for dwm_config.sh, the highest-scored remaining allowlisted lib (score 53: root ops + system writes + destructive calls), and fix the latent bug that suite exposed. The lib stays on the allowlist because its measured coverage is 47.95%, below the 100% bar.",
+  "scope": [
+    "linux_configuration/scripts/single_use/features/lib/tests/test_dwm_config.sh: new, 27 assertions across all 9 functions",
+    "linux_configuration/scripts/single_use/features/lib/dwm_config.sh: fix the unreachable warn branch in apply_fullscreen_confine_hook",
+    "docs/shell-split-verification.md: record the CONFIRMED kcov artifact and the exit-sentinel technique",
+    "Non-goal: removing dwm_config.sh from the allowlist -- 47.95% is below the bar and the bar is measured, not asserted",
+    "Non-goal: further kcov root-cause hunting; the two-strike time-box is spent"
+  ],
+  "changes": [
+    "The suite drives the lib for real: it rewrites dwm.c with perl, appends to config.h, compiles with cc and installs into /usr/local/bin, all inside the namespace jail. The generated CONTENT is asserted, not just the call.",
+    "LATENT BUG FIXED: apply_fullscreen_confine_hook computed `on=$(grep -c ...)`, and grep -c exits 1 when the count is zero. The caller runs `set -euo pipefail`, so the function aborted at that line precisely when the count was zero -- i.e. exactly when the 'upstream refactored these handlers' warning below it was the thing needed. The warn branch was dead code on a refactored upstream, which is the failure mode the comment says it exists to catch. Fixed with `|| true` at both call sites; the suite's 'warns when setfullscreen was refactored' assertion now passes and would fail if the fix were reverted.",
+    "SC2016 was fixed at the source (the failing-cc stub became a quoted heredoc that writes to stderr, which is where dwm_config redirects it) rather than suppressed."
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --subject .../features/lib/tests/run_all.sh <jail_args> --min 0 --fail-on-case-error -- \"\"",
+      "result": "pass",
+      "evidence": "exit=0 across all four test files. This is machine-checked, not asserted: the same gate exits 1 on a deliberately broken assertion, verified earlier today."
+    },
+    {
+      "command": "shell_coverage_jail.sh ... --measure dwm_config.sh --min 1",
+      "result": "pass",
+      "evidence": "dwm_config.sh: 35/73 lines = 47.95%. The MEASURED number, not a rounded or hoped-for one. Below the 100% bar, so the lib stays on the allowlist."
+    },
+    {
+      "command": "reproduce the suite outside the jail with BIN_* redirected to a temp dir",
+      "result": "pass",
+      "evidence": "Every assertion through apply_fullscreen_confine_hook printed OK, including 'the hook warns when setfullscreen was refactored' -- the branch that was unreachable before the fix."
+    },
+    {
+      "command": "temporarily append `exit 43` after the verify assertions, run under --fail-on-case-error",
+      "result": "pass",
+      "evidence": "'warn: case exited 43' fired, proving build_install, build_pointer_confine, write_session_files and verify all execute inside the jail even though kcov reports their bodies at zero hits. The 47.95% is therefore an under-report, not missing tests."
+    },
+    {
+      "command": "minimal repro: perl -0777 with a multi-line quoted argument under kcov",
+      "result": "pass",
+      "evidence": "Lines 6,7,8 (inside the quoted block) report hits=0 while line 9 after it reports 1. CONFIRMS the multi-line-quoted-continuation artifact and accounts for dwm_config.sh lines 64-66 and 98-101."
+    },
+    {
+      "command": "shellcheck on the new suite; check_file_length.sh --all; prettier --check on the doc",
+      "result": "pass",
+      "evidence": "shellcheck clean with no suppressions; all files within 250 lines; markdown formatted."
+    }
+  ],
+  "risks": [
+    "47.95% is an under-report of unknown magnitude, so the true figure is higher but unquantified. The lib stays allowlisted, which is the conservative direction: the defect can only keep a lib exempt, never promote an untested one.",
+    "The `|| true` on grep -c means a genuinely broken grep (missing file) now yields an empty count rather than aborting. The subsequent `[[ \"$on\" == 1 ]]` test fails closed into the warn branch, which is the intended behaviour.",
+    "meta/scripts/lib/shell_coverage_bar.sh's is_covered() hardcodes its jail flags and does NOT read jail_args, so it lacks the php seeds the features/lib suite needs. dot_resolver_install.sh still measures 39/39 under those flags, but the suite exits non-zero. This must be fixed before the gate is armed at allowlist-zero; it is out of scope here and recorded as the next blocker."
+  ],
+  "rollback": [
+    "git revert the commit; the suite disappears and apply_fullscreen_confine_hook returns to aborting under set -e on a refactored upstream.",
+    "After rollback, confirm the warn branch is unreachable again by running the hook against a dwm.c lacking the setfullscreen shape -- it should abort rather than warn."
+  ]
+}

@@ -11,8 +11,8 @@
 #    only the two intentional behaviour changes below patch dwm.c.
 # ---------------------------------------------------------------------------
 install_config() {
-    log "Installing config.h from the repo (${REPO_DWM_DIR}/config.h)…"
-    cp -- "${REPO_DWM_DIR}/config.h" "$SRC_DIR/config.h"
+	log "Installing config.h from the repo (${REPO_DWM_DIR}/config.h)…"
+	cp -- "${REPO_DWM_DIR}/config.h" "$SRC_DIR/config.h"
 }
 
 # ---------------------------------------------------------------------------
@@ -25,20 +25,20 @@ install_config() {
 #     and unused symbols are left alone), so our customisations always win.
 # ---------------------------------------------------------------------------
 heal_config() {
-    local defh="$SRC_DIR/config.def.h" cfgh="$SRC_DIR/config.h" dwmc="$SRC_DIR/dwm.c"
-    [[ -f "$defh" && -f "$dwmc" ]] || return 0
-    local line name added=0
-    while IFS= read -r line; do
-        name="$(sed -nE 's/^.*[^A-Za-z0-9_]([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\1/p' <<<"$line")"
-        [[ -n "$name" ]] || continue
-        grep -qw "$name" "$cfgh" && continue   # we already define it — keep ours
-        grep -qw "$name" "$dwmc" || continue   # dwm.c doesn't need it — skip
-        printf '%s\n' "$line" >>"$cfgh"
-        warn "config.h: auto-merged new upstream knob '$name' (bleeding-edge churn)"
-        added=1
-    done < <(grep -E '^[[:space:]]*static[[:space:]]+const[[:space:]]+[^={]*=[^;{]*;' "$defh")
-    ((added)) && log "Merged upstream config symbol(s) into config.h for this build."
-    return 0
+	local defh="$SRC_DIR/config.def.h" cfgh="$SRC_DIR/config.h" dwmc="$SRC_DIR/dwm.c"
+	[[ -f "$defh" && -f "$dwmc" ]] || return 0
+	local line name added=0
+	while IFS= read -r line; do
+		name="$(sed -nE 's/^.*[^A-Za-z0-9_]([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\1/p' <<<"$line")"
+		[[ -n "$name" ]] || continue
+		grep -qw "$name" "$cfgh" && continue # we already define it — keep ours
+		grep -qw "$name" "$dwmc" || continue # dwm.c doesn't need it — skip
+		printf '%s\n' "$line" >>"$cfgh"
+		warn "config.h: auto-merged new upstream knob '$name' (bleeding-edge churn)"
+		added=1
+	done < <(grep -E '^[[:space:]]*static[[:space:]]+const[[:space:]]+[^={]*=[^;{]*;' "$defh")
+	((added)) && log "Merged upstream config symbol(s) into config.h for this build."
+	return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -57,25 +57,25 @@ heal_config() {
 #     rather than silently dropping the behaviour.
 # ---------------------------------------------------------------------------
 apply_focusonclick() {
-    local src="$SRC_DIR/dwm.c"
-    [[ -f "$src" ]] || return 0
+	local src="$SRC_DIR/dwm.c"
+	[[ -f "$src" ]] || return 0
 
-    perl -0777 -i -pe '
+	perl -0777 -i -pe '
         s!\nenternotify\(XEvent \*e\)\n\{.*?\n\}\n!\nenternotify(XEvent *e)\n{\n\t/* focusonclick: pointer never changes focus; use a click or Mod+keys. */\n\t(void)e;\n}\n!s;
         s!\nmotionnotify\(XEvent \*e\)\n\{.*?\n\}\n!\nmotionnotify(XEvent *e)\n{\n\t/* focusonclick: keep the active monitor fixed when crossing screens. */\n\t(void)e;\n}\n!s;
     ' "$src"
 
-    # Verify both rewrites landed; warn (never abort) if upstream changed shape.
-    local ok=1
-    grep -q 'focusonclick: pointer never changes focus' "$src" || ok=0
-    grep -q 'focusonclick: keep the active monitor fixed' "$src" || ok=0
-    if ((ok)); then
-        log "Applied focus-on-click (pointer no longer changes focus or switches monitors)."
-    else
-        warn "focus-on-click rewrite did NOT match upstream dwm.c — pointer focus unchanged."
-        warn "enternotify/motionnotify were likely refactored upstream; update dwm/patches."
-    fi
-    return 0
+	# Verify both rewrites landed; warn (never abort) if upstream changed shape.
+	local ok=1
+	grep -q 'focusonclick: pointer never changes focus' "$src" || ok=0
+	grep -q 'focusonclick: keep the active monitor fixed' "$src" || ok=0
+	if ((ok)); then
+		log "Applied focus-on-click (pointer no longer changes focus or switches monitors)."
+	else
+		warn "focus-on-click rewrite did NOT match upstream dwm.c — pointer focus unchanged."
+		warn "enternotify/motionnotify were likely refactored upstream; update dwm/patches."
+	fi
+	return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -91,37 +91,40 @@ apply_focusonclick() {
 #     dwm/patches/fullscreen-pointer-confine.patch file mirrors it for reading.
 # ---------------------------------------------------------------------------
 apply_fullscreen_confine_hook() {
-    local src="$SRC_DIR/dwm.c"
-    [[ -f "$src" ]] || return 0
+	local src="$SRC_DIR/dwm.c"
+	[[ -f "$src" ]] || return 0
 
-    perl -0777 -i -pe '
+	perl -0777 -i -pe '
         s!(\n\t\tc->isfullscreen = 1;\n)!$1\t\tif (system("pconfine-auto on &")) {}\n!;
         s!(\n\t\tc->isfullscreen = 0;\n)!$1\t\tif (system("pconfine-auto off &")) {}\n!;
         s!(\nunmanage\(Client \*c, int destroyed\)\n\{\n\tMonitor \*m = c->mon;\n\tXWindowChanges wc;\n)!$1\tif (c->isfullscreen) { if (system("pconfine-auto off &")) {} }\n!;
     ' "$src"
 
-    # Expect: 1 "on", 2 "off" (setfullscreen-leave + unmanage). Warn if not.
-    local on off
-    on=$(grep -c 'pconfine-auto on' "$src")
-    off=$(grep -c 'pconfine-auto off' "$src")
-    if [[ "$on" == 1 && "$off" == 2 ]]; then
-        log "Applied auto pointer-confinement hook (locks the cursor to a fullscreen window's screen)."
-    else
-        warn "pointer-confine hook only partially applied (on=$on off=$off, expected 1/2)."
-        warn "setfullscreen/unmanage were likely refactored upstream; update dwm/patches."
-    fi
-    return 0
+	# Expect: 1 "on", 2 "off" (setfullscreen-leave + unmanage). Warn if not.
+	# `|| true`: grep -c exits 1 when the count is zero, and the caller runs
+	# under `set -e`. Without this the function aborts HERE on a refactored
+	# upstream -- i.e. exactly when the warning below is the thing we need.
+	local on off
+	on=$(grep -c 'pconfine-auto on' "$src" || true)
+	off=$(grep -c 'pconfine-auto off' "$src" || true)
+	if [[ "$on" == 1 && "$off" == 2 ]]; then
+		log "Applied auto pointer-confinement hook (locks the cursor to a fullscreen window's screen)."
+	else
+		warn "pointer-confine hook only partially applied (on=$on off=$off, expected 1/2)."
+		warn "setfullscreen/unmanage were likely refactored upstream; update dwm/patches."
+	fi
+	return 0
 }
 
 # ---------------------------------------------------------------------------
 # 4. Build & install (PREFIX defaults to /usr/local).
 # ---------------------------------------------------------------------------
 build_install() {
-    log "Compiling dwm…"
-    make -C "$SRC_DIR" clean >/dev/null
-    make -C "$SRC_DIR" 2>&1 | tail -15
-    log "Installing dwm (sudo make install)…"
-    sudo make -C "$SRC_DIR" install 2>&1 | tail -8
+	log "Compiling dwm…"
+	make -C "$SRC_DIR" clean >/dev/null
+	make -C "$SRC_DIR" 2>&1 | tail -15
+	log "Installing dwm (sudo make install)…"
+	sudo make -C "$SRC_DIR" install 2>&1 | tail -8
 }
 
 # ---------------------------------------------------------------------------
@@ -132,18 +135,18 @@ build_install() {
 #     (fullscreen just won't auto-lock the cursor).
 # ---------------------------------------------------------------------------
 build_pointer_confine() {
-    log "Compiling pointer-confine from the repo (${REPO_DWM_DIR}/pointer-confine.c)…"
-    local bin
-    bin="$(mktemp)"
-    if cc -std=c99 -pedantic -Wall -O2 "${REPO_DWM_DIR}/pointer-confine.c" -o "$bin" \
-            -lX11 -lXfixes -lXinerama 2>/tmp/pointer-confine-build.log; then
-        sudo install -m 755 "$bin" "$BIN_CONFINE"
-        log "Installed $BIN_CONFINE."
-    else
-        warn "pointer-confine failed to compile — fullscreen cursor-lock disabled (dwm itself is fine):"
-        sed 's/^/    /' /tmp/pointer-confine-build.log >&2 || true
-    fi
-    rm -f "$bin"
+	log "Compiling pointer-confine from the repo (${REPO_DWM_DIR}/pointer-confine.c)…"
+	local bin
+	bin="$(mktemp)"
+	if cc -std=c99 -pedantic -Wall -O2 "${REPO_DWM_DIR}/pointer-confine.c" -o "$bin" \
+		-lX11 -lXfixes -lXinerama 2>/tmp/pointer-confine-build.log; then
+		sudo install -m 755 "$bin" "$BIN_CONFINE"
+		log "Installed $BIN_CONFINE."
+	else
+		warn "pointer-confine failed to compile — fullscreen cursor-lock disabled (dwm itself is fine):"
+		sed 's/^/    /' /tmp/pointer-confine-build.log >&2 || true
+	fi
+	rm -f "$bin"
 }
 
 # ---------------------------------------------------------------------------
@@ -152,15 +155,15 @@ build_pointer_confine() {
 #    them on PATH with the right mode.
 # ---------------------------------------------------------------------------
 write_session_files() {
-    log "Installing helper scripts from the repo and the lightdm xsession entry…"
-    sudo install -m 755 "${REPO_DWM_DIR}/bin/dwm-session"   "$BIN_SESSION"
-    sudo install -m 755 "${REPO_DWM_DIR}/bin/dwmstatus"     "$BIN_STATUS"
-    sudo install -m 755 "${REPO_DWM_DIR}/bin/dwm-rebuild"   "$BIN_REBUILD"
-    sudo install -m 755 "${REPO_DWM_DIR}/bin/switch-wm"     "$BIN_SWITCH"
-    sudo install -m 755 "${REPO_DWM_DIR}/bin/pconfine-auto" "$BIN_CONFINE_AUTO"
+	log "Installing helper scripts from the repo and the lightdm xsession entry…"
+	sudo install -m 755 "${REPO_DWM_DIR}/bin/dwm-session" "$BIN_SESSION"
+	sudo install -m 755 "${REPO_DWM_DIR}/bin/dwmstatus" "$BIN_STATUS"
+	sudo install -m 755 "${REPO_DWM_DIR}/bin/dwm-rebuild" "$BIN_REBUILD"
+	sudo install -m 755 "${REPO_DWM_DIR}/bin/switch-wm" "$BIN_SWITCH"
+	sudo install -m 755 "${REPO_DWM_DIR}/bin/pconfine-auto" "$BIN_CONFINE_AUTO"
 
-    # --- xsession entry for lightdm (absolute Exec path) --------------------
-    sudo tee "$XSESSION" >/dev/null <<'DESKTOP_EOF'
+	# --- xsession entry for lightdm (absolute Exec path) --------------------
+	sudo tee "$XSESSION" >/dev/null <<'DESKTOP_EOF'
 [Desktop Entry]
 Name=dwm (i3-like)
 Comment=dynamic window manager, compiled from source
@@ -175,16 +178,16 @@ DESKTOP_EOF
 # 6. Verify the build links and the session is registered.
 # ---------------------------------------------------------------------------
 verify() {
-    log "Verifying install…"
-    local ver
-    ver="$(dwm -v 2>&1)" || true   # dwm -v prints version then exit(1)
-    log "dwm version: ${ver:-<none>}"
-    command -v dwm >/dev/null && log "dwm binary: $(command -v dwm)"
-    [[ -f "$XSESSION" ]] && log "xsession registered: $XSESSION"
+	log "Verifying install…"
+	local ver
+	ver="$(dwm -v 2>&1)" || true # dwm -v prints version then exit(1)
+	log "dwm version: ${ver:-<none>}"
+	command -v dwm >/dev/null && log "dwm binary: $(command -v dwm)"
+	[[ -f "$XSESSION" ]] && log "xsession registered: $XSESSION"
 }
 
 print_summary() {
-    cat <<SUMMARY
+	cat <<SUMMARY
 
   dwm is installed alongside i3 (i3 untouched).
   This machine autologins (no session picker), so choose the WM you boot into:
