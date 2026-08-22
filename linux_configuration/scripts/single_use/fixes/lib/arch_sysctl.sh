@@ -9,7 +9,9 @@
 # 3. Memory & swap tuning via sysctl
 # ===================================================================
 tweak_vm_sysctl() {
-	local dropin="/etc/sysctl.d/90-desktop-performance.conf"
+	# SYSCTL_DROPIN_DIR defaults to the real directory and is overridden only
+	# by the test harness, which runs un-jailed in ci_mirror.sh and in CI.
+	local dropin="${SYSCTL_DROPIN_DIR:-/etc/sysctl.d}/90-desktop-performance.conf"
 
 	# Desktop workloads: low swappiness, aggressive VFS caching, tuned dirty ratios
 	local -A params=(
@@ -62,7 +64,7 @@ VMEOF
 # 4. Network: TCP BBR + fastopen + buffer tuning
 # ===================================================================
 tweak_network_sysctl() {
-	local dropin="/etc/sysctl.d/91-desktop-network.conf"
+	local dropin="${SYSCTL_DROPIN_DIR:-/etc/sysctl.d}/91-desktop-network.conf"
 
 	# Check if BBR module is available
 	if ! modprobe tcp_bbr 2>/dev/null; then

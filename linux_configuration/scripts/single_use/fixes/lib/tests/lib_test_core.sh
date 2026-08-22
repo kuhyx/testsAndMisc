@@ -195,6 +195,28 @@ _t_full_path() {
 
 export LIB_TEST_ORIG_PATH="${PATH#"${FAKE_BIN}:"}"
 
+# _t_run FUNC [ARG...] — run FUNC in THE CURRENT SHELL, putting its combined
+# output in $out and returning its exit status.
+#
+# Deliberately not `out="$(func)"`. Command substitution forks a subshell, and
+# kcov does not register a sourced file whose first execution happens inside
+# one: the lib then reports "kcov instrumented no lines" and cannot be
+# measured at all, even though every assertion against it passes. Capturing
+# through a file keeps the call in the current shell, so the lib is
+# registered. Measured on arch_sysctl.sh: 0 lines via $( ), 54 lines via this.
+# $out is the output of the most recent _t_run, read by the assertions at
+# every call site. Exported for the same reason the other cross-file globals
+# here are: the readers live in other files, so static analysis cannot see
+# the use from this one.
+export out=""
+
+_t_run() {
+	local rc=0
+	"$@" >"${TEST_TMPDIR}/run_out" 2>&1 || rc=$?
+	out="$(cat "${TEST_TMPDIR}/run_out")"
+	return "$rc"
+}
+
 # _t_calls — print everything the stubs recorded this round.
 _t_calls() {
 	cat "${DEV}/calls" 2>/dev/null || true

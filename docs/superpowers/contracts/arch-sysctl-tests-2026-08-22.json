@@ -1,0 +1,19 @@
+{
+  "title": "Test arch_sysctl.sh and open the optimize_arch_desktop lib family",
+  "objective": "Give arch_sysctl.sh a real test suite covering both of its sysctl-tuning functions, and add the third family harness so arch_cpu.sh and arch_hardware.sh can reuse it, as the first of the eight untested fixes/lib libraries.",
+  "acceptance_criteria": [
+    "test_arch_sysctl.sh exercises both tweak_vm_sysctl and tweak_network_sysctl across every branch: already-tuned-with-drop-in (skip), already-tuned-without-drop-in (write), value-differs (write and reload), sysctl-read-failure, and the tcp_bbr modprobe guard.",
+    "The whole suite stays green: run_all.sh reports every test file passing, including the 20 that predate this change.",
+    "shellcheck reports nothing on the new and modified files, with zero suppressions added anywhere.",
+    "No write reaches /etc: the two real sysctl drop-ins keep their pre-existing mtimes after the suite runs.",
+    "arch_sysctl.sh's production behaviour is unchanged -- SYSCTL_DROPIN_DIR defaults to the real /etc/sysctl.d.",
+    "arch_sysctl.sh stays on meta/shell-coverage-allowlist.txt, because it is not yet measurable through run_all.sh; the allowlist line may only be removed once the jail reports a real percentage."
+  ],
+  "out_of_scope": [
+    "Removing arch_sysctl.sh from the coverage allowlist while its measurement still fails.",
+    "Changing the coverage instrument (meta/scripts/lib/shell_coverage_lines.py), which is scheduled after the eight libs.",
+    "Refactoring pacman_hook_stall_harness.sh onto lib_test_core.sh.",
+    "Touching arch_cpu.sh or arch_hardware.sh, which reuse this harness in later commits."
+  ],
+  "verifier": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh (all test files pass, arch_sysctl reports 23 passed / 0 failed), plus shellcheck on the four touched shell files, plus stat on /etc/sysctl.d/9[01]-*.conf showing unchanged mtimes."
+}
