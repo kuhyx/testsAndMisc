@@ -146,9 +146,20 @@ run_jailed_suite() {
 		fail "jail_args is present but empty: $args_file"
 	fi
 
-	(cd "$CHECKOUT" && bash meta/scripts/shell_coverage_jail.sh \
-		--subject "$runner" "${jail_args[@]}" -- "" >/dev/null) ||
+	# --min 0: this gate asks "did the assertions pass?", not "is the lib at
+	# 100%?". Without it the jail measures the runner itself against its
+	# default --min 100 and fails the push on a number no one asked for.
+	# The coverage bar is check_shell_coverage.sh's job, per-lib and --measure'd.
+	# Output is captured, not discarded: on success it is noise, but on failure
+	# it holds the `warn: case exited` line and the suite's own FAIL: lines.
+	# Without this the gate reports only "suite failed" and cannot be diagnosed.
+	local out
+	if ! out="$(cd "$CHECKOUT" && bash meta/scripts/shell_coverage_jail.sh \
+		--subject "$runner" "${jail_args[@]}" \
+		--min 0 --fail-on-case-error -- "" 2>&1)"; then
+		printf '%s\n' "$out" >&2
 		fail "jailed lib/tests suite failed: $runner"
+	fi
 }
 
 run_shell_test_gate() {

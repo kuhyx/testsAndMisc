@@ -1,0 +1,21 @@
+{
+  "title": "Make the lib/tests gate run jail-requiring suites, and make it able to fail",
+  "objective": "Unblock the push gate and CI for suites that must execute inside shell_coverage_jail.sh, and close the fail-open hole that let a suite with a failing assertion exit 0 through that gate -- without changing the jail's behaviour in the measurement mode the 105-lib shell-coverage campaign depends on.",
+  "acceptance_criteria": [
+    "A suite declares its jail requirement as data (a jail_args file beside run_all.sh); neither ci_mirror.sh nor shell-tests.yml names any suite path, so a future jail-requiring suite needs no edit to either runner.",
+    "Both runners fail closed on a jail_args file that is present but empty: reported as a configuration error, never silently skipped.",
+    "Gate mode fails on a failing assertion: the features/lib suite with a deliberately broken _t_eq injected before _t_report exits non-zero.",
+    "Gate mode does not false-positive: the unmodified features/lib suite exits 0.",
+    "Measurement mode is unchanged: a subject with an error-path case that exits non-zero still reports its coverage and exits 0, so --fail-on-case-error is off by default.",
+    "The extracted jail_args flags reproduce the independently measured dot_resolver_install.sh 39/39 = 100.00%.",
+    "The five lib/tests suites that do not require the jail still run bare and pass.",
+    "Every touched shell file is within the 250-line cap and shellcheck-clean, with no suppressions added."
+  ],
+  "out_of_scope": [
+    "The REFUSING guards in the individual test files: they are what stop a test run from writing the developer's real /etc, and are deliberately untouched.",
+    "Wiring check_shell_coverage.sh into any hook -- that arms only when the allowlist reaches zero.",
+    "The kcov mis-measurement of rpi_nc_install.sh, which is tracked separately as an instrument defect.",
+    "The unrelated python_pkg/token_audit/ files a concurrent session staged into the shared index."
+  ],
+  "verifier": "Four quadrants via meta/scripts/shell_coverage_jail.sh: measurement+error-case = 0 with coverage printed; gate+error-case = 1; gate+clean features/lib suite = 0; gate+injected-failing-assertion = 1. Plus bash meta/scripts/check_file_length.sh --all showing no violation, shellcheck on the three shell files, and a successful git push through the ci-mirror pre-push hook."
+}

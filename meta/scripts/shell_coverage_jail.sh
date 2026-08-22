@@ -46,6 +46,11 @@ MIN_PERCENT=100
 # Per-case wall-clock ceiling. A hung case cannot be distinguished from a slow
 # one without a bound, and an unbounded run blocks a hook indefinitely.
 CASE_TIMEOUT="120s"
+# Off by default: when MEASURING, a case that exits non-zero is normal and
+# wanted -- the usage example's `bogus` case exists precisely to cover an
+# error path. Only a GATE, whose subject is a test suite, wants that status
+# to fail the run. See --fail-on-case-error.
+FAIL_ON_CASE_ERROR=0
 BIND_PATHS=()
 EXTRA_SHIMS=()
 CASES=()
@@ -69,6 +74,12 @@ Usage: $SCRIPT_NAME --subject <file> [options] -- <case> [<case>...]
   --seed-file <path> create an empty file at <path> inside the jail
   --timeout <dur>    per-case wall-clock ceiling (default 120s)
   --min <percent>    fail below this (default 100)
+  --fail-on-case-error
+                     exit non-zero if any case exits non-zero. For GATE use,
+                     where the subject is a test suite and a failing
+                     assertion must fail the run. Off by default: when
+                     measuring, an error-path case exiting non-zero is the
+                     point of running it.
   -- <case>...       one invocation each; "" means "no arguments"
 
 Example:
@@ -112,6 +123,10 @@ while [[ $# -gt 0 ]]; do
 	--min)
 		MIN_PERCENT="$2"
 		shift 2
+		;;
+	--fail-on-case-error)
+		FAIL_ON_CASE_ERROR=1
+		shift
 		;;
 	-h | --help) usage ;;
 	--)
@@ -161,6 +176,10 @@ trap cleanup EXIT
 # shellcheck source=./lib/shell_coverage_jail_setup.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/shell_coverage_jail_setup.sh"
 
+# The in-namespace case runner, likewise split for the 250-line cap.
+# shellcheck source=./lib/shell_coverage_case_runner.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/shell_coverage_case_runner.sh"
+
 main() {
 	validate_requirements
 	build_jail
@@ -180,44 +199,7 @@ main() {
 	local tree_before
 	tree_before="$(cd "$REPO_ROOT" && git status --porcelain)"
 
-	# The runner below executes INSIDE the namespace, so it is written out as
-	# its own file rather than inlined: a quoted inline block would have to
-	# defer every expansion to the child shell, which reads as a quoting bug
-	# and trips SC2016.
-	cat >"$JAIL/run_cases.sh" <<'INNER'
-#!/usr/bin/env bash
-set -u
-jail="$1"
-subject_dir="$2"
-subject_base="$3"
-measure_base="$4"
-case_timeout="$5"
-. "$jail/mounts.sh"
-export PATH="$jail/bin:/usr/bin:/bin"
-export HOME="$jail/home"
-USER="${USER:-root}"
-export USER
-export SUDO_USER="$USER"
-cd "$subject_dir" || exit 1
-while IFS= read -r line; do
-    read -r -a case_args <<<"$line"
-    # Bounded, and with stdin closed. Both matter: a subject that reads stdin
-    # blocks forever on the caller's terminal (a `crontab -` fallback did
-    # exactly this and hung a run for the full two minutes with no output),
-    # and a subject that spins never yields at all. A timed-out case is
-    # reported rather than swallowed, because a silent timeout looks
-    # identical to an unreachable line in the coverage report.
-    timeout --kill-after=10s "$case_timeout" \
-        kcov --include-pattern="$measure_base" "$jail/cov" \
-        "./$subject_base" ${case_args[@]+"${case_args[@]}"} \
-        >/dev/null 2>&1 </dev/null
-    rc=$?
-    if [[ $rc -eq 124 || $rc -eq 137 ]]; then
-        printf 'warn: case timed out after %s: %s\n' "$case_timeout" "$line" >&2
-    fi
-done <"$jail/cases"
-INNER
-	chmod +x "$JAIL/run_cases.sh"
+	write_case_runner
 
 	# Seeds are created after the mounts, from inside the namespace: a path
 	# under a bound target does not exist until that target is mounted.
@@ -243,8 +225,19 @@ INNER
 		exit 1
 	fi
 
+	# Report coverage first -- the number is wanted even when a case failed,
+	# and suppressing it would hide the diagnosis behind the symptom.
+	local report_rc=0
 	python3 "$REPO_ROOT/meta/scripts/shell_coverage_report.py" \
-		"$JAIL/cov" "$measure_base" "$MIN_PERCENT"
+		"$JAIL/cov" "$measure_base" "$MIN_PERCENT" || report_rc=$?
+
+	if [[ $FAIL_ON_CASE_ERROR -eq 1 && -s "$JAIL/case_failures" ]]; then
+		printf 'Error: %d case(s) exited non-zero; see the warn: lines above\n' \
+			"$(wc -l <"$JAIL/case_failures")" >&2
+		return 1
+	fi
+
+	return "$report_rc"
 }
 
 main "$@"

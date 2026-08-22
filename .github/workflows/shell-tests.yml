@@ -83,8 +83,12 @@ jobs:
                 failed=$((failed + 1))
                 continue
               fi
+              # --min 0: this step gates on the ASSERTIONS, not on coverage.
+              # The jail's default --min 100 would otherwise measure the
+              # runner itself and fail on a number this step never asked for;
+              # the coverage bar belongs to check_shell_coverage.sh.
               cmd=(bash meta/scripts/shell_coverage_jail.sh \
-                --subject "$r" "${jail_args[@]}" -- "")
+                --subject "$r" "${jail_args[@]}" --min 0 --fail-on-case-error -- "")
             else
               cmd=("$r")
             fi
