@@ -13,7 +13,9 @@ fix_journal() {
 	usage_line=$(journalctl --disk-usage 2>/dev/null || true)
 
 	local needs_vacuum=false
-	if [[ $usage_line =~ ([0-9]+\.?[0-9]*)\ G ]]; then
+	# Optional space before the unit: journalctl prints "305.5M in the file
+	# system", with no separator, so requiring one made this dead code.
+	if [[ $usage_line =~ ([0-9]+\.?[0-9]*)\ ?G ]]; then
 		needs_vacuum=true
 	fi
 
@@ -24,7 +26,7 @@ fix_journal() {
 	fi
 
 	# Create permanent size cap via drop-in
-	local dropin_dir="/etc/systemd/journald.conf.d"
+	local dropin_dir="${JOURNALD_CONF_DIR:-/etc/systemd/journald.conf.d}"
 	local dropin_file="$dropin_dir/size-limit.conf"
 
 	if [[ -f $dropin_file ]] && grep -q 'SystemMaxUse=300M' "$dropin_file"; then
@@ -58,12 +60,12 @@ fix_nm_wait_online() {
 # Fix 5: media-organizer.service
 # ===================================================================
 fix_media_organizer() {
-	local service_file="/etc/systemd/system/media-organizer.service"
+	local service_file="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/media-organizer.service"
 
 	# Find the organize_downloads.sh script
 	local script_path=""
 	local candidates=(
-		"/home/kuhy/testsAndMisc/linux_configuration/scripts/utils/organize_downloads.sh"
+		"${ORGANIZE_SCRIPT_CANDIDATES:-/home/kuhy/testsAndMisc/linux_configuration/scripts/utils/organize_downloads.sh}"
 		"/home/kuhy/linux-configuration/scripts/utils/organize_downloads.sh"
 	)
 	for candidate in "${candidates[@]}"; do

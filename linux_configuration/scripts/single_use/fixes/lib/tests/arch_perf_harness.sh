@@ -30,6 +30,13 @@ REPO_ROOT="$(cd "${FIXES_DIR}/../../../.." && pwd)"
 # These four are read by the libs under test, never by this harness, so
 # static analysis cannot see the use; export makes the intent explicit.
 export REPORT_FILE="${TEST_TMPDIR}/report.log"
+# arch_perf_fixes.sh writes a journald drop-in and a systemd unit, and probes
+# two absolute home paths for organize_downloads.sh. All three are behind
+# overrides defaulting to the real locations, because run_all.sh runs UN-jailed
+# in ci_mirror.sh and in CI, where a bind mount would protect nothing.
+export JOURNALD_CONF_DIR="${TEST_TMPDIR}/journald.conf.d"
+export SYSTEMD_UNIT_DIR="${TEST_TMPDIR}/systemd_units"
+export ORGANIZE_SCRIPT_CANDIDATES="${TEST_TMPDIR}/organize_downloads.sh"
 export APPLY_SAFE_FIXES="false"
 export INSTALL_TOOLS="false"
 declare -a FINDINGS=()
@@ -75,6 +82,9 @@ arch_reset() {
 	INSTALL_TOOLS="false"
 	export APPLY_SAFE_FIXES INSTALL_TOOLS
 	: >"$REPORT_FILE"
+	rm -rf "${JOURNALD_CONF_DIR}" "${SYSTEMD_UNIT_DIR}"
+	mkdir -p "${JOURNALD_CONF_DIR}" "${SYSTEMD_UNIT_DIR}"
+	rm -f "${ORGANIZE_SCRIPT_CANDIDATES}"
 	_t_full_path
 	_arch_default_stubs
 }
