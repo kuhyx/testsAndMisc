@@ -1,0 +1,53 @@
+{
+  "intent": "Test linux_configuration/scripts/single_use/fixes/lib/bt_pairing.sh to 100% line coverage and take it off the shell-coverage allowlist, second of the 16 untested fixes/lib libs.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_bt_pairing.sh and test_bt_pairing_usb.sh (new, 11 + 20 = 31 assertions; split across two files to stay under the 250-line cap, which run_all.sh's test_*.sh glob makes free)",
+    "linux_configuration/scripts/single_use/fixes/lib/bt_pairing.sh (one line: UDEV_RULES_DIR override)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/bt_harness.sh (stub udevadm, which was reaching the real binary)",
+    "meta/shell-coverage-allowlist.txt (one line removed)",
+    "Non-goal: bind-mounting /etc to make the udev write safe -- rejected, see risks"
+  ],
+  "changes": [
+    "Added test_bt_pairing.sh covering remove_stale_pairing (empty TARGET_MAC, paired-but-not-connected, paired-and-connected, not-paired, and device-unknown) and restart_bluetooth (both arms of the FIXES_APPLIED guard); added test_bt_pairing_usb.sh covering fix_usb_autosuspend (no bluetooth device, unparseable USB ID, no matching sysfs path, control already 'on', and control 'auto') and _disable_usb_autosuspend directly, including both arms of its idempotence guard and the different-vendor rewrite.",
+    "Added a UDEV_RULES_DIR override to bt_pairing.sh:_disable_usb_autosuspend so the test suite can redirect the udev rule write out of /etc. Production default is unchanged: ${UDEV_RULES_DIR:-/etc/udev/rules.d}.",
+    "Added udevadm to the harness's default stub list. It was NOT stubbed before, so `udevadm control --reload-rules` was reaching the real binary on the host -- the 'a prepended stub dir cannot hide a real binary' trap, caught by an assertion on the recorded call rather than by inspection.",
+    "fix_usb_autosuspend globs the real /sys/bus/usb/devices/*/ with no env override, so each branch is driven through the stubbed lsusb output instead: ffff:ffff matches no device on any machine and exercises the not-found arm, while 046d:c077 (control=on) and 046d:0825 (control=auto) are read-only probes of devices present on this host, each guarded so it self-skips if that stops holding.",
+    "Removed linux_configuration/scripts/single_use/fixes/lib/bt_pairing.sh from meta/shell-coverage-allowlist.txt."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "test_bt_pairing.sh: 11 passed, 0 failed; test_bt_pairing_usb.sh: 20 passed, 0 failed; test_bt_report.sh: 24 passed, 0 failed. All fixes lib test files passed, so the eight pre-existing pacman_hook_stall suites stay green."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure bt_pairing.sh --min 1 --fail-on-case-error -- \"\"",
+      "result": "pass",
+      "evidence": "bt_pairing.sh: 65/65 lines = 100.00%, up from 55/65 = 84.62% before _disable_usb_autosuspend's body (lines 112-126) was covered. No 'outside kcov's line set' lines reported."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure bt_pairing.sh --min 100 --fail-on-case-error -- \"\"",
+      "result": "pass",
+      "evidence": "bt_pairing.sh: 65/65 lines = 100.00%, exit code 0. Second matching run at the --min 100 bar, re-run after the two-file split to confirm the split did not change the line set."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh linux_configuration/scripts/single_use/fixes/lib/bt_pairing.sh",
+      "result": "pass",
+      "evidence": "'check_shell_coverage.sh: every checked shell library meets the coverage bar', exit 0, with the allowlist line already removed so the lib had no exemption."
+    },
+    {
+      "command": "stat -c '%y' /etc/udev/rules.d/50-bluetooth-no-autosuspend.rules",
+      "result": "pass",
+      "evidence": "2026-02-21 21:51:36, unchanged after a bare (un-jailed) run of run_all.sh -- the file is a real artifact of a past production run, six months old. /sys/bus/usb/devices/1-10 and 1-11 power/control still read 'auto' and 'on'. This is the check that proves the suite is safe where it actually runs un-jailed; the jail cannot give it."
+    }
+  ],
+  "risks": [
+    "Bind-mounting /etc was considered and rejected. lib/tests/run_all.sh runs UN-jailed in ci_mirror.sh (the pre-push hook) and in the shell-tests workflow, as its own header states, so a --bind would have made only the coverage run safe and left every bare run writing to the real root-owned udev rule. The UDEV_RULES_DIR override follows the precedent pacman_hook_stall_harness.sh set with PACMAN_LOG/CACHE_DIR/PACMAN_LOCK.",
+    "Two fix_usb_autosuspend cases read real sysfs devices (046d:c077 and 046d:0825) because the /sys path is hardcoded in the lib. Both are read-only and each is wrapped in a guard that turns the case into a pass with an explicit SKIP note if the host's power/control value changes, so the suite cannot silently start asserting nothing.",
+    "The coverage runs were made in a detached worktree, because a second Claude session is writing to this repo concurrently and the jail aborts on any working-tree delta during a run."
+  ],
+  "rollback": [
+    "git revert the commit; that restores the bt_pairing.sh allowlist line, removes the UDEV_RULES_DIR override and deletes the test file together.",
+    "After rollback, run bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh and confirm the remaining suites pass, then bash meta/scripts/check_shell_coverage.sh to confirm the gate is green with bt_pairing.sh exempt again."
+  ]
+}

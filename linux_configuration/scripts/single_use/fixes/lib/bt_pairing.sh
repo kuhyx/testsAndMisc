@@ -114,14 +114,17 @@ _disable_usb_autosuspend() {
 	local product="$3"
 
 	# Immediate fix
-	echo "on" > "$power_control"
+	echo "on" >"$power_control"
 
-	# Persistent udev rule
-	local rule_file="/etc/udev/rules.d/50-bluetooth-no-autosuspend.rules"
+	# Persistent udev rule. UDEV_RULES_DIR defaults to the real directory and
+	# is only overridden by the test suite, which cannot be allowed to write
+	# to /etc: lib/tests/run_all.sh runs UN-jailed in ci_mirror.sh and in CI,
+	# so a bind mount would protect the coverage run and nothing else.
+	local rule_file="${UDEV_RULES_DIR:-/etc/udev/rules.d}/50-bluetooth-no-autosuspend.rules"
 	local rule="ACTION==\"add\", SUBSYSTEM==\"usb\", ATTR{idVendor}==\"$vendor\", ATTR{idProduct}==\"$product\", ATTR{power/control}=\"on\""
 
 	if [[ ! -f $rule_file ]] || ! grep -qF "$vendor" "$rule_file" 2>/dev/null; then
-		echo "$rule" > "$rule_file"
+		echo "$rule" >"$rule_file"
 		udevadm control --reload-rules 2>/dev/null || true
 		log_info "Created persistent udev rule: $rule_file"
 	fi

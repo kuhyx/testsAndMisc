@@ -1,0 +1,17 @@
+{
+  "title": "Test bt_pairing.sh to 100% and clear it from the shell-coverage allowlist",
+  "objective": "Cover the second of the sixteen untested linux_configuration/scripts/single_use/fixes/lib libs. bt_pairing.sh is the first in the family whose code writes outside its own process -- a sysfs power/control file and a udev rule under /etc -- so the contract is to reach 100% without ever letting the suite touch either, given that lib/tests/run_all.sh runs UN-jailed in ci_mirror.sh and in CI.",
+  "acceptance_criteria": [
+    "bt_pairing.sh measures 100.00% through lib/tests/run_all.sh, twice, the second run at --min 100 with exit 0.",
+    "check_shell_coverage.sh exits 0 for bt_pairing.sh with its allowlist line removed, i.e. with no exemption.",
+    "A bare (un-jailed) run of run_all.sh leaves /etc/udev/rules.d/50-bluetooth-no-autosuspend.rules with its original 2026-02-21 mtime, and leaves the power/control values of the probed USB devices unchanged.",
+    "Every test file stays under the repo's 250-line cap.",
+    "pre-commit passes on all changed files with no suppression added -- no # shellcheck disable, no noqa."
+  ],
+  "out_of_scope": [
+    "Bind-mounting /etc in the jail to make the udev write safe. Rejected: run_all.sh runs un-jailed in ci_mirror.sh and CI, so a bind mount would protect only the coverage run.",
+    "Refactoring pacman_hook_stall_harness.sh onto the new lib_test_core.sh. Its six libs are already gated at 100% with no exemption.",
+    "The remaining fourteen untested fixes/lib libs, which land in later commits."
+  ],
+  "verifier": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh (expects all files passing, 11 + 20 for the two bt_pairing files), plus bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure bt_pairing.sh --min 100 --fail-on-case-error -- \"\" (expects 65/65 = 100.00% and exit 0), plus bash meta/scripts/check_shell_coverage.sh linux_configuration/scripts/single_use/fixes/lib/bt_pairing.sh (expects exit 0), plus stat -c '%y' /etc/udev/rules.d/50-bluetooth-no-autosuspend.rules (expects 2026-02-21)."
+}

@@ -78,7 +78,8 @@ apply_fix() {
 _bt_default_stubs() {
 	local tool
 	for tool in dmesg wget curl lsusb modprobe dbus-send pactl wpctl \
-		bluetoothctl rfkill lsmod usbreset systemctl journalctl sudo id; do
+		bluetoothctl rfkill lsmod usbreset systemctl journalctl sudo id \
+		udevadm; do
 		_t_stub "$tool" 'exit 0'
 	done
 	# `id -u <user>` feeds _run_as_user's XDG_RUNTIME_DIR path.
