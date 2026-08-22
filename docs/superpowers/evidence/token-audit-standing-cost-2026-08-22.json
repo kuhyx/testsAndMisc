@@ -1,0 +1,47 @@
+{
+  "intent": "Land the token_audit standing-cost checkup so the question 'what am I paying for on every turn' is answered by measurement rather than recall.",
+  "scope": [
+    "python_pkg/token_audit/surfaces.py - enumerates always-on surfaces and estimates their token cost",
+    "python_pkg/token_audit/unused.py - two-window liveness test for registered surfaces",
+    "python_pkg/token_audit/probe.py - weighted share arithmetic",
+    "python_pkg/token_audit/checkup.py - renders the report; entry point",
+    "Four matching test modules",
+    "Non-goal: acting on the report's conclusions"
+  ],
+  "changes": [
+    "A surface qualifies as dead only when unused in the short window AND the long one. A single seven-day window is not enough evidence: one earlier audit's seven-day dead list included six servers used within thirty days.",
+    "Shares are weighted, with cache-read weight 0.1, so a cached surface is not billed as if it were re-read in full each turn.",
+    "checkup.py composes surfaces + unused + probe rather than re-deriving any of them, so the report and the spend report cannot disagree."
+  ],
+  "verification": [
+    {
+      "command": "timeout 120 python3 -m python_pkg.token_audit.checkup",
+      "result": "pass",
+      "evidence": "Rendered the standing-cost report over 44,311 turns: rules/ 4,907 tokens (1.77%), memories/ 3,758 (1.35%), MEMORY.md 4,312 (1.55%), CLAUDE.md 2,057 (0.74%), skill descriptions 3,279 (1.18%), plus per-MCP 7d/30d call counts with keep/park verdicts."
+    },
+    {
+      "command": "python3 -m coverage run --branch --source=python_pkg/token_audit -m pytest python_pkg/token_audit/tests; coverage report -m",
+      "result": "pass",
+      "evidence": "116 passed. All 11 modules at 100%: TOTAL 574 stmts, 130 branches, 0 missed, 0 partial."
+    },
+    {
+      "command": "wc -l python_pkg/token_audit/*.py python_pkg/token_audit/tests/*.py",
+      "result": "pass",
+      "evidence": "Largest files are report.py at 224 and parse.py at 223; every file is under the 250-line cap, so no split was needed."
+    },
+    {
+      "command": "pre-commit run --files (the eight untracked files)",
+      "result": "pass",
+      "evidence": "All hooks pass, no suppressions added."
+    }
+  ],
+  "risks": [
+    "Token counts are estimates from file sizes, not billed figures, so shares are directional rather than exact.",
+    "The two-window test reduces but does not eliminate false 'dead' verdicts: a surface used less often than the long window still reads as dead. The report says park, not remove, for this reason.",
+    "The files were found untracked in the working tree, ~2h old, from an earlier session; they are landed as-is after verifying they run and are fully covered."
+  ],
+  "rollback": [
+    "git revert this commit; the package is self-contained and nothing else imports it.",
+    "After rollback, confirm python_pkg still collects cleanly with python3 -m pytest python_pkg -q."
+  ]
+}

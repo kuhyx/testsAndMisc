@@ -1,0 +1,16 @@
+{
+  "title": "Land the token_audit standing-cost checkup: surfaces, probe, unused, checkup",
+  "objective": "Answer 'what is billed on every turn regardless of use' with measurement instead of recall. Earlier audits answered this from memory and got it wrong -- notably a seven-day dead list that included six surfaces used within thirty days -- so the module pairs a two-window liveness test with a weighted share estimate.",
+  "acceptance_criteria": [
+    "python3 -m python_pkg.token_audit.checkup runs and prints the standing-cost report.",
+    "The whole token_audit package holds 100% branch coverage (116 tests).",
+    "Every file stays under the repo's 250-line cap.",
+    "A surface is only reported dead when unused in BOTH the short and long window, never on a single window.",
+    "pre-commit passes on all eight files with no suppression added."
+  ],
+  "out_of_scope": [
+    "Acting on the report -- unregistering any MCP server, skill or rule file. This lands the instrument, not its conclusions.",
+    "The shell-coverage instrument work committed separately in 81191f40 and 29b8c5a7."
+  ],
+  "verifier": "timeout 120 python3 -m python_pkg.token_audit.checkup (expects a rendered report), plus python3 -m coverage run --branch --source=python_pkg/token_audit -m pytest python_pkg/token_audit/tests (expects 116 passed and 100% with zero partial branches), plus pre-commit run --files on the eight files."
+}
