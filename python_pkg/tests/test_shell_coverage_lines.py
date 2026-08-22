@@ -103,6 +103,38 @@ def test_closing_brace_with_redirect_is_a_continuation(
     assert mod.continuation_lines(src) == {3}
 
 
+def test_multiline_array_marks_elements_and_paren(
+    mod: ModuleType, tmp_path: Path
+) -> None:
+    """bash reports the whole assignment at the opening line; elements are data."""
+    src = _write(
+        tmp_path,
+        "a.sh",
+        'local -a c=(\n\t"one"\n\t"two"\n)\nfor i in "${c[@]}"; do :; done\n',
+    )
+    assert mod.continuation_lines(src) == {2, 3, 4}
+
+
+def test_single_line_array_is_a_statement(mod: ModuleType, tmp_path: Path) -> None:
+    """`x=(a b)` closes on its own line and stays a statement."""
+    src = _write(tmp_path, "a.sh", "x=(a b)\necho after\n")
+    assert mod.continuation_lines(src) == set()
+
+
+def test_array_element_containing_a_paren_does_not_close_it(
+    mod: ModuleType, tmp_path: Path
+) -> None:
+    """A `)` inside quotes must not end the literal early."""
+    src = _write(tmp_path, "a.sh", 'x=(\n\t"a(b)"\n\t"c"\n)\necho after\n')
+    assert mod.continuation_lines(src) == {2, 3, 4}
+
+
+def test_command_substitution_is_not_an_array(mod: ModuleType, tmp_path: Path) -> None:
+    """`x=$(cmd` is a substitution, not an array literal, and must not match."""
+    src = _write(tmp_path, "a.sh", "x=$(echo hi)\necho after\n")
+    assert mod.continuation_lines(src) == set()
+
+
 def test_bare_closing_brace_is_a_statement(mod: ModuleType, tmp_path: Path) -> None:
     """A `}` closing a function has no operator and must stay in the count."""
     src = _write(tmp_path, "a.sh", "f() {\n\techo a\n}\nf\n")

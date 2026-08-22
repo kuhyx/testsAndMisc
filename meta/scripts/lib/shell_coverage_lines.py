@@ -75,6 +75,17 @@ def traced_paths(trace_dir: Path, subject: str) -> list[Path]:
 # bare `}` closing a function carries no operator.
 _CLOSING_BRACE_OP = re.compile(r"^\s*\}\s*(\||>>?|<|&>)")
 
+# An assignment whose value opens a multi-line array literal, e.g.
+# `local -a candidates=(` or `FILES=(`. bash reports the WHOLE assignment at
+# this opening line and never emits the element lines or the closing paren, so
+# those are data. Symmetric with the multi-line-quote case: the opening line
+# is the statement, everything up to the closing paren is not.
+_ARRAY_OPEN = re.compile(
+    r"^\s*(?:local\s+|declare\s+|readonly\s+|export\s+)*"
+    r"(?:-[a-zA-Z]+\s+)*"
+    r"[A-Za-z_][A-Za-z0-9_]*\+?=\(\s*(?:#.*)?$"
+)
+
 
 def continuation_lines(source: Path) -> set[int]:
     """Return lines that are *inside* a multi-line quoted argument.
@@ -92,18 +103,39 @@ def continuation_lines(source: Path) -> set[int]:
       opening line of such a construct is a statement.
     * a line holding just a group's closing brace and an operator (``} |``,
       ``} >>file``). See ``_CLOSING_BRACE_OP``.
+    * the element lines and closing paren of a multi-line array literal.
+      See ``_ARRAY_OPEN``.
     """
     inside: set[int] = set()
     quote: str | None = None
+    in_array = False
     for number, raw in enumerate(
         source.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
     ):
-        if quote is not None:
+        if quote is not None or in_array:
             inside.add(number)
+        starts_open = quote is None and not in_array and bool(_ARRAY_OPEN.match(raw))
         quote = _quote_after(raw, quote)
-        if quote is None and _CLOSING_BRACE_OP.match(raw):
+        if in_array and quote is None and _closes_array(raw):
+            in_array = False
+        elif starts_open:
+            in_array = True
+        if quote is None and not in_array and _CLOSING_BRACE_OP.match(raw):
             inside.add(number)
     return inside
+
+
+def _closes_array(raw: str) -> bool:
+    """Return True when ``raw`` closes a multi-line array literal.
+
+    Only a ``)`` that is not itself inside quotes counts, so an element like
+    ``"a(b)"`` does not end the literal. Quote state is recomputed from the
+    start of the line for each candidate rather than pattern-matched.
+    """
+    for index, char in enumerate(raw):
+        if char == ")" and _quote_after(raw[:index], None) is None:
+            return True
+    return False
 
 
 def _quote_after(raw: str, quote: str | None) -> str | None:

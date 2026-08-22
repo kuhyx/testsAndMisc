@@ -1,0 +1,56 @@
+{
+  "intent": "Teach continuation_lines() that the element lines and closing paren of a multi-line array literal are not statements. This is defect (a) in docs/kcov-under-report.md, in the fourth flavour found this session, and it caps arch_perf_fixes.sh plus at least two of the libs still to be tested.",
+  "scope": [
+    "meta/scripts/lib/shell_coverage_lines.py (one regex, one helper, and array state in the main loop)",
+    "python_pkg/tests/test_shell_coverage_lines.py (four new cases: one positive, three negative)",
+    "Non-goal: the backslash-continued ASSIGNMENT flavour that caps bt_adapter.sh line 97, still deferred",
+    "meta/shell-coverage-allowlist.txt (arch_perf_fixes.sh removed, since the fix takes it to 100%)"
+  ],
+  "changes": [
+    "Added _ARRAY_OPEN, matching an assignment whose value opens a multi-line array literal -- `local -a c=(`, `declare -A m=(`, `FILES=(`, `x+=(` -- with nothing but an optional comment after the paren. While open, every line is excluded until a `)` that is not itself inside quotes.",
+    "Added _closes_array(), which finds that closing paren by recomputing quote state from the start of the line for each candidate, so an element like \"a(b)\" does not end the literal early.",
+    "The rule is symmetric with the existing multi-line-quote case: bash reports the WHOLE assignment at its OPENING line, so that line stays a statement and everything up to the closing paren is data.",
+    "Added four tests: a multi-line array marks its elements and closing paren; a single-line `x=(a b)` does NOT; an element containing a parenthesis does not close the literal early; and `x=$(echo hi)` is a command substitution rather than an array literal.",
+    "Removed linux_configuration/scripts/single_use/fixes/lib/arch_perf_fixes.sh from meta/shell-coverage-allowlist.txt: the fix takes it to 100.00%, so it now meets the bar."
+  ],
+  "verification": [
+    {
+      "command": "PS4='+L${LINENO} ' bash -x on a minimal multi-line array literal",
+      "result": "pass",
+      "evidence": "bash prints '+L3 items=(\\'one\\' \\'two\\')' for an array opened on line 3 and closed on line 6, and never emits lines 4, 5 or 6. The elements and closing paren are data; only the opening line is a statement."
+    },
+    {
+      "command": "python3 -m coverage run --branch --source=meta/scripts/lib -m pytest python_pkg/tests/test_shell_coverage_lines.py",
+      "result": "pass",
+      "evidence": "22 passed. shell_coverage_lines.py: 71 statements, 48 branches, 0 missed, 0 partial = 100%, so both arms of every new branch are covered as the repo's fail_under=100 branch gate requires."
+    },
+    {
+      "command": "Diff old vs new predicate over every allowlisted lib plus the six already cleared, printing each newly excluded line WITH its text",
+      "result": "pass",
+      "evidence": "91 newly excluded lines across 10 libs, and every one is an array element or a closing paren: common.sh's tool tables, packages.sh's associative arrays, arch_sysctl.sh's sysctl key/value maps, thorium_repairs.sh's four path lists, ubuntu_perf_fixes.sh's sssd unit list, clean_audio_filters.sh's model search paths, trace_prefix.sh, trace_stubs.sh and arch_perf_fixes.sh's candidate list. No ordinary statement was caught -- the fail-open direction this module's test header warns about."
+    },
+    {
+      "command": "Re-measure seven libs through fixes/lib/tests/run_all.sh after the change",
+      "result": "pass",
+      "evidence": "arch_perf_fixes.sh 93.48% -> 100.00% (43/43). bt_audio.sh 127/127, arch_perf_report.sh 59/59, arch_perf_probes.sh 93/93, ubuntu_perf_more.sh 32/32, bt_report.sh 37/37 and bt_pairing.sh 65/65 all unchanged at 100.00%. One gained, six held, none went DOWN."
+    },
+    {
+      "command": "The handoff's acceptance test: dot_resolver_install.sh and rpi_nc_ca.sh through features/lib/tests/run_all.sh with its jail_args",
+      "result": "pass",
+      "evidence": "dot_resolver_install.sh: 39/39 = 100.00% and rpi_nc_ca.sh: 73/73 = 100.00%, exactly the figures the handoff names as the instrument's acceptance criteria."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh linux_configuration/scripts/single_use/fixes/lib/arch_perf_fixes.sh",
+      "result": "pass",
+      "evidence": "'check_shell_coverage.sh: every checked shell library meets the coverage bar', exit 0, with the allowlist line already removed so the lib had no exemption."
+    }
+  ],
+  "risks": [
+    "This is the second denominator change of the session, so the same arithmetic bound applies: _measure computes covered_set = (executed|traced) & denominator, so a lib already at 100.00% cannot regress from excluding more lines. The six cleared libs were re-measured anyway and all held.",
+    "_ARRAY_OPEN deliberately requires the line to END at the open paren. `x=(a` followed by more elements on later lines would not match, and neither would a `for x in (` construct, which is not valid bash anyway. Narrower than necessary is the safe direction here, since over-detection inflates coverage."
+  ],
+  "rollback": [
+    "git revert the commit; continuation_lines() loses array tracking and the four new tests go with it.",
+    "After rollback, re-measure arch_perf_fixes.sh and expect it back at 93.48%. It is not on the cleared list at that point, so no gate breaks -- but if the follow-up clearing commit has landed, revert that too."
+  ]
+}
