@@ -79,6 +79,44 @@ def test_multiline_double_quote_marks_inner_lines(
     assert mod.continuation_lines(src) == {2, 3}
 
 
+def test_closing_brace_with_pipe_is_a_continuation(
+    mod: ModuleType, tmp_path: Path
+) -> None:
+    """`} |` carries no statement: bash attributes each part to its own line."""
+    src = _write(
+        tmp_path,
+        "a.sh",
+        "{\n\techo a\n\techo b\n} |\n\tconsumer\n",
+    )
+    assert mod.continuation_lines(src) == {4}
+
+
+def test_closing_brace_with_redirect_is_a_continuation(
+    mod: ModuleType, tmp_path: Path
+) -> None:
+    """The arch_perf_report.sh shape: a group appended to a report file."""
+    src = _write(
+        tmp_path,
+        "a.sh",
+        '{\n\techo a\n} >>"$REPORT_FILE"\necho after\n',
+    )
+    assert mod.continuation_lines(src) == {3}
+
+
+def test_bare_closing_brace_is_a_statement(mod: ModuleType, tmp_path: Path) -> None:
+    """A `}` closing a function has no operator and must stay in the count."""
+    src = _write(tmp_path, "a.sh", "f() {\n\techo a\n}\nf\n")
+    assert mod.continuation_lines(src) == set()
+
+
+def test_single_line_group_with_redirect_is_a_statement(
+    mod: ModuleType, tmp_path: Path
+) -> None:
+    """`{ echo a; } >file` begins with `{`, so the whole line is a statement."""
+    src = _write(tmp_path, "a.sh", '{ echo a; } >"$out"\necho after\n')
+    assert mod.continuation_lines(src) == set()
+
+
 def test_comment_outside_quotes_ends_the_line(mod: ModuleType, tmp_path: Path) -> None:
     """An apostrophe inside a comment must not open a quote state."""
     src = _write(tmp_path, "a.sh", "# don't be fooled\necho after\n")

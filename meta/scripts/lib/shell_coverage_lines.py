@@ -66,6 +66,16 @@ def traced_paths(trace_dir: Path, subject: str) -> list[Path]:
     return found
 
 
+# A line holding only a group's closing brace plus an operator: `} |`,
+# `} >>file`, `} <in`, `} &>log`. kcov instruments these, but bash attributes
+# no statement to them -- each command INSIDE the group is attributed to its
+# own line, and a pipe's right-hand side to its own line, leaving the brace
+# line with nothing. Anchoring on a leading `}` is what keeps this safe: a
+# one-liner `{ echo a; } >file` begins with `{` and is a real statement, and a
+# bare `}` closing a function carries no operator.
+_CLOSING_BRACE_OP = re.compile(r"^\s*\}\s*(\||>>?|<|&>)")
+
+
 def continuation_lines(source: Path) -> set[int]:
     """Return lines that are *inside* a multi-line quoted argument.
 
@@ -75,9 +85,13 @@ def continuation_lines(source: Path) -> set[int]:
     them as executable at all, which is the correct reading: they are data
     inside an argument, not statements.
 
-    Detected by tracking quote state across the file: any line that *begins*
-    while a quote opened on an earlier line is still open is a continuation.
-    Only the opening line of such a construct is a statement.
+    Two shapes qualify:
+
+    * a line that *begins* while a quote opened on an earlier line is still
+      open -- the continuation of a multi-line quoted argument. Only the
+      opening line of such a construct is a statement.
+    * a line holding just a group's closing brace and an operator (``} |``,
+      ``} >>file``). See ``_CLOSING_BRACE_OP``.
     """
     inside: set[int] = set()
     quote: str | None = None
@@ -86,24 +100,35 @@ def continuation_lines(source: Path) -> set[int]:
     ):
         if quote is not None:
             inside.add(number)
-        index = 0
-        while index < len(raw):
-            char = raw[index]
-            if quote is None:
-                if char == "#":
-                    # A comment outside quotes ends the line's significance.
-                    break
-                if char == "\\":
-                    index += 2
-                    continue
-                if char in ("'", '"'):
-                    quote = char
-            elif char == quote:
-                quote = None
-            elif quote == '"' and char == "\\":
-                # Only double quotes honour backslash escapes; inside single
-                # quotes a backslash is a literal character.
+        quote = _quote_after(raw, quote)
+        if quote is None and _CLOSING_BRACE_OP.match(raw):
+            inside.add(number)
+    return inside
+
+
+def _quote_after(raw: str, quote: str | None) -> str | None:
+    """Return the open-quote state at the end of ``raw``, given its state at the start.
+
+    ``None`` means no quote is open. Escapes are honoured outside quotes and
+    inside double quotes, but not inside single quotes, which take a
+    backslash literally.
+    """
+    index = 0
+    while index < len(raw):
+        char = raw[index]
+        if quote is None:
+            if char == "#":
+                # A comment outside quotes ends the line's significance.
+                break
+            if char == "\\":
                 index += 2
                 continue
-            index += 1
-    return inside
+            if char in ("'", '"'):
+                quote = char
+        elif char == quote:
+            quote = None
+        elif quote == '"' and char == "\\":
+            index += 2
+            continue
+        index += 1
+    return quote
