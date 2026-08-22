@@ -141,7 +141,7 @@ chmod +x "$TEST_TMPDIR/bin/uname"
 mac_out="$(phase_install_ca 2>&1)"
 _t_has "$mac_out" 'Detected macOS' "the macOS branch is selected when uname reports Darwin"
 _t_has "$mac_out" 'system keychain' "the macOS branch reports the keychain install"
-rm -f "$TEST_TMPDIR/bin/uname"
+_t_unstub uname
 
 # --- phase_install_ca: certutil reports the CA is ALREADY installed ---------
 # `certutil -L` emitting a line containing "Nextcloud" takes the else branch.

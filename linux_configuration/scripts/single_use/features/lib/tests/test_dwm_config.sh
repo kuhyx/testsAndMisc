@@ -176,7 +176,7 @@ _t_has "$verify_out" 'dwm version:' "verify reports the dwm version"
 _t_has "$verify_out" 'xsession registered' "verify confirms the xsession is registered"
 
 # --- verify: tolerates a missing dwm binary ---------------------------------
-rm -f "$TEST_TMPDIR/bin/dwm"
+_t_unstub dwm
 missing_out="$(verify 2>&1)" || true
 _t_has "$missing_out" 'dwm version:' "verify still reports when dwm is absent (dwm -v exits 1)"
 

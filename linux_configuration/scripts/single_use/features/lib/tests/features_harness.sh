@@ -86,6 +86,16 @@ _t_stub() {
 	chmod +x "$TEST_TMPDIR/bin/$1"
 }
 
+# Remove a stub AND forget it. bash caches executable locations in a hash
+# table, so `command -v foo` keeps succeeding after foo is deleted until the
+# table is cleared -- silently turning every "tool is missing" test into a
+# "tool is present" test that asserts the opposite of its own name. Measured:
+# without the `hash -r` the removed stub is STILL FOUND.
+_t_unstub() {
+	rm -f "$TEST_TMPDIR/bin/$1"
+	hash -r
+}
+
 _t_called() {
 	if [[ -f "$TEST_TMPDIR/calls.log" ]] && grep -q "$1" "$TEST_TMPDIR/calls.log"; then
 		_t_pass "$2"

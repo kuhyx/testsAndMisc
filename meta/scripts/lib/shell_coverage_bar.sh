@@ -35,10 +35,38 @@ is_covered() {
 	command -v kcov >/dev/null 2>&1 || return 0
 	command -v unshare >/dev/null 2>&1 || return 0
 
+	# A suite declares the mounts and seeds it needs in a `jail_args` file
+	# beside its run_all.sh -- the same marker ci_mirror.sh and
+	# shell-tests.yml read. Hardcoding flags here was a latent gate failure:
+	# the features/lib suite needs /usr/local/share and /etc/pki, and without
+	# them it ABORTS partway under `set -e`. The coverage number still printed
+	# (kcov had already recorded the lines the dead run reached), so the gate
+	# would have passed a lib whose suite never finished.
+	local jail_args=()
+	local args_file
+	args_file="$(dirname "$suite")/jail_args"
+	if [[ -f "$args_file" ]]; then
+		local arg
+		while IFS= read -r arg; do
+			jail_args+=("$arg")
+		done < <(grep -v '^#\|^$' "$args_file" || true)
+		if [[ ${#jail_args[@]} -eq 0 ]]; then
+			echo "Error: jail_args is present but empty: $args_file" >&2
+			return 1
+		fi
+	else
+		# No marker: the suite runs without needing anything mounted, so give
+		# it the historical defaults rather than nothing.
+		jail_args=(--bind /etc --bind /usr/local/bin --bind /var/lib)
+	fi
+
+	# --fail-on-case-error: a suite that dies partway must fail the gate, not
+	# be graded on however many lines it managed to reach first.
 	"$REPO_ROOT/meta/scripts/shell_coverage_jail.sh" \
 		--subject "$suite" \
-		--bind /etc --bind /usr/local/bin --bind /var/lib \
+		"${jail_args[@]}" \
 		--measure "$(basename "$path")" \
 		--min "$COVERAGE_BAR" \
+		--fail-on-case-error \
 		-- "" >/dev/null 2>&1
 }
