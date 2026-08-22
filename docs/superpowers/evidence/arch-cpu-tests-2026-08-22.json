@@ -1,0 +1,51 @@
+{
+  "intent": "Test arch_cpu.sh to 100% line coverage and take it off the shell coverage allowlist, clearing the second of the eight untested fixes/lib libraries.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/arch_cpu.sh (test seams only)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_arch_cpu.sh (new)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/arch_desktop_harness.sh (sysfs helpers)",
+    "meta/shell-coverage-allowlist.txt (one line removed)",
+    "Non-goal: arch_sysctl.sh's measurement problem, which this commit deliberately leaves untouched"
+  ],
+  "changes": [
+    "Added CPU_SYSFS_ROOT, BLOCK_SYSFS_ROOT, UDEV_RULES_DIR and CPUPOWER_CONF_FILE overrides to arch_cpu.sh, each defaulting to the real path so production behaviour is unchanged",
+    "Added _t_make_cpu, _t_make_block, _t_sched and _t_udev to arch_desktop_harness.sh so a case can present hardware this host does not have, such as a rotational disk",
+    "Added test_arch_cpu.sh: 28 assertions over 14 cases covering both functions, including the mixed-governor case, all three I/O scheduler targets, and the already-configured cpupower path",
+    "Removed arch_cpu.sh from meta/shell-coverage-allowlist.txt, taking it from 91 to 90 entries"
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --subject .../tests/run_all.sh --measure arch_cpu.sh --min 1 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "arch_cpu.sh: 57/57 lines = 100.00%"
+    },
+    {
+      "command": "shell_coverage_jail.sh ... --measure arch_cpu.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "arch_cpu.sh: 57/57 lines = 100.00%, exit 0, so a shortfall would have been a non-zero exit."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../fixes/lib/arch_cpu.sh (after removing the allowlist line)",
+      "result": "pass",
+      "evidence": "check_shell_coverage.sh: every checked shell library meets the coverage bar"
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; arch_cpu: 28 passed, 0 failed."
+    },
+    {
+      "command": "shellcheck arch_cpu.sh test_arch_cpu.sh arch_desktop_harness.sh",
+      "result": "pass",
+      "evidence": "No findings, zero suppressions."
+    }
+  ],
+  "risks": [
+    "A test asserting cpupower is absent initially passed for the wrong reason: _t_hide keeps $FAKE_BIN on PATH, so the harness's own default stub still satisfied has_cmd. Fixed by unstubbing before hiding, and the assertion now fails if that ordering is lost.",
+    "The measurement of arch_cpu.sh through the same harness that arch_sysctl.sh uses shows the harness is not the cause of arch_sysctl.sh's unmeasurability"
+  ],
+  "rollback": [
+    "git revert the commit, then re-add the arch_cpu.sh line to meta/shell-coverage-allowlist.txt",
+    "Re-run check_shell_coverage.sh to confirm the gate passes again with the exemption restored"
+  ]
+}

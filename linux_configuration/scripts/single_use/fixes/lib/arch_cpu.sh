@@ -10,7 +10,10 @@
 # ===================================================================
 tweak_cpu_governor() {
 	local gov_files
-	gov_files=$(find /sys/devices/system/cpu -maxdepth 3 -name scaling_governor 2>/dev/null || true)
+	# CPU_SYSFS_ROOT and the two write targets below default to the real
+	# locations and are overridden only by the test harness, which runs
+	# un-jailed in ci_mirror.sh and in CI.
+	gov_files=$(find "${CPU_SYSFS_ROOT:-/sys/devices/system/cpu}" -maxdepth 3 -name scaling_governor 2>/dev/null || true)
 
 	if [[ -z $gov_files ]]; then
 		log_warn "No CPU governor sysfs files found — skipping."
@@ -37,7 +40,7 @@ tweak_cpu_governor() {
 	done
 
 	# Make it persistent via a sysctl-style drop-in using udev rule
-	local udev_rule="/etc/udev/rules.d/60-cpu-governor-performance.rules"
+	local udev_rule="${UDEV_RULES_DIR:-/etc/udev/rules.d}/60-cpu-governor-performance.rules"
 	if [[ ! -f $udev_rule ]]; then
 		cat >"$udev_rule" <<'UDEVEOF'
 # Set CPU governor to performance on all cores at boot
@@ -46,7 +49,7 @@ UDEVEOF
 	fi
 
 	# Also install cpupower hook as a more reliable persistence method
-	local cpupower_conf="/etc/default/cpupower"
+	local cpupower_conf="${CPUPOWER_CONF_FILE:-/etc/default/cpupower}"
 	if has_cmd cpupower; then
 		if [[ ! -f $cpupower_conf ]] || ! grep -q "^governor='performance'" "$cpupower_conf" 2>/dev/null; then
 			mkdir -p "$(dirname "$cpupower_conf")"
@@ -68,7 +71,8 @@ tweak_io_scheduler() {
 	local changed=false
 
 	local block_dev
-	for block_dev in /sys/block/sd* /sys/block/nvme* /sys/block/vd*; do
+	local block_root="${BLOCK_SYSFS_ROOT:-/sys/block}"
+	for block_dev in "$block_root"/sd* "$block_root"/nvme* "$block_root"/vd*; do
 		[[ -d $block_dev ]] || continue
 		local sched_file="$block_dev/queue/scheduler"
 		[[ -f $sched_file ]] || continue
@@ -100,7 +104,7 @@ tweak_io_scheduler() {
 	done
 
 	# Persist via udev rule
-	local udev_rule="/etc/udev/rules.d/60-io-scheduler.rules"
+	local udev_rule="${UDEV_RULES_DIR:-/etc/udev/rules.d}/60-io-scheduler.rules"
 	if [[ ! -f $udev_rule ]]; then
 		cat >"$udev_rule" <<'IOEOF'
 # NVMe: no scheduler (multi-queue hardware handles it)

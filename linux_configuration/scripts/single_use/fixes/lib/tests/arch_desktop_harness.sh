@@ -38,6 +38,11 @@ REPO_ROOT="$(cd "${FIXES_DIR}/../../../.." && pwd)"
 export SYSCTL_DROPIN_DIR="${TEST_TMPDIR}/sysctl.d"
 export UDEV_RULES_DIR="${TEST_TMPDIR}/udev.rules.d"
 export CPUPOWER_CONF_FILE="${TEST_TMPDIR}/cpupower"
+# arch_cpu.sh reads CPU and block-device state from sysfs; the tests build a
+# fake tree under these roots so a case can present hardware this host does
+# not have (a rotational disk, a core not on the performance governor).
+export CPU_SYSFS_ROOT="${TEST_TMPDIR}/sys_cpu"
+export BLOCK_SYSFS_ROOT="${TEST_TMPDIR}/sys_block"
 export SYSTEMD_UNIT_DIR="${TEST_TMPDIR}/systemd_units"
 export JOURNALD_CONF_DIR="${TEST_TMPDIR}/journald.conf.d"
 export DRY_RUN="false"
@@ -95,12 +100,45 @@ arch_desktop_reset() {
 	INTERACTIVE_MODE="false"
 	export DRY_RUN AGGRESSIVE INTERACTIVE_MODE
 	rm -rf "${SYSCTL_DROPIN_DIR}" "${UDEV_RULES_DIR}" "${SYSTEMD_UNIT_DIR}" \
-		"${JOURNALD_CONF_DIR}"
+		"${JOURNALD_CONF_DIR}" "${CPU_SYSFS_ROOT}" "${BLOCK_SYSFS_ROOT}"
 	mkdir -p "${SYSCTL_DROPIN_DIR}" "${UDEV_RULES_DIR}" "${SYSTEMD_UNIT_DIR}" \
-		"${JOURNALD_CONF_DIR}"
+		"${JOURNALD_CONF_DIR}" "${CPU_SYSFS_ROOT}" "${BLOCK_SYSFS_ROOT}"
 	rm -f "${CPUPOWER_CONF_FILE}"
 	_t_full_path
 	_arch_desktop_default_stubs
+}
+
+# _t_make_cpu N GOVERNOR — create N fake cores whose scaling_governor reads
+# GOVERNOR. The layout mirrors the real one closely enough for the lib's
+# `find -maxdepth 3 -name scaling_governor` to reach it.
+_t_make_cpu() {
+	local count="$1" governor="$2" i dir
+	for ((i = 0; i < count; i++)); do
+		dir="${CPU_SYSFS_ROOT}/cpu${i}/cpufreq"
+		mkdir -p "$dir"
+		printf '%s\n' "$governor" >"${dir}/scaling_governor"
+	done
+}
+
+# _t_make_block NAME ROTATIONAL SCHEDULER — create one fake block device.
+# SCHEDULER is written in the kernel's own format, with the active entry in
+# brackets, because that is what the lib parses.
+_t_make_block() {
+	local name="$1" rotational="$2" scheduler="$3" dir
+	dir="${BLOCK_SYSFS_ROOT}/${name}/queue"
+	mkdir -p "$dir"
+	printf '%s\n' "$rotational" >"${dir}/rotational"
+	printf '%s\n' "$scheduler" >"${dir}/scheduler"
+}
+
+# _t_sched NAME — the scheduler file's contents for a fake device.
+_t_sched() {
+	cat "${BLOCK_SYSFS_ROOT}/$1/queue/scheduler" 2>/dev/null || true
+}
+
+# _t_udev FILE — the contents of a udev rule written this round.
+_t_udev() {
+	cat "${UDEV_RULES_DIR}/$1" 2>/dev/null || true
 }
 
 # _t_dropin FILE — the contents of a sysctl drop-in written this round.
