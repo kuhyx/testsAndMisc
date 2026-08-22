@@ -19,6 +19,10 @@
 /var
 --bind
 /root
+--bind
+/usr/local/share
+--bind
+/etc/pki
 --seed-dir
 /var/www/nextcloud
 --seed-dir
