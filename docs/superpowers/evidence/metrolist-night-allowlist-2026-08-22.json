@@ -1,0 +1,49 @@
+{
+  "intent": "Make Metrolist (com.metrolist.music) always available on the phone, including during the 23:00-05:00 night curfew, so it can be opened at any hour.",
+  "scope": [
+    "focus_owner/assets/policy.json - night_allowed_packages (the list the installed Device Owner app actually enforces)",
+    "phone_focus_mode/config.sh - NIGHT_WHITELIST (the rooted-stack mirror, kept in sync; not deployed on this unrooted Pixel 6a)",
+    "Non-goal: no change to the day allowlist (Metrolist was already there), the curfew window, or any other package"
+  ],
+  "changes": [
+    "Added com.metrolist.music to night_allowed_packages in focus_owner/assets/policy.json",
+    "Added com.metrolist.music to NIGHT_WHITELIST in phone_focus_mode/config.sh with a one-line rationale comment, keeping the two policy sources mirrored",
+    "Rebuilt and installed the focus_owner release APK via ~/.claude/scripts/phone_deploy.sh (build 4, data-preserving adb install -r)"
+  ],
+  "verification": [
+    {
+      "command": "adb shell dumpsys package com.metrolist.music | grep hidden=",
+      "result": "pass",
+      "evidence": "Before deploy at 23:13 device time (curfew active): hidden=true. After deploy: hidden=false."
+    },
+    {
+      "command": "adb -s 23181JEGR08034 pull <installed base.apk> && unzip -p live.apk assets/flutter_assets/assets/policy.json",
+      "result": "pass",
+      "evidence": "Pulled the installed APK back off the phone after deploy (build 4) and extracted its bundled policy asset: day metrolist True, night metrolist True, and it byte-for-byte matches the committed assets/policy.json. The APK installed BEFORE the change had day True / night False, confirming the night list was the actual gap."
+    },
+    {
+      "command": "adb shell monkey -p com.metrolist.music -c android.intent.category.LAUNCHER 1",
+      "result": "pass",
+      "evidence": "topResumedActivity=ActivityRecord{u0 com.metrolist.music/.MainActivityAlias t290} - app launched and held the foreground during an active curfew window."
+    },
+    {
+      "command": "adb shell dumpsys device_policy | grep -A1 'Device Owner'",
+      "result": "pass",
+      "evidence": "admin=ComponentInfo{com.kuhy.focus_owner/...FocusDeviceAdminReceiver} still set after the -r install; Device Owner not lost."
+    },
+    {
+      "command": "python -m pytest python_pkg/focus_policy/ -q && (cd focus_owner && flutter test)",
+      "result": "pass",
+      "evidence": "137 passed (focus_policy, which parses config.sh) and 94 passed (focus_owner Dart, including the test that loads the real committed policy.json asset)."
+    }
+  ],
+  "risks": [
+    "Loosens the night curfew by one app: Metrolist is now reachable at 23:00-05:00, which is a deliberate policy relaxation the user requested. Not verified whether its playback works at night: it is a YouTube Music client, and always_blocked_packages plus the always-on bravedns VPN block YouTube at the network layer, so streaming may still be cut even though the app now opens.",
+    "policy.json is a bundled Flutter asset, so any future list edit is inert until the APK is rebuilt and reinstalled - editing the JSON alone changes nothing on the device.",
+    "The phone_focus_mode/config.sh edit is currently inert (this Pixel 6a is unrooted and runs the focus_owner Device Owner stack instead); it exists to stop the two lists drifting."
+  ],
+  "rollback": [
+    "Remove com.metrolist.music from night_allowed_packages in focus_owner/assets/policy.json and from NIGHT_WHITELIST in phone_focus_mode/config.sh, then re-run ~/.claude/scripts/phone_deploy.sh focus_owner --release.",
+    "After rollback, confirm with adb shell dumpsys package com.metrolist.music | grep hidden= that it reports hidden=true inside the curfew window, and that Device Owner is still set."
+  ]
+}
