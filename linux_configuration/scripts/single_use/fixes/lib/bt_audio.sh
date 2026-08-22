@@ -17,8 +17,10 @@ check_pipewire_health() {
 		return 0
 	fi
 
-	# Test if PipeWire is responding within 3 seconds
-	if timeout 3 _run_as_user wpctl status &>/dev/null; then
+	# Timeout goes INSIDE _run_as_user: `timeout` is a binary and cannot
+	# invoke a shell function, so wrapping it outside always returned 127
+	# and reported a healthy PipeWire as hung.
+	if _run_as_user timeout 3 wpctl status &>/dev/null; then
 		log_ok "PipeWire is responsive."
 		return 0
 	fi
@@ -77,8 +79,16 @@ connect_device() {
 	# ---- Attempt 1: direct connect (existing pairing) ----
 	if echo "$info" | grep -q "Paired: yes"; then
 		log_info "Device is already paired. Trying direct connect..."
-		{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
-			| bluetoothctl 2>/dev/null || true
+		{
+			echo "agent on"
+			echo "default-agent"
+			sleep 1
+			echo "power on"
+			sleep 1
+			echo "connect $TARGET_MAC"
+			sleep 15
+		} |
+			bluetoothctl 2>/dev/null || true
 
 		if _check_connection_health "$TARGET_MAC"; then
 			return 0
@@ -93,8 +103,15 @@ connect_device() {
 	# ---- Attempt 2: scan + pair from scratch ----
 	log_info "Scanning for $TARGET_MAC (20 seconds)..."
 	log_info "Make sure the device is in pairing mode."
-	{ echo "power on"; sleep 1; echo "scan on"; sleep 20; echo "scan off"; sleep 2; } \
-		| bluetoothctl 2>/dev/null || true
+	{
+		echo "power on"
+		sleep 1
+		echo "scan on"
+		sleep 20
+		echo "scan off"
+		sleep 2
+	} |
+		bluetoothctl 2>/dev/null || true
 
 	# Check if device was found
 	local devices
@@ -109,17 +126,36 @@ connect_device() {
 
 	# Pair
 	log_info "Pairing..."
-	{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "pair $TARGET_MAC"; sleep 5; } \
-		| bluetoothctl 2>/dev/null || true
+	{
+		echo "agent on"
+		echo "default-agent"
+		sleep 1
+		echo "power on"
+		sleep 1
+		echo "pair $TARGET_MAC"
+		sleep 5
+	} |
+		bluetoothctl 2>/dev/null || true
 
 	# Trust (so it auto-reconnects in the future)
 	log_info "Trusting..."
-	{ echo "trust $TARGET_MAC"; sleep 2; } | bluetoothctl 2>/dev/null || true
+	{
+		echo "trust $TARGET_MAC"
+		sleep 2
+	} | bluetoothctl 2>/dev/null || true
 
 	# Connect
 	log_info "Connecting..."
-	{ echo "agent on"; echo "default-agent"; sleep 1; echo "power on"; sleep 1; echo "connect $TARGET_MAC"; sleep 15; } \
-		| bluetoothctl 2>/dev/null || true
+	{
+		echo "agent on"
+		echo "default-agent"
+		sleep 1
+		echo "power on"
+		sleep 1
+		echo "connect $TARGET_MAC"
+		sleep 15
+	} |
+		bluetoothctl 2>/dev/null || true
 
 	# Verify connection + services + audio
 	if _check_connection_health "$TARGET_MAC"; then

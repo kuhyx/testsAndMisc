@@ -106,6 +106,20 @@ exit 0"
 	_t_stub "$name" "$body"
 }
 
+# _t_stub_stdin NAME — stub NAME with a multi-line body read from stdin.
+#
+# The body is data, not code this file evaluates, so a `$1` or `${VAR}` in it
+# must survive verbatim to the stub file. Feeding it through stdin (from a
+# quoted heredoc at the call site) keeps it literal without wrapping it in a
+# single-quoted string, which static analysis flags as a non-expanding
+# expression on every use.
+_t_stub_stdin() {
+	local name="$1"
+	local body
+	body="$(cat)"
+	_t_stub "$name" "$body"
+}
+
 # _t_unstub NAME... — remove stubs and drop bash's cached executable paths.
 #
 # `rm` alone does NOT hide a stub: bash caches the resolved location of every

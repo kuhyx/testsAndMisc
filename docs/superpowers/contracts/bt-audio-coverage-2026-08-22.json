@@ -1,0 +1,19 @@
+{
+  "title": "Test bt_audio.sh to its reachable ceiling, and fix the timeout bug the tests found",
+  "objective": "Finish the bluetooth family, the fourth of the sixteen untested fixes/lib libs and the largest at 214 lines. Writing the tests exposed a real production bug -- `timeout 3 _run_as_user wpctl status` can never succeed, because timeout is a binary and _run_as_user is a shell function -- so this lands the fix alongside the coverage rather than testing a broken branch into permanence. The lib reaches 96.97% and stays exempt: the last four lines are pipe operators no test can reach.",
+  "acceptance_criteria": [
+    "bt_audio.sh measures 96.97% (128/132) through lib/tests/run_all.sh, twice, with the same line set both times.",
+    "The four uncovered lines are shown to be `} |` pipe operators rather than statements, and shown to execute, before the shortfall is accepted.",
+    "shfmt is shown to rewrite HEAD's one-line block form, proving the reformat that raised the denominator is unavoidable rather than something to revert.",
+    "The healthy branch of check_pipewire_health is actually reachable: a test asserts 'PipeWire is responsive' and passes, which was impossible before the fix.",
+    "meta/shell-coverage-allowlist.txt is UNCHANGED -- bt_audio.sh does not meet the 100% bar.",
+    "Every test file stays under the repo's 250-line cap, and pre-commit passes with no suppression added."
+  ],
+  "out_of_scope": [
+    "Clearing bt_audio.sh or bt_adapter.sh from the allowlist. Both are capped by defect (a) in docs/kcov-under-report.md.",
+    "Changing continuation_lines() in meta/scripts/lib/shell_coverage_lines.py to exclude `} |` and backslash-continued assignments. It changes the denominator for every measured lib and must land on its own; measured to affect only these two libs.",
+    "Reverting shfmt's reformat of bt_audio.sh, which the pre-commit hook would reapply on the next commit touching the file.",
+    "The remaining twelve untested fixes/lib libs, none of which carry either continuation-pipe form."
+  ],
+  "verifier": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh (expects all files passing, 20 + 15 + 12 for the three bt_audio files), plus bash meta/scripts/shell_coverage_jail.sh --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure bt_audio.sh --min 1 --fail-on-case-error -- \"\" (expects 128/132 = 96.97%, uncovered 90 113 137 157), plus bash meta/scripts/check_shell_coverage.sh (expects exit 0, with bt_audio.sh still exempt)."
+}
