@@ -1,11 +1,36 @@
 #!/usr/bin/env bash
-# lib/tests/test_arch_sysctl.sh — tests for arch_sysctl.sh.
+# lib/tests/arch_sysctl_quarantined_cases.sh — 23 GREEN assertions for
+# arch_sysctl.sh, deliberately OUTSIDE the test_*.sh glob that run_all.sh
+# iterates. Not dead code, and not broken: run it directly and it passes.
 #
-# Both functions share a shape: probe every parameter with `sysctl -n`, set
-# needs_update when any current value differs from the wanted one, skip when
-# nothing differs AND the drop-in already exists, otherwise write the drop-in
-# and reload. The cases below walk each arm of that shape for both functions,
-# plus tweak_network_sysctl's modprobe guard.
+# WHY IT IS QUARANTINED
+#
+# While this file was named test_arch_sysctl.sh, its presence in the suite
+# made kcov stop registering bt_audio.sh entirely -- a lib that is OFF the
+# allowlist at 127/127, so check_shell_coverage.sh went red on main. Bisected:
+#
+#   a2b23521 (session start)      bt_audio 127/127
+#   afe6ac3a (shfmt reformat)     bt_audio 127/127
+#   7c14cfca (this file lands)    bt_audio "kcov instrumented no lines"
+#
+# Removing this one file restores bt_audio to 127/127 with every other new
+# test file (arch_cpu, arch_hardware x2, thorium x2) still present. Both
+# candidate causes inside lib_test_core.sh were ruled out by reverting each
+# independently in a throwaway worktree: `export out` and the _t_hide farm
+# cache each left bt_audio broken while this file was present.
+#
+# The cost of keeping it is therefore a gated lib's measurement; the benefit
+# is nil, because arch_sysctl.sh has NEVER measured through the jail (it
+# reports "kcov instrumented no lines" on its own too, like nc_php.sh). It
+# stays on meta/shell-coverage-allowlist.txt.
+#
+# TO RUN THESE CASES:
+#   bash linux_configuration/scripts/single_use/fixes/lib/tests/arch_sysctl_quarantined_cases.sh
+#
+# TO UN-QUARANTINE: rename back to test_arch_sysctl.sh, then re-measure
+# bt_audio.sh through run_all.sh and confirm it is still 127/127 BEFORE
+# committing. Do not assume a kcov upgrade fixed it.
+#
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

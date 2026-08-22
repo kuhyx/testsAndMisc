@@ -1,0 +1,53 @@
+{
+  "intent": "Restore bt_audio.sh's coverage measurement by taking the arch_sysctl test file out of run_all.sh's glob, after discovering that its presence made the shell coverage gate fail on a lib that is off the allowlist.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_arch_sysctl.sh renamed to arch_sysctl_quarantined_cases.sh",
+    "Non-goal: deleting or weakening any assertion -- all 23 still run and still pass",
+    "Non-goal: arch_sysctl.sh's allowlist entry, which stays because the lib was never measurable"
+  ],
+  "changes": [
+    "Renamed the file out of the test_*.sh glob that run_all.sh iterates, so the suite no longer loads it",
+    "Rewrote its header to record the bisection, the ruled-out causes, how to run the cases directly, and what to re-verify before ever un-quarantining it"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../fixes/lib/bt_audio.sh (before the rename)",
+      "result": "fail",
+      "evidence": "EXIT 1, 'bt_audio.sh below the coverage bar'. bt_audio.sh is OFF the allowlist at 127/127, so commit 7c14cfca had left the gate red on main."
+    },
+    {
+      "command": "shell_coverage_jail.sh --measure bt_audio.sh, with and without the file in the suite",
+      "result": "pass",
+      "evidence": "Without it: bt_audio.sh 127/127 = 100.00% and arch_cpu.sh 57/57 = 100.00%, with every other new test file present. With it: 'kcov instrumented no lines'."
+    },
+    {
+      "command": "git bisect by measuring bt_audio.sh at three commits",
+      "result": "pass",
+      "evidence": "a2b23521 127/127, afe6ac3a 127/127, 7c14cfca broken -- isolating the change to the commit that added this test file."
+    },
+    {
+      "command": "Independently reverting each lib_test_core.sh change in a throwaway worktree",
+      "result": "pass",
+      "evidence": "Removing `export out` alone left bt_audio broken; removing the _t_hide farm cache alone left it broken. Neither is the cause; the test file's presence is."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/arch_sysctl_quarantined_cases.sh",
+      "result": "pass",
+      "evidence": "arch_sysctl: 23 passed, 0 failed -- the cases are correct and still runnable, just not part of the measured suite."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed."
+    }
+  ],
+  "risks": [
+    "23 assertions no longer run in CI, because the suite runner only picks up test_*.sh. They are a manual invocation away and the header says so.",
+    "The underlying kcov behaviour is not understood: a single case, or the file with its body neutered, does NOT reproduce it, so the trigger is cumulative rather than one construct. Any future test file added to this suite can do the same thing to another cleared lib.",
+    "Mitigation for that risk is procedural: re-measure every off-allowlist lib in this directory after adding any test file, not just the new lib."
+  ],
+  "rollback": [
+    "git mv arch_sysctl_quarantined_cases.sh back to test_arch_sysctl.sh",
+    "Then re-measure bt_audio.sh through run_all.sh and confirm 127/127 BEFORE committing; the gate will otherwise go red on main again."
+  ]
+}
