@@ -5,10 +5,6 @@
 
 ## The scoping answers are SETTLED. Do not re-ask them.
 
-The user answered these explicitly on 2026-08-22. An earlier session built a
-_presence-based, lib-only ratchet_ instead — the opposite of every answer. It
-has since been converted. **Do not re-propose the ratchet.**
-
 | Question           | Answer                                               |
 | ------------------ | ---------------------------------------------------- |
 | **Scope**          | Repo-wide gate. NOT a ratchet.                       |
@@ -18,166 +14,148 @@ has since been converted. **Do not re-propose the ratchet.**
 | **Order**          | Tests first; arm the gate only once 100% is reached. |
 | **Target picking** | Hardest first.                                       |
 
-Because the gate arms last, it never freezes the repo — there is nothing left
-to block by the time it turns on. That ordering is what makes this safe.
+Because the gate arms last, it never freezes the repo. That ordering is what
+makes this safe.
 
 ## What is already true (verify, do not redo)
 
 ```bash
-git log --oneline -5          # bca70b67, 61ff5eac, b7523d16, 0e843c2a on main
-bash meta/scripts/check_file_length.sh --all          # all within 250 lines
-grep -vc '^#\|^$' meta/shell-coverage-allowlist.txt   # 105
+git log --oneline -5        # 0091608b, d277369a, 154b4166, b91be309 on main
+grep -vc '^#\|^$' meta/shell-coverage-allowlist.txt   # 103 (was 105)
 ```
 
+- **The allowlist went 105 -> 103.** `unity_handler.sh` and
+  `transcribe_venv.sh` both measure **100%** and are OFF it, verified through
+  `check_shell_coverage.sh` itself with the exemption deleted.
 - **`meta/scripts/shell_coverage_jail.sh`** measures a script's coverage while
-  it runs **for real** inside a user+mount namespace. This is the campaign's
-  core tool. **100% needs NO source changes and NO suppressions.**
-- **`meta/scripts/check_shell_coverage.sh`** now enforces a **measured 100%
-  bar** (it was a presence check that an empty suite could satisfy). It is
-  **deliberately NOT wired into any hook yet.**
-- **jscpd was already over its own 2% threshold at 2.45%** and would have
-  rejected every commit staging a `.sh` file. Vendored `.venv/` shell alone
-  accounted for it (2.50% -> 1.67%); `lib/tests/` is also excluded now (1.47%).
-- **5 commits are unpushed.** Push them when convenient.
+  it runs **for real** in a user+mount namespace. New this session:
+  `--fail-on-case-error` (default OFF). Without it a suite with a failing
+  assertion exits 0.
+- **A suite declares its jail needs in a `jail_args` file** beside its
+  `run_all.sh`. `ci_mirror.sh`, `shell-tests.yml` and `is_covered()` all read
+  it. No marker = the suite runs bare.
+- **CI is green.** `shell-tests.yml` SKIPS jail_args-marked suites with a
+  printed reason: kcov is not packaged for Ubuntu 24.04 and upstream ships no
+  binary. The pre-push `ci-mirror` hook runs them for real instead.
 
-### Measured so far
+### Measured so far (always through `run_all.sh` — see below)
 
-| lib                       | coverage                                     |
-| ------------------------- | -------------------------------------------- |
-| `dot_resolver_install.sh` | **39/39 = 100.00%** (off the allowlist)      |
-| `nc_php.sh`               | 84/85 = 98.82% (still exempt)                |
-| `rpi_nc_install.sh`       | 10/88 = 11.36% — **MIS-MEASURED, see below** |
+| lib                       | coverage            | state         |
+| ------------------------- | ------------------- | ------------- |
+| `dot_resolver_install.sh` | **39/39 = 100.00%** | off allowlist |
+| `unity_handler.sh`        | **32/32 = 100.00%** | off allowlist |
+| `transcribe_venv.sh`      | **53/53 = 100.00%** | off allowlist |
+| `rpi_nc_ca.sh`            | 72/73 = 98.63%      | allowlisted   |
+| `transcribe_pkgmgr.sh`    | 49/50 = 98.00%      | allowlisted   |
+| `nc_php.sh`               | 84/85 = 98.82%      | allowlisted   |
+| `clean_audio_filters.sh`  | 83/93 = 89.25%      | allowlisted   |
+| `transcribe_deps.sh`      | 48/52 = 92.31%      | allowlisted   |
+| `aw_autostart.sh`         | 68/82 = 82.93%      | allowlisted   |
+| `dwm_config.sh`           | 35/73 = 47.95%      | allowlisted   |
+| `rpi_nc_install.sh`       | 10/88 = 11.36%      | MIS-MEASURED  |
 
-Suites are green: **28 + 30 + 29 = 87 assertions, 0 failures.**
+Two directories now have harnesses:
+`single_use/features/lib/tests/` (jailed) and
+`single_use/misc/testsAndMisc-bash/lib/tests/` (no jail, 118 assertions).
 
 ## Start here
 
-The hardest remaining, scored on root ops + system writes + destructive calls.
-**44 of the 105 allowlisted libs sit in `features/lib/`, where a harness
-already exists** — that directory is the cheapest place to keep going.
+Highest-scored remaining, all in `features/lib/` where a harness exists:
 
 ```
 score  lines  file
-   53    221  linux_configuration/scripts/single_use/features/lib/dwm_config.sh
-   51    241  linux_configuration/scripts/single_use/features/lib/aw_autostart.sh
-   51    179  linux_configuration/scripts/single_use/features/lib/rpi_nc_ca.sh
-   50     92  linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/transcribe_deps.sh
+   4x    ~    linux_configuration/scripts/single_use/features/lib/*.sh  (41 left)
+   22 libs    linux_configuration/scripts/single_use/fixes/lib/          (no harness yet)
+    9 libs    phone_focus_mode/lib/                                      (no harness yet)
 ```
 
 ### The invocation that works
 
 ```bash
-bash meta/scripts/shell_coverage_jail.sh \
+bash -c '
+ja=(); while IFS= read -r l; do ja+=("$l"); done \
+  < <(grep -v "^#\|^$" linux_configuration/scripts/single_use/features/lib/tests/jail_args)
+timeout 300s bash meta/scripts/shell_coverage_jail.sh \
   --subject linux_configuration/scripts/single_use/features/lib/tests/run_all.sh \
-  --bind /etc --bind /usr/local/bin --bind /var --bind /root \
-  --seed-dir /var/www/nextcloud --seed-dir /var/lib \
-  --seed-dir /etc/php/8.2/apache2 --seed-dir /etc/php/8.2/mods-available \
-  --seed-dir /etc/apache2/sites-available \
-  --seed-file /etc/php/8.2/apache2/php.ini \
-  --measure <lib>.sh --min 100 --timeout 90s -- ""
+  "${ja[@]}" --measure <lib>.sh --min 1 --fail-on-case-error -- ""'
 ```
 
-`--bind` what a subject **writes**; **never** bind what it **reads**. Binding
-`/usr/local/bin` cut `pacman_wrapper.sh` from 75.00% to 28.95%, because it
-sources its sibling libs from there. **Never `--bind /tmp`** — the jail's own
-working dir lives there and the run dies with "cases: No such file".
+**Always measure through `run_all.sh`, never a single test file.** That is the
+subject `is_covered()` builds, and the runner's number can be LOWER than the
+same suite's own — `rpi_nc_ca.sh` is 100% alone and 98.63% through the runner.
+Reporting the single-file figure is reporting a number the gate will not agree
+with.
+
+## Traps that cost real time this session
+
+- **`--fail-on-case-error` or you are flying blind.** The jail suppresses a
+  suite's stdout entirely, so assertions can fail invisibly. Always pass it.
+- **To find WHERE a suite dies, use an `exit <n>` sentinel.** Temporarily end
+  the suite with `exit 42` at a chosen point; the jail surfaces the code. This
+  is the only way to tell a tracing failure from an aborted suite.
+- **`rm -f "$TEST_TMPDIR/bin/foo"` does NOT hide foo.** bash caches executable
+  locations, so `command -v foo` keeps succeeding. Both harnesses now ship
+  `_t_unstub`, which also runs `hash -r`. Three assertions in this repo were
+  asserting the opposite of their own names because of this.
+- **A prepended stub dir cannot hide a real binary either.** If the host truly
+  has the tool (`pacman`, `aw-qt`, `/usr/lib/libsndfile.so`), REPLACE PATH or
+  jail it. Otherwise the "not installed" case tests nothing.
+- **A stub must materialise what the real tool creates.** A record-only stub
+  in a `[[ ! -s $file ]]` fallback chain silently exercises the NEXT branch.
+- **A top-level stub function SHADOWS the subject's own** for every later
+  assertion. Put redefinitions in a subshell.
+- **`shfmt` reformats after your own check passes** — re-check the 250-line cap
+  after staging.
+- **Commits exceed a 2-minute foreground timeout.** Use `run_in_background`.
+- **Two-strike rule.** Two failed attempts at the same line -> stop, document,
+  keep the working state.
 
 ## THE OPEN PROBLEM — read before trusting any number
 
-**kcov mis-measures `rpi_nc_install.sh`.** It reports 10/88 = 11.36%,
-recording lines 13-54 and nothing after — but the code past line 54 provably
-runs: `/root/.nextcloud_db_password` and
-`/etc/apache2/sites-available/nextcloud.conf` both exist after a run, and all
-29 assertions pass.
+**kcov silently under-reports, and it is contagious across processes in one
+jail.** `rpi_nc_ca.sh` measures 100% alone but 98.63% through `run_all.sh`;
+bisection shows `test_dwm_config.sh` running first is what costs it line 141.
+`dwm_config.sh` reports 47.95% while an `exit 43` sentinel proves four of its
+functions run to completion.
 
-Three hypotheses were each tested against a minimal reproduction and
-**DISPROVEN** — do not retry them:
+**One artifact is CONFIRMED:** continuation lines inside a multi-line quoted
+argument (a `perl -0777 -pe '...'` block) are counted as statements that never
+run — the wrong denominator. **Six other hypotheses are DISPROVEN** (heredocs,
+`$(...)`, stdin-reading stubs, `cd` relocation, heredoc-into-stubbed-external,
+and the exec-ing `sudo` shim / pipelines). Full details and the disproof list
+are in `docs/shell-split-verification.md`. **Do not re-run those.**
 
-1. kcov traces correctly **past a heredoc**.
-2. kcov traces correctly **into a `$(...)` command substitution**.
-3. kcov traces correctly **past a heredoc-fed stub reading stdin via `$(cat)`**.
-
-The cause is unknown. **This is a hole in the campaign's primary instrument.**
-The other two libs in the same directory measure sensibly, so it is not
-universal, but nobody has bounded which subjects it affects. If a suite's
-assertions pass while its percentage looks absurd, suspect this before
-suspecting the tests. **Never "fix" a number by weakening a test.**
-
-## Traps that cost real time — all still live
-
-- **Check assertion RESULTS, not just the coverage percentage.** The committed
-  `nc_php` suite shipped **2 failing assertions** because an earlier session
-  measured coverage and never read the output. Both were test bugs: the cron
-  entry arrives on `crontab`'s **stdin**, not argv, and `configure_mariadb`'s
-  stdout is eaten by `db_password=$(...)`. Run the suite and read it.
-- **A top-level stub function SHADOWS the subject's own function** for every
-  later assertion. Doing this for a phase-order test dropped coverage
-  83.53% -> 57.65% **while the tests still reported passing**, because they
-  were exercising the stubs. Put such redefinitions in a **subshell**.
-- **A stub for a piped-into command must drain stdin**, or the writer takes
-  SIGPIPE and the suite aborts under `set -e`. If its output feeds `grep -v`,
-  it must also **emit a line** — `grep` exits 1 on no match and `pipefail`
-  propagates that.
-- **A stub must materialise what the real tool creates.** `rm -rf
-/var/www/nextcloud` followed by a record-only `unzip` leaves the later `cd`
-  with nothing to enter; the function returns 1 and `set -e` aborts the suite
-  from inside a command substitution **with no stderr at all**.
-- **`sudo` cannot work inside a userns** (`setresuid` -> EINVAL). The jail
-  supplies a pass-through that drops flags and `exec`s. Do not add `sudo` to
-  `DEFAULT_SHIMS` — recording-and-exiting would skip the very writes the
-  suites exist to assert on.
-- **The jail needs its own `passwd`/`group`/`nsswitch`**, or `id -u "$USER"`
-  fails and aborts the subject under `set -e` before anything interesting.
-- **`--map-root-user` alone does not grant `/etc` writes.** `CAP_DAC_OVERRIDE`
-  in a userns only covers files whose owner uid is mapped in; the bind-mount
-  over the write target is what makes the write land.
-- **`shfmt` (run by the pre-commit hook) reformats and can push a file over
-  the 250-line cap** _after_ your own check passed. It also rewrites `case`
-  arms onto separate lines, so exact-match patches written against the old
-  layout silently fail to apply. Re-check the cap after staging.
-- **Commits exceed a 2-minute foreground timeout.** Run `git commit` with
-  `run_in_background: true` and read the output file.
-- **Two-strike rule.** Two failed attempts at the same line -> stop, document
-  it, keep the working state. `nc_php.sh` line 111 (the `crontab -l ||`
-  first-run fallback) hung the suite twice and is deliberately left uncovered.
+The failure is one-directional: it only ever under-reports, so it can keep a
+lib on the allowlist but can never promote an untested one. That is why the
+campaign can continue around it. **Never "fix" a number by weakening a test.**
 
 ## Rules that will bite you
 
-- **No suppressions, ever.** SC2155 and SC2016 were both fixed at the source
-  rather than disabled; do the same.
+- **No suppressions, ever.** Fix SC2016/SC2155 at the source.
 - **Every commit touching code needs evidence** in
-  `docs/superpowers/evidence/<slug>-<date>.json` (schema: `intent`, `scope`,
-  `changes[]`, `verification[]` each with `command`/`result`/**`evidence`**,
-  `risks[]`, `rollback[]` — validate with
+  `docs/superpowers/evidence/<slug>-<date>.json` (validate with
   `python3 meta/scripts/validate_evidence.py <file>`), **plus a contract** in
   `docs/superpowers/contracts/` once **>=4 code files** are staged.
 - **Put the MEASURED number in it**, never a rounded or hoped-for one.
-- **Stage narrowly.** Pre-commit hooks restage files; a `git add` of one path
-  once swept four unrelated files from a _concurrent session_ into a commit.
-  Check `git diff --cached --name-only` before committing.
-- **New test files need the exec bit**: `git add --chmod=+x`.
+- **Stage narrowly.** A concurrent session had 8 unrelated files in the shared
+  index this session; `git restore --staged` them, do not commit them.
+- **New test files need the exec bit** — and `git add --chmod=+x` only changes
+  the INDEX. `chmod +x` the working tree too or the shebang hook fails.
+- **`CI_GREEN_SKIP=1`** is the documented escape hatch when THIS commit is the
+  fix for a red baseline. It must also be exported for the pre-push mirror.
 - Work directly on `main`. `git stash` and branch creation are blocked.
-- **Another Claude session may be working in this repo simultaneously.** One
-  was on 2026-08-21/22. Check `git log` for commits you did not make before
-  assuming the tree is yours.
+- **Another Claude session may be working in this repo simultaneously.**
 
 ## Not caused by this campaign
 
 **`Python tests` CI has been failing since 2026-08-17** — `pip` hits
-`error: resolution-too-deep` installing `meta/requirements.txt`, on commits
-touching no Python. It needs dependency pinning, and is why `python-tests.yml`
-is deliberately **not** in `check_ci_green.sh`'s required list. Worth fixing on
-its own; do not fold it into Phase 3.
-
-**The 2026-08-22 11:33 hard freeze was investigated and cleared.** No OOM, no
-hung task, no kernel message after 11:20; this campaign was idle at the time
-and left no residue. Steam crash-dumped two minutes prior on an RTX 3090.
-Correlation only — a hard hang leaves no log — but the jail was ruled out. Each
-jail case is now bounded by `timeout --kill-after=10s` with stdin closed.
+`error: resolution-too-deep` installing `meta/requirements.txt`. It needs
+dependency pinning and is deliberately excluded from `check_ci_green.sh`. Do
+not fold it into Phase 3.
 
 ## When the allowlist reaches zero
 
-Only then, wire `check_shell_coverage.sh` into **pre-commit, pre-push and CI**
-(all three — that was the answer). Hook mode costs **0.42s per file**, so a
-normal commit stays sub-second; a full `--all` sweep is minutes and belongs in
-CI.
+Only then, wire `check_shell_coverage.sh` into **pre-commit, pre-push and CI**.
+`is_covered()` now reads `jail_args` and passes `--fail-on-case-error`, so the
+gate is ready; what remains is the allowlist. Note it runs a full jailed suite
+per lib, so an `--all` sweep is minutes and belongs in CI, not a commit hook.
