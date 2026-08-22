@@ -1,0 +1,53 @@
+{
+  "intent": "Investigate whether this session's work caused the 2026-08-22 11:33 hard freeze, and bound the one unbounded thing the coverage jail could do regardless of the verdict.",
+  "scope": [
+    "meta/scripts/shell_coverage_jail.sh: per-case timeout and stdin closed",
+    "Non-goal: changing anything else about the jail; the freeze investigation cleared it"
+  ],
+  "changes": [
+    "Each kcov case now runs under `timeout --kill-after=10s` with a default 120s ceiling, overridable with --timeout.",
+    "Each case runs with stdin redirected from /dev/null, so a subject that reads stdin cannot block on the caller's terminal.",
+    "A timed-out case prints a warning naming the case, rather than being swallowed by the existing `|| true`."
+  ],
+  "verification": [
+    {
+      "command": "journalctl --list-boots; journalctl -b -1 for OOM, hung tasks, lockups and late kernel messages",
+      "result": "pass - this session's work is not implicated",
+      "evidence": "Boot -1 ended 11:33:15 with the log cut mid-line. No OOM kill, no oom_reaper, no hung-task or soft-lockup message anywhere, and NO kernel message at all after 11:20 -- a hard hang signature rather than a process the kernel was fighting."
+    },
+    {
+      "command": "correlate this session's activity with the final minutes of boot -1",
+      "result": "pass - the session was idle when the freeze happened",
+      "evidence": "Last commit 11:30:32; last system-level trace from a jail run at 11:11:57 (a failed sudo from an early attempt), over 21 minutes before the freeze. Meanwhile Steam wrote a crash minidump at 11:31:10 and at-spi2 disabled an unresponsive app (pid 4848) at 11:32:06, on an RTX 3090 with the proprietary driver."
+    },
+    {
+      "command": "ps for unshare/kcov; ls /tmp/tmp.*; mount | grep /tmp/tmp.; stat the live system files",
+      "result": "pass - no residue survived the reboot",
+      "evidence": "No stray processes, no leftover jail tmpdirs, zero leaked mounts. /etc/modules-load.d/night-lockdown-i2c.conf still dated 2026-07-23 and /usr/local/bin/sync-dot-cert.sh still dated 2026-08-11, both untouched."
+    },
+    {
+      "command": "bash meta/scripts/shell_coverage_jail.sh ... --measure dot_resolver_install.sh --min 100",
+      "result": "pass - no regression from the timeout change",
+      "evidence": "dot_resolver_install.sh: 39/39 lines = 100.00%, both before and after."
+    },
+    {
+      "command": "run a subject whose body is `sleep 600` with --timeout 5s",
+      "result": "pass - the bound fires",
+      "evidence": "'warn: case timed out after 5s' and the whole run finished in 5 seconds instead of 600."
+    },
+    {
+      "command": "shellcheck meta/scripts/shell_coverage_jail.sh; check_file_length.sh",
+      "result": "pass",
+      "evidence": "Clean, no suppressions; the file is exactly at the 250-line cap."
+    }
+  ],
+  "risks": [
+    "The freeze cause is NOT positively identified. A hard hang leaves no log by construction, so the Steam minidump two minutes prior is a correlation, not a proven cause. What is established is the negative: nothing from this session was running at the time, and no OOM occurred.",
+    "The jail still runs real installers as uid 0 inside a namespace. That is the most invasive thing this tooling does, and while containment was verified by canary, escape assertion and mtime checks, it remains the part with any plausible blast radius.",
+    "The 120s default is a guess, not a measured figure. A legitimately slow suite could now be cut off; the warning names the case so that failure is visible rather than silent."
+  ],
+  "rollback": [
+    "git revert this commit; the jail returns to unbounded per-case execution.",
+    "After rollback, confirm dot_resolver_install.sh still measures 39/39 through the runner."
+  ]
+}

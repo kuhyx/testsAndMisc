@@ -43,6 +43,9 @@ MEASURE=""
 SEED_DIRS=()
 SEED_FILES=()
 MIN_PERCENT=100
+# Per-case wall-clock ceiling. A hung case cannot be distinguished from a slow
+# one without a bound, and an unbounded run blocks a hook indefinitely.
+CASE_TIMEOUT="120s"
 BIND_PATHS=()
 EXTRA_SHIMS=()
 CASES=()
@@ -64,6 +67,7 @@ Usage: $SCRIPT_NAME --subject <file> [options] -- <case> [<case>...]
                      script writing /etc/php/8.2/apache2/ finds nothing to
                      mirror on an Arch box.
   --seed-file <path> create an empty file at <path> inside the jail
+  --timeout <dur>    per-case wall-clock ceiling (default 120s)
   --min <percent>    fail below this (default 100)
   -- <case>...       one invocation each; "" means "no arguments"
 
@@ -99,6 +103,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--seed-file)
 		SEED_FILES+=("$2")
+		shift 2
+		;;
+	--timeout)
+		CASE_TIMEOUT="$2"
 		shift 2
 		;;
 	--min)
@@ -183,6 +191,7 @@ jail="$1"
 subject_dir="$2"
 subject_base="$3"
 measure_base="$4"
+case_timeout="$5"
 . "$jail/mounts.sh"
 export PATH="$jail/bin:/usr/bin:/bin"
 export HOME="$jail/home"
@@ -192,9 +201,20 @@ export SUDO_USER="$USER"
 cd "$subject_dir" || exit 1
 while IFS= read -r line; do
     read -r -a case_args <<<"$line"
-    kcov --include-pattern="$measure_base" "$jail/cov" \
+    # Bounded, and with stdin closed. Both matter: a subject that reads stdin
+    # blocks forever on the caller's terminal (a `crontab -` fallback did
+    # exactly this and hung a run for the full two minutes with no output),
+    # and a subject that spins never yields at all. A timed-out case is
+    # reported rather than swallowed, because a silent timeout looks
+    # identical to an unreachable line in the coverage report.
+    timeout --kill-after=10s "$case_timeout" \
+        kcov --include-pattern="$measure_base" "$jail/cov" \
         "./$subject_base" ${case_args[@]+"${case_args[@]}"} \
-        >/dev/null 2>&1 || true
+        >/dev/null 2>&1 </dev/null
+    rc=$?
+    if [[ $rc -eq 124 || $rc -eq 137 ]]; then
+        printf 'warn: case timed out after %s: %s\n' "$case_timeout" "$line" >&2
+    fi
 done <"$jail/cases"
 INNER
 	chmod +x "$JAIL/run_cases.sh"
@@ -212,7 +232,8 @@ INNER
 	} >>"$JAIL/mounts.sh"
 
 	unshare --user --map-root-user --mount --fork \
-		"$JAIL/run_cases.sh" "$JAIL" "$subject_dir" "$subject_base" "$measure_base"
+		"$JAIL/run_cases.sh" "$JAIL" "$subject_dir" "$subject_base" "$measure_base" \
+		"$CASE_TIMEOUT"
 
 	local tree_after
 	tree_after="$(cd "$REPO_ROOT" && git status --porcelain)"
