@@ -123,7 +123,10 @@ NEXTCLOUD_ADMIN_PASSWORD="hunter2"
 # -- so this one drains stdin before recording.
 cat >"$TEST_TMPDIR/bin/crontab" <<'CRONTAB'
 #!/usr/bin/env bash
-cat >/dev/null
+# The cron entry arrives on STDIN, not in argv, so it must be RECORDED
+# rather than discarded -- asserting on the call log alone would pass
+# no matter what line the code piped in.
+cat >>"$TEST_TMPDIR/crontab.stdin"
 printf 'crontab %s\n' "$*" >>"$TEST_TMPDIR/calls.log"
 # `-l` must emit at least one line: the real code pipes it through
 # `grep -v nextcloud/cron.php`, and grep exits 1 on no match, which
@@ -138,7 +141,10 @@ chmod +x "$TEST_TMPDIR/bin/crontab"
 setup_nextcloud_cron
 _t_called 'crontab -u www-data' "the www-data crontab is written"
 _t_called 'occ background:cron' "Nextcloud is switched to cron mode"
-_t_called 'nextcloud/cron.php' "the Nextcloud cron entry is installed"
+_t_file_has "$TEST_TMPDIR/crontab.stdin" 'php -f /var/www/nextcloud/cron.php' \
+	"the Nextcloud cron entry is piped into crontab"
+_t_file_has "$TEST_TMPDIR/crontab.stdin" 'some-unrelated-job' \
+	"an unrelated existing cron entry is preserved"
 
 # --- phase_nextcloud --------------------------------------------------------
 # The orchestrator. Its siblings live in other libs, so the fixture supplies
@@ -151,19 +157,28 @@ _t_called 'nextcloud/cron.php' "the Nextcloud cron entry is installed"
 # functions for every later assertion -- coverage fell from 83.53% to 57.65%
 # and the tests still "passed", because they were exercising the stubs.
 phase_order_result="$(
-	check_root() { printf 'root '; }
-	install_nextcloud_dependencies() { printf 'deps '; }
-	configure_mariadb() { printf 'mariadb '; }
-	download_nextcloud() { printf 'download '; }
-	configure_apache() { printf 'apache '; }
-	configure_php() { printf 'php '; }
-	configure_redis() { printf 'redis '; }
-	install_nextcloud() { printf 'install '; }
-	setup_nextcloud_cron() { printf 'cron '; }
-	verify_nextcloud() { printf 'verify '; }
-	log_info() { :; }
-	log_success() { :; }
-	phase_nextcloud
+	{
+		check_root() { printf 'root '; }
+		install_nextcloud_dependencies() { printf 'deps '; }
+		# Its stdout is captured by `db_password=$(configure_mariadb)`, so a
+		# marker printed here would be swallowed. Record to stderr, which the
+		# command substitution does not consume, and emit the password on
+		# stdout as the real function does.
+		configure_mariadb() {
+			printf 'mariadb ' >&2
+			printf 'dbpass'
+		}
+		download_nextcloud() { printf 'download '; }
+		configure_apache() { printf 'apache '; }
+		configure_php() { printf 'php '; }
+		configure_redis() { printf 'redis '; }
+		install_nextcloud() { printf 'install '; }
+		setup_nextcloud_cron() { printf 'cron '; }
+		verify_nextcloud() { printf 'verify '; }
+		log_info() { :; }
+		log_success() { :; }
+		phase_nextcloud
+	} 2>&1
 )"
 _t_eq "root deps mariadb download apache php redis install cron verify " \
 	"$phase_order_result" "the install phases run in dependency order"
