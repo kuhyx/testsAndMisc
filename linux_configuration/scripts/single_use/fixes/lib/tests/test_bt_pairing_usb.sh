@@ -29,13 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # _lsusb_line TEXT — stub lsusb to emit a single line of TEXT.
 _lsusb_line() {
 	printf '%s\n' "$1" >"${DEV}/lsusb_out"
-	local body
-	body="$(
-		cat <<'LSUSB_BODY'
-cat "${LIB_TEST_DEV}/lsusb_out"
-LSUSB_BODY
-	)"
-	_t_stub lsusb "$body"
+	_t_stub_cat lsusb lsusb_out
 }
 
 # No bluetooth device in lsusb at all: the function returns before any lookup.

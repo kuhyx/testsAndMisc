@@ -21,25 +21,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # _btctl_list TEXT — stub bluetoothctl so `_btctl list` emits TEXT.
 _btctl_list() {
 	printf '%s\n' "$1" >"${DEV}/btctl_out"
-	local body
-	body="$(
-		cat <<'BTCTL_BODY'
-cat "${LIB_TEST_DEV}/btctl_out"
-BTCTL_BODY
-	)"
-	_t_stub bluetoothctl "$body"
+	_t_stub_cat bluetoothctl btctl_out
 }
 
 # _lsusb_line TEXT — stub lsusb to emit TEXT.
 _lsusb_line() {
 	printf '%s\n' "$1" >"${DEV}/lsusb_out"
-	local body
-	body="$(
-		cat <<'LSUSB_BODY'
-cat "${LIB_TEST_DEV}/lsusb_out"
-LSUSB_BODY
-	)"
-	_t_stub lsusb "$body"
+	_t_stub_cat lsusb lsusb_out
 }
 
 # _record_reload ARGS... — stand-in for the real btusb reloader.

@@ -106,6 +106,19 @@ exit 0"
 	_t_stub "$name" "$body"
 }
 
+# _t_stub_cat NAME FIXTURE — stub NAME so it prints the contents of
+# $DEV/FIXTURE, a file the test writes beforehand.
+#
+# The commonest stub shape by far, and the one that otherwise forces every
+# caller to embed a literal ${LIB_TEST_DEV} that must not expand at write
+# time. Passing the fixture NAME as data keeps every call site quote-free.
+_t_stub_cat() {
+	local name="$1" fixture="$2"
+	_t_stub_stdin "$name" <<STUB_CAT
+cat "\${LIB_TEST_DEV}/${fixture}"
+STUB_CAT
+}
+
 # _t_stub_stdin NAME — stub NAME with a multi-line body read from stdin.
 #
 # The body is data, not code this file evaluates, so a `$1` or `${VAR}` in it
