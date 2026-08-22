@@ -1,5 +1,12 @@
 # kcov under-reports shell coverage: two distinct defects
 
+> **RESOLVED 2026-08-22.** Both defects are fixed; the instrument now
+> corrects for them and the numbers below are the *historical* readings that
+> motivated the work. Kept because the disproven hypotheses are still worth
+> not retrying, and because the two root causes are the kind that silently
+> come back. What the fix does, and the three findings that make it work, is
+> at the end of this file under "How it was fixed".
+
 Split out of `docs/shell-split-verification.md` on 2026-08-22 to hold both
 files under the repo's 250-line cap. This is the campaign's instrument
 problem; read it before trusting any coverage percentage.
@@ -97,3 +104,59 @@ surfaced by `--fail-on-case-error`. Temporarily ending the suite with
 `exit 42` at a chosen point turns "did execution reach here?" into a yes/no
 the jail will answer. That is what proved the second pattern is a tracing
 failure and not an aborted suite.
+
+## How it was fixed (2026-08-22)
+
+The instrument now runs **two passes over the same cases, in two fresh
+namespaces**, and combines them:
+
+* **denominator** = kcov's instrumentable line set, minus continuation lines
+  of multi-line quoted arguments (defect (a), detected by tracking quote
+  state across the file in `meta/scripts/lib/shell_coverage_lines.py`);
+* **numerator** = (PS4-traced lines ∪ kcov's own hits) ∩ denominator
+  (defect (b)).
+
+The trace cannot supply the denominator. A trace only ever reports lines that
+*ran*, so using it for both halves would make every subject 100.00% and gate
+on nothing. kcov's line set is what keeps the gate meaningful; kcov's *hits*
+are what could not be trusted.
+
+### Three findings, each of which silently produces a WRONG trace
+
+1. **kcov and xtrace cannot share a process.** Under `SHELLOPTS=xtrace`,
+   every line kcov had recorded as `hits="1"` comes back `hits="0"` —
+   reproduced minimally, A/B, on the same subject. Hence two passes.
+2. **`SHELLOPTS` is a readonly variable inside bash.** `export
+   SHELLOPTS=xtrace` fails with "readonly variable" and tracing never turns
+   on. It only works placed in the environment *of* the process.
+3. **Decisive: bash under `unshare --user --map-root-user` runs in PRIVILEGED
+   mode and DISCARDS an inherited `PS4`**, falling back to the default `+ `,
+   while still honouring `SHELLOPTS=xtrace` and `BASH_XTRACEFD`. The trace
+   then carries no `file:line` prefix at all, so every subject reads as 0%
+   covered. This is why the trace is delivered through a **`BASH_ENV` file**
+   that assigns `PS4` and runs `set -x` from *inside* each shell — which also
+   solves propagation into child processes, since `set -x` does not inherit.
+
+A fourth trap, in the report rather than the jail: **kcov records
+`filename="dwm_config.sh"`, a bare basename, not a path.** The source
+location has to come from the trace (which carries `${BASH_SOURCE}`) or from
+a repo search; an ambiguous basename yields no exclusion rather than a guess.
+
+### Measured effect, all through `run_all.sh`
+
+| lib | before | after |
+| --- | --- | --- |
+| `dot_resolver_install.sh` | 39/39 = 100.00% | 39/39 = 100.00% (acceptance) |
+| `rpi_nc_ca.sh` | 72/73 = 98.63% | **73/73 = 100.00%** |
+| `dwm_config.sh` | 35/73 = 47.95% | **65/66 = 98.48%** |
+| `rpi_nc_install.sh` | 10/88 = 11.36% | **85/88 = 96.59%** |
+
+`rpi_nc_ca.sh` reaching 100.00% is the load-bearing check: its missing line
+141 was the *cross-process contagion* described above, and the trace pass has
+no kcov in it to be contaminated. Nothing went down.
+
+`dwm_config.sh`'s remaining uncovered line 39 is a `done < <(...)` process
+substitution — the other half of defect (a). It is deliberately still in the
+denominator: every line removed from a denominator inflates coverage, which
+is the fail-open direction, so a second exclusion rule should be justified
+per line rather than generalised from one lib.

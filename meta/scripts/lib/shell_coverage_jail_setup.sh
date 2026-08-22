@@ -17,7 +17,23 @@ readonly DEFAULT_SHIMS=(
 
 build_jail() {
 	JAIL="$(mktemp -d)"
-	mkdir -p "$JAIL/bin" "$JAIL/cov" "$JAIL/home" "$JAIL/etc"
+	# cov holds kcov's output (the line SET); trace holds the PS4 xtrace
+	# output (the executed-line set). They are two SEPARATE passes because
+	# kcov's ptrace and SHELLOPTS=xtrace cannot share a process -- measured:
+	# under xtrace every kcov hit count collapses to 0.
+	mkdir -p "$JAIL/bin" "$JAIL/cov" "$JAIL/trace" "$JAIL/home" "$JAIL/etc"
+
+	# Sourced by every non-interactive bash in the trace pass (via BASH_ENV).
+	# PS4 must be ASSIGNED here rather than inherited: bash under
+	# `unshare --map-root-user` runs privileged and drops an inherited PS4,
+	# which silently costs the trace its file:line prefix. `set -x` is
+	# likewise re-applied per process, which is what reaches child shells.
+	# Quoted heredoc: ${BASH_SOURCE}/${LINENO} must reach the traced shell
+	# unexpanded so they evaluate per traced line.
+	cat >"$JAIL/xtrace_env.sh" <<'XTRACE'
+PS4='+PS4:${BASH_SOURCE}:${LINENO} '
+set -x
+XTRACE
 
 	local tool
 	for tool in "${DEFAULT_SHIMS[@]}" ${EXTRA_SHIMS[@]+"${EXTRA_SHIMS[@]}"}; do
@@ -106,4 +122,30 @@ build_mount_script() {
 			idx=$((idx + 1))
 		done
 	} >"$JAIL/mounts.sh"
+}
+
+# A case that passes under kcov but fails under xtrace yields a PARTIAL trace,
+# which under-reports and looks exactly like the defect the trace pass exists
+# to fix. xtrace is slower, so a tight --timeout is the usual cause. Fail
+# loudly rather than silently measuring less.
+#
+# Also collapses the two per-pass failure files into the one --fail-on-case-error
+# reads, so that flag keeps its original meaning.
+reconcile_pass_failures() {
+	local kcov_fail=0 trace_fail=0
+	if [[ -s "$JAIL/case_failures.kcov" ]]; then
+		kcov_fail="$(wc -l <"$JAIL/case_failures.kcov")"
+	fi
+	if [[ -s "$JAIL/case_failures.trace" ]]; then
+		trace_fail="$(wc -l <"$JAIL/case_failures.trace")"
+	fi
+	if [[ $trace_fail -gt $kcov_fail ]]; then
+		printf 'Error: trace pass had %d failing case(s) vs %d under kcov; the\n' \
+			"$trace_fail" "$kcov_fail" >&2
+		printf '       trace is partial. xtrace is slower -- raise --timeout.\n' >&2
+		exit 1
+	fi
+	if [[ -s "$JAIL/case_failures.kcov" ]]; then
+		cp "$JAIL/case_failures.kcov" "$JAIL/case_failures"
+	fi
 }

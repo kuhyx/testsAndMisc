@@ -23,13 +23,11 @@
 #      subject under `set -e` long before the interesting code.
 #   3. Mount only what the subject WRITES; preserve what it READS. A blanket
 #      jail that masked /usr/local/bin cut pacman_wrapper.sh from 75.00% to
-#      28.95%, because the wrapper sources its sibling libs from there and
-#      took its "libraries missing" escape hatch. An over-aggressive mount
-#      looks exactly like unreachable code.
+#      28.95%: the wrapper sources its siblings from there and took its
+#      "libraries missing" escape hatch. Over-mounting looks like dead code.
 #
-# Entry scripts must be executed in place: they resolve their libs via
-# BASH_SOURCE and common.sh via `readlink -f "$0"`, so staging a copy into a
-# temp dir (which works fine for a sourced lib) breaks them.
+# Entry scripts must be executed in place: they resolve libs via BASH_SOURCE
+# and common.sh via `readlink -f "$0"`, so staging a copy breaks them.
 # ============================================================================
 
 set -euo pipefail
@@ -213,9 +211,18 @@ main() {
 		done
 	} >>"$JAIL/mounts.sh"
 
-	unshare --user --map-root-user --mount --fork \
-		"$JAIL/run_cases.sh" "$JAIL" "$subject_dir" "$subject_base" "$measure_base" \
-		"$CASE_TIMEOUT"
+	# Two passes, two fresh namespaces; they cannot be merged (kcov's ptrace
+	# and xtrace are mutually exclusive -- measured: under xtrace every kcov
+	# hit collapses to 0). "kcov" gives the line set, "trace" gives the truth
+	# about which of those lines ran. See lib/shell_coverage_case_runner.sh.
+	local pass
+	for pass in kcov trace; do
+		unshare --user --map-root-user --mount --fork \
+			"$JAIL/run_cases.sh" "$JAIL" "$subject_dir" "$subject_base" \
+			"$measure_base" "$CASE_TIMEOUT" "$pass"
+	done
+
+	reconcile_pass_failures
 
 	local tree_after
 	tree_after="$(cd "$REPO_ROOT" && git status --porcelain)"
@@ -229,7 +236,7 @@ main() {
 	# and suppressing it would hide the diagnosis behind the symptom.
 	local report_rc=0
 	python3 "$REPO_ROOT/meta/scripts/shell_coverage_report.py" \
-		"$JAIL/cov" "$measure_base" "$MIN_PERCENT" || report_rc=$?
+		"$JAIL/cov" "$measure_base" "$MIN_PERCENT" "$JAIL/trace" || report_rc=$?
 
 	if [[ $FAIL_ON_CASE_ERROR -eq 1 && -s "$JAIL/case_failures" ]]; then
 		printf 'Error: %d case(s) exited non-zero; see the warn: lines above\n' \
