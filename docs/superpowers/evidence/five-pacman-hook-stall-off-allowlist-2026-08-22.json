@@ -1,0 +1,38 @@
+{
+  "intent": "Take the five pacman_hook_stall libs off the shell-coverage allowlist, now that the fixed instrument measures each at 100.00% twice, taking the allowlist from 103 entries to 98.",
+  "scope": [
+    "meta/shell-coverage-allowlist.txt - five entries removed",
+    "Non-goal: pacman_hook_stall_setup.sh, which measures 26/27 = 96.30% and stays allowlisted",
+    "Non-goal: the 16 untested libs in fixes/lib, which keep their explicit entries"
+  ],
+  "changes": [
+    "Removed pacman_hook_stall_capture.sh, _load.sh, _summary.sh, _usage.sh and _watch.sh from meta/shell-coverage-allowlist.txt.",
+    "Each was measured twice through fixes/lib/tests/run_all.sh, the subject is_covered() builds, with the second run gating at --min 100 so a shortfall would have been a non-zero exit rather than a number to read."
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --subject fixes/lib/tests/run_all.sh --measure <lib> --min 100 --fail-on-case-error (run 1, reported numbers)",
+      "result": "pass",
+      "evidence": "capture 59/59, load 25/25, summary 18/18, watch 24/24, usage 1/1 -- all 100.00%."
+    },
+    {
+      "command": "the same five at --min 100, second independent run on a clean tree",
+      "result": "pass",
+      "evidence": "All five PASS with identical numbers: 59/59, 25/25, 18/18, 24/24, 1/1. Two matching runs was the bar set because fixes/lib's suites drive watch_forever timing loops and a timing-dependent suite could vary its line set; dwm_config.sh was seen to vary. These did not."
+    },
+    {
+      "command": "wc -l meta/shell-coverage-allowlist.txt before and after",
+      "result": "pass",
+      "evidence": "116 -> 111 file lines; 103 -> 98 actual allowlist entries."
+    }
+  ],
+  "risks": [
+    "usage.sh's denominator is 1, because the lib is a single usage() whose body is one `cat <<EOF` heredoc plus `exit 0` and heredoc content is data rather than statements. The 100.00% is honest but covers one line; the tests assert on the rendered text, so the behaviour is genuinely exercised.",
+    "summary.sh has one off-set line (36) -- a line the trace saw run that kcov never listed. That cannot inflate the number (an off-set line is by construction an executed line), but it means the lib is measured over a subset of its statements.",
+    "These libs are only enforced once check_shell_coverage.sh is wired into a hook, which still waits for the allowlist to reach zero."
+  ],
+  "rollback": [
+    "git revert this commit to restore the five entries; nothing else depends on their absence.",
+    "After rollback, confirm check_shell_coverage.sh on any of the five exits 0 again by exemption rather than by coverage."
+  ]
+}
