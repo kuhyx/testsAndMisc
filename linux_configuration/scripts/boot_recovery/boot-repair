@@ -25,7 +25,8 @@
 #
 # Safety invariants:
 #   * Files under /boot are ONLY deleted while /boot is not a mountpoint AND
-#     contains no EFI/ or loader/ directory. Deleting them after mounting
+#     contains no EFI/ or loader/ directory AND the system booted via UEFI.
+#     Deleting them after mounting, or on a BIOS box that has no ESP at all,
 #     would destroy the real kernel and leave the machine unbootable.
 #   * EFI/ and loader/ on the ESP are never written or removed.
 #   * The running kernel's module tree is never deleted.
@@ -96,7 +97,10 @@ Options:
                    only when it acts or fails.
   --root DIR       Operate on an alternate root (testing, or an Arch ISO
                    chroot). Live-only steps are skipped.
-  --esp DEVICE     Use DEVICE as the ESP instead of auto-detecting it.
+  --esp DEVICE     Use DEVICE as the ESP instead of auto-detecting it. Also
+                   overrides the BIOS guard: on a system with no
+                   /sys/firmware/efi, shadow-file cleanup is refused unless
+                   the ESP device is named explicitly here.
   -h, --help       Show this help.
 
 Exit status:
@@ -243,6 +247,13 @@ boot_is_mounted() {
   findmnt -n "$ESP_MOUNTPOINT" > /dev/null 2>&1
 }
 
+# True when the system booted via UEFI, i.e. an ESP can exist at all. The
+# kernel only creates /sys/firmware/efi when it was loaded by EFI firmware.
+#
+# Expressed via rpath so a fixture tree can declare its own firmware type;
+# on the live machine this resolves to the real /sys path and is exact.
+system_is_uefi() { [[ -d "$(rpath /sys/firmware/efi)" ]]; }
+
 # ----------------------------------------------------------------------------
 # Repair steps
 # ----------------------------------------------------------------------------
@@ -373,7 +384,7 @@ check_fstab_options() {
 # while the ESP was unmounted. They shadow the real ESP and waste ~250 MB.
 #
 # This is the single most dangerous step in the script: doing it after mounting
-# would delete the real kernel. Hence the two hard guards below.
+# would delete the real kernel. Hence the three hard guards below.
 clean_shadow_files() {
   local bootdir
   bootdir="$(rpath $ESP_MOUNTPOINT)"
@@ -387,6 +398,17 @@ clean_shadow_files() {
   # something we believe is unmounted, our mount detection is wrong — stop.
   if [[ -d $bootdir/EFI || -d $bootdir/loader ]]; then
     warn "unmounted $ESP_MOUNTPOINT contains EFI/ or loader/ — refusing to delete anything"
+    return 1
+  fi
+  # GUARD 3: on a BIOS/GRUB system there is no ESP at all, so an unmounted
+  # /boot is not a shadow — it is the only kernel the machine has. Deleting it
+  # leaves the machine unbootable (measured 2026-08-22: a BIOS guest never
+  # booted again). --esp is the deliberate override: naming the device by hand
+  # asserts the firmware assumption that /sys/firmware/efi otherwise proves.
+  if ! system_is_uefi && [[ -z $ESP_DEV_OVERRIDE ]]; then
+    warn "no /sys/firmware/efi — this system booted via BIOS and has no ESP;"
+    warn "  $ESP_MOUNTPOINT holds the real kernel. Refusing to delete anything."
+    warn "  If that is wrong, name the ESP explicitly: $SCRIPT_NAME --esp DEVICE"
     return 1
   fi
 

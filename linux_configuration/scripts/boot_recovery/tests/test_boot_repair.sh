@@ -64,7 +64,8 @@ assert_eq() {
 
 # shellcheck source=lib/boot_repair_cases.sh
 source "$SCRIPT_DIR/lib/boot_repair_cases.sh"
-
+# shellcheck source=lib/boot_repair_bios_cases.sh
+source "$SCRIPT_DIR/lib/boot_repair_bios_cases.sh"
 
 # ----------------------------------------------------------------------------
 # Runner
@@ -91,6 +92,9 @@ main() {
 	test_fstab_nofail_fixed
 	test_shadow_files_removed
 	test_shadow_guard_refuses_real_esp
+	test_bios_guard_refuses_to_delete_real_kernel
+	test_bios_guard_overridden_by_explicit_esp
+	test_uefi_shadow_cleanup_still_works
 	test_parallel_downloads_fixed
 	test_missing_modules_dep
 	test_no_kernel_at_all

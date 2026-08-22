@@ -13,13 +13,20 @@
 #
 # Builds a consistent system: one complete kernel tree, an ESP whose kernel
 # and initramfs match it, a gating fstab and serial downloads.
+# make_root <name> [kver] [firmware]
+# firmware: "uefi" (default) creates sys/firmware/efi, so boot-repair sees an
+# ESP-capable system; "bios" omits it, which is what a GRUB/BIOS box looks like.
 make_root() {
 	local name="$1"
 	local r="$WORKROOT/$name"
 	local kver="${2:-7.1.5-arch1-2}"
+	local firmware="${3:-uefi}"
 
 	mkdir -p "$r/usr/lib/modules/$kver/kernel/fs/fat"
 	mkdir -p "$r/boot" "$r/etc" "$r/var/cache/pacman/pkg"
+	if [[ $firmware == "uefi" ]]; then
+		mkdir -p "$r/sys/firmware/efi"
+	fi
 
 	# Fake kernel image carrying the version banner boot-repair greps for.
 	printf 'Linux version %s (linux@archlinux) fake image\n' "$kver" \
