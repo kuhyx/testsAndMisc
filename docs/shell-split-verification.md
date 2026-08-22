@@ -216,6 +216,20 @@ Note the failure is _silent and one-directional_: it under-reports, so it can
 only ever keep a lib on the allowlist that deserves to come off. It cannot
 promote an untested lib. That is why the campaign can continue around it.
 
+**The under-report is contagious across processes in one jail.** Measured on
+`rpi_nc_ca.sh`: run alone its suite reports **73/73 = 100.00%**, reproduced
+twice. Run through `run_all.sh` it reports **72/73 = 98.63%**, also twice --
+and bisecting the five sibling suites shows a single culprit, `test_dwm_config.sh`.
+Run `dwm_config` first and `rpi_nc_ca` loses line 141 (`cat <<'EOF'`, an
+ordinary statement); run any other sibling first and it keeps it. The CA
+suite's assertions all pass either way, confirmed with an exit sentinel, so
+nothing is actually untested.
+
+This matters for the gate: `is_covered()` measures through `run_all.sh`, so
+the _runner's_ number is the one that counts, and it can be lower than the
+same suite's own number for reasons that have nothing to do with the tests.
+Never report the single-file figure as the lib's coverage.
+
 **Use an `exit <n>` sentinel to tell the two apart.** The jail discards a
 case's stdout, so a suite's own report is invisible; but a non-zero exit is
 surfaced by `--fail-on-case-error`. Temporarily ending the suite with

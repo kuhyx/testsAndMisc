@@ -1,0 +1,43 @@
+{
+  "intent": "Correct the recorded explanation for rpi_nc_ca.sh's 98.63%. The commit that landed it attributed the missing line to a heredoc BODY being counted in the denominator. That was wrong: line 141 is `cat <<'EOF'`, an ordinary statement, and the real cause is that the under-report is contagious across processes sharing one jail.",
+  "scope": [
+    "docs/shell-split-verification.md: record the cross-process finding and the rule that the runner's number is the authoritative one",
+    "Non-goal: no code change -- the 98.63% figure and the allowlist state committed earlier are both correct, only the stated reason was wrong",
+    "Non-goal: a heredoc-body filter in shell_coverage_report.py; it would not have fixed this line and is not justified by this evidence"
+  ],
+  "changes": [
+    "Bisected the five sibling suites: running test_dwm_config.sh before test_rpi_nc_ca.sh costs line 141; running test_aw_autostart.sh or test_dot_resolver_install.sh first does not. The culprit is a specific preceding process, not the construct on the line.",
+    "A prototype heredoc-body detector was written, tested against the real file, and DELETED once it showed line 141 is the heredoc's OPENING line (a real statement at line 141; the body starts at 142). Keeping it would have been a fix aimed at the wrong defect.",
+    "Recorded the operational rule this implies: is_covered() measures through run_all.sh, so the runner's figure is the lib's coverage. The same suite's single-file figure can be higher for reasons unrelated to the tests and must never be reported as the lib's number."
+  ],
+  "verification": [
+    {
+      "command": "measure rpi_nc_ca.sh alone vs through run_all.sh, twice each",
+      "result": "pass",
+      "evidence": "Alone: 73/73 = 100.00% both times. Through the runner: 72/73 = 98.63% both times. Stable in both modes, so this is deterministic contamination and not flakiness."
+    },
+    {
+      "command": "run each preceding sibling suite, then the CA suite, measuring rpi_nc_ca.sh",
+      "result": "pass",
+      "evidence": "test_aw_autostart -> 100.00%; test_dot_resolver_install -> 100.00%; test_dwm_config -> 98.63%. A single culprit, isolated by bisection."
+    },
+    {
+      "command": "run test_dwm_config.sh then test_rpi_nc_ca.sh under --fail-on-case-error",
+      "result": "pass",
+      "evidence": "No 'case exited' line: the CA suite exits 0 with every assertion passing, including the show_help assertion. Line 141 therefore EXECUTES and is simply not traced -- nothing is untested."
+    },
+    {
+      "command": "each of the six suite files run individually under --fail-on-case-error",
+      "result": "pass",
+      "evidence": "failures=0 for all six. The interaction is purely in the measurement, not in the tests."
+    }
+  ],
+  "risks": [
+    "Any lib's runner figure can be depressed by an unrelated sibling suite, so a lib may sit below the bar for reasons its own tests cannot fix. Until the root cause is found this caps what the campaign can certify -- but only downward, so no untested lib is ever promoted.",
+    "The bisection identifies test_dwm_config.sh as today's culprit; adding another suite to the directory could change which files are affected. Re-measure every lib in a directory after adding a suite to it, as was done for the jail_args change."
+  ],
+  "rollback": [
+    "git revert the commit; the doc returns to the heredoc-body explanation, which is incorrect and would send the next session after the wrong fix.",
+    "After rollback, re-run the bisection above to re-derive the correct cause before trusting the doc."
+  ]
+}
