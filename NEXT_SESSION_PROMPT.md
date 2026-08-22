@@ -9,18 +9,18 @@
 have no tests.** Write them, to 100% line coverage, and take each one off
 `meta/shell-coverage-allowlist.txt`.
 
-| lines | lib                       | entry script                   |
-| ----- | ------------------------- | ------------------------------ |
-| 215   | `ubuntu_perf_fixes.sh`    | `fix_ubuntu_performance.sh`    |
-| 202   | `arch_hardware.sh`        | `optimize_arch_desktop.sh`     |
-| 180   | `nvidia_config.sh`        | `nvidia_troubleshoot.sh`       |
-| 179   | `thorium_repairs.sh`      | `fix_thorium.sh`               |
+| lines | lib                       | entry script                          |
+| ----- | ------------------------- | ------------------------------------- |
+| 215   | `ubuntu_perf_fixes.sh`    | `fix_ubuntu_performance.sh`           |
+| 202   | `arch_hardware.sh`        | `optimize_arch_desktop.sh`            |
+| 180   | `nvidia_config.sh`        | `nvidia_troubleshoot.sh`              |
+| 179   | `thorium_repairs.sh`      | `fix_thorium.sh`                      |
 | 161   | `hosts_guard_migrate.sh`  | `migrate_hosts_guard_to_guard_lib.sh` |
-| 141   | `hosts_guard_rollback.sh` | same                           |
-| 126   | `arch_cpu.sh`             | `optimize_arch_desktop.sh`     |
-| 122   | `arch_sysctl.sh`          | `optimize_arch_desktop.sh`     |
-| 121   | `arch_perf_fixes.sh`      | `fix_arch_performance.sh`      |
-| 80    | `ubuntu_perf_more.sh`     | `fix_ubuntu_performance.sh`    |
+| 141   | `hosts_guard_rollback.sh` | same                                  |
+| 126   | `arch_cpu.sh`             | `optimize_arch_desktop.sh`            |
+| 122   | `arch_sysctl.sh`          | `optimize_arch_desktop.sh`            |
+| 121   | `arch_perf_fixes.sh`      | `fix_arch_performance.sh`             |
+| 80    | `ubuntu_perf_more.sh`     | `fix_ubuntu_performance.sh`           |
 
 **Suggested order: smallest first, grouped by entry script.** The three
 `optimize_arch_desktop.sh` libs (`arch_cpu`, `arch_sysctl`, `arch_hardware`)
@@ -40,7 +40,7 @@ shellcheck-clean with zero suppressions.** It has three layers:
   - `_t_stub NAME BODY`, and the three helpers that exist to keep call sites
     free of quoted `$`: **`_t_stub_stdin NAME` (body from a quoted heredoc),
     `_t_stub_cat NAME FIXTURE` (print `$DEV/FIXTURE`), `_t_stub_writes NAME
-    ARGNUM CONTENT`**. Use these instead of `_t_stub foo '...$1...'`, which
+ARGNUM CONTENT`**. Use these instead of `_t_stub foo '...$1...'`, which
     trips SC2016 every single time.
   - `_t_unstub NAME...` (runs `hash -r`; deleting the file alone does not work)
   - **`_t_hide TOOL...`** — rebuilds PATH from symlinks to every real binary
@@ -105,7 +105,7 @@ git worktree add --detach "$SP/cov" HEAD
 cp <files> "$SP/cov/<same paths>"      # never the reverse
 ```
 
-Copying *out* of the worktree is how the last session silently reverted its
+Copying _out_ of the worktree is how the last session silently reverted its
 own uncommitted harness edit, twice, and misdiagnosed it as another agent.
 
 ## The instrument: FIXED, and now correct for two more shapes
@@ -219,18 +219,18 @@ asked has been "fix it in this commit".
 Allowlist **93**, down from 98 — five libs cleared. Nine commits,
 `4cfc3fdd`..`fa7b05da`.
 
-(Several commit *messages* say "95 -> 93" etc. and are one low: they counted
+(Several commit _messages_ say "95 -> 93" etc. and are one low: they counted
 total file lines instead of entries. The diff against `503ba1fc` is the
 authority — five removals, 98 -> 93.)
 
-| lib                    | coverage             | status  |
-| ---------------------- | -------------------- | ------- |
-| `bt_report.sh`         | **37/37 = 100.00%**  | CLEARED |
-| `bt_pairing.sh`        | **65/65 = 100.00%**  | CLEARED |
-| `bt_audio.sh`          | **127/127 = 100.00%**| CLEARED |
-| `arch_perf_report.sh`  | **59/59 = 100.00%**  | CLEARED |
-| `arch_perf_probes.sh`  | **93/93 = 100.00%**  | CLEARED |
-| `bt_adapter.sh`        | 68/69 = 98.55%       | exempt, see artifact above |
+| lib                   | coverage              | status                     |
+| --------------------- | --------------------- | -------------------------- |
+| `bt_report.sh`        | **37/37 = 100.00%**   | CLEARED                    |
+| `bt_pairing.sh`       | **65/65 = 100.00%**   | CLEARED                    |
+| `bt_audio.sh`         | **127/127 = 100.00%** | CLEARED                    |
+| `arch_perf_report.sh` | **59/59 = 100.00%**   | CLEARED                    |
+| `arch_perf_probes.sh` | **93/93 = 100.00%**   | CLEARED                    |
+| `bt_adapter.sh`       | 68/69 = 98.55%        | exempt, see artifact above |
 
 Also still exempt and already measured by an earlier session — do NOT redo:
 `dwm_config.sh` 98.48%, `pacman_hook_stall_setup.sh` 96.30%, `aw_autostart.sh`
