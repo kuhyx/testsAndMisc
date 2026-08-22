@@ -1,0 +1,20 @@
+{
+  "title": "Give testsAndMisc-bash/lib a test harness and cover its two package-manager libs",
+  "objective": "Create the first tests/run_all.sh for linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib -- a directory holding five allowlisted libs and no tests -- and use it to cover transcribe_deps.sh (the fourth hardest-first target) and transcribe_pkgmgr.sh.",
+  "acceptance_criteria": [
+    "tests/run_all.sh exists and exits 0 when invoked BARE, because no jail_args marker is created and both ci_mirror.sh and shell-tests.yml therefore run it directly.",
+    "Every assertion passes: test_transcribe_deps.sh and test_transcribe_pkgmgr.sh both report 0 failed.",
+    "Each package-manager branch is asserted on its RECORDED ARGV, not merely on the manager being called -- pacman must be shown asking for python-virtualenv where apt asks for python3-venv.",
+    "The 'not installed' cases genuinely hide the binary: PATH is replaced, not prepended, since this host really has pacman.",
+    "Coverage of both libs is measured through run_all.sh, the subject is_covered() builds, and reported as the measured figure.",
+    "Both libs remain on the allowlist unless they measure 100%.",
+    "No assertion is left in place that cannot fail on this host; an unreachable branch is documented rather than asserted vacuously.",
+    "shellcheck clean on every new file with no suppressions, and all files within the 250-line cap."
+  ],
+  "out_of_scope": [
+    "The other three libs in the directory (clean_audio_filters.sh, transcribe_venv.sh, unity_handler.sh) -- they inherit the harness but are not covered here.",
+    "Any change to transcribe_deps.sh or transcribe_pkgmgr.sh; no latent bug surfaced in either.",
+    "Making the directory jail-only in order to hide /usr/lib/libsndfile.so and reach the four libsndfile lines."
+  ],
+  "verifier": "bash .../testsAndMisc-bash/lib/tests/run_all.sh (expects 15 + 18 assertions, 0 failed, exit 0), plus meta/scripts/shell_coverage_jail.sh --subject that runner --measure each lib --fail-on-case-error, plus shellcheck on the four new files and meta/scripts/check_file_length.sh --all."
+}

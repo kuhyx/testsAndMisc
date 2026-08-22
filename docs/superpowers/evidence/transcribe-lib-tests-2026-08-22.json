@@ -1,0 +1,53 @@
+{
+  "intent": "Give the testsAndMisc-bash/lib directory its first test harness and cover transcribe_deps.sh (score 50, the fourth hardest-first target) plus transcribe_pkgmgr.sh alongside it. Both stay on the allowlist: 92.31% and 98.00%, below the 100% bar.",
+  "scope": [
+    "linux_configuration/scripts/single_use/misc/testsAndMisc-bash/lib/tests/transcribe_harness.sh: new shared fixture",
+    ".../tests/run_all.sh: new runner, deliberately WITHOUT a jail_args marker",
+    ".../tests/test_transcribe_deps.sh: new, 15 assertions",
+    ".../tests/test_transcribe_pkgmgr.sh: new, 18 assertions",
+    "Non-goal: the other three libs in the directory (clean_audio_filters, transcribe_venv, unity_handler) -- the harness they need now exists",
+    "Non-goal: no change to either subject; no latent bug surfaced"
+  ],
+  "changes": [
+    "These suites need NO jail: every branch turns on `command -v <manager>` and every install goes through sudo, both intercepted by a PATH stub dir. No jail_args file is created, so ci_mirror.sh and shell-tests.yml both run this runner bare -- verified, exit 0.",
+    "The harness REPLACES PATH rather than prepending to it. This host really has pacman, and a prepended stub dir cannot HIDE a binary, so every 'manager not installed' case would silently assert nothing. A private symlink dir supplies the coreutils the suites themselves need.",
+    "`bash` and `env` are in that dir for a non-obvious reason: every stub carries a `#!/usr/bin/env bash` shebang resolved through the restricted PATH. Without them each stub died with \"env: 'bash': No such file or directory\" and the branch it stood in for was silently never taken -- a failure that looked like a coverage gap.",
+    "Assertions are on RECORDED ARGV, not on the call happening: which packages a branch installs is what differs between distros (pacman gets python-virtualenv where apt gets python3-venv) and is exactly what a presence test cannot see.",
+    "ensure_cuda_runtime calls `exit 6` when cuBLAS is still missing. Called at top level that exits the SUITE, so each branch assertion runs in a subshell."
+  ],
+  "verification": [
+    {
+      "command": ".../lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "test_transcribe_deps.sh: 15 passed, 0 failed; test_transcribe_pkgmgr.sh: 18 passed, 0 failed; 'All transcribe lib test files passed.' Bare runner exit=0, which is how both gates invoke it."
+    },
+    {
+      "command": "shell_coverage_jail.sh --subject .../tests/run_all.sh --measure transcribe_deps.sh --min 1 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "transcribe_deps.sh: 48/52 = 92.31%, uncovered 19, 52, 53, 55. Measured through run_all.sh, the subject is_covered() builds."
+    },
+    {
+      "command": "same, --measure transcribe_pkgmgr.sh",
+      "result": "pass",
+      "evidence": "transcribe_pkgmgr.sh: 49/50 = 98.00%, uncovered 42. A second lib covered by the same harness."
+    },
+    {
+      "command": "ls -la /usr/lib/libsndfile.so",
+      "result": "pass",
+      "evidence": "The symlink exists on this host, so need_libsndfile is legitimately 0 and lines 19/52/53/55 are unreachable here. Three assertions that appeared to test this branch were REMOVED rather than left green-but-vacuous, and the limitation is written into the suite."
+    },
+    {
+      "command": "shellcheck on all four new files",
+      "result": "pass",
+      "evidence": "clean; no suppressions added. A malformed `# shellcheck source=... -- comment` directive was rewritten rather than deleted."
+    }
+  ],
+  "risks": [
+    "The libsndfile branch cannot be reached on a host that has the library. Covering it needs a jail that hides /usr/lib/libsndfile.so, which would mean adding a jail_args marker and making the whole directory jail-only for one branch. Deferred deliberately; the cost is 4 lines of the 52.",
+    "The restricted PATH must list every binary the suites use. A future assertion invoking an unlisted tool fails with 'command not found' rather than a clear assertion failure -- the bash/env case above cost real time to diagnose."
+  ],
+  "rollback": [
+    "git revert the commit; the directory loses its harness and all five of its libs stay allowlisted with no tests.",
+    "After rollback, confirm no tests/run_all.sh remains under testsAndMisc-bash/lib, so the gate's view of the directory is unchanged."
+  ]
+}
