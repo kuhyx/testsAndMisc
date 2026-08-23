@@ -134,6 +134,19 @@ repos:
         types: [shell]
         require_serial: true
         exclude: ^(\.git/|phone_focus_mode/lib/tests/|tests/)
+      - id: shell-coverage-ratchet
+        name: Every shell library has a test suite beside it
+        # The ratchet from meta/shell-coverage-allowlist.txt: a lib under a
+        # lib/ directory needs a tests/run_all.sh, unless it is allowlisted.
+        # Wired here on 2026-08-23. It existed but was never in pre-commit,
+        # so it had been silently unenforced -- a new untested lib could land
+        # freely. That was only affordable to fix once 578c4a6c dropped the
+        # jail-measured 100% bar: --all went from >600s to 0.31s, and the
+        # per-file mode this hook uses is milliseconds.
+        entry: bash meta/scripts/check_shell_coverage.sh
+        language: system
+        types: [shell]
+        exclude: ^third_party/
 
   # ===========================================================================
   # NOQA BLOCKER - Zero tolerance for noqa/type:ignore suppression comments

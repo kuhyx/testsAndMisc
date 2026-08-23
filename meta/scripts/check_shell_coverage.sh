@@ -168,16 +168,16 @@ check_files() {
 		return 0
 	fi
 
-	echo "$SCRIPT_NAME: ${#offenders[@]} shell librar(ies) below the coverage bar:" >&2
+	echo "$SCRIPT_NAME: ${#offenders[@]} shell librar(ies) without a suite:" >&2
 	for path in "${offenders[@]}"; do
 		printf '  %s\n' "$path" >&2
 		printf '    needs: %s/tests/run_all.sh\n' "$(dirname "$path")" >&2
 	done
 	echo >&2
-	echo "  A shell library must ship with a suite that drives it to
-  ${COVERAGE_BAR}% line coverage. Extend" >&2
-	echo "  the nearest existing tests/ directory rather than cloning a" >&2
-	echo "  harness -- jscpd fails above 2% duplication." >&2
+	echo "  A shell library must ship with a suite that sources and" >&2
+	echo "  exercises it. Extend the nearest existing tests/ directory" >&2
+	echo "  rather than cloning a harness -- jscpd fails above 2%" >&2
+	echo "  duplication." >&2
 	return 1
 }
 

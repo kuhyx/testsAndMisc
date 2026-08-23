@@ -1,0 +1,19 @@
+{
+  "title": "Wire the shell coverage ratchet into pre-commit and test the coverage tooling",
+  "objective": "Make the shell ratchet enforceable at commit time rather than existing but never running, and close the gap where the three libs that build the coverage jail had no tests of their own.",
+  "acceptance_criteria": [
+    "A new shell library in a directory with no tests/run_all.sh is refused by pre-commit.",
+    "A shell library in a directory that has a suite, or one on the allowlist, is accepted.",
+    "check_shell_coverage.sh --all reports zero BLOCK entries and completes in under 5 seconds.",
+    "check_shell_coverage.sh emits no 'unbound variable' error on its failure path.",
+    "The new suite runs green standalone via bash meta/scripts/lib/tests/run_all.sh.",
+    "No lint suppression (noqa, shellcheck disable, per-file ignore) is added anywhere.",
+    "The allowlist is not grown; entries may only be removed."
+  ],
+  "out_of_scope": [
+    "Restoring the jail-measured 100% bar removed in 578c4a6c.",
+    "Writing suites for the 8 allowlisted directories that still have none.",
+    "Changing shell_coverage_jail.sh, which is still used by ci_mirror.sh."
+  ],
+  "verifier": "bash meta/scripts/lib/tests/run_all.sh exits 0 with 48 assertions; pre-commit run shell-coverage-ratchet --all-files passes; creating an untested lib under mtk_root/lib and running the hook on it fails with a 'needs: .../tests/run_all.sh' message; shellcheck -x and shfmt -l are clean on every touched file."
+}

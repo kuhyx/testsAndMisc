@@ -1,0 +1,44 @@
+{
+  "intent": "Wire check_shell_coverage.sh into pre-commit so the shell ratchet cannot silently rot, and give the coverage tooling itself the suite it was missing.",
+  "scope": [
+    ".pre-commit-config.yaml (new shell-coverage-ratchet hook)",
+    "meta/scripts/check_shell_coverage.sh (stale message referencing a removed constant)",
+    "meta/scripts/lib/tests/ (new suite: harness + 3 test files + run_all.sh)"
+  ],
+  "changes": [
+    "Added the shell-coverage-ratchet hook, types: [shell], excluding third_party/. It was previously never wired, so a new untested shell library could land freely.",
+    "FIX: check_shell_coverage.sh line 177 interpolated ${COVERAGE_BAR}, which no longer exists after 578c4a6c, producing 'COVERAGE_BAR: unbound variable' on every failure path. The message now describes the presence bar it actually enforces.",
+    "New suite for the three meta/scripts/lib coverage-tooling libs, which are the one corner of the repo the jail cannot measure itself: 48 assertions over is_covered, build_jail, write_cases, build_mount_script, reconcile_pass_failures and write_case_runner.",
+    "Assertions on unexpanded ${BASH_SOURCE}/$1 literals compose the dollar sign from an exported DOLLAR constant rather than writing single-quoted literals, so the files are SC2016-clean with no suppressions."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "48 assertions across 3 files, 0 failed (5 + 26 + 17)"
+    },
+    {
+      "command": "pre-commit run shell-coverage-ratchet --all-files",
+      "result": "pass",
+      "evidence": "Passed in 0.16s; check_shell_coverage.sh --all now reports 0 BLOCK entries, down from 3, and runs in 0.31s"
+    },
+    {
+      "command": "Created an untested lib at mtk_root/lib/zz_probe.sh and ran the hook on it",
+      "result": "pass",
+      "evidence": "Hook failed with 'needs: linux_configuration/scripts/mtk_root/lib/tests/run_all.sh'. Probe file removed; the ratchet is not toothless."
+    },
+    {
+      "command": "shellcheck -x and shfmt -l over the new files",
+      "result": "pass",
+      "evidence": "clean, no noqa/disable directives added"
+    }
+  ],
+  "risks": [
+    "The hook now runs on every commit touching a shell file. Measured at 0.16s repo-wide, so the cost is negligible.",
+    "A lib added to a directory that has no suite is now blocked at commit time. That is the intended ratchet behaviour, and all 8 such directories are already allowlisted."
+  ],
+  "rollback": [
+    "Remove the shell-coverage-ratchet block from .pre-commit-config.yaml; the gate returns to being unenforced.",
+    "After rollback, confirm `pre-commit run --all-files` no longer lists the hook."
+  ]
+}
