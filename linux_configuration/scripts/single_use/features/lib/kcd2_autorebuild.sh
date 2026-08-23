@@ -34,7 +34,6 @@ EOF
 # Managed by setup_kcd2_dice_solver.sh — do not edit by hand.
 # Republishes https://${DICE_DOMAIN}/ when main gains solver changes.
 [[ "\$(git rev-parse --abbrev-ref HEAD)" == main ]] || exit 0
-git diff --name-only HEAD~1 HEAD -- kcd2_dice_solver/ | grep -q . || exit 0
 # --no-block so the commit is never slowed, || true so systemd can never fail it.
 systemctl --user start --no-block ${UNIT_NAME} || true
 EOF
@@ -81,7 +80,7 @@ KCD2 dice solver deployed.
 ============================================================================
   Solver : https://${DICE_DOMAIN}/
 
-Auto-rebuild: committing to main with changes under kcd2_dice_solver/ starts
+Auto-rebuild: committing to main in the solver repo starts
 ${UNIT_NAME}, which rebuilds dist/ in place.
   Watch it:  journalctl --user -u ${UNIT_NAME} -f
   Force it:  systemctl --user start ${UNIT_NAME}

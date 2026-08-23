@@ -1,0 +1,20 @@
+{
+  "title": "Extract reverse_survivors, kcd2_dice_solver and focus_owner to their own public repos",
+  "objective": "Move three self-contained applications out of testsAndMisc into their own repositories with full history, give each real CI it never had in the monorepo, and repoint every consumer the monorepo keeps - including the live systemd unit and Docker bind mount that deploy the dice solver.",
+  "acceptance_criteria": [
+    "Each unit is a public GitHub repo on branch main whose commit count equals the monorepo's count for that path (8, 14, 30).",
+    "Each extracted repo passes its own toolchain from a clean clone: npm check+build; pnpm lint+test+build; flutter analyze --fatal-infos + test.",
+    "Each extracted repo carries a CI workflow that runs those same commands with no paths filter and no working-directory.",
+    "kcd2-dice-build.service starts successfully and exits 0 after being repointed - proven by running it, not by reading it.",
+    "https://dice.kuhy.duckdns.org/ returns HTTP 200 and serves the bundle hash produced by that run.",
+    "setup_kcd2_dice_solver.sh builds from the extracted repo, and its generated post-commit hook no longer filters on a kcd2_dice_solver/ path that can never match again.",
+    "No file outside docs/ or a historical note still points at a removed directory.",
+    "The repo-wide pytest gate and pre-commit both still pass, without --no-verify."
+  ],
+  "out_of_scope": [
+    "phone_focus_mode and python_pkg/focus_policy, which move together in a later step.",
+    "The four system subsystems under periodic_background.",
+    "Reformatting focus_owner's Dart sources: the committed tree predates the current formatter and 15 files would change, which belongs in its own commit in the new repo."
+  ],
+  "verifier": "gh api confirms three public repos; standalone clones pass npm/pnpm/flutter checks; systemctl --user start kcd2-dice-build.service exits 0; curl https://dice.kuhy.duckdns.org/ returns 200 with a bundle hash matching dist/; ./meta/scripts/report_live_state.sh shows no unit pointing at a removed path; pre-commit passes."
+}

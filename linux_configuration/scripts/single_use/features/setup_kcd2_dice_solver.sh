@@ -41,8 +41,9 @@ source "${SCRIPT_DIR}/../../lib/common.sh"
 # --- Configuration ----------------------------------------------------------
 readonly DICE_DOMAIN="dice.kuhy.duckdns.org"
 readonly DICE_PORT="8089"
-readonly REPO_ROOT="${HOME}/testsAndMisc"
-readonly DICE_SRC="${REPO_ROOT}/kcd2_dice_solver"
+# The solver was extracted to its own repo; this script only deploys it.
+readonly DICE_SRC="${HOME}/kcd2-dice-solver"
+readonly REPO_ROOT="${DICE_SRC}"
 readonly DICE_BUILD="${DICE_SRC}/deploy_build.sh"
 readonly DICE_DATA_DIR="${HOME}/kcd2-dice-serve"
 readonly DICE_COMPOSE="${DICE_DATA_DIR}/docker-compose.yml"

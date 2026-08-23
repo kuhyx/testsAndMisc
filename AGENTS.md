@@ -11,9 +11,6 @@ Mixed-language monorepo: Python packages, Bash automation, and several apps.
 | `linux_configuration/` | Arch setup, i3 config, system maintenance, and the tracked git hooks                                      |
 | `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                                      |
 | `billsplit/`           | Receipt bill-splitting Flutter app (Dart)                                                                 |
-| `reverse_survivors/`   | React/Vite game — you play the horde (TypeScript)                                                         |
-| `kcd2_dice_solver/`    | KCD2 dice solver                                                                                          |
-| `focus_owner/`         | Android Device-Owner focus enforcer (Kotlin)                                                              |
 | `bottles/`             | Small standalone project                                                                                  |
 | `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                           |
 | `third_party/`         | Vendored upstream skills/agents                                                                           |
@@ -27,7 +24,10 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 [`diet-guard`](https://github.com/kuhyx/diet-guard),
 [`wake-alarm`](https://github.com/kuhyx/wake-alarm),
 [`dufs-cloud`](https://github.com/kuhyx/dufs-cloud),
-[`build-your-x`](https://github.com/kuhyx/build-your-x) (lives at `~/build_your_x`).
+[`build-your-x`](https://github.com/kuhyx/build-your-x) (lives at `~/build_your_x`),
+[`reverse-survivors`](https://github.com/kuhyx/reverse-survivors),
+[`kcd2-dice-solver`](https://github.com/kuhyx/kcd2-dice-solver) (lives at `~/kcd2-dice-solver`),
+[`focus-owner`](https://github.com/kuhyx/focus-owner).
 Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Adding a Flutter app
