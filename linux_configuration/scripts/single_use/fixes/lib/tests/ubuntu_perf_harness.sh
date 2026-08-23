@@ -32,6 +32,10 @@ REPO_ROOT="$(cd "${FIXES_DIR}/../../../.." && pwd)"
 export UNDO_SCRIPT="${TEST_TMPDIR}/undo.sh"
 export JOURNALD_CONF_DIR="${TEST_TMPDIR}/journald.conf.d"
 export UNDO_DIR="${TEST_TMPDIR}/undo_dir"
+# The seams ubuntu_perf_fixes.sh exposes for its three write targets.
+export SYSCTL_DROPIN_DIR="${TEST_TMPDIR}/sysctl.d"
+export SYSTEMD_UNIT_DIR="${TEST_TMPDIR}/systemd_units"
+export EARLYOOM_CONF_FILE="${TEST_TMPDIR}/earlyoom"
 
 # Verbatim from fix_ubuntu_performance.sh.
 add_undo() {
@@ -41,7 +45,7 @@ add_undo() {
 _ubuntu_default_stubs() {
 	local tool
 	for tool in systemctl journalctl snap apt-get update-grub sysctl \
-		swapoff swapon; do
+		swapoff swapon nvidia-smi nvidia-persistenced dpkg; do
 		_t_stub "$tool" 'exit 0'
 	done
 }
@@ -49,11 +53,24 @@ _ubuntu_default_stubs() {
 # ubuntu_reset — start a test group from "nothing has happened yet".
 ubuntu_reset() {
 	_t_reset_calls
-	rm -rf "${JOURNALD_CONF_DIR}" "${UNDO_DIR}"
-	mkdir -p "${JOURNALD_CONF_DIR}" "${UNDO_DIR}"
+	rm -rf "${JOURNALD_CONF_DIR}" "${UNDO_DIR}" "${SYSCTL_DROPIN_DIR}" \
+		"${SYSTEMD_UNIT_DIR}"
+	mkdir -p "${JOURNALD_CONF_DIR}" "${UNDO_DIR}" "${SYSCTL_DROPIN_DIR}" \
+		"${SYSTEMD_UNIT_DIR}"
+	rm -f "${EARLYOOM_CONF_FILE}" "${EARLYOOM_CONF_FILE}.bak"
 	: >"$UNDO_SCRIPT"
 	_t_full_path
 	_ubuntu_default_stubs
+}
+
+# _t_unit FILE — the contents of a systemd unit written this round.
+_t_unit() {
+	cat "${SYSTEMD_UNIT_DIR}/$1" 2>/dev/null || true
+}
+
+# _t_sysctl_file — the contents of the sysctl drop-in written this round.
+_t_sysctl_file() {
+	cat "${SYSCTL_DROPIN_DIR}/99-performance-tuning.conf" 2>/dev/null || true
 }
 
 # _t_undo — the undo script's contents this round.

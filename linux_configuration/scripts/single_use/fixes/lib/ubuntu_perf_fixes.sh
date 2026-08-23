@@ -9,7 +9,11 @@
 # Fix 2: Sysctl tuning (swappiness, VFS cache, dirty pages)
 # ===================================================================
 fix_sysctl_tuning() {
-	local sysctl_file="/etc/sysctl.d/99-performance-tuning.conf"
+	# SYSCTL_DROPIN_DIR and the other overrides below default to the real
+	# locations; only the test harness sets them. The add_undo lines keep
+	# their literal /etc paths on purpose -- the undo script runs on the
+	# real system, not in the sandbox.
+	local sysctl_file="${SYSCTL_DROPIN_DIR:-/etc/sysctl.d}/99-performance-tuning.conf"
 
 	if [[ -f $sysctl_file ]]; then
 		log_ok "Sysctl performance tuning already applied — skipping."
@@ -52,7 +56,7 @@ SYSCTL
 # Fix 3: NVIDIA persistence mode via systemd service
 # ===================================================================
 fix_nvidia_persistence() {
-	local service_file="/etc/systemd/system/nvidia-persistence.service"
+	local service_file="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/nvidia-persistence.service"
 
 	# Check if persistence is already on
 	if nvidia-smi -q 2>/dev/null | grep -q "Persistence Mode.*Enabled"; then
@@ -63,7 +67,7 @@ fix_nvidia_persistence() {
 	# On Ubuntu, nvidia-persistenced.service is "static" (no [Install] section)
 	# and starts with --no-persistence-mode. We create a small helper service
 	# that runs `nvidia-smi -pm 1` after the daemon is up.
-	local helper_svc="/etc/systemd/system/nvidia-persistence-mode.service"
+	local helper_svc="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/nvidia-persistence-mode.service"
 
 	if [[ -f $helper_svc ]] && systemctl is-enabled nvidia-persistence-mode.service >/dev/null 2>&1; then
 		# Already set up — just make sure it's active this boot
@@ -150,7 +154,7 @@ fix_earlyoom() {
 	fi
 
 	# Configure earlyoom: kill at 5% free RAM / 10% free swap
-	local earlyoom_conf="/etc/default/earlyoom"
+	local earlyoom_conf="${EARLYOOM_CONF_FILE:-/etc/default/earlyoom}"
 	if [[ -f $earlyoom_conf ]]; then
 		cp "$earlyoom_conf" "${earlyoom_conf}.bak"
 	fi

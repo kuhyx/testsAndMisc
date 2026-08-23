@@ -1,0 +1,57 @@
+{
+  "intent": "Test ubuntu_perf_fixes.sh to 100% line coverage and take it off the shell coverage allowlist, leaving one untested lib in fixes/lib.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/ubuntu_perf_fixes.sh (four test seams)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_ubuntu_perf_fixes.sh and test_ubuntu_perf_fixes_oom.sh (new)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/ubuntu_perf_harness.sh (extended, not created -- it already existed)",
+    "meta/shell-coverage-allowlist.txt (one line removed)"
+  ],
+  "changes": [
+    "Added SYSCTL_DROPIN_DIR, SYSTEMD_UNIT_DIR (twice) and EARLYOOM_CONF_FILE seams, each defaulting to the real path so production behaviour is unchanged",
+    "Deliberately left the add_undo lines with their literal /etc paths: the undo script runs on the real system, not in the sandbox, so seaming them would have written a broken undo",
+    "Extended the existing ubuntu_perf_harness.sh with the three new overrides, three more default stubs (nvidia-smi, nvidia-persistenced, dpkg) and the _t_unit / _t_sysctl_file readers",
+    "Added 59 assertions over 14 cases across two files covering all four functions",
+    "Removed ubuntu_perf_fixes.sh from meta/shell-coverage-allowlist.txt, taking it from 86 to 85 entries"
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --timeout 600s --measure ubuntu_perf_fixes.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "ubuntu_perf_fixes.sh: 81/81 lines = 100.00%, exit 0, no case timeout."
+    },
+    {
+      "command": "shell_coverage_jail.sh --timeout 600s --measure bt_audio.sh --min 100 (canary, with the two new test files present)",
+      "result": "pass",
+      "evidence": "bt_audio.sh: 127/127 lines = 100.00%. This is the lib a previous test file silently broke, so it is re-measured after every addition to this suite."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../ubuntu_perf_fixes.sh, AFTER deleting its allowlist line",
+      "result": "pass",
+      "evidence": "'every checked shell library meets the coverage bar', EXIT 0."
+    },
+    {
+      "command": "ls -la /etc/sysctl.d/99-performance-tuning.conf /etc/default/earlyoom",
+      "result": "pass",
+      "evidence": "Both 'No such file or directory' after the suite ran, confirming the seams kept every write inside the throwaway tmpdir."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; 31 + 28 = 59 new assertions, 0 failed."
+    },
+    {
+      "command": "shellcheck + shfmt on the lib, the harness and both test files",
+      "result": "pass",
+      "evidence": "No findings, zero suppressions. Lib is 219 lines, under the 250-line cap."
+    }
+  ],
+  "risks": [
+    "fix_earlyoom writes a config on a machine that may already have one; the test asserts the .bak backup is taken before the overwrite, which is the behaviour that makes that safe.",
+    "The undo lines are asserted to contain the REAL /etc paths, so a future seam applied to them would fail these tests rather than silently producing an undo script that removes nothing.",
+    "fix_failed_sssd's detection loop breaks at the first failed unit while its masking loop re-checks each one; case 7 covers the single-failure arm specifically, since a naive implementation would mask all five."
+  ],
+  "rollback": [
+    "git revert the commit, then re-add the ubuntu_perf_fixes.sh line to meta/shell-coverage-allowlist.txt",
+    "Re-run check_shell_coverage.sh to confirm the gate passes again with the exemption restored"
+  ]
+}

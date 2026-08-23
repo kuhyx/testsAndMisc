@@ -1,0 +1,19 @@
+{
+  "title": "Clear ubuntu_perf_fixes.sh from the shell coverage allowlist",
+  "objective": "Bring ubuntu_perf_fixes.sh to 100% measured line coverage and remove its allowlist exemption, leaving nvidia_config.sh as the only untested lib in fixes/lib.",
+  "acceptance_criteria": [
+    "The jail reports ubuntu_perf_fixes.sh at 100.00% through tests/run_all.sh at --min 100, exiting 0.",
+    "check_shell_coverage.sh passes on it with the allowlist line already deleted.",
+    "bt_audio.sh still measures 127/127 with the new test files present, since adding a file to this suite has silently broken a cleared lib before.",
+    "All four functions are covered: the sysctl drop-in and its undo fallbacks, both NVIDIA branches (helper service and standalone fallback), earlyoom install/configure/backup, and fix_failed_sssd for none, all and exactly one failed unit.",
+    "The add_undo lines keep their literal /etc paths, because the undo script runs on the real system.",
+    "No write reaches /etc: neither /etc/sysctl.d/99-performance-tuning.conf nor /etc/default/earlyoom exists after the suite runs.",
+    "The lib stays under the 250-line cap and shellcheck reports nothing, with zero suppressions."
+  ],
+  "out_of_scope": [
+    "nvidia_config.sh, the last untested lib, which needs its own harness.",
+    "The ~12 gated libs outside fixes/lib that already fail the gate for reasons predating this work.",
+    "arch_sysctl.sh, which stays quarantined and exempt."
+  ],
+  "verifier": "timeout 900s bash meta/scripts/shell_coverage_jail.sh --timeout 600s --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure ubuntu_perf_fixes.sh --min 100 --fail-on-case-error -- \"\" (expects 81/81 = 100.00%, exit 0), then the same for bt_audio.sh as a canary, then check_shell_coverage.sh with the allowlist line removed."
+}
