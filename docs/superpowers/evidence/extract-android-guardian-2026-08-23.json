@@ -1,0 +1,48 @@
+{
+  "intent": "Extract the android_guardian Magisk module into its own public repo, settle where heavy_job_lock.sh belongs, and fix a pre-existing broken path in the packaging script rather than carrying it forward.",
+  "scope": [
+    "periodic_background/utils/android_guardian/ (5 files) -> github.com/kuhyx/android-guardian as module/, cloned to ~/android-guardian",
+    "Its two test suites in linux_configuration/tests/ moved with it",
+    "heavy_job_lock.sh moved to digital_wellbeing/, its only installer - NOT to ~/utils",
+    "update_android_hosts.sh + lib/android_module.sh repointed and guarded",
+    "shell-tests.yml, shell-coverage-allowlist.txt cleaned",
+    "periodic_background/utils/ is now empty and removed"
+  ],
+  "changes": [
+    "Extracted the module and both suites in one filter-repo pass (4 commits), renaming the module directory to module/ and fixing the test paths that named the old monorepo location.",
+    "Moved heavy_job_lock.sh into digital_wellbeing/ instead of ~/utils. Measured: of its consumers, only install_pacman_wrapper.sh reads the repo copy; pacman_wrapper.sh, makepkg_capped.sh and meta/scripts/run_with_heavy_lock.sh all read the installed /usr/local/bin path. It belongs with its installer.",
+    "Fixed a pre-existing bug: update_android_hosts.sh set GUARDIAN_MODULE_DIR to $SCRIPT_DIR/android_guardian, a sibling directory that never existed at that path, so packaging could not have worked from this checkout. It now reads ${ANDROID_GUARDIAN_DIR:-$HOME/android-guardian}/module.",
+    "Added require_guardian_module() and called it from build_module(), the single funnel every packaging path goes through, so a missing checkout fails with an actionable message instead of a bare 'cp: cannot stat' four helpers deep."
+  ],
+  "verification": [
+    {
+      "command": "bash tests/*.sh (extracted repo)",
+      "result": "pass",
+      "evidence": "Both suites pass after the path rewrite; shellcheck exits 0 over every script with .shellcheckrc carried across."
+    },
+    {
+      "command": "ANDROID_GUARDIAN_DIR=/nonexistent bash update_android_hosts.sh install",
+      "result": "pass",
+      "evidence": "Stops at the guard with the clone command and the override variable named, rather than failing inside cp."
+    },
+    {
+      "command": "bash update_android_hosts.sh install (with ~/android-guardian cloned)",
+      "result": "pass",
+      "evidence": "Module built: 182331 blocked domains, a 1149321-byte zip. It then failed at `adb push` with 'remote couldn't create file' - a device-side storage condition, not a path problem, and the build half is what this change touches."
+    },
+    {
+      "command": "shellcheck on both edited scripts; check_shell_coverage.sh --all",
+      "result": "pass",
+      "evidence": "Both clean, exit 0."
+    }
+  ],
+  "risks": [
+    "The adb push step was not verified end-to-end: the device refused to create the file on /sdcard. That path is unchanged by this commit, but it does mean the full install flow is unproven today.",
+    "update_android_hosts.sh now depends on a sibling checkout. It fails loudly with instructions rather than silently, which is the tradeoff taken.",
+    "heavy_job_lock.sh now sits inside digital_wellbeing, so it will move again when that subsystem is extracted; install_pacman_wrapper.sh's relative path was updated to match and stays correct through that move."
+  ],
+  "rollback": [
+    "git revert to restore the module, both tests and heavy_job_lock.sh's old location.",
+    "Re-run check_shell_coverage.sh --all and the two suites to confirm the restored state."
+  ]
+}

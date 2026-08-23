@@ -10,9 +10,24 @@ source "$SCRIPT_DIR/../../lib/common.sh"
 # shellcheck source=../../lib/android.sh
 source "$SCRIPT_DIR/../../lib/android.sh"
 
-GUARDIAN_MODULE_DIR="$SCRIPT_DIR/android_guardian"
+# The module moved to github.com/kuhyx/android-guardian. This pointed at a
+# sibling directory that never existed here even before the extraction, so the
+# script could not have packaged a module from this path; prefer a checkout and
+# say so loudly rather than failing later inside zip.
+GUARDIAN_MODULE_DIR="${ANDROID_GUARDIAN_DIR:-$HOME/android-guardian}/module"
 GUARDIAN_DATA_DIR="/data/adb/android_guardian"
 MODULE_DEST="/data/adb/modules/android_guardian"
+
+# Fail here, not four helpers deep inside a cp. Every packaging step below
+# reads GUARDIAN_MODULE_DIR unguarded, so an absent checkout would otherwise
+# surface as a bare "cp: cannot stat".
+require_guardian_module() {
+	[[ -f "$GUARDIAN_MODULE_DIR/module.prop" ]] && return 0
+	die "android-guardian module not found at ${GUARDIAN_MODULE_DIR}.
+  It lives in its own repo now:
+    git clone https://github.com/kuhyx/android-guardian ~/android-guardian
+  Or point this script elsewhere with ANDROID_GUARDIAN_DIR."
+}
 
 # Ensure android-tools (adb) is installed
 ensure_adb_installed() {
@@ -89,7 +104,6 @@ source "$SCRIPT_DIR/lib/android_device.sh"
 source "$SCRIPT_DIR/lib/android_module.sh"
 # shellcheck source=lib/android_commands.sh
 source "$SCRIPT_DIR/lib/android_commands.sh"
-
 
 # Main
 # Initialize Android script (handles sudo, sets WORK_DIR)

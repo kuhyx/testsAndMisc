@@ -26,8 +26,6 @@ jobs:
         run: |
           set -euo pipefail
           tests=(
-            test_android_guardian_post_fs_data.sh
-            test_android_guardian_service.sh
             test_i3blocks_persist_common.sh
             test_music_parallelism.sh
             test_setup_dns_blocker.sh

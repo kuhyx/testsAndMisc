@@ -9,6 +9,8 @@ build_module() {
 	local tmp_dir="$WORK_DIR/guardian_module"
 	local module_zip="$WORK_DIR/android_guardian.zip"
 
+	require_guardian_module
+
 	echo "[BUILD] Building Android Guardian module..." >&2
 
 	rm -rf "$tmp_dir"

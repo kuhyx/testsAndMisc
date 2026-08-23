@@ -30,7 +30,9 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 [`focus-owner`](https://github.com/kuhyx/focus-owner),
 [`mtk-root`](https://github.com/kuhyx/mtk-root),
 [`system-maintenance`](https://github.com/kuhyx/system-maintenance) (lives at
-`~/system-maintenance`).
+`~/system-maintenance`),
+[`android-guardian`](https://github.com/kuhyx/android-guardian) (lives at
+`~/android-guardian`).
 Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Adding a Flutter app

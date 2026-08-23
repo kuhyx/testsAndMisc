@@ -1,0 +1,20 @@
+{
+  "title": "Extract android_guardian and settle the heavy_job_lock seam",
+  "objective": "Move the Magisk module to its own public repo. The directory it lived in also held heavy_job_lock.sh, a shared lock library that is NOT part of the module, so this extraction has to split the directory rather than move it wholesale. It also inherits a packaging script whose module path was already broken before the extraction.",
+  "acceptance_criteria": [
+    "The module and both its test suites are in the new public repo, tests passing from a clean clone, shellcheck exiting 0 with no severity filter.",
+    "heavy_job_lock.sh lands where its installer is, justified by measuring which consumers read the repo copy versus the installed /usr/local/bin copy - not by the ad-hoc '>2 consumers' rule.",
+    "install_pacman_wrapper.sh's relative path to heavy_job_lock.sh resolves after the move.",
+    "update_android_hosts.sh points at a real location, and a missing checkout fails with an actionable message at a single funnel rather than a bare cp error deep in a helper.",
+    "The module still builds end-to-end from the new checkout.",
+    "shell-tests.yml names no removed suite; the coverage allowlist names no removed path.",
+    "periodic_background/utils/ is fully emptied, not left as a one-file directory.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "Moving heavy_job_lock.sh to ~/utils: the measurement does not support it, and every consumer but the installer already reads the installed copy.",
+    "The adb push half of update_android_hosts.sh, which needs a device in a writable state.",
+    "digital_wellbeing itself, which is the next and last extraction."
+  ],
+  "verifier": "bash tests/*.sh in the new repo passes; shellcheck exits 0 there; ANDROID_GUARDIAN_DIR=/nonexistent produces the guard message; a real run builds the zip (182331 domains); shellcheck and check_shell_coverage.sh --all clean here; check_directory_depth.sh --all continues to fall."
+}
