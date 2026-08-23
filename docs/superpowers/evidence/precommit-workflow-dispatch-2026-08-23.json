@@ -1,0 +1,37 @@
+{
+  "intent": "Allow the Pre-commit checks workflow to be re-run manually, so a caching change can be verified on an unchanged tree instead of being asserted.",
+  "scope": [
+    ".github/workflows/pre-commit.yml (triggers only)",
+    "Non-goal: changing what the job runs"
+  ],
+  "changes": ["Added workflow_dispatch to the Pre-commit checks triggers."],
+  "verification": [
+    {
+      "command": "gh run view 32645759168 --log | grep for cache keys",
+      "result": "pass",
+      "evidence": "'Cache not found for input keys: pre-commit-Linux-py3.12-...' then 'Cache saved with key: ...' -- the env cache missed because that commit changed .pre-commit-config.yaml, which is the key. It is populated now."
+    },
+    {
+      "command": "gh run view 32645759168 --log | grep -c 'Installing environment'",
+      "result": "pass",
+      "evidence": "6 hook environments built from scratch, including pylint's with a dozen extra packages -- the bulk of the 126s hook step"
+    },
+    {
+      "command": "gh run view 32645759168 --log | grep 'pytest with coverage enforcement'",
+      "result": "pass",
+      "evidence": "'....Skipped' -- the duplicate-suite skip from the previous commit took effect"
+    },
+    {
+      "command": "python3 -c \"import yaml; yaml.safe_load(...)\"",
+      "result": "pass",
+      "evidence": "workflow parses as valid YAML"
+    }
+  ],
+  "risks": [
+    "A dispatch trigger lets anyone with write access run the job on demand; it runs the same read-only checks as a push, so there is no additional privilege."
+  ],
+  "rollback": [
+    "Remove the workflow_dispatch line.",
+    "After rollback, confirm the workflow no longer offers a Run workflow button."
+  ]
+}

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual runs: this job's cost is dominated by whether the pre-commit hook
+  # environments are cached, and without a dispatch there is no way to
+  # re-run it on an unchanged tree to confirm a cache actually helps.
+  workflow_dispatch: {}
 
 jobs:
   pre-commit:
