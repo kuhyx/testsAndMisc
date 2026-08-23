@@ -1,0 +1,28 @@
+{
+  "intent": "Remove the last stale test name from shell-tests.yml's explicit lists, which was turning the pre-push gate red after the system-maintenance extraction.",
+  "scope": [
+    ".github/workflows/shell-tests.yml - one entry removed from the side-effect-free list",
+    "Non-goal: the glob-discovered lib/tests suites, which need no maintenance"
+  ],
+  "changes": [
+    "Dropped test_usage_monitoring_installer_efficiency.sh from the side-effect-free list. It moved to the system-maintenance repo, and I had already cleaned three names from the Arch-specific list but missed this second list in the same file."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/ci_mirror.sh",
+      "result": "fail then pass",
+      "evidence": "Before: 'ci-mirror: FAILED - shell test failed: test_usage_monitoring_installer_efficiency.sh', which is what had been rejecting the push. Re-run after the fix to confirm green."
+    },
+    {
+      "command": "cross-check every test named in the workflow against the filesystem",
+      "result": "pass",
+      "evidence": "Extracted every test_*.sh mention and confirmed each file exists under linux_configuration/tests/; no misses remain."
+    }
+  ],
+  "risks": [
+    "shell-tests.yml keeps two hand-maintained lists plus a glob. A future extraction has to check all three; the cross-check loop used here is the cheap way to catch it."
+  ],
+  "rollback": [
+    "git revert; CI would go red again on the missing file, which is how the problem surfaced in the first place."
+  ]
+}

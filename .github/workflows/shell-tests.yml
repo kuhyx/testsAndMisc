@@ -29,7 +29,6 @@ jobs:
             test_i3blocks_persist_common.sh
             test_music_parallelism.sh
             test_setup_dns_blocker.sh
-            test_usage_monitoring_installer_efficiency.sh
           )
           failed=0
           for t in "${tests[@]}"; do
