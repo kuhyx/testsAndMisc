@@ -1,2 +1,0 @@
-boot_a
-vbmeta_a

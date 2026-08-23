@@ -1,0 +1,20 @@
+{
+  "title": "Extract mtk_root together with the libraries that live outside it",
+  "objective": "Move the MediaTek rooting toolkit to its own public repo. Unlike the three app extractions, mtk_root's libraries and half its test suites live in linux_configuration/scripts/lib/, one directory up. Extracting the directory alone would orphan eight files here and leave the new repo unable to source anything.",
+  "acceptance_criteria": [
+    "The new repo preserves the mtk_root/ + lib/ sibling layout, so every `source \"$SCRIPT_DIR/../lib/...\"` resolves without editing a single call site.",
+    "All 84 mtk tests pass from a clean clone of the new repo.",
+    "shellcheck exits 0 over every script in the new repo with no severity filter, which requires carrying .shellcheckrc across.",
+    "The new repo has its own lib/tests/run_all.sh, because the monorepo's is shared with a non-mtk suite and must stay.",
+    "The suite remaining in the monorepo still passes: removing a shared fixture must not take test_common_datetime.sh down with it.",
+    "meta/shell-coverage-allowlist.txt has no entry naming a removed path.",
+    "check_shell_coverage.sh --all exits 0.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "single_use/utils/lib/bl9000_*.sh, which is separate Android rooting tooling that merely mentions mtkclient.",
+    "Renaming mtk_harness.sh, whose name is now historical but whose one consumer would churn for no behavioural gain.",
+    "Verifying the toolkit against real hardware, which READY.md already records as pending."
+  ],
+  "verifier": "./lib/tests/run_all.sh in the new repo reports 84 passed / 0 failed; shellcheck over the new repo exits 0; ./linux_configuration/scripts/lib/tests/run_all.sh here reports 55 passed / 0 failed; bash meta/scripts/check_shell_coverage.sh --all exits 0; gh confirms the repo is public on main."
+}

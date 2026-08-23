@@ -15,10 +15,6 @@ linux_configuration/.githooks/lib/common.sh
 linux_configuration/scripts/meta/lib/shell_check_discover.sh
 linux_configuration/scripts/meta/lib/shell_check_install.sh
 linux_configuration/scripts/meta/lib/shell_check_lint.sh
-linux_configuration/scripts/mtk_root/lib/dump_partitions.sh
-linux_configuration/scripts/mtk_root/lib/dump_verify.sh
-linux_configuration/scripts/mtk_root/lib/mtk_udev.sh
-linux_configuration/scripts/mtk_root/lib/recon_report.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/install_files.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/integrity.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/managed_copy.sh

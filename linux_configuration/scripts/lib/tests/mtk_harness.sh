@@ -3,13 +3,14 @@
 #
 # Sourced, not executed.
 #
+# The name is historical: this fixture was written for the mtk_* libraries,
+# which have since moved to github.com/kuhyx/mtk-root along with their suites.
+# It stays because test_common_datetime.sh sources it, and renaming it would
+# churn that file for no behavioural gain.
+#
 # WHAT IS EXERCISED
-#   The pure decision logic and everything reachable through the
-#   MTK_ROOT_FIXTURE seam that mtk_common.sh documents as its only boundary
-#   with real hardware: classify_device, discover_partitions,
-#   mtk_ramdisk_carrier, mtk_check_layout_expectation, mtk_assert_mediatek,
-#   mtk_sanitize, mtk_sane_ramdisk_size, mtk_select_device/require_authorized
-#   under a fixture, plus the string helpers in common_datetime.sh.
+#   The pure decision logic in the libraries that remain here — currently the
+#   string and clock helpers in common_datetime.sh.
 #
 # WHAT IS DELIBERATELY NOT EXERCISED, AND WHY
 #   The coverage gate only checks that this directory HAS a run_all.sh, so it
@@ -22,11 +23,7 @@
 #     - collapse_mounts — calls `umount -l` on a live path.
 #     - install_missing_pacman_packages / require_imagemagick / notify —
 #       effecting code (pacman, desktop notifications).
-#     - mtk_udev_catchall_files — globs /etc/udev/rules.d with no seam, so it
-#       reads this host's real rules; the result differs between here and CI.
-#     - mtk_sha256 / mtk_file_size — one-line wrappers over sha256sum/stat.
-#   This matches Phase 1's measured pattern: decision logic reaches ~90%, the
-#   effecting code reaches 0%.
+#   The measured pattern holds: decision logic reaches ~90%, effecting code 0%.
 #
 # TIME AND HOST DEPENDENCE
 #   This suite runs in shell-tests.yml and again on every pre-push via
