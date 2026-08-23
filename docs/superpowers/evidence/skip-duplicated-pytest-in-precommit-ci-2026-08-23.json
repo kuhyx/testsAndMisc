@@ -1,0 +1,41 @@
+{
+  "intent": "Stop the Pre-commit checks workflow running the entire Python test suite a second time, when the Python tests workflow already runs it with the same coverage gate.",
+  "scope": [
+    ".github/workflows/pre-commit.yml",
+    "Non-goal: skipping any hook that is not duplicated elsewhere"
+  ],
+  "changes": [
+    "Run the hooks with SKIP=pytest-coverage. That hook invokes pytest_changed_packages.py, which runs every python_pkg suite with --cov-fail-under=100 -- exactly what the Python tests workflow does.",
+    "Recorded in the workflow that this is skipped because it is DUPLICATED, not because it is slow, and that the skip must be dropped if the Python tests workflow ever goes away."
+  ],
+  "verification": [
+    {
+      "command": "gh api .../runs/32645337532/jobs -- per-step timings for Pre-commit checks",
+      "result": "pass",
+      "evidence": "Run pre-commit hooks = 152s, the dominant step, against Install dependencies at 55s"
+    },
+    {
+      "command": "gh run view 32645337532 --log | grep for the heavy hooks",
+      "result": "pass",
+      "evidence": "'pytest with coverage enforcement....Passed' confirms the suite really was running inside this job as well as in Python tests"
+    },
+    {
+      "command": "Checked whether session-autopsy-hook-mutations (50s locally) also inflates CI",
+      "result": "pass",
+      "evidence": "It self-skips when ~/.claude/hooks is absent, which is the case on a runner, so it was not a CI cost and is left alone"
+    },
+    {
+      "command": "python3 -c \"import yaml; yaml.safe_load(...)\"",
+      "result": "pass",
+      "evidence": "workflow parses as valid YAML"
+    }
+  ],
+  "risks": [
+    "If the Python tests workflow is deleted or its path filters stop matching, the suite would no longer run in CI at all. The comment in the workflow names this dependency explicitly.",
+    "A path-filter gap could mean a change runs Pre-commit checks but not Python tests. Both filters were widened earlier today to cover meta/requirements*.txt for exactly this reason."
+  ],
+  "rollback": [
+    "Remove the SKIP=pytest-coverage prefix from the Run pre-commit hooks step.",
+    "After rollback, expect that step to return to roughly 150s."
+  ]
+}

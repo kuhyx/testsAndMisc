@@ -115,4 +115,9 @@ jobs:
           pip install pre-commit
 
       - name: Run pre-commit hooks
-        run: pre-commit run --all-files --show-diff-on-failure
+        # SKIP=pytest-coverage: the Python tests workflow already runs the
+        # whole suite with the same 100% coverage gate, so running it again
+        # here doubled the cost of this job for no extra signal. It is the
+        # only hook skipped, and it is skipped because it is DUPLICATED, not
+        # because it is slow -- if that workflow is ever removed, drop this.
+        run: SKIP=pytest-coverage pre-commit run --all-files --show-diff-on-failure
