@@ -42,6 +42,8 @@ cd "$ROOT"
 source "$ROOT/meta/scripts/ci_mirror_range.sh"
 # shellcheck source=meta/scripts/ci_mirror_shell.sh
 source "$ROOT/meta/scripts/ci_mirror_shell.sh"
+# shellcheck source=meta/scripts/ci_mirror_mem.sh
+source "$ROOT/meta/scripts/ci_mirror_mem.sh"
 
 # Records the tree hash of the last fully-green run; see tree_cache_*.
 readonly GREEN_CACHE="$ROOT/.ci-mirror-venv/.last-green-tree"
@@ -137,30 +139,41 @@ run_gates_in_clean_worktree() {
 		log "full sweep (no push range, or the gate's own config changed)"
 	fi
 
-	# The three stages are independent, so they run concurrently and the gate
-	# costs the slowest rather than the sum. Output goes to per-stage files and
-	# is replayed on failure: interleaved live output from three stages is
-	# unreadable, and the diagnosis is what makes a red gate actionable.
+	# The stages are independent, so the gate costs the slowest rather than the
+	# sum when memory allows. Output goes to per-stage files and is replayed on
+	# failure: interleaved live output is unreadable, and the diagnosis is what
+	# makes a red gate actionable.
 	local logdir
 	logdir="$(mktemp -d -t ci-mirror-logs-XXXXXX)"
 	LOGDIR="$logdir"
 
 	# Skip pytest-coverage here: it is a pre-commit-stage hook that would run
 	# in the system env (not our clean venv) and duplicate the pytest run below.
-	log "pre-commit (mirrors the pre-commit workflow)"
-	(cd "$CHECKOUT" && SKIP=pytest-coverage pre-commit run "${scope_args[@]}") \
-		>"$logdir/precommit.log" 2>&1 &
-	local pc_pid=$!
-
-	run_python_gate "$paths" >"$logdir/pytest.log" 2>&1 &
-	local py_pid=$!
-
-	# The shell gate is NOT backgrounded alongside the others when it contains a
-	# jailed suite: two coverage jails, or a jail racing a busy CPU, produce
-	# false failures (measured repeatedly). It runs after the parallel pair.
+	#
+	# Concurrency is conditional on free memory; ci_mirror_mem.sh has the
+	# measured peaks and why the pytest scope is the one that gets killed.
 	local pc_rc=0 py_rc=0
-	wait "$pc_pid" || pc_rc=$?
-	wait "$py_pid" || py_rc=$?
+	if should_serialise_gates; then
+		log "low memory — running pre-commit and pytest serially"
+		(cd "$CHECKOUT" && SKIP=pytest-coverage pre-commit run "${scope_args[@]}") \
+			>"$logdir/precommit.log" 2>&1 || pc_rc=$?
+		run_python_gate "$paths" >"$logdir/pytest.log" 2>&1 || py_rc=$?
+	else
+		log "pre-commit (mirrors the pre-commit workflow)"
+		(cd "$CHECKOUT" && SKIP=pytest-coverage pre-commit run "${scope_args[@]}") \
+			>"$logdir/precommit.log" 2>&1 &
+		local pc_pid=$!
+
+		run_python_gate "$paths" >"$logdir/pytest.log" 2>&1 &
+		local py_pid=$!
+
+		# The shell gate is NOT backgrounded alongside the others when it
+		# contains a jailed suite: two coverage jails, or a jail racing a busy
+		# CPU, produce false failures (measured repeatedly). It runs after the
+		# parallel pair.
+		wait "$pc_pid" || pc_rc=$?
+		wait "$py_pid" || py_rc=$?
+	fi
 
 	if ((pc_rc != 0)); then
 		cat "$logdir/precommit.log" >&2

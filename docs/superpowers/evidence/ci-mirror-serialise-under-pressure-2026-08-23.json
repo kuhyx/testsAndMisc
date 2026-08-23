@@ -1,0 +1,44 @@
+{
+  "intent": "Stop the pre-push gate failing with 'tests passed, then Killed' when the machine is under memory pressure, so a push is blocked by the code and not by unrelated load.",
+  "scope": [
+    "meta/scripts/ci_mirror.sh - run the two heavy gates serially when memory is tight",
+    "meta/scripts/ci_mirror_mem.sh - new lib holding the probe, the threshold and the predicate",
+    "Non-goal: the 2G pytest cap in pytest_changed_packages.py, which measurement showed is correct and was left alone."
+  ],
+  "changes": [
+    "Diagnosed the real cause: ci_mirror.sh runs `pre-commit run --all-files` and the pytest gate concurrently with & and wait. Measured tree peaks are ~1.75 GiB for pre-commit (mypy/pylint repo-wide) and ~0.29 GiB for pytest, so the pair wants ~2 GiB at the same instant. The pytest scope runs under MemoryMax=2G with MemorySwapMax=0, so under pressure it is the one the kernel kills - the log reads '1798 passed' then 'Killed', which the gate reports as a test failure.",
+    "Added available_mem_mib (reads MemAvailable from /proc, no fork) and should_serialise_gates, and made the concurrency conditional on it. Above 4 GiB available the fast parallel path is unchanged.",
+    "Extracted the probe into ci_mirror_mem.sh following the existing ci_mirror_range.sh / ci_mirror_shell.sh pattern, which also kept ci_mirror.sh under the 250-line cap (245).",
+    "Exposed the threshold as a predicate rather than a bare constant so SC2034 is resolved by giving the value a real use in its own file, not by a suppression."
+  ],
+  "verification": [
+    {
+      "command": "systemd-run --scope -p MemoryMax=2G -p MemorySwapMax=0 /usr/bin/time -v python -m pytest ... (live tree and clean worktree)",
+      "result": "pass",
+      "evidence": "1798 passed, Maximum RSS 293928 KB (~0.29 GiB) both times. Proves the suite is nowhere near its own 2G ceiling, so the ceiling was not the problem and did not need raising."
+    },
+    {
+      "command": "systemd-run --scope -p MemoryMax=8G bash -c 'pre-commit run --all-files; cat .../memory.peak'",
+      "result": "pass",
+      "evidence": "1751576576 bytes = ~1.75 GiB across the process tree. /usr/bin/time reported only ~0.29 GiB because it measures the parent, not the forked mypy/pylint children - the cgroup peak is the honest number."
+    },
+    {
+      "command": "Stubbed available_mem_mib at 1000 and 99999 MiB against should_serialise_gates",
+      "result": "pass",
+      "evidence": "1000 -> SERIAL, 99999 -> PARALLEL. Boundary table also checked: 4095 SERIAL, 4096 PARALLEL. Confirms the new branch is reachable and not dead code."
+    },
+    {
+      "command": "pre-commit run --files meta/scripts/ci_mirror.sh meta/scripts/ci_mirror_mem.sh",
+      "result": "pass",
+      "evidence": "No failures. file-length-cap satisfied at 245 lines; SC2034 resolved without a suppression."
+    }
+  ],
+  "risks": [
+    "Under 4 GiB available the gate is slower, since the stages no longer overlap. That is the intended trade against a false failure.",
+    "MemAvailable is a snapshot: memory can be consumed after the check by another process, so this reduces the failure window rather than closing it absolutely. The 2G cap with MemorySwapMax=0 still bounds the damage to a clean kill rather than zram thrashing."
+  ],
+  "rollback": [
+    "git revert the commit and delete meta/scripts/ci_mirror_mem.sh; the gate returns to unconditional concurrency.",
+    "After rollback, confirm ci_mirror.sh still sources cleanly (bash -n) and that a push runs the gate."
+  ]
+}
