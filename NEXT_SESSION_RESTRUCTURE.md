@@ -15,7 +15,7 @@ patterns at all).
 **Extracted** to public repos, full history, each with CI it did not have here:
 `reverse-survivors`, `kcd2-dice-solver` (cloned to `~/kcd2-dice-solver`),
 `focus-owner`, `mtk-root` (took the four `mtk_*` libs and three suites that
-lived in `scripts/lib/`).
+lived in `lib/`).
 
 **Gates written, deliberately NOT wired**: `meta/scripts/check_directory_depth.sh`
 (cap 2; exempts `third_party/`, `docs/superpowers/`, `.github/skills/` by prefix
@@ -29,7 +29,7 @@ Depth, tests and pre-commit verified green at every commit; nothing used
 - **Depth cap is 2**, with `lib/` and `tests/` exempt — so the ~118 single_use
   lib files stay put and step D only flattens entry scripts.
 - **`meta/` is in scope** for the cap.
-- **`scripts/lib/common.sh` STAYS.** Measured: 55 consumers, 51 of which remain
+- **`lib/common.sh` STAYS.** Measured: 55 consumers, 51 of which remain
   here. The `.githooks` use a _separate_ `common.sh`, so the ">2 units" rule
   selects nothing worth moving. Deviation from the original instruction,
   agreed after measurement.

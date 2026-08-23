@@ -51,7 +51,7 @@ sudo ~/linux-configuration/hosts/guard/setup_hosts_guard.sh
 
 ````
 
-### [scripts/periodic_background/digital_wellbeing/pacman/README_FOR_LLM.md](to be created)
+### [periodic_background/digital_wellbeing/pacman/README_FOR_LLM.md](to be created)
 
 ```markdown
 # Pacman Wrapper - LLM Reference

@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPORT_SCRIPT="$SCRIPT_DIR/linux_configuration/scripts/periodic_background/system-maintenance/bin/usage_report.py"
+REPORT_SCRIPT="$SCRIPT_DIR/linux_configuration/periodic_background/system-maintenance/bin/usage_report.py"
 ARTIFACT_INIT_SCRIPT="$SCRIPT_DIR/meta/scripts/init_agent_artifacts.sh"
 
 if [[ ! -f "$REPORT_SCRIPT" ]]; then

@@ -45,7 +45,7 @@ You are an expert on the midnight shutdown system. You understand:
 
 FILES YOU KNOW:
 
-- scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh - Main installer (1300+ lines)
+- periodic_background/digital_wellbeing/setup_midnight_shutdown.sh - Main installer (1300+ lines)
 - /etc/shutdown-schedule.conf - Runtime config (MON_WED_HOUR, THU_SUN_HOUR, MORNING_END_HOUR)
 - /usr/local/share/locked-shutdown-schedule.conf - Canonical protected copy
 - /usr/local/bin/day-specific-shutdown-check.sh - Checks if in shutdown window
@@ -83,12 +83,12 @@ You are an expert on the pacman wrapper security system. You understand:
 
 FILES YOU KNOW:
 
-- scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh - Main wrapper (823 lines)
-- scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh - Backs up real pacman
-- scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt - Always blocked
-- scripts/periodic_background/digital_wellbeing/pacman/pacman_whitelist.txt - Exceptions to keywords
-- scripts/periodic_background/digital_wellbeing/pacman/pacman_greylist.txt - Challenge required
-- scripts/periodic_background/digital_wellbeing/pacman/words.txt - Word scramble challenge words
+- periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh - Main wrapper (823 lines)
+- periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh - Backs up real pacman
+- periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt - Always blocked
+- periodic_background/digital_wellbeing/pacman/pacman_whitelist.txt - Exceptions to keywords
+- periodic_background/digital_wellbeing/pacman/pacman_greylist.txt - Challenge required
+- periodic_background/digital_wellbeing/pacman/words.txt - Word scramble challenge words
 - /var/lib/pacman-wrapper/policy.sha256 - Integrity checksums
 
 KEY CONCEPTS:
@@ -127,7 +127,7 @@ You are an expert on the block_compulsive_opening.sh script. You understand:
 
 FILES YOU KNOW:
 
-- scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh - Main script (507 lines)
+- periodic_background/digital_wellbeing/block_compulsive_opening.sh - Main script (507 lines)
 - /usr/local/bin/block-compulsive-opening.sh - Installed location
 - ~/.local/state/compulsive-block/\*.lastopen - Per-app state files
 - ~/.local/state/compulsive-block/compulsive-block.log - Activity log

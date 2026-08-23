@@ -8,7 +8,7 @@ on:
       - "**.bash"
       - "**.zsh"
       - ".github/workflows/shell-check.yml"
-      - "scripts/meta/shell_check.sh"
+      - "meta/shell_check.sh"
   pull_request:
     branches: [main, master]
     paths:
@@ -16,7 +16,7 @@ on:
       - "**.bash"
       - "**.zsh"
       - ".github/workflows/shell-check.yml"
-      - "scripts/meta/shell_check.sh"
+      - "meta/shell_check.sh"
 
 jobs:
   shellcheck:
@@ -43,7 +43,7 @@ jobs:
 
       - name: Run shell_check.sh
         run: |
-          bash scripts/meta/shell_check.sh --skip-install
+          bash meta/shell_check.sh --skip-install
 
       - name: Report status
         if: success()
@@ -54,4 +54,4 @@ jobs:
         run: |
           echo "❌ Shell script linting failed!"
           echo "This check is required to merge PRs into main/master."
-          echo "Please run 'bash scripts/meta/shell_check.sh' locally and fix any issues."
+          echo "Please run 'bash meta/shell_check.sh' locally and fix any issues."

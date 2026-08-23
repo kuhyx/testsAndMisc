@@ -36,7 +36,7 @@ To make the shell linting check **required** before merging PRs, follow these st
 Before pushing changes, run the linting script locally to catch issues early:
 
 ```bash
-bash scripts/meta/shell_check.sh
+bash meta/shell_check.sh
 ```
 
 This will:
@@ -68,7 +68,7 @@ The workflow validates shell scripts with these extensions or shebangs:
 If the check fails on your PR:
 
 1. Review the workflow logs to see which files failed
-2. Run `bash scripts/meta/shell_check.sh` locally to reproduce
+2. Run `bash meta/shell_check.sh` locally to reproduce
 3. Fix the issues (usually formatting with `shfmt -w -i 2 -ci -sr -s`)
 4. Commit and push the fixes
 

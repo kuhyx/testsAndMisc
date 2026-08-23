@@ -3,7 +3,7 @@
 #
 # CORE modules (always installed):
 #   1. Workout screen locker    – python_pkg/screen_locker/
-#   2. Hosts blocking setup     – linux_configuration/scripts/periodic_background/hosts/
+#   2. Hosts blocking setup     – linux_configuration/periodic_background/hosts/
 #   3. Midnight shutdown timer  – setup_midnight_shutdown.sh
 #
 # SECONDARY modules (prompted unless --all / --none given):
@@ -38,21 +38,21 @@ skip() { printf '%s %s\n' "$(yellow "–")" "$*"; }
 fail() { printf '%s %s\n' "$(red "✗")" "$*"; }
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
-SECONDARY_MODE="ask"  # ask | all | none
+SECONDARY_MODE="ask" # ask | all | none
 
 for arg in "$@"; do
-    case "$arg" in
-    --all)  SECONDARY_MODE="all" ;;
-    --none) SECONDARY_MODE="none" ;;
-    -h | --help)
-        sed -n '2,/^$/p' "$0"
-        exit 0
-        ;;
-    *)
-        printf 'Unknown option: %s\n' "$arg" >&2
-        exit 1
-        ;;
-    esac
+	case "$arg" in
+	--all) SECONDARY_MODE="all" ;;
+	--none) SECONDARY_MODE="none" ;;
+	-h | --help)
+		sed -n '2,/^$/p' "$0"
+		exit 0
+		;;
+	*)
+		printf 'Unknown option: %s\n' "$arg" >&2
+		exit 1
+		;;
+	esac
 done
 
 # ── Result tracking ──────────────────────────────────────────────────────────
@@ -61,63 +61,63 @@ declare -a SKIPPED=()
 declare -a FAILED=()
 
 run_installer() {
-    local name="$1"
-    shift
-    header "$name"
-    if "$@"; then
-        ok "$name installed"
-        INSTALLED+=("$name")
-    else
-        fail "$name failed (exit $?)"
-        FAILED+=("$name")
-    fi
+	local name="$1"
+	shift
+	header "$name"
+	if "$@"; then
+		ok "$name installed"
+		INSTALLED+=("$name")
+	else
+		fail "$name failed (exit $?)"
+		FAILED+=("$name")
+	fi
 }
 
 ask_install() {
-    # ask_install <name> <command...>
-    # Prompts user; respects SECONDARY_MODE override.
-    local name="$1"
-    shift
+	# ask_install <name> <command...>
+	# Prompts user; respects SECONDARY_MODE override.
+	local name="$1"
+	shift
 
-    if [[ $SECONDARY_MODE == "none" ]]; then
-        skip "$name (--none)"
-        SKIPPED+=("$name")
-        return
-    fi
+	if [[ $SECONDARY_MODE == "none" ]]; then
+		skip "$name (--none)"
+		SKIPPED+=("$name")
+		return
+	fi
 
-    if [[ $SECONDARY_MODE == "all" ]]; then
-        run_installer "$name" "$@"
-        return
-    fi
+	if [[ $SECONDARY_MODE == "all" ]]; then
+		run_installer "$name" "$@"
+		return
+	fi
 
-    # interactive
-    local answer
-    printf '\nInstall %s? [y/N] ' "$(bold "$name")"
-    read -r answer
-    if [[ "${answer,,}" == "y" ]]; then
-        run_installer "$name" "$@"
-    else
-        skip "$name"
-        SKIPPED+=("$name")
-    fi
+	# interactive
+	local answer
+	printf '\nInstall %s? [y/N] ' "$(bold "$name")"
+	read -r answer
+	if [[ "${answer,,}" == "y" ]]; then
+		run_installer "$name" "$@"
+	else
+		skip "$name"
+		SKIPPED+=("$name")
+	fi
 }
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 print_summary() {
-    printf '\n%s\n' "$(bold "========== INSTALL SUMMARY ==========")"
-    if [[ ${#INSTALLED[@]} -gt 0 ]]; then
-        printf '%s\n' "$(green "Installed (${#INSTALLED[@]}):")"
-        for m in "${INSTALLED[@]}"; do printf '  %s %s\n' "$(green "✓")" "$m"; done
-    fi
-    if [[ ${#SKIPPED[@]} -gt 0 ]]; then
-        printf '%s\n' "$(yellow "Skipped (${#SKIPPED[@]}):")"
-        for m in "${SKIPPED[@]}"; do printf '  %s %s\n' "$(yellow "–")" "$m"; done
-    fi
-    if [[ ${#FAILED[@]} -gt 0 ]]; then
-        printf '%s\n' "$(red "Failed (${#FAILED[@]}):")"
-        for m in "${FAILED[@]}"; do printf '  %s %s\n' "$(red "✗")" "$m"; done
-        return 1
-    fi
+	printf '\n%s\n' "$(bold "========== INSTALL SUMMARY ==========")"
+	if [[ ${#INSTALLED[@]} -gt 0 ]]; then
+		printf '%s\n' "$(green "Installed (${#INSTALLED[@]}):")"
+		for m in "${INSTALLED[@]}"; do printf '  %s %s\n' "$(green "✓")" "$m"; done
+	fi
+	if [[ ${#SKIPPED[@]} -gt 0 ]]; then
+		printf '%s\n' "$(yellow "Skipped (${#SKIPPED[@]}):")"
+		for m in "${SKIPPED[@]}"; do printf '  %s %s\n' "$(yellow "–")" "$m"; done
+	fi
+	if [[ ${#FAILED[@]} -gt 0 ]]; then
+		printf '%s\n' "$(red "Failed (${#FAILED[@]}):")"
+		for m in "${FAILED[@]}"; do printf '  %s %s\n' "$(red "✗")" "$m"; done
+		return 1
+	fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -126,13 +126,13 @@ print_summary() {
 printf '\n%s\n' "$(bold "Installing CORE modules…")"
 
 run_installer "Workout screen locker" \
-    bash "$REPO_ROOT/python_pkg/screen_locker/install_systemd.sh"
+	bash "$REPO_ROOT/python_pkg/screen_locker/install_systemd.sh"
 
 run_installer "Hosts blocking" \
-    bash "$LINUX_CONFIG/scripts/periodic_background/hosts/install.sh"
+	bash "$LINUX_CONFIG/scripts/periodic_background/hosts/install.sh"
 
 run_installer "Midnight shutdown timer" \
-    bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
+	bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECONDARY MODULES (prompted unless --all / --none)
@@ -140,16 +140,16 @@ run_installer "Midnight shutdown timer" \
 printf '\n%s\n' "$(bold "Secondary modules (${SECONDARY_MODE})…")"
 
 ask_install "Steam backlog enforcer" \
-    sudo bash "$REPO_ROOT/python_pkg/steam_backlog_enforcer/install.sh"
+	sudo bash "$REPO_ROOT/python_pkg/steam_backlog_enforcer/install.sh"
 
 ask_install "Pacman wrapper" \
-    bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
+	bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
 
 ask_install "i3 configuration" \
-    bash "$LINUX_CONFIG/scripts/periodic_background/i3-configuration/install.sh"
+	bash "$LINUX_CONFIG/scripts/periodic_background/i3-configuration/install.sh"
 
 ask_install "Compulsive opening blockade" \
-    sudo bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh" install
+	sudo bash "$LINUX_CONFIG/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh" install
 
 # ═══════════════════════════════════════════════════════════════════════════════
 print_summary

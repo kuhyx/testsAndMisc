@@ -13,7 +13,7 @@ description: Use BEFORE deploying any Docker-based self-hosted service on this m
   `setup_wireguard_ssh.sh`'s own `setup_duckdns()` also has a
   `duckdns_already_updated()` guard for this reason. **Do not add a second one.**
 - **The firewall is owned entirely by**
-  `linux_configuration/scripts/single_use/features/setup_wireguard_ssh.sh`. It
+  `linux_configuration/features/setup_wireguard_ssh.sh`. It
   regenerates `/etc/nftables.conf` from scratch on every `setup` run (`flush
 ruleset` + fixed heredoc). **Never hand-edit `/etc/nftables.conf` directly or
   from a second script** — the next `setup` re-run (e.g. adding a WireGuard peer)
@@ -139,7 +139,7 @@ own startup, independent of `docker compose` ever being re-invoked.
 
 ## Reference implementation
 
-`linux_configuration/scripts/single_use/features/setup_gitea.sh` and
+`linux_configuration/features/setup_gitea.sh` and
 `migrate_github_to_gitea.sh` are working, idempotent examples of this whole
 pattern end to end (firewall, Caddy, headless bootstrap, host networking
 workaround, least-privilege external credential). Copy the shape, not

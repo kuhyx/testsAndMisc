@@ -88,8 +88,8 @@ loudly on a collapse, and keeps 14 restorable `.tachibk` snapshots.
 python3 -m python_pkg.syncyomi_guard          # exit 0 healthy, 1 collapsed
 
 # install / remove the timer
-./linux_configuration/scripts/single_use/features/setup_syncyomi_guard.sh
-./linux_configuration/scripts/single_use/features/setup_syncyomi_guard.sh --uninstall
+./linux_configuration/features/setup_syncyomi_guard.sh
+./linux_configuration/features/setup_syncyomi_guard.sh --uninstall
 
 systemctl --user list-timers syncyomi-guard.timer
 journalctl --user -u syncyomi-guard.service -n 20

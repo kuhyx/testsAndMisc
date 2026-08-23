@@ -36,7 +36,7 @@
 
 **Files involved:**
 
-- [scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh](../scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh) (1359 lines)
+- [periodic_background/digital_wellbeing/setup_midnight_shutdown.sh](../periodic_background/digital_wellbeing/setup_midnight_shutdown.sh) (1359 lines)
 
 **Current Protection Layers:**
 
@@ -79,9 +79,9 @@
 
 **Files involved:**
 
-- [scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh](../scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh) (823 lines)
-- [scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt](../scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt)
-- [scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh](../scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh)
+- [periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh](../periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh) (823 lines)
+- [periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt](../periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt)
+- [periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh](../periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh)
 
 **Current Protection:**
 
@@ -101,7 +101,7 @@
 
 ### 5. Block Compulsive Opening
 
-**File:** [scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh](../scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh) (507 lines)
+**File:** [periodic_background/digital_wellbeing/block_compulsive_opening.sh](../periodic_background/digital_wellbeing/block_compulsive_opening.sh) (507 lines)
 
 **Current Behavior:**
 
@@ -121,7 +121,7 @@
 
 ### 6. YouTube Music Wrapper
 
-**File:** [scripts/periodic_background/digital_wellbeing/youtube-music-wrapper.sh](../scripts/periodic_background/digital_wellbeing/youtube-music-wrapper.sh)
+**File:** [periodic_background/digital_wellbeing/youtube-music-wrapper.sh](../periodic_background/digital_wellbeing/youtube-music-wrapper.sh)
 
 **Current Behavior:**
 

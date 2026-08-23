@@ -5,11 +5,11 @@ scripts/features/.raspberry_pi.conf
 .raspberry_pi.conf
 
 # WireGuard/SSH remote-access setup config (contains the DuckDNS token)
-scripts/single_use/features/.wireguard_ssh.conf
+features/.wireguard_ssh.conf
 .wireguard_ssh.conf
 
 # dufs cloud setup config (contains the plaintext web password) — never commit.
-scripts/single_use/features/.dufs_cloud.conf
+features/.dufs_cloud.conf
 .dufs_cloud.conf
 **/.dufs_cloud.conf
 

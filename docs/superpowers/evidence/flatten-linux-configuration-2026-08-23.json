@@ -1,0 +1,61 @@
+{
+  "intent": "Flatten linux_configuration by dissolving the scripts/ and single_use/ levels, cutting directory-depth violations nearly in half and making the depth-2 cap reachable.",
+  "scope": [
+    "linux_configuration/scripts/{features,fixes,utils,misc,fresh-install,feedback-appimage,lib,boot_recovery,diagnostics,gaming,meta,periodic_background} -> linux_configuration/<same>",
+    "single_use's loose installer scripts -> linux_configuration/installers/",
+    "single_use/lib/joplin_server.sh -> installers/, freeing lib/ for the shared library",
+    "~90 files rewritten for the new paths; 16 $HOME symlinks repointed",
+    "Non-goal: periodic_background/digital_wellbeing and hosts, deferred pending the guard-lib repoint"
+  ],
+  "changes": [
+    "git mv'd every category out of scripts/single_use/ and scripts/ up to linux_configuration/, then removed the two empty parents. scripts/tests/ held only an untracked __pycache__ and was deleted.",
+    "Rewrote absolute references (linux_configuration/scripts/... -> linux_configuration/...) across 38 files, and relative ../scripts/X forms across the docs and harnesses that used them.",
+    "Recomputed every relative `source` of lib/common.sh and lib/android.sh per file depth: 40 files were ../../ and 12 were ../../../, and the correct prefix differs by where the file now sits.",
+    "Fixed REPO_ROOT in 7 fixes/lib/tests harnesses plus setup_syncyomi_guard.sh, which walked up four levels from a directory that is now two levels shallower.",
+    "Repointed 16 symlinks in $HOME: the whole i3blocks bar, keepass-open, and two diagnostics tools.",
+    "Fixed linux_configuration/.gitignore's two secret paths and meta/shell-coverage-allowlist.txt's joplin_server entry.",
+    "Fixed linux_configuration/tests/conftest.py, whose sys.path entries for fast_count and the transcribe tools still named the old tree.",
+    "Documented the new layout in AGENTS.md and removed the last stale billsplit references."
+  ],
+  "verification": [
+    {
+      "command": "check_directory_depth.sh --all",
+      "result": "pass (improvement)",
+      "evidence": "248 -> 139 violations. Roughly 40 of the remainder are inside digital_wellbeing and hosts, which are deliberately deferred."
+    },
+    {
+      "command": "resolve every '$SCRIPT_DIR/../lib/...' source against the filesystem",
+      "result": "fail then pass",
+      "evidence": "First sweep left 5 files in misc/testsAndMisc-bash pointing at ../../../lib/common.sh (they had a different prefix than the 40 already fixed). After the second pass every source resolves. Checked by testing the path on disk, not by reading the diff."
+    },
+    {
+      "command": "run every lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "8 of 9 pass. features/lib/tests fails 'REFUSING: must run under shell_coverage_jail.sh' -- confirmed identical in the pre-move baseline worktree, so it is the suite's jail requirement, not a regression. fixes/lib/tests DID regress (log_warn: command not found) and was fixed by correcting REPO_ROOT; it passes again."
+    },
+    {
+      "command": "pytest_changed_packages.py",
+      "result": "fail then pass",
+      "evidence": "First run: 14 collection errors from conftest.py's stale sys.path. After the fix: 1798 passed, TOTAL coverage 100.00%."
+    },
+    {
+      "command": "find ~ -maxdepth 4 -xtype l -lname '*testsAndMisc*'; then run the i3blocks scripts",
+      "result": "fail then pass",
+      "evidence": "16 broken symlinks immediately after the move, including the entire i3blocks bar. After repointing, zero broken, and cpu_monitor/memory/disk/time/volume all emit real output (e.g. '54°C, 1.18', '17.9GiB/30.4GiB')."
+    },
+    {
+      "command": "git check-ignore on the two secret configs; check_shell_coverage.sh --all",
+      "result": "pass",
+      "evidence": "features/.wireguard_ssh.conf and .dufs_cloud.conf are still ignored after their gitignore paths changed. Coverage gate exits 0 and every allowlist entry names a file that exists."
+    }
+  ],
+  "risks": [
+    "This renames ~400 tracked files. Anything outside this repo and outside $HOME that hardcodes linux_configuration/scripts/... would break; report_live_state.sh covers systemd, /etc, /usr/local and $HOME symlinks, and all of those were checked.",
+    "docs/superpowers/ artifacts still quote old paths. They are dated records of past work and were deliberately not rewritten.",
+    "features/lib/tests remains jail-only. That predates this change but means one suite is not exercised by a bare run."
+  ],
+  "rollback": [
+    "git revert restores the tree; the symlinks then need repointing back, which the same one-liner does with the substitution reversed.",
+    "Re-run pytest_changed_packages.py and the lib/tests suites to confirm the restored state."
+  ]
+}

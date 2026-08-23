@@ -2,7 +2,7 @@
 
 Versioned customisation for [suckless dwm](https://dwm.suckless.org/). This
 directory is the **source of truth**; the installer
-[`../scripts/single_use/features/setup_dwm.sh`](../scripts/single_use/features/setup_dwm.sh)
+[`../features/setup_dwm.sh`](../features/setup_dwm.sh)
 clones upstream `dwm` master, copies these files on top, applies the two
 `dwm.c` patches, and builds. Nothing here is a full fork of dwm — only the
 files we actually change live in the repo, so upstream stays bleeding-edge.

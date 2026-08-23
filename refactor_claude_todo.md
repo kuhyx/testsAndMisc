@@ -36,20 +36,20 @@ has near-zero payoff and should not be first.
 | lines | commits/yr | kind  | file                                                                                           |
 | ----: | ---------: | :---- | :--------------------------------------------------------------------------------------------- |
 |   556 |         41 | code  | `phone_focus_mode/config.sh`                                                                   |
-|  1734 |          9 | code  | `linux_configuration/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh` |
+|  1734 |          9 | code  | `linux_configuration/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh` |
 |   833 |         15 | code  | `phone_focus_mode/deploy.sh`                                                                   |
-|  1337 |          8 | code  | `linux_configuration/scripts/periodic_background/check_and_enable_services.sh`                 |
+|  1337 |          8 | code  | `linux_configuration/periodic_background/check_and_enable_services.sh`                 |
 |  1091 |          9 | code  | `phone_focus_mode/focus_ctl.sh`                                                                |
 |   543 |         12 | code  | `phone_focus_mode/focus_daemon.sh`                                                             |
-|   929 |          6 | code  | `linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh`   |
+|   929 |          6 | code  | `linux_configuration/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh`   |
 |   564 |          9 | code  | `focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/EnforcementRunner.kt`            |
-|   918 |          5 | code  | `linux_configuration/scripts/periodic_background/digital_wellbeing/setup_night_lockdown.sh`    |
-|   912 |          5 | code  | `linux_configuration/scripts/periodic_background/hosts/install.sh`                             |
+|   918 |          5 | code  | `linux_configuration/periodic_background/digital_wellbeing/setup_night_lockdown.sh`    |
+|   912 |          5 | code  | `linux_configuration/periodic_background/hosts/install.sh`                             |
 |   258 |         16 | prose | `CLAUDE.md`                                                                                    |
 |   698 |          5 | code  | `reverse_survivors/src/core/sim.test.ts`                                                       |
-|   620 |          5 | code  | `linux_configuration/scripts/lib/common.sh`                                                    |
+|   620 |          5 | code  | `linux_configuration/lib/common.sh`                                                    |
 |   415 |          7 | code  | `focus_owner/android/app/src/main/kotlin/com/kuhy/focus_owner/DevicePolicyBridge.kt`           |
-|   912 |          3 | code  | `linux_configuration/scripts/single_use/features/setup_searxng.sh`                             |
+|   912 |          3 | code  | `linux_configuration/features/setup_searxng.sh`                             |
 
 _(182 further files over 250 lines not listed — re-run the survey for the full set.)_
 

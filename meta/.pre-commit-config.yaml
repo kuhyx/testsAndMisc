@@ -173,7 +173,7 @@ repos:
           (?x)^(
             Bash/.*|
             \.venv/.*|
-            linux_configuration/scripts/single_use/misc/testsAndMisc-bash/tools/.*
+            linux_configuration/misc/testsAndMisc-bash/tools/.*
           )$
         additional_dependencies:
           - types-requests

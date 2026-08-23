@@ -9,41 +9,41 @@ HELPER="$REPO_DIR/scripts/periodic_background/i3-configuration/i3blocks/persist_
 TMP_DIR=$(mktemp -d)
 
 cleanup() {
-  rm -rf "$TMP_DIR"
+	rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
 
-# shellcheck source=linux_configuration/scripts/periodic_background/i3-configuration/i3blocks/persist_common.sh
+# shellcheck source=linux_configuration/periodic_background/i3-configuration/i3blocks/persist_common.sh
 source "$HELPER"
 
 fail() {
-  printf 'FAIL: %s\n' "$1" >&2
-  exit 1
+	printf 'FAIL: %s\n' "$1" >&2
+	exit 1
 }
 
 assert_eq() {
-  local expected=$1
-  local actual=$2
-  local context=$3
-  if [[ "$expected" != "$actual" ]]; then
-    fail "$context (expected '$expected', actual '$actual')"
-  fi
+	local expected=$1
+	local actual=$2
+	local context=$3
+	if [[ "$expected" != "$actual" ]]; then
+		fail "$context (expected '$expected', actual '$actual')"
+	fi
 }
 
 assert_le() {
-  local actual=$1
-  local expected_max=$2
-  local context=$3
-  if (( actual > expected_max )); then
-    fail "$context (expected <= '$expected_max', actual '$actual')"
-  fi
+	local actual=$1
+	local expected_max=$2
+	local context=$3
+	if ((actual > expected_max)); then
+		fail "$context (expected <= '$expected_max', actual '$actual')"
+	fi
 }
 
 count_execs() {
-  local script_path=$1
-  local log_file=$2
-  strace -f -o "$log_file" -e trace=execve bash "$script_path" >/dev/null 2>&1
-  grep -c 'execve(' "$log_file"
+	local script_path=$1
+	local log_file=$2
+	strace -f -o "$log_file" -e trace=execve bash "$script_path" >/dev/null 2>&1
+	grep -c 'execve(' "$log_file"
 }
 
 printf 'Checking interval gating allows first emit per key...\n'
@@ -55,15 +55,15 @@ assert_eq '100' "${I3BLOCKS_LAST_TS[wifi]}" 'first emit should store current tim
 printf 'Checking interval gating blocks too-soon second emit...\n'
 I3BLOCKS_TEST_NOW_TS=102
 if i3blocks_should_emit_by_interval_key "wifi" 5; then
-  fail 'second interval check should block when interval has not elapsed'
+	fail 'second interval check should block when interval has not elapsed'
 fi
 assert_eq '100' "${I3BLOCKS_LAST_TS[wifi]}" 'blocked emit must not overwrite timestamp'
 
 printf 'Checking repeated blocked emits never mutate timestamp...\n'
 for _ in {1..200}; do
-  if i3blocks_should_emit_by_interval_key "wifi" 5; then
-    fail 'repeated blocked interval checks must remain blocked'
-  fi
+	if i3blocks_should_emit_by_interval_key "wifi" 5; then
+		fail 'repeated blocked interval checks must remain blocked'
+	fi
 done
 assert_eq '100' "${I3BLOCKS_LAST_TS[wifi]}" 'repeated blocked checks must preserve original timestamp'
 
@@ -86,7 +86,7 @@ assert_eq 'connected' "${I3BLOCKS_LAST_STATE[wifi]}" 'first changed state should
 
 printf 'Checking changed-state helper blocks identical state...\n'
 if i3blocks_update_if_changed_key "wifi" "connected"; then
-  fail 'identical state should be treated as unchanged'
+	fail 'identical state should be treated as unchanged'
 fi
 
 printf 'Checking changed-state helper allows new state...\n'
@@ -97,7 +97,7 @@ printf 'Checking empty string first state is treated as changed...\n'
 I3BLOCKS_LAST_STATE=()
 i3blocks_update_if_changed_key "warp" "" || fail 'first empty state should be treated as changed'
 if i3blocks_update_if_changed_key "warp" ""; then
-  fail 'second empty state should be treated as unchanged'
+	fail 'second empty state should be treated as unchanged'
 fi
 
 printf 'Checking changed-state helper is key-isolated...\n'
@@ -110,17 +110,17 @@ I3BLOCKS_LAST_TS=()
 I3BLOCKS_LAST_STATE=()
 export I3BLOCKS_TEST_NOW_TS
 for i in {1..50}; do
-  I3BLOCKS_TEST_NOW_TS=$((1000 + i))
-  i3blocks_should_emit_by_interval_key "wifi" 0 || fail 'wifi interleaved emit should pass'
-  i3blocks_update_if_changed_key "wifi_state" "wifi-$((i % 3))" || true
+	I3BLOCKS_TEST_NOW_TS=$((1000 + i))
+	i3blocks_should_emit_by_interval_key "wifi" 0 || fail 'wifi interleaved emit should pass'
+	i3blocks_update_if_changed_key "wifi_state" "wifi-$((i % 3))" || true
 
-  I3BLOCKS_TEST_NOW_TS=$((2000 + i))
-  i3blocks_should_emit_by_interval_key "wifi_monitor" 0 || fail 'wifi_monitor interleaved emit should pass'
-  i3blocks_update_if_changed_key "wifi_monitor_state" "monitor-$((i % 4))" || true
+	I3BLOCKS_TEST_NOW_TS=$((2000 + i))
+	i3blocks_should_emit_by_interval_key "wifi_monitor" 0 || fail 'wifi_monitor interleaved emit should pass'
+	i3blocks_update_if_changed_key "wifi_monitor_state" "monitor-$((i % 4))" || true
 
-  I3BLOCKS_TEST_NOW_TS=$((3000 + i))
-  i3blocks_should_emit_by_interval_key "ethernet" 0 || fail 'ethernet interleaved emit should pass'
-  i3blocks_update_if_changed_key "ethernet_state" "eth-$((i % 2))" || true
+	I3BLOCKS_TEST_NOW_TS=$((3000 + i))
+	i3blocks_should_emit_by_interval_key "ethernet" 0 || fail 'ethernet interleaved emit should pass'
+	i3blocks_update_if_changed_key "ethernet_state" "eth-$((i % 2))" || true
 done
 assert_eq '1050' "${I3BLOCKS_LAST_TS[wifi]}" 'wifi key should retain its own timestamp series'
 assert_eq '2050' "${I3BLOCKS_LAST_TS[wifi_monitor]}" 'wifi_monitor key should retain its own timestamp series'
@@ -136,7 +136,7 @@ cat >"$fork_probe" <<EOF
 #!/bin/bash
 set -euo pipefail
 
-# shellcheck source=linux_configuration/scripts/periodic_background/i3-configuration/i3blocks/persist_common.sh
+# shellcheck source=linux_configuration/periodic_background/i3-configuration/i3blocks/persist_common.sh
 source "$HELPER"
 
 I3BLOCKS_LAST_TS=()

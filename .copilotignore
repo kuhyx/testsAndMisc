@@ -104,7 +104,7 @@ __pycache__/
 python_pkg/cinema_planner/pasted_content.txt
 
 # Large data files (exceed indexing limits)
-linux_configuration/scripts/digital_wellbeing/pacman/words.txt
+linux_configuration/digital_wellbeing/pacman/words.txt
 
 # C build artifacts
 **/*.out

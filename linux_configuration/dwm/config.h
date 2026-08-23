@@ -201,13 +201,13 @@ static const Key keys[] = {
 	 * backend as the media keys, with a notification and NO pacman side-effects.
 	 * (toggle_mic.sh is deliberately avoided here: it runs `sudo pacman -S dunst`
 	 * if dunst is missing, which deadlocks pacman when spawned without a tty.) */
-	{ MODKEY,                       XK_m,          spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/volume_control.sh micmute") },
+	{ MODKEY,                       XK_m,          spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/utils/volume_control.sh micmute") },
 
 	/* media keys — routed through volume_control.sh, same as the (now-fixed) i3 config */
-	{ 0, XF86XK_AudioRaiseVolume,                  spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/volume_control.sh up") },
-	{ 0, XF86XK_AudioLowerVolume,                  spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/volume_control.sh down") },
-	{ 0, XF86XK_AudioMute,                         spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/volume_control.sh mute") },
-	{ 0, XF86XK_AudioMicMute,                      spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/volume_control.sh micmute") },
+	{ 0, XF86XK_AudioRaiseVolume,                  spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/utils/volume_control.sh up") },
+	{ 0, XF86XK_AudioLowerVolume,                  spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/utils/volume_control.sh down") },
+	{ 0, XF86XK_AudioMute,                         spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/utils/volume_control.sh mute") },
+	{ 0, XF86XK_AudioMicMute,                      spawn,          SHCMD("$HOME/testsAndMisc/linux_configuration/utils/volume_control.sh micmute") },
 
 	/* tags 1-10 (i3 workspaces 1-10) */
 	TAGKEYS(                        XK_1,                          0)

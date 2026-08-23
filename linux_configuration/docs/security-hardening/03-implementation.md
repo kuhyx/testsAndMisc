@@ -27,7 +27,7 @@ hosts line completely bypasses /etc/hosts without touching it.
 
 ## 2. MIDNIGHT SHUTDOWN - Silent Denial
 
-Location: scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh
+Location: periodic_background/digital_wellbeing/setup_midnight_shutdown.sh
 
 Changes needed:
 - Remove ALL helpful messages about how to bypass (unlock-shutdown-schedule path)
@@ -59,7 +59,7 @@ Changes needed:
 
 ## 4. PACMAN WRAPPER - Chrome Block + LeechBlock Auto-Install
 
-Location: scripts/periodic_background/digital_wellbeing/pacman/
+Location: periodic_background/digital_wellbeing/pacman/
 
 Changes needed to pacman_blocked_keywords.txt:
 - Add: google-chrome
@@ -78,7 +78,7 @@ New behavior in pacman_wrapper.sh:
 
 ## 5. BLOCK COMPULSIVE OPENING - Auto-Close Timer
 
-Location: scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh
+Location: periodic_background/digital_wellbeing/block_compulsive_opening.sh
 
 New behavior:
 - After app is allowed to open, start a background timer
@@ -126,7 +126,7 @@ launch_with_timer() {
 
 This requires a more sophisticated approach. Create a new Python daemon.
 
-Location: scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py (new file)
+Location: periodic_background/digital_wellbeing/focus_mode_daemon.py (new file)
 
 Behavior:
 
@@ -158,18 +158,18 @@ New files:
 - hosts/guard/nsswitch-guard.path
 - hosts/guard/nsswitch-guard.service
 - hosts/guard/enforce-nsswitch.sh
-- scripts/periodic_background/digital_wellbeing/focus_mode_daemon.py
-- scripts/periodic_background/digital_wellbeing/install_focus_mode_daemon.sh
+- periodic_background/digital_wellbeing/focus_mode_daemon.py
+- periodic_background/digital_wellbeing/install_focus_mode_daemon.sh
 - tests/test_security_hardening.sh
 
 Modified files:
 
 - hosts/guard/setup_hosts_guard.sh (add nsswitch protection)
-- scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh (remove helpful messages)
-- scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt (add chrome)
-- scripts/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh (leechblock auto-install)
-- scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh (auto-close timer)
-- scripts/periodic_background/digital_wellbeing/youtube-music-wrapper.sh (daemon integration)
+- periodic_background/digital_wellbeing/setup_midnight_shutdown.sh (remove helpful messages)
+- periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt (add chrome)
+- periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh (leechblock auto-install)
+- periodic_background/digital_wellbeing/block_compulsive_opening.sh (auto-close timer)
+- periodic_background/digital_wellbeing/youtube-music-wrapper.sh (daemon integration)
 
 External repo (separate changes):
 

@@ -18,7 +18,7 @@ readonly GATE_WIDENING_RE='^(\.pre-commit-config\.yaml|meta/scripts/|meta/pyproj
 
 # Shared shell foundations. A change here can affect every suite, so it fans
 # out to all of them rather than to the suite that happens to contain it.
-readonly SHELL_WIDENING_RE='^linux_configuration/scripts/lib/|/tests/lib_test_(core|path)\.sh$'
+readonly SHELL_WIDENING_RE='^linux_configuration/lib/|/tests/lib_test_(core|path)\.sh$'
 
 # Emit the paths in the push range, one per line. Empty output means "no range
 # known", which callers must treat as "check everything", never as "nothing".
@@ -61,7 +61,7 @@ select_shell_suites() {
 
 	# A suite covers the entry scripts in its PARENT directory as well as its
 	# own lib/, so the parent is the right scope -- but match it
-	# non-recursively. `scripts/lib/tests` has parent
+	# non-recursively. `lib/tests` has parent
 	# `linux_configuration/scripts`, which is a prefix of every other suite's
 	# path; a recursive match there would fire it on every shell push.
 	# `[^/]+$` keeps a path in the parent itself, while the second alternative

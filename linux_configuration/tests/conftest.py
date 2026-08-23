@@ -23,15 +23,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # Each standalone script directory whose Python modules these tests import.
 _SCRIPT_DIRS = (
     _REPO_ROOT / "meta" / "scripts",  # validate_evidence, validate_contract
+    _REPO_ROOT / "linux_configuration" / "utils",  # fast_count
     _REPO_ROOT
     / "linux_configuration"
-    / "scripts"
-    / "single_use"
-    / "utils",  # fast_count
-    _REPO_ROOT
-    / "linux_configuration"
-    / "scripts"
-    / "single_use"
     / "misc"
     / "testsAndMisc-bash"
     / "tools",  # transcribe_fw and its helpers

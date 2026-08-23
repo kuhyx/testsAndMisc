@@ -20,7 +20,7 @@ command -v simplenote >/dev/null 2>&1 && simplenote &
 [ -x "$HOME/.fehbg" ] && "$HOME/.fehbg" &
 
 # repo helpers (real current paths under single_use/utils); guarded in case moved
-idle="$HOME/testsAndMisc/linux_configuration/scripts/single_use/utils/turn_off_auto_idle_screen_shutdown.sh"
+idle="$HOME/testsAndMisc/linux_configuration/utils/turn_off_auto_idle_screen_shutdown.sh"
 [ -x "$idle" ] && bash "$idle" --watch-controller &
 
 # lightweight status bar (root window name)

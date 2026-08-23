@@ -211,6 +211,6 @@ cached snapshot tools, some builds don't refresh them between calls.
 - `linux_configuration/i3-configuration/i3blocks/battery_status.sh` — zero-fork via `/sys/class/power_supply`.
 - `linux_configuration/i3-configuration/i3blocks/cpu_monitor.sh` — zero-fork via `/proc/loadavg` + `/sys/class/hwmon`.
 - `linux_configuration/i3-configuration/i3blocks/motherboard_temp.sh` — zero-fork via `/sys/class/hwmon`.
-- `linux_configuration/scripts/system-maintenance/systemd/monitors.slice` — resource-cap slice.
+- `linux_configuration/system-maintenance/systemd/monitors.slice` — resource-cap slice.
 - `phone_focus_mode/dns_enforcer.sh::chain_intact()`/`expected_rule_count()` — R9's hash/count-gate pattern, fixed 2026-07-03 after it was found pegging Android's `netd` at ~50% CPU.
 - `phone_focus_mode/hosts_enforcer.sh::sync_magisk_module` — the original hash-before-write pattern R9 mirrors.

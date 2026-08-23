@@ -22,7 +22,7 @@ Tests verify:
 ### Installation
 
 ```bash
-cd scripts/periodic_background/digital_wellbeing/pacman
+cd periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh
 ```
 
@@ -46,7 +46,7 @@ sudo chattr -i /usr/local/bin/pacman_greylist.txt
 sudo nano /usr/local/bin/pacman_greylist.txt
 
 # Reinstall wrapper to update checksums
-cd scripts/periodic_background/digital_wellbeing/pacman
+cd periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh
 
 # This will regenerate checksums and reapply immutable attributes

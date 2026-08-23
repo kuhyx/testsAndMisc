@@ -1,0 +1,21 @@
+{
+  "title": "Dissolve linux_configuration/scripts/ and single_use/ to satisfy the depth-2 cap",
+  "objective": "Flatten the largest source of directory-depth violations. scripts/ and single_use/ were three levels of pure taxonomy carrying no information, and a 2-directory cap leaves no room for them. Categories move up to sit directly under linux_configuration/, which is what makes the cap satisfiable at all.",
+  "acceptance_criteria": [
+    "linux_configuration/scripts/ no longer exists; its children sit one level under linux_configuration/.",
+    "Every relative `source` of a shared library resolves from its file's NEW location, checked by resolving each path on disk rather than by reading the diff.",
+    "Every REPO_ROOT derivation that walks up a fixed number of levels is recomputed for the new depth.",
+    "All lib/tests suites that passed before still pass, and any that fail are proven to fail identically in the pre-move baseline worktree.",
+    "The repo-wide pytest gate still reports 100% coverage.",
+    "Every symlink in $HOME pointing into the moved tree is repointed, and the i3blocks scripts are RUN to prove the status bar still works.",
+    "No config, workflow, allowlist or ignore rule names a path that no longer exists.",
+    "The .gitignore rules protecting untracked secrets still match after their paths change.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "periodic_background/digital_wellbeing and hosts, deferred while the guard-lib repoint is pending; they keep their depth violations for now.",
+    "Deduplicating the two Nextcloud implementations, which is a separate change.",
+    "Wiring the depth gate, which lands only once the tree conforms."
+  ],
+  "verifier": "check_directory_depth.sh --all falls 248 -> 139; every '$SCRIPT_DIR/../lib/...' source resolves on disk; 8 of 9 lib/tests run_all.sh pass with the ninth proven to need the jail at baseline too; pytest_changed_packages.py reports 1798 passed at 100%; find ~ -xtype l finds no broken link; the i3blocks scripts emit real output."
+}

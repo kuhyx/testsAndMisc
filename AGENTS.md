@@ -9,7 +9,6 @@ Mixed-language monorepo: Python packages, Bash automation, and several apps.
 | `python_pkg/`          | Python packages — every `.py` in the repo belongs here or in an allowlisted dir                           |
 | `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc`, `scripts/` |
 | `linux_configuration/` | Arch setup, i3 config, system maintenance, and the tracked git hooks                                      |
-| `billsplit/`           | Receipt bill-splitting Flutter app (Dart)                                                                 |
 | `bottles/`             | Small standalone project                                                                                  |
 | `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                           |
 | `third_party/`         | Vendored upstream skills/agents                                                                           |
@@ -17,6 +16,14 @@ Mixed-language monorepo: Python packages, Bash automation, and several apps.
 Root `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh` and
 `.fvmrc` are **symlinks into `meta/`** — edit the files in `meta/`, not the
 symlinks.
+
+`linux_configuration/` has no `scripts/` or `single_use/` level: those two were
+pure taxonomy carrying no information, and the directory-depth cap does not
+leave room for them. Categories sit directly under it — `features/`, `fixes/`,
+`utils/`, `misc/`, `fresh-install/`, `installers/`, `diagnostics/`, `gaming/`,
+`boot_recovery/`, `periodic_background/`, `lib/`, `meta/`, `tests/`. A script's
+own `lib/` and `tests/` subdirectories are exempt from the cap, so those stay
+where they are.
 
 Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer),
 [`screen-locker`](https://github.com/kuhyx/screen-locker),
@@ -38,18 +45,19 @@ Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-ar
 
 ## Adding a Flutter app
 
-`billsplit/` is currently the only one, and the only place binaries are
-committed. To add another, repeat **both** halves or the icons fail silently:
+There is currently no Flutter app here — `billsplit/` was archived, and with it
+the only committed binaries. Adding one means repeating **both** halves or the
+icons fail silently:
 
 1. Add the icon globs to `.binary-allowlist`.
 2. Add matching `!` overrides at the end of `.gitignore` — an ignored file
    fails silently on `git add` rather than erroring.
 
-Icons come from the shared generator in `python_pkg/app_icons/`. Dart style is
-gated by CI only (`.github/workflows/billsplit-ci.yml`), not by a local hook.
-Keep app dirs free of Python: the `check-python-location` hook requires every
-`.py` to sit under `python_pkg/` (or `linux_configuration/`, `meta/scripts/`). `billsplit/`'s coverage gate therefore lives at
-`python_pkg/billsplit_coverage/`.
+Icons come from the shared generator in `python_pkg/app_icons/`. Dart style
+needs its own CI workflow; there is no local hook for it. Keep app dirs free of
+Python: the `check-python-location` hook requires every `.py` to sit under
+`python_pkg/` (or `linux_configuration/`, `meta/scripts/`), so an app's coverage
+gate lives in `python_pkg/`.
 
 ## Git Workflow
 

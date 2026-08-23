@@ -32,7 +32,7 @@ branches, measured in a clean worktree. **File-length cap needs nothing:** 0
 violations, hook-enforced.
 
 **What is left, if anyone wants it:** 8 directories still have no suite at all
-(`.githooks/lib`, `scripts/meta/lib`, `mtk_root/lib`, `digital_wellbeing/{pacman,
+(`.githooks/lib`, `meta/lib`, `mtk_root/lib`, `digital_wellbeing/{pacman,
 virtualbox}/lib`, `system-maintenance/bin/lib`, `single_use/{fresh-install,}/lib`)
 — 20 libs, ~1,980 lines. All are allowlisted, so nothing is blocked. This is
 optional work now, not a campaign.
@@ -100,7 +100,7 @@ SP=$(mktemp -d); git worktree add --detach --quiet "$SP/co" HEAD
 
 time (cd "$SP/co" && SKIP=pytest-coverage pre-commit run --all-files)
 time (cd "$SP/co" && python meta/scripts/pytest_changed_packages.py)
-time bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh
+time bash linux_configuration/fixes/lib/tests/run_all.sh
 
 git worktree remove --force "$SP/co"
 ```
@@ -242,7 +242,7 @@ the shape before you spend it.
 
 ## The suite and its harnesses
 
-`linux_configuration/scripts/single_use/fixes/lib/tests/` is the reference
+`linux_configuration/fixes/lib/tests/` is the reference
 suite: **30 test files, 645 assertions, all green, zero suppressions, 37s.**
 Copy its shape. Layers:
 
