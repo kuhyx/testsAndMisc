@@ -1,0 +1,36 @@
+{
+  "intent": "Give the artifact cap a one-command fix, so the gate can never block a commit with no way out except reconstructing today's selection logic by hand.",
+  "scope": [
+    "meta/scripts/check_repo_size.sh - adds --prune",
+    "Non-goal: pruning anything now. The tree is at 21/21, well under the 60 cap."
+  ],
+  "changes": [
+    "Added --prune: stages the removal of the oldest artifacts, keeping the newest KEEP_ARTIFACTS=20 per directory plus template.json, and leaves the commit to the operator.",
+    "Fixed a same-day ordering bug found by running it: the first version sorted on %cs (date only), so every artifact committed on the same day tied, sort fell back to comparing the path, and the prune deleted alphabetically. It removed cap-artifact-growth-2026-08-23.json - one of the newest files - instead of the oldest. Now sorts on %ct (unix seconds) with sort -rn."
+  ],
+  "verification": [
+    {
+      "command": "./meta/scripts/check_repo_size.sh --prune (in a detached worktree)",
+      "result": "pass",
+      "evidence": "First run staged 2 deletions but they were WRONG: cap-artifact-growth-2026-08-23.json and flatten-linux-configuration-2026-08-23.json, both same-day files chosen alphabetically. This is what exposed the %cs tie."
+    },
+    {
+      "command": "./meta/scripts/check_repo_size.sh --prune after the %ct fix (fresh worktree)",
+      "result": "pass",
+      "evidence": "Now stages quarantine-arch-sysctl-cases-2026-08-22.json and thorium-repairs-tests-2026-08-23.json - the genuinely oldest. Templates survive; contracts correctly reports 'nothing to prune' at 20 + template."
+    },
+    {
+      "command": "./meta/scripts/check_repo_size.sh; pre-commit run --files meta/scripts/check_repo_size.sh",
+      "result": "pass",
+      "evidence": "'1050 source files (ceiling 1200)' EXIT=0; shfmt and shellcheck clean. Tested in a throwaway worktree so the real tree was never modified."
+    }
+  ],
+  "risks": [
+    "--prune stages deletions rather than committing them, so an operator who runs it and forgets to review still has git diff --cached as the checkpoint.",
+    "KEEP_ARTIFACTS=20 is below MAX_ARTIFACTS_PER_DIR=60 on purpose; a prune therefore buys headroom instead of landing back on the limit."
+  ],
+  "rollback": [
+    "git revert the commit. --prune is additive and off by default; the enforcing path is unchanged.",
+    "After rollback, confirm ./meta/scripts/check_repo_size.sh still exits 0 and prints the count."
+  ]
+}

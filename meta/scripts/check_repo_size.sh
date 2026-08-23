@@ -31,6 +31,11 @@
 #
 #   check_repo_size.sh            # count and enforce
 #   check_repo_size.sh --count    # print the number only, always exit 0
+#   check_repo_size.sh --prune    # stage the removal of the oldest artifacts
+#
+# --prune is the fix when the artifact cap fails: it stages the deletions and
+# leaves committing to you, so the gate never blocks a commit without a
+# one-command way out.
 #
 # Exits 0 when at or under every ceiling, 1 when over any of them.
 # ============================================================================
@@ -60,16 +65,56 @@ readonly ARTIFACT_DIRS=(
 )
 readonly MAX_ARTIFACTS_PER_DIR=60
 
+# What --prune keeps per directory. Below the cap on purpose, so a prune
+# buys real headroom instead of landing back on the limit.
+readonly KEEP_ARTIFACTS=20
+
 COUNT_ONLY=0
+PRUNE=0
 
 usage() {
-	echo "Usage: $SCRIPT_NAME [--count]"
+	echo "Usage: $SCRIPT_NAME [--count | --prune]"
 	echo "Options:"
 	echo "  --count       Print the source-file count and exit 0"
+	echo "  --prune       git rm the oldest artifacts, keeping the newest"
+	echo "                $KEEP_ARTIFACTS per directory plus template.json"
 	echo "  -h, --help    Show this help"
 	echo
 	echo "Fails when tracked source files exceed $MAX_SOURCE_FILES."
 	exit 0
+}
+
+# Remove the oldest artifacts, keeping the newest KEEP_ARTIFACTS per
+# directory plus template.json. Ordered by git commit date rather than by
+# filename: the corpus mixes -2026-05, -20260604 and undated slugs, so a
+# filename sort silently mis-orders a chunk of it. Deleted files remain
+# available in git history.
+#
+# The sort key is %ct (unix seconds), NOT %cs (date only). With %cs every
+# artifact committed on the same day ties, sort falls back to comparing the
+# path, and the prune deletes alphabetically - which cost the newest file in
+# a same-day batch when this was first written.
+prune_artifacts() {
+	local dir removed=0
+	for dir in "${ARTIFACT_DIRS[@]}"; do
+		local -a doomed=()
+		mapfile -t doomed < <(
+			git ls-files "$dir" |
+				grep -v '/template\.json$' |
+				while read -r f; do
+					printf '%s\t%s\n' "$(git log -1 --format=%ct -- "$f")" "$f"
+				done |
+				sort -rn | tail -n "+$((KEEP_ARTIFACTS + 1))" | cut -f2
+		)
+		if ((${#doomed[@]} == 0)); then
+			echo "$dir: nothing to prune"
+			continue
+		fi
+		git rm -q -- "${doomed[@]}"
+		echo "$dir: pruned ${#doomed[@]}, kept $KEEP_ARTIFACTS + template"
+		removed=$((removed + ${#doomed[@]}))
+	done
+	echo "Pruned $removed file(s). Review with 'git diff --cached --stat', then commit."
 }
 
 # Tracked files minus the generated and vendored trees. Printed one per line.
@@ -102,6 +147,11 @@ check_artifact_dirs() {
 }
 
 main() {
+	if ((PRUNE)); then
+		prune_artifacts
+		return 0
+	fi
+
 	local count
 	count="$(source_files | wc -l)"
 
@@ -133,6 +183,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--count)
 		COUNT_ONLY=1
+		shift
+		;;
+	--prune)
+		PRUNE=1
 		shift
 		;;
 	*)
