@@ -37,6 +37,10 @@ export BACKUP_SUFFIX=".bak.20260822_120000"
 export DRY_RUN=false
 export AGGRESSIVE=false
 export TEST_AFTER=false
+# test_thorium sleeps to see whether the browser stayed up. Four real
+# seconds per case dominated this file's runtime (17s of a 110s suite);
+# the stub browser sleeps far longer than this, so the check is unchanged.
+export THORIUM_STARTUP_WAIT=0.2
 
 # The lib echoes these directly; fix_thorium.sh defines them for a terminal.
 # Empty here so assertions match on text rather than escape sequences.

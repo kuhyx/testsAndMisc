@@ -146,7 +146,9 @@ test_thorium() {
 	local pid=$!
 
 	# Wait a few seconds and check if it's still running
-	sleep 4
+	# How long to let the browser prove it stays up. Overridable so the
+	# tests do not pay four real seconds per case; production never sets it.
+	sleep "${THORIUM_STARTUP_WAIT:-4}"
 
 	if kill -0 "$pid" 2>/dev/null; then
 		log_ok "Thorium started successfully! (PID: $pid)"

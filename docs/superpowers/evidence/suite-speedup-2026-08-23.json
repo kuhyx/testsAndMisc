@@ -1,0 +1,51 @@
+{
+  "intent": "Cut the fixes/lib test suite's runtime from 110s to 37s so the commit/push cycle stops being dominated by it, without weakening a single assertion.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/tests/lib_test_core.sh and the new lib_test_path.sh",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+    "linux_configuration/scripts/single_use/fixes/lib/thorium_repairs.sh (one timing seam)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/thorium_harness.sh"
+  ],
+  "changes": [
+    "thorium_repairs.sh's hardcoded `sleep 4` is now `sleep ${THORIUM_STARTUP_WAIT:-4}`; the harness sets 0.2s. Three cases paid four real seconds each.",
+    "_t_hide now builds ONE farm of every executable on PATH and hard-links it per tool set with `cp -al`, instead of walking PATH and creating ~13.5k symlinks for each distinct set",
+    "The farm cache moved out of $TEST_TMPDIR into a run-scoped dir exported by run_all.sh, because each test file gets a fresh tmpdir and the cache never survived between files",
+    "Split _t_hide and the farm into lib_test_path.sh; lib_test_core.sh had reached exactly 250 lines"
+  ],
+  "verification": [
+    {
+      "command": "time bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "110.0s at session start -> 98.5s after the sleep seam -> 84.6s after the run-scoped cache -> 36.7s after the hard-linked farm. Exit 0 throughout."
+    },
+    {
+      "command": "Per-file timing of the slowest files",
+      "result": "pass",
+      "evidence": "test_thorium_repairs_deep.sh 17041ms -> 5563ms. A single _t_hide farm build measured 4645ms, with ~16 distinct tool sets per run."
+    },
+    {
+      "command": "bash run_all.sh | grep -c '^  OK' and '^  FAIL'",
+      "result": "pass",
+      "evidence": "645 OK, 0 FAIL. No assertion was deleted, skipped or weakened."
+    },
+    {
+      "command": "Targeted re-check that the 'not installed' branches still hide",
+      "result": "pass",
+      "evidence": "install_pyroveil's missing-dependency cases and fix_aggressive's sqlite3-absent case all still pass; they assert on behaviour only reachable when the tool is genuinely unfindable, so a broken farm would fail them loudly."
+    },
+    {
+      "command": "shellcheck + wc -l on both split files",
+      "result": "pass",
+      "evidence": "lib_test_core.sh 194 lines, lib_test_path.sh 67 lines, both clean with zero suppressions."
+    }
+  ],
+  "risks": [
+    "`cp -al` hard-links symlinks; if a future _t_hide caller mutated the farm in place it would corrupt the shared copy. Callers only ever read it and the per-set copy is what gets the deletions.",
+    "The shared farm assumes PATH does not change mid-run. _t_full_path restores the same original PATH, so the assumption holds for this suite.",
+    "THORIUM_STARTUP_WAIT shortens a real timing check to 0.2s in tests; the stubbed browser sleeps 30s, so the process is still comfortably alive when kill -0 runs."
+  ],
+  "rollback": [
+    "git revert the commit; the suite returns to ~110s with identical assertions",
+    "Re-run run_all.sh and confirm 645 OK / 0 FAIL is unchanged"
+  ]
+}

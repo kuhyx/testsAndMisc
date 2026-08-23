@@ -147,55 +147,9 @@ _t_unstub() {
 	hash -r
 }
 
-# _t_hide TOOL... — make TOOL genuinely unfindable, so has_cmd/command -v
-# report it absent.
-#
-# A prepended stub dir cannot do this: every tool these libs probe for
-# (usbreset, pactl, wpctl) really exists on an Arch desktop, so PATH has to
-# stop resolving it. Dropping PATH to $FAKE_BIN alone is NOT the answer
-# either -- that also hides grep, head, awk and sort, which these libs use
-# on the very branch under test, turning a "not installed" case into a
-# cascade of "command not found".
-#
-# Instead a shim dir is built containing a symlink to every real executable
-# on PATH EXCEPT the hidden ones, and PATH is pointed at it.
-_t_hide() {
-	# Keyed by the tool list and reused: the farm holds a symlink per
-	# executable on PATH (~13.5k on this host), so rebuilding it on every
-	# call dominated the suite's runtime and pushed a jail case past its
-	# 120s timeout. The same hidden set always yields the same farm, so the
-	# second and later calls are a PATH assignment.
-	local key="${*}"
-	local hide_dir="${TEST_TMPDIR}/hidden_path/${key// /_}"
-	if [[ -d "$hide_dir" ]]; then
-		PATH="${FAKE_BIN}:${hide_dir}"
-		hash -r
-		return 0
-	fi
-	mkdir -p "$hide_dir"
-
-	local -A hidden=()
-	local tool
-	for tool in "$@"; do
-		hidden["$tool"]=1
-	done
-
-	local dir entry name
-	local IFS=':'
-	for dir in ${LIB_TEST_ORIG_PATH}; do
-		[[ -d "$dir" ]] || continue
-		for entry in "$dir"/*; do
-			name="${entry##*/}"
-			[[ -n "${hidden[$name]:-}" ]] && continue
-			[[ -x "$entry" && ! -d "$entry" ]] || continue
-			[[ -e "${hide_dir}/${name}" ]] && continue
-			ln -s "$entry" "${hide_dir}/${name}" 2>/dev/null || true
-		done
-	done
-
-	PATH="${FAKE_BIN}:${hide_dir}"
-	hash -r
-}
+# _t_hide and its shim farm live in lib_test_path.sh (250-line cap).
+# shellcheck source=lib_test_path.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib_test_path.sh"
 
 # _t_full_path — restore the prepended-stub PATH set up by lib_test_core.sh.
 _t_full_path() {

@@ -1,0 +1,17 @@
+{
+  "title": "Make the fixes/lib suite fast without weakening it",
+  "objective": "Cut the suite from 110s to well under a minute so pre-push stops being dominated by it, changing only how long things wait and how the PATH shim farm is built.",
+  "acceptance_criteria": [
+    "run_all.sh completes in under 60s and exits 0.",
+    "The assertion count is unchanged at 645 OK with 0 FAIL; no test is deleted, skipped or weakened.",
+    "The cases that depend on a tool being genuinely unfindable still pass, so the shim farm is still doing its job.",
+    "Every touched file stays under the 250-line cap and shellcheck-clean with zero suppressions.",
+    "thorium_repairs.sh's production wait is unchanged by default: THORIUM_STARTUP_WAIT defaults to the original 4."
+  ],
+  "out_of_scope": [
+    "Changing what any test asserts.",
+    "The coverage jail's own runtime, which is dominated by kcov and runs two passes by design.",
+    "The pacman_hook_stall harness, which predates lib_test_core.sh."
+  ],
+  "verifier": "time bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh (expects exit 0 in under 60s), plus `bash run_all.sh | grep -c '^  OK'` returning 645 and `grep -c '^  FAIL'` returning 0."
+}

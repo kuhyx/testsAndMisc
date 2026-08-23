@@ -16,6 +16,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# One _t_hide shim farm for the whole run. Each test file gets its own
+# $TEST_TMPDIR, so without this the farm -- a symlink per executable on PATH,
+# ~13.5k of them and ~4.6s to build -- was rebuilt once per distinct tool set,
+# roughly sixteen times a run. Its contents depend only on the tool list and
+# the original PATH, so sharing it across files changes nothing but the clock.
+LIB_TEST_HIDE_CACHE="$(mktemp -d)"
+export LIB_TEST_HIDE_CACHE
+trap 'rm -rf "${LIB_TEST_HIDE_CACHE}"' EXIT
+
 failed=0
 for test_script in "${SCRIPT_DIR}"/test_*.sh; do
 	printf '\n### %s\n' "$(basename "$test_script")"
