@@ -1,0 +1,46 @@
+{
+  "intent": "Close the file-length cap's blind spot for extensionless scripts, and split the one file that had been hiding in it: boot_recovery/boot-repair at 756 lines.",
+  "scope": [
+    "meta/scripts/check_file_length.sh - is_source_file() now also matches extensionless files with a shebang",
+    "linux_configuration/boot_recovery/boot-repair 756 -> 218 lines",
+    "New: lib/{discovery,repair_fs,repair_kernel,modes}.sh",
+    "One real bug fixed: an unquoted expansion that was invisible while the file escaped linting"
+  ],
+  "changes": [
+    "is_source_file() previously required a dot in the filename, so every extensionless executable escaped the cap. It now reads the first two bytes and accepts a shebang, which catches boot-repair while still skipping data files like i3/config.",
+    "Split boot-repair along its own section markers into four sourced libraries: discovery (paths, kernel, ESP, mount state), repair_fs, repair_kernel, and modes.",
+    "The end-of-run report block stays INLINE deliberately. It is top-level code with exit calls, not function definitions; sourcing it changed control flow and 30 of 42 tests failed. The lib headers record that.",
+    "Quoted $ESP_MOUNTPOINT in clean_shadow_files. shellcheck could not see the readonly declaration once the function moved to a library, which exposed a genuine SC2086 that the monolith had been hiding."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/boot_recovery/tests/test_boot_repair.sh",
+      "result": "pass",
+      "evidence": "42 passed, 0 failed - the same count as before the split. These run the real script against throwaway fixture root trees, so they exercise the sourcing chain end to end."
+    },
+    {
+      "command": "meta/scripts/verify_shell_split.sh HEAD <old> <new>...",
+      "result": "pass",
+      "evidence": "31 of 32 functions byte-identical. The single difference is clean_shadow_files, which is the intended quoting fix and nothing else - the tool names the function, so the change is auditable rather than assumed."
+    },
+    {
+      "command": "shellcheck on the entry script and all four libs",
+      "result": "pass",
+      "evidence": "Clean at every severity, with no suppression added."
+    },
+    {
+      "command": "bash meta/scripts/check_file_length.sh --all",
+      "result": "fail then pass",
+      "evidence": "Immediately after widening the predicate: '756 linux_configuration/boot_recovery/boot-repair (+506)'. After the split: 'all checked files are within 250 lines'. The other extensionless scripts (.githooks/pre-commit 119, dwm/bin/* 79/41/30) were already under."
+    }
+  ],
+  "risks": [
+    "boot-repair is UEFI/ESP tooling and the vmbox guest is BIOS/GRUB, so a sandbox pass would be actively misleading here - per the vmbox skill's own warning. The fixture suite is the real evidence, and it runs the script against synthetic root trees rather than the live boot path.",
+    "live_test.sh needs root and was not run; it also required root before this change.",
+    "The report block remaining inline means boot-repair cannot go much below 218 lines without restructuring its control flow, which is not worth the risk on this file."
+  ],
+  "rollback": [
+    "git revert restores the monolith and the narrower predicate together.",
+    "Re-run tests/test_boot_repair.sh and expect 42 passed."
+  ]
+}

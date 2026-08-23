@@ -1,0 +1,19 @@
+{
+  "title": "Close the extensionless blind spot in the length cap and split boot-repair",
+  "objective": "check_file_length.sh required a dot in the filename, so every extensionless executable was uncapped. boot-repair had grown to 756 lines in that gap - three times the largest capped shell file in the repo. Widen the predicate and bring the file it was hiding under the cap, without a sandbox pass that would mislead: the vmbox guest is BIOS/GRUB and this machine is UEFI.",
+  "acceptance_criteria": [
+    "is_source_file() accepts extensionless files that begin with a shebang, and still skips extensionless data files such as i3/config.",
+    "Every file in the repo, including boot-repair and its new libraries, is within the 250-line cap.",
+    "The 42-test fixture suite passes with exactly the same count as before the split.",
+    "verify_shell_split.sh proves the functions moved verbatim, and any difference it reports is a deliberate change named in the evidence rather than an accident.",
+    "shellcheck is clean on the entry script and every library, with no suppression added.",
+    "No sandbox claim is made for a UEFI-critical script that a BIOS guest cannot validate.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "live_test.sh, which needs root and did before this change too.",
+    "Restructuring boot-repair's top-level control flow to shrink it further; the report block stays inline because sourcing it broke 30 tests.",
+    "Other extensionless scripts, all already under the cap."
+  ],
+  "verifier": "check_file_length.sh --all reports boot-repair before the split and 'all checked files are within 250 lines' after; tests/test_boot_repair.sh reports 42 passed both before and after; verify_shell_split.sh reports 31/32 identical with clean_shadow_files as the one named difference; shellcheck exits 0 across the entry script and all four libs."
+}

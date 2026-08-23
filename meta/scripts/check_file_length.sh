@@ -50,11 +50,20 @@ usage() {
 	exit 0
 }
 
-# True when the path carries a source extension we cap.
+# True when the path carries a source extension we cap, OR has no extension but
+# starts with a shebang.
+#
+# The shebang branch exists because an extensionless executable is still
+# hand-written logic: boot_recovery/boot-repair sat at 756 lines -- three times
+# the largest capped shell file in the repo -- purely because its name has no
+# dot in it.
 is_source_file() {
 	local path="$1" ext="${1##*.}"
-	# A path with no dot in its final component has no extension to match.
-	[[ "$path" == *.* ]] || return 1
+	if [[ "$path" != *.* ]]; then
+		[[ -f "$path" ]] || return 1
+		[[ "$(head -c 2 "$path" 2>/dev/null)" == "#!" ]] && return 0
+		return 1
+	fi
 	local candidate
 	for candidate in "${SOURCE_EXTENSIONS[@]}"; do
 		[[ "$ext" == "$candidate" ]] && return 0
