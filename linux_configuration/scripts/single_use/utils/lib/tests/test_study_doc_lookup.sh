@@ -102,7 +102,7 @@ _t_has "$(get_doc_url "interface" typescript "")" "typescriptlang.org" \
 echo "== detect_language =="
 reset_state
 stage_tokei "Python" "JavaScript"
-_t_eq "DELIBERATELY_WRONG" "$(detect_language)" "the language with the most code wins"
+_t_eq "python" "$(detect_language)" "the language with the most code wins"
 
 reset_state
 stage_tokei "Rust"
