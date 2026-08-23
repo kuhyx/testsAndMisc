@@ -1,0 +1,57 @@
+{
+  "intent": "Wire the two repo-structure gates into pre-commit: the directory-depth cap (warn-only for now) and a new source-file ceiling, so structural drift is visible on every commit.",
+  "scope": [
+    "meta/scripts/check_directory_depth.sh - structural exemptions plus a --warn mode",
+    "meta/scripts/check_repo_size.sh - new source-file ceiling gate",
+    ".pre-commit-config.yaml - two new always_run hooks",
+    "Non-goal: bringing the remaining 47 over-cap paths under the cap. They sit under periodic_background/{hosts,digital_wellbeing}, whose extraction is blocked on a manual sudo guard repoint.",
+    "Non-goal: syncing meta/.pre-commit-config.yaml, which is a separate standalone config already 219 lines divergent at HEAD."
+  ],
+  "changes": [
+    "Exempted the 57 structurally-deep paths: whole projects with their own layout (C/, dwm/, artgate/), one module-split tool (misc/tools/), prose trees (docs/), three one-off leaves, and five externally-dictated directory segments (systemd, hooks, workflows, patches, fixtures).",
+    "Added --warn to check_directory_depth.sh: reports violations and exits 0. The hook uses it because the 47 remaining paths cannot be fixed without the blocked extraction; enforcement turns on by deleting the flag.",
+    "Guarded the --all argument order: '--all --warn' previously ignored --warn silently and exited 1, which would have blocked every commit. It now errors with a note that options precede --all.",
+    "Added check_repo_size.sh, counting tracked files via git ls-files (never find - the tree holds ~30k untracked extraction leftovers), excluding third_party/, docs/superpowers/ and .hippo/. Ceiling 1200 against a current 1049; the count is always printed so the threshold is auditable from a CI log."
+  ],
+  "verification": [
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --all",
+      "result": "pass",
+      "evidence": "EXIT=1 with exactly 47 violations, all under periodic_background/{hosts,digital_wellbeing}. Confirms the arithmetic 104 = 57 structural + 42 digital_wellbeing + 5 hosts, and that no unintended path was swept up by the new exemptions."
+    },
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --warn --all",
+      "result": "pass",
+      "evidence": "EXIT=0. Also checked: single clean file EXIT=0; single over-cap file EXIT=1; --help EXIT=0; '--all --warn' now errors loudly instead of silently exiting 1."
+    },
+    {
+      "command": "./meta/scripts/check_repo_size.sh; ./meta/scripts/check_repo_size.sh --count",
+      "result": "pass",
+      "evidence": "'check_repo_size: 1049 source files (ceiling 1200)' EXIT=0; --count prints 1049 EXIT=0; unknown flag EXIT=1."
+    },
+    {
+      "command": "MAX_SOURCE_FILES=10 variant of check_repo_size.sh",
+      "result": "pass",
+      "evidence": "EXIT=1 with 'over the 10 ceiling' plus the extract-a-unit hint. Confirms the failure branch fires rather than being dead code."
+    },
+    {
+      "command": "pre-commit run directory-depth-cap --all-files; pre-commit run repo-size-cap --all-files",
+      "result": "pass",
+      "evidence": "Both report Passed through the real pre-commit harness, not just direct invocation."
+    },
+    {
+      "command": "pre-commit run --files meta/scripts/check_repo_size.sh meta/scripts/check_directory_depth.sh .pre-commit-config.yaml",
+      "result": "pass",
+      "evidence": "No hook failures; shfmt and shellcheck clean on both scripts."
+    }
+  ],
+  "risks": [
+    "The depth gate is warn-only, so it cannot yet block a NEW over-cap path. This is deliberate and reversible by deleting --warn from the hook entry once hosts and digital_wellbeing are extracted.",
+    "The prefix exemptions are broad by design (e.g. all of linux_configuration/docs/). A future deep code tree under an exempted prefix would go unpoliced; the exemptions are individually commented so each can be narrowed.",
+    "The 1200 ceiling leaves 151 files of headroom. Pruning docs/superpowers is tracked separately and would not change this count, since that tree is excluded from it."
+  ],
+  "rollback": [
+    "git revert the commit. Both gates are additive: the scripts are standalone and the hooks are new entries, so reverting restores the previous behaviour exactly.",
+    "After rollback, confirm 'pre-commit run --all-files' still passes and that no hook references the removed check_repo_size.sh."
+  ]
+}

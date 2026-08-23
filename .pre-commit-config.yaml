@@ -86,6 +86,27 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: directory-depth-cap
+        name: Report paths over the directory-depth cap
+        # Repo-wide, and deliberately --warn for now: 47 paths under
+        # periodic_background/{hosts,digital_wellbeing} are over the cap and
+        # can only come down by extracting those two units, which is blocked
+        # on a manual guard repoint. Running it warn-only keeps the number
+        # visible on every commit without blocking unrelated work. Drop
+        # --warn once both units are out; that is the last step of the
+        # extraction, not a separate decision.
+        entry: bash meta/scripts/check_directory_depth.sh --warn --all
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: repo-size-cap
+        name: Enforce the source-file ceiling
+        # Counts tracked files only, excluding vendored and hook-generated
+        # trees. Prints the count on every run so the ceiling is auditable.
+        entry: bash meta/scripts/check_repo_size.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: ci-baseline-green
         name: Refuse to build on a red CI baseline
         # Checks the last COMPLETED run of each required workflow on main.
