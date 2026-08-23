@@ -3,11 +3,15 @@
 Run from a systemd user timer. Configuration comes from the environment:
 
     ENDURAIN_URL        base URL (default http://127.0.0.1:8085)
-    ENDURAIN_API_KEY    API key with the activities:upload scope (required)
+    ENDURAIN_API_KEY    API key with activities:upload (required) and
+                        activities:read (optional; enables detection of
+                        runs RunnerUp uploaded to Endurain directly)
     ENDURAIN_INBOX      WebDAV inbox (default ~/cloud/RunnerUp)
     ENDURAIN_STATE      ledger directory (default ~/.local/state/endurain-import)
     ENDURAIN_BULK_DIR   bulk_import dir for files the server rejected
     ENDURAIN_NO_ADB     set to 1 to disable the phone fallback
+    ENDURAIN_ADB_SERIAL which phone to pull from when several are attached
+    ENDURAIN_USER_ID    Endurain user whose activities are checked (default 1)
 
 Exit status is 0 only when every file was accounted for; anything left in an
 ambiguous state exits non-zero so the timer surfaces it rather than logging
@@ -21,6 +25,7 @@ import os
 from pathlib import Path
 import shutil
 import sys
+from typing import TYPE_CHECKING
 
 import requests
 
@@ -28,17 +33,27 @@ from python_pkg.endurain_import.ledger import (
     Entry,
     Ledger,
     activity_key,
+    activity_start,
     file_digest,
     now_iso,
 )
 from python_pkg.endurain_import.sources import inbox_files, pull_from_phone
-from python_pkg.endurain_import.upload import EndurainClient, Outcome, SupportsUpload
+from python_pkg.endurain_import.upload import (
+    EndurainClient,
+    Outcome,
+    SupportsUpload,
+    already_present,
+)
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 _logger = logging.getLogger("endurain_import")
 
 _DEFAULT_URL = "http://127.0.0.1:8085"
 _DEFAULT_INBOX = Path.home() / "cloud" / "RunnerUp"
 _DEFAULT_STATE = Path.home() / ".local" / "state" / "endurain-import"
+_DEFAULT_USER_ID = 1
 
 
 def _configure_logging() -> None:
@@ -83,18 +98,40 @@ def _process(
     ledger: Ledger,
     processed_dir: Path,
     bulk_dir: Path | None,
+    remote_starts: list[datetime] | None = None,
 ) -> str:
     """Import one file. Returns one of: skipped, imported, rejected, ambiguous."""
     digest = file_digest(path)
     key = activity_key(path)
-    # Two independent dedupe checks. The digest catches the identical file
-    # arriving twice; the activity key catches the SAME RUN arriving as both
-    # .gpx and .tcx, whose bytes differ and which Endurain would otherwise
-    # import as two separate activities.
-    if digest in ledger or ledger.has_activity(key):
+    # Three dedupe checks, cheapest first. The digest catches the identical
+    # file arriving twice; the activity key catches the SAME RUN arriving as
+    # both .gpx and .tcx, whose bytes differ and which Endurain would
+    # otherwise import as two separate activities.
+    known_locally = digest in ledger or ledger.has_activity(key)
+    # The third check asks Endurain itself, which is the only way to see a run
+    # this importer never handled -- RunnerUp's own uploader writes straight to
+    # the server and leaves no trace in the ledger. ``remote_starts`` is None
+    # when that question could not be answered, and None must never be read as
+    # "nothing matches": the local checks then decide alone.
+    start = activity_start(path)
+    known_remotely = (
+        remote_starts is not None
+        and start is not None
+        and already_present(start, remote_starts)
+    )
+    if known_locally or known_remotely:
         processed_dir.mkdir(parents=True, exist_ok=True)
         shutil.move(str(path), str(processed_dir / path.name))
-        _logger.info("%s already imported; moved to processed/", path.name)
+        if known_remotely and not known_locally:
+            # Record it so the next run skips without needing the query again.
+            ledger.record(Entry(digest, key, path.name, None, now_iso()))
+            _logger.info(
+                "%s is already in Endurain (uploaded outside this importer); "
+                "moved to processed/",
+                path.name,
+            )
+        else:
+            _logger.info("%s already imported; moved to processed/", path.name)
         return "skipped"
 
     result = client.upload(path)
@@ -153,9 +190,21 @@ def main() -> int:
         _logger.info("nothing to import (ledger holds %d file(s))", len(ledger))
         return 0
 
+    # One query per run, not per file: the page is a snapshot of what Endurain
+    # already holds, and every file in this pass is compared against it.
+    user_id = int(os.environ.get("ENDURAIN_USER_ID", _DEFAULT_USER_ID))
+    remote_starts = client.recent_start_times(user_id)
+    if remote_starts is None:
+        _logger.warning(
+            "duplicate detection against Endurain is unavailable; falling "
+            "back to the local ledger only"
+        )
+
     counts = {"skipped": 0, "imported": 0, "rejected": 0, "ambiguous": 0}
     for path in pending:
-        counts[_process(path, client, ledger, processed_dir, bulk_dir)] += 1
+        counts[
+            _process(path, client, ledger, processed_dir, bulk_dir, remote_starts)
+        ] += 1
 
     _logger.info(
         "done: %(imported)d imported, %(skipped)d already known, "

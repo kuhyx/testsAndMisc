@@ -1,0 +1,22 @@
+{
+  "title": "Teach the endurain importer to skip runs already in Endurain, and pin the adb fallback to one device",
+  "objective": "RunnerUp can now upload to Endurain directly as well as via the WebDAV inbox, and the two paths cannot see each other: the same run lands twice (activities 14 and 15, identical start time, distances differing only by tcx/gpx rounding). Add a third dedupe check that asks Endurain what it already holds, and fix the adb fallback, which fails on every call the moment a second device is attached.",
+  "acceptance_criteria": [
+    "A run already present in Endurain is moved to processed/ without being uploaded again, even when the local ledger has never seen it.",
+    "A failed or unauthorised remote query returns None and falls back to the existing ledger dedupe. None is never read as 'no matching activity exists', because that would upload a duplicate on every transport hiccup.",
+    "Start times are compared with a tolerance: the file for activity 15 embeds 21:51:04Z while Endurain stored 21:51:05Z, so exact equality misses the very duplicate that motivated this work.",
+    "Export filenames are parsed as LOCAL wall-clock time; RunnerUp_2026-08-14-00-58-45_Running resolves to 2026-08-13 22:58:45 UTC, not 2026-08-14.",
+    "With several adb devices attached and no serial pinned, the phone fallback is skipped with a warning naming the attached serials and the env var, instead of failing every call with 'more than one device/emulator'.",
+    "ENDURAIN_ADB_SERIAL selects the device when set; a pinned serial that is not attached is refused rather than silently ignored.",
+    "Every adb invocation carries -s <serial>; no serial is hardcoded, since this repo is public.",
+    "The five package modules keep 100% branch coverage with no lint suppressions and no coverage exclusions.",
+    "The phone-side files are never written, moved or deleted: screen-locker reads the same directory as its unlock gate."
+  ],
+  "out_of_scope": [
+    "Deleting duplicates that already exist. This work prevents new ones; clearing the 14/15 collision needs session credentials and is the user's action.",
+    "Granting the API key the activities:read scope. Both existing keys hold activities:upload only, so the remote check is inert until that changes; the fail-closed path is what ships working today.",
+    "Changing the WebDAV inbox, the dufs config, or RunnerUp's own uploader.",
+    "Recording the returned activity_id in the ledger. It is null on every existing entry, which is cosmetic and unrelated."
+  ],
+  "verifier": ".venv/bin/python -m pytest python_pkg/endurain_import/tests/ -q (expects 85 passed), plus --cov=python_pkg.endurain_import showing 100% with zero missed branches on all five modules, plus .venv/bin/python -m ruff check python_pkg/endurain_import/, plus systemctl --user start endurain-import.service with two devices attached showing the named-serials warning rather than 'more than one device/emulator'."
+}

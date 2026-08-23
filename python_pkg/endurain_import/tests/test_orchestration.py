@@ -7,54 +7,13 @@ from pathlib import Path
 import pytest
 
 from python_pkg.endurain_import.__main__ import _route_rejected, main
+from python_pkg.endurain_import.tests.conftest import (
+    _env,
+    _file,
+    _patch_client,
+    _StubMainClient,
+)
 from python_pkg.endurain_import.upload import Outcome, Result
-
-
-@pytest.fixture
-def inbox(tmp_path: Path) -> Path:
-    path = tmp_path / "inbox"
-    path.mkdir()
-    return path
-
-
-def _file(inbox: Path, name: str = "RunnerUp_ts_Running.tcx") -> Path:
-    path = inbox / name
-    path.write_text("<xml/>")
-    return path
-
-
-class _StubMainClient:
-    """Stands in for EndurainClient across a whole main() run."""
-
-    def __init__(self, result: Result, *, reachable: bool = True) -> None:
-        self._result = result
-        self._reachable = reachable
-
-    def about(self) -> dict[str, object]:
-        if not self._reachable:
-            message = "connection refused"
-            raise OSError(message)
-        return {"version": "test"}
-
-    def upload(self, _path: Path) -> Result:
-        return self._result
-
-
-def _env(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, inbox: Path, **extra: str
-) -> None:
-    monkeypatch.setenv("ENDURAIN_API_KEY", "k")
-    monkeypatch.setenv("ENDURAIN_INBOX", str(inbox))
-    monkeypatch.setenv("ENDURAIN_STATE", str(tmp_path / "state"))
-    monkeypatch.setenv("ENDURAIN_NO_ADB", "1")
-    for key, value in extra.items():
-        monkeypatch.setenv(key, value)
-
-
-def _patch_client(monkeypatch: pytest.MonkeyPatch, client: _StubMainClient) -> None:
-    import python_pkg.endurain_import.__main__ as mod
-
-    monkeypatch.setattr(mod, "EndurainClient", lambda *_a, **_k: client)
 
 
 def test_main_returns_one_when_unreachable(

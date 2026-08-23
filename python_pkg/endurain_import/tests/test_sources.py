@@ -49,40 +49,42 @@ def test_inbox_is_ordered_oldest_first(tmp_path: Path) -> None:
     ]
 
 
-def test_phone_attached_parses_adb_devices(
+def test_attached_serials_parses_adb_devices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         sources,
         "_adb",
-        lambda _a: (True, "List of devices attached\nABC123\tdevice\n"),
+        lambda _a, _s=None: (True, "List of devices attached\nABC123\tdevice\n"),
     )
-    assert sources.phone_attached()
+    assert sources.attached_serials() == ["ABC123"]
 
 
-def test_phone_unauthorised_is_not_attached(
+def test_unauthorised_device_is_not_listed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         sources,
         "_adb",
-        lambda _a: (True, "List of devices attached\nABC123\tunauthorized\n"),
+        lambda _a, _s=None: (True, "List of devices attached\nABC123\tunauthorized\n"),
     )
-    assert not sources.phone_attached()
+    assert sources.attached_serials() == []
 
 
 def test_pull_skips_when_no_device(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(sources, "phone_attached", lambda: False)
+    monkeypatch.setattr(sources, "resolve_serial", lambda: None)
     assert sources.pull_from_phone(tmp_path) == []
 
 
 def test_pull_ignores_already_present_files(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(sources, "phone_attached", lambda: True)
-    monkeypatch.setattr(sources, "_adb", lambda _a: (True, "RunnerUp_ts_Running.tcx\n"))
+    monkeypatch.setattr(sources, "resolve_serial", lambda: "ABC123")
+    monkeypatch.setattr(
+        sources, "_adb", lambda _a, _s=None: (True, "RunnerUp_ts_Running.tcx\n")
+    )
     (tmp_path / "RunnerUp_ts_Running.tcx").write_text("already here")
     assert sources.pull_from_phone(tmp_path) == []
 
@@ -91,9 +93,9 @@ def test_failed_pull_leaves_no_partial_file(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """A half-transferred file must never look like a complete activity."""
-    monkeypatch.setattr(sources, "phone_attached", lambda: True)
+    monkeypatch.setattr(sources, "resolve_serial", lambda: "ABC123")
 
-    def _adb(args: list[str]) -> tuple[bool, str]:
+    def _adb(args: list[str], _serial: str | None = None) -> tuple[bool, str]:
         if args[0] == "shell":
             return True, "RunnerUp_ts_Running.tcx\n"
         return False, "pull failed"
@@ -137,27 +139,27 @@ def test_adb_returns_output_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert out == "out"
 
 
-def test_phone_attached_false_when_adb_fails(
+def test_no_serials_when_adb_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(sources, "_adb", lambda _a: (False, "boom"))
-    assert not sources.phone_attached()
+    monkeypatch.setattr(sources, "_adb", lambda _a, _s=None: (False, "boom"))
+    assert sources.attached_serials() == []
 
 
 def test_pull_reports_unlistable_directory(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(sources, "phone_attached", lambda: True)
-    monkeypatch.setattr(sources, "_adb", lambda _a: (False, "no such dir"))
+    monkeypatch.setattr(sources, "resolve_serial", lambda: "ABC123")
+    monkeypatch.setattr(sources, "_adb", lambda _a, _s=None: (False, "no such dir"))
     assert sources.pull_from_phone(tmp_path) == []
 
 
 def test_successful_pull_moves_into_place(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(sources, "phone_attached", lambda: True)
+    monkeypatch.setattr(sources, "resolve_serial", lambda: "ABC123")
 
-    def _adb(args: list[str]) -> tuple[bool, str]:
+    def _adb(args: list[str], _serial: str | None = None) -> tuple[bool, str]:
         if args[0] == "shell":
             return True, "RunnerUp_ts_Running.tcx\nnotes.txt\n"
         Path(args[2]).write_text("pulled")

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 _CHUNK = 1 << 20
 # "RunnerUp", <timestamp>, <sport> -- the minimum for a parseable export name.
 _MIN_NAME_PARTS = 3
+# <yyyy>-<mm>-<dd>-<HH>-<MM>-<SS> once split on "-".
+_STAMP_FIELDS = 6
 
 
 class LedgerCorruptError(RuntimeError):
@@ -46,6 +48,37 @@ def activity_key(path: Path) -> str:
         # Keep the trailing <timestamp>_<sport>; drop any model in between.
         return f"RunnerUp_{parts[-2]}_{parts[-1]}"
     return stem
+
+
+def activity_start(path: Path) -> datetime | None:
+    """Parse the run's start time out of a RunnerUp export filename.
+
+    RunnerUp names exports with LOCAL wall-clock time
+    (RunnerUp_2026-08-14-00-58-45_Running is 00:58 local, 22:58 UTC the day
+    before), so the value is interpreted in the local zone and returned as
+    UTC. Reading it as UTC directly would shift a late-evening run onto the
+    wrong day and defeat the comparison it feeds.
+    """
+    key = activity_key(path)
+    parts = key.split("_")
+    if len(parts) < _MIN_NAME_PARTS:
+        return None
+    fields = parts[-2].split("-")
+    if len(fields) != _STAMP_FIELDS:
+        return None
+    try:
+        naive = datetime(
+            int(fields[0]),
+            int(fields[1]),
+            int(fields[2]),
+            int(fields[3]),
+            int(fields[4]),
+            int(fields[5]),
+            tzinfo=datetime.now().astimezone().tzinfo,
+        )
+    except ValueError:
+        return None
+    return naive.astimezone(timezone.utc)
 
 
 def file_digest(path: Path) -> str:

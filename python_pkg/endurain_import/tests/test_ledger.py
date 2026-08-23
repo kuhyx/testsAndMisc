@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 
 import pytest
 
+from python_pkg.endurain_import import ledger
 from python_pkg.endurain_import.ledger import (
     Entry,
     Ledger,
@@ -93,3 +95,40 @@ def test_non_dict_ledger_is_ignored(tmp_path: Path) -> None:
     path = tmp_path / "l.json"
     path.write_text("[]")
     assert len(Ledger(path)) == 0
+
+
+def test_activity_start_reads_local_wall_time() -> None:
+    """RunnerUp names exports in local time, so 00:58 is the previous day UTC."""
+    parsed = ledger.activity_start(Path("RunnerUp_2026-08-14-00-58-45_Running.tcx"))
+    assert parsed is not None
+    assert parsed.tzinfo is not None
+    expected = datetime(
+        2026, 8, 14, 0, 58, 45, tzinfo=datetime.now().astimezone().tzinfo
+    ).astimezone(timezone.utc)
+    assert parsed == expected
+
+
+def test_activity_start_ignores_the_device_model() -> None:
+    plain = ledger.activity_start(Path("RunnerUp_2026-08-22-23-51-04_Running.tcx"))
+    with_model = ledger.activity_start(
+        Path("RunnerUp_Pixel_6a_2026-08-22-23-51-04_Running.gpx")
+    )
+    assert plain == with_model
+
+
+def test_activity_start_of_an_unparseable_name_is_none() -> None:
+    assert ledger.activity_start(Path("whatever.tcx")) is None
+
+
+def test_activity_start_rejects_a_non_timestamp() -> None:
+    assert ledger.activity_start(Path("RunnerUp_notatimestamp_Running.tcx")) is None
+
+
+def test_activity_start_rejects_an_impossible_date() -> None:
+    assert (
+        ledger.activity_start(Path("RunnerUp_2026-13-45-99-99-99_Running.tcx")) is None
+    )
+
+
+def test_activity_start_rejects_wrong_field_count() -> None:
+    assert ledger.activity_start(Path("RunnerUp_2026-08-22_Running.tcx")) is None
