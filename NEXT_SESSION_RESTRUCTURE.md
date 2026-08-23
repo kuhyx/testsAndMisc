@@ -68,7 +68,7 @@ green; nothing used `--no-verify`.
 6. **Recommended against**, with numbers. The estimate was right (~3,600 lines
    across 22 files — a filename grep finds only 400 of them), but the two
    `nc_*` (1212 lines) and `rpi_nc_*` (1171 lines) lib families are parallel
-   *evolutions*, not copies: all four shared function names differ in body,
+   _evolutions_, not copies: all four shared function names differ in body,
    not just comments. Only 3 of 15 libs have tests, and the target is a remote
    Raspberry Pi that cannot be tested against from here. Merging is a
    regression risk out of proportion to an optional cleanup.
