@@ -1,3 +1,57 @@
+# STATUS 2026-08-23 (later session): jobs 1 and 2 are DONE
+
+> Read this box before anything below it. The rest of this file is the
+> ORIGINAL handoff, kept because its kcov/jail notes are still the reference
+> for measuring a lib on purpose. Its SCOPE is now obsolete.
+
+**Job 1 — the push gate — DONE (commit 8ab15446).** ~130s to:
+docs-only 7.6s, python 25.3s, one shell suite 43.6s, unchanged-tree re-push
+0.005s. The guarantee is intact; a broken python assertion and a broken shell
+assertion were each refused with exit 1.
+
+Found while measuring it: `ci_mirror.sh` called `pytest_changed_packages.py`
+with no arguments, and that script returns 0 on empty argv. **The pre-push
+python stage had never run a single test.** Behind it sat a real failing test
+(fixed in ff3ea99a).
+
+**Job 2 — the 100% shell bar — DELIBERATELY DROPPED (commit 578c4a6c).**
+The user's call on 2026-08-23, after being shown the real cost. The bar had
+been raised from a presence check only the day before (bca70b67), and pricing
+it out honestly: one hand-written test file per lib (fixes/lib took 34 files
+for 22 libs), a serial jail at 37-90s a pass, and a production seam needed in
+most libs before they are testable at all — several days for a repo of
+personal automation scripts. `is_covered` is a presence check again.
+
+**The ratchet is now WIRED into pre-commit (commit 46c8f065)** — it never was
+before, which is why it rotted. 0 BLOCK entries, 0.16s repo-wide. The three
+`meta/scripts/lib` coverage-tooling libs got a 48-assertion suite so they stop
+blocking it.
+
+**Python needs nothing:** 2101 tests, 100.00%, zero missing statements or
+branches, measured in a clean worktree. **File-length cap needs nothing:** 0
+violations, hook-enforced.
+
+**What is left, if anyone wants it:** 8 directories still have no suite at all
+(`.githooks/lib`, `scripts/meta/lib`, `mtk_root/lib`, `digital_wellbeing/{pacman,
+virtualbox}/lib`, `system-maintenance/bin/lib`, `single_use/{fresh-install,}/lib`)
+— 20 libs, ~1,980 lines. All are allowlisted, so nothing is blocked. This is
+optional work now, not a campaign.
+
+**Traps worth carrying forward, beyond the list below:**
+
+- **Never `git reset --hard` to undo a probe commit.** It discards UNSTAGED
+  working-tree edits. That cost a full rewrite of `ci_mirror.sh` this session.
+  Recovery: pre-commit stashes unstaged files to `~/.cache/pre-commit/patch*`;
+  `git apply` on the newest one restored it exactly. Use
+  `git revert --no-commit <sha>`.
+- **Read the predicate, not the header comment.** `check_shell_coverage.sh`'s
+  header still described a presence gate for a full day after the gate became
+  a 100% bar. Acting on the prose produced a confidently wrong scope estimate.
+- A sourced-only lib takes `# shellcheck shell=bash`, no shebang, no exec bit,
+  or `check-shebang-scripts-are-executable` fails the commit.
+
+---
+
 # Next session: make the push gate fast, then close the coverage holes
 
 > **Paste this whole file into a fresh Claude session opened in `~/testsAndMisc`.**
