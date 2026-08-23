@@ -12,10 +12,27 @@
 # $HOME is /root. Resolve the invoking user's home instead, the same way
 # check_and_enable_services.sh already does for screen-locker.
 
-# Absolute path to the invoking (non-root) user's home directory.
+# Absolute path to the human user's home directory -- the extracted repos are
+# cloned there, never into /root.
+#
+# Three cases, and all three happen in practice:
+#   1. run directly by the user      -> $USER
+#   2. run via sudo                  -> SUDO_USER ($HOME is /root here)
+#   3. run by systemd as root        -> NEITHER is set and `id -un` is "root".
+#      Falling back to root's home yields /root/<repo>, which never exists.
+#      dns-blocklist-refresh.service hit exactly this and died with
+#      "Feed generator not found: /root/hosts-blocker/...".
+#
+# For case 3 fall back to REPO_OWNER_USER, which defaults to the owner of this
+# very file -- the checkout the caller is running from is itself the best
+# evidence of whose home the sibling repos are in.
 extracted_repo_home() {
 	local real_user real_home
 	real_user="${SUDO_USER:-${USER:-$(id -un)}}"
+	if [[ $real_user == "root" ]]; then
+		real_user="${REPO_OWNER_USER:-$(stat -c %U "${BASH_SOURCE[0]}" 2>/dev/null)}"
+		[[ -n $real_user && $real_user != "root" ]] || real_user="root"
+	fi
 	real_home="$(getent passwd "$real_user" 2>/dev/null | cut -d: -f6)"
 	[[ -n $real_home ]] || real_home="/home/$real_user"
 	printf '%s' "$real_home"

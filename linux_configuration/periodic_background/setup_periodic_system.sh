@@ -34,8 +34,14 @@ echo "Pacman wrapper script: $PACMAN_WRAPPER_SCRIPT"
 echo "Pacman wrapper installer: $PACMAN_WRAPPER_INSTALL"
 echo "Hosts install script: $HOSTS_INSTALL_SCRIPT"
 
-# Templates directory (version-controlled files)
-TEMPLATES_BASE="$CONFIG_DIR/periodic_background/system-maintenance"
+# Templates directory (version-controlled files).
+# system-maintenance was EXTRACTED out of this monorepo
+# (github.com/kuhyx/system-maintenance). This path pointed at the old in-repo
+# location until 2026-08-23, by which time the directory held nothing but
+# untracked build residue -- so every `install -m 0644 "$TEMPLATE_..."` here
+# was reading a file that did not exist. Same failure class as the stale
+# hosts path below: a repair tool silently unable to repair.
+TEMPLATES_BASE="$(require_extracted_repo system-maintenance "the periodic system setup")" || exit 1
 BIN_TEMPLATES="$TEMPLATES_BASE/bin"
 SYSTEMD_TEMPLATES="$TEMPLATES_BASE/systemd"
 LOGROTATE_TEMPLATES="$TEMPLATES_BASE/logrotate"

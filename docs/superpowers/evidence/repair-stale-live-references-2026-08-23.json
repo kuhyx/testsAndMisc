@@ -1,0 +1,78 @@
+{
+  "intent": "Repair the live self-repair mechanisms that the earlier flatten and extractions silently broke: hosts-file-monitor could not restore /etc/hosts, dns-blocklist-refresh.service pointed at a deleted path, media-organizer.service likewise, setup_periodic_system.sh read templates from a directory holding only build residue, and a sudoers drop-in granted NOPASSWD on a nonexistent file.",
+  "scope": [
+    "linux_configuration/lib/extracted_repos.sh — handle invocation as root with no SUDO_USER",
+    "linux_configuration/periodic_background/setup_periodic_system.sh — resolve templates from the extracted system-maintenance repo",
+    "LIVE (not in repo): /usr/local/bin/hosts-file-monitor.sh, /usr/local/bin/periodic-system-maintenance.sh, /etc/sudoers.d/hosts-install-no-passwd, /etc/systemd/system/dns-blocklist-refresh.service, /etc/systemd/system/media-organizer.service",
+    "NON-GOAL: the 2 remaining stale references, which name digital_wellbeing paths and can only be fixed once that unit is extracted"
+  ],
+  "changes": [
+    "extracted_repo_home() previously resolved SUDO_USER, then USER, then `id -un`. Under systemd all three yield root, so it returned /root/<repo>, which never exists. It now detects the root case and falls back to REPO_OWNER_USER, defaulting to the owner of the lib file itself -- the checkout the caller is running from is the best available evidence of whose home the sibling repos live in.",
+    "setup_periodic_system.sh read its ten templates from $CONFIG_DIR/periodic_background/system-maintenance, which since the system-maintenance extraction has contained nothing but untracked .pyc/.coverage residue. Every `install -m 0644 \"$TEMPLATE_...\"` was reading a nonexistent file. Now resolved via require_extracted_repo system-maintenance.",
+    "Rewrote the embedded HOSTS_INSTALL_SCRIPT path in the two installed copies under /usr/local/bin, backed up to /var/tmp/*.pre-extract first.",
+    "Rewrote the sudoers drop-in to name the new installer path, validated with `visudo -cf` on a temp file BEFORE installing, then re-validated the whole tree.",
+    "Rewrote the two systemd units off the pre-flatten linux_configuration/scripts/single_use/ prefix, via validated temp files rather than in-place sed."
+  ],
+  "verification": [
+    {
+      "command": "sudo grep -c 'not found at' /var/log/hosts-file-monitor.log",
+      "result": "pass",
+      "evidence": "37 logged failures to restore /etc/hosts before the fix -- the monitor was active the whole time and could not run its installer."
+    },
+    {
+      "command": "sudo systemctl start dns-blocklist-refresh.service (BEFORE the resolver fix)",
+      "result": "fail",
+      "evidence": "[ERROR] Feed generator not found: /root/hosts-blocker/generate_hosts_file.sh -- the systemd-as-root case. Static path checks did not catch this; only running the unit did."
+    },
+    {
+      "command": "sudo systemctl start dns-blocklist-refresh.service (AFTER the resolver fix)",
+      "result": "pass",
+      "evidence": "[ OK ] Feed refreshed and dnsmasq reloaded (189038 lines). Finished Rebuild the LAN DNS blocklist and reload dnsmasq."
+    },
+    {
+      "command": "resolver across all four invocation modes",
+      "result": "pass",
+      "evidence": "as user -> /home/kuhy/hosts-blocker; via sudo -> same; as root with SUDO_USER/USER unset -> same; HOSTS_BLOCKER_DIR=/opt/hb -> /opt/hb (override still wins)."
+    },
+    {
+      "command": "sudo visudo -c",
+      "result": "pass",
+      "evidence": "hosts-install-no-passwd: parsed OK, and every other drop-in still parses. Validated on a temp file before install, so a malformed file could never reach /etc/sudoers.d."
+    },
+    {
+      "command": "systemctl is-active hosts-file-monitor.service after restart",
+      "result": "pass",
+      "evidence": "active; log shows '=== Hosts File Monitor Started ===' and 'Using inotify for file monitoring' with the corrected installer path present on disk."
+    },
+    {
+      "command": "lsattr /etc/hosts; guardctl file-guard status hosts; wc -l /etc/hosts",
+      "result": "pass",
+      "evidence": "----i---------e------- (still immutable), bind_mount: yes, 176888 lines -- the live blocker was never disturbed."
+    },
+    {
+      "command": "getent ahostsv4 doubleclick.net",
+      "result": "pass",
+      "evidence": "0.0.0.0 -- blocking works through the extracted repo. (The IPv6 lookup returns a real address, which is pre-existing: the StevenBlack feed lists IPv4 entries only. Not introduced here.)"
+    },
+    {
+      "command": "diff live-state-before.txt live-state-after2.txt",
+      "result": "pass",
+      "evidence": "Removals only: 8 stale references down to 4, then to 2 after the systemd units. None added. The 2 that remain are digital_wellbeing paths."
+    },
+    {
+      "command": "shellcheck on both changed files",
+      "result": "pass",
+      "evidence": "clean, no severity filter."
+    }
+  ],
+  "risks": [
+    "extracted_repo_home() now infers the owning user from the lib file's owner when running as bare root. On a machine where the checkout is owned by root this returns /root/<repo> as before -- no worse than the previous behaviour, and REPO_OWNER_USER overrides it.",
+    "The two /usr/local/bin copies were patched in place rather than regenerated by setup_periodic_system.sh. Re-running that installer is the durable fix and it now resolves its templates correctly; it was not run here because it writes systemd units and sudoers on the live host (sandbox-first).",
+    "2 stale references remain, both naming digital_wellbeing paths in /usr/local/bin/periodic-system-maintenance.sh. They stay broken until that unit is extracted."
+  ],
+  "rollback": [
+    "Repo: git revert this commit.",
+    "Live artifacts: restore /var/tmp/hosts-file-monitor.sh.pre-extract, /var/tmp/periodic-system-maintenance.sh.pre-extract, /var/tmp/hosts-install-no-passwd.pre-extract, /var/tmp/dns-blocklist-refresh.service.pre-fix and /var/tmp/media-organizer.service.pre-fix to their original locations, then systemctl daemon-reload.",
+    "After rollback validate: sudo visudo -c parses clean, and note that dns-blocklist-refresh.service will fail again on its next 00:01 run."
+  ]
+}
