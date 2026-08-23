@@ -1,0 +1,21 @@
+{
+  "title": "Scope the pre-push CI mirror to the push range, and make its pytest stage actually run",
+  "objective": "Take `git push` from ~130s to seconds by checking what the push changed rather than the whole tree, while repairing the python test stage, which returned success without executing a single test.",
+  "acceptance_criteria": [
+    "ci_mirror.sh passes the changed paths to pytest_changed_packages.py, so the stage runs the suite instead of short-circuiting on empty argv.",
+    "A push whose range contains a failing python test is refused with exit 1.",
+    "A push whose range touches a lib/tests suite with a failing assertion is refused with exit 1, and the suite fails bare first so the gate is not the only evidence.",
+    "The green-tree cache is NOT written when the gate fails, so a red run cannot poison the short-circuit.",
+    "An unknown range, or a change to .pre-commit-config.yaml / meta/scripts/ / requirements.txt / .githooks/, forces a full --all-files sweep.",
+    "A change under scripts/lib/ or to a suite's lib_test_core.sh / lib_test_path.sh selects every lib/tests suite, not just the enclosing one.",
+    "Repo-wide hooks (file-length-cap --all, no-binaries, check-python-location) still run on every push.",
+    "No test is weakened or deleted, no --no-verify is added to any script, and pre-commit's own 4.8s commit-stage run is untouched.",
+    "All three scripts are shellcheck-clean, shfmt-clean and within the 250-line cap."
+  ],
+  "out_of_scope": [
+    "Moving ci-mirror off pre-push (option 4 in the handoff): the user chose to keep the guarantee that a red push cannot reach GitHub.",
+    "Changing the coverage bar or the jail instrument.",
+    "Touching the pre-commit hook stage, already measured at 4.8s."
+  ],
+  "verifier": "With PRE_COMMIT_FROM_REF/PRE_COMMIT_TO_REF pinned to a probe commit: `bash meta/scripts/ci_mirror.sh` exits 0 on a green range and 1 on a range containing a deliberately broken python assertion or shell assertion; `time` on a docs-only, python and shell range reports 7.6s / 25.3s / 43.6s against a ~130s baseline; `shellcheck -x`, `shfmt -l` and `check_file_length.sh --all` are clean."
+}

@@ -1,0 +1,47 @@
+{
+  "intent": "Cut the pre-push gate from ~130s to seconds by checking the push range instead of the whole tree, and make the pytest stage actually run -- it had been silently executing zero tests on every push.",
+  "scope": [
+    "meta/scripts/ci_mirror.sh",
+    "meta/scripts/ci_mirror_range.sh (new)",
+    "meta/scripts/ci_mirror_shell.sh (new, split for the 250-line cap)",
+    "Non-goal: weakening any check. The guarantee that a red push cannot reach GitHub is preserved."
+  ],
+  "changes": [
+    "FIX: ci_mirror.sh invoked pytest_changed_packages.py with no arguments; that script returns 0 on empty argv, so the pre-push python stage ran zero tests and reported success. It is now passed the changed paths and genuinely runs.",
+    "Scope pre-commit to the push range via PRE_COMMIT_FROM_REF/PRE_COMMIT_TO_REF, which the pre-push hook already resolves from the refs git supplies. Repo-wide hooks (file-length-cap --all, no-binaries, check-python-location) are always_run in the config and still sweep the tree.",
+    "Force a full sweep when the range is unknown or when the gate's own machinery changed (.pre-commit-config.yaml, meta/scripts/, requirements.txt, .githooks/).",
+    "Run only the lib/tests suites whose tree the push touched; a change under scripts/lib/ or a suite's lib_test_core.sh/lib_test_path.sh fans out to all suites.",
+    "Run pre-commit and pytest concurrently; keep the shell/jail gate serial to avoid the CPU-contention false failures documented in the handoff.",
+    "Short-circuit on a tree hash matching the last green run, recorded in .ci-mirror-venv/ (already gitignored, so invisible to git status and jail fingerprints)."
+  ],
+  "verification": [
+    {
+      "command": "PRE_COMMIT_FROM_REF/TO_REF set; time bash meta/scripts/ci_mirror.sh",
+      "result": "pass",
+      "evidence": "docs-only push 7.6s; python push 25.3s (now including a 22s pytest stage that never previously ran); single shell suite 43.6s; all-suites widening 52s; unchanged-tree re-push 0.005s. Baseline was ~130s."
+    },
+    {
+      "command": "Deliberately broke a python assertion, committed, ran the gate",
+      "result": "pass",
+      "evidence": "Gate exit 1, reported the failing test, and did NOT write the green-tree cache. Reverted."
+    },
+    {
+      "command": "Deliberately broke _t_eq in utils/lib/tests/test_study_doc_lookup.sh at a pinned range",
+      "result": "pass",
+      "evidence": "Suite failed bare (exit 1) first; gate then exit 1 with 'lib/tests suite failed: .../utils/lib/tests/run_all.sh'. Reverted."
+    },
+    {
+      "command": "shellcheck -x and shfmt -l on all three scripts; check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "shellcheck clean, shfmt clean, all files within the 250-line cap (232/78/119)."
+    }
+  ],
+  "risks": [
+    "Scoping means a hook no longer re-checks files outside the push range. Mitigated by the gate-widening rule and by keeping repo-wide hooks always_run.",
+    "The green-tree cache could mask a gate change; mitigated because the cache key is the whole-repo tree hash, so any gate edit invalidates it."
+  ],
+  "rollback": [
+    "git revert the commit; ci_mirror.sh returns to --all-files on every push (~130s) and the pytest stage returns to silently running nothing.",
+    "Delete .ci-mirror-venv/.last-green-tree if a stale cache is ever suspected."
+  ]
+}

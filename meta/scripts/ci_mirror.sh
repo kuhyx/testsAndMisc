@@ -16,7 +16,17 @@
 #     the clean venv's python routes coverage through the venv.
 #
 # Wired as the pre-push hook; a red result blocks the push before CI sees it.
-# Escape hatch: `git push --no-verify`.
+#
+# SCOPE (2026-08-23): this gate used to run `--all-files` plus every shell
+# suite on every push, costing ~130s. It now checks the PUSH RANGE:
+#   * pre-commit runs over the pushed files, not the whole tree. Repo-wide
+#     hooks are `always_run`/`--all` in the config and still sweep everything.
+#   * only the lib/tests suites whose tree the push touched are run.
+#   * pytest runs only when the push touches Python -- but then runs the WHOLE
+#     suite, because the coverage bar is whole-repo.
+#   * a tree hash identical to the last green run short-circuits the lot.
+# Any change to the gate's own machinery or to .pre-commit-config.yaml forces
+# a full sweep, so a new rule cannot land while only checking its own diff.
 # ============================================================================
 
 set -euo pipefail
@@ -27,6 +37,16 @@ readonly REQUIREMENTS_FILE
 ROOT="$(git rev-parse --show-toplevel)"
 readonly ROOT
 cd "$ROOT"
+
+# shellcheck source=meta/scripts/ci_mirror_range.sh
+source "$ROOT/meta/scripts/ci_mirror_range.sh"
+# shellcheck source=meta/scripts/ci_mirror_shell.sh
+source "$ROOT/meta/scripts/ci_mirror_shell.sh"
+
+# Records the tree hash of the last fully-green run; see tree_cache_*.
+readonly GREEN_CACHE="$ROOT/.ci-mirror-venv/.last-green-tree"
+
+LOGDIR=""
 
 readonly VENV_DIR="$ROOT/.ci-mirror-venv"
 readonly HASH_FILE="$VENV_DIR/.requirements.sha256"
@@ -75,6 +95,9 @@ ensure_venv() {
 CHECKOUT=""
 
 cleanup_checkout() {
+	if [[ -n "$LOGDIR" && -d "$LOGDIR" ]]; then
+		rm -rf "$LOGDIR"
+	fi
 	if [[ -n "$CHECKOUT" && -d "$CHECKOUT" ]]; then
 		git -C "$ROOT" worktree remove --force "$CHECKOUT" >/dev/null 2>&1 || true
 		rm -rf "$CHECKOUT"
@@ -103,115 +126,106 @@ run_gates_in_clean_worktree() {
 	git -C "$ROOT" worktree add --detach --quiet "$CHECKOUT" HEAD ||
 		fail "could not create the clean worktree"
 
+	local paths
+	paths="$(changed_paths)"
+
+	local scope_args=(--all-files)
+	if ! needs_full_sweep "$paths"; then
+		scope_args=(--from-ref "$PRE_COMMIT_FROM_REF" --to-ref "$PRE_COMMIT_TO_REF")
+		log "scoped to the push range ($(grep -c . <<<"$paths") file(s) changed)"
+	else
+		log "full sweep (no push range, or the gate's own config changed)"
+	fi
+
+	# The three stages are independent, so they run concurrently and the gate
+	# costs the slowest rather than the sum. Output goes to per-stage files and
+	# is replayed on failure: interleaved live output from three stages is
+	# unreadable, and the diagnosis is what makes a red gate actionable.
+	local logdir
+	logdir="$(mktemp -d -t ci-mirror-logs-XXXXXX)"
+	LOGDIR="$logdir"
+
 	# Skip pytest-coverage here: it is a pre-commit-stage hook that would run
 	# in the system env (not our clean venv) and duplicate the pytest run below.
-	log "pre-commit run --all-files (mirrors the pre-commit workflow)"
-	(cd "$CHECKOUT" && SKIP=pytest-coverage pre-commit run --all-files) ||
-		fail "pre-commit --all-files"
+	log "pre-commit (mirrors the pre-commit workflow)"
+	(cd "$CHECKOUT" && SKIP=pytest-coverage pre-commit run "${scope_args[@]}") \
+		>"$logdir/precommit.log" 2>&1 &
+	local pc_pid=$!
 
-	log "changed-packages pytest in the clean venv (OOM-safe runner)"
-	(cd "$CHECKOUT" && "$VENV_DIR/bin/python" meta/scripts/pytest_changed_packages.py) ||
+	run_python_gate "$paths" >"$logdir/pytest.log" 2>&1 &
+	local py_pid=$!
+
+	# The shell gate is NOT backgrounded alongside the others when it contains a
+	# jailed suite: two coverage jails, or a jail racing a busy CPU, produce
+	# false failures (measured repeatedly). It runs after the parallel pair.
+	local pc_rc=0 py_rc=0
+	wait "$pc_pid" || pc_rc=$?
+	wait "$py_pid" || py_rc=$?
+
+	if ((pc_rc != 0)); then
+		cat "$logdir/precommit.log" >&2
+		fail "pre-commit (scoped run)"
+	fi
+	if ((py_rc != 0)); then
+		cat "$logdir/pytest.log" >&2
 		fail "pytest_changed_packages (clean requirements.txt venv)"
+	fi
 
-	run_shell_test_gate
+	run_shell_test_gate "$paths"
 }
 
-# Mirror the shell-tests workflow's side-effect-free half.
+# Run the whole python suite, but only when the push touches Python.
 #
-# Without this, ci-mirror covered the pre-commit and python-tests workflows but
-# not Shell tests, so a shell change could pass every local gate and still go
-# red on push — which is exactly what happened repeatedly during the
-# 250-line-cap campaign: three separate test files asserted on code that a
-# split had moved, and each was only caught after the push.
-#
-# The Arch-container half of that workflow is deliberately NOT mirrored: it
-# needs an Arch userland running as root to touch /etc, which is what the
-# disposable container provides and a developer machine must not.
-# A suite that writes to real system paths declares it with a `jail_args` file
-# beside its run_all.sh, holding the --bind/--seed-* flags it needs. Such a
-# suite REFUSES to run bare -- that guard is what stops a test run from
-# rewriting the developer's own /etc -- so invoking it directly fails the gate.
-#
-# Fails closed: a marker present but empty is a mistake, not a licence to skip.
-run_jailed_suite() {
-	local runner="$1"
-	local args_file="$CHECKOUT/${runner%/run_all.sh}/jail_args"
-
-	local jail_args=()
-	while IFS= read -r arg; do
-		jail_args+=("$arg")
-	done < <(grep -v '^#\|^$' "$args_file" || true)
-
-	if [[ ${#jail_args[@]} -eq 0 ]]; then
-		fail "jail_args is present but empty: $args_file"
+# NOTE: pytest_changed_packages.py returns 0 immediately when given no
+# arguments (it is normally a pre-commit hook fed staged paths). Invoking it
+# bare -- as this gate did until 2026-08-23 -- therefore ran ZERO tests and
+# reported success on every push. The changed paths are passed explicitly so
+# the stage actually executes.
+run_python_gate() {
+	local paths="$1"
+	if ! touches_python "$paths" && ! needs_full_sweep "$paths"; then
+		log "no Python in the push range — skipping pytest"
+		return 0
 	fi
-
-	# --min 0: this gate asks "did the assertions pass?", not "is the lib at
-	# 100%?". Without it the jail measures the runner itself against its
-	# default --min 100 and fails the push on a number no one asked for.
-	# The coverage bar is check_shell_coverage.sh's job, per-lib and --measure'd.
-	# Output is captured, not discarded: on success it is noise, but on failure
-	# it holds the `warn: case exited` line and the suite's own FAIL: lines.
-	# Without this the gate reports only "suite failed" and cannot be diagnosed.
-	local out
-	if ! out="$(cd "$CHECKOUT" && bash meta/scripts/shell_coverage_jail.sh \
-		--subject "$runner" "${jail_args[@]}" \
-		--min 0 --fail-on-case-error -- "" 2>&1)"; then
-		printf '%s\n' "$out" >&2
-		fail "jailed lib/tests suite failed: $runner"
-	fi
+	log "whole python_pkg suite in the clean venv (OOM-safe runner)"
+	local args=()
+	while IFS= read -r f; do
+		[[ -n "$f" ]] && args+=("$f")
+	done <<<"$paths"
+	# A full sweep has no range; hand it a sentinel so the runner does not
+	# short-circuit on empty argv.
+	((${#args[@]} == 0)) && args=(--all)
+	(cd "$CHECKOUT" && "$VENV_DIR/bin/python" meta/scripts/pytest_changed_packages.py "${args[@]}")
 }
 
-run_shell_test_gate() {
-	log "lib/tests suites (mirrors the shell-tests workflow)"
-	local runners=()
-	while IFS= read -r runner; do
-		runners+=("$runner")
-	done < <(cd "$CHECKOUT" && find . -path ./node_modules -prune -o \
-		-path '*/lib/tests/run_all.sh' -print | sort)
+# Short-circuit a re-push of a tree that already passed.
+#
+# Keyed on the whole-repo tree hash of HEAD, so it self-invalidates when
+# anything in the tree changes -- including the gate's own scripts. A rebase
+# that lands the identical tree, or a retried push after a network failure,
+# then costs nothing. The record lives inside .ci-mirror-venv/ (already
+# gitignored) so it never shows up in `git status` or a jail fingerprint.
+tree_is_known_green() {
+	local head_tree stored
+	head_tree="$(git -C "$ROOT" rev-parse 'HEAD^{tree}')"
+	[[ -f "$GREEN_CACHE" ]] || return 1
+	stored="$(cat "$GREEN_CACHE")"
+	[[ "$head_tree" == "$stored" ]]
+}
 
-	if [[ ${#runners[@]} -eq 0 ]]; then
-		fail "no lib/tests/run_all.sh found — the discovery glob is wrong"
-	fi
-
-	local runner
-	for runner in "${runners[@]}"; do
-		if [[ -f "$CHECKOUT/${runner%/run_all.sh}/jail_args" ]]; then
-			run_jailed_suite "$runner"
-		else
-			(cd "$CHECKOUT" && "$runner" >/dev/null) ||
-				fail "lib/tests suite failed: $runner"
-		fi
-	done
-
-	log "side-effect-free shell tests (mirrors the shell-tests workflow)"
-	# Parsed OUT of the workflow rather than duplicated here. A hardcoded copy
-	# drifts the moment someone adds a test to the workflow, and a mirror that
-	# silently checks less than CI is worse than no mirror: it reports safe.
-	# The awk range is the shell-tests job's `tests=( ... )` array, taking the
-	# first one only — the second belongs to the Arch container job, which is
-	# deliberately not mirrored.
-	local shell_tests=()
-	while IFS= read -r shell_test; do
-		shell_tests+=("$shell_test")
-	done < <(awk '/^ *tests=\(/{n++} n==1 && /^ *test_.*\.sh *$/{gsub(/ /,"");print} n==1 && /^ *\)/{exit}' \
-		"$CHECKOUT/.github/workflows/shell-tests.yml")
-
-	if [[ ${#shell_tests[@]} -eq 0 ]]; then
-		fail "could not parse the test list out of shell-tests.yml"
-	fi
-
-	local shell_test
-	for shell_test in "${shell_tests[@]}"; do
-		(cd "$CHECKOUT" && bash "linux_configuration/tests/$shell_test" >/dev/null 2>&1) ||
-			fail "shell test failed: $shell_test"
-	done
+record_tree_green() {
+	git -C "$ROOT" rev-parse 'HEAD^{tree}' >"$GREEN_CACHE" 2>/dev/null || true
 }
 
 main() {
 	require_file
+	if tree_is_known_green; then
+		log "this exact tree already passed the full gate — nothing to redo"
+		exit 0
+	fi
 	ensure_venv
 	run_gates_in_clean_worktree
+	record_tree_green
 	log "all CI gates passed locally — safe to push"
 }
 
