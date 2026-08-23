@@ -1,0 +1,43 @@
+{
+  "intent": "Stop enforcing a measured 100% line-coverage bar on shell libraries, which priced the remaining work at several days, and return the ratchet to the presence check it was before 2026-08-22.",
+  "scope": [
+    "meta/scripts/lib/shell_coverage_bar.sh",
+    "Non-goal: deleting shell_coverage_jail.sh, which is still used deliberately and by ci_mirror.sh",
+    "Non-goal: changing python_pkg's 100% branch-coverage bar, which is already met"
+  ],
+  "changes": [
+    "is_covered() is once again 'the lib's directory has a tests/run_all.sh', replacing the jail-measured COVERAGE_BAR=100 introduced in bca70b67.",
+    "Recorded why in the file: 22 libs in fixes/lib required 34 hand-written test files, the jail runs serially at 37-90s per pass, and most libs need a production seam added before they are testable at all.",
+    "Documented that a stricter 'the suite must mention the lib' variant was written and measured first, and rejected because it newly blocked 68 libs in directories that already have suites, which seed_allowlist cannot grandfather since it refuses to grow."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh --all",
+      "result": "pass",
+      "evidence": "0.31s, '37 uncovered shell librar(ies), 84 exempt', 3 BLOCK entries -- all three are meta/scripts/lib coverage-tooling libs that blocked before this change too. Under the 100% bar the same command took over 600s."
+    },
+    {
+      "command": "check_shell_coverage.sh on a new lib in a dir WITH a suite, and in a dir WITHOUT one",
+      "result": "pass",
+      "evidence": "exit 0 and exit 1 respectively; the ratchet still refuses a lib whose directory has no suite. Both probe files removed."
+    },
+    {
+      "command": "check_shell_coverage.sh --seed",
+      "result": "pass",
+      "evidence": "Refused, as designed: seeding would ADD the 3 tooling libs and the allowlist only ever shrinks. Allowlist left byte-identical at 84 entries."
+    },
+    {
+      "command": "shellcheck and bash -n on the changed file",
+      "result": "pass",
+      "evidence": "clean; 49 lines, within the 250-line cap"
+    }
+  ],
+  "risks": [
+    "An empty run_all.sh that sources nothing would now satisfy the gate. Accepted deliberately and recorded in the file; closing it requires a grandfathering mechanism the ratchet does not have.",
+    "Shell libraries will drift below whatever coverage they have today. Mitigated in that the suites already written are still run by ci_mirror.sh and the shell-tests workflow on every push."
+  ],
+  "rollback": [
+    "git revert this commit to restore COVERAGE_BAR=100 and the jail-measured predicate.",
+    "After rollback, re-run check_shell_coverage.sh --all and expect it to take minutes again and to fail the ~11 non-exempt libs in suite-having directories."
+  ]
+}
