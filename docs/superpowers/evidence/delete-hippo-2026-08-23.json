@@ -1,0 +1,44 @@
+{
+  "intent": "Delete the dead .hippo/ memory store: 161 tracked files and 3.2M of episodic entries for a tool that is no longer installed and whose entries were never once retrieved.",
+  "scope": [
+    ".hippo/ — 161 tracked files, removed entirely",
+    "NON-GOAL: any behaviour change; nothing reads this directory"
+  ],
+  "changes": [
+    "git rm -r .hippo and removed it from disk. No .gitignore entry was needed after all: the handoff anticipated one for hippo.db (untracked only because *.db is ignored), but with the whole directory gone there is nothing left to ignore."
+  ],
+  "verification": [
+    {
+      "command": "grep -rl '\"retrieval_count\": *[1-9]' .hippo",
+      "result": "pass",
+      "evidence": "No matches — every one of the 158 episodic entries had retrieval_count 0. The store was written to and never read from."
+    },
+    {
+      "command": "git log -1 --format=%cs -- .hippo",
+      "result": "pass",
+      "evidence": "2026-05-28 — last write was almost three months ago."
+    },
+    {
+      "command": "command -v hippo",
+      "result": "pass",
+      "evidence": "Not installed; nothing can write to or read this store."
+    },
+    {
+      "command": "grep -rln 'hippo' --exclude-dir=.git --exclude-dir=.hippo .",
+      "result": "pass",
+      "evidence": "Only prose references in the handoff and evidence artifacts. The one code hit, digital_wellbeing/leechblock_defaults.json, is the blocked domain 'wordhippo' — a coincidental substring, not a dependency."
+    },
+    {
+      "command": "git ls-files | wc -l",
+      "result": "pass",
+      "evidence": "1346 -> 1175 tracked files."
+    }
+  ],
+  "risks": [
+    "Irreversible only in the sense that any deletion is; the full contents remain in git history and can be restored with git checkout <prev-sha> -- .hippo."
+  ],
+  "rollback": [
+    "git revert this commit, or git checkout 309f4c8d -- .hippo to restore the directory alone.",
+    "After rollback validate: git ls-files | wc -l returns to 1336."
+  ]
+}
