@@ -13,6 +13,9 @@ Environment=ENDURAIN_URL=http://127.0.0.1:8085
 Environment=ENDURAIN_INBOX=/home/kuhy/cloud/RunnerUp
 Environment=ENDURAIN_STATE=/home/kuhy/.local/state/endurain-import
 Environment=ENDURAIN_BULK_DIR=/var/opt/endurain/backend/data/activity_files/bulk_import
+# Two adb devices are usually attached (USB phone + a network target), and the
+# importer refuses to guess between them. Pin the phone explicitly.
+Environment=ENDURAIN_ADB_SERIAL=23181JEGR08034
 # The API key is read from a mode-600 file rather than embedded here: systemd
 # unit files are world-readable.
 ExecStart=/usr/bin/bash -c 'ENDURAIN_API_KEY="$(cat /home/kuhy/testsAndMisc/endurain/.api_key)" /home/kuhy/testsAndMisc/.venv/bin/python -m python_pkg.endurain_import'
