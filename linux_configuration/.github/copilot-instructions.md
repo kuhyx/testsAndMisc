@@ -59,11 +59,11 @@ For in-depth understanding of specific components, see these dedicated guides:
 
 ## Digital Wellbeing Components Summary
 
-| Component         | Purpose                       | Key Files                                                                   |
-| ----------------- | ----------------------------- | --------------------------------------------------------------------------- |
-| Hosts Guard       | Block websites via /etc/hosts | `hosts/install.sh`, `guardctl` (guard-lib), `hosts/guard/plugins/*`         |
+| Component         | Purpose                       | Key Files                                                           |
+| ----------------- | ----------------------------- | ------------------------------------------------------------------- |
+| Hosts Guard       | Block websites via /etc/hosts | `hosts/install.sh`, `guardctl` (guard-lib), `hosts/guard/plugins/*` |
 | Pacman Wrapper    | Block package installation    | `periodic_background/digital_wellbeing/pacman/*`                    |
 | Midnight Shutdown | Auto-shutdown at night        | `periodic_background/digital_wellbeing/setup_midnight_shutdown.sh`  |
 | Compulsive Block  | Limit app launches            | `periodic_background/digital_wellbeing/block_compulsive_opening.sh` |
 | Music Wrapper     | Block music during focus      | `periodic_background/digital_wellbeing/youtube-music-wrapper.sh`    |
-| Screen Locker     | Require workout to unlock     | External: `~/testsAndMisc/python_pkg/screen_locker/`                        |
+| Screen Locker     | Require workout to unlock     | External: `~/testsAndMisc/python_pkg/screen_locker/`                |
