@@ -116,20 +116,6 @@ APPS: Final[dict[str, AppIcon]] = {
             linux=True,
         ),
         AppIcon(
-            key="billsplit",
-            # The only app in this registry that lives inside the testsAndMisc
-            # monorepo rather than in its own repo, so its path carries a
-            # directory component the others do not.
-            repo=_HOME / "testsAndMisc" / "billsplit",
-            accent="#B8862E",
-            glyph="receipt-split",
-            icon_name="billsplit",
-            # `flutter create` scaffolded a linux/ target, but the app is
-            # phone-first and ships no desktop entry, so the hicolor icon set
-            # is not generated for it.
-            linux=False,
-        ),
-        AppIcon(
             key="epopeja_karta",
             repo=_HOME / "epopeja_karta",
             accent="#B8862E",

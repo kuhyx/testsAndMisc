@@ -1,0 +1,64 @@
+{
+  "intent": "Archive the billsplit Flutter app to testsAndMisc-archive together with everything coupled to it, so the monorepo's 100% coverage gate and binary-allowlist stay consistent.",
+  "scope": [
+    "billsplit/ (73 files) - removed",
+    "python_pkg/billsplit_coverage/ (5 files) - removed, its only purpose was gating billsplit",
+    ".github/workflows/billsplit-ci.yml - removed",
+    "python_pkg/app_icons/apps.py - billsplit registry entry removed",
+    ".binary-allowlist, .gitignore, .prettierignore, AGENTS.md - billsplit rules removed",
+    "Non-goal: app_icons itself stays; only its billsplit entry goes"
+  ],
+  "changes": [
+    "Extracted billsplit/ and python_pkg/billsplit_coverage/ in one filter-repo pass (8 commits, matching the monorepo's count for those paths) and merged into kuhyx/testsAndMisc-archive, where billsplit_coverage joins the existing python_pkg/ tree.",
+    "Deleted the app_icons AppIcon entry keyed 'billsplit', whose repo= pointed at _HOME/testsAndMisc/billsplit. app_icons stays in the repo and its tests iterate APPS generically, so a dangling entry would have failed the suite.",
+    "Emptied .binary-allowlist: billsplit's launcher icons were its only entries. The policy header is kept and now records that no exception is in force.",
+    "Removed the 27-line billsplit block from .gitignore (the ! overrides that paired with the allowlist) and the .prettierignore fixture line.",
+    "Rewrote the AGENTS.md 'Adding a Flutter app' section: the both-halves guidance is still correct for a future app, but no longer claims billsplit exists, and notes a Flutter app now belongs in its own repo."
+  ],
+  "verification": [
+    {
+      "command": "git ls-files <path> | wc -l, archive vs source",
+      "result": "pass",
+      "evidence": "billsplit 73 = 73, python_pkg/billsplit_coverage 5 = 5; 8 commits, equal to git log --oneline -- billsplit python_pkg/billsplit_coverage."
+    },
+    {
+      "command": "diff -r --brief between archived copy and working tree",
+      "result": "pass",
+      "evidence": "No content differences for either path."
+    },
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc-archive/contents --jq '.[].name'",
+      "result": "pass",
+      "evidence": "billsplit listed; billsplit_coverage confirmed under the archive's python_pkg/ alongside the previously archived packages."
+    },
+    {
+      "command": "python3 meta/scripts/pytest_changed_packages.py python_pkg/app_icons/apps.py",
+      "result": "pass",
+      "evidence": "2095 passed, TOTAL coverage 100.00% - the gate holds after removing the registry entry. Count fell from 2114 by exactly the 19 billsplit_coverage tests."
+    },
+    {
+      "command": "PYTHONPATH=. python3 -c 'from python_pkg.app_icons import apps; ...'",
+      "result": "pass",
+      "evidence": "Registry loads with 12 apps and 'billsplit' in apps.APPS is False. Seven other apps still carry linux=False, so no cli.py branch lost its only exercise."
+    },
+    {
+      "command": "./meta/scripts/check_no_binaries.sh",
+      "result": "pass",
+      "evidence": "Exit 0 with an entry-free .binary-allowlist - the checker tolerates a comment-only file."
+    },
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --all",
+      "result": "pass (improvement)",
+      "evidence": "451 -> 417 violations, matching billsplit's 34 deep files."
+    }
+  ],
+  "risks": [
+    "app_icons' generator can no longer produce billsplit's icons; that is intended, since the app and its assets now live in the archive.",
+    ".binary-allowlist is now empty of patterns. If a future Flutter app is added, both it and the .gitignore ! overrides must be repopulated - AGENTS.md still documents that requirement.",
+    "The archive push happened before the local delete; presence was confirmed through the GitHub API rather than assumed."
+  ],
+  "rollback": [
+    "git revert the removal commit to restore all four trees and the config blocks.",
+    "Re-run meta/scripts/pytest_changed_packages.py to confirm the coverage gate is still satisfied after the revert."
+  ]
+}

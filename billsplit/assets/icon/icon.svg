@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" fill="#211D1B"/>
-  <g fill="none" stroke="#B8862E" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,-5)">
-    <path fill="#B8862E" fill-rule="evenodd" stroke="none" d="M 312 282 L 712 282 L 712 706 L 678 752 L 645 706 L 612 752 L 578 706 L 545 752 L 512 706 L 478 752 L 445 706 L 412 752 L 378 706 L 345 752 L 312 706 Z M 482 350 A 30 30 0 1 0 542 350 A 30 30 0 1 0 482 350 Z M 482 446 A 30 30 0 1 0 542 446 A 30 30 0 1 0 482 446 Z M 482 542 A 30 30 0 1 0 542 542 A 30 30 0 1 0 482 542 Z M 482 638 A 30 30 0 1 0 542 638 A 30 30 0 1 0 482 638 Z"/>
-  </g>
-</svg>

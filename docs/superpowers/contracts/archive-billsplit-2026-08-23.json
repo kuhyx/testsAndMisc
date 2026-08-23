@@ -1,0 +1,21 @@
+{
+  "title": "Archive billsplit together with every artifact coupled to it",
+  "objective": "Remove the billsplit Flutter app from testsAndMisc without leaving the repo in a state where a gate fails or a config rule points at a missing path. billsplit is the coupled case the earlier archive commit deliberately deferred: a coverage package, an app_icons registry entry, a CI workflow and two paired binary rules all name it.",
+  "acceptance_criteria": [
+    "billsplit/ and python_pkg/billsplit_coverage/ are both present in kuhyx/testsAndMisc-archive, confirmed via the GitHub API before the local delete.",
+    "Archived commit count equals the monorepo count for those paths (8), and tracked file counts match exactly (73 and 5).",
+    "python_pkg/app_icons/apps.py no longer contains a billsplit AppIcon entry, and the app_icons registry still imports cleanly.",
+    "The repo-wide pytest gate still reports 100% coverage, with the test count reduced by exactly the 19 billsplit_coverage tests and nothing else.",
+    "check_no_binaries.sh exits 0 with a .binary-allowlist that now carries no patterns.",
+    ".gitignore contains no billsplit rule; the ! overrides are removed in the same commit as the allowlist patterns they paired with, so the two halves never disagree.",
+    "No file under .github/workflows/ references billsplit or billsplit_coverage.",
+    "AGENTS.md no longer presents billsplit as a live app, while keeping the both-halves guidance for any future Flutter app.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "Removing python_pkg/app_icons itself, which serves eleven other apps.",
+    "Changing how check_no_binaries.sh or the coverage gate work; this commit only removes data they read.",
+    "Historical planning documents that mention billsplit as past work."
+  ],
+  "verifier": "gh api confirms both paths in the archive; git ls-files counts match 73/5; diff -r clean; python3 meta/scripts/pytest_changed_packages.py python_pkg/app_icons/apps.py reports 2095 passed at 100%; ./meta/scripts/check_no_binaries.sh exits 0; ./meta/scripts/check_directory_depth.sh --all drops 451 -> 417; git grep billsplit finds only intentional prose."
+}
