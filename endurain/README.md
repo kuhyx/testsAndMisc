@@ -10,15 +10,15 @@ unlock authority.
 
 ## Paths
 
-| What | Where |
-|---|---|
-| Public URL | `https://endurain.kuhy.duckdns.org` |
-| Local URL | `http://127.0.0.1:8085` (loopback only) |
-| WebDAV inbox | `https://kuhy-cloud.duckdns.org/RunnerUp` → `~/cloud/RunnerUp/` |
-| Runtime data | `/var/opt/endurain/` |
-| Ledger | `~/.local/state/endurain-import/ledger.json` |
+| What          | Where                                                                       |
+| ------------- | --------------------------------------------------------------------------- |
+| Public URL    | `https://endurain.kuhy.duckdns.org`                                         |
+| Local URL     | `http://127.0.0.1:8085` (loopback only)                                     |
+| WebDAV inbox  | `https://kuhy-cloud.duckdns.org/RunnerUp` → `~/cloud/RunnerUp/`             |
+| Runtime data  | `/var/opt/endurain/`                                                        |
+| Ledger        | `~/.local/state/endurain-import/ledger.json`                                |
 | Importer code | `../python_pkg/endurain_import/` (repo requires Python under `python_pkg/`) |
-| Secrets | `.env`, `.api_key` (both gitignored, mode 600) |
+| Secrets       | `.env`, `.api_key` (both gitignored, mode 600)                              |
 
 ## Flow
 
@@ -56,7 +56,7 @@ cd .. && .venv/bin/python -m pytest python_pkg/endurain_import/tests/ -q  # 52 t
   it rides on the existing Let's Encrypt cert.
 - **Endurain does not deduplicate.** Re-uploading a file creates a second
   activity. All dedupe is the importer's job, on two axes: the content hash,
-  *and* an activity key that collapses the `.gpx`/`.tcx` pair RunnerUp writes
+  _and_ an activity key that collapses the `.gpx`/`.tcx` pair RunnerUp writes
   for a single run (different bytes, same run).
 - **`X-API-Key`, not `X-Client-Type`.** Endurain's own OpenAPI schema declares
   the `APIKeyHeader` scheme with the wrong name; verified against the server.

@@ -1,0 +1,28 @@
+{
+  "intent": "Unblock the shared branch by applying prettier to endurain/README.md, which was committed unformatted by another agent and fails the pre-push prettier hook for everyone pushing after it.",
+  "scope": [
+    "endurain/README.md (formatting only)",
+    "Non-goal: any content change; this file belongs to another agent's feature"
+  ],
+  "changes": [
+    "Ran the repo's prettier over endurain/README.md, reflowing 9 lines"
+  ],
+  "verification": [
+    {
+      "command": "npx prettier --check on every markdown/json/yaml file in the push range",
+      "result": "fail",
+      "evidence": "Only endurain/README.md was flagged; my own files and the other agent's json/yml were already clean."
+    },
+    {
+      "command": "npx prettier --write endurain/README.md; git diff --stat",
+      "result": "pass",
+      "evidence": "9 insertions, 9 deletions -- pure reflow, no content added or removed."
+    }
+  ],
+  "risks": [
+    "The file belongs to another agent's in-flight feature; a formatting-only change could conflict with their next edit, though prettier output is deterministic so a re-run converges."
+  ],
+  "rollback": [
+    "git revert the commit; the pre-push prettier hook will then block pushes again until it is reformatted"
+  ]
+}
