@@ -306,6 +306,16 @@ repos:
         language: system
         pass_filenames: false
         files: ^(python_pkg/.*\.py|requirements\.txt)$
+      - id: requirements-test-sync
+        name: requirements-test.txt covers all python_pkg imports
+        # python-tests.yml installs this SUBSET rather than the full list, so
+        # it needs the same completeness guarantee. Without this hook a new
+        # third-party import would pass locally and fail in CI with a bare
+        # ModuleNotFoundError.
+        entry: python3 meta/scripts/check_requirements_sync.py --package python_pkg --requirements meta/requirements-test.txt
+        language: system
+        pass_filenames: false
+        files: ^(python_pkg/.*\.py|meta/requirements-test\.txt)$
       - id: session-autopsy-hook-mutations
         name: session_autopsy hook tests are non-vacuous (mutation)
         entry: python3 meta/scripts/mutate_session_autopsy_hooks.py

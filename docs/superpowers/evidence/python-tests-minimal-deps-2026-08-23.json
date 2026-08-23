@@ -1,0 +1,45 @@
+{
+  "intent": "Stop the Python tests workflow installing ~62 linters and formatters it never invokes, by giving it a requirements file scoped to what the suite actually needs.",
+  "scope": [
+    "meta/requirements-test.txt (new)",
+    ".github/workflows/python-tests.yml",
+    ".pre-commit-config.yaml (new requirements-test-sync hook)",
+    "Non-goal: changing pre-commit.yml, which genuinely needs every formatter"
+  ],
+  "changes": [
+    "Added meta/requirements-test.txt: 17 packages, down from 79. Derived by static import analysis over python_pkg/ and linux_configuration/tests/, then verified by running the suite against only that list.",
+    "python-tests.yml installs the subset, caches on it, and lists it in both path filters so a change to it triggers the workflow.",
+    "Added a requirements-test-sync pre-commit hook reusing check_requirements_sync.py's existing --requirements flag, so a new third-party import cannot silently break CI with a ModuleNotFoundError.",
+    "The pytest-* plugins are included deliberately: randomly, timeout, sugar and xdist change how the suite runs even though nothing imports them."
+  ],
+  "verification": [
+    {
+      "command": "python3.11 venv + pip install -r meta/requirements-test.txt + full pytest run with coverage",
+      "result": "pass",
+      "evidence": "2174 passed, TOTAL 100.00%, 7138 statements / 1748 branches, 0 missing -- identical to the full-requirements run"
+    },
+    {
+      "command": "pip install -r meta/requirements-test.txt (timed)",
+      "result": "pass",
+      "evidence": "6.2s for 17 packages against a warm local cache; the full 79-package list took 49-55s on the CI runner"
+    },
+    {
+      "command": "python3 meta/scripts/check_requirements_sync.py --package python_pkg --requirements meta/requirements-test.txt",
+      "result": "pass",
+      "evidence": "exit 0 -- every third-party import in python_pkg is declared in the subset"
+    },
+    {
+      "command": "pre-commit run requirements-test-sync --all-files",
+      "result": "pass",
+      "evidence": "Passed"
+    }
+  ],
+  "risks": [
+    "A new runtime import that is not added here would fail CI. Mitigated by the new hook, which gates on the same analysis and runs on every python_pkg .py change.",
+    "The subset can drift from the full list's version bounds. Both are >= ranges on the same packages, so a divergence surfaces as a resolver conflict rather than a silent mismatch."
+  ],
+  "rollback": [
+    "Point the Install dependencies step and cache-dependency-path back at requirements.txt and delete the hook.",
+    "After rollback, confirm the install step returns to ~50s."
+  ]
+}

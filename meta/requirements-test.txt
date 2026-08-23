@@ -1,0 +1,40 @@
+# ==============================================================================
+# testsAndMisc — the dependencies needed to RUN THE TEST SUITE, and no others.
+#
+# python-tests.yml runs pytest and nothing else, but installed the full
+# meta/requirements.txt: ~79 packages, of which ~62 are linters, formatters and
+# type checkers that job never invokes. That install was the workflow's slowest
+# step (49s, against 35s actually running pytest).
+#
+# Derived by static import analysis over python_pkg/ and
+# linux_configuration/tests/, then VERIFIED by running the whole suite against
+# only this list: 2174 passed, 100.00% coverage, 0 missing lines or branches.
+#
+# The pytest-* entries are here because they are plugins that change behaviour,
+# not because anything imports them: randomly reorders tests, timeout enforces
+# a limit, sugar changes reporting, xdist provides -n. Dropping one silently
+# changes how the suite runs.
+#
+# The linting job (pre-commit.yml) still installs the full requirements.txt --
+# it needs every formatter. Keep this file in sync when python_pkg gains a new
+# runtime import; check_requirements_sync.py gates the full list, and the
+# suite itself fails loudly here on a missing import.
+# ==============================================================================
+
+anthropic>=0.25.0
+beautifulsoup4>=4.0
+coverage>=7.4.0
+defusedxml>=0.7.1
+markdownify>=1.2.0
+numpy>=1.20
+pillow>=10.0
+pytest>=8.0.0
+pytest-cov>=4.1.0
+pytest-randomly>=3.15.0
+pytest-sugar>=1.0.0
+pytest-timeout>=2.2.0
+pytest-xdist>=3.5.0
+requests>=2.0
+rich>=13.0
+typer>=0.12.0
+typing_extensions
