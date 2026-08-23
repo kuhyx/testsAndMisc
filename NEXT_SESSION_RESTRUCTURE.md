@@ -102,6 +102,12 @@ by md5, DNS verified between them. Backups at
   (it measures only the parent); read `memory.peak` from a cgroup.
 - **`sudo -n` works here and `guardctl` is at `/usr/local/bin/guardctl`.** The
   old "the classifier blocks me" note was stale.
+- **A red `main` deadlocks its own fix.** `ci-baseline-green` refuses to build
+  on a red baseline, and ci-mirror runs `pre-commit` inside a clean worktree,
+  so the hook fires there too — the commit that FIXES the red baseline cannot
+  be pushed. `CI_GREEN_SKIP=1` must be set on the **push**, not just the
+  commit: `CI_GREEN_SKIP=1 git push`. Use it only when the push really is the
+  fix.
 - **The pre-push gate is not the pre-commit gate.** It adds prettier and
   ci-mirror. Two docs were non-conforming before this session and blocked
   _every_ push; prettier normalises `*emphasis*` to `_emphasis_`.
