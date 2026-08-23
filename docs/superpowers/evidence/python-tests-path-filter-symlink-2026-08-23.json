@@ -1,0 +1,34 @@
+{
+  "intent": "Make the Python tests workflow actually trigger when the dependency list changes, so a requirements fix cannot silently skip the workflow it is meant to repair.",
+  "scope": [
+    ".github/workflows/python-tests.yml (push and pull_request path filters)",
+    "Non-goal: changing the symlink layout, which the repo documents deliberately"
+  ],
+  "changes": [
+    "Added meta/requirements.txt alongside requirements.txt in both path filters. The root file is a symlink into meta/, and GitHub matches filters against the path as git records it, so editing the real file did not match the symlink's name."
+  ],
+  "verification": [
+    {
+      "command": "Observed on commit 32de2215, which changed meta/requirements.txt",
+      "result": "fail",
+      "evidence": "Dependency Graph, Shell tests and Pre-commit checks all ran; Python tests did NOT trigger at all, leaving the last Python tests result on the older red commit 5ba2cbd4"
+    },
+    {
+      "command": "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/python-tests.yml'))\"",
+      "result": "pass",
+      "evidence": "YAML valid; both the push and pull_request filter lists were patched (2 occurrences)"
+    },
+    {
+      "command": "gh workflow run 'Python tests' --ref main",
+      "result": "pass",
+      "evidence": "Dispatched run 32645075080 to confirm the dependency fix itself, since the filter bug prevented an automatic run"
+    }
+  ],
+  "risks": [
+    "The other root symlinks (pyproject.toml, run.sh, lint_python.sh, .fvmrc) are not referenced by any workflow path filter today, so they carry the same latent trap if one is ever added."
+  ],
+  "rollback": [
+    "Remove the meta/requirements.txt lines from both filters.",
+    "After rollback, a change to meta/requirements.txt will once again skip this workflow."
+  ]
+}

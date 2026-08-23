@@ -9,7 +9,13 @@ on:
       - "tests/**"
       - "linux_configuration/scripts/periodic_background/system-maintenance/bin/**"
       - "linux_configuration/tests/**"
+      # Both spellings: the root requirements.txt is a SYMLINK into meta/,
+      # and GitHub matches path filters against the changed path as git
+      # records it. Editing meta/requirements.txt therefore did NOT match
+      # "requirements.txt", so a dependency fix silently skipped this
+      # workflow and the red run stayed on an older commit.
       - "requirements.txt"
+      - "meta/requirements.txt"
       - ".github/workflows/python-tests.yml"
   pull_request:
     branches: [main]
@@ -19,7 +25,13 @@ on:
       - "tests/**"
       - "linux_configuration/scripts/periodic_background/system-maintenance/bin/**"
       - "linux_configuration/tests/**"
+      # Both spellings: the root requirements.txt is a SYMLINK into meta/,
+      # and GitHub matches path filters against the changed path as git
+      # records it. Editing meta/requirements.txt therefore did NOT match
+      # "requirements.txt", so a dependency fix silently skipped this
+      # workflow and the red run stayed on an older commit.
       - "requirements.txt"
+      - "meta/requirements.txt"
       - ".github/workflows/python-tests.yml"
   workflow_dispatch: {}
 
