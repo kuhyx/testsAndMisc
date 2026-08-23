@@ -1,0 +1,37 @@
+{
+  "intent": "Stop the superpowers bookkeeping tree from silently regrowing to the 695 files that made a 655-file prune necessary, by capping it in the gate instead of leaving a note recommending it.",
+  "scope": [
+    "meta/scripts/check_repo_size.sh - adds a per-directory artifact cap",
+    "Non-goal: changing the source-file ceiling or the excluded prefixes, both unchanged."
+  ],
+  "changes": [
+    "Added ARTIFACT_DIRS + MAX_ARTIFACTS_PER_DIR=60, checked by a new check_artifact_dirs helper wired into main alongside the existing source-file ceiling.",
+    "main now accumulates failures rather than returning on the first, so a commit that trips both the source ceiling and the artifact cap reports both.",
+    "60 is the headroom the prune bought (21 files per dir today). The header says to prune rather than raise it when it fails."
+  ],
+  "verification": [
+    {
+      "command": "./meta/scripts/check_repo_size.sh",
+      "result": "pass",
+      "evidence": "'1050 source files (ceiling 1200)' EXIT=0 with evidence/contracts at 21 each, under the 60 cap. --count still prints the bare number, EXIT=0."
+    },
+    {
+      "command": "MAX_ARTIFACTS_PER_DIR=5 variant",
+      "result": "pass",
+      "evidence": "EXIT=1 listing BOTH dirs (evidence 22, contracts 21) plus the prune hint - confirms the new branch fires and that it does not stop at the first offender."
+    },
+    {
+      "command": "pre-commit run repo-size-cap --all-files; pre-commit run --files meta/scripts/check_repo_size.sh",
+      "result": "pass",
+      "evidence": "Hook Passed; shfmt and shellcheck clean on the modified script."
+    }
+  ],
+  "risks": [
+    "A legitimate burst of commits can now trip the cap and block a commit until artifacts are pruned. That is the intended trade: the previous behaviour was unbounded growth noticed only months later.",
+    "The cap counts tracked files per directory, so it does not distinguish a needed recent artifact from an old one; the operator chooses what to prune."
+  ],
+  "rollback": [
+    "git revert the commit; the source-file ceiling and all other behaviour are untouched by this change.",
+    "After rollback, confirm ./meta/scripts/check_repo_size.sh still exits 0 and prints the source count."
+  ]
+}
