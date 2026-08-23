@@ -109,3 +109,44 @@ def test_user_id_is_configurable(
     _patch_client(monkeypatch, _Recording(Result(Outcome.OK, 1, "ok")))
     assert main() == 0
     assert seen == [7]
+
+
+def _patch_database(
+    monkeypatch: pytest.MonkeyPatch, result: list[datetime] | None
+) -> None:
+    """Stand in for the postgres reader; never touches a real container."""
+    from python_pkg.endurain_import import db_lookup
+
+    class _StubDatabase:
+        def recent_start_times(self, _user_id: int) -> list[datetime] | None:
+            return result
+
+    monkeypatch.setattr(db_lookup, "EndurainDatabase", _StubDatabase)
+
+
+def test_database_fallback_catches_what_the_api_cannot(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, inbox: Path
+) -> None:
+    """API keys cannot read activities, so postgres answers instead."""
+    _file(inbox, _RUN_NAME)
+    client = _StubMainClient(Result(Outcome.OK, 1, "uploaded"), remote=None)
+    _env(monkeypatch, tmp_path, inbox, ENDURAIN_NO_DB="0")
+    _patch_client(monkeypatch, client)
+    _patch_database(monkeypatch, [_run_start()])
+
+    assert main() == 0
+    assert client.uploads == 0
+
+
+def test_database_failure_falls_back_to_the_ledger(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, inbox: Path
+) -> None:
+    """Both backends unknown must not block the import."""
+    _file(inbox, _RUN_NAME)
+    client = _StubMainClient(Result(Outcome.OK, 1, "uploaded"), remote=None)
+    _env(monkeypatch, tmp_path, inbox, ENDURAIN_NO_DB="0")
+    _patch_client(monkeypatch, client)
+    _patch_database(monkeypatch, None)
+
+    assert main() == 0
+    assert client.uploads == 1

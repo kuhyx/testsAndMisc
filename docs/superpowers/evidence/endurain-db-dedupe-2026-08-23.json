@@ -1,0 +1,61 @@
+{
+  "intent": "Stop the importer re-uploading runs RunnerUp already sent to Endurain, by reading start times from postgres when the HTTP API cannot answer. Endurain API keys are upload-only (scope allow-list is frozenset({'activities:upload'}) and the activities read route is mounted JWT-only), so the existing HTTP dedupe check could never succeed and every pass fell back to the local ledger alone.",
+  "scope": [
+    "python_pkg/endurain_import/db_lookup.py (new): postgres reader + known_start_times orchestration",
+    "python_pkg/endurain_import/__main__.py: delegates dedupe to known_start_times; new env vars documented",
+    "python_pkg/endurain_import/upload.py: 401 warning reworded, it is no longer the end of the story",
+    "python_pkg/endurain_import/tests/: new test_db_lookup.py, two DB-fallback cases, conftest isolation",
+    "Non-goal: removing the HTTP path. It is tried first so the supported route starts working by itself if Endurain ever widens the scope allow-list.",
+    "Non-goal: exposing a postgres host port or adding a psycopg dependency. Reads go through docker exec, which is how the container is already reachable."
+  ],
+  "changes": [
+    "EndurainDatabase.recent_start_times shells out to `docker exec -i <container> psql -At` and parses one timestamp per line, reusing upload._parse_start so both backends normalise to UTC identically.",
+    "The query is fed on stdin with -v bindings (uid/lim) rather than -c, because psql only substitutes -v variables in scripts it reads; user_id never reaches the SQL string. ON_ERROR_STOP=1 makes a SQL error a non-zero exit rather than silently empty output.",
+    "None vs [] is the load-bearing distinction: a dead container, OSError, timeout or non-zero exit yields None ('could not ask', fall back to the ledger), while an empty result set yields [] ('this user has no activities'). Conflating them would re-upload everything on any docker hiccup.",
+    "known_start_times chains HTTP -> postgres -> None and logs which backend answered, so a DB-sourced pass is distinguishable from a ledger-only one in the journal.",
+    "The subprocess runner is injected (default _run) so every failure branch is reachable in unit tests without monkeypatching subprocess globally.",
+    "conftest._env sets ENDURAIN_NO_DB=1 by default so no test can shell out to the real postgres container; the two tests that exercise the fallback opt in and stub EndurainDatabase."
+  ],
+  "verification": [
+    {
+      "command": "systemctl --user start endurain-import.service && journalctl --user -u endurain-import.service",
+      "result": "pass",
+      "evidence": "pulled 5 file(s) from the phone / could not list recent activities over HTTP: 401 / duplicate detection: 4 activity start time(s) via the database / done: 0 imported, 5 already known, 0 rejected, 0 ambiguous. Confirms the fallback answers in the real systemd deployment path, not just an interactive shell."
+    },
+    {
+      "command": "ENDURAIN_INBOX=<tmp> ENDURAIN_STATE=<empty> python -m python_pkg.endurain_import (known-duplicate TCX, empty ledger)",
+      "result": "pass",
+      "evidence": "'RunnerUp_2026-08-22-23-51-04_Running.tcx is already in Endurain (uploaded outside this importer); moved to processed/', activities count stayed at 4. With an empty ledger only the DB check could have caught this, so it proves the feature rather than the ledger."
+    },
+    {
+      "command": "same run with ENDURAIN_NO_DB=1 (negative control)",
+      "result": "pass",
+      "evidence": "'imported RunnerUp_2026-08-22-23-51-04_Running.tcx' - the same file WAS uploaded with the fallback disabled, proving the DB check is what blocked it. The duplicate this created (activity id 16) was deleted afterwards; activities is back to 4 rows with 0 duplicate start_times."
+    },
+    {
+      "command": "python -m pytest python_pkg/endurain_import/tests/ --cov=python_pkg.endurain_import",
+      "result": "pass",
+      "evidence": "98 passed. db_lookup.py 52 stmts 0 miss 8 branch 0 partial 100%; __main__.py 91 stmts 0 miss 18 branch 0 partial 100%."
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, codespell, 250-line cap and pytest-coverage all pass. No noqa/type-ignore/nosec suppressions were added; the three the first draft carried were removed by fixing the underlying typing instead."
+    },
+    {
+      "command": "systemd-run --user --wait docker exec endurain-postgres psql ...",
+      "result": "pass",
+      "evidence": "exit 0 with rows returned, checked BEFORE writing the module: docker access works from the systemd user manager, not only from an interactive shell."
+    }
+  ],
+  "risks": [
+    "Couples the importer to the postgres container name and to docker exec being available to the systemd user manager. Both are verified above; a change to either degrades to None and the ledger, which is the pre-existing behaviour, not a new failure.",
+    "Reads Endurain's schema directly, so an upstream rename of activities.start_time or activities.user_id would break the fallback. It fails closed (non-zero exit -> None -> ledger), so the failure mode is 'no extra dedupe', never a wrong answer.",
+    "The importer's postgres access is read-only by construction (a single SELECT), but it does run as a superuser inside the container; nothing constrains it beyond the statement itself."
+  ],
+  "rollback": [
+    "git revert the commit. __main__.py returns to calling client.recent_start_times directly and db_lookup.py disappears.",
+    "Or set ENDURAIN_NO_DB=1 in the unit for a no-deploy disable, which restores ledger-only dedupe without touching code.",
+    "After either, run the service and confirm 'duplicate detection ... falling back to the local ledger only' plus a clean 'done:' line, and check `SELECT start_time, count(*) FROM activities GROUP BY start_time HAVING count(*)>1` still returns no rows."
+  ]
+}

@@ -61,6 +61,12 @@ def _env(
     monkeypatch.setenv("ENDURAIN_INBOX", str(inbox))
     monkeypatch.setenv("ENDURAIN_STATE", str(tmp_path / "state"))
     monkeypatch.setenv("ENDURAIN_NO_ADB", "1")
+    # Off by default so no test ever shells out to the real postgres container:
+    # the DB fallback runs whenever the stubbed HTTP lookup returns None, and a
+    # test that reached the live database would pass or fail on this machine's
+    # actual activity rows. Tests that want it set ENDURAIN_NO_DB="0" and stub
+    # EndurainDatabase explicitly.
+    monkeypatch.setenv("ENDURAIN_NO_DB", "1")
     for key, value in extra.items():
         monkeypatch.setenv(key, value)
 

@@ -112,8 +112,8 @@ class EndurainClient:
             return None
         if resp.status_code >= _HTTP_BAD_REQUEST:
             _logger.warning(
-                "could not list recent activities: %s (the API key needs the "
-                "activities:read scope for duplicate detection)",
+                "could not list recent activities over HTTP: %s (API keys "
+                "cannot read activities; the database fallback answers instead)",
                 resp.status_code,
             )
             return None

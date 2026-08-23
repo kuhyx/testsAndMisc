@@ -3,15 +3,22 @@
 Run from a systemd user timer. Configuration comes from the environment:
 
     ENDURAIN_URL        base URL (default http://127.0.0.1:8085)
-    ENDURAIN_API_KEY    API key with activities:upload (required) and
-                        activities:read (optional; enables detection of
-                        runs RunnerUp uploaded to Endurain directly)
+    ENDURAIN_API_KEY    API key with activities:upload (required)
     ENDURAIN_INBOX      WebDAV inbox (default ~/cloud/RunnerUp)
     ENDURAIN_STATE      ledger directory (default ~/.local/state/endurain-import)
     ENDURAIN_BULK_DIR   bulk_import dir for files the server rejected
     ENDURAIN_NO_ADB     set to 1 to disable the phone fallback
     ENDURAIN_ADB_SERIAL which phone to pull from when several are attached
     ENDURAIN_USER_ID    Endurain user whose activities are checked (default 1)
+    ENDURAIN_NO_DB      set to 1 to disable the postgres dedupe fallback
+    ENDURAIN_PG_CONTAINER  postgres container name (default endurain-postgres)
+
+Duplicate detection asks Endurain what it already holds, so a run RunnerUp
+uploaded directly is not imported a second time. The HTTP API is tried first,
+but API keys cannot read activities (the scope allow-list is upload-only and
+the read route is JWT-only), so in practice the postgres fallback is what
+answers. If both are unavailable the local ledger alone decides, which is the
+behaviour this importer had before either check existed.
 
 Exit status is 0 only when every file was accounted for; anything left in an
 ambiguous state exits non-zero so the timer surfaces it rather than logging
@@ -29,6 +36,7 @@ from typing import TYPE_CHECKING
 
 import requests
 
+from python_pkg.endurain_import.db_lookup import known_start_times
 from python_pkg.endurain_import.ledger import (
     Entry,
     Ledger,
@@ -190,15 +198,10 @@ def main() -> int:
         _logger.info("nothing to import (ledger holds %d file(s))", len(ledger))
         return 0
 
-    # One query per run, not per file: the page is a snapshot of what Endurain
-    # already holds, and every file in this pass is compared against it.
+    # One query per run, not per file: the result is a snapshot of what
+    # Endurain already holds, and every file in this pass is compared against it.
     user_id = int(os.environ.get("ENDURAIN_USER_ID", _DEFAULT_USER_ID))
-    remote_starts = client.recent_start_times(user_id)
-    if remote_starts is None:
-        _logger.warning(
-            "duplicate detection against Endurain is unavailable; falling "
-            "back to the local ledger only"
-        )
+    remote_starts = known_start_times(client, user_id)
 
     counts = {"skipped": 0, "imported": 0, "rejected": 0, "ambiguous": 0}
     for path in pending:

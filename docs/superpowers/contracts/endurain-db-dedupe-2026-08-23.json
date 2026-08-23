@@ -1,0 +1,19 @@
+{
+  "title": "endurain importer dedupe via postgres",
+  "objective": "Give the importer a working answer to 'does Endurain already hold this run?', now that the HTTP route cannot provide one: API keys are upload-only and the activities read endpoint is JWT-only, so the existing check always returned None and every pass relied on the local ledger alone.",
+  "acceptance_criteria": [
+    "A run Endurain already holds is skipped even when the local ledger is empty, and the activity count does not grow.",
+    "The same run IS imported when the fallback is disabled, proving the check is what blocks it.",
+    "A dead or renamed container yields None (ledger fallback), while a user with no activities yields an empty list; the two are never conflated.",
+    "The journal distinguishes which backend answered, so a DB-sourced pass is not mistaken for a ledger-only one.",
+    "Verified in the real systemd unit, not only from an interactive shell.",
+    "100% branch coverage on the new and changed modules, with no lint suppressions added.",
+    "No test touches the real postgres container."
+  ],
+  "out_of_scope": [
+    "Removing or replacing the HTTP lookup - it stays first in the chain so the supported path resumes working by itself if Endurain widens the API-key scope allow-list.",
+    "Exposing a postgres host port or adding a database driver dependency.",
+    "Patching Endurain's own source or forging scopes in users_api_keys to work around the upload-only allow-list."
+  ],
+  "verifier": "pre-commit + python_pkg/endurain_import/tests + a real systemctl --user run with journal inspection"
+}
