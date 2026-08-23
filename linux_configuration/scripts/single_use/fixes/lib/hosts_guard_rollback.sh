@@ -122,7 +122,9 @@ do_rollback() {
 	# `chattr +i` with no collapse (it relies on running before the mount at
 	# boot), so it fails silently here unless the mount is dropped first. So:
 	# collapse, enforce, then let the bind-mount unit rebuild the ro layer.
-	collapse_mounts /etc/hosts
+	# HOSTS_FILE is a seam for the tests; production always passes the real
+	# path, which is the file this whole rollback exists to re-protect.
+	collapse_mounts "${HOSTS_FILE:-/etc/hosts}"
 
 	local svc
 	for svc in hosts-guard.service nsswitch-guard.service resolved-guard.service; do

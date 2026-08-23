@@ -1,0 +1,19 @@
+{
+  "title": "Clear both hosts-guard libs and fix the done-redirect instrument artifact",
+  "objective": "Bring hosts_guard_migrate.sh and hosts_guard_rollback.sh to 100% measured line coverage and remove both allowlist exemptions, extending continuation_lines() so a loop terminator carrying a redirect stops being counted as an unreachable statement.",
+  "acceptance_criteria": [
+    "Both libs measure 100.00% through tests/run_all.sh at --min 100 with --fail-on-case-error, exiting 0.",
+    "check_shell_coverage.sh passes on both with their allowlist lines already deleted.",
+    "The new _LOOP_END_OP predicate excludes ONLY lines where `done` is followed by a redirect or pipe; a bare `done` stays in the denominator so real uncovered loops are still caught.",
+    "An audit printing every newly-excluded line with its text shows exactly the two lines in hosts_guard_rollback.sh and nothing else across fixes/lib.",
+    "The instrument acceptance pair still measures exactly: dot_resolver_install.sh 39/39 and rpi_nc_ca.sh 73/73, through features/lib/tests/run_all.sh with its jail_args.",
+    "Both libs keep their production behaviour: every new seam defaults to the real path it replaced.",
+    "The suite stays green and shellcheck reports nothing, with zero suppressions."
+  ],
+  "out_of_scope": [
+    "The backslash-continued-assignment artifact that caps bt_adapter.sh at 98.55%; it is a different predicate and only affects one line in one lib.",
+    "arch_sysctl_quarantined_cases.sh, which stays outside the suite.",
+    "The last two untested libs, ubuntu_perf_fixes.sh and nvidia_config.sh."
+  ],
+  "verifier": "timeout 900s bash meta/scripts/shell_coverage_jail.sh --timeout 600s --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure hosts_guard_migrate.sh (then hosts_guard_rollback.sh) --min 100 --fail-on-case-error -- \"\", then the acceptance pair through features/lib/tests/run_all.sh, then check_shell_coverage.sh on both libs."
+}

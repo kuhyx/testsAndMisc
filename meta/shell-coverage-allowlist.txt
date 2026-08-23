@@ -75,8 +75,6 @@ linux_configuration/scripts/single_use/features/lib/wg_keys.sh
 linux_configuration/scripts/single_use/features/lib/wg_sshd.sh
 linux_configuration/scripts/single_use/fixes/lib/arch_sysctl.sh
 linux_configuration/scripts/single_use/fixes/lib/bt_adapter.sh
-linux_configuration/scripts/single_use/fixes/lib/hosts_guard_migrate.sh
-linux_configuration/scripts/single_use/fixes/lib/hosts_guard_rollback.sh
 linux_configuration/scripts/single_use/fixes/lib/nvidia_config.sh
 linux_configuration/scripts/single_use/fixes/lib/pacman_hook_stall_setup.sh
 linux_configuration/scripts/single_use/fixes/lib/ubuntu_perf_fixes.sh

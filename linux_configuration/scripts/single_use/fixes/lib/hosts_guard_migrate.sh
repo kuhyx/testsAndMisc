@@ -8,6 +8,9 @@
 # Preconditions
 # ----------------------------------------------------------------------------
 validate_requirements() {
+	# SYSTEMD_UNIT_DIR and PACMAN_DB_LCK default to the real locations and
+	# are overridden only by the test harness, which runs un-jailed in
+	# ci_mirror.sh and in CI where a bind mount would protect nothing.
 	[[ -x $GUARDCTL ]] || {
 		err "guardctl not found at $GUARDCTL - run guard-lib's install.sh first"
 		exit 1
@@ -15,8 +18,8 @@ validate_requirements() {
 
 	local unit
 	for unit in guard-file@.path guard-file@.service guard-bind-mount@.service; do
-		[[ -f "/etc/systemd/system/$unit" ]] || {
-			err "missing systemd template /etc/systemd/system/$unit - run guard-lib's install.sh first"
+		[[ -f "${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/$unit" ]] || {
+			err "missing systemd template ${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/$unit - run guard-lib's install.sh first"
 			exit 1
 		}
 	done
@@ -27,8 +30,8 @@ validate_requirements() {
 	}
 
 	# A live transaction would race every chattr and umount below.
-	if [[ -e /var/lib/pacman/db.lck ]]; then
-		err "/var/lib/pacman/db.lck exists - a pacman transaction is in flight"
+	if [[ -e "${PACMAN_DB_LCK:-/var/lib/pacman/db.lck}" ]]; then
+		err "${PACMAN_DB_LCK:-/var/lib/pacman/db.lck} exists - a pacman transaction is in flight"
 		exit 1
 	fi
 }

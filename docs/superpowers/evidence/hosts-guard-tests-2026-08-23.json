@@ -1,0 +1,63 @@
+{
+  "intent": "Test both hosts-guard migration libraries to 100% line coverage, take them off the allowlist, and teach the coverage instrument that a loop terminator carrying a redirect is not a statement.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/hosts_guard_migrate.sh (two test seams)",
+    "linux_configuration/scripts/single_use/fixes/lib/hosts_guard_rollback.sh (one test seam)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/hosts_guard_harness.sh and three test files (new)",
+    "meta/scripts/lib/shell_coverage_lines.py (_LOOP_END_OP predicate)",
+    "meta/shell-coverage-allowlist.txt (two lines removed)"
+  ],
+  "changes": [
+    "Added SYSTEMD_UNIT_DIR and PACMAN_DB_LCK seams to hosts_guard_migrate.sh and HOSTS_FILE to hosts_guard_rollback.sh, each defaulting to the real path, so validate_requirements and do_rollback can be driven without a real /etc or a real pacman lock",
+    "Added hosts_guard_harness.sh, the fifth family harness, supplying the path globals, the LEGACY_HOOKS/LEGACY_UNITS/INSTANCES tables and the msg/note/warn/err/run/instance_* helpers that live in the entry script",
+    "Added 82 assertions over 36 cases across three test files covering both libs",
+    "INSTRUMENT FIX: added _LOOP_END_OP to continuation_lines(), excluding a loop terminator that carries a redirect (`done >file`, `done <file`, `done | cmd`). bash attributes the redirected compound statement to the loop's OPENING line, so kcov instruments the `done` line but it can never be hit",
+    "Removed both libs from meta/shell-coverage-allowlist.txt, taking it from 88 to 86 entries"
+  ],
+  "verification": [
+    {
+      "command": "Minimal reproduction of the instrument artifact: a three-iteration `for` loop ending in `done >\"$1\"`, measured with kcov directly",
+      "result": "pass",
+      "evidence": "The loop body reports hits=3 and the `done >\"$1\"` line reports hits=0 in the same run, confirming bash attributes the redirect to the loop's opening line. This is the same defect _CLOSING_BRACE_OP already handles for `} |`."
+    },
+    {
+      "command": "Audit: print every line the new predicate newly excludes, with its text, across all of fixes/lib",
+      "result": "pass",
+      "evidence": "Exactly two lines: hosts_guard_rollback.sh:69 'done >\"$STATE_DIR/units.state\"' and :108 'done <\"$STATE_DIR/units.state\"'. No over-exclusion, which is the only direction that could inflate coverage."
+    },
+    {
+      "command": "Acceptance suite for any instrument change, through features/lib/tests/run_all.sh with its jail_args",
+      "result": "pass",
+      "evidence": "dot_resolver_install.sh: 39/39 = 100.00% and rpi_nc_ca.sh: 73/73 = 100.00% -- both exactly the documented numbers, so the predicate changed no other measurement."
+    },
+    {
+      "command": "shell_coverage_jail.sh --measure hosts_guard_migrate.sh / hosts_guard_rollback.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "hosts_guard_migrate.sh: 81/81 = 100.00%. hosts_guard_rollback.sh: 65/65 = 100.00% (denominator 67 -> 65 from the predicate; it measured 97.01% with lines 69 and 108 uncovered beforehand)."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh on both libs, AFTER deleting their allowlist lines",
+      "result": "pass",
+      "evidence": "'every checked shell library meets the coverage bar', EXIT 0."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; 98s bare with the three new files."
+    },
+    {
+      "command": "pre-commit run ruff --files meta/scripts/lib/shell_coverage_lines.py",
+      "result": "pass",
+      "evidence": "Passed. A bare `ruff check` reports CPY001 on this file, but it does so on the unmodified file from HEAD as well -- it is a config-less invocation artifact, not a regression."
+    }
+  ],
+  "risks": [
+    "The instrument change lowers denominators wherever `done <redirect>` appears. A lib already at 100% cannot regress from excluding more lines (covered_set is intersected with the denominator), and the audit shows only two lines repo-wide are affected, both in this commit's own lib.",
+    "The predicate REQUIRES a redirect after `done`; a bare `done` stays in the denominator, so ordinary uncovered loops are still caught.",
+    "hosts_guard_harness.sh redefines instance_spec with tmpdir targets rather than /etc paths, so the tests exercise the real control flow against fake targets; a change to the real instance table would not be caught by these tests."
+  ],
+  "rollback": [
+    "git revert the commit, then re-add both hosts_guard lines to meta/shell-coverage-allowlist.txt",
+    "Re-run the acceptance pair (dot_resolver_install.sh 39/39, rpi_nc_ca.sh 73/73) to confirm the instrument is back to its prior behaviour"
+  ]
+}

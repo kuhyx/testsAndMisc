@@ -75,6 +75,18 @@ def traced_paths(trace_dir: Path, subject: str) -> list[Path]:
 # bare `}` closing a function carries no operator.
 _CLOSING_BRACE_OP = re.compile(r"^\s*\}\s*(\||>>?|<|&>)")
 
+# A loop terminator carrying a redirect: `done >file`, `done <file`,
+# `done | cmd`. Same defect as _CLOSING_BRACE_OP and the same reasoning: bash
+# attributes the redirected compound statement to the loop's OPENING line
+# (the `for`/`while`), so the `done` line is instrumented but can never be
+# hit. Measured on a three-line loop: the body reports hits=3 and the
+# `done >"$1"` line reports hits=0 in the same run.
+#
+# The redirect is REQUIRED by the pattern. A bare `done` closing an ordinary
+# loop is attributed normally and must stay in the denominator, so matching
+# it here would hide real uncovered code.
+_LOOP_END_OP = re.compile(r"^\s*done\s*(\||>>?|<|&>)")
+
 # An assignment whose value opens a multi-line array literal, e.g.
 # `local -a candidates=(` or `FILES=(`. bash reports the WHOLE assignment at
 # this opening line and never emits the element lines or the closing paren, so
@@ -103,6 +115,8 @@ def continuation_lines(source: Path) -> set[int]:
       opening line of such a construct is a statement.
     * a line holding just a group's closing brace and an operator (``} |``,
       ``} >>file``). See ``_CLOSING_BRACE_OP``.
+    * a loop terminator carrying a redirect (``done >file``, ``done <file``).
+      See ``_LOOP_END_OP``.
     * the element lines and closing paren of a multi-line array literal.
       See ``_ARRAY_OPEN``.
     """
@@ -120,7 +134,11 @@ def continuation_lines(source: Path) -> set[int]:
             in_array = False
         elif starts_open:
             in_array = True
-        if quote is None and not in_array and _CLOSING_BRACE_OP.match(raw):
+        if (
+            quote is None
+            and not in_array
+            and (_CLOSING_BRACE_OP.match(raw) or _LOOP_END_OP.match(raw))
+        ):
             inside.add(number)
     return inside
 
