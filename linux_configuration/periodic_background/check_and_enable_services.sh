@@ -66,7 +66,9 @@ MAKEPKG_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/makepkg-source.sha256"
 MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
 STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
 PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/periodic_background/setup_periodic_system.sh"
-HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/periodic_background/hosts/install.sh"
+# hosts-blocker was EXTRACTED (github.com/kuhyx/hosts-blocker). Resolved
+# below, after REAL_HOME is computed, for the same reason screen-locker is.
+HOSTS_INSTALL_SCRIPT=""
 GUARD_LIB_MIGRATE_SCRIPT="$CONFIG_DIR/./fixes/migrate_hosts_guard_to_guard_lib.sh"
 COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
 LEECHBLOCK_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/install_leechblock.sh"
@@ -86,6 +88,8 @@ REAL_HOME="$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f6)"
 WORKOUT_LOCKER_REPO="$REAL_HOME/screen-locker"
 WORKOUT_LOCKER_INSTALL_SCRIPT="$WORKOUT_LOCKER_REPO/install_systemd.sh"
 WORKOUT_LOCKER_SCRIPT="$WORKOUT_LOCKER_REPO/screen_locker/screen_lock.py"
+HOSTS_BLOCKER_REPO="${HOSTS_BLOCKER_DIR:-$REAL_HOME/hosts-blocker}"
+HOSTS_INSTALL_SCRIPT="$HOSTS_BLOCKER_REPO/install.sh"
 
 # A MISSING repair script means THIS TOOL is broken: it silently stops repairing
 # the thing it exists to repair. That is exactly how the 2026-05-15 reorg left a

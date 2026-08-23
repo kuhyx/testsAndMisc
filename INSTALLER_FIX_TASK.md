@@ -58,7 +58,10 @@ So the CORE module "Midnight shutdown timer" always fails on a fresh machine.
 
 ## Defect 3 — the hosts file-guards are installed only by a one-shot script
 
-`scripts/periodic_background/hosts/install.sh` (130 lines) never installs the
+`install.sh` in the extracted `hosts-blocker` repo
+(github.com/kuhyx/hosts-blocker, checked out at `~/hosts-blocker`; it was
+`scripts/periodic_background/hosts/install.sh` when this was written)
+never installs the
 hosts/nsswitch/resolved file-guards. Its own comment block around **line 109**
 claims otherwise:
 

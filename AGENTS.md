@@ -40,7 +40,10 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 [`android-guardian`](https://github.com/kuhyx/android-guardian) (lives at
 `~/android-guardian`),
 [`phone-focus-mode`](https://github.com/kuhyx/phone-focus-mode) (with
-`python_pkg/focus_policy`).
+`python_pkg/focus_policy`),
+[`hosts-blocker`](https://github.com/kuhyx/hosts-blocker) (lives at
+`~/hosts-blocker`; monorepo callers resolve it via
+`linux_configuration/lib/extracted_repos.sh`).
 Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Adding a Flutter app

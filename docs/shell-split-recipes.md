@@ -71,6 +71,8 @@ actually runs. Two ways a script leaves the repo, both silent when broken:
 - **Copied out** — only three, all under
   `periodic_background/hosts/guard/pacman-hooks/`, installed to
   `/usr/local/share/hosts-guard/` by `hosts/guard/install_pacman_hooks.sh`.
+  (That unit has since been extracted to `hosts-blocker`; the trap it
+  illustrates is unchanged and still applies to anything copied out.)
   Splitting any of those three means the installer must copy the new libs too,
   **in the same commit** — the same trap as `phone_focus_mode/deploy.sh`.
 - **Symlinked in** — exactly one: `/usr/local/bin/start-player2` →

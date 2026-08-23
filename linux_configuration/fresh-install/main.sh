@@ -177,7 +177,7 @@ else
 fi
 
 cd ~/linux-configuration
-sudo periodic_background/hosts/install.sh
+sudo "$HOME/hosts-blocker/install.sh"
 i3/install.sh
 periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
 fixes/nvidia_troubleshoot.sh

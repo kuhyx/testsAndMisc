@@ -20,7 +20,13 @@ CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 PACMAN_WRAPPER_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh"
 PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
 MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
-HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/periodic_background/hosts/install.sh"
+# hosts-blocker was EXTRACTED out of this monorepo
+# (github.com/kuhyx/hosts-blocker), so this path deliberately lives
+# outside it. A missing checkout is fatal, never a silent skip.
+# shellcheck source=../lib/extracted_repos.sh
+source "$CONFIG_DIR/lib/extracted_repos.sh"
+HOSTS_BLOCKER_DIR_RESOLVED="$(require_extracted_repo hosts-blocker "the periodic system setup")" || exit 1
+HOSTS_INSTALL_SCRIPT="$HOSTS_BLOCKER_DIR_RESOLVED/install.sh"
 
 echo ""
 echo "Configuration directory: $CONFIG_DIR"

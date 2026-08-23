@@ -1,0 +1,24 @@
+{
+  "title": "Extract the hosts blocker into its own repo and repoint its six monorepo callers",
+  "objective": "Move linux_configuration/periodic_background/hosts/ to github.com/kuhyx/hosts-blocker with full history, clearing 5 of 46 directory-depth violations, without changing a single source line or disturbing the live /etc/hosts guards.",
+  "acceptance_criteria": [
+    "The extracted repo's history spans all four paths the unit has lived at, not just the current one — 52 commits, reaching the original 'block websites uising etc hosts'.",
+    "Every extracted source file is byte-identical to its monorepo copy (diff -r reports no differences).",
+    "lib/tests/run_all.sh passes from ~/hosts-blocker, the real clone location, with 25 assertions.",
+    "All six monorepo callers resolve to /home/kuhy/hosts-blocker, including under sudo, where $HOME would be /root.",
+    "A missing checkout fails loudly with a clone instruction and a non-zero return — never a silent skip.",
+    "check_directory_depth.sh --all reports 41 violations, all of them digital_wellbeing.",
+    "report_live_state.sh --check output is byte-identical before and after: no new stale references.",
+    "The installed guard plugins under /usr/local/share/guard-lib-plugins/ remain byte-identical to the extracted copies.",
+    "No lint suppression (shellcheck disable, noqa, per-file ignore) is added anywhere."
+  ],
+  "out_of_scope": [
+    "Extracting digital_wellbeing (41 violations) — the next, harder unit.",
+    "Removing --warn from the directory-depth-cap hook, which is only valid once BOTH units are out.",
+    "Reformatting guard/plugins/*.sh with shfmt; they are unformatted in the monorepo too and their installed copies must stay identical.",
+    "Re-running the hosts installer or otherwise touching the live /etc/hosts, its chattr flags, or the running guards.",
+    "Fixing the 8 pre-existing stale live-state references — a separate commit after both extractions.",
+    "Deleting .hippo/ or the untracked extraction residue — separate commits."
+  ],
+  "verifier": "diff -r --exclude=.git between the monorepo unit and the extracted repo reports IDENTICAL; ~/hosts-blocker/lib/tests/run_all.sh exits 0 with 25 passed; pre-commit run --all-files --hook-stage pre-push in the extracted repo passes with no file modified; shellcheck is clean on the helper and all six callers; sudo -n resolution prints /home/kuhy/hosts-blocker; HOSTS_BLOCKER_DIR=/nonexistent require_extracted_repo returns 1 with a clone instruction; check_directory_depth.sh --all reports 41; diff of report_live_state.sh --check before/after is empty."
+}

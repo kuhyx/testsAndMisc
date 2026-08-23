@@ -3,7 +3,7 @@
 #
 # CORE modules (always installed):
 #   1. Workout screen locker    – python_pkg/screen_locker/
-#   2. Hosts blocking setup     – linux_configuration/periodic_background/hosts/
+#   2. Hosts blocking setup     – github.com/kuhyx/hosts-blocker (~/hosts-blocker)
 #   3. Midnight shutdown timer  – setup_midnight_shutdown.sh
 #
 # SECONDARY modules (prompted unless --all / --none given):
@@ -25,6 +25,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LINUX_CONFIG="$SCRIPT_DIR"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Locates repos extracted out of this monorepo (hosts-blocker, ...).
+# shellcheck source=lib/extracted_repos.sh
+source "$LINUX_CONFIG/lib/extracted_repos.sh"
 
 # ── Colour helpers ───────────────────────────────────────────────────────────
 bold() { printf '\e[1m%s\e[0m' "$*"; }
@@ -129,7 +132,7 @@ run_installer "Workout screen locker" \
 	bash "$REPO_ROOT/python_pkg/screen_locker/install_systemd.sh"
 
 run_installer "Hosts blocking" \
-	bash "$LINUX_CONFIG/periodic_background/hosts/install.sh"
+	bash "$(extracted_repo_dir hosts-blocker)/install.sh"
 
 run_installer "Midnight shutdown timer" \
 	bash "$LINUX_CONFIG/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"

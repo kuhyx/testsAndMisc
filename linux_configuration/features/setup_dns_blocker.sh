@@ -48,7 +48,12 @@ readonly DHCP_LEASE="12h"
 readonly DHCP_START_HOST="10" # .10 .. .150 mirrors a common router default range
 readonly DHCP_END_HOST="150"
 # Feed generator (chattr +i but still executable) and firewall owner script.
-readonly GEN="${SCRIPT_DIR}/../../periodic_background/hosts/generate_hosts_file.sh"
+# The feed generator now lives in the EXTRACTED hosts-blocker repo
+# (github.com/kuhyx/hosts-blocker). It is executed, not sourced.
+# shellcheck source=../lib/extracted_repos.sh
+source "${SCRIPT_DIR}/../lib/extracted_repos.sh"
+GEN="$(extracted_repo_dir hosts-blocker)/generate_hosts_file.sh"
+readonly GEN
 readonly WG_SCRIPT="${SCRIPT_DIR}/setup_wireguard_ssh.sh"
 readonly SELF="${SCRIPT_DIR}/setup_dns_blocker.sh"
 
@@ -122,7 +127,6 @@ source "$SCRIPT_DIR/lib/dns_firewall.sh"
 # shellcheck source=lib/dns_dhcp.sh
 source "$SCRIPT_DIR/lib/dns_dhcp.sh"
 
-
 cmd_setup() {
 	detect_lan
 	install_dnsmasq
@@ -165,7 +169,6 @@ revert_nic_to_dhcp() {
 	nmcli con mod "$con" ipv4.method auto ipv4.addresses "" ipv4.gateway "" ipv4.dns ""
 	nmcli con up "$con" >/dev/null 2>&1 || true
 }
-
 
 usage() {
 	cat <<EOF

@@ -64,7 +64,11 @@ MODE="migrate"
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 readonly SCRIPT_DIR
-PLUGIN_SRC_DIR="$(readlink -f "$SCRIPT_DIR/../../periodic_background/hosts/guard/plugins")"
+# The guard plugins moved with the EXTRACTED hosts-blocker repo
+# (github.com/kuhyx/hosts-blocker).
+# shellcheck source=../lib/extracted_repos.sh
+source "$SCRIPT_DIR/../lib/extracted_repos.sh"
+PLUGIN_SRC_DIR="$(readlink -f "$(extracted_repo_dir hosts-blocker)/guard/plugins")"
 readonly PLUGIN_SRC_DIR
 
 RED='\033[0;31m'
@@ -124,16 +128,6 @@ instance_spec() { # <name> -> echoes "target|bind|plugin|also_watch"
 readonly INSTANCES=(hosts nsswitch resolved)
 
 instance_registered() { [[ -f "$TARGETS_DIR/$1.conf" ]]; }
-
-
-
-
-
-
-
-
-
-
 
 # Parse arguments
 require_root "$@"

@@ -1,0 +1,88 @@
+{
+  "intent": "Extract linux_configuration/periodic_background/hosts/ into its own public repo (github.com/kuhyx/hosts-blocker, cloned at ~/hosts-blocker), clearing 5 of the 46 remaining directory-depth violations without disturbing the live hosts blocker or its guards.",
+  "scope": [
+    "REMOVED: linux_configuration/periodic_background/hosts/ (15 files)",
+    "ADDED: linux_configuration/lib/extracted_repos.sh (shared resolver)",
+    "REWRITTEN callers: check_and_enable_services.sh, setup_periodic_system.sh, features/setup_dns_blocker.sh, fixes/migrate_hosts_guard_to_guard_lib.sh, install_core_system.sh, fresh-install/main.sh",
+    "DOCS: CLAUDE.md, INSTALLER_FIX_TASK.md, docs/shell-split-recipes.md",
+    "NON-GOAL: digital_wellbeing (41 violations) — separate commit",
+    "NON-GOAL: removing --warn from the depth hook — only valid once BOTH units are out",
+    "NON-GOAL: reformatting the guard plugins with shfmt"
+  ],
+  "changes": [
+    "git filter-repo across ALL FOUR historical roots (hosts/, linux_configuration/hosts/, linux_configuration/scripts/periodic_background/hosts/, linux_configuration/periodic_background/hosts/) with matching --path-rename rules. Filtering on the current path alone would have preserved 1 commit instead of 51 — the flatten had moved the unit recently, so a naive single --path silently truncates the history to the flatten commit.",
+    "No source file was modified during extraction: all 15 files are byte-identical to the monorepo copies (verified with diff -r). install.sh already resolved its lib/ via BASH_SOURCE and needed no rewrite.",
+    "Added linux_configuration/lib/extracted_repos.sh: resolves an extracted repo's checkout via SUDO_USER's passwd entry (NOT $HOME, which is /root under sudo), supports a <NAME>_DIR override, and fails loudly with a clone instruction when absent.",
+    "Reused the existing REAL_HOME resolution already present in check_and_enable_services.sh for screen-locker rather than sourcing a second resolver into it.",
+    "fresh-install/main.sh uses \"$HOME/hosts-blocker/install.sh\" because it runs from ~/linux-configuration (a different repo) and is not sudo-re-exec'd at that point.",
+    "The new repo ships NO shfmt hook, deliberately: guard/plugins/*.sh are space-indented and unformatted in the monorepo too (its git hook shfmt's only STAGED files), and their installed copies under /usr/local/share/guard-lib-plugins/ are byte-identical by md5. An shfmt hook would rewrite both on first commit and break that identity."
+  ],
+  "verification": [
+    {
+      "command": "git log --all --oneline -- <each of the 4 historical roots> | wc -l",
+      "result": "pass",
+      "evidence": "current path alone: 1 commit; union of all four roots: 54. Extracted repo retains 51 + 1 setup commit = 52, reaching back to 'feat: block websites uising etc hosts'."
+    },
+    {
+      "command": "diff -r --exclude=.git <monorepo hosts/> <extracted repo>",
+      "result": "pass",
+      "evidence": "IDENTICAL — no source file altered by the extraction."
+    },
+    {
+      "command": "./lib/tests/run_all.sh (in ~/hosts-blocker, the real clone location)",
+      "result": "pass",
+      "evidence": "test_hosts_protect.sh: 25 passed, 0 failed. All hosts install test files passed."
+    },
+    {
+      "command": "pre-commit run --all-files --hook-stage pre-push (in the extracted repo)",
+      "result": "pass",
+      "evidence": "shebangs/merge-conflict/end-of-file/line-ending/trailing-whitespace/shellcheck all Passed; 'hosts lib tests' Passed. No file modified by any hook."
+    },
+    {
+      "command": "sudo -n bash -c 'source lib/extracted_repos.sh; extracted_repo_dir hosts-blocker'",
+      "result": "pass",
+      "evidence": "HOME=/home/kuhy resolved=/home/kuhy/hosts-blocker — resolves the invoking user, not /root/hosts-blocker."
+    },
+    {
+      "command": "HOSTS_BLOCKER_DIR=/nonexistent require_extracted_repo hosts-blocker",
+      "result": "pass",
+      "evidence": "Returned 1 and printed the expected path plus a 'git clone ...' instruction — fails loudly, never a silent skip."
+    },
+    {
+      "command": "shellcheck on the helper + all six rewritten callers",
+      "result": "pass",
+      "evidence": "ALL CLEAN (no --severity filter, matching the repo hook)."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_setup_dns_blocker.sh",
+      "result": "pass",
+      "evidence": "PASS: test_setup_dns_blocker.sh — the existing suite passes against the rewritten GEN path."
+    },
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --all | head -1",
+      "result": "pass",
+      "evidence": "46 -> 41 violations; all 5 hosts entries cleared, the 41 remaining are digital_wellbeing."
+    },
+    {
+      "command": "diff live-state-before.txt live-state-after.txt",
+      "result": "pass",
+      "evidence": "NO CHANGE — the 8 pre-existing stale references are unchanged and none were added."
+    },
+    {
+      "command": "md5sum /usr/local/share/guard-lib-plugins/resolved-plugin.sh vs repo copy",
+      "result": "pass",
+      "evidence": "5f4216dc0ffdbc3feeece2346d330c56 on both — the live guards load /usr/local/share/, not a repo path, so the move does not disturb them."
+    }
+  ],
+  "risks": [
+    "A machine without ~/hosts-blocker cloned now fails the hosts install step. That is deliberate and loud (clone instruction printed); the previous silent-skip mode is what caused five months of dead self-repair after the 2026-05-15 reorg.",
+    "install_core_system.sh on a genuinely fresh machine will hard-stop at the hosts module until the repo is cloned. INSTALLER_FIX_TASK.md already tracks fresh-machine installer defects and has been updated to name the new location.",
+    "The guard plugins remain unformatted. If an shfmt hook is ever added to hosts-blocker it will rewrite them, and the installed copies must be re-synced in the same change.",
+    "The live hosts blocker was NOT re-installed as part of this change; /etc/hosts and its guards are untouched and still enforced from their installed copies."
+  ],
+  "rollback": [
+    "git revert the monorepo commit — this restores linux_configuration/periodic_background/hosts/ in full and reverts all six callers to repo-relative paths.",
+    "The extracted repo can be left in place; nothing in the monorepo depends on it after a revert.",
+    "After rollback validate: ./meta/scripts/check_directory_depth.sh --all reports 46 again, bash linux_configuration/tests/test_setup_dns_blocker.sh passes, and guardctl file-guard status resolved still names /usr/local/share/guard-lib-plugins/."
+  ]
+}
