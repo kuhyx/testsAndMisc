@@ -1,0 +1,41 @@
+{
+  "intent": "Restore the four test seams in nvidia_config.sh, which were verified and measured but did not reach the previous commit, so the committed suite read and wrote the real system files.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/nvidia_config.sh",
+    "Non-goal: any change to the tests, which were already correct"
+  ],
+  "changes": [
+    "Re-applied the XORG_CONF, XORG_CONF_D, PROFILE_FILE and USER_HOME defaults at their assignment sites",
+    "Grepped the file for all four immediately after writing it, before running anything, because a silently-reverted edit is exactly what caused this"
+  ],
+  "verification": [
+    {
+      "command": "ci-mirror during git push",
+      "result": "fail",
+      "evidence": "'lib/tests suite failed: .../fixes/lib/tests/run_all.sh'. ci-mirror runs from a clean checkout of committed files, which is why it caught what the local run could not."
+    },
+    {
+      "command": "bash run_all.sh from a detached worktree at the previous commit",
+      "result": "fail",
+      "evidence": "EXIT 1 with 10 failures, including 'configure_xorg: enables RenderAccel (expected \"RenderAccel\" \"true\", got: # NVIDIA configuration with RenderAccel disabled)' -- the suite was reading this machine's real /etc/X11 config, and 'does not re-clone over a checkout' showed a clone path of /home/testuser/pyroveil rather than the tmpdir."
+    },
+    {
+      "command": "grep -n 'XORG_CONF:-|XORG_CONF_D:-|PROFILE_FILE:-|USER_HOME:-' nvidia_config.sh",
+      "result": "pass",
+      "evidence": "All four present at lines 26, 27, 60 and 85 after re-applying."
+    },
+    {
+      "command": "shellcheck + shfmt -l on nvidia_config.sh",
+      "result": "pass",
+      "evidence": "No findings, zero suppressions, no reformat pending."
+    }
+  ],
+  "risks": [
+    "The previous commit, cb1e8c53, is pushed and briefly had a suite that would write to the real /etc/X11/xorg.conf.d on any machine that ran it un-jailed. Nothing ran it in that window on this machine -- the real 20-nvidia.conf still carries its Jun 2025 mtime.",
+    "The local run passed against a stale seamed copy in the measurement worktree, which is why a clean-checkout run is now the check that matters before pushing."
+  ],
+  "rollback": [
+    "git revert the commit; nvidia_config.sh returns to hardcoded paths and the suite will fail again from a clean checkout",
+    "Re-run run_all.sh from a detached worktree to confirm the failure mode returns"
+  ]
+}

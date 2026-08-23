@@ -19,8 +19,12 @@ configure_xorg() {
 	echo "2. Configuring Xorg Settings..."
 	echo "==============================="
 
-	XORG_CONF="/etc/X11/xorg.conf"
-	XORG_CONF_D="/etc/X11/xorg.conf.d"
+	# These paths default to the real locations and are overridden only by
+	# the test harness. They are plain globals ASSIGNED here rather than read
+	# from the environment, so the default has to live at the assignment --
+	# an exported value alone would be overwritten on entry.
+	XORG_CONF="${XORG_CONF:-/etc/X11/xorg.conf}"
+	XORG_CONF_D="${XORG_CONF_D:-/etc/X11/xorg.conf.d}"
 	NVIDIA_CONF="$XORG_CONF_D/20-nvidia.conf"
 
 	# Create xorg.conf.d directory if it doesn't exist
@@ -53,7 +57,7 @@ configure_gcc_workaround() {
 	echo "3. Configuring GCC Mismatch Workaround..."
 	echo "=========================================="
 
-	local PROFILE_FILE="/etc/profile"
+	local PROFILE_FILE="${PROFILE_FILE:-/etc/profile}"
 	local timestamp
 	timestamp=$(date)
 	backup_file "$PROFILE_FILE"
@@ -78,7 +82,7 @@ install_pyroveil() {
 	echo "4. Pyroveil Setup for Mesh Shader Issues..."
 	echo "==========================================="
 
-	local user_home="/home/$SUDO_USER"
+	local user_home="${USER_HOME:-/home/$SUDO_USER}"
 	local pyroveil_dir="$user_home/pyroveil"
 
 	echo "Mesh shaders have poor support on NVIDIA drivers, causing issues in games"
