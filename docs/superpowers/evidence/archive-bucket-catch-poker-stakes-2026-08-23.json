@@ -1,0 +1,55 @@
+{
+  "intent": "Archive bucket_catch and poker-stakes out of testsAndMisc into testsAndMisc-archive, with full per-directory git history preserved, as the first (zero-risk) step of the repo restructure.",
+  "scope": [
+    "bucket_catch/ (64 files) - removed",
+    "poker-stakes/ (65 files) - removed",
+    ".github/workflows/poker-stakes-ci.yml - removed with its app",
+    "AGENTS.md - repo layout table updated",
+    "Non-goal: billsplit is archived separately, since it is coupled to python_pkg/billsplit_coverage and the app_icons registry"
+  ],
+  "changes": [
+    "Extracted each directory with git filter-repo --path, preserving every commit that touched it (bucket_catch 10, poker-stakes 2 - both matching git log counts in the monorepo).",
+    "Merged both into kuhyx/testsAndMisc-archive with --allow-unrelated-histories, keeping original repo-relative paths as that archive already does for C/, CPP/, horatio/ and the rest.",
+    "Removed both trees plus poker-stakes-ci.yml from the monorepo (130 files, 21869 deletions) and dropped their rows from the AGENTS.md layout table."
+  ],
+  "verification": [
+    {
+      "command": "git ls-files <unit> | wc -l, in archive vs source",
+      "result": "pass",
+      "evidence": "bucket_catch 64 = 64, poker-stakes 65 = 65."
+    },
+    {
+      "command": "diff -r --brief <archive>/<unit> <source>/<unit>",
+      "result": "pass",
+      "evidence": "No content differences for either unit (excluding untracked node_modules/build dirs that were never tracked)."
+    },
+    {
+      "command": "gh api repos/kuhyx/testsAndMisc-archive/contents --jq '.[].name'",
+      "result": "pass",
+      "evidence": "bucket_catch and poker-stakes both listed alongside the pre-existing C, CPP, TS, horatio, linux_configuration, pomodoro_app, python_pkg, robotgo_demo, sonic_pi."
+    },
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --all",
+      "result": "pass (improvement)",
+      "evidence": "Depth violations dropped 556 -> 451, consistent with the 105 deep files these two units contributed."
+    },
+    {
+      "command": "grep -rln 'bucket_catch|poker-stakes' .github/workflows/",
+      "result": "pass",
+      "evidence": "No matches - no workflow still references a removed unit."
+    },
+    {
+      "command": "./meta/scripts/report_live_state.sh",
+      "result": "pass",
+      "evidence": "27 live reference lines, unchanged from baseline: neither unit had any systemd unit, /etc config or symlink pointing at it."
+    }
+  ],
+  "risks": [
+    "The archive push is the only copy of these trees outside this repo's history; verified present via the GitHub API before deleting locally.",
+    "Historical planning notes (NEXT_SESSION_PROMPT.md, refactor_claude_todo_resume.md, docs/app-split-recipes.md) still mention both names. Left as-is: they are dated records of past work, not live configuration."
+  ],
+  "rollback": [
+    "git revert the removal commit to restore both trees and the workflow.",
+    "The archive repo keeps its copy either way; re-verify with pre-commit run --all-files after any revert."
+  ]
+}

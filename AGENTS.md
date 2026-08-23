@@ -4,20 +4,19 @@ Mixed-language monorepo: Python packages, Bash automation, and several apps.
 
 ## Repository Layout
 
-| Path                        | Description                                                                                               |
-| --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `python_pkg/`               | Python packages — every `.py` in the repo belongs here or in an allowlisted dir                           |
-| `meta/`                     | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc`, `scripts/` |
-| `linux_configuration/`      | Arch setup, i3 config, system maintenance, and the tracked git hooks                                      |
-| `phone_focus_mode/`         | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                                      |
-| `billsplit/`                | Receipt bill-splitting Flutter app (Dart)                                                                 |
-| `reverse_survivors/`        | React/Vite game — you play the horde (TypeScript)                                                         |
-| `poker-stakes/`             | Poker stakes trainer (TypeScript, Vite)                                                                   |
-| `kcd2_dice_solver/`         | KCD2 dice solver                                                                                          |
-| `focus_owner/`              | Android Device-Owner focus enforcer (Kotlin)                                                              |
-| `bucket_catch/`, `bottles/` | Small standalone projects                                                                                 |
-| `docs/`                     | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                           |
-| `third_party/`              | Vendored upstream skills/agents                                                                           |
+| Path                   | Description                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| `python_pkg/`          | Python packages — every `.py` in the repo belongs here or in an allowlisted dir                           |
+| `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc`, `scripts/` |
+| `linux_configuration/` | Arch setup, i3 config, system maintenance, and the tracked git hooks                                      |
+| `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                                      |
+| `billsplit/`           | Receipt bill-splitting Flutter app (Dart)                                                                 |
+| `reverse_survivors/`   | React/Vite game — you play the horde (TypeScript)                                                         |
+| `kcd2_dice_solver/`    | KCD2 dice solver                                                                                          |
+| `focus_owner/`         | Android Device-Owner focus enforcer (Kotlin)                                                              |
+| `bottles/`             | Small standalone project                                                                                  |
+| `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                           |
+| `third_party/`         | Vendored upstream skills/agents                                                                           |
 
 Root `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh` and
 `.fvmrc` are **symlinks into `meta/`** — edit the files in `meta/`, not the

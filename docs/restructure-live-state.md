@@ -60,11 +60,11 @@ file must be repointed in the same step. Re-run the script with
 
 `meta/scripts/check_directory_depth.sh --all` at baseline:
 
-| Bucket | Files |
-|---|---|
-| Total violations | 556 |
-| Disappear with the archives/extractions | 349 |
-| **Remain — the step D worklist** | **207** |
+| Bucket                                  | Files   |
+| --------------------------------------- | ------- |
+| Total violations                        | 556     |
+| Disappear with the archives/extractions | 349     |
+| **Remain — the step D worklist**        | **207** |
 
 Step D worklist by directory:
 

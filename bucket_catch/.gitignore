@@ -1,6 +1,0 @@
-node_modules/
-packages/*/node_modules/
-packages/frontend/dist/
-packages/backend/dist/
-packages/backend/uploads/*
-!packages/backend/uploads/.gitkeep

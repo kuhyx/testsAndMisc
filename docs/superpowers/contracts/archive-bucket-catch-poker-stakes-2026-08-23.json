@@ -1,0 +1,20 @@
+{
+  "title": "Archive bucket_catch and poker-stakes to testsAndMisc-archive",
+  "objective": "Remove two self-contained apps from testsAndMisc, preserving their full git history in kuhyx/testsAndMisc-archive, as the zero-risk opening step of the repo restructure. Neither unit is referenced by any other code, systemd unit, or symlink, which is why they go first.",
+  "acceptance_criteria": [
+    "Both directories are present in kuhyx/testsAndMisc-archive at their original repo-relative paths, confirmed through the GitHub API rather than a local clone.",
+    "The archived commit count for each unit equals the number of monorepo commits touching it: bucket_catch 10, poker-stakes 2.",
+    "diff -r between the archived copy and the pre-removal working tree reports no content differences for either unit.",
+    "Tracked file counts match exactly: bucket_catch 64, poker-stakes 65.",
+    ".github/workflows/poker-stakes-ci.yml is removed in the same commit as the app it builds, so no workflow is left pointing at a missing path.",
+    "No file under .github/workflows/ still references either unit.",
+    "meta/scripts/report_live_state.sh output is unchanged, proving neither unit had live system state pointing at it.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "billsplit, which is archived separately because it is coupled to python_pkg/billsplit_coverage and an app_icons registry entry that must be deleted in the same commit.",
+    "Rewriting historical planning notes that mention these names; they are dated records, not live configuration.",
+    "Wiring the directory-depth gate, which stays a dry run until the tree conforms."
+  ],
+  "verifier": "gh api repos/kuhyx/testsAndMisc-archive/contents lists both units; git ls-files counts match source; diff -r is clean; ./meta/scripts/check_directory_depth.sh --all drops from 556 to 451; ./meta/scripts/report_live_state.sh still reports 27 reference lines; pre-commit run over the staged set passes."
+}
