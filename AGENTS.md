@@ -28,7 +28,9 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 [`reverse-survivors`](https://github.com/kuhyx/reverse-survivors),
 [`kcd2-dice-solver`](https://github.com/kuhyx/kcd2-dice-solver) (lives at `~/kcd2-dice-solver`),
 [`focus-owner`](https://github.com/kuhyx/focus-owner),
-[`mtk-root`](https://github.com/kuhyx/mtk-root).
+[`mtk-root`](https://github.com/kuhyx/mtk-root),
+[`system-maintenance`](https://github.com/kuhyx/system-maintenance) (lives at
+`~/system-maintenance`).
 Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Adding a Flutter app

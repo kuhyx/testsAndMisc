@@ -1,0 +1,20 @@
+{
+  "title": "Extract system-maintenance, the first of the four live subsystems",
+  "objective": "Move the periodic maintenance subsystem to its own public repo. It is the isolated one -- no cross-unit source edges -- so it goes first and establishes the pattern for the three harder ones. Its Python tests live in linux_configuration/tests/ and reach it through a shared conftest, so the test half must move with it without breaking the suites that stay.",
+  "acceptance_criteria": [
+    "A vmbox pass first: the installer runs from an extracted-layout copy in the guest before anything is changed on the host, and the result is reported as sandbox-only.",
+    "The new repo's Python tests pass from a clean clone with its own conftest; 136 tests.",
+    "Both extracted shell suites pass after their hardcoded monorepo paths are fixed, and shellcheck exits 0 with no severity filter.",
+    "The new repo declares BOTH CI halves, since python-tests.yml reached it by paths filter and shell-tests.yml by name list, and neither follows the code out.",
+    "The suites remaining in the monorepo still pass: 202 Python tests.",
+    "The cross-unit pair test test_shutdown_timer_monitor.sh keeps working, and does not silently degrade into asserting against a stale installed binary.",
+    "No workflow, conftest, pyproject sys.path entry or coverage-allowlist line names a removed path.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "Refreshing the stale /usr/local/bin/shutdown-timer-monitor.sh, which digital_wellbeing's installer owns.",
+    "The other three subsystems.",
+    "Moving the shared linux_configuration/tests/conftest.py, which serves several script directories that stay."
+  ],
+  "verifier": "vm run in guest exercises the installer; python -m pytest tests -q reports 136 passed in the new repo; bash tests/*.sh and shellcheck both clean there; pytest linux_configuration/tests reports 202 passed here; bash linux_configuration/tests/test_shutdown_timer_monitor.sh passes with the checkout and SKIPs without it; check_shell_coverage.sh --all exits 0; check_directory_depth.sh --all drops 294 -> 267."
+}

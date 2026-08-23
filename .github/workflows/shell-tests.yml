@@ -139,7 +139,6 @@ jobs:
         run: |
           set -euo pipefail
           tests=(
-            test_hosts_file_monitor.sh
             test_hosts_guard_pacman_integration.sh
             test_i3blocks_efficiency.sh
             test_makepkg_capped.sh

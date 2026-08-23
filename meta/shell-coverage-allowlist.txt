@@ -20,11 +20,6 @@ linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/int
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/managed_copy.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/lib/protect_and_extras.sh
 linux_configuration/scripts/periodic_background/digital_wellbeing/virtualbox/lib/vbox_disk_inject.sh
-linux_configuration/scripts/periodic_background/system-maintenance/bin/lib/catchup_timer.sh
-linux_configuration/scripts/periodic_background/system-maintenance/bin/lib/distro_detect.sh
-linux_configuration/scripts/periodic_background/system-maintenance/bin/lib/nvidia_pmon.sh
-linux_configuration/scripts/periodic_background/system-maintenance/bin/lib/packages.sh
-linux_configuration/scripts/periodic_background/system-maintenance/bin/lib/system_services.sh
 linux_configuration/scripts/single_use/features/lib/aw_autostart.sh
 linux_configuration/scripts/single_use/features/lib/aw_install.sh
 linux_configuration/scripts/single_use/features/lib/aw_service.sh
