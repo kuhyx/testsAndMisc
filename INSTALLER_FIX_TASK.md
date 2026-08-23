@@ -17,12 +17,12 @@ correct on 2026-08-22; the repo moves.
 
 The sandbox progression, measured with the repo's own hardening checks:
 
-| State | Result |
-|---|---|
-| Bare guest, nothing installed | 0 passed / 17 skipped |
-| After `install_core_system.sh --all` | 10 passed / 14 skipped |
-| After manually installing guard-lib + the shutdown timer | 14 passed / 10 skipped |
-| After manually running the hosts migration | **18 passed, 6 skipped, 0 failed** |
+| State                                                    | Result                             |
+| -------------------------------------------------------- | ---------------------------------- |
+| Bare guest, nothing installed                            | 0 passed / 17 skipped              |
+| After `install_core_system.sh --all`                     | 10 passed / 14 skipped             |
+| After manually installing guard-lib + the shutdown timer | 14 passed / 10 skipped             |
+| After manually running the hosts migration               | **18 passed, 6 skipped, 0 failed** |
 
 The remaining 6 skips are legitimately screen_locker's. The gap between row 2
 and row 4 is entirely defects 2 and 3 below: everything needed to reach a green
@@ -64,7 +64,7 @@ claims otherwise:
 
 > Enforcement does not depend on these sources being immutable: /etc/hosts
 > itself is chattr +i, guard-lib's "hosts" file-guard instance (`guardctl
-> file-guard status hosts`) watches and re-enforces it against its canonical
+file-guard status hosts`) watches and re-enforces it against its canonical
 > snapshot, and the same instance's bind mount pins it.
 
 That is only true after running
