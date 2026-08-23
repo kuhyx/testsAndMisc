@@ -46,7 +46,6 @@ lxml>=5.0
 markdownify>=1.2.0
 matplotlib>=3.0
 mccabe>=0.7.0
-mitmproxy>=10.0
 mypy>=1.8.0
 numpy>=1.20
 opencv-python>=4.0
