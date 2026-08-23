@@ -1,0 +1,56 @@
+{
+  "intent": "Test nvidia_config.sh to 100% line coverage and take it off the allowlist, finishing the eight-lib fixes/lib campaign.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/nvidia_config.sh (four test seams)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/nvidia_config_harness.sh (new)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_nvidia_config.sh and test_nvidia_config_pyroveil.sh (new)",
+    "meta/shell-coverage-allowlist.txt (one line removed)"
+  ],
+  "changes": [
+    "Added XORG_CONF, XORG_CONF_D, PROFILE_FILE and USER_HOME seams. XORG_CONF and XORG_CONF_D are plain globals ASSIGNED inside configure_xorg, so the default had to move to the assignment itself -- an exported value alone would have been overwritten on entry",
+    "Added nvidia_config_harness.sh, the sixth family harness, supplying INTERACTIVE_MODE and SUDO_USER plus readers for the drop-in, the profile and the backup count",
+    "Added 45 assertions over 15 cases across two files covering all four functions",
+    "Removed nvidia_config.sh from meta/shell-coverage-allowlist.txt, taking it from 85 to 84 entries"
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --timeout 600s --measure nvidia_config.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "nvidia_config.sh: 76/76 lines = 100.00%, exit 0, no case timeout."
+    },
+    {
+      "command": "shell_coverage_jail.sh --timeout 600s --measure bt_audio.sh --min 100 (canary, with the two new test files present)",
+      "result": "pass",
+      "evidence": "bt_audio.sh: 127/127 lines = 100.00%, so the additions did not displace an already-cleared lib."
+    },
+    {
+      "command": "ls -la /etc/X11/xorg.conf.d/20-nvidia.conf; ls -d ~/pyroveil",
+      "result": "pass",
+      "evidence": "The real drop-in is still dated Jun 26 2025, untouched by the suite, and ~/pyroveil does not exist. The seams kept every write inside the throwaway tmpdir."
+    },
+    {
+      "command": "bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; 21 + 24 = 45 new assertions, 0 failed."
+    },
+    {
+      "command": "shellcheck + shfmt on the lib, the harness and both test files",
+      "result": "pass",
+      "evidence": "No findings, zero suppressions. Lib is 184 lines, under the 250-line cap."
+    },
+    {
+      "command": "Manual run of install_pyroveil under INTERACTIVE_MODE with stdin fed from a heredoc",
+      "result": "pass",
+      "evidence": "An assertion on the `read -p` prompt text failed because bash writes that prompt straight to the terminal, not to stdout or stderr, so it is not observable in captured output. Replaced with an assertion that the interactive arm does NOT emit the non-interactive branch's 'Auto-installing' line, which is observable and distinguishes the two paths."
+    }
+  ],
+  "risks": [
+    "install_pyroveil's interactive arm cannot be asserted on its prompt text; the tests distinguish the branches by the auto-install message instead.",
+    "The tests stub git/cmake/ninja, so they verify the orchestration (clone vs update, sudo -u, chown, helper contents) rather than that pyroveil actually builds.",
+    "configure_xorg's RenderAccel value is asserted explicitly as 'true' and asserted never to be 'false', because 'false' forces software rendering and pins Xorg above 30% CPU -- the bug the comment in the lib records."
+  ],
+  "rollback": [
+    "git revert the commit, then re-add the nvidia_config.sh line to meta/shell-coverage-allowlist.txt",
+    "Re-run check_shell_coverage.sh to confirm the gate passes again with the exemption restored"
+  ]
+}

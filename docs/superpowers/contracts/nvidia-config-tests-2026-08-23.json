@@ -1,0 +1,19 @@
+{
+  "title": "Clear nvidia_config.sh and finish the fixes/lib campaign",
+  "objective": "Bring nvidia_config.sh to 100% measured line coverage and remove its allowlist exemption, completing the eight-lib job the campaign started with.",
+  "acceptance_criteria": [
+    "The jail reports nvidia_config.sh at 100.00% through tests/run_all.sh at --min 100, exiting 0.",
+    "check_shell_coverage.sh passes on it with the allowlist line already deleted.",
+    "bt_audio.sh still measures 127/127 with the new test files present.",
+    "All four functions are covered: backup_file for present and absent files, configure_xorg including both backup paths, configure_gcc_workaround for fresh and already-configured profiles, and install_pyroveil for auto-install, existing checkout, missing dependencies, and both interactive answers.",
+    "configure_xorg is asserted to write RenderAccel 'true' and never 'false', since 'false' forces software rendering.",
+    "No write reaches /etc or a real home: /etc/X11/xorg.conf.d/20-nvidia.conf keeps its 2025 mtime and ~/pyroveil does not exist.",
+    "The lib stays under the 250-line cap and shellcheck reports nothing, with zero suppressions."
+  ],
+  "out_of_scope": [
+    "Verifying that pyroveil actually builds; git/cmake/ninja are stubbed and only the orchestration is asserted.",
+    "The ~12 gated libs outside fixes/lib that already fail the gate for pre-existing reasons.",
+    "arch_sysctl.sh, which stays quarantined and exempt."
+  ],
+  "verifier": "timeout 900s bash meta/scripts/shell_coverage_jail.sh --timeout 600s --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure nvidia_config.sh --min 100 --fail-on-case-error -- \"\" (expects 76/76 = 100.00%, exit 0), then the same for bt_audio.sh as a canary, then check_shell_coverage.sh with the allowlist line removed."
+}
