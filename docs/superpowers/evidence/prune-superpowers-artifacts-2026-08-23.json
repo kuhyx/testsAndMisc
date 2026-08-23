@@ -1,0 +1,44 @@
+{
+  "intent": "Prune the accumulated per-commit evidence and contract artifacts, which were the largest single driver of tracked-file growth in the repo.",
+  "scope": [
+    "docs/superpowers/evidence - 455 tracked files down to 21",
+    "docs/superpowers/contracts - 241 tracked files down to 21",
+    "Non-goal: docs/superpowers/sessions, which is append-only and enforced by check_append_only_sessions.sh. Untouched.",
+    "Non-goal: .hippo/, reported on separately rather than pruned in the same pass."
+  ],
+  "changes": [
+    "Kept the 20 most recently committed artifacts in each of evidence/ and contracts/, plus both template.json files, and removed the other 655.",
+    "Selected by real git commit date (git log -1 --format=%cs per file) rather than by parsing filenames: the corpus mixes -2026-05, -20260604 and undated slugs, so a filename date filter would have silently mis-sorted ~48 files.",
+    "Used a count cap rather than a time window because growth is bursty: 487 of the 695 artifacts were committed in 2026-08 alone, so even a 7-day window would have kept 393 files and bounded nothing going forward."
+  ],
+  "verification": [
+    {
+      "command": "grep -c template prune_final.txt",
+      "result": "pass",
+      "evidence": "0 - neither template.json was in the prune list. Confirmed present on disk after the removal; the hooks tell users to copy them, so deleting one would have broken the documented workflow."
+    },
+    {
+      "command": "git ls-files docs/superpowers/{evidence,contracts,sessions} | wc -l",
+      "result": "pass",
+      "evidence": "evidence 21, contracts 21 (20 kept + template each), sessions 3 unchanged. Arithmetic closes: 695 = 40 kept + 655 pruned."
+    },
+    {
+      "command": "./meta/scripts/check_ai_evidence.sh; ./meta/scripts/check_agent_contract.sh; ./meta/scripts/check_append_only_sessions.sh",
+      "result": "pass",
+      "evidence": "All three exit 0 after the prune. Verified beforehand by grep that no tooling reads the historical corpus - every reference is either template.json or validation of files staged in the current commit."
+    },
+    {
+      "command": "git ls-files | wc -l",
+      "result": "pass",
+      "evidence": "1993 -> 1340 tracked files. check_repo_size still reports ~1050 source files, correctly unchanged: docs/superpowers/ is excluded from that count by design."
+    }
+  ],
+  "risks": [
+    "Historical artifacts are now reachable only through git history (git log --diff-filter=D -- docs/superpowers/). Accepted: nothing reads them programmatically and their review value decays within days.",
+    "The 20-file cap is enforced by nothing - it is a one-off prune, so the directories will grow again at roughly one artifact per commit. A recurring prune or a hard cap would be the durable fix if this recurs."
+  ],
+  "rollback": [
+    "git revert the commit restores all 655 files, since this is a pure deletion with no accompanying logic change.",
+    "After rollback, confirm the three superpowers hooks still exit 0 and that both template.json files are present."
+  ]
+}
