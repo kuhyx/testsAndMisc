@@ -1,0 +1,37 @@
+{
+  "intent": "Close a gap in the live-state inventory: scripts installed under /usr/local that hardcode repo paths were invisible to the checklist the restructure relies on.",
+  "scope": [
+    "meta/scripts/report_live_state.sh - new report_installed section scanning /usr/local/bin and /usr/local/lib",
+    "docs/restructure-live-state.md - regenerated",
+    "Non-goal: repointing the references it found; each travels with its own subsystem extraction"
+  ],
+  "changes": [
+    "Added report_installed(), which greps /usr/local/bin and /usr/local/lib for the repo path and prints each hit with line numbers, matching the existing sections' shape and feeding the same --check exit code.",
+    "Regenerated the inventory doc and folded in current depth-cap progress."
+  ],
+  "verification": [
+    {
+      "command": "./meta/scripts/report_live_state.sh",
+      "result": "pass",
+      "evidence": "Found 3 installed scripts naming repo paths that no prior section reported: /usr/local/bin/periodic-system-maintenance.sh (3 paths into digital_wellbeing and hosts), /usr/local/bin/hosts-file-monitor.sh (1 into hosts), /usr/local/bin/wsg-grabber (PYTHONPATH into the repo root)."
+    },
+    {
+      "command": "./meta/scripts/report_live_state.sh --check; echo $?",
+      "result": "pass",
+      "evidence": "Exit 1, correct while references remain; the new section participates in the same aggregate."
+    },
+    {
+      "command": "shellcheck meta/scripts/report_live_state.sh",
+      "result": "pass",
+      "evidence": "Clean, no findings at any severity."
+    }
+  ],
+  "risks": [
+    "The scan covers /usr/local/bin and /usr/local/lib. A reference installed elsewhere on PATH would still be missed; those two are where this machine's installers write.",
+    "periodic-system-maintenance.sh runs hourly and names install scripts in two subsystems that are about to move, so those extractions must reinstall it rather than only editing the repo copy."
+  ],
+  "rollback": [
+    "git revert; the section is additive and nothing depends on its output yet.",
+    "Re-run report_live_state.sh to confirm the remaining sections still report."
+  ]
+}

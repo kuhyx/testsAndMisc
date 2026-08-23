@@ -63,6 +63,23 @@ report_etc() {
 	return "$found"
 }
 
+# Scripts INSTALLED outside the repo that name a path inside it. These are the
+# easiest references to miss: the copy under /usr/local/bin is what actually
+# runs, so grepping the repo for its own paths never finds them, and a stale
+# one fails at whatever hour its timer next fires.
+report_installed() {
+	echo "## installed scripts referencing the repo"
+	local found=0 path
+	while IFS= read -r path; do
+		[[ -n "$path" ]] || continue
+		found=1
+		printf '  %s\n' "$path"
+		grep -n "$REPO" "$path" 2>/dev/null | sed 's/^/      /'
+	done < <(grep -rl "$REPO" /usr/local/bin /usr/local/lib 2>/dev/null | sort)
+	((found)) || echo "  (none)"
+	return "$found"
+}
+
 # Symlinks anywhere in $HOME resolving into the repo: i3blocks, ~/.local/bin,
 # oh-my-zsh custom. Depth 4 covers every known location without walking the
 # whole home directory.
@@ -85,6 +102,8 @@ main() {
 	report_systemd || any=1
 	echo
 	report_etc || any=1
+	echo
+	report_installed || any=1
 	echo
 	report_symlinks || any=1
 
