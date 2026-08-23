@@ -92,7 +92,7 @@ jscpd_output=$("$JSCPD_BIN" \
   --min-tokens 25 \
   --threshold 2 \
   --reporters "console" \
-  --ignore "**/node_modules/**,**/.git/**,**/misc/testsAndMisc-bash/**,**/*.txt,**/.venv/**,**/lib/tests/**,**/tests/**" \
+  --ignore "**/node_modules/**,**/.git/**,**/misc/**,**/*.txt,**/.venv/**,**/lib/tests/**,**/tests/**" \
   . 2>&1) || jscpd_exit=$?
 
 if [[ ${jscpd_exit:-0} -ne 0 ]]; then

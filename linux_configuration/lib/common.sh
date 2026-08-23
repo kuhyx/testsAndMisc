@@ -3,7 +3,7 @@
 # Source this file at the beginning of scripts that need shared functionality
 #
 # Usage: source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
-# Or:    source "/path/to/scripts/lib/common.sh"
+# Or:    source "/path/to/lib/common.sh"
 
 # Prevent multiple sourcing
 [[ -n ${_LIB_COMMON_LOADED:-} ]] && return 0

@@ -13,7 +13,7 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
   - `install_pacman_wrapper.sh` backs up `/usr/bin/pacman` to `pacman.orig` and symlinks to the wrapper.
 - periodic_background/system-maintenance/: templates and installer for periodic jobs and monitoring.
   - `setup_periodic_system.sh` installs: `/usr/local/bin/periodic-system-maintenance.sh`, a timer (`periodic-system-maintenance.timer`), a startup oneshot, and `hosts-file-monitor.service` that restores `/etc/hosts` if tampered. Also installs a browser pre-exec wrapper that re-runs the hosts installer before launching common browsers.
-- i3-configuration/: installs i3 and i3blocks configs with small font sizing logic (`i3-configuration/install.sh`).
+- i3/ + i3blocks/: install i3 and i3blocks configs with small font sizing logic (`i3/install.sh`).
 
 ## Conventions you should follow
 
@@ -31,7 +31,7 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
   - `sudo hosts/install.sh` to (re)build `/etc/hosts` from cache/upstream then lock it.
   - Guard layers (hosts/nsswitch/resolved) are managed by `guardctl file-guard <install|status|unlock|uninstall> <name>`; see `./fixes/migrate_hosts_guard_to_guard_lib.sh` to (re)install them.
   - To edit a guarded file: `sudo guardctl file-guard unlock <name>`, edit, then let the path-watcher re-lock it (or `guardctl file-guard enforce <name>`).
-- i3 config: `i3-configuration/install.sh` (copies `i3` and `i3blocks`, adjusts font size; installs required tools conditionally for Arch/Ubuntu).
+- i3 config: `i3/install.sh` (copies `i3` and `i3blocks`, adjusts font size; installs required tools conditionally for Arch/Ubuntu).
 
 ## Integration points and gotchas
 

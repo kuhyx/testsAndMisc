@@ -66,7 +66,7 @@ fix_media_organizer() {
 	local script_path=""
 	local candidates=(
 		"${ORGANIZE_SCRIPT_CANDIDATES:-/home/kuhy/testsAndMisc/linux_configuration/utils/organize_downloads.sh}"
-		"/home/kuhy/linux-configuration/scripts/utils/organize_downloads.sh"
+		"/home/kuhy/linux-configuration/utils/organize_downloads.sh"
 	)
 	for candidate in "${candidates[@]}"; do
 		if [[ -f $candidate ]]; then

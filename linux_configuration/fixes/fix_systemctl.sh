@@ -12,7 +12,7 @@ SERVICE_NAME="media-organizer"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 DEFAULT_ORGANIZE_SCRIPT="/home/kuhy/testsAndMisc/linux_configuration/utils/organize_downloads.sh"
-LEGACY_ORGANIZE_SCRIPT="/home/kuhy/linux-configuration/scripts/utils/organize_downloads.sh"
+LEGACY_ORGANIZE_SCRIPT="/home/kuhy/linux-configuration/utils/organize_downloads.sh"
 if [[ -f $DEFAULT_ORGANIZE_SCRIPT ]]; then
 	ORGANIZE_SCRIPT="$DEFAULT_ORGANIZE_SCRIPT"
 elif [[ -f $LEGACY_ORGANIZE_SCRIPT ]]; then

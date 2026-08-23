@@ -58,20 +58,20 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Script paths
-PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
-MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
+PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
+MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
 # Drift manifests written by the two installers above (see deployment_drift).
 PACMAN_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/source.sha256"
 MAKEPKG_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/makepkg-source.sha256"
-MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
-STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
-PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/scripts/periodic_background/setup_periodic_system.sh"
-HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/scripts/periodic_background/hosts/install.sh"
+MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
+STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
+PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/periodic_background/setup_periodic_system.sh"
+HOSTS_INSTALL_SCRIPT="$CONFIG_DIR/periodic_background/hosts/install.sh"
 GUARD_LIB_MIGRATE_SCRIPT="$CONFIG_DIR/./fixes/migrate_hosts_guard_to_guard_lib.sh"
-COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
-LEECHBLOCK_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/install_leechblock.sh"
-REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/remove_guest_mode.sh"
-VBOX_HOSTS_SCRIPT="$CONFIG_DIR/scripts/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
+COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
+LEECHBLOCK_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/install_leechblock.sh"
+REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/remove_guest_mode.sh"
+VBOX_HOSTS_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
 # screen-locker was EXTRACTED out of this monorepo into its own repo
 # (github.com/kuhyx/screen-locker, checked out at ~/screen-locker), so these
 # paths deliberately live outside testsAndMisc. They used to point at

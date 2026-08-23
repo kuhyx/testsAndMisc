@@ -71,7 +71,7 @@ _t_lacks "$(_t_calls)" "systemctl disable" \
 # candidate paths are absolute; the first is overridden into the tmpdir and
 # the second is a real home path that does not exist on this machine.
 arch_reset
-if [[ -f /home/kuhy/linux-configuration/scripts/utils/organize_downloads.sh ]]; then
+if [[ -f /home/kuhy/linux-configuration/utils/organize_downloads.sh ]]; then
 	_t_pass "fix_media_organizer: SKIP not-found case (the second candidate exists here)"
 else
 	out="$(fix_media_organizer 2>&1)"

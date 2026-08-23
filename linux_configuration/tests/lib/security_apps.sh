@@ -9,7 +9,7 @@ sec_tests_compulsive_block() {
 	# ==================================================================
 	echo "--- COMPULSIVE OPENING BLOCK ---"
 
-	compulsive_dir="$REPO_DIR/scripts/periodic_background/digital_wellbeing"
+	compulsive_dir="$REPO_DIR/periodic_background/digital_wellbeing"
 	compulsive_file="$compulsive_dir/block_compulsive_opening.sh"
 
 	# The blocker was split into lib/cco_*.sh under the 250-line cap, so these

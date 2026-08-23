@@ -27,7 +27,6 @@ _SCRIPT_DIRS = (
     _REPO_ROOT
     / "linux_configuration"
     / "misc"
-    / "testsAndMisc-bash"
     / "tools",  # transcribe_fw and its helpers
 )
 

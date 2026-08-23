@@ -4,8 +4,8 @@ set -euo pipefail
 
 # Source common library for shared functions
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-# shellcheck source=../../lib/common.sh
-source "$SCRIPT_DIR/../../lib/common.sh"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
 
 SCRIPT_NAME="$(basename "$0")"
 

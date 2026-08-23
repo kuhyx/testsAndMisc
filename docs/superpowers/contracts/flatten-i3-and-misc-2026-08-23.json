@@ -1,0 +1,19 @@
+{
+  "title": "Flatten i3-configuration and misc/testsAndMisc-bash, and repair the references the first flatten missed",
+  "objective": "Finish the flattening for the two remaining pure-taxonomy nestings, and close out the path rewrites that the previous commit's regex did not reach. The first flatten proved that the moves are easy and the references are the risk, so this change is mostly about finding references that a diff review would not surface.",
+  "acceptance_criteria": [
+    "i3 config no longer sits under periodic_background, where it never belonged; both resulting directories are at depth 2.",
+    "misc/ no longer contains a directory named after the repo it lives in.",
+    "The media-ignore rules from the moved .gitignore still apply at their new location, and no previously tracked file becomes ignored.",
+    "Every $VAR/scripts/... reference is rewritten, including the orchestrators that name the still-deferred subsystems.",
+    "Both i3blocks test suites pass, having been RUN rather than eyeballed.",
+    "The repo-wide pytest gate still reports 100%.",
+    "Every $HOME symlink broken by the move is repointed, and the i3blocks scripts are run to prove the bar works.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "digital_wellbeing and hosts, deferred pending the guard-lib repoint; their references are updated to the new scheme but the directories stay.",
+    "The ~57 remaining violations that encode real structure (a C project, Python package dirs, artgate's routes/styles, systemd unit dirs) rather than taxonomy."
+  ],
+  "verifier": "check_directory_depth.sh --all falls 139 -> 104; both test_i3blocks_*.sh pass; pytest_changed_packages.py reports 1798 passed at 100%; find ~ -xtype l finds nothing; git check-ignore confirms the relocated media rules; check_shell_coverage.sh --all exits 0."
+}

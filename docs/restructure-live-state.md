@@ -48,19 +48,19 @@ its timer next fires.
       4:export PYTHONPATH="/home/kuhy/testsAndMisc${PYTHONPATH:+:$PYTHONPATH}"
 
 ## symlinks into the repo
-  /home/kuhy/.config/i3blocks/claude_usage.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/claude_usage.sh
-  /home/kuhy/.config/i3blocks/config -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/config
-  /home/kuhy/.config/i3blocks/cpu_monitor.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/cpu_monitor.sh
-  /home/kuhy/.config/i3blocks/disk.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/disk.sh
-  /home/kuhy/.config/i3blocks/ethernet.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/ethernet.sh
-  /home/kuhy/.config/i3blocks/gpu_monitor.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/gpu_monitor.sh
-  /home/kuhy/.config/i3blocks/memory.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/memory.sh
-  /home/kuhy/.config/i3blocks/motherboard_temp.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/motherboard_temp.sh
-  /home/kuhy/.config/i3blocks/pc_startup_status.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/pc_startup_status.sh
-  /home/kuhy/.config/i3blocks/persist_common.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/persist_common.sh
-  /home/kuhy/.config/i3blocks/shutdown_countdown.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/shutdown_countdown.sh
-  /home/kuhy/.config/i3blocks/time.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/time.sh
-  /home/kuhy/.config/i3blocks/volume.sh -> /home/kuhy/testsAndMisc/linux_configuration/periodic_background/i3-configuration/i3blocks/volume.sh
+  /home/kuhy/.config/i3blocks/claude_usage.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/claude_usage.sh
+  /home/kuhy/.config/i3blocks/config -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/config
+  /home/kuhy/.config/i3blocks/cpu_monitor.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/cpu_monitor.sh
+  /home/kuhy/.config/i3blocks/disk.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/disk.sh
+  /home/kuhy/.config/i3blocks/ethernet.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/ethernet.sh
+  /home/kuhy/.config/i3blocks/gpu_monitor.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/gpu_monitor.sh
+  /home/kuhy/.config/i3blocks/memory.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/memory.sh
+  /home/kuhy/.config/i3blocks/motherboard_temp.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/motherboard_temp.sh
+  /home/kuhy/.config/i3blocks/pc_startup_status.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/pc_startup_status.sh
+  /home/kuhy/.config/i3blocks/persist_common.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/persist_common.sh
+  /home/kuhy/.config/i3blocks/shutdown_countdown.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/shutdown_countdown.sh
+  /home/kuhy/.config/i3blocks/time.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/time.sh
+  /home/kuhy/.config/i3blocks/volume.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/volume.sh
   /home/kuhy/.local/bin/keepass-open -> /home/kuhy/testsAndMisc/linux_configuration/features/keepass-open.sh
   /home/kuhy/.local/bin/line-speed-probe.sh -> /home/kuhy/testsAndMisc/linux_configuration/diagnostics/line-speed-probe.sh
   /home/kuhy/.local/bin/steam-download-duty.sh -> /home/kuhy/testsAndMisc/linux_configuration/diagnostics/steam-download-duty.sh

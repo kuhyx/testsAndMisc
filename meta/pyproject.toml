@@ -141,7 +141,7 @@ color_output = true
 exclude = [
     "Bash/ffmpeg-build/",
     ".venv/",
-    "linux_configuration/misc/testsAndMisc-bash/tools/",  # Avoid duplicate module named 'tools'
+    "linux_configuration/misc/tools/",  # Avoid duplicate module named 'tools'
 ]
 
 # Standalone tool scripts outside python_pkg/ are not held to strict mypy rules
@@ -170,7 +170,7 @@ disallow_untyped_decorators = false
 # bare name (the same dirs linux_configuration/tests/conftest.py adds to
 # sys.path at runtime) resolve under static analysis instead of raising E0401.
 # Paths are relative to the repo root, which is pre-commit's working directory.
-init-hook = "import sys; sys.path[:0] = ['meta/scripts', 'python_pkg', 'linux_configuration/utils', 'linux_configuration/periodic_background/digital_wellbeing', 'linux_configuration/misc/testsAndMisc-bash/tools']"
+init-hook = "import sys; sys.path[:0] = ['meta/scripts', 'python_pkg', 'linux_configuration/utils', 'linux_configuration/periodic_background/digital_wellbeing', 'linux_configuration/misc/tools']"
 # Analyse import fallback blocks
 analyse-fallback-blocks = true
 # Pickle collected data for later comparisons
