@@ -1,0 +1,41 @@
+{
+  "intent": "Unblock every push: the pre-push ci-mirror was failing on test_music_parallelism.sh, whose worktree drift guard still assumed the pre-flattening layout.",
+  "scope": [
+    "linux_configuration/tests/test_music_parallelism.sh - derive the lib prefix instead of hardcoding it",
+    "Non-goal: music_parallelism.sh itself, which is correct - it sources ../../lib/common.sh, matching where lib/ actually sits after the flattening."
+  ],
+  "changes": [
+    "The guard hardcoded ../lib/common.sh while the script sources ../../lib/common.sh. The flattening that moved the script from scripts/periodic_background/... up to periodic_background/... changed its depth, so the test failed on a layout that is in fact correct.",
+    "The prefix is now read out of the script under test with sed, so a future reorganisation cannot desynchronise the two again. The failure message reports the real prefix rather than a fixed string.",
+    "Matching the literal text $SCRIPT_DIR meant matching a dollar sign as data, which shellcheck flags as SC2016. Spelled the byte via printf '\\\\x24' rather than adding a suppression."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_music_parallelism.sh",
+      "result": "pass",
+      "evidence": "'music_parallelism.sh regression checks passed.' Previously failed with 'worktree layout drift: ... resolves ../lib/common.sh ...'."
+    },
+    {
+      "command": "Mutation check in a detached worktree: rewrote the script to source ../../../lib/common.sh",
+      "result": "pass",
+      "evidence": "The guard failed as intended and named the real prefix (../../../). Confirms the guard is non-vacuous rather than merely passing."
+    },
+    {
+      "command": "pre-commit run --files linux_configuration/tests/test_music_parallelism.sh",
+      "result": "pass",
+      "evidence": "shellcheck and shfmt clean; SC2016 resolved without a suppression."
+    },
+    {
+      "command": "systemd-run --scope -p MemoryMax=2G -p MemorySwapMax=0 /usr/bin/time -v python -m pytest ...",
+      "result": "pass",
+      "evidence": "1798 passed in 20.88s, Maximum RSS 293872 KB (~0.29 GB) under the existing 2G cap. The earlier 'Killed' was transient host pressure, not an inadequate ceiling; no cap change needed."
+    }
+  ],
+  "risks": [
+    "The sed pattern matches the specific shape of the source line. If that line is rewritten to a different form the test fails loudly with 'cannot determine how ... sources lib/common.sh' rather than silently passing, which is the intended direction."
+  ],
+  "rollback": [
+    "git revert the commit; the test returns to its hardcoded prefix and the pre-push gate fails again until the layout matches.",
+    "After rollback, run bash linux_configuration/tests/test_music_parallelism.sh to confirm the expected failure."
+  ]
+}
