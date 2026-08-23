@@ -127,5 +127,3 @@ else
 fi
 
 _t_summary
-
-_t_eq "deliberate" "break" "DELIBERATE GATE PROBE"
