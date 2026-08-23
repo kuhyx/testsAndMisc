@@ -17,9 +17,10 @@ init_setup_script "Periodic System Setup - Pacman Wrapper & Hosts File" "$@"
 CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Define paths
-PACMAN_WRAPPER_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh"
-PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
-MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
+DW_REPO="$(require_extracted_repo digital-wellbeing "the periodic system setup")" || exit 1
+PACMAN_WRAPPER_SCRIPT="$DW_REPO/pacman/pacman_wrapper.sh"
+PACMAN_WRAPPER_INSTALL="$DW_REPO/pacman/install_pacman_wrapper.sh"
+MAKEPKG_WRAPPER_INSTALL="$DW_REPO/pacman/install_makepkg_wrapper.sh"
 # hosts-blocker was EXTRACTED out of this monorepo
 # (github.com/kuhyx/hosts-blocker), so this path deliberately lives
 # outside it. A missing checkout is fatal, never a silent skip.

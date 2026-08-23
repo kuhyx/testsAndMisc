@@ -76,6 +76,13 @@ live_section() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
+# The pacman wrapper and the compulsive-opening blocker were EXTRACTED to
+# github.com/kuhyx/digital-wellbeing. The checks that read them are guarded by
+# [[ -f ]], so a stale path here does not fail -- it SKIPS, silently reporting
+# a clean run for tests that never executed.
+# shellcheck source=../lib/extracted_repos.sh
+source "$REPO_DIR/lib/extracted_repos.sh"
+DW_REPO="$(extracted_repo_dir digital-wellbeing)"
 
 echo "=========================================="
 echo "Security Hardening Test Suite"

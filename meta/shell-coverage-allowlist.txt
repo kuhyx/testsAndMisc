@@ -15,11 +15,6 @@ linux_configuration/.githooks/lib/common.sh
 linux_configuration/meta/lib/shell_check_discover.sh
 linux_configuration/meta/lib/shell_check_install.sh
 linux_configuration/meta/lib/shell_check_lint.sh
-linux_configuration/periodic_background/digital_wellbeing/pacman/lib/install_files.sh
-linux_configuration/periodic_background/digital_wellbeing/pacman/lib/integrity.sh
-linux_configuration/periodic_background/digital_wellbeing/pacman/lib/managed_copy.sh
-linux_configuration/periodic_background/digital_wellbeing/pacman/lib/protect_and_extras.sh
-linux_configuration/periodic_background/digital_wellbeing/virtualbox/lib/vbox_disk_inject.sh
 linux_configuration/features/lib/aw_autostart.sh
 linux_configuration/features/lib/aw_install.sh
 linux_configuration/features/lib/aw_service.sh

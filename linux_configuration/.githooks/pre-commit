@@ -81,8 +81,16 @@ fi
 # --threshold 2: fail if more than 2% duplication
 # Excluded from the scan, and why:
 #   .venv/       vendored third-party shell (virtualenv, tqdm completions).
+#   .ci-mirror-venv/
 #                Not ours, and it alone pushed the repo over the bar: the
 #                same scan reads 2.50% with it and 1.67% without.
+#                .ci-mirror-venv/ is the SAME third-party shell under a
+#                different name -- the clean-venv the ci-mirror pre-push gate
+#                builds. It is untracked and generated, but jscpd walks the
+#                working tree, not the index, so it was still being scanned.
+#                Extracting digital_wellbeing shrank the denominator enough
+#                for those virtualenv/tqdm clones to push the total to 2.09%
+#                and block a commit that added no duplication at all.
 #   lib/tests/   a fixture IS repetitive by design; the 2% rule exists to
 #                stop duplicated production logic, not shared test setup.
 #                Needed headroom for the Phase 3 coverage campaign.
@@ -92,7 +100,7 @@ jscpd_output=$("$JSCPD_BIN" \
   --min-tokens 25 \
   --threshold 2 \
   --reporters "console" \
-  --ignore "**/node_modules/**,**/.git/**,**/misc/**,**/*.txt,**/.venv/**,**/lib/tests/**,**/tests/**" \
+  --ignore "**/node_modules/**,**/.git/**,**/misc/**,**/*.txt,**/.venv/**,**/.ci-mirror-venv/**,**/lib/tests/**,**/tests/**" \
   . 2>&1) || jscpd_exit=$?
 
 if [[ ${jscpd_exit:-0} -ne 0 ]]; then

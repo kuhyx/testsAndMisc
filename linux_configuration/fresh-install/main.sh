@@ -179,7 +179,7 @@ fi
 cd ~/linux-configuration
 sudo "$HOME/hosts-blocker/install.sh"
 i3/install.sh
-periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh
+"$HOME/digital-wellbeing/pacman/install_pacman_wrapper.sh"
 fixes/nvidia_troubleshoot.sh
 sudo features/setup_activitywatch.sh
 sudo utils/setup_media_organizer.sh

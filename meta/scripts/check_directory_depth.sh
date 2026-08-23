@@ -36,7 +36,7 @@
 #
 # Exits 0 when everything is within the cap, 1 when anything is over.
 # With --warn it reports violations and still exits 0; the hook runs in that
-# mode because 47 paths under `periodic_background/{hosts,digital_wellbeing}`
+# mode while 46 paths under `periodic_background/{hosts,digital_wellbeing}`
 # are over the cap and can only be fixed by extracting those two units, which
 # is blocked on a manual guard repoint. Drop --warn from the hook once they
 # are out; the cap is then enforced for real.

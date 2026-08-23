@@ -40,7 +40,9 @@ set -Eeuo pipefail
 
 SCRIPT_NAME=${0##*/}
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-DIGITAL_WELLBEING_DIR="$SCRIPT_DIR/../periodic_background/digital_wellbeing"
+# shellcheck source=../lib/extracted_repos.sh
+source "$SCRIPT_DIR/../lib/extracted_repos.sh"
+DIGITAL_WELLBEING_DIR="$(extracted_repo_dir digital-wellbeing)"
 SEEDER_SCRIPT="$DIGITAL_WELLBEING_DIR/seed_ublock_storage.js"
 
 UBLOCK_EXT_PATH="/usr/share/chromium/extensions/ublock-origin"

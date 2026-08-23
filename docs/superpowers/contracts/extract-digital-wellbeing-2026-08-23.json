@@ -1,0 +1,22 @@
+{
+  "title": "Extract digital_wellbeing, move its six test suites with it, and make the directory-depth cap enforce",
+  "objective": "Clear the last 41 directory-depth violations by moving the unit to github.com/kuhyx/digital-wellbeing, then delete --warn from the depth hook so the cap is real -- the point of the whole campaign.",
+  "acceptance_criteria": [
+    "check_directory_depth.sh --all exits 0 with --warn removed from the hook entry.",
+    "The extracted repo's history spans all three paths the unit has lived at (63 commits), plus the 24 from the separately-filtered test suites.",
+    "All 80 tracked files are byte-identical to the monorepo copies; node_modules and __pycache__ are excluded.",
+    "All six moved suites plus every lib/tests/run_all.sh pass from ~/digital-wellbeing, with no root, pacman or Arch userland -- verified under env -i.",
+    "Every moved test name is deleted from BOTH hardcoded arrays in .github/workflows/shell-tests.yml; every name still listed there resolves to a file that exists.",
+    "check_and_enable_services.sh runs to completion and reports ok for pacman_wrapper, makepkg_wrapper, midnight_shutdown, startup_monitor, periodic_systems and hosts.",
+    "The pacman-wrapper drift manifest verifies with sha256sum -c after regeneration.",
+    "report_live_state.sh --check reports ZERO stale linux_configuration/scripts/ references (down from 8).",
+    "No lint suppression is added anywhere."
+  ],
+  "out_of_scope": [
+    "Fixing the unwrapped discord/signal-desktop binaries -- pre-existing live state, identical at baseline (18 passed / 1 failed / 5 skipped both before and after).",
+    "The workout_locker error, which concerns the separate screen-locker repo.",
+    "The Nextcloud dedup, measured and recommended against in the handoff.",
+    "Reformatting vendor/common.sh, which is a verbatim copy."
+  ],
+  "verifier": "./meta/scripts/check_directory_depth.sh --all exits 0; ~/digital-wellbeing/tests/run_all.sh passes all seven suites; grep for the six moved test names in shell-tests.yml returns 0; sudo check_and_enable_services.sh completes with no unbound-variable error and no missing-script error; sudo sha256sum -c --status /var/lib/pacman-wrapper/source.sha256 exits 0; report_live_state.sh --check greps 0 for linux_configuration/scripts/; shellcheck clean on all nine changed shell files."
+}

@@ -34,12 +34,7 @@ repos:
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
-        # chattr +i (self-commitment lock on the shutdown-enforcement
-        # script) makes this file unwritable on purpose; the fixer hooks
-        # can't open it for writing even as the owning user.
-        exclude: ^linux_configuration/periodic_background/digital_wellbeing/setup_midnight_shutdown\.sh$
       - id: end-of-file-fixer
-        exclude: ^linux_configuration/periodic_background/digital_wellbeing/setup_midnight_shutdown\.sh$
       - id: check-yaml
         args: [--unsafe]
       - id: check-json
@@ -87,15 +82,14 @@ repos:
         pass_filenames: false
         always_run: true
       - id: directory-depth-cap
-        name: Report paths over the directory-depth cap
-        # Repo-wide, and deliberately --warn for now: 47 paths under
-        # periodic_background/{hosts,digital_wellbeing} are over the cap and
-        # can only come down by extracting those two units, which is blocked
-        # on a manual guard repoint. Running it warn-only keeps the number
-        # visible on every commit without blocking unrelated work. Drop
-        # --warn once both units are out; that is the last step of the
-        # extraction, not a separate decision.
-        entry: bash meta/scripts/check_directory_depth.sh --warn --all
+        name: Enforce the directory-depth cap
+        # Repo-wide and ENFORCING. It ran --warn while the 46 paths under
+        # periodic_background/{hosts,digital_wellbeing} were over the cap;
+        # both units are now their own repos (kuhyx/hosts-blocker,
+        # kuhyx/digital-wellbeing) and the count is 0, so the cap is real.
+        # Re-adding --warn would silently re-open the hole it was there to
+        # close: put the offending path somewhere legal instead.
+        entry: bash meta/scripts/check_directory_depth.sh --all
         language: system
         pass_filenames: false
         always_run: true

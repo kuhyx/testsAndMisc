@@ -57,38 +57,41 @@ NC=$'\033[0m' # No Color
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
+# Resolve the invoking user's home: this script re-execs itself via sudo, so
+# $HOME would be /root here.
+REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
+REAL_HOME="$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f6)"
+[[ -n $REAL_HOME ]] || REAL_HOME="/home/$REAL_USER"
+HOSTS_BLOCKER_REPO="${HOSTS_BLOCKER_DIR:-$REAL_HOME/hosts-blocker}"
+# digital-wellbeing was EXTRACTED too (github.com/kuhyx/digital-wellbeing).
+DW_REPO="${DIGITAL_WELLBEING_DIR:-$REAL_HOME/digital-wellbeing}"
+
 # Script paths
-PACMAN_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
-MAKEPKG_WRAPPER_INSTALL="$CONFIG_DIR/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
+PACMAN_WRAPPER_INSTALL="$DW_REPO/pacman/install_pacman_wrapper.sh"
+MAKEPKG_WRAPPER_INSTALL="$DW_REPO/pacman/install_makepkg_wrapper.sh"
 # Drift manifests written by the two installers above (see deployment_drift).
 PACMAN_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/source.sha256"
 MAKEPKG_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/makepkg-source.sha256"
-MIDNIGHT_SHUTDOWN_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
-STARTUP_MONITOR_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/setup_pc_startup_monitor.sh"
+MIDNIGHT_SHUTDOWN_SCRIPT="$DW_REPO/setup_midnight_shutdown.sh"
+STARTUP_MONITOR_SCRIPT="$DW_REPO/setup_pc_startup_monitor.sh"
 PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/periodic_background/setup_periodic_system.sh"
 # hosts-blocker was EXTRACTED (github.com/kuhyx/hosts-blocker). Resolved
 # below, after REAL_HOME is computed, for the same reason screen-locker is.
 HOSTS_INSTALL_SCRIPT=""
 GUARD_LIB_MIGRATE_SCRIPT="$CONFIG_DIR/./fixes/migrate_hosts_guard_to_guard_lib.sh"
-COMPULSIVE_BLOCK_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/block_compulsive_opening.sh"
-LEECHBLOCK_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/install_leechblock.sh"
-REMOVE_GUEST_MODE_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/remove_guest_mode.sh"
-VBOX_HOSTS_SCRIPT="$CONFIG_DIR/periodic_background/digital_wellbeing/virtualbox/enforce_vbox_hosts.sh"
+COMPULSIVE_BLOCK_SCRIPT="$DW_REPO/block_compulsive_opening.sh"
+LEECHBLOCK_SCRIPT="$DW_REPO/install_leechblock.sh"
+REMOVE_GUEST_MODE_SCRIPT="$DW_REPO/remove_guest_mode.sh"
+VBOX_HOSTS_SCRIPT="$DW_REPO/virtualbox/enforce_vbox_hosts.sh"
 # screen-locker was EXTRACTED out of this monorepo into its own repo
 # (github.com/kuhyx/screen-locker, checked out at ~/screen-locker), so these
 # paths deliberately live outside testsAndMisc. They used to point at
 # python_pkg/screen_locker/, which stopped existing at extraction time — the
 # result was check_workout_locker reporting a red "error" for a service that was
 # installed and enabled the whole time, while its "fix" silently did nothing.
-# Resolve the invoking user's home: this script re-execs itself via sudo, so
-# $HOME would be /root here.
-REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
-REAL_HOME="$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f6)"
-[[ -n $REAL_HOME ]] || REAL_HOME="/home/$REAL_USER"
 WORKOUT_LOCKER_REPO="$REAL_HOME/screen-locker"
 WORKOUT_LOCKER_INSTALL_SCRIPT="$WORKOUT_LOCKER_REPO/install_systemd.sh"
 WORKOUT_LOCKER_SCRIPT="$WORKOUT_LOCKER_REPO/screen_locker/screen_lock.py"
-HOSTS_BLOCKER_REPO="${HOSTS_BLOCKER_DIR:-$REAL_HOME/hosts-blocker}"
 HOSTS_INSTALL_SCRIPT="$HOSTS_BLOCKER_REPO/install.sh"
 
 # A MISSING repair script means THIS TOOL is broken: it silently stops repairing

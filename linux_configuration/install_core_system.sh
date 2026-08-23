@@ -8,7 +8,7 @@
 #
 # SECONDARY modules (prompted unless --all / --none given):
 #   4. Steam backlog enforcer   – python_pkg/steam_backlog_enforcer/
-#   5. Pacman wrapper           – periodic_background/digital_wellbeing/pacman/
+#   5. Pacman wrapper           – github.com/kuhyx/digital-wellbeing (~/digital-wellbeing)
 #   6. i3 configuration         – i3/
 #   7. Compulsive opening block – block_compulsive_opening.sh
 #
@@ -135,7 +135,7 @@ run_installer "Hosts blocking" \
 	bash "$(extracted_repo_dir hosts-blocker)/install.sh"
 
 run_installer "Midnight shutdown timer" \
-	bash "$LINUX_CONFIG/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh"
+	bash "$(extracted_repo_dir digital-wellbeing)/setup_midnight_shutdown.sh"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECONDARY MODULES (prompted unless --all / --none)
@@ -146,13 +146,13 @@ ask_install "Steam backlog enforcer" \
 	sudo bash "$REPO_ROOT/python_pkg/steam_backlog_enforcer/install.sh"
 
 ask_install "Pacman wrapper" \
-	bash "$LINUX_CONFIG/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
+	bash "$(extracted_repo_dir digital-wellbeing)/pacman/install_pacman_wrapper.sh"
 
 ask_install "i3 configuration" \
 	bash "$LINUX_CONFIG/i3/install.sh"
 
 ask_install "Compulsive opening blockade" \
-	sudo bash "$LINUX_CONFIG/periodic_background/digital_wellbeing/block_compulsive_opening.sh" install
+	sudo bash "$(extracted_repo_dir digital-wellbeing)/block_compulsive_opening.sh" install
 
 # ═══════════════════════════════════════════════════════════════════════════════
 print_summary

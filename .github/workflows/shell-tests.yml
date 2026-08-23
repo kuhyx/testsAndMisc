@@ -27,7 +27,6 @@ jobs:
           set -euo pipefail
           tests=(
             test_i3blocks_persist_common.sh
-            test_music_parallelism.sh
             test_setup_dns_blocker.sh
           )
           failed=0
@@ -124,7 +123,9 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      # The complete Arch-dependent set. All eight verified locally in
+      # The complete Arch-dependent set. Five of the original eight moved to
+      # github.com/kuhyx/digital-wellbeing with the code they test; they run
+      # bare on Ubuntu there. The two that remain were verified locally in
       # `docker run --cap-add=SYS_PTRACE archlinux:base-devel`.
       #
       # test_security_hardening.sh inspects a configured machine (chattr flags,
@@ -136,13 +137,8 @@ jobs:
         run: |
           set -euo pipefail
           tests=(
-            test_hosts_guard_pacman_integration.sh
             test_i3blocks_efficiency.sh
-            test_makepkg_capped.sh
-            test_makepkg_wrapper.sh
-            test_pacman_wrapper_security.sh
             test_security_hardening.sh
-            test_shutdown_timer_monitor.sh
           )
           failed=0
           for t in "${tests[@]}"; do

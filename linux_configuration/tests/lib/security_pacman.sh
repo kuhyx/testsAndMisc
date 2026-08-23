@@ -23,7 +23,7 @@ sec_tests_pacman_wrapper() {
 	live_section 0 # repository checks from here on
 
 	# Test 13: google-chrome is blocked
-	blocked_file="$REPO_DIR/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt"
+	blocked_file="$DW_REPO/pacman/pacman_blocked_keywords.txt"
 	if [[ -f "$blocked_file" ]]; then
 		if grep -qi "google-chrome" "$blocked_file"; then
 			test_result "google-chrome in blocked list" "pass"
@@ -57,7 +57,7 @@ sec_tests_pacman_wrapper() {
 	live_section 0
 
 	# Test 16: LeechBlock auto-install function exists in wrapper
-	wrapper_file="$REPO_DIR/periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh"
+	wrapper_file="$DW_REPO/pacman/pacman_wrapper.sh"
 	if [[ -f "$wrapper_file" ]]; then
 		if grep -q "auto_install_leechblock" "$wrapper_file"; then
 			test_result "LeechBlock auto-install function exists" "pass"

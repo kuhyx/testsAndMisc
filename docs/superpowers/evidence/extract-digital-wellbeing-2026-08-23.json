@@ -1,0 +1,92 @@
+{
+  "intent": "Extract the last over-cap unit into github.com/kuhyx/digital-wellbeing (cloned at ~/digital-wellbeing), then delete --warn from the directory-depth-cap hook so the cap enforces for real. This is the closing step of the restructure campaign.",
+  "scope": [
+    "REMOVED: linux_configuration/periodic_background/digital_wellbeing/ (80 tracked files)",
+    "REMOVED: 6 test suites + 2 test libs from linux_configuration/tests/",
+    "REWIRED: check_and_enable_services.sh, setup_periodic_system.sh, install_core_system.sh, fresh-install/main.sh, installers/install_ungoogled_chromium_ubuntu.sh, tests/test_security_hardening.sh, tests/lib/security_apps.sh, tests/lib/security_pacman.sh",
+    "CONFIG: .pre-commit-config.yaml (--warn removed, 2 stale excludes dropped), .github/workflows/shell-tests.yml, meta/shell-coverage-allowlist.txt, meta/pyproject.toml, .gitignore, meta/scripts/check_directory_depth.sh",
+    "LIVE: /usr/local/bin/periodic-system-maintenance.sh",
+    "NON-GOAL: the unwrapped discord/signal-desktop binaries (pre-existing) and the workout_locker error (different repo)"
+  ],
+  "changes": [
+    "Filtered history across all three paths the unit has lived at (63 commits). The current path alone holds 2 -- the same trap as hosts-blocker, and the reason the count was checked before filtering rather than after.",
+    "The six suites that test this code lived in linux_configuration/tests/, not beside it. They were filtered separately (24 commits) and merged as a second root, then their hardcoded periodic_background/digital_wellbeing/ prefixes rewritten for the new root-level layout. A path filter of the unit alone would have left them in the monorepo testing code that had left it.",
+    "Vendored linux_configuration/lib/common.sh into vendor/ rather than trimming it: set_actual_user_vars calls get_actual_user and get_actual_user_home, so a 4-function trim breaks silently. It went to vendor/ and not lib/ because test_music_parallelism.sh copies the unit's lib/ wholesale into a scratch worktree while stubbing the shared lib -- with both in one directory the real common.sh overwrote the stub and the test measured the wrong library.",
+    "Generalised that test's layout-drift guard from a required ../ prefix to (../)*; the script now sits at the repo root so the prefix is empty. The guard caught this move, which is what it was written for.",
+    "Dropped the two .pre-commit-config.yaml excludes for setup_midnight_shutdown.sh instead of moving them: lsattr shows nothing in the unit is chattr +i any more, and the fixer hooks leave the file untouched when allowed to run.",
+    "Removed --warn from the directory-depth-cap hook and reworded its comment from 'deliberately --warn for now' to state that re-adding it re-opens the hole."
+  ],
+  "verification": [
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --all",
+      "result": "pass",
+      "evidence": "'all checked paths are within 2 directories', exit 0. 46 -> 41 (after hosts) -> 0. The cap now enforces without --warn."
+    },
+    {
+      "command": "per-root commit counts before filtering",
+      "result": "pass",
+      "evidence": "current path 2, scripts/periodic_background/ 41, scripts/digital_wellbeing/ 23; 63 on main. The 94 an --all union reported included unreachable refs and one merge commit that filter-repo correctly prunes."
+    },
+    {
+      "command": "cmp each of the 80 tracked files against the monorepo copy",
+      "result": "pass",
+      "evidence": "ALL 80 TRACKED FILES IDENTICAL. node_modules (340 files) and __pycache__ correctly excluded -- the repo has 80 tracked files, not the 423 on disk."
+    },
+    {
+      "command": "~/digital-wellbeing/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All six regression suites plus the discovered lib/tests/run_all.sh pass: 'All digital-wellbeing suites passed.'"
+    },
+    {
+      "command": "env -i PATH=/usr/bin:/bin HOME=/tmp bash ./tests/run_all.sh",
+      "result": "pass",
+      "evidence": "Passes under a minimal environment, and no suite needs root or invokes pacman -- so the new repo needs no arch-tests job even though five of these ran in the monorepo's Arch container."
+    },
+    {
+      "command": "sudo check_and_enable_services.sh (first attempt)",
+      "result": "fail",
+      "evidence": "'line 61: DW_REPO: unbound variable' -- the definition sat below its first use. shellcheck and grep both passed the file; only running it caught this."
+    },
+    {
+      "command": "sudo check_and_enable_services.sh (after moving the block)",
+      "result": "pass",
+      "evidence": "Runs to completion: pacman_wrapper ok, makepkg_wrapper ok, midnight_shutdown ok, startup_monitor ok, periodic_systems ok, hosts ok, guest_mode_removal ok. Applied 3 fix(es)."
+    },
+    {
+      "command": "sudo sha256sum -c --status /var/lib/pacman-wrapper/source.sha256",
+      "result": "pass",
+      "evidence": "Exit 0. The manifest embeds ABSOLUTE paths and had named deleted scripts/ paths since the flatten, so the drift check reported a permanent false 'stale or tampered'. It now names ~/digital-wellbeing and verifies -- with unchanged hashes, confirming the extracted bytes are identical."
+    },
+    {
+      "command": "report_live_state.sh --check | grep -c linux_configuration/scripts/",
+      "result": "pass",
+      "evidence": "0, down from the 8 pre-existing stale references at session start. Removals only; none added at any point."
+    },
+    {
+      "command": "grep the six moved test names in .github/workflows/shell-tests.yml",
+      "result": "pass",
+      "evidence": "0 matches, and all four names still listed (test_i3blocks_persist_common, test_setup_dns_blocker, test_i3blocks_efficiency, test_security_hardening) resolve to files that exist."
+    },
+    {
+      "command": "test_security_hardening.sh, current tree vs a detached worktree at HEAD",
+      "result": "pass",
+      "evidence": "18 passed / 1 failed / 5 skipped in BOTH. The one failure is 'Compulsive block wrappers installed' -- discord and signal-desktop lack their /usr/bin wrapper. Live-system state, identical before and after."
+    },
+    {
+      "command": "shellcheck on all nine changed shell files",
+      "result": "pass",
+      "evidence": "ALL CLEAN, no severity filter."
+    }
+  ],
+  "risks": [
+    "vendor/common.sh duplicates 163 lines of the monorepo lib. The two copies may drift; that is accepted, and the README says so, so a future session does not 're-fix' it by re-coupling the repos.",
+    "The pacman wrapper's drift manifest is regenerated by the checker's own fix path. A machine that clones digital-wellbeing to a non-default location must re-run install_pacman_wrapper.sh or the manifest will name the wrong paths.",
+    "install_core_system.sh on a fresh machine now hard-stops at three modules until both extracted repos are cloned. Deliberate and loud; INSTALLER_FIX_TASK.md tracks fresh-machine installer defects.",
+    "The depth cap is now enforcing, so any future path more than two directories deep is a hard commit failure rather than a warning."
+  ],
+  "rollback": [
+    "git revert this commit to restore the unit, the six suites, the two test libs and every rewired caller, and to put --warn back on the depth hook.",
+    "Restore /var/tmp/periodic-system-maintenance.sh.pre-dw to /usr/local/bin/.",
+    "After rollback validate: check_directory_depth.sh --all reports 41 violations again, and sudo check_and_enable_services.sh still completes without an unbound-variable error."
+  ]
+}
