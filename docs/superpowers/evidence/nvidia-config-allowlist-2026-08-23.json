@@ -1,0 +1,33 @@
+{
+  "intent": "Remove nvidia_config.sh's coverage exemption, which was reinstated when an earlier commit's allowlist deletion did not survive alongside the seam restore.",
+  "scope": [
+    "meta/shell-coverage-allowlist.txt (one line removed)",
+    "Non-goal: any code change; the lib and its tests are already correct"
+  ],
+  "changes": [
+    "Deleted the fixes/lib/nvidia_config.sh line from the allowlist, taking it from 85 to 84 entries"
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh with the gate's own flags (--bind /etc --bind /usr/local/bin --bind /var/lib), in a detached worktree",
+      "result": "pass",
+      "evidence": "nvidia_config.sh: 76/76 lines = 100.00%."
+    },
+    {
+      "command": "The same measurement in the main working tree",
+      "result": "fail",
+      "evidence": "'the subject modified the working tree; a write escaped the jail', listing python_pkg/endurain_import files another agent was editing concurrently. This is a false positive from the jail's tree fingerprint, which is why the real measurement was taken in an isolated worktree."
+    },
+    {
+      "command": "grep for the four seams in nvidia_config.sh",
+      "result": "pass",
+      "evidence": "All four present at lines 26, 27, 60 and 85. An earlier `grep -c 'XORG_CONF:-'` returning 1 counted matching LINES, not seams, and briefly looked like a regression."
+    }
+  ],
+  "risks": [
+    "The coverage gate cannot be trusted while another agent is writing to the same working tree; any measurement must be taken in a detached worktree or it may abort on their churn."
+  ],
+  "rollback": [
+    "Re-add the nvidia_config.sh line to meta/shell-coverage-allowlist.txt"
+  ]
+}
