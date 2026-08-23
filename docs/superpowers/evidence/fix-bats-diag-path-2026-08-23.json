@@ -1,0 +1,37 @@
+{
+  "intent": "Turn the Shell tests workflow green again: test_network_diagnostics.bats still sourced its scripts through the scripts/ level the flatten removed.",
+  "scope": [
+    "linux_configuration/tests/test_network_diagnostics.bats - DIAG_DIR and its header comment",
+    "NEXT_SESSION_RESTRUCTURE.md / NEXT_SESSION_PROMPT.md - handoff rewrite for the two remaining units",
+    "Non-goal: the diagnostics scripts themselves, which are correctly placed."
+  ],
+  "changes": [
+    "DIAG_DIR pointed at $REPO_DIR/scripts/diagnostics; the flatten dissolved linux_configuration/scripts/, so setup() failed to source and all 30 tests errored. Now $REPO_DIR/diagnostics.",
+    "Fixed the header comment naming the same dead path.",
+    "Rewrote the handoff docs around the two units that remain, with the verified numbers and the traps this session paid for."
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_network_diagnostics.bats",
+      "result": "pass",
+      "evidence": "30/30 ok. Previously every test failed in setup with 'No such file or directory' on .../scripts/diagnostics/steam-download-duty.sh."
+    },
+    {
+      "command": "grep -rn 'linux_configuration/scripts/|scripts/single_use|single_use/' over tracked .sh/.bats/.py/.yml",
+      "result": "pass",
+      "evidence": "No matches. This was the last stale reference to the removed levels inside the repo; the 8 remaining live-state hits are installed copies under /usr/local/bin, outside the tree."
+    },
+    {
+      "command": "gh run view 32656921622 --log-failed",
+      "result": "pass",
+      "evidence": "Confirmed the CI failure was exactly this suite. The previous run (cbdf3a3d) was green because ci-mirror aborted before the bats stage, so the breakage was latent rather than newly introduced."
+    }
+  ],
+  "risks": [
+    "CI_GREEN_SKIP=1 is used for this commit because the ci-baseline-green hook refuses to build on a red main and this commit IS the fix - the documented escape for exactly this case."
+  ],
+  "rollback": [
+    "git revert the commit; the bats suite returns to the dead path and Shell tests goes red again.",
+    "After rollback, run bats linux_configuration/tests/test_network_diagnostics.bats to confirm the expected failure."
+  ]
+}

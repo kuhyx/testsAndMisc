@@ -4,102 +4,122 @@ Plan: `~/.claude/plans/after-refactor-of-testsandmisc-modular-wigderson.md`
 Live-state checklist: `docs/restructure-live-state.md`
 (regenerate with `./meta/scripts/report_live_state.sh`)
 
+## Verified state as of 2026-08-23 (all pushed, `main` clean)
+
+```
+depth violations   46   (41 digital_wellbeing + 5 hosts — nothing else)
+source files     1051 / 1200 ceiling
+tracked files    1346   (2295 at the start, 1993 before the prune)
+```
+
+Both gates are wired and run on every commit. The depth gate runs `--warn`
+because the only paths left over the cap are the two units below. **Delete
+`--warn` from the `directory-depth-cap` hook entry in `.pre-commit-config.yaml`
+once BOTH units are out, and the cap enforces for real.**
+
 ## Done
 
 **Archived** to `github.com/kuhyx/testsAndMisc-archive`, full history:
-`bucket_catch`, `poker-stakes`, `billsplit` (+ `python_pkg/billsplit_coverage`,
-its CI workflow, the `app_icons` registry entry, and the paired
-`.binary-allowlist` / `.gitignore` icon rules — `.binary-allowlist` now has no
-patterns at all).
+`bucket_catch`, `poker-stakes`, `billsplit`.
 
-**Extracted** to public repos, full history, each with CI it did not have here:
-`reverse-survivors`, `kcd2-dice-solver` (`~/kcd2-dice-solver`), `focus-owner`,
-`mtk-root`, `system-maintenance` (`~/system-maintenance`), `android-guardian`
-(`~/android-guardian`), `phone-focus-mode` (with `python_pkg/focus_policy`).
+**Extracted** to public repos, full history: `reverse-survivors`,
+`kcd2-dice-solver` (`~/kcd2-dice-solver`), `focus-owner` (**no local clone —
+GitHub only**), `mtk-root`, `system-maintenance` (`~/system-maintenance`),
+`android-guardian` (`~/android-guardian`), `phone-focus-mode`.
 
-**Flattened.** `linux_configuration/scripts/` and `single_use/` are gone;
-categories sit directly under `linux_configuration/`. `i3-configuration` moved
-out of `periodic_background` into `i3/` + `i3blocks/`, and
-`misc/testsAndMisc-bash/` lost its redundant nesting.
+**Flattened.** `linux_configuration/scripts/` and `single_use/` are gone.
 
-**Length cap widened** to catch extensionless scripts, and `boot-repair` split
-756 → 218 with four libs.
+**Gates wired.** 57 structural depth violations exempted (whole projects `C/`,
+`dwm/`, `artgate/`; a module-split tool; prose trees; and the five
+format-dictated segments `systemd`/`hooks`/`workflows`/`patches`/`fixtures`).
+`check_repo_size.sh` counts tracked source files and caps the bookkeeping dirs
+at 60 each, with `--prune` to clear them.
 
-Depth violations **556 → 104**; tracked files **2295 → ~1980**. Every commit
-green; nothing used `--no-verify`.
+**Pruned** 655 superpowers artifacts (695 → 40 + 2 templates).
+
+**Guard repoint DONE on the host.** Both guards now name
+`/usr/local/share/guard-lib-plugins/`, re-enforced, target files byte-identical
+by md5, DNS verified between them. Backups at
+`/var/tmp/{resolved.conf,nsswitch.conf}.pre-repoint`.
 
 ## Remaining
 
-1. ~~The guard repoint.~~ **DONE on the host, 2026-08-23.** The "classifier
-   blocks me" note was stale: `sudo -n` works and `guardctl` is at
-   `/usr/local/bin/guardctl`. Verified in vmbox first (stale-path scenario
-   reproduced, then repointed), then run on the host one guard at a time with
-   a DNS check between them. Both now name
-   `/usr/local/share/guard-lib-plugins/`, both re-enforced (`----i-------e---`,
-   path units active), both target files byte-identical by md5 before and
-   after, DNS resolving throughout. Enforcement confirmed live, not just
-   reported: a `sudo` append to `/etc/nsswitch.conf` is refused.
-   Backups at `/var/tmp/{resolved.conf,nsswitch.conf}.pre-repoint`.
+1. **`hosts` extraction — do this first; everything else is optional.**
+   Now unblocked: the guards no longer name a repo path. Its installer was
+   already proven in vmbox to run from an extracted layout. 5 depth violations
+   live here.
 
-2. `hosts` extraction — **now unblocked** by (1). Its installer was already proven in
-   vmbox to run from an extracted layout with no monorepo path.
-3. `digital_wellbeing` **last** — pacman wrapper, `chattr +i`, `heavy_job_lock.sh`
-   (moved in with it), and the 12 orchestrator paths in
-   `check_and_enable_services.sh` / `setup_periodic_system.sh`, which now point
-   at the NEW locations and will need updating again when it moves. It also owns
+2. **`digital_wellbeing` — last, and the hardest.** 41 depth violations.
+   Owns the pacman wrapper, `chattr +i`, `heavy_job_lock.sh`, and 12
+   orchestrator paths in `check_and_enable_services.sh` /
+   `setup_periodic_system.sh` that were already rewritten once by the flatten
+   and will need it again. Also owns
    `linux_configuration/tests/test_shutdown_timer_monitor.sh`.
-4. ~~Wire the gates.~~ **DONE.** The 57 structural violations are exempted
-   and both gates run on every commit. The depth gate runs `--warn`, because
-   the only 47 paths left over the cap are the ones (2) and (3) will remove;
-   drop `--warn` as the last step of those extractions and the cap enforces
-   for real. `check_repo_size.sh` counts tracked source files (1049/1200) and
-   also caps the bookkeeping dirs at 60 each.
-5. ~~Prune `docs/superpowers/evidence|contracts`.~~ **DONE** — 655 removed,
-   newest 20 of each kept, tracked files 1993 → 1340. Nothing reads the
-   corpus; git history keeps it. `.hippo/` is **decided but not executed**:
-   all 158 entries have `retrieval_count: 0`, 22 self-tag `invalidated`, the
-   last write was 2026-05-28, `hippo.db` is untracked and the tool is
-   uninstalled. It is dead; awaiting the untrack-vs-delete call.
-6. **Recommended against**, with numbers. The estimate was right (~3,600 lines
-   across 22 files — a filename grep finds only 400 of them), but the two
-   `nc_*` (1212 lines) and `rpi_nc_*` (1171 lines) lib families are parallel
-   _evolutions_, not copies: all four shared function names differ in body,
-   not just comments. Only 3 of 15 libs have tests, and the target is a remote
-   Raspberry Pi that cannot be tested against from here. Merging is a
-   regression risk out of proportion to an optional cleanup.
+   `setup_midnight_shutdown.sh` is `chattr +i` and is excluded from two
+   pre-commit fixer hooks by path — that exclude must move with it.
 
-7. **3.7 GB of extraction residue**, untracked and unreported until now:
-   `focus_owner/` (3.2G), `bucket_catch/` (303M), `kcd2_dice_solver/` (149M),
-   `billsplit/` (62M). None has a `.git`; each holds **zero** source files
-   outside `build/`, `node_modules/`, `dist/` and `coverage/`. The real repos
-   are on GitHub and were pushed 2026-08-23, so this is pure build output —
-   `rm -rf` on the user's say-so. Note `focus-owner` has no local clone at
-   `~/focus-owner`; only the GitHub copy exists.
+3. **Nextcloud dedup — recommended AGAINST, with numbers.** Not a filename
+   grep: `grep -rln -i nextcloud linux_configuration/` finds **3,618 lines
+   across 22 files** (566 entry points + 2,383 libs + 604 tests). The two lib
+   families `nc_*` (1212 lines) and `rpi_nc_*` (1171) are parallel
+   _evolutions_, not copies — all four shared function names differ in body,
+   not just comments. Only **3 of 15 libs have tests**, and the target is a
+   remote Raspberry Pi that cannot be tested against from here. Do not attempt
+   without hardware access.
+
+4. **`.hippo/` — dead, awaiting a decision.** 161 tracked files, 3.2M. All 158
+   episodic entries have `retrieval_count: 0`, 22 self-tag `invalidated`, last
+   write 2026-05-28, the tool is uninstalled, nothing references it.
+   Untracking needs a new `.gitignore` entry — `hippo.db` is currently
+   untracked only because `*.db` is ignored. **Ask before deleting.**
+
+5. **3.7 GB of extraction residue**, untracked: `focus_owner/` (3.2G),
+   `bucket_catch/` (303M), `kcd2_dice_solver/` (149M), `billsplit/` (62M).
+   None has a `.git`. The only non-build files are `.idea/` IDE config and a
+   Flutter-_generated_ `GeneratedPluginRegistrant.java` — no hand-written
+   source. Repos are safe on GitHub. **Ask before `rm -rf`.**
+
+6. **8 stale live-system references** (pre-existing, from the earlier flatten,
+   NOT from the gate work). `./meta/scripts/report_live_state.sh --check`
+   lists them; they name `linux_configuration/scripts/...` paths that no
+   longer exist. Two were the guard plugins, now fixed; the rest include
+   `setup_dns_blocker.sh` and `organize_downloads.sh`.
 
 ## Traps already paid for
 
-- **Run it, don't read it.** Repointing kcd2 hit three failures in a row (pnpm
-  ignoring the `package.json` field, no-TTY `node_modules` purge, a Docker mount
-  on the deleted path). `dice.kuhy.duckdns.org` now serves from the new repo.
-- **`/usr/local/bin` holds copies naming repo paths** — invisible to a repo grep.
-  `report_live_state.sh` scans there now.
-- **Removing a file can break a suite that stays** (`mtk_harness.sh`), and a
-  removal can silently shrink CI (`shell-tests.yml` uses TWO hand-maintained
-  lists plus a glob — check all three).
-- **Never let a test fall back to `/usr/local/bin`**: the installed copy can be
-  stale, and the test then compares against a binary it never generated.
-- **pre-commit's patch restore can revert an edit** made before the commit. The
-  `app_icons` and `AGENTS.md` changes each had to be applied twice.
+- **Run it, don't read it.** `--prune` sorted on `%cs` (date only), which ties
+  every same-day artifact; `sort` fell back to the path and it deleted
+  _alphabetically_, picking one of the newest files. Invisible in review.
+  Use `%ct` + `sort -rn`. Test destructive modes in a detached worktree.
+- **A filename grep undercounts a capability 7x.** `git ls-files | grep -i X`
+  matches names only and misses the `lib/` layer, where the bulk lives.
+  Use `grep -rln` over contents before calling an estimate stale.
+- **"Tests passed, then Killed" is not a test failure.** ci-mirror ran
+  `pre-commit --all-files` (~1.75 GiB) and pytest (~0.29 GiB) concurrently;
+  the pytest scope has `MemorySwapMax=0`, so it was the one killed. Fixed by
+  `should_serialise_gates` in `meta/scripts/ci_mirror_mem.sh`. **Never raise
+  the 2G cap** — measure what runs alongside. `/usr/bin/time -v` hides this
+  (it measures only the parent); read `memory.peak` from a cgroup.
+- **`sudo -n` works here and `guardctl` is at `/usr/local/bin/guardctl`.** The
+  old "the classifier blocks me" note was stale.
+- **The pre-push gate is not the pre-commit gate.** It adds prettier and
+  ci-mirror. Two docs were non-conforming before this session and blocked
+  _every_ push; prettier normalises `*emphasis*` to `_emphasis_`.
+- **`.pre-commit-config.yaml` is NOT a symlink** (unlike `pyproject.toml`,
+  `run.sh`, `requirements.txt`, `lint_python.sh`, `.fvmrc`). The root file is
+  the active config; `meta/.pre-commit-config.yaml` is a separate standalone
+  variant, already ~219 lines divergent. Do not "sync" them.
+- **`/usr/local/bin` holds copies naming repo paths** — invisible to a repo
+  grep. `report_live_state.sh` scans there.
 - **Path rewrites need resolving, not reviewing.** Relative `source` depths
-  differ per file (`../../` vs `../../../`), `REPO_ROOT` walks a fixed number of
-  levels, `$VAR/scripts/...` prefixes hide from a naive regex, and
-  `# shellcheck source=` directives break independently of the code.
+  differ per file, and a test can hardcode a prefix the script no longer uses
+  — `test_music_parallelism.sh` failed a layout that was correct.
 - **Sourcing top-level code is not a split.** boot-repair's report block has
   `exit` calls; moving it broke 30 of 42 tests.
 
 ## Unrelated: syncyomi-guard is red
 
-Failing since 00:00 on 2026-08-23, ~17h before this work started. It is working
-as designed: the library collapsed from 2185 manga / 68902 chapters to 8 / 895.
-See the `syncyomi-restore-silent-partial` memory; do NOT checkpoint the WAL
-before recovering. Newest snapshot in `~/syncyomi/snapshots/` is 2026-08-15.
+Failing since 00:00 on 2026-08-23, working as designed: the library collapsed
+from 2185 manga / 68902 chapters to 8 / 895. See the
+`syncyomi-restore-silent-partial` memory; do NOT checkpoint the WAL before
+recovering. Newest snapshot in `~/syncyomi/snapshots/` is 2026-08-15.

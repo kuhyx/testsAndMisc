@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for the pure helpers in scripts/diagnostics/.
+# Unit tests for the pure helpers in diagnostics/.
 #
 # Requires: bats (extra/bats). Run with:
 #   bats linux_configuration/tests/test_network_diagnostics.bats
@@ -11,7 +11,7 @@
 
 setup() {
     REPO_DIR="$(cd -- "$(dirname -- "$BATS_TEST_FILENAME")/.." && pwd)"
-    DIAG_DIR="$REPO_DIR/scripts/diagnostics"
+    DIAG_DIR="$REPO_DIR/diagnostics"
     # Both scripts guard main() behind a BASH_SOURCE check, so sourcing them
     # loads the helpers without starting a measurement run.
     # shellcheck source=/dev/null
