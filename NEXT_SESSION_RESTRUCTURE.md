@@ -53,15 +53,33 @@ green; nothing used `--no-verify`.
    `check_and_enable_services.sh` / `setup_periodic_system.sh`, which now point
    at the NEW locations and will need updating again when it moves. It also owns
    `linux_configuration/tests/test_shutdown_timer_monitor.sh`.
-4. **Wire the gates.** `check_directory_depth.sh` exists and is a dry run only.
-   Before wiring, exempt the ~57 structural violations by name — `C/atop_agg/`
-   (a C project), `python_pkg/artgate/{routes,styles}/`, `misc/tools/`,
-   `dwm/{bin,patches}/`, `*/systemd/`, `*/hooks/` — the same way `lib/` and
-   `tests/` are exempt. Then add `check_repo_size.sh` counting source files only.
-5. Prune `docs/superpowers/evidence|contracts` (673 files, the real growth
-   driver) and decide `.hippo/`'s fate.
-6. Optional: deduplicate the two Nextcloud implementations in `features/`
-   (~2,780 lines for one capability).
+4. ~~Wire the gates.~~ **DONE.** The 57 structural violations are exempted
+   and both gates run on every commit. The depth gate runs `--warn`, because
+   the only 47 paths left over the cap are the ones (2) and (3) will remove;
+   drop `--warn` as the last step of those extractions and the cap enforces
+   for real. `check_repo_size.sh` counts tracked source files (1049/1200) and
+   also caps the bookkeeping dirs at 60 each.
+5. ~~Prune `docs/superpowers/evidence|contracts`.~~ **DONE** — 655 removed,
+   newest 20 of each kept, tracked files 1993 → 1340. Nothing reads the
+   corpus; git history keeps it. `.hippo/` is **decided but not executed**:
+   all 158 entries have `retrieval_count: 0`, 22 self-tag `invalidated`, the
+   last write was 2026-05-28, `hippo.db` is untracked and the tool is
+   uninstalled. It is dead; awaiting the untrack-vs-delete call.
+6. **Recommended against**, with numbers. The estimate was right (~3,600 lines
+   across 22 files — a filename grep finds only 400 of them), but the two
+   `nc_*` (1212 lines) and `rpi_nc_*` (1171 lines) lib families are parallel
+   *evolutions*, not copies: all four shared function names differ in body,
+   not just comments. Only 3 of 15 libs have tests, and the target is a remote
+   Raspberry Pi that cannot be tested against from here. Merging is a
+   regression risk out of proportion to an optional cleanup.
+
+7. **3.7 GB of extraction residue**, untracked and unreported until now:
+   `focus_owner/` (3.2G), `bucket_catch/` (303M), `kcd2_dice_solver/` (149M),
+   `billsplit/` (62M). None has a `.git`; each holds **zero** source files
+   outside `build/`, `node_modules/`, `dist/` and `coverage/`. The real repos
+   are on GitHub and were pushed 2026-08-23, so this is pure build output —
+   `rm -rf` on the user's say-so. Note `focus-owner` has no local clone at
+   `~/focus-owner`; only the GitHub copy exists.
 
 ## Traps already paid for
 
