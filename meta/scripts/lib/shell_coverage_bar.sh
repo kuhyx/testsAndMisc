@@ -62,8 +62,19 @@ is_covered() {
 
 	# --fail-on-case-error: a suite that dies partway must fail the gate, not
 	# be graded on however many lines it managed to reach first.
+	# --timeout: the jail defaults to 120s per case, which is a hang-catcher
+	# rather than a performance budget -- and this repo's suites have outgrown
+	# it. fixes/lib/tests/run_all.sh measures 76s bare with 25 test files and
+	# 93s with 27, and kcov instrumentation roughly doubles that, so the
+	# default started failing the gate on libs that measured a clean 100%
+	# (bt_audio.sh: "127/127 lines = 100.00%" followed by "case timed out").
+	# CI runners are slower than this workstation, so the ceiling is set well
+	# clear of the suite rather than just above it. The cost is that a genuine
+	# hang -- thorium_repairs.sh's `read -r -p` is exactly that shape -- now
+	# takes 10 minutes per pass to surface instead of 2.
 	"$REPO_ROOT/meta/scripts/shell_coverage_jail.sh" \
 		--subject "$suite" \
+		--timeout 600s \
 		"${jail_args[@]}" \
 		--measure "$(basename "$path")" \
 		--min "$COVERAGE_BAR" \

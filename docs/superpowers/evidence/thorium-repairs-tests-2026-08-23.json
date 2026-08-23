@@ -1,0 +1,57 @@
+{
+  "intent": "Test thorium_repairs.sh to 100% line coverage, take it off the shell coverage allowlist, and raise the coverage gate's per-case timeout, which the growing suite had outgrown.",
+  "scope": [
+    "linux_configuration/scripts/single_use/fixes/lib/tests/thorium_harness.sh (new)",
+    "linux_configuration/scripts/single_use/fixes/lib/tests/test_thorium_repairs.sh and test_thorium_repairs_deep.sh (new)",
+    "meta/scripts/lib/shell_coverage_bar.sh (--timeout added to the gate's jail invocation)",
+    "meta/shell-coverage-allowlist.txt (one line removed)",
+    "Non-goal: thorium_repairs.sh itself, which needed NO production change -- it already takes every path from $THORIUM_CONFIG_DIR"
+  ],
+  "changes": [
+    "Added thorium_harness.sh, the fourth family harness, supplying THORIUM_CONFIG_DIR plus the backup_if_exists/remove_if_exists helpers that live in the entry script fix_thorium.sh rather than in any lib",
+    "Added 55 assertions over 23 cases across both files: all five profile repairs plus test_thorium, including the dry-run arm of every function that has one",
+    "Raised the gate's per-case timeout from the jail's 120s default to 600s in shell_coverage_bar.sh, because the suite is now 93s bare and kcov instrumentation roughly doubles that",
+    "Removed thorium_repairs.sh from meta/shell-coverage-allowlist.txt, taking it from 89 to 88 entries"
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --subject .../tests/run_all.sh --measure thorium_repairs.sh --min 100 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "thorium_repairs.sh: 75/75 lines = 100.00%, exit 0."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../thorium_repairs.sh, AFTER deleting its allowlist line",
+      "result": "pass",
+      "evidence": "'every checked shell library meets the coverage bar', EXIT 0. Checked after removal so the pass cannot be coming from the exemption."
+    },
+    {
+      "command": "bash meta/scripts/check_shell_coverage.sh .../bt_audio.sh .../arch_cpu.sh",
+      "result": "pass",
+      "evidence": "EXIT 0. Before the timeout fix bt_audio.sh FAILED the gate while measuring a clean 127/127 -- the jail printed the number and then 'warn: case timed out after 120s', and --fail-on-case-error turned that into a non-zero exit."
+    },
+    {
+      "command": "time bash linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed; 93s bare with the two new files (76s before them). That runtime against the 120s default is what the fix addresses."
+    },
+    {
+      "command": "shellcheck + shfmt on the harness, both test files and shell_coverage_bar.sh",
+      "result": "pass",
+      "evidence": "No findings, zero suppressions."
+    },
+    {
+      "command": "shell_coverage_jail.sh --timeout 600s --measure bt_audio.sh, with test_arch_sysctl.sh temporarily restored",
+      "result": "fail",
+      "evidence": "bt_audio.sh: 'kcov instrumented no lines', with NO timeout warning at 600s. This rules out runtime as the cause of that file's contagion and confirms the quarantine in b2779059 was correct for the reason its header states."
+    }
+  ],
+  "risks": [
+    "A genuine hang now takes 10 minutes per pass to surface instead of 2. test_thorium's `read -r -p` is exactly that shape, which is why every case feeding it supplies stdin explicitly.",
+    "The gate's timeout is now the binding constraint on how large this suite can grow; at 93s bare it has roughly a 3x margin left.",
+    "test_thorium backgrounds a stub that sleeps 30s so the process is still alive when the lib's `kill -0` runs; a much slower machine could in principle race it."
+  ],
+  "rollback": [
+    "git revert the commit, then re-add the thorium_repairs.sh line to meta/shell-coverage-allowlist.txt",
+    "Note the revert also restores the 120s gate timeout, which will make bt_audio.sh fail the gate again on this suite; re-run check_shell_coverage.sh on bt_audio.sh to confirm that is understood"
+  ]
+}

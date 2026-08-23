@@ -1,0 +1,18 @@
+{
+  "title": "Clear thorium_repairs.sh and lift the coverage gate's case timeout",
+  "objective": "Bring thorium_repairs.sh to 100% measured line coverage and remove its allowlist exemption, and stop the gate's 120s per-case timeout from failing libs whose coverage is actually 100%.",
+  "acceptance_criteria": [
+    "The jail reports thorium_repairs.sh at 100.00% through tests/run_all.sh at --min 100, exiting 0.",
+    "check_shell_coverage.sh passes on thorium_repairs.sh with its allowlist line already deleted, so the pass cannot come from the exemption.",
+    "check_shell_coverage.sh passes on bt_audio.sh, which failed before this change despite measuring 127/127, because the case timed out.",
+    "All five profile-repair functions plus test_thorium are covered, including every dry-run arm and the sqlite3-absent path.",
+    "thorium_repairs.sh itself is unmodified: it already took every path from $THORIUM_CONFIG_DIR, so no production seam was needed.",
+    "The suite stays green and shellcheck reports nothing, with zero suppressions."
+  ],
+  "out_of_scope": [
+    "Un-quarantining arch_sysctl_quarantined_cases.sh: re-adding it still breaks bt_audio's measurement even at a 600s timeout, so runtime was not its cause.",
+    "Changing the coverage instrument (shell_coverage_lines.py).",
+    "The remaining four untested libs: hosts_guard_migrate, hosts_guard_rollback, ubuntu_perf_fixes, nvidia_config."
+  ],
+  "verifier": "timeout 900s bash meta/scripts/shell_coverage_jail.sh --timeout 600s --subject linux_configuration/scripts/single_use/fixes/lib/tests/run_all.sh --measure thorium_repairs.sh --min 100 --fail-on-case-error -- \"\" (expects 75/75 = 100.00%, exit 0), then bash meta/scripts/check_shell_coverage.sh on thorium_repairs.sh and bt_audio.sh with the allowlist line removed."
+}
