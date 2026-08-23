@@ -1,0 +1,43 @@
+{
+  "intent": "Stop the two Python CI workflows re-downloading ~80 packages from PyPI on every run, which was the single slowest step in both.",
+  "scope": [
+    ".github/workflows/python-tests.yml",
+    ".github/workflows/pre-commit.yml",
+    "Non-goal: pinning dependencies or trimming the requirements list"
+  ],
+  "changes": [
+    "Added cache: pip with cache-dependency-path: meta/requirements.txt to actions/setup-python in both workflows. The path is the real file, not the root requirements.txt symlink, because the cache key is hashed from the file at the given path.",
+    "Added an actions/cache@v4 step for ~/.cache/pre-commit in pre-commit.yml, keyed on .pre-commit-config.yaml, so hook virtualenvs are not rebuilt when no hook changed.",
+    "The Node workflows (poker-stakes, reverse-survivors) already cached npm; the Python ones were the outliers."
+  ],
+  "verification": [
+    {
+      "command": "gh api .../actions/runs/32645134828/jobs -- per-step timings for Pre-commit checks",
+      "result": "pass",
+      "evidence": "Install dependencies = 63s, the dominant step; every other step 16s or less. This is the step the cache targets."
+    },
+    {
+      "command": "gh api .../actions/runs/32645075080/jobs -- per-step timings for Python tests",
+      "result": "pass",
+      "evidence": "Install dependencies = 49s vs 35s actually running pytest; same dominant step"
+    },
+    {
+      "command": "python3 -c \"import yaml; yaml.safe_load(...)\" on both workflow files",
+      "result": "pass",
+      "evidence": "both parse as valid YAML"
+    },
+    {
+      "command": "pre-commit run --files .github/workflows/python-tests.yml .github/workflows/pre-commit.yml",
+      "result": "pass",
+      "evidence": "no hook reported a failure (prettier, check-yaml included)"
+    }
+  ],
+  "risks": [
+    "A stale pip cache could in principle serve an old wheel; mitigated because the key is a hash of the requirements file, so any dependency change invalidates it.",
+    "The first run after this lands is a cache MISS and will be no faster; the saving appears from the second run onward."
+  ],
+  "rollback": [
+    "Remove the cache lines from both setup-python blocks and delete the actions/cache step.",
+    "After rollback, confirm the Install dependencies step returns to ~50-60s."
+  ]
+}

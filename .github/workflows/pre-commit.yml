@@ -15,6 +15,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          # See the note in python-tests.yml: caches the pip download cache,
+          # keyed on the real meta/ path rather than the root symlink.
+          cache: pip
+          cache-dependency-path: meta/requirements.txt
 
       # zsh backs the zsh-syntax hook. apt does not let a patch release be
       # selected, so this is pinned only to what the runner image provides;
@@ -95,6 +99,14 @@ jobs:
             exit 1
           fi
           echo "prettier ${prettier_installed} and shfmt ${shfmt_installed} pinned and on PATH"
+
+      # pre-commit builds a virtualenv per hook repo on first use, which is
+      # slower than the pip install itself. Keyed on the hook definitions, so
+      # it invalidates exactly when a hook's repo or rev changes.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-py3.12-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install dependencies
         run: |
