@@ -352,16 +352,18 @@ python_pkg/*/cache/
 # FVM Version Cache
 .fvm/
 
-# Focus mode secrets (contains home GPS coordinates)
+# Focus mode secrets (contains home GPS coordinates). phone_focus_mode/ moved
+# to its own repo, but the working copy is still on this machine and still
+# holds a real location, so the ignore stays until the directory is gone.
 phone_focus_mode/config_secrets.sh
+phone_focus_mode/focus_status_app/build
+phone_focus_mode/focus_status_app/debug.keystore
 
 # Generated output files
 out.txt
 
 # Build output symlinks (point to ../testsAndMisc_builds/)
 # Patterns without trailing / to match symlinks, not just directories
-phone_focus_mode/focus_status_app/build
-phone_focus_mode/focus_status_app/debug.keystore
 .worktrees
 .claude/
 

@@ -77,12 +77,3 @@ meta/lib/lint_output.sh
 meta/scripts/lib/disk_cleanup_common.sh
 meta/scripts/lib/trace_prefix.sh
 meta/scripts/lib/trace_stubs.sh
-phone_focus_mode/lib/adb_common.sh
-phone_focus_mode/lib/adb_locking.sh
-phone_focus_mode/lib/adb_trusted.sh
-phone_focus_mode/lib/backup_capture.sh
-phone_focus_mode/lib/backup.sh
-phone_focus_mode/lib/monitor_checks_health.sh
-phone_focus_mode/lib/monitor_checks_policy.sh
-phone_focus_mode/lib/monitor.sh
-phone_focus_mode/lib/restore.sh

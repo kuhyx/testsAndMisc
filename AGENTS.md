@@ -9,7 +9,6 @@ Mixed-language monorepo: Python packages, Bash automation, and several apps.
 | `python_pkg/`          | Python packages — every `.py` in the repo belongs here or in an allowlisted dir                           |
 | `meta/`                | Repo-wide tooling: `pyproject.toml`, `requirements.txt`, `run.sh`, `lint_python.sh`, `.fvmrc`, `scripts/` |
 | `linux_configuration/` | Arch setup, i3 config, system maintenance, and the tracked git hooks                                      |
-| `phone_focus_mode/`    | GPS-based Android focus enforcer (Bash, ADB, Magisk)                                                      |
 | `billsplit/`           | Receipt bill-splitting Flutter app (Dart)                                                                 |
 | `bottles/`             | Small standalone project                                                                                  |
 | `docs/`                | Reference docs; `docs/superpowers/` holds AI workflow artifacts                                           |
@@ -32,7 +31,9 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 [`system-maintenance`](https://github.com/kuhyx/system-maintenance) (lives at
 `~/system-maintenance`),
 [`android-guardian`](https://github.com/kuhyx/android-guardian) (lives at
-`~/android-guardian`).
+`~/android-guardian`),
+[`phone-focus-mode`](https://github.com/kuhyx/phone-focus-mode) (with
+`python_pkg/focus_policy`).
 Archived work: [`testsAndMisc-archive`](https://github.com/kuhyx/testsAndMisc-archive).
 
 ## Adding a Flutter app
@@ -47,8 +48,7 @@ committed. To add another, repeat **both** halves or the icons fail silently:
 Icons come from the shared generator in `python_pkg/app_icons/`. Dart style is
 gated by CI only (`.github/workflows/billsplit-ci.yml`), not by a local hook.
 Keep app dirs free of Python: the `check-python-location` hook requires every
-`.py` to sit under `python_pkg/` (or `linux_configuration/`, `phone_focus_mode/`,
-`meta/scripts/`). `billsplit/`'s coverage gate therefore lives at
+`.py` to sit under `python_pkg/` (or `linux_configuration/`, `meta/scripts/`). `billsplit/`'s coverage gate therefore lives at
 `python_pkg/billsplit_coverage/`.
 
 ## Git Workflow

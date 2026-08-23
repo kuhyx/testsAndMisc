@@ -1,0 +1,21 @@
+{
+  "title": "Extract phone_focus_mode with focus_policy into one public repo",
+  "objective": "Move the GPS focus enforcer and its Python policy half out together, since focus_policy parses phone_focus_mode's config.sh and is referenced by nothing else. The repo is public and the subject matter is a home location, so proving no coordinate leaks is part of the job, not an afterthought.",
+  "acceptance_criteria": [
+    "Both trees land in one public repo with full history and python_pkg.focus_policy imports rewritten.",
+    "The full git history contains no real home coordinate and no committed config_secrets.sh, verified BEFORE the repo is made public.",
+    "The new repo has a .gitignore covering config_secrets.sh; none came across in the filter-repo pass.",
+    "The Python suites pass from a clean clone: 161 tests.",
+    "The shell suites pass with NO config_secrets.sh present, which means the harness must pin its own coordinates instead of inheriting real ones.",
+    "config.sh can be sourced without a secrets file, so CI and a fresh clone work.",
+    "Any suite that does not pass is skipped in CI with a stated reason, and its behaviour is compared against the pre-extraction baseline to establish whether the split caused it.",
+    "The monorepo's remaining tests still pass and no config, hook or workflow names a removed path.",
+    "pre-commit passes without --no-verify."
+  ],
+  "out_of_scope": [
+    "hosts and digital_wellbeing, deferred while the guard-lib repoint is pending.",
+    "Fixing test_magisk_service.sh, which was already broken and is not a regression from this split.",
+    "python-tests.yml's stale lichess_bot and tests/ path filters, absent since May 2026."
+  ],
+  "verifier": "git log --all -p greps clean for the home coordinates; pytest reports 161 passed in the new repo; the shell suites run with the secrets file moved away; pytest linux_configuration/tests reports 178 passed here; check_shell_coverage.sh --all and check_python_location.sh over every .py both exit 0; check_directory_depth.sh --all drops 262 -> 248."
+}

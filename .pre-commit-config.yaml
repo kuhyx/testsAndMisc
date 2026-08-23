@@ -133,7 +133,7 @@ repos:
         language: script
         types: [shell]
         require_serial: true
-        exclude: ^(\.git/|phone_focus_mode/lib/tests/|tests/)
+        exclude: ^(\.git/|tests/)
       - id: shell-coverage-ratchet
         name: Every shell library has a test suite beside it
         # The ratchet from meta/shell-coverage-allowlist.txt: a lib under a

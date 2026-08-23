@@ -1,0 +1,54 @@
+{
+  "intent": "Extract phone_focus_mode together with python_pkg/focus_policy into one public repo, and fix the test suite's hidden dependency on an untracked secrets file rather than carrying it across.",
+  "scope": [
+    "phone_focus_mode/ (109 files) + python_pkg/focus_policy/ (14) -> github.com/kuhyx/phone-focus-mode",
+    "2 Python suites from linux_configuration/tests/ and 6 mutation fixtures from meta/scripts/fixtures/mutations/ moved with them",
+    "conftest.py, meta/pyproject.toml, .pre-commit-config.yaml, .gitignore, .prettierignore, shell-coverage-allowlist.txt cleaned",
+    "check_python_location.sh: the phone_focus_mode exception removed now that the directory is gone",
+    "Non-goal: hosts and digital_wellbeing, deferred at the user's request"
+  ],
+  "changes": [
+    "Extracted both trees in one filter-repo pass (77 commits), hoisting phone_focus_mode to the root, python_pkg/focus_policy to focus_policy/, and rewriting python_pkg.focus_policy imports plus the mutation fixtures' phone_focus_mode/ path prefix.",
+    "Gave the new repo a conftest putting the root and lib/ on sys.path, a pyproject, a .shellcheckrc and CI covering Python, shellcheck and the shell suites.",
+    "Added a .gitignore to the new repo: none came across in the filter-repo pass and the repo is public. config_secrets.sh is ignored.",
+    "ctl_libs_harness.sh now pins HOME_LAT/HOME_LON to a pair 4300 m south of the coordinate its case seeds, instead of inheriting whatever config_secrets.sh holds.",
+    "config.sh sources config_secrets.sh only when it exists, so a clean clone and CI can run.",
+    "Tightened check_python_location.sh and the AGENTS.md rule it documents, dropping the exception for a directory that no longer exists."
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest tests focus_policy -q (extracted repo)",
+      "result": "pass",
+      "evidence": "161 passed."
+    },
+    {
+      "command": "bash lib/tests/test_*.sh with NO config_secrets.sh present",
+      "result": "pass",
+      "evidence": "10 of 11 suites pass, including test_ctl_libs.sh at 136/136. Before the fix it failed 'status distance should be ~4300 m, got 25555' with a placeholder secrets file and could not run at all without one."
+    },
+    {
+      "command": "bash lib/tests/test_magisk_service.sh, in the extracted repo AND the pre-extraction baseline worktree",
+      "result": "fail in both (pre-existing)",
+      "evidence": "Times out (exit 124) in the monorepo baseline too, and is named in no CI list there. Carried across knowingly; the new CI skips it explicitly with that reason rather than hiding it."
+    },
+    {
+      "command": "git log --all -p | grep for the known home coordinates; git log for config_secrets.sh",
+      "result": "pass",
+      "evidence": "Zero matches across all history and the file was never committed, checked before the repo was made public. Remaining coordinate literals are the Warsaw city-centre test fixture (52.2297, 21.0122)."
+    },
+    {
+      "command": "pytest linux_configuration/tests; check_shell_coverage.sh --all; check_python_location.sh over every tracked .py",
+      "result": "pass",
+      "evidence": "178 passed; coverage gate exit 0; all Python files pass the tightened location hook. Depth 262 -> 248."
+    }
+  ],
+  "risks": [
+    "test_magisk_service.sh remains broken. It is skipped in CI with a stated reason, not silently dropped, but it is a real gap the new repo inherits.",
+    "python-tests.yml still filters on python_pkg/lichess_bot and tests/, neither of which has existed since the May 2026 archive commit. Pre-existing and harmless (a filter on a missing path just never matches); left alone rather than widening this change.",
+    "The distance assertion now encodes a synthetic home 4300 m from the fixture. If the seeded fix ever changes, the pinned pair must change with it - the harness comment says so."
+  ],
+  "rollback": [
+    "git revert to restore both trees, the two tests and the mutation fixtures, then re-add the conftest entries, pylint sys.path elements, pre-commit exclude and the location-hook exception.",
+    "Re-run pytest linux_configuration/tests and check_shell_coverage.sh --all."
+  ]
+}
