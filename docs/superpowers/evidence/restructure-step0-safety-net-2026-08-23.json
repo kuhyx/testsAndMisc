@@ -1,0 +1,51 @@
+{
+  "intent": "Establish the safety net for the testsAndMisc restructure: a script that inventories every live reference into the repo, and the directory-depth gate written early as a dry run so the flattening work can be sized before any file moves.",
+  "scope": [
+    "meta/scripts/report_live_state.sh (new)",
+    "meta/scripts/check_directory_depth.sh (new, NOT yet wired into pre-commit)",
+    "docs/restructure-live-state.md (new)",
+    "Non-goal: no archives, extractions or moves in this commit",
+    "Non-goal: the depth gate is deliberately not enforced yet - the tree does not conform"
+  ],
+  "changes": [
+    "report_live_state.sh enumerates systemd units, /etc config and $HOME symlinks that name an absolute path inside the repo; --check exits 1 while any remain, making it the post-move gate.",
+    "check_directory_depth.sh enforces a 2-directory cap, modelled on check_file_length.sh (--all/per-file, EXCLUDED_PREFIXES). Exempts third_party/, docs/superpowers/, .github/skills/ by prefix and any lib/ or tests/ path segment, matched as whole segments so libvirt/ and lib.sh are unaffected.",
+    "docs/restructure-live-state.md records the baseline inventory (6 systemd units, 2 /etc guard-lib targets, 19 symlinks) plus the depth dry-run sizing."
+  ],
+  "verification": [
+    {
+      "command": "./meta/scripts/report_live_state.sh",
+      "result": "pass",
+      "evidence": "Reported 6 systemd units (media-organizer, dns-blocklist-refresh, endurain-import, kcd2-dice-build, morning-routine, syncyomi-guard), 2 /etc/guard-lib/targets/*.conf plugin paths, and 19 symlinks under ~/.config/i3blocks (13), ~/.local/bin (3), ~/.oh-my-zsh/custom (3)."
+    },
+    {
+      "command": "./meta/scripts/report_live_state.sh --check; echo $?",
+      "result": "pass",
+      "evidence": "Exit code 1 with 'live references into /home/kuhy/testsAndMisc remain', which is correct at baseline since nothing has moved yet."
+    },
+    {
+      "command": "14 hand-built path cases through check_directory_depth.sh",
+      "result": "pass",
+      "evidence": "a/b/c.sh=0, a/b/c/d.sh=1, boot_recovery/tests/lib/x.sh=0, focus_policy/tests/test_model.py=0, meta/scripts/lib/trace_stubs.sh=0, meta/scripts/fixtures/mutations/monitor.json=1, third_party+docs/superpowers+.github/skills prefixes=0. False-positive guards: a/b/libvirt/c.sh=1 and a/b/c/lib.sh=1 both correctly NOT exempt."
+    },
+    {
+      "command": "./meta/scripts/check_directory_depth.sh --all",
+      "result": "fail (expected - dry run only, gate not wired)",
+      "evidence": "556 violations at baseline. 349 disappear with the planned archives/extractions; 207 remain as the step D worklist, dominated by linux_configuration/scripts/single_use (~130)."
+    },
+    {
+      "command": "pre-commit run --files meta/scripts/check_directory_depth.sh meta/scripts/report_live_state.sh docs/restructure-live-state.md",
+      "result": "pass",
+      "evidence": "All hooks passed, including shellcheck, the 250-line file cap, and the shell-coverage ratchet."
+    }
+  ],
+  "risks": [
+    "report_live_state.sh reads /etc without sudo, so a root-only-readable reference would be missed; every reference found so far is world-readable.",
+    "The symlink scan is depth-limited to 4 under $HOME, which covers all known locations but would miss a deeper one.",
+    "check_directory_depth.sh is intentionally not wired into pre-commit yet; wiring it now would block every unrelated commit, exactly as the file-length-cap comment warns."
+  ],
+  "rollback": [
+    "git revert the commit; all three files are new and nothing sources them yet.",
+    "Confirm pre-commit run --all-files still passes, since no existing hook or workflow references these scripts."
+  ]
+}
