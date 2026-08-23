@@ -143,7 +143,8 @@ class TestRunReindex:
 
         env = mock_run.call_args.kwargs["env"]
         assert env["KNOWLEDGE_RAG_DIR"] == "/store"
-        assert env["PYTHONPATH"].endswith("testsAndMisc")
+        expected_root = Path(reindex.__file__).resolve().parents[2]
+        assert env["PYTHONPATH"] == str(expected_root)
 
     @patch(f"{MOD}.subprocess.run")
     def test_prepends_to_existing_pythonpath(self, mock_run: MagicMock) -> None:

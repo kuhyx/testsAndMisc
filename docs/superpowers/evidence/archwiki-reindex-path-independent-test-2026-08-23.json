@@ -1,0 +1,30 @@
+{
+  "intent": "Make test_passes_store_and_repo_root pass in any checkout, not only one whose directory happens to be named 'testsAndMisc'.",
+  "scope": [
+    "python_pkg/archwiki_rag/tests/test_reindex.py",
+    "Non-goal: changing reindex.py production behaviour"
+  ],
+  "changes": [
+    "Replaced the hardcoded assertion env['PYTHONPATH'].endswith('testsAndMisc') with an exact comparison against the repo root the code itself computes, Path(reindex.__file__).resolve().parents[2].",
+    "The assertion is strengthened, not weakened: exact equality replaces a suffix match."
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/archwiki_rag/tests/test_reindex.py -q",
+      "result": "pass",
+      "evidence": "19 passed, run both in /home/kuhy/testsAndMisc and in a worktree at /tmp/meas-gIJ1/co"
+    },
+    {
+      "command": "python meta/scripts/pytest_changed_packages.py <paths> in a clean worktree",
+      "result": "pass",
+      "evidence": "2101 passed, TOTAL coverage 100.00% (7082 stmts, 1742 branches, 0 missing)"
+    }
+  ],
+  "risks": [
+    "None material: the test now asserts against the same expression the source uses, so a genuine PYTHONPATH regression still fails it."
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Re-run the archwiki_rag test module; it will pass again in ~/testsAndMisc but resume failing in any differently-named checkout"
+  ]
+}
