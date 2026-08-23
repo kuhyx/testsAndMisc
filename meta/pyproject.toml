@@ -64,6 +64,10 @@ unfixable = []
     "S101",    # assert IS what tests do — every Python test suite suppresses this.
     "SLF001",  # Unit tests must exercise private internals (_method, _attr) to reach
                #   100% branch coverage; only integration tests can avoid this.
+    "TC002",   # pytest resolves fixture parameter annotations at RUNTIME, so moving
+    "TC003",   #   pytest/Path into a TYPE_CHECKING block breaks collection. Verified
+               #   empirically: guarding them failed 11 tests with UnboundLocalError
+               #   and NameError, not a hypothetical concern.
 ]
 "**/test_*.py" = [
     "ARG",

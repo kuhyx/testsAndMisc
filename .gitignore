@@ -412,3 +412,9 @@ billsplit/linux/
 *.tsbuildinfo
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+
+# Endurain: generated secrets (SECRET_KEY, FERNET_KEY, DB password) and the
+# importer's API key + dedupe ledger. Never commit.
+endurain/.env
+endurain/.api_key
+endurain/state/

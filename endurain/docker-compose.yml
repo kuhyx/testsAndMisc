@@ -1,0 +1,69 @@
+# Endurain self-hosted fitness tracker.
+#
+# Based on the upstream docker-compose.yml.example from Codeberg (the GitHub
+# repo is a read-only mirror and is stale). Deviations from upstream, all
+# deliberate:
+#
+#   1. The app port is bound to 127.0.0.1 explicitly. Upstream's "8080:8080"
+#      binds every interface; this host runs Docker alongside a Caddy edge on
+#      the host network, so an unqualified mapping would expose Endurain
+#      unfronted to the LAN. Public access is via gitea-caddy ONLY
+#      (sites/endurain.caddy -> endurain.kuhy.duckdns.org).
+#   2. The redis container is named endurain-redis, not upstream's bare
+#      "redis", which would collide with any other redis on this host.
+#   3. user: "1000:1000" is set explicitly. v0.19.0 removed the UID/GID env
+#      vars, so the host bind mounts must be chown'd to match.
+services:
+  endurain:
+    container_name: endurain-app
+    image: codeberg.org/endurain-project/endurain:latest
+    user: "1000:1000"
+    env_file:
+      - .env
+    volumes:
+      - ${LOCAL_PATH:-/var/opt/endurain}/backend/data:/app/backend/data:Z
+      - ${LOCAL_PATH:-/var/opt/endurain}/backend/logs:/app/backend/logs:Z
+    ports:
+      # Loopback only — see note 1 above. Do NOT change to "8085:8080".
+      - "127.0.0.1:8085:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: docker.io/postgres:18@sha256:8ff36f3c66371cba71d20ceedccfc3de9669a68737607888c4ef0af93abe8e39
+    container_name: endurain-postgres
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U endurain"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      # postgres:18 moved its default PGDATA to /var/lib/postgresql/18/docker
+      # and ships /var/lib/postgresql as mode-1777 owned by uid 999. Upstream's
+      # example still mounts at the pre-18 /var/lib/postgresql/data and sets
+      # PGDATA=.../data/pgdata; mounting over that path leaves it root-owned, so
+      # the entrypoint dies with "mkdir: cannot create directory
+      # '/var/lib/postgresql/data': Permission denied" and the only symptom
+      # compose reports is "container endurain-postgres is unhealthy".
+      # Mount at the image's own path and let PGDATA keep its default.
+      - ${LOCAL_PATH:-/var/opt/endurain}/postgres:/var/lib/postgresql/18/docker:Z
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine@sha256:09160599abd229764c0fb44cb6be640294e1d360a54b19985ab4843dcf2d90f1
+    container_name: endurain-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ${LOCAL_PATH:-/var/opt/endurain}/redis:/data:Z
+    restart: unless-stopped

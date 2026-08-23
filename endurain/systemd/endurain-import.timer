@@ -1,0 +1,13 @@
+[Unit]
+Description=Import RunnerUp activities into Endurain every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+# The phone uploads on a manual tap, so the exact minute does not matter;
+# jitter avoids lining up with every other timer on this box.
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
