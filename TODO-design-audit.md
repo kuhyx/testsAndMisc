@@ -128,3 +128,5 @@ N/A below with spot-checks noted instead.
 - **Primary structural finding**: introduce a shared token source (CSS custom properties in a `src/theme.css` imported by `index.css`, or a TS `theme.ts`) before doing any rule-by-rule fix — otherwise each violation below has to be independently re-fixed per `*.module.css` file, and new files will keep reintroducing the same drift (as the reversed-gradient-stop-order bug on `PuzzleResult.module.css:25` already shows).
 - Once tokens exist, Rules 9 and 18 become checkable as whole-palette rules and should be re-audited.
 - The 4-gray inconsistency (Rule 2) and the duplicated-gradient literals (Rule 4) are the same underlying fix — collapsing to a `theme.css` resolves both simultaneously.
+
+REMOVE ME AFTER FINISH

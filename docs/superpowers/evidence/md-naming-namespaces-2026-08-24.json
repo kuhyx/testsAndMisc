@@ -1,0 +1,48 @@
+{
+  "intent": "Rename this repo's markdown onto the four shared namespaces (README.md / CLAUDE*.md / DOCS*.md / TODO*.md) and gate them, so a future session can tell a live task from a finished record without reading the file to find out.",
+  "scope": [
+    "40 markdown files renamed via git mv (history preserved)",
+    "scripts/check_md_naming.sh: thin shim delegating to kuhyx/utils",
+    ".pre-commit-config.yaml: adds the md-naming hook",
+    ".github/workflows/md-naming.yml: same gate on push/PR",
+    "Non-goal: executing the outstanding work these TODO files describe",
+    "Non-goal: any change to source code, tests or build config"
+  ],
+  "changes": [
+    "Task files became TODO-<slug>.md and gained the literal line 'REMOVE ME AFTER FINISH'; record files became DOCS-<slug>.md with no marker.",
+    "Classification was by file CONTENT, not filename: RESTRUCTURE_HANDOFF.md and INSTALLER_FIX_TASK.md are settled records (DOCS), while docs/superpowers/plans/2026-05-01-phone-focus-recovery.md is still a task (TODO).",
+    "Deleted refactor_claude_todo.md and refactor_claude_todo_resume.md: the 250-line gate exits 0 in this repo, so the work they describe is provably finished.",
+    "Inbound references to the renamed files were rewritten in the same commit."
+  ],
+  "verification": [
+    {
+      "command": "bash scripts/check_md_naming.sh --all",
+      "result": "pass",
+      "evidence": "exit 0; 0 problems across the whole tree"
+    },
+    {
+      "command": "pre-commit run md-naming --all-files",
+      "result": "pass",
+      "evidence": "markdown naming convention.....Passed"
+    },
+    {
+      "command": "bash scripts/check_file_length.sh --all",
+      "result": "pass",
+      "evidence": "exit 0 -- the basis for deleting both refactor todos"
+    },
+    {
+      "command": "python3 -m pytest md_naming/tests/ (in ~/utils)",
+      "result": "pass",
+      "evidence": "71 passed; 100% branch coverage on the gate"
+    }
+  ],
+  "risks": [
+    "A rename breaks an inbound link not caught by the reference sweep. Mitigated: the sweep covered ~/.claude/CLAUDE.md, rules/, skills/, memory/ and every tracked .md; a bare-basename match was deliberately narrowed after a dry run showed it would corrupt vendored node_modules files.",
+    "A doc classified TASK is actually finished, or vice versa. Mitigated: verdicts came from content audits cross-checked against repo code, and are recorded in ~/utils/md_naming/migrate/classify.py.",
+    "The gate depends on kuhyx/utils being present; CI checks it out, and the shim fails loudly with install instructions if it is missing."
+  ],
+  "rollback": [
+    "git revert the commit -- every rename is a git mv, so history follows and the revert restores the original names.",
+    "After rollback, confirm bash scripts/check_md_naming.sh --all is no longer wired by removing the md-naming hook from .pre-commit-config.yaml and deleting .github/workflows/md-naming.yml."
+  ]
+}

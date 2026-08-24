@@ -52,10 +52,10 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
 For in-depth understanding of specific components, see these dedicated guides:
 
 - **Hosts Guard**: [./fixes/migrate_hosts_guard_to_guard_lib.sh](../fixes/migrate_hosts_guard_to_guard_lib.sh) header comment - guard-lib migration, protection layers, canonical copies, path watchers. The pre-guard-lib README is archived at github.com/kuhyx/testsAndMisc-archive.
-- **Pacman Wrapper**: [periodic_background/digital_wellbeing/pacman/README_FOR_LLM.md](../periodic_background/digital_wellbeing/pacman/README_FOR_LLM.md) - Policy files, integrity checks, challenges
-- **Midnight Shutdown**: [periodic_background/digital_wellbeing/README_MIDNIGHT_SHUTDOWN_LLM.md](../periodic_background/digital_wellbeing/README_MIDNIGHT_SHUTDOWN_LLM.md) - Schedule protection, timer system
-- **Compulsive Block**: [periodic_background/digital_wellbeing/README_COMPULSIVE_BLOCK_LLM.md](../periodic_background/digital_wellbeing/README_COMPULSIVE_BLOCK_LLM.md) - App launch limiting
-- **Security Analysis**: [docs/SECURITY_HARDENING_ANALYSIS.md](../docs/SECURITY_HARDENING_ANALYSIS.md) - Vulnerabilities and implementation roadmap
+- **Pacman Wrapper**: [periodic_background/digital_wellbeing/pacman/DOCS-pacman-wrapper-reference.md](../periodic_background/digital_wellbeing/pacman/DOCS-pacman-wrapper-reference.md) - Policy files, integrity checks, challenges
+- **Midnight Shutdown**: [periodic_background/digital_wellbeing/DOCS-midnight-shutdown-reference.md](../periodic_background/digital_wellbeing/DOCS-midnight-shutdown-reference.md) - Schedule protection, timer system
+- **Compulsive Block**: [periodic_background/digital_wellbeing/DOCS-compulsive-block-reference.md](../periodic_background/digital_wellbeing/DOCS-compulsive-block-reference.md) - App launch limiting
+- **Security Analysis**: [docs/DOCS-security-hardening-analysis.md](../docs/DOCS-security-hardening-analysis.md) - Vulnerabilities and implementation roadmap
 
 ## Digital Wellbeing Components Summary
 
