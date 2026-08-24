@@ -58,6 +58,16 @@ APPS: Final[dict[str, AppIcon]] = {
             linux=False,
         ),
         AppIcon(
+            key="focus_owner",
+            # Absorbed into the phone-focus-mode monorepo on 2026-08-24; the
+            # standalone ~/focus-owner clone is gone, as is its GitHub repo.
+            repo=_HOME / "phone-focus-mode" / "focus-owner",
+            accent="#B8862E",
+            glyph="padlock-closed",
+            icon_name="focus-owner",
+            linux=False,
+        ),
+        AppIcon(
             key="workout_app",
             repo=_HOME / "screen-locker" / "stronglift_replacement" / "workout_app",
             accent="#B8862E",

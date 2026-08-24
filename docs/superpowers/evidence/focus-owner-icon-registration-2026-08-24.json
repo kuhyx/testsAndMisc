@@ -1,0 +1,48 @@
+{
+  "intent": "Give com.kuhy.focus_owner (the Device Owner enforcer on the Pixel 6a) a real shared-family launcher icon instead of the off-family hand-written placeholder that was added only to unblock its build.",
+  "scope": [
+    "python_pkg/app_icons/apps.py - register focus_owner",
+    "python_pkg/app_icons/glyphs.py - register the padlock-closed glyph",
+    "python_pkg/app_icons/_glyph_art_more.py - the glyph's SVG fragment",
+    "Non-goal: no new accent. The family accent #B8862E is shared; apps are distinguished by glyph shape only.",
+    "Non-goal: no change to the 13 existing glyphs or to any other app's entry.",
+    "The consuming repo (~/phone-focus-mode) is committed separately; it blocks binaries, so the icon lands there in vector form."
+  ],
+  "changes": [
+    "Added AppIcon(key='focus_owner', repo=~/phone-focus-mode/focus-owner, glyph='padlock-closed', accent='#B8862E', linux=False). The repo path points into the monorepo because focus-owner was absorbed as a subtree on 2026-08-24 and both the standalone clone and its GitHub repo are gone.",
+    "Added the _PADLOCK_CLOSED glyph fragment: shackle stroked (inheriting the wrapping group's round caps), body filled in the accent, keyhole punched back out in the field colour via fill-rule='evenodd'. Splitting stroke and fill is deliberate - a fully stroked padlock loses its keyhole at 48dp, a fully filled one loses the shackle's opening.",
+    "Geometry computed against style.py rather than eyeballed, per the lesson recorded on _NOTE_ASCENDER: body 292..732 x 520..792; shackle centreline r=132 about (512,520) giving an outer top of 352, inside the 232 safe edge, with legs at x=380/644 inside the body; keyhole leaves 60px of body above and 76px below the stem, both clear of MIN_NEGATIVE_SPACE=36."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/app_icons/apps.py python_pkg/app_icons/glyphs.py python_pkg/app_icons/_glyph_art_more.py",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, codespell, secret scan and 'pytest with coverage enforcement' all Passed."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests -q --cov=python_pkg.app_icons",
+      "result": "pass",
+      "evidence": "44 passed. Every app_icons module reports 100% branch coverage (apps.py, glyphs.py, _glyph_art_more.py, render.py, generate.py, cli.py, preview.py, style.py all 100%)."
+    },
+    {
+      "command": "render.build_svg + render.rasterise at 512px and 48px into the session scratchpad",
+      "result": "pass",
+      "evidence": "Rendered and inspected both. Charcoal #1B1D21 field with the #B8862E padlock; centre_offset resolved to (0.0, -24.0). At 48px the keyhole is still a distinct hole rather than merging into the body - the specific failure the negative-space sums were computed to avoid."
+    },
+    {
+      "command": "python3 -c \"from python_pkg.app_icons.glyphs import get_glyph; get_glyph('padlock-closed')\"",
+      "result": "pass",
+      "evidence": "Resolves to 'padlock-closed - Closed padlock with a punched-out keyhole'."
+    }
+  ],
+  "risks": [
+    "The glyph is new artwork, so it is judged by eye; mitigated by rendering at both 512px and 48px and by computing the clearances instead of estimating them.",
+    "apps.py now hardcodes a path into ~/phone-focus-mode. If that repo is ever relocated the entry goes stale - the same exposure every other entry in the registry already has.",
+    "Android vector drawables support a subset of SVG. The arc and evenodd constructs used here convert cleanly, but the generated drawable is verified by an actual release build in the consuming repo rather than assumed."
+  ],
+  "rollback": [
+    "git revert this commit; nothing else imports _PADLOCK_CLOSED or the focus_owner key.",
+    "After rollback, re-run python3 -m pytest python_pkg/app_icons/tests -q and confirm 44 tests still pass and coverage stays at 100%.",
+    "The consuming repo's icon commit must be reverted too, or focus-owner is left referencing a glyph the registry no longer defines."
+  ]
+}

@@ -48,3 +48,30 @@ M 592 352 Q 694 408 736 480 Q 740 392 592 302 Z \
 M 232 724 L 792 724 L 792 776 L 232 776 Z"/>
     <ellipse fill="{{ACCENT}}" stroke="none" \
 cx="501" cy="580" rx="118" ry="90" transform="rotate(-20 501 580)"/>"""
+
+
+# A closed padlock: shackle down, body filled, keyhole punched out of it in the
+# field colour. For the Device Owner enforcer -- the app that locks the device
+# down -- where the literal reading is the right one.
+#
+# Geometry, computed rather than eyeballed (see the _NOTE_ASCENDER note above
+# for why that distinction earned its own comment):
+#   body     x=292..732, y=520..792   (440x272, rounded r=40)
+#   shackle  semicircular arc, centreline r=132 about (512,520), stroke 72,
+#            so its outer top is 520-132-36 = 352, inside the 232 safe edge,
+#            and its legs land at x=380 and x=644, well inside the body.
+#   keyhole  circle r=40 at (512,620) + tapered stem down to y=716.
+#            60px of body above the circle and 76px below the stem, both
+#            clear of MIN_NEGATIVE_SPACE=36, so it stays a hole at 48dp
+#            instead of merging into the body edge.
+#
+# The shackle is stroked (inheriting the group's round caps) while the body is
+# filled: a fully stroked padlock loses its keyhole at launcher size, and a
+# fully filled one loses the shackle's opening.
+_PADLOCK_CLOSED = """\
+    <path d="M 380 520 L 380 448 A 132 132 0 0 1 644 448 L 644 520"/>
+    <path fill="{{ACCENT}}" fill-rule="evenodd" stroke="none" d="\
+M 332 520 L 692 520 A 40 40 0 0 1 732 560 L 732 752 A 40 40 0 0 1 692 792 \
+L 332 792 A 40 40 0 0 1 292 752 L 292 560 A 40 40 0 0 1 332 520 Z \
+M 512 580 A 40 40 0 0 0 492 655 L 480 716 L 544 716 L 532 655 \
+A 40 40 0 0 0 512 580 Z"/>"""

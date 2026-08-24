@@ -29,7 +29,11 @@ from python_pkg.app_icons._glyph_art import (
     _SHIELD_CUTLERY,
     _STORAGE_BOX,
 )
-from python_pkg.app_icons._glyph_art_more import _NOTE_ASCENDER, _TRACK_BARS
+from python_pkg.app_icons._glyph_art_more import (
+    _NOTE_ASCENDER,
+    _PADLOCK_CLOSED,
+    _TRACK_BARS,
+)
 
 
 @dataclass(frozen=True)
@@ -73,6 +77,11 @@ GLYPHS: Final[dict[str, Glyph]] = {
             "decision-tree",
             "Node branching into two levels of child nodes",
             _DECISION_TREE,
+        ),
+        Glyph(
+            "padlock-closed",
+            "Closed padlock with a punched-out keyhole",
+            _PADLOCK_CLOSED,
         ),
     )
 }
