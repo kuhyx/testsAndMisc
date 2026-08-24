@@ -1,0 +1,67 @@
+{
+  "intent": "Make linux_configuration/install_core_system.sh -- the documented way to set this machine up from scratch -- actually complete on a fresh machine, and make the hosts blocking it installs genuinely enforced rather than only claiming to be.",
+  "scope": [
+    "linux_configuration/install_core_system.sh: two modules pointed at python_pkg/ paths that stopped existing when screen_locker and steam_backlog_enforcer were extracted; nothing installed guard-lib, so the CORE midnight-shutdown module always died with 'guardctl not found on PATH'.",
+    "linux_configuration/lib/extracted_repos.sh: gained clone-if-missing so a bare machine can complete the documented single command.",
+    "linux_configuration/tests/lib/security_apps.sh: five screen_locker checks silently skipped against an extracted path.",
+    "Sibling repos changed in the same pass: hosts-blocker (guard registration), screen-locker (missing runtime deps), steam-backlog-enforcer (non-interactive install).",
+    "Non-goals: boot-repair (its BIOS/GRUB guard landed in aec2b275), the run_installer/ask_install machinery, and retiring the legacy hosts-guard layer (that stays in the monorepo one-shot with --rollback/--status)."
+  ],
+  "changes": [
+    "extracted_repo_clone/require_extracted_repo now clone a missing sibling repo from github.com/kuhyx/<name> instead of only printing instructions; the clone drops privileges to the invoking human via sudo -u so a sudo-run installer cannot create a root-owned checkout in the user's home. A clone that fails is still a loud, fatal error for the module.",
+    "install_core_system.sh routes every module through install_module_from_repo/install_root_module, so all seven modules plus a new CORE guard-lib module resolve through the same clone-if-missing path. guard-lib is addressed as the 'utils' repo (it is a subdirectory of github.com/kuhyx/utils, so asking for 'guard-lib' would resolve to ~/guard-lib and derive a clone URL that does not exist) and is installed FIRST, before the modules that need guardctl.",
+    "hosts-blocker: new lib/hosts_guard_setup.sh registers the hosts, nsswitch and resolved file-guard instances and installs their plugins; install.sh calls it AFTER write_hosts_file so the canonical snapshot is of the post-write file. This is the fresh-install half of a migration that previously only ran when a one-shot script under fixes/ was invoked by hand.",
+    "hosts-blocker: stop_hosts_guard/restart_hosts_guard now handle the guard-lib instances (guard-file@hosts.*, guard-bind-mount@hosts.service) as well as the legacy per-file units, and refresh the canonical copy with 'guardctl file-guard sync hosts' -- without this a SECOND install run fought a live read-only bind mount and the install was not idempotent.",
+    "screen-locker: install_systemd.sh installs its own runtime dependencies (tk for the tkinter shared library, plus the pinned gatelock and crdt-sync git dependencies). It previously installed none, so the post-install workout check crashed and the installer exited 1 on any fresh machine.",
+    "steam-backlog-enforcer: install.sh no longer aborts under `set -euo pipefail` when a bare `read` finds no stdin; it defaults to not installing the systemd service when stdin is not a TTY, with STEAM_ENFORCER_INSTALL_SERVICE=y to opt in.",
+    "tests/lib/security_apps.sh: the screen_locker section resolves the extracted repo via extracted_repo_dir instead of a hardcoded $HOME/testsAndMisc/python_pkg path, and its assertions were rewritten against the current implementation (SPORT_CHOICES, SPORT_TABLE_TENNIS, _validate_table_tennis, sets_won, MANUAL_WORKOUT_REFLECTION_MIN_CHARS) because the four symbols it used to grep for no longer exist anywhere in the codebase."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh (host, before)",
+      "result": "18 passed / 1 failed / 5 skipped",
+      "evidence": "All 5 skips were the screen_locker section reporting 'Not found at expected location' -- checks that had silently stopped running when the package was extracted. The 1 failure is a genuine pre-existing host finding: signal-desktop and discord are installed but not wrapped with block-compulsive-opening."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh (host, after the path+assertion fix)",
+      "result": "23 passed / 0 skipped",
+      "evidence": "The five screen_locker checks now execute against ~/screen-locker and pass. Note this is a changed measuring instrument as well as a changed measurement: the suite is 24 checks today, so the task file's '18 passed / 6 skipped out of 17' target was stale and could not be matched literally."
+    },
+    {
+      "command": "vm run <guest> 'bash guest_verify.sh' -- pristine vmbox guest, installer clones its own siblings",
+      "result": "guard registration verified",
+      "evidence": "guardctl file-guard status hosts reports target /etc/hosts, canonical /etc/guard-lib/canonical/hosts, bind_mount yes, 'path unit: active'; findmnt shows a read-only bind mount; lsattr shows ----i-----------------; /etc/guard-lib/targets contains hosts.conf, nsswitch.conf, resolved.conf, shutdown-schedule.conf. Before this change a fresh guest had chattr +i and no watcher, no canonical copy and no bind mount."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_security_hardening.sh (inside the pristine guest, after install)",
+      "result": "23 passed / 0 failed / 1 skipped",
+      "evidence": "Bare guest before any install measured 0 passed / 17 skipped. The single remaining skip is environment-gated by design -- 'Canonical hosts copy exists: not a configured host (CI/container)' -- and cannot pass inside a VM."
+    },
+    {
+      "command": "echo y | bash linux_configuration/install_core_system.sh --all (pristine guest, first run then immediate re-run)",
+      "result": "progressively fixed across runs; see evidence",
+      "evidence": "Run A: Failed(2) -- screen-locker (tk missing) and steam-backlog-enforcer (read with no stdin). Run B after the steam fix: Installed(7)/Failed(1) on ModuleNotFoundError gatelock. Run C after adding gatelock+crdt-sync: install_systemd.sh exits 0 in the guest. guard-lib, hosts blocking and the midnight shutdown timer install from a bare guest throughout, which is the module that previously always died on 'guardctl not found on PATH'."
+    },
+    {
+      "command": "shellcheck -x on every changed shell file",
+      "result": "pass",
+      "evidence": "install_core_system.sh, lib/extracted_repos.sh, tests/lib/security_apps.sh, fixes/migrate_hosts_guard_to_guard_lib.sh, and hosts-blocker's install.sh, lib/hosts_guard_setup.sh, lib/hosts_guard.sh all clean. An unused REPO_ROOT left behind by the module rewrite was deleted rather than suppressed."
+    },
+    {
+      "command": "python3 -m screen_locker.screen_lock --status (host, before the host install run)",
+      "result": "lock would be skipped",
+      "evidence": "Today is recorded as sick_day, and _compliance_state.py's 'sick_day' predicate is terminal with reason 'Sick day logged today - lock skipped.', so install_systemd.sh's post-install --production invocation cannot raise a lock window on the host today."
+    }
+  ],
+  "risks": [
+    "The installer now reaches the network by default. A machine with no connectivity and a missing sibling repo gets a loud module failure rather than a silent skip, which is the intended trade but is a behaviour change.",
+    "Guard registration is a root operation that bind-mounts and chattr +i's /etc/hosts. It is ordered after write_hosts_file so the canonical snapshot matches the written file; getting that order wrong would make the guard fight the install.",
+    "The escape hatch is not symmetric: migrate_hosts_guard_to_guard_lib.sh --rollback requires /var/lib/guard-lib-migration, which does not exist on this host because the one-shot was never run here. Rollback is therefore verifiable in the sandbox only.",
+    "The screen_locker hardening assertions were rewritten, so they now guard different symbols than before. They assert the behaviour that exists today rather than the pre-extraction API."
+  ],
+  "rollback": [
+    "git revert the commit in each affected repo independently; the four commits are separable and the testsAndMisc one is the only one that changes the installer's control flow.",
+    "In the sandbox, sudo bash linux_configuration/fixes/migrate_hosts_guard_to_guard_lib.sh --rollback uninstalls the guard-lib instances (keeping the canonical copy) and restores the legacy hooks and units.",
+    "After reverting, re-run bash linux_configuration/tests/test_security_hardening.sh and confirm the count returns to its previous value, and check guardctl file-guard status hosts to see whether the instances are still registered -- reverting the code does not by itself unregister them."
+  ]
+}

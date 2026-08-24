@@ -72,58 +72,73 @@ sec_tests_screen_locker() {
 	# ==================================================================
 	echo "--- SCREEN LOCKER ---"
 
-	screen_locker="$HOME/testsAndMisc/python_pkg/screen_locker/screen_lock.py"
+	# screen_locker was EXTRACTED to github.com/kuhyx/screen-locker. This used
+	# to hardcode $HOME/testsAndMisc/python_pkg/screen_locker/, which stopped
+	# existing -- so all five checks below silently SKIPPED, reporting a clean
+	# run for tests that never executed. $HOME is also wrong under sudo; use the
+	# shared resolver, which handles the sudo/systemd cases.
+	local sl_repo sl_manual sl_types sl_fields
+	sl_repo="$(extracted_repo_dir screen-locker)"
+	screen_locker="$sl_repo/screen_locker/screen_lock.py"
+	sl_manual="$sl_repo/screen_locker/_manual_workout.py"
+	sl_types="$sl_repo/screen_locker/_manual_workout_types.py"
+	sl_fields="$sl_repo/screen_locker/_manual_workout_sport_fields.py"
 
 	# Test 20: Screen locker exists
 	if [[ -f "$screen_locker" ]]; then
 		test_result "Screen locker script exists" "pass"
 	else
-		test_result "Screen locker script exists" "skip" "Not found at expected location"
+		test_result "Screen locker script exists" "skip" "Not found at $screen_locker"
 	fi
 
-	# Test 21: Running option removed
-	if [[ -f "$screen_locker" ]]; then
-		# Check that there's no "Running" button in ask_workout_type
-		if grep -A 20 "def ask_workout_type" "$screen_locker" | grep -q '"Running"'; then
-			test_result "Running workout option removed" "fail" "Still present in ask_workout_type"
+	# Test 21: Running option removed.
+	# The workout prompt was rewritten: the sport list is now the explicit
+	# SPORT_CHOICES tuple in _manual_workout_types.py, so "Running is absent"
+	# is asserted against that tuple rather than against a since-deleted
+	# ask_workout_type function.
+	if [[ -f "$sl_types" ]]; then
+		if grep -A 4 "^SPORT_CHOICES" "$sl_types" | grep -qi "running"; then
+			test_result "Running workout option removed" "fail" "Still present in SPORT_CHOICES"
 		else
 			test_result "Running workout option removed" "pass"
 		fi
 	else
-		test_result "Running workout option removed" "skip" "Script not found"
+		test_result "Running workout option removed" "skip" "Types module not found"
 	fi
 
-	# Test 22: Table tennis minimum sets validation
-	if [[ -f "$screen_locker" ]]; then
-		if grep -q "MIN_TABLE_TENNIS_SETS" "$screen_locker"; then
-			test_result "Table tennis minimum sets validation exists" "pass"
+	# Test 22: Table tennis is a distinct, validated sport.
+	if [[ -f "$sl_types" ]] && [[ -f "$sl_manual" ]]; then
+		if grep -q "^SPORT_TABLE_TENNIS" "$sl_types" &&
+			grep -q "_validate_table_tennis" "$sl_manual"; then
+			test_result "Table tennis validation exists" "pass"
 		else
-			test_result "Table tennis minimum sets validation exists" "fail" "Constant not found"
+			test_result "Table tennis validation exists" "fail" "Sport constant or validator missing"
 		fi
 	else
-		test_result "Table tennis minimum sets validation exists" "skip" "Script not found"
+		test_result "Table tennis validation exists" "skip" "Manual-workout modules not found"
 	fi
 
-	# Test 23: Table tennis verification question
-	if [[ -f "$screen_locker" ]]; then
-		if grep -q "ask_table_tennis_verification" "$screen_locker"; then
-			test_result "Table tennis verification question exists" "pass"
+	# Test 23: Sets won/lost are captured and validated for table tennis.
+	if [[ -f "$sl_fields" ]] && [[ -f "$sl_manual" ]]; then
+		if grep -q "sets_won" "$sl_fields" && grep -q "Sets won" "$sl_manual"; then
+			test_result "Table tennis set scores captured" "pass"
 		else
-			test_result "Table tennis verification question exists" "fail" "Function not found"
+			test_result "Table tennis set scores captured" "fail" "sets_won field or validation missing"
 		fi
 	else
-		test_result "Table tennis verification question exists" "skip" "Script not found"
+		test_result "Table tennis set scores captured" "skip" "Sport-field modules not found"
 	fi
 
-	# Test 24: 60 second submit delay for table tennis
-	if [[ -f "$screen_locker" ]]; then
-		if grep -q "TABLE_TENNIS_SUBMIT_DELAY = 60" "$screen_locker"; then
-			test_result "Table tennis 60-second submit delay" "pass"
+	# Test 24: The reflection fields are enforced with a minimum length, which
+	# is what makes a logged workout non-trivial to fake.
+	if [[ -f "$sl_manual" ]]; then
+		if grep -q "MANUAL_WORKOUT_REFLECTION_MIN_CHARS" "$sl_manual"; then
+			test_result "Manual workout reflection minimum enforced" "pass"
 		else
-			test_result "Table tennis 60-second submit delay" "fail" "Constant not set to 60"
+			test_result "Manual workout reflection minimum enforced" "fail" "Minimum not enforced"
 		fi
 	else
-		test_result "Table tennis 60-second submit delay" "skip" "Script not found"
+		test_result "Manual workout reflection minimum enforced" "skip" "Manual-workout module not found"
 	fi
 
 	echo ""

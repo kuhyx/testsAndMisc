@@ -1,0 +1,19 @@
+{
+  "title": "Make install_core_system.sh work on a fresh machine again",
+  "objective": "install_core_system.sh is the documented way to set this machine up from scratch, and it could not complete: two of its seven modules pointed at paths that stopped existing when screen_locker and steam_backlog_enforcer were extracted into their own repos, nothing installed guard-lib (so the CORE midnight-shutdown module always died with 'guardctl not found on PATH'), and the hosts blocking module applied chattr +i while the file-guard instances that are supposed to watch and re-enforce /etc/hosts were only ever registered by a one-shot script filed under fixes/. A fresh machine therefore got immutability with no watcher, no canonical copy and no bind mount.",
+  "acceptance_criteria": [
+    "Every module in install_core_system.sh resolves to a script that exists, verified by running the installer end-to-end in a pristine vmbox guest that starts with none of the sibling repos checked out.",
+    "A missing sibling repo (screen-locker, steam-backlog-enforcer, hosts-blocker, digital-wellbeing, utils/guard-lib) is cloned automatically; if that clone fails the module lands in the installer's Failed(...) summary rather than being silently skipped.",
+    "guard-lib installs before the modules that depend on guardctl, so the midnight shutdown timer no longer fails on a fresh machine.",
+    "hosts-blocker's install.sh registers the hosts, nsswitch and resolved file-guard instances itself, so `guardctl file-guard status hosts` shows a live watcher with a canonical copy and a bind mount with no manual step after the installer.",
+    "Guard registration runs after the hosts file is written, so the canonical snapshot is of the post-write file.",
+    "Re-running the installer is a no-op that still exits 0: stop_hosts_guard/restart_hosts_guard handle the guard-lib instances, not only the legacy per-file units.",
+    "The security hardening suite reports 0 skipped for the screen_locker section, which had been silently skipping five checks against an extracted path."
+  ],
+  "out_of_scope": [
+    "boot-repair: its BIOS/GRUB guard landed 2026-08-22 in aec2b275.",
+    "The installer's module-runner machinery (run_installer / ask_install); the defects are all in what it points at.",
+    "Retiring the legacy hosts-guard pacman hooks and systemd units, which stays in the monorepo one-shot together with --rollback/--status. A fresh machine has no legacy layer to retire."
+  ],
+  "verifier": "In a pristine vmbox guest: install_core_system.sh --all reports zero Failed entries and exits 0; a second run of the same command is a no-op that also exits 0; guardctl file-guard status hosts shows a registered instance with a bind mount; test_security_hardening.sh reports 0 skipped in the screen locker section. On the host, the same hardening suite goes from 18 passed / 1 failed / 5 skipped to 23 passed / 0 skipped before the installer runs."
+}

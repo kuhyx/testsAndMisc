@@ -36,6 +36,13 @@ validate_requirements() {
 	fi
 }
 
+# NOTE: the fresh-install half of this migration (installing plugins and
+# registering the three file-guard instances) now also lives in hosts-blocker's
+# lib/hosts_guard_setup.sh, which install.sh calls, so a fresh machine no longer
+# depends on anyone running this script by hand. What stays here is the part a
+# fresh machine has no use for: retiring the LEGACY hosts-guard hooks and units,
+# plus --rollback/--status. The two implementations must register the same three
+# instances; instance_spec below is the shared contract.
 install_plugins() {
 	run mkdir -p "$PLUGIN_INSTALL_DIR"
 	local src
