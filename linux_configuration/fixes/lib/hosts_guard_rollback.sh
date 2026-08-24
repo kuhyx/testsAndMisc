@@ -75,10 +75,27 @@ save_rollback_state() {
 # Rollback
 # ----------------------------------------------------------------------------
 do_rollback() {
-	[[ -d $STATE_DIR ]] || {
-		err "no rollback state at $STATE_DIR - nothing to roll back to"
-		exit 1
-	}
+	# Two ways a machine gets these guards now: this script's migration (which
+	# records legacy hooks/units in STATE_DIR first), or hosts-blocker's
+	# install.sh calling setup_hosts_guards on a fresh machine, where there is
+	# no legacy layer to back up and so no STATE_DIR at all. Refusing without
+	# STATE_DIR left the second kind of machine -- every freshly installed one
+	# -- with NO escape hatch: `--rollback` bailed out while the instances it
+	# is supposed to remove were live. Uninstalling the instances needs no
+	# backup; only restoring the legacy layer does, and that part already
+	# checks for its own files.
+	if [[ ! -d $STATE_DIR ]]; then
+		local have_instance=0 _n
+		for _n in "${INSTANCES[@]}"; do
+			instance_registered "$_n" && have_instance=1
+		done
+		if ((have_instance == 0)); then
+			err "no rollback state at $STATE_DIR and no guard-lib instance registered - nothing to roll back to"
+			exit 1
+		fi
+		warn "no legacy state at $STATE_DIR (guards were installed fresh, not migrated)"
+		warn "uninstalling the guard-lib instances; there is no legacy layer to restore"
+	fi
 
 	local name
 	for name in "${INSTANCES[@]}"; do
@@ -136,6 +153,21 @@ do_rollback() {
 		run systemctl restart hosts-bind-mount.service 2>/dev/null || warn "could not restart hosts-bind-mount.service"
 	fi
 	msg "re-ran legacy enforcement (restores chattr +i and the ro bind mount)"
+
+	# On a machine that never had the legacy layer, every `systemctl cat` above
+	# skipped and nothing re-asserted anything -- so /etc/hosts would be left
+	# with no immutable flag and no bind mount, which is strictly less
+	# protected than before the rollback. Re-assert immutability directly. This
+	# is the same hazard the block above documents, in the case where there is
+	# no legacy unit to do it for us.
+	local hosts_file="${HOSTS_FILE:-/etc/hosts}"
+	if [[ -e $hosts_file ]] && ! lsattr -d "$hosts_file" 2>/dev/null | grep -q 'i'; then
+		if run chattr +i "$hosts_file" 2>/dev/null; then
+			msg "re-asserted chattr +i on $hosts_file (no legacy unit to do it)"
+		else
+			warn "could not re-assert chattr +i on $hosts_file"
+		fi
+	fi
 
 	printf "\n"
 	msg "rollback complete"

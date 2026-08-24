@@ -1,0 +1,47 @@
+{
+  "intent": "Give a freshly installed machine a working escape hatch from the hosts file-guards. Until now --rollback refused to run on exactly the machines the previous commit created.",
+  "scope": [
+    "linux_configuration/fixes/lib/hosts_guard_rollback.sh only.",
+    "Follow-up to 4c426eae, which made hosts-blocker's install.sh register the guard-lib instances directly.",
+    "Non-goal: changing what the migration path records; a migrated machine keeps its existing legacy backup and restore behaviour unchanged."
+  ],
+  "changes": [
+    "do_rollback no longer exits when /var/lib/guard-lib-migration is absent. That state dir is written by the one-shot migration, but a machine set up by hosts-blocker's install.sh has no legacy layer to back up and therefore no state dir -- so --rollback bailed out while the very instances it exists to remove were live. It now proceeds whenever a guard-lib instance is registered, warns that there is no legacy layer to restore, and still refuses when there is genuinely nothing to roll back.",
+    "After uninstalling the instances, re-assert chattr +i on /etc/hosts when no legacy unit did it. The existing re-assertion relied on starting hosts-guard.service / hosts-bind-mount.service, which do not exist on a fresh machine, so every systemctl cat skipped and the rollback left /etc/hosts with no immutable flag and no bind mount -- strictly less protected than before the rollback."
+  ],
+  "verification": [
+    {
+      "command": "sudo bash linux_configuration/fixes/migrate_hosts_guard_to_guard_lib.sh --rollback --dry-run (pristine vmbox guest, guards installed by install_core_system.sh --all)",
+      "result": "pass",
+      "evidence": "DRYRUN_RC=0, reporting it would uninstall the hosts, nsswitch and resolved instances. Before this change the same command printed 'no rollback state at /var/lib/guard-lib-migration - nothing to roll back to' and exited 1."
+    },
+    {
+      "command": "sudo bash linux_configuration/fixes/migrate_hosts_guard_to_guard_lib.sh --rollback (same guest)",
+      "result": "pass",
+      "evidence": "ROLLBACK_RC=0. Uninstalled file-guard hosts, nsswitch and resolved, then logged 're-asserted chattr +i on /etc/hosts (no legacy unit to do it)'."
+    },
+    {
+      "command": "ls /etc/guard-lib/targets; lsattr /etc/hosts; findmnt /etc/hosts; wc -l /etc/hosts (after rollback)",
+      "result": "pass",
+      "evidence": "Only shutdown-schedule.conf remains, which belongs to a different feature and must not be touched. /etc/hosts shows ----i----------------- and still holds all 178410 lines; the bind mount is gone, which is the intended post-rollback state."
+    },
+    {
+      "command": "shellcheck -x linux_configuration/fixes/lib/hosts_guard_rollback.sh",
+      "result": "pass",
+      "evidence": "Clean. An initial A && B || C form was rewritten as if/else after SC2015 pointed out the C branch can run when A succeeds, which matters because `run` is a no-op under --dry-run."
+    },
+    {
+      "command": "bash ./linux_configuration/fixes/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "hosts_guard_rollback: 31 passed, 0 failed; whole suite exits 0. The first attempt failed one case: the refusal message is asserted verbatim by test_hosts_guard_rollback.sh:115, and the new no-instance branch had dropped the trailing 'to'. The wording was restored rather than the assertion loosened, since the test is checking the user-visible explanation."
+    }
+  ],
+  "risks": [
+    "Rollback is now reachable in more situations, so an accidental invocation can unregister live guards. It still refuses when no instance is registered, and it keeps the canonical copy via --keep-canonical, so the file itself is never lost.",
+    "The re-assertion only covers /etc/hosts. nsswitch.conf and resolved.conf are left to their plugins, matching the behaviour the migration path already had."
+  ],
+  "rollback": [
+    "git revert this commit; the previous behaviour (refuse without a state dir) returns.",
+    "After reverting, confirm with sudo bash linux_configuration/fixes/migrate_hosts_guard_to_guard_lib.sh --status that the instance list matches expectations before relying on it."
+  ]
+}
