@@ -573,15 +573,15 @@ repos:
         always_run: true
         pass_filenames: false
 
-  # ===========================================================================
-  # COMMITIZEN - Conventional commits (optional)
-  # ===========================================================================
-  # - repo: https://github.com/commitizen-tools/commitizen
-  #   rev: v3.13.0
-  #   hooks:
-  #     - id: commitizen
-  #     - id: commitizen-branch
-  #       stages: [push]
+      # ===========================================================================
+      # COMMITIZEN - Conventional commits (optional)
+      # ===========================================================================
+      # - repo: https://github.com/commitizen-tools/commitizen
+      #   rev: v3.13.0
+      #   hooks:
+      #     - id: commitizen
+      #     - id: commitizen-branch
+      #       stages: [push]
 
       # Four markdown namespaces (README / CLAUDE* / DOCS* / TODO*), plus the
       # rule that a TODO carries "REMOVE ME AFTER FINISH" and nothing else may.
