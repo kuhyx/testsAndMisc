@@ -71,8 +71,26 @@ its timer next fires.
 
 ## Depth-cap progress
 
-| Bucket                                   | Files   |
-| ---------------------------------------- | ------- |
-| Violations now                           | 294     |
-| Disappear with the remaining extractions | 87      |
-| **Remain — the step D worklist**         | **207** |
+**Done — the worklist is empty.** As of 2026-08-24 the gate reports zero
+violations:
+
+```
+$ bash meta/scripts/check_directory_depth.sh --all
+check_directory_depth: all checked paths are within 2 directories
+$ echo $?
+0
+```
+
+The cap is enforced on every commit by the `directory-depth-cap` hook
+(`.pre-commit-config.yaml`), so this is a standing guarantee rather than a
+snapshot — re-run the command above rather than trusting any number written
+here.
+
+For the record, the campaign burned down this backlog:
+
+| Bucket                           | Files |
+| -------------------------------- | ----- |
+| Violations at the start          | 294   |
+| Disappeared with the extractions | 87    |
+| Split or relocated by hand       | 207   |
+| **Remaining**                    | **0** |
