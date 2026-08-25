@@ -32,6 +32,7 @@ from python_pkg.app_icons._glyph_art import (
 from python_pkg.app_icons._glyph_art_more import (
     _NOTE_ASCENDER,
     _PADLOCK_CLOSED,
+    _PUNCH_CARD,
     _TRACK_BARS,
 )
 
@@ -60,6 +61,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("cloud-down", "Cloud with a download arrow", _CLOUD_DOWN),
         Glyph("barbell", "Barbell with plates and collars", _BARBELL),
         Glyph("clock", "Clock face with hands", _CLOCK),
+        Glyph("punch-card", "Time card with punched holes", _PUNCH_CARD),
         Glyph("shield-cutlery", "Shield guarding a fork and knife", _SHIELD_CUTLERY),
         Glyph("checklist", "Two ticked-off list rows", _CHECKLIST),
         Glyph("chain-link", "Two interlocking chain links", _CHAIN_LINK),

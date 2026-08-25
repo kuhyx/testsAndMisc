@@ -75,3 +75,27 @@ M 332 520 L 692 520 A 40 40 0 0 1 732 560 L 732 752 A 40 40 0 0 1 692 792 \
 L 332 792 A 40 40 0 0 1 292 752 L 292 560 A 40 40 0 0 1 332 520 Z \
 M 512 580 A 40 40 0 0 0 492 655 L 480 716 L 544 716 L 532 655 \
 A 40 40 0 0 0 512 580 Z"/>"""
+
+
+# Punch card: a time card with a clipped top-left corner and a row of punched
+# holes down one side, the way a real card is read by a column of sensors.
+#
+# An earlier version put two holes above two wide slots, which read as a face
+# (eyes over teeth) at every size. Four holes in a vertical column with three
+# short ruled lines beside them reads as a card instead.
+#
+# Geometry, all inside SAFE_BOX (232..792) and clear of MIN_NEGATIVE_SPACE=36:
+#   card    x=292..732, y=232..792, top-left corner clipped 104px.
+#   holes   r=34 at x=392, y=376/476/576/676. Centres 100 apart, so 32 of gap
+#           between edges... too tight, hence r=30 and 100 spacing -> 40 gap.
+#   lines   three 46-tall bars from x=488 to x=652, aligned to the hole rows.
+_PUNCH_CARD = """\
+    <path fill="{{ACCENT}}" fill-rule="evenodd" stroke="none" d="\
+M 396 232 L 732 232 L 732 792 L 292 792 L 292 336 Z \
+M 392 346 A 30 30 0 0 0 392 406 A 30 30 0 0 0 392 346 Z \
+M 392 446 A 30 30 0 0 0 392 506 A 30 30 0 0 0 392 446 Z \
+M 392 546 A 30 30 0 0 0 392 606 A 30 30 0 0 0 392 546 Z \
+M 392 646 A 30 30 0 0 0 392 706 A 30 30 0 0 0 392 646 Z \
+M 500 356 L 652 356 L 652 396 L 500 396 Z \
+M 500 496 L 652 496 L 652 536 L 500 536 Z \
+M 500 636 L 652 636 L 652 676 L 500 676 Z"/>"""

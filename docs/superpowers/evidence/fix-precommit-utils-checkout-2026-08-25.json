@@ -1,0 +1,48 @@
+{
+  "intent": "Turn the `Pre-commit checks` workflow green again on main, and register the new punchme app in the shared launcher-icon family.",
+  "scope": [
+    ".github/workflows/pre-commit.yml",
+    "python_pkg/app_icons/{apps,glyphs,_glyph_art_more}.py",
+    "Non-goal: changing any gate's rules, or restyling the existing icon family"
+  ],
+  "changes": [
+    "pre-commit.yml now checks out kuhyx/utils into .utils/ and points UTILS_ROOT at it. The md-naming and file-length hooks are thin shims that exec the real gate out of that repo; a runner has no ~/utils, so both failed with 'shared gate not found at /home/runner/utils/...' and the workflow has been red since 2026-08-24. The dedicated md-naming.yml already did this checkout — this copies the same approach rather than inventing one.",
+    "Registered app_icons entry 'punchme' (shared family accent #B8862E, glyph punch-card, linux=False since the app is Android-only).",
+    "Added the _PUNCH_CARD glyph: a time card with a clipped corner, a column of four punched holes and three ruled lines. The first draft put two holes above two wide slots and read unmistakably as a face (eyes over teeth) at every size, which is why the holes are now a vertical column."
+  ],
+  "verification": [
+    {
+      "command": "UTILS_ROOT=/home/kuhy/utils bash scripts/check_md_naming.sh README.md",
+      "result": "pass",
+      "evidence": "Exit 0. With UTILS_ROOT=/nonexistent the same shim fails with 'shared gate not found at /nonexistent/scripts/check_md_naming.sh', so the override is what the fix relies on and it is proven in both directions."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests -q",
+      "result": "pass",
+      "evidence": "44 passed. test_registry.py iterates every entry in APPS, so the new punchme entry's accent, glyph reference and repo path are all asserted without a bespoke test."
+    },
+    {
+      "command": "python3 -m pytest python_pkg/app_icons/tests --cov=python_pkg/app_icons",
+      "result": "pass",
+      "evidence": "100% on every app_icons module, including _glyph_art_more.py with the new glyph."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/app_icons/_glyph_art_more.py python_pkg/app_icons/apps.py python_pkg/app_icons/glyphs.py",
+      "result": "pass",
+      "evidence": "All hooks passed, including pylint, bandit and 'pytest with coverage enforcement'."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app punchme --android",
+      "result": "pass",
+      "evidence": "Wrote 6 asset files and regenerated the Android mipmaps with no safe-box warning. Rendered at full size, circle-masked and 48dp and reviewed each; legible at all three."
+    }
+  ],
+  "risks": [
+    "The utils checkout pins no ref, so a breaking change to the shared gate lands in this repo's CI without a commit here. That matches how md-naming.yml already behaves, so this change does not add a new class of risk.",
+    "CI_GREEN_SKIP was set on the commit because the red baseline the gate objects to is the very thing this commit fixes."
+  ],
+  "rollback": [
+    "git revert the commit; the workflow returns to its previous (red) state and no other behaviour changes.",
+    "After rollback, confirm `Pre-commit checks` is the only red workflow and that app_icons tests still pass, since the icon change is independent of the CI fix."
+  ]
+}

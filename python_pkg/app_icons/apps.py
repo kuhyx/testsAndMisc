@@ -110,6 +110,15 @@ APPS: Final[dict[str, AppIcon]] = {
             linux=False,
         ),
         AppIcon(
+            key="punchme",
+            repo=_HOME / "punchme",
+            accent="#B8862E",
+            glyph="punch-card",
+            icon_name="punchme",
+            # Android-only app: no GTK desktop build to hand a hicolor PNG to.
+            linux=False,
+        ),
+        AppIcon(
             key="habit_stack",
             repo=_HOME / "habit_stack",
             accent="#B8862E",

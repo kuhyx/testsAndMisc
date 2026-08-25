@@ -13,8 +13,20 @@ on:
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
+    env:
+      # The md-naming / file-length hooks are thin shims that exec the shared
+      # gate out of the utils repo. A runner has no ~/utils, so without this
+      # checkout they fail with "shared gate not found" -- which is exactly
+      # how this workflow went red on 2026-08-24.
+      UTILS_ROOT: ${{ github.workspace }}/.utils
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check out the shared gates
+        uses: actions/checkout@v4
+        with:
+          repository: kuhyx/utils
+          path: .utils
 
       - uses: actions/setup-python@v5
         with:
