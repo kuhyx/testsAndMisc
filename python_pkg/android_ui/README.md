@@ -73,5 +73,17 @@ ui.wait_for("Connected.", timeout=30)
   app's Settings gear is one — that is an a11y bug in the app, and this tool
   surfacing it is the point. Add a `Semantics(label: …)` and it becomes
   addressable.
+  - **But check `hint` first.** Material/Flutter text fields publish their
+    label as `hint` and leave text/content-desc empty; those ARE addressable
+    (since 2026-08-27) and need no app change. Adding a `Semantics(label:)`
+    wrapper to such a field is actively harmful — it emits a SECOND labelled
+    node at the same rect, and wrapping in `MergeSemantics` to collapse them
+    removes the `hint` from Android's tree entirely, making the whole form
+    anonymous. Verified on the manual-workout form; reverted.
+  - Verify any a11y change with `adb exec-out uiautomator dump`, never with
+    `flutter test`: the widget test asserts on Flutter's internal
+    `SemanticsNode`, while this tool reads Android's `AccessibilityNodeInfo`.
+    Nine widget tests passed green on the build whose on-device labels had
+    just gone empty.
 - Scrolling is not yet modelled: a widget outside the viewport is not in the
   tree. Scroll with `adb shell input swipe` first, or add `scroll_to()`.

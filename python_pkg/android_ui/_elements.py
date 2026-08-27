@@ -42,11 +42,20 @@ class UiElement:
     bounds: tuple[int, int, int, int]
     enabled: bool
     focused: bool
+    # Material/Flutter text fields publish their label as `hint` and leave
+    # text/content-desc empty, so without this an entire form is anonymous
+    # edit boxes and the only way to fill it is by screen position.
+    hint: str = ""
 
     @property
     def label(self) -> str:
-        """The best human-facing name for this element."""
-        return self.text or self.content_desc or self.resource_id
+        """The best human-facing name for this element.
+
+        ``hint`` ranks below the others but above nothing: it is a field's
+        placeholder, which Material clears once the field has content, so it
+        names an EMPTY field and defers to real text as soon as one is typed.
+        """
+        return self.text or self.content_desc or self.hint or self.resource_id
 
     @property
     def center(self) -> tuple[int, int]:
@@ -56,7 +65,7 @@ class UiElement:
 
     def matches(self, query: str, *, exact: bool = False) -> bool:
         """Return True if ``query`` names this element."""
-        haystacks = (self.text, self.content_desc, self.resource_id)
+        haystacks = (self.text, self.content_desc, self.hint, self.resource_id)
         if exact:
             return any(h == query for h in haystacks)
         return any(query.lower() in h.lower() for h in haystacks if h)
@@ -101,18 +110,20 @@ def _parse_tree(xml: str) -> list[UiElement]:
             continue
         text = node.get("text", "")
         desc = node.get("content-desc", "")
+        hint = node.get("hint", "")
         res = node.get("resource-id", "")
         cls = node.get("class", "")
         # An EMPTY text field has no text, content-desc or resource-id, so a
         # "must be labelled" filter drops it -- and an empty field is exactly
         # the thing a caller needs to find in order to type into it. Keep every
         # editable node regardless of label.
-        if not (text or desc or res or cls.endswith("EditText")):
+        if not (text or desc or hint or res or cls.endswith("EditText")):
             continue
         elements.append(
             UiElement(
                 text=text,
                 content_desc=desc,
+                hint=hint,
                 resource_id=res,
                 class_name=cls,
                 bounds=(

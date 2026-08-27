@@ -24,11 +24,12 @@ MOD = "python_pkg.android_ui.driver"
 def _node(text: str = "", **attrs: str) -> str:
     """Render one ``<node>`` element for a fake dump.
 
-    ``attrs`` accepts ``desc``, ``res``, ``cls``, ``bounds``, ``enabled`` and
-    ``focused``; each falls back to a representative default.
+    ``attrs`` accepts ``desc``, ``hint``, ``res``, ``cls``, ``bounds``,
+    ``enabled`` and ``focused``; each falls back to a representative default.
     """
     return (
         f'<node text="{text}" content-desc="{attrs.get("desc", "")}" '
+        f'hint="{attrs.get("hint", "")}" '
         f'resource-id="{attrs.get("res", "")}" '
         f'class="{attrs.get("cls", "android.widget.TextView")}" '
         f'bounds="{attrs.get("bounds", "[0,0][100,50]")}" '
@@ -209,3 +210,29 @@ class TestTap:
             c for c in ui.device.calls if c[:3] == ("shell", "input", "keyevent")
         ]
         assert keyevents, "expected the keyboard to be dismissed first"
+
+
+def test_hint_names_an_empty_material_field() -> None:
+    """A Flutter/Material field publishes its label only as ``hint``.
+
+    Such a field carries no text and no content-desc, so without hint it is an
+    anonymous edit box and the only way to fill it is by screen position --
+    which is how a mis-tap silently writes a value into the wrong field.
+    """
+    dump = _node(cls="android.widget.EditText", hint="Location name")
+    (element,) = drv._parse_tree(_tree(dump))
+
+    assert element.label == "Location name"
+    assert element.matches("location")
+
+
+def test_real_text_outranks_the_hint_once_typed() -> None:
+    """Material clears the hint when content arrives, so text must win.
+
+    Otherwise a filled field would still answer to its placeholder and a
+    caller could not tell an empty field from a completed one.
+    """
+    dump = _node("17:30", cls="android.widget.EditText", hint="Start time (HH:MM)")
+    (element,) = drv._parse_tree(_tree(dump))
+
+    assert element.label == "17:30"

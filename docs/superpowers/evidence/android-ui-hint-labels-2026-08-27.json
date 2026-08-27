@@ -1,0 +1,40 @@
+{
+  "intent": "Let android_ui address Flutter/Material text fields by their visible label, so a form can be filled by name instead of by screen position.",
+  "scope": [
+    "python_pkg/android_ui/_elements.py",
+    "python_pkg/android_ui/tests/test_driver.py",
+    "python_pkg/android_ui/README.md",
+    "Non-goal: no change to any app under test — the gap was in this tool, not in the app"
+  ],
+  "changes": [
+    "Parse the node's `hint` attribute and carry it on UiElement (default \"\", so existing constructor calls are unaffected).",
+    "Rank hint below text and content-desc but above resource-id in `label`, and add it to the `matches` haystack: Material clears the hint once content arrives, so a filled field still answers to its real text.",
+    "Keep a node that has only a hint, which the previous 'must be labelled' filter dropped.",
+    "Document that wrapping such a field in Semantics(label:)/MergeSemantics is a trap that empties Android's tree, and that a11y changes must be verified with uiautomator dump rather than flutter test."
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/android_ui/tests/ -q",
+      "result": "pass",
+      "evidence": "59 passed (57 before, +2 new: hint names an empty field; real text outranks the hint once typed)"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/android_ui/_elements.py python_pkg/android_ui/tests/test_driver.py python_pkg/android_ui/README.md",
+      "result": "pass",
+      "evidence": "no failures reported"
+    },
+    {
+      "command": "python3 -m python_pkg.android_ui dump  # workout_app manual-workout form, real device 23181JEGR08034",
+      "result": "pass",
+      "evidence": "Fields previously dumped as '' now read 'Start time (HH:MM)', 'End time (HH:MM)', 'Location name', 'How did you get there?', 'Cost (e.g. 40 PLN)', 'What sport/activity', 'What was done'. Nine fields then filled by name, each reporting 'typed into <label> and verified'."
+    }
+  ],
+  "risks": [
+    "A screen whose hint duplicates another element's text could become ambiguous; matches() already raises AmbiguousElementError rather than acting on a coin flip.",
+    "hint is only present while a Material field is empty, so resolve every target from one dump pass before typing rather than re-dumping between fields."
+  ],
+  "rollback": [
+    "git revert the commit; UiElement.hint defaults to \"\" so nothing else depends on it.",
+    "After rollback, re-run the android_ui suite and expect Material fields to dump as anonymous EditTexts again."
+  ]
+}
