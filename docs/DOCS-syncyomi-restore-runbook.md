@@ -22,6 +22,48 @@ Upstream, open and unfixed: [#1634] and [#1638].
 [#1634]: https://github.com/jobobby04/TachiyomiSY/issues/1634
 [#1638]: https://github.com/jobobby04/TachiyomiSY/issues/1638
 
+## Fixed on this phone (2026-08-28)
+
+The phone no longer runs the upstream APK. It runs
+[kuhyx/TachiyomiSY](https://github.com/kuhyx/TachiyomiSY) (`~/tachiyomisy`,
+commit "Serialize backup restore and refuse to sync a collapsed library"),
+which carries three changes upstream does not have:
+
+- `BackupRestorer` awaits the six restorers in order instead of `launch`ing
+  them into one scope, so they stop contending for SQLite's single writer.
+  That is the code-5 bug below.
+- `SyncService.mergeSyncData` throws `SyncCollapseException` when more than
+  10% of the server's entries are missing locally. A row that is simply gone
+  is a damaged database, not a deletion -- deleting in the app keeps the row
+  and clears `favorite`.
+- `SyncYomiSyncService` additionally compares the outgoing payload against the
+  entry count this device last pushed, which covers the 304 path where there
+  is no remote data to merge against.
+
+Both guards fail closed: the sync aborts and the message reaches the user
+through `SyncDataJob`'s existing error notification. Verified on the phone on
+2026-08-28 against a real 2163-entry payload -- guard A refused at a faked
+baseline of 99999, guard B refused with 1300 of 2163 entries removed, and the
+server row was byte-identical afterwards in both runs.
+
+The build is `eu.kanade.tachiyomi.sy` version `1.13.2-kuhy`, i.e. it replaces
+the official APK rather than sitting beside it, and is signed with
+`~/.android/release/key.properties`. Rebuild and upgrade in place with:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+  ~/tachiyomisy/gradlew -p ~/tachiyomisy assembleFoss -PsyReplaceUpstream
+adb install -r ~/tachiyomisy/app/build/outputs/apk/foss/app-arm64-v8a-foss.apk
+```
+
+Never install an official TachiyomiSY APK over it: the signatures differ, so
+the install fails, and taking the official build back means an uninstall and a
+restore. The fork's `foss` build type has the in-app updater compiled out for
+exactly that reason.
+
+Rebasing on a new upstream release means replaying those commits; the fork is
+not upstreamed.
+
 ## Why it is dangerous
 
 The loud failure is survivable. The dangerous case is the quiet one:
