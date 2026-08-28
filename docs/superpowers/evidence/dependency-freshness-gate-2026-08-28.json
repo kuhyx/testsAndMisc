@@ -1,0 +1,33 @@
+{
+  "intent": "Put every dependency this repo declares on its newest stable release, and install the shared dependency-freshness gate so it stays there.",
+  "scope": [
+    "meta/requirements.txt, meta/requirements-test.txt, python_pkg/random_jpg/requirements.txt",
+    ".pre-commit-config.yaml, .github/workflows/dependency-freshness.yml, scripts/check_dependency_freshness.sh",
+    "Non-goal: no source changes; this is manifests and gate wiring only"
+  ],
+  "changes": [
+    "Exact-pinned 95 previously range-specified dependencies to their newest stable release, via ~/.claude/scripts/apply_dep_pins.py driven by the gate's own --json findings.",
+    "Moved the gatelock git-tag dependency from gatelock-v0.1.0 to gatelock-v0.7.2 -- six minor versions of drift that a PEP 508 direct reference hid from every previous check.",
+    "Installed the shared gate's three pieces (delegate, pre-commit hook, CI workflow) from ~/utils/dep_freshness/templates."
+  ],
+  "verification": [
+    {
+      "command": "REQUIREMENTS_FILE=meta/requirements.txt ./meta/scripts/ci_mirror.sh",
+      "result": "pass",
+      "evidence": "exit 0; clean venv rebuilt from the repinned meta/requirements.txt, pre-commit --all-files and the full suite green inside it"
+    },
+    {
+      "command": "~/utils/scripts/check_dependency_freshness.sh --all",
+      "result": "pass",
+      "evidence": "exit 0 -- 97 findings before, 0 after"
+    }
+  ],
+  "risks": [
+    "gatelock v0.1.0 -> v0.7.2 is a six-version jump in a shared library; the clean-venv mirror is what exercises it here.",
+    "Exact pins mean CI goes red on any upstream release until the pin is bumped. That is the chosen behaviour, not a regression."
+  ],
+  "rollback": [
+    "git revert the commit; the pins and the three gate files are the whole change.",
+    "After reverting, re-run ci_mirror.sh to confirm the older pins still resolve."
+  ]
+}
