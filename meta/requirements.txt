@@ -81,5 +81,5 @@ types-python-dateutil==2.9.0.20260807
 types-PyYAML==6.0.12.20260815
 types-requests==2.33.0.20260712
 types-setuptools==84.0.0.20260812
-typing_extensions==4.16.0# Self annotation on py310 target (session_autopsy store lock)
+typing_extensions==4.16.0  # Self annotation on py310 target (session_autopsy store lock)
 websockets==17.1
