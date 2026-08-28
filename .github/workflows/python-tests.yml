@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
           # Cache the pip DOWNLOAD cache, keyed on the requirements file, so a
           # run that changes nothing about dependencies reuses the wheels
           # instead of re-fetching ~80 packages from PyPI. Points at

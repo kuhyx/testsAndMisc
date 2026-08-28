@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.x"
           # See the note in python-tests.yml: caches the pip download cache,
           # keyed on the real meta/ path rather than the root symlink.
           cache: pip

@@ -2,7 +2,10 @@
 name = "testsandmisc"
 version = "0.1.0"
 description = "Collection of miscellaneous tests and scripts"
-requires-python = ">=3.10"
+# numpy 2.5.2 -- the pin the freshness gate requires -- declares >=3.12, so
+# 3.10 and 3.11 can no longer even install the test environment. CI proves
+# 3.14; 3.12 is the lowest version the pins allow.
+requires-python = ">=3.12"
 
 # ============================================================================
 # RUFF - Extremely fast Python linter and formatter (written in Rust)
