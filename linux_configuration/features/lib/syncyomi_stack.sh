@@ -28,7 +28,41 @@ EOF
 	log_ok "Wrote ${COMPOSE_FILE}"
 }
 
+# Build the local image the compose file asks for. A local tag exists in no
+# registry, so `docker compose up` would fail with a pull error rather than an
+# explanation -- and a fork whose changes are never rebuilt is worse than no
+# fork at all. Builds whatever is checked out in ${SYNCYOMI_SRC}; never moves
+# that working tree. Set SYNCYOMI_REBUILD=1 to rebuild after editing it.
+ensure_local_image() {
+	if [[ ${SYNCYOMI_IMAGE} == */* ]]; then
+		log_info "Using registry image ${SYNCYOMI_IMAGE}"
+		return 0
+	fi
+	if [[ ${SYNCYOMI_REBUILD:-0} != "1" ]] && docker image inspect "${SYNCYOMI_IMAGE}" >/dev/null 2>&1; then
+		log_ok "Local image ${SYNCYOMI_IMAGE} already built"
+		return 0
+	fi
+	if [[ ! -d ${SYNCYOMI_SRC}/.git ]]; then
+		log_info "Cloning ${SYNCYOMI_FORK_URL} into ${SYNCYOMI_SRC}"
+		git clone "${SYNCYOMI_FORK_URL}" "${SYNCYOMI_SRC}"
+	fi
+	local version revision
+	version="$(git -C "${SYNCYOMI_SRC}" describe --tags --always)"
+	revision="$(git -C "${SYNCYOMI_SRC}" rev-parse HEAD)"
+	log_info "Building ${SYNCYOMI_IMAGE} from ${SYNCYOMI_SRC} (${version})"
+	# BuildKit is required: the Dockerfile reads $BUILDPLATFORM, which the
+	# legacy builder leaves empty and then rejects as an invalid platform.
+	DOCKER_BUILDKIT=1 docker build \
+		-t "${SYNCYOMI_IMAGE}" \
+		--build-arg VERSION="${version}-kuhy" \
+		--build-arg REVISION="${revision}" \
+		--build-arg BUILDTIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+		"${SYNCYOMI_SRC}"
+	log_ok "Built ${SYNCYOMI_IMAGE} from ${version}"
+}
+
 start_containers() {
+	ensure_local_image
 	log_info "Starting SyncYomi container"
 	docker compose -f "${COMPOSE_FILE}" up -d
 }

@@ -7,16 +7,34 @@
 
 # --- Step 6: Caddy reverse-proxy block (append + reload) ---------------------
 configure_caddy() {
-	if grep -qE "^${SYNCYOMI_SUBDOMAIN} \{" "${CADDYFILE}"; then
-		log_ok "Caddyfile already has a block for ${SYNCYOMI_SUBDOMAIN}"
+	local snippet="${CADDY_SITES_DIR}/${SYNCYOMI_SUBDOMAIN}.caddy"
+	local desired
+	desired="$(printf '# Managed by setup_syncyomi.sh.\n%s {\n\treverse_proxy 127.0.0.1:%s\n}' \
+		"${SYNCYOMI_SUBDOMAIN}" "${SYNCYOMI_PORT}")"
+
+	grep -qE '^[[:space:]]*import[[:space:]]+/etc/caddy/sites' "${CADDYFILE}" ||
+		die "Root Caddyfile does not import sites/ — run setup_personal_website.sh first."
+
+	# Every service on this edge owns one snippet under sites/. Writing into the
+	# shared Caddyfile instead is what produced "ambiguous site definition" on
+	# 2026-08-28: the site was already defined in its snippet, the block was
+	# appended a second time, and the reload failed while the edge kept serving
+	# the last config it had accepted — so the damage only showed up later.
+	ensure_dir "${CADDY_SITES_DIR}"
+	if [[ -f ${snippet} && "$(cat "${snippet}")" == "${desired}" ]]; then
+		log_ok "Caddy snippet already current: ${snippet}"
 	else
-		log_info "Adding Caddy block for ${SYNCYOMI_SUBDOMAIN}"
-		# NOTE: appended to the shared Gitea Caddyfile. Re-running setup_gitea.sh
-		# regenerates that file and drops this block — re-run setup_syncyomi.sh
-		# to restore it. Caddyfile uses tab indentation.
-		printf '\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' "${SYNCYOMI_SUBDOMAIN}" "${SYNCYOMI_PORT}" \
-			>>"${CADDYFILE}"
+		log_info "Writing Caddy snippet ${snippet}"
+		printf '%s\n' "${desired}" >"${snippet}"
 	fi
+
+	if grep -qE "^${SYNCYOMI_SUBDOMAIN} \{" "${CADDYFILE}"; then
+		log_info "Removing the legacy inline ${SYNCYOMI_SUBDOMAIN} block from ${CADDYFILE}"
+		sed -i -E "/^${SYNCYOMI_SUBDOMAIN} \{/,/^\}/d" "${CADDYFILE}"
+	fi
+
+	docker exec "${CADDY_CONTAINER}" caddy validate --config "${CADDYFILE_IN_CONTAINER}" >/dev/null 2>&1 ||
+		die "Caddy config invalid — not reloading. Check ${CADDY_SITES_DIR}/*.caddy."
 	docker exec "${CADDY_CONTAINER}" caddy reload --config "${CADDYFILE_IN_CONTAINER}" ||
 		die "caddy reload failed — check 'docker logs ${CADDY_CONTAINER}'."
 	log_ok "Caddy reloaded (auto-HTTPS will be issued once the subdomain resolves)"

@@ -1,0 +1,47 @@
+{
+  "intent": "Run the SyncYomi server from kuhy's own fork instead of the published image, so server-side changes reach the live service, and stop the setup script from breaking the shared Caddy edge on every re-run.",
+  "scope": [
+    "linux_configuration/features/setup_syncyomi.sh",
+    "linux_configuration/features/lib/syncyomi_stack.sh",
+    "linux_configuration/features/lib/syncyomi_expose.sh",
+    "Non-goal: changing SyncYomi's schema, credentials or the phone's sync settings"
+  ],
+  "changes": [
+    "SYNCYOMI_IMAGE defaults to the local build syncyomi-kuhy:local, overridable back to a registry tag; adds SYNCYOMI_SRC and the fork URL.",
+    "ensure_local_image() builds that image from ~/syncyomi-src (cloning the fork if absent) before the container starts, under DOCKER_BUILDKIT=1 because the Dockerfile reads $BUILDPLATFORM; SYNCYOMI_REBUILD=1 forces a rebuild.",
+    "configure_caddy() now owns gitea/sites/<subdomain>.caddy instead of appending to the shared Caddyfile, deletes a legacy inline block, and validates the config before reloading.",
+    "Preflight installs git and docker-buildx alongside the existing packages."
+  ],
+  "verification": [
+    {
+      "command": "./linux_configuration/features/setup_syncyomi.sh setup",
+      "result": "pass",
+      "evidence": "Second (idempotent) run: 'Local image syncyomi-kuhy:local already built', 'Caddy snippet already current', caddy validate+reload OK, report printed. The first run caught the bug this fixes: 'ambiguous site definition: kuhy-sync.duckdns.org'."
+    },
+    {
+      "command": "docker ps --filter name=^syncyomi$ + docker logs syncyomi",
+      "result": "pass",
+      "evidence": "Image syncyomi-kuhy:local, 'Version: v1.1.14-24-g21c6acd-kuhy', commit 21c6acd."
+    },
+    {
+      "command": "systemctl --user start syncyomi-guard.service",
+      "result": "pass",
+      "evidence": "ok: 2163 manga, 69776 chapters, 1 categories, 23 sources (13346096 bytes) - unchanged across the image swap."
+    },
+    {
+      "command": "TachiyomiSY 'Sync library' on the phone, then read docker logs + sync_data row",
+      "result": "pass",
+      "evidence": "'Sync data replaced' at 14:42:34; payload length 13346096 before and after; https://kuhy-sync.duckdns.org/api/auth/onboard returns 403 (user exists)."
+    }
+  ],
+  "risks": [
+    "The deployed build is develop (v1.1.14 + dependency bumps), not the v1.1.11 image it replaced; schema stays at version 8 and internal/database is unchanged between those points, so no migration runs.",
+    "A machine without ~/syncyomi-src now clones the fork on first setup, which needs network and a Docker build (~4 min) instead of an image pull.",
+    "The Caddy snippet is only rewritten when its content differs, so hand edits to that file are overwritten by design."
+  ],
+  "rollback": [
+    "SYNCYOMI_IMAGE=ghcr.io/syncyomi/syncyomi:v1.1.11 ./linux_configuration/features/setup_syncyomi.sh setup",
+    "Cold database copy: ~/syncyomi_safe_2026-08-28/pre-local-build/cold/syncyomi.db (schema version 8).",
+    "After rollback, re-run the guard and confirm 2163 manga, then a phone sync round-trip."
+  ]
+}

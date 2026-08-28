@@ -22,8 +22,15 @@
 
 set -euo pipefail
 
-# --- Pinned SyncYomi image ---------------------------------------------------
-readonly SYNCYOMI_IMAGE="ghcr.io/syncyomi/syncyomi:v1.1.11"
+# --- SyncYomi image ----------------------------------------------------------
+# Runs a local build of the personal fork by default, so server-side changes
+# actually reach the service instead of sitting unbuilt in a clone. The
+# published image stays one variable away:
+#   SYNCYOMI_IMAGE=ghcr.io/syncyomi/syncyomi:v1.1.11 ./setup_syncyomi.sh
+# Any value containing a "/" is treated as a registry image and pulled as-is.
+readonly SYNCYOMI_IMAGE="${SYNCYOMI_IMAGE:-syncyomi-kuhy:local}"
+readonly SYNCYOMI_SRC="${SYNCYOMI_SRC:-${HOME}/syncyomi-src}"
+readonly SYNCYOMI_FORK_URL="https://github.com/kuhyx/syncyomi.git"
 readonly SYNCYOMI_PORT=8282
 readonly SYNCYOMI_LOCAL="http://127.0.0.1:${SYNCYOMI_PORT}"
 
@@ -37,6 +44,7 @@ readonly TOKEN_FILE="${DATA_DIR}/.api_token"
 # --- Existing host infrastructure (from setup_gitea.sh / install_joplin.sh) --
 readonly CADDY_CONTAINER="gitea-caddy"
 readonly CADDYFILE="${HOME}/gitea/Caddyfile"
+readonly CADDY_SITES_DIR="${HOME}/gitea/sites"
 readonly CADDYFILE_IN_CONTAINER="/etc/caddy/Caddyfile"
 readonly DUCKDNS_UPDATER="${HOME}/.joplin-server/duckdns-update.sh"
 
@@ -73,7 +81,9 @@ preflight() {
 	[[ ${EUID} -ne 0 ]] || die "Run as your normal user, not root (it will sudo where needed)."
 
 	# Runtime deps; install any that are missing from the official repos.
-	install_missing_pacman_packages docker docker-compose jq curl openssl
+	# docker-buildx: the fork's Dockerfile uses $BUILDPLATFORM, which only the
+	# BuildKit builder defines; the legacy builder rejects the empty value.
+	install_missing_pacman_packages docker docker-compose jq curl openssl git docker-buildx
 
 	# Ensure the docker daemon is enabled+running (auto-start after reboot). Only
 	# touch systemd via sudo when it is not already active, to stay a no-op on the
