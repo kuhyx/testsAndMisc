@@ -30,7 +30,12 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          # 3.12, not "3.x", and only in THIS job: it installs the full
+          # requirements.txt, which includes pygame 2.6.1 -- the newest
+          # release, and it ships no cp314 wheel. On 3.14 pip falls back to
+          # a source build and dies on a missing sdl-config. python-tests.yml
+          # runs newest stable because its test subset has no pygame.
+          python-version: "3.12"
           # See the note in python-tests.yml: caches the pip download cache,
           # keyed on the real meta/ path rather than the root symlink.
           cache: pip
