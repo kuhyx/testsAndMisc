@@ -67,7 +67,29 @@ def snapshot(totals: Totals, axes: Axes, window: Window, sessions: int) -> dict:
         "projects": dict(axes.project.most_common(TOP_N)),
         "mcp_calls": dict(axes.mcp_calls),
         "skills": dict(axes.skills),
+        "tool_messages": axes.batching.messages,
+        "batched_messages": axes.batching.batched,
+        "batched_calls": axes.batching.calls,
     }
+
+
+def _batching_lines(axes: Axes) -> list[str]:
+    """Render the share of API messages that carried more than one tool call.
+
+    Counted per ``message_id``, not per transcript record: one API message is
+    written as several records, one per ``tool_use`` block. A per-record count
+    reports 1.00 calls/message no matter what the model actually did.
+    """
+    batching = axes.batching
+    if not batching.messages:
+        return ["_No tool calls in this window._"]
+    return [
+        f"**{batching.batched:,} of {batching.messages:,} tool messages "
+        f"carried more than one call ({batching.share * 100:.1f}%)** — "
+        f"{batching.calls:,} calls, {batching.per_message:.2f} per message.",
+        "",
+        "Every unbatched call re-sends the whole context to earn one result.",
+    ]
 
 
 def _pct(part: float, whole: float) -> str:
@@ -140,6 +162,8 @@ def render(
         ],
         ("tool", "result tokens"),
     )
+    lines += ["", "## Tool-call batching", ""]
+    lines += _batching_lines(axes)
     lines += ["", "## MCP servers invoked", ""]
     lines += _table(
         [(name, f"{n:,}") for name, n in axes.mcp_calls.most_common()]

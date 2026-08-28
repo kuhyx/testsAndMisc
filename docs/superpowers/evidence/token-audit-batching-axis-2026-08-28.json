@@ -1,0 +1,44 @@
+{
+  "intent": "token_audit reports what share of API messages carried more than one tool call, so batching discipline is measured by a tested code path instead of an ad-hoc script.",
+  "scope": [
+    "python_pkg/token_audit/{model,parse,attribute,report}.py",
+    "python_pkg/token_audit/tests/{test_attribute,test_report}.py",
+    "Non-goal: changing how turns or cost are counted; reconciled totals are untouched"
+  ],
+  "changes": [
+    "Turn gains message_id and tool_calls; the docstring records that the harness writes one JSONL record per tool_use block, all sharing message.id",
+    "attribute.Batching dataclass counts messages/batched/calls grouped by message_id and exposes share and per_message",
+    "report.py renders a Tool-call batching section and persists tool_messages, batched_messages and batched_calls in the snapshot so the next run has a baseline",
+    "Axes was at the 12-attribute pylint cap, so the counters were grouped rather than suppressed; the test helper was split into _tool_turn rather than raising the arg-count limit"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/token_audit/tests -q",
+      "result": "pass",
+      "evidence": "122 passed (was 116; 6 new tests cover both Batching branches and the zero-message guard)"
+    },
+    {
+      "command": "python3 -m coverage run --branch --source=python_pkg/token_audit -m pytest python_pkg/token_audit/tests",
+      "result": "pass",
+      "evidence": "TOTAL 609 statements, 140 branches, 0 missing - 100%"
+    },
+    {
+      "command": "pre-commit run --files python_pkg/token_audit/{model,parse,attribute,report}.py python_pkg/token_audit/tests/{test_attribute,test_report}.py",
+      "result": "pass",
+      "evidence": "All hooks pass; ruff/pylint findings were fixed by refactor, no suppressions added"
+    },
+    {
+      "command": "python3 -m python_pkg.token_audit --days 7 --no-write",
+      "result": "pass",
+      "evidence": "Tool-call batching: 439 of 23,650 messages carried >1 call (1.9%), 1.02 calls/message. Reproduces an independent hand count over the same window."
+    }
+  ],
+  "risks": [
+    "message_id is empty on records that predate it; those turns are skipped, so the denominator counts only messages that can be grouped",
+    "The autopsy's 7% lifetime batching figure is computed per record, not per message_id, so the two are not directly comparable"
+  ],
+  "rollback": [
+    "git revert the commit; the axis is additive and nothing else reads the new fields",
+    "Re-run python3 -m python_pkg.token_audit and confirm WEEKLY.md renders without the batching section"
+  ]
+}

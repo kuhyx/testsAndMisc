@@ -147,3 +147,31 @@ def test_load_previous_tolerates_corrupt_json(tmp_path: Path) -> None:
 def test_load_previous_rejects_non_object(tmp_path: Path) -> None:
     (tmp_path / report.JSON_NAME).write_text("[1,2]", encoding="utf-8")
     assert report.load_previous(tmp_path) is None
+
+
+def test_batching_section_reports_share_and_rate() -> None:
+    axes = attribute.Axes()
+    axes.batching.messages = 4
+    axes.batching.batched = 1
+    axes.batching.calls = 6
+    lines = report._batching_lines(axes)
+    assert "1 of 4" in lines[0]
+    assert "25.0%" in lines[0]
+    assert "1.50 per message" in lines[0]
+
+
+def test_batching_section_handles_a_window_with_no_tool_calls() -> None:
+    """A window with no tool calls must not divide by zero."""
+    lines = report._batching_lines(attribute.Axes())
+    assert lines == ["_No tool calls in this window._"]
+
+
+def test_snapshot_carries_the_batching_counters() -> None:
+    axes = attribute.Axes()
+    axes.batching.messages = 9
+    axes.batching.batched = 2
+    axes.batching.calls = 12
+    snap = report.snapshot(attribute.Totals(), axes, report.Window(0.0, 1.0), 1)
+    assert snap["tool_messages"] == 9
+    assert snap["batched_messages"] == 2
+    assert snap["batched_calls"] == 12

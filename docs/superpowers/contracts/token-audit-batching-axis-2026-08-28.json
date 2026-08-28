@@ -1,0 +1,16 @@
+{
+  "title": "Measure tool-call batching per API message in token_audit",
+  "objective": "A per-record count of tool calls reports 1.00 calls/message regardless of actual behaviour, because the harness splits one API message into one record per tool_use block. Grouping by message.id makes the real rate (1.9%) observable, and persisting it in the snapshot lets the next weekly run adjudicate whether batching improved without any hand-rolled analysis.",
+  "acceptance_criteria": [
+    "Batching is grouped by message.id, not by transcript record",
+    "The markdown report shows batched share and calls per message",
+    "weekly.json carries tool_messages, batched_messages and batched_calls",
+    "A window with no tool calls does not divide by zero",
+    "100% branch coverage retained and no lint suppressions introduced"
+  ],
+  "out_of_scope": [
+    "Changing reconciled totals, cost weights, or the mtime-based window selection",
+    "Acting on the measurement (hooks/nudges live in ~/.claude, not this repo)"
+  ],
+  "verifier": "python3 -m pytest python_pkg/token_audit/tests; python3 -m coverage report (100%); pre-commit run --files <changed>; python3 -m python_pkg.token_audit --days 7 --no-write"
+}

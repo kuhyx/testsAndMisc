@@ -173,11 +173,24 @@ def _build_turn(
         "cache_creation_input_tokens",
         0,
     )
+    message_id = message.get("id")
+    content = message.get("content")
+    tool_calls = (
+        sum(
+            1
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "tool_use"
+        )
+        if isinstance(content, list)
+        else 0
+    )
     return Turn(
         usage=usage,
         context=context,
         model=_model(message),
         is_sidechain=bool(record.get("isSidechain")),
+        message_id=message_id if isinstance(message_id, str) else "",
+        tool_calls=tool_calls,
     )
 
 

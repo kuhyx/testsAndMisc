@@ -58,12 +58,21 @@ class Turn:
     creation). It is the quantity that grows as a session accumulates history,
     and the quantity that collapses at a compaction boundary, so it drives both
     the session-length analysis and the image-amplification model.
+
+    ``message_id`` is the API message id. One API message can be written to the
+    transcript as SEVERAL JSONL records -- one per ``tool_use`` block -- all
+    sharing the id. Counting records therefore overstates turns and makes every
+    turn look like it carried exactly one tool call. Grouping by this id is what
+    makes the batching ratio come out right (measured 2026-08-28: 2.8% batched,
+    not the 0.0% a per-record count reports).
     """
 
     usage: dict[str, int]
     context: int
     model: str
     is_sidechain: bool
+    message_id: str = ""
+    tool_calls: int = 0
 
     @property
     def cost(self) -> float:

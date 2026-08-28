@@ -28,6 +28,22 @@ def _turn(
     )
 
 
+def _tool_turn(message_id: str = "", tool_calls: int = 0) -> Turn:
+    """A turn that carried tool calls, for the batching axis.
+
+    Separate from :func:`_turn` because batching cares only about the message
+    id and the call count -- none of the token fields are relevant to it.
+    """
+    return Turn(
+        usage={},
+        context=0,
+        model="claude-opus-5",
+        is_sidechain=False,
+        message_id=message_id,
+        tool_calls=tool_calls,
+    )
+
+
 def _session(
     cwd: str | None = "/home/kuhy/p",
     turns: list[Turn] | None = None,
@@ -174,3 +190,50 @@ def test_annotate_sets_session_image_cost() -> None:
     session = _session()
     imagecost.annotate(session, [_ev_image(100), _ev_turn(5)])
     assert session.image_cost == pytest.approx(10.0)
+
+
+def test_batching_groups_records_sharing_a_message_id() -> None:
+    """One API message split across records counts once, as a batch.
+
+    This is the whole point of the axis: the transcript writes one record per
+    ``tool_use`` block, so a per-record count reports 1.00 calls/message and
+    hides every batch that ever happened.
+    """
+    session = _session(
+        turns=[
+            _tool_turn(message_id="m1", tool_calls=1),
+            _tool_turn(message_id="m1", tool_calls=1),
+            _tool_turn(message_id="m1", tool_calls=1),
+        ],
+    )
+    _, axes = attribute.build([session])
+    assert axes.batching.messages == 1
+    assert axes.batching.batched == 1
+    assert axes.batching.calls == 3
+
+
+def test_batching_counts_single_call_messages_as_unbatched() -> None:
+    session = _session(
+        turns=[
+            _tool_turn(message_id="m1", tool_calls=1),
+            _tool_turn(message_id="m2", tool_calls=1),
+        ],
+    )
+    _, axes = attribute.build([session])
+    assert axes.batching.messages == 2
+    assert axes.batching.batched == 0
+    assert axes.batching.calls == 2
+
+
+def test_batching_ignores_turns_with_no_tool_calls_or_no_id() -> None:
+    """Plain text turns and id-less records must not inflate the denominator."""
+    session = _session(
+        turns=[
+            _turn(),
+            _tool_turn(message_id="m1", tool_calls=0),
+            _tool_turn(message_id="", tool_calls=2),
+        ],
+    )
+    _, axes = attribute.build([session])
+    assert axes.batching.messages == 0
+    assert axes.batching.calls == 0

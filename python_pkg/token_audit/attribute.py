@@ -68,6 +68,29 @@ class Tally:
 
 
 @dataclass
+class Batching:
+    """How often independent tool calls shared one API message.
+
+    An unbatched call re-sends the whole conversation to earn a single result,
+    so this is a direct measure of avoidable turns rather than a style metric.
+    """
+
+    messages: int = 0
+    batched: int = 0
+    calls: int = 0
+
+    @property
+    def share(self) -> float:
+        """Fraction of tool messages that carried more than one call."""
+        return self.batched / self.messages if self.messages else 0.0
+
+    @property
+    def per_message(self) -> float:
+        """Mean tool calls per API message; 1.0 means nothing was ever batched."""
+        return self.calls / self.messages if self.messages else 0.0
+
+
+@dataclass
 class Axes:
     """Every ranking the report needs, in one pass over the sessions."""
 
@@ -85,6 +108,7 @@ class Axes:
     # ``images`` (which counts tokens read once) because the two answer
     # different questions and only this one is comparable to session cost.
     image_cost: float = 0.0
+    batching: Batching = field(default_factory=Batching)
 
 
 def build(sessions: Iterable[Session]) -> tuple[Totals, Axes]:
@@ -106,6 +130,26 @@ def _add_turns(axes: Axes, session: Session) -> None:
         axes.models[turn.model] += turn.usage.get("output_tokens", 0)
         if turn.is_sidechain:
             axes.sidechain.add(turn.cost)
+    _add_batching(axes, session)
+
+
+def _add_batching(axes: Axes, session: Session) -> None:
+    """Count how many API messages carried more than one tool call.
+
+    Grouped by ``message_id`` because the transcript splits one API message
+    across several records -- one per ``tool_use`` block. Counting records
+    instead reports every message as carrying exactly one call, which is how a
+    real 2.8% batching rate reads as 0.0%.
+    """
+    per_message: Counter[str] = Counter()
+    for turn in session.turns:
+        if turn.tool_calls and turn.message_id:
+            per_message[turn.message_id] += turn.tool_calls
+    for calls in per_message.values():
+        axes.batching.messages += 1
+        axes.batching.calls += calls
+        if calls > 1:
+            axes.batching.batched += 1
 
 
 def _add_tools(axes: Axes, session: Session) -> None:
