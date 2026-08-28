@@ -178,6 +178,17 @@ APPS: Final[dict[str, AppIcon]] = {
             # run on the desktop, but the Flutter app itself has no Linux target.
             linux=False,
         ),
+        AppIcon(
+            key="betting_sim",
+            repo=_HOME / "betting-sim" / "app",
+            accent="#B8862E",
+            glyph="track-bars",
+            icon_name="betting_sim",
+            # Ships to Android natively and to Linux via a Chrome-wrapped web
+            # build, so the GTK embedder is never used and the hicolor set
+            # would go unread.
+            linux=False,
+        ),
     )
 }
 
