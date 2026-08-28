@@ -30,12 +30,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          # 3.12, not "3.x", and only in THIS job: it installs the full
-          # requirements.txt, which includes pygame 2.6.1 -- the newest
-          # release, and it ships no cp314 wheel. On 3.14 pip falls back to
-          # a source build and dies on a missing sdl-config. python-tests.yml
-          # runs newest stable because its test subset has no pygame.
-          python-version: "3.12"
+          python-version: "3.x"
           # See the note in python-tests.yml: caches the pip download cache,
           # keyed on the real meta/ path rather than the root symlink.
           cache: pip
@@ -48,7 +43,15 @@ jobs:
       - name: Install system dependencies
         run: |
           set -euo pipefail
-          sudo apt-get update && sudo apt-get install -y zsh librsvg2-bin
+          sudo apt-get update
+          # The SDL headers are for pygame. 2.6.1 is the newest release and its
+          # wheels stop at cp313, so on newest-stable Python pip falls back to a
+          # source build -- which dies on a missing `sdl-config` unless these are
+          # here. Every repo runs exactly one Python and it is the newest, so the
+          # build gets what it needs rather than the job being held back.
+          sudo apt-get install -y zsh librsvg2-bin \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libfreetype6-dev libportmidi-dev
           zsh --version
           rsvg-convert --version
 
