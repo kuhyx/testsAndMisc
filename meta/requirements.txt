@@ -41,7 +41,9 @@ howlongtobeatpy==1.0.23
 hypothesis==6.165.10
 importlib-metadata==9.0.1
 interrogate==1.7.0
-isort==9.0.1
+# isort is deliberately not pinned: nothing here imports it (ruff's isort
+# rules replaced it) and pylint 4.0.7 declares `isort<9`, so pinning latest
+# (9.0.1) makes the environment unsolvable. pylint brings a compatible one.
 lxml==6.1.2
 markdownify==1.2.3
 matplotlib==3.11.1
@@ -74,7 +76,9 @@ reorder-python-imports==3.17.0
 requests==2.34.2
 rich==15.0.0
 ruff==0.16.5
-safety==3.8.1
+# safety is deliberately not pinned: its only reference in this repo is a
+# commented-out pre-commit hook, and safety 3.8.1 declares `typer<0.26`,
+# which would hold the typer this repo actually imports below latest.
 selenium==4.48.0
 typer==0.27.2
 types-python-dateutil==2.9.0.20260807
