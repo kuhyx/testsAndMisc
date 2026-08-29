@@ -1,0 +1,40 @@
+{
+  "intent": "Put the screen-locker status back on the i3 bar, so a miscounting or disarmed locker is visible without being asked. The GTK tray icon it replaces had been commented out of ~/.config/i3/config since 2026-08-21, and in that window the locker counted one workout twice, believed the week met at 5/5 when the real total was 3, and skipped enforcement for two ISO weeks with nothing on the machine saying so.",
+  "scope": [
+    "linux_configuration/i3blocks/screen_locker.sh (new block script)",
+    "linux_configuration/i3blocks/config (register the block before shutdown_countdown)",
+    "Non-goal: the block never mutates locker state; clicking only opens the read-only UI",
+    "Depends on screen-locker-web.service (127.0.0.1:8770) from the screen-locker repo"
+  ],
+  "changes": [
+    "New block renders '<count>/<minimum> · <gaming budget>' from GET /api/status, coloured by compliance_state (green ok / yellow warn / red lock).",
+    "Arming from GET /api/health overrides the compliance colour: a timer that is disabled or has no next trigger shows 'DISARMED' in red, because a locker that cannot fire is the worse failure and the one that hides.",
+    "A dead status server renders the last known value marked '(stale)' in orange, or 'status server down' in red when there is no cache — never a blank block.",
+    "Missing curl/jq degrades to a visible marker rather than an empty block or a bash error."
+  ],
+  "verification": [
+    {
+      "command": "~/.config/i3blocks/screen_locker.sh",
+      "result": "pass",
+      "evidence": "Prints '💪 3/5 · 6h' / '💪 3/5' / '#F1FA8C' — 3/5 is the corrected weekly count, 6h the cut gaming budget for a day with no workout."
+    },
+    {
+      "command": "systemctl --user stop screen-locker-web.service && ~/.config/i3blocks/screen_locker.sh",
+      "result": "pass",
+      "evidence": "With cache: '💪 3/5 · 6h (stale)' in orange. After rm of the cache: '💪 status server down' in red. Restored to '💪 3/5 · 6h' once the unit was started again."
+    },
+    {
+      "command": "i3-msg reload && scrot",
+      "result": "pass",
+      "evidence": "Block visible in the HDMI-0 bar between PC:warn and the 23:00 shutdown countdown, rendering '💪 3/5 · 6h' in yellow. i3blocks does not re-read its config on i3-msg reload alone; the running process had to exit first."
+    }
+  ],
+  "risks": [
+    "Two curl calls every 30s. Both are loopback with --max-time 2, so a hung server delays the block by at most 4s rather than wedging the bar.",
+    "The block reports the gaming budget using its own 8h/6h constants. If steam-backlog-enforcer's configured values change, this display drifts from the enforcer until updated."
+  ],
+  "rollback": [
+    "Remove the [screen_locker] stanza from linux_configuration/i3blocks/config, delete linux_configuration/i3blocks/screen_locker.sh and the ~/.config/i3blocks symlink, then i3-msg reload and kill the running i3blocks so it re-reads the config.",
+    "After rollback, confirm the bar still renders the remaining blocks (cpu, gpu, memory, disk, volume, ethernet, claude_usage, pc_startup, shutdown_countdown, time)."
+  ]
+}
