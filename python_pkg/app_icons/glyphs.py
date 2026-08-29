@@ -30,6 +30,7 @@ from python_pkg.app_icons._glyph_art import (
     _STORAGE_BOX,
 )
 from python_pkg.app_icons._glyph_art_more import (
+    _BOWL_STAR,
     _NOTE_ASCENDER,
     _PADLOCK_CLOSED,
     _PUNCH_CARD,
@@ -85,6 +86,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
             "Closed padlock with a punched-out keyhole",
             _PADLOCK_CLOSED,
         ),
+        Glyph("bowl-star", "Filled star above an open bowl", _BOWL_STAR),
     )
 }
 

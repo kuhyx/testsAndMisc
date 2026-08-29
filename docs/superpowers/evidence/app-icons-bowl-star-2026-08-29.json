@@ -1,0 +1,45 @@
+{
+  "intent": "Give the new ~/restaurant-rater app a launcher icon from the shared family, so it stops shipping the stock Flutter beach icon.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art_more.py - the new SVG fragment",
+    "python_pkg/app_icons/glyphs.py - register the glyph in GLYPHS",
+    "python_pkg/app_icons/apps.py - register the app so --app restaurant_rater passes argument validation",
+    "Non-goal: no change to the shared accent #B8862E or the charcoal field; a glyph is distinguished by silhouette only",
+    "Non-goal: no change to any existing app's icon"
+  ],
+  "changes": [
+    "Added _BOWL_STAR: a filled five-pointed star (R=140 r=56 about 512,380) above an open bowl with a rim at y=566 and walls dropping to y=752. Total ink y=240..788, inside the 560 safe box.",
+    "The star is filled rather than stroked, for the same reason as _QUILL_NIB and _ANVIL: at STROKE_WIDTH=72 its five interior notches close below MIN_NEGATIVE_SPACE and render as a pentagon at 48dp.",
+    "Registered Glyph('bowl-star', ...) in GLYPHS and AppIcon(key='restaurant_rater', glyph='bowl-star', linux=False) in APPS."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons list",
+      "result": "pass",
+      "evidence": "bowl-star appears under Glyphs; 'restaurant_rater #B8862E bowl-star /home/kuhy/restaurant-rater' appears under Apps."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app restaurant_rater",
+      "result": "pass",
+      "evidence": "wrote 6 asset files to /home/kuhy/restaurant-rater/assets/icon (icon/foreground/monochrome, svg+png each). The generator's safe-box and negative-space checks did not fire."
+    },
+    {
+      "command": "visual review of the rendered 640px icon.png",
+      "result": "pass",
+      "evidence": "First render read as a smiling face - shallow bowl walls stopping at y=736 became a mouth with the star for a nose. Deepened to y=752 between narrower walls (348/676) and re-rendered; it now reads as a bowl with a rim. Recorded in the fragment's comment so the next reader does not undo it."
+    },
+    {
+      "command": "pre-commit run --files python_pkg/app_icons/glyphs.py python_pkg/app_icons/apps.py python_pkg/app_icons/_glyph_art_more.py",
+      "result": "pass",
+      "evidence": "mypy, pylint 10.00/10, bandit, pytest with coverage enforcement, 250-line cap and codespell all pass. An earlier run failed pylint C0301 on a 111-char comment line; the comment was rewrapped rather than suppressed."
+    }
+  ],
+  "risks": [
+    "The glyph is new artwork, so only a visual check can confirm it reads correctly at 48dp. Mitigated by rendering and reviewing the actual PNG rather than trusting the SVG source.",
+    "_glyph_art_more.py grew to 127 lines; it and _glyph_art.py exist solely to stay under the 250-line cap, so a third file will be needed eventually."
+  ],
+  "rollback": [
+    "git revert the commit. The three edits are additive - no existing glyph, app or shared token is touched - so a revert cannot change any other app's icon.",
+    "After rollback, re-run 'python3 -m python_pkg.app_icons list' and confirm the remaining 15 glyphs still resolve, then regenerate any app whose icon was rebuilt in the meantime."
+  ]
+}

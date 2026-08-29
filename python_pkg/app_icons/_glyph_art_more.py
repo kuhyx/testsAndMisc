@@ -99,3 +99,34 @@ M 392 646 A 30 30 0 0 0 392 706 A 30 30 0 0 0 392 646 Z \
 M 500 356 L 652 356 L 652 396 L 500 396 Z \
 M 500 496 L 652 496 L 652 536 L 500 536 Z \
 M 500 636 L 652 636 L 652 676 L 500 676 Z"/>"""
+
+# A filled five-pointed star sitting above an open bowl: a dish, and a verdict
+# on it. Distinct from _SHIELD_CUTLERY (diet-guard) by silhouette rather than
+# colour -- the accent is shared family-wide and must not carry meaning.
+#
+# The star is FILLED, not stroked, for the nib/anvil reason: at 72px weight an
+# outlined star's five interior notches close up well above
+# MIN_NEGATIVE_SPACE and render as a pentagon blob at 48dp.
+#
+# Geometry, all inside SAFE_BOX (x=232..792, y=232..792):
+#   star  R=140 r=56 about (512,380): spans y=240..493, x=379..645
+#   rim   y=566, x=268..756 -- stroke top 530, so 37px clear of the star's
+#         lowest point at 493, just above MIN_NEGATIVE_SPACE=36
+#   bowl  walls at x=348 and x=676 dropping to y=752: stroke bottom 788,
+#         4px inside the safe box
+#
+# The bowl is deep and narrow relative to its rim on purpose. A first pass
+# used shallow walls at x=330..694 stopping at y=736, and the result read as
+# a smiling mouth with the star for a nose -- two curves and a shape above
+# them is a face unless the vessel is unmistakably deeper than it is wide at
+# the base. Total ink runs y=240..788 = 548, under the 560 safe box.
+#
+# The star's lowest points are the two lower
+# outer tips at y=493 -- NOT the inner vertex at y=436, which is what a first
+# pass measured before checking; the rim was placed off that and overlapped
+# the tips. Compute every extreme, do not eyeball one.
+_BOWL_STAR = """\
+    <path d="M 512 240 L 545 335 L 645 337 L 565 397 L 594 493 L 512 436 \
+L 430 493 L 459 397 L 379 337 L 479 335 Z" fill="{{ACCENT}}" stroke="none"/>
+    <path d="M 268 566 L 756 566"/>
+    <path d="M 348 566 C 348 700 420 752 512 752 C 604 752 676 700 676 566"/>"""

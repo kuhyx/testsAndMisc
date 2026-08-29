@@ -119,6 +119,15 @@ APPS: Final[dict[str, AppIcon]] = {
             linux=False,
         ),
         AppIcon(
+            key="restaurant_rater",
+            repo=_HOME / "restaurant-rater",
+            accent="#B8862E",
+            glyph="bowl-star",
+            icon_name="restaurant-rater",
+            # Android-only app: no GTK desktop build to hand a hicolor PNG to.
+            linux=False,
+        ),
+        AppIcon(
             key="habit_stack",
             repo=_HOME / "habit_stack",
             accent="#B8862E",
