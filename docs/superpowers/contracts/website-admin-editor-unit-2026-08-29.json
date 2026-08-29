@@ -1,0 +1,17 @@
+{
+  "title": "Deploy the personal website's post editor as a loopback-only unit",
+  "objective": "The website repo now ships a browser post editor. Give it a home on the server: a systemd unit bound to 127.0.0.1, started by setup_personal_website.sh, with credentials generated once and no public route. Success is that after a setup run the editor answers on 127.0.0.1:4321/admin, survives a reboot, and is reachable from a laptop only through an SSH tunnel.",
+  "acceptance_criteria": [
+    "setup_personal_website.sh builds the editor and fails if either half of the build is missing.",
+    "Credentials are generated once, stored as a scrypt hash in a 0600 env file, and are not rotated by a second setup run.",
+    "The unit binds to loopback, runs under ProtectSystem=strict with the checkout as its only writable path, and still completes a real build.",
+    "No Caddy snippet, no firewall opening, and no reference to the editor on the public domain.",
+    "The setup report prints the tunnel command and the path of the password file, never the password."
+  ],
+  "out_of_scope": [
+    "Any public or Tailscale route for the editor.",
+    "TLS for the editor: the SSH tunnel terminates on localhost, which browsers already treat as a secure origin.",
+    "Changes to the website container, the shared Caddy edge, or the Gitea relocation."
+  ],
+  "verifier": "pre-commit run --files <the four shell files>; meta/scripts/shell_coverage_jail.sh over linux_configuration/features/lib/tests/test_website_admin.sh with --fail-on-case-error; systemd-analyze verify and a systemd-run rehearsal of the sandbox."
+}

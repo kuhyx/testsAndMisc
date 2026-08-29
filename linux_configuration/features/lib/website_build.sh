@@ -173,6 +173,7 @@ setup_cmd() {
 	reload_caddy
 	ensure_firewall
 	print_report
+	deploy_admin_service
 	log_ok "Personal website setup complete."
 }
 
@@ -194,6 +195,7 @@ check_http() {
 
 status_cmd() {
 	print_setup_header "Personal website status"
+	admin_status_lines
 
 	if has_cmd node; then
 		status_line 0 "node present"

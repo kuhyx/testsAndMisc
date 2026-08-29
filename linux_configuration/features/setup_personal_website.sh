@@ -15,6 +15,8 @@
 #   - Moves Gitea to gitea.kuhy.duckdns.org via setup_gitea.sh (single source).
 #   - Builds the website and serves dist/ from a loopback caddy container on
 #     127.0.0.1:8088, fronted by a reverse-proxy snippet on the root domain.
+#   - Runs the browser post editor as a loopback systemd unit on 127.0.0.1:4321,
+#     deliberately with NO Caddy route: reach it over an SSH tunnel.
 #   - Reuses the existing DuckDNS updater (wildcard already resolves) and opens
 #     the firewall via setup_wireguard_ssh.sh.
 #
@@ -169,6 +171,8 @@ build_cv_json() {
 
 # shellcheck source=lib/website_build.sh
 source "$SCRIPT_DIR/lib/website_build.sh"
+# shellcheck source=lib/website_admin.sh
+source "$SCRIPT_DIR/lib/website_admin.sh"
 
 main() {
 	local cmd="${1:-setup}"

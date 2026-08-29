@@ -1,0 +1,48 @@
+{
+  "intent": "Run the personal website's browser post editor on the server as a loopback systemd unit, reachable only over an SSH tunnel, with no Caddy route.",
+  "scope": [
+    "linux_configuration/features/lib/website_admin.sh (new)",
+    "linux_configuration/features/lib/tests/test_website_admin.sh (new)",
+    "linux_configuration/features/setup_personal_website.sh (sources the new lib)",
+    "linux_configuration/features/lib/website_build.sh (calls deploy_admin_service and admin_status_lines)",
+    "Non-goal: any public route for the editor; the site stays a static dist/ behind Caddy"
+  ],
+  "changes": [
+    "build_website_admin runs `pnpm run build:admin` and fails unless BOTH the service bundle and the editor page exist, because a missing page starts cleanly and serves a blank document.",
+    "ensure_admin_secrets generates a password and a session secret once, stores only the scrypt hash in a 0600 env file, and is idempotent so re-running setup does not rotate credentials under an open tunnel.",
+    "admin_unit_text writes a hardened unit: ProtectSystem=strict, ProtectHome=read-only, ReadWritePaths=<checkout>, and a PATH carrying nvm's node, without which every save fails at the prerender step.",
+    "start_admin_service enables the unit and polls 127.0.0.1:4321/admin, failing loudly instead of reporting a service that never came up."
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files linux_configuration/features/setup_personal_website.sh linux_configuration/features/lib/website_build.sh linux_configuration/features/lib/website_admin.sh linux_configuration/features/lib/tests/test_website_admin.sh",
+      "result": "pass",
+      "evidence": "All hooks pass, shellcheck included; the 250-line cap holds for all three shell files."
+    },
+    {
+      "command": "meta/scripts/shell_coverage_jail.sh --subject linux_configuration/features/lib/tests/test_website_admin.sh --bind /etc --measure website_admin.sh --min 0 --fail-on-case-error -- \"\"",
+      "result": "pass",
+      "evidence": "website_admin.sh: 53/66 lines = 80.30%; every assertion passed under --fail-on-case-error."
+    },
+    {
+      "command": "systemd-analyze verify <generated unit>",
+      "result": "pass",
+      "evidence": "No findings against the generated unit; the only output was pre-existing warnings about unrelated units on this host."
+    },
+    {
+      "command": "systemd-run --user --wait -p ProtectSystem=strict -p ProtectHome=read-only -p ReadWritePaths=/home/kuhy/personal-website ... running the three real build steps",
+      "result": "pass",
+      "evidence": "vite build ok / ssr build ok / prerender ok, and `touch $HOME/.pw-sandbox-should-fail` was refused with 'Read-only file system'. The sandbox permits exactly the checkout."
+    }
+  ],
+  "risks": [
+    "The unit has not yet been installed or started on the real server; only its text, its systemd-analyze verdict, and its sandbox behaviour under systemd-run have been checked here.",
+    "The generated password lands in a 0600 file on the server. Anyone who can already read that user's home can read it, which is the same trust boundary as the checkout itself.",
+    "PATH is pinned to whichever node is on PATH at setup time. An nvm version switch that removes that directory breaks the unit until setup is re-run."
+  ],
+  "rollback": [
+    "sudo systemctl disable --now personal-website-admin.service && sudo rm /etc/systemd/system/personal-website-admin.service && sudo systemctl daemon-reload",
+    "Revert this commit; the website container, the Caddy snippet and the public site are untouched by it, so the site keeps serving either way.",
+    "Confirm https://kuhy.duckdns.org/ still returns 200 and that nothing listens on 127.0.0.1:4321."
+  ]
+}
