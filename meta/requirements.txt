@@ -42,8 +42,9 @@ hypothesis==6.165.10
 importlib-metadata==9.0.1
 interrogate==1.7.0
 # isort is deliberately not pinned: nothing here imports it (ruff's isort
-# rules replaced it) and pylint 4.0.7 declares `isort<9`, so pinning latest
-# (9.0.1) makes the environment unsolvable. pylint brings a compatible one.
+# rules replaced it) and pylint constrains it (`isort!=5.13,<10,>=5` as of
+# 4.0.8), so pinning it independently risks an unsolvable environment for a
+# package no code here imports. pylint brings a compatible one.
 lxml==6.1.2
 markdownify==1.2.3
 matplotlib==3.11.1
@@ -60,7 +61,7 @@ pycodestyle==2.14.0
 pydocstyle==6.3.0
 pyflakes==3.4.0
 pygame==2.6.1
-pylint==4.0.7
+pylint==4.0.8
 pyright==1.1.411
 pytest==9.1.1
 pytest-cov==7.1.0
