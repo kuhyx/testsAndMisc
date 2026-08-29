@@ -50,12 +50,39 @@ table inet filter {
 	}
 	chain forward {
 		type filter hook forward priority 0; policy drop;
+
+		# Docker keeps its own FORWARD rules (DOCKER-USER, DOCKER-FORWARD,
+		# the isolation chains) in the ip/filter table. This chain runs at
+		# the same hook, so a bare 'policy drop' here VETOES them and every
+		# bridged container loses all outbound networking -- while the host
+		# itself stays perfectly online, so nothing looks broken. That is
+		# what killed signal-cli's connection to Signal on 2026-08-29: the
+		# bot stayed up, healthy and deaf for three hours.
+		ct state established,related accept
+		iifname "docker0" accept
+		oifname "docker0" accept
+		iifname "br-*" accept
+		oifname "br-*" accept
 	}
 	chain output {
 		type filter hook output priority 0; policy accept;
 	}
 }
 EOF
+}
+
+# 'flush ruleset' above deletes Docker's own tables along with everything
+# else, and dockerd only rebuilds them on its next network event -- so
+# without this, containers keep running with no NAT and no forwarding until
+# somebody happens to restart one. Restarting dockerd rebuilds them at once;
+# containers with a restart policy come back by themselves.
+restore_docker_rules() {
+	if ! is_service_active docker; then
+		return 0
+	fi
+	log_warn "Restarting docker so it can rebuild the nft rules the flush removed."
+	systemctl restart docker
+	log_ok "docker restarted; its firewall rules are back."
 }
 
 verify_nftables_then_apply() {
@@ -69,6 +96,7 @@ verify_nftables_then_apply() {
 		die "sshd died after applying nftables -- rolled back. Investigate before retrying."
 	fi
 	log_ok "nftables applied; sshd is still active."
+	restore_docker_rules
 	log_warn "Before closing this terminal, open a SECOND ssh session now and confirm it connects."
 	enable_service nftables
 }

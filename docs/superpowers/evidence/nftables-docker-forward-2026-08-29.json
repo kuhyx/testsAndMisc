@@ -1,0 +1,42 @@
+{
+  "intent": "Stop the WireGuard/SSH firewall from silently cutting every Docker container off the internet, and rebuild Docker's own nft rules after the ruleset flush that deletes them.",
+  "scope": [
+    "linux_configuration/features/lib/wg_firewall.sh (write_nftables_ruleset, verify_nftables_then_apply)",
+    "Non-goal: no change to the input chain, the WireGuard port, sshd hardening or the LAN/DNS rules",
+    "Non-goal: no change to Docker's own iptables management (DOCKER-USER stays untouched)"
+  ],
+  "changes": [
+    "forward chain keeps policy drop but now accepts established/related plus traffic in or out of docker0 and any br-* bridge, so it stops vetoing Docker's own chains at the same netfilter hook",
+    "new restore_docker_rules() restarts dockerd after a successful apply, because 'flush ruleset' deletes Docker's tables and dockerd only rebuilds them on its next network event"
+  ],
+  "verification": [
+    {
+      "command": "vm new nftfw && vm run nftfw 'bash /tmp/nft_docker_guest_test.sh'",
+      "result": "pass",
+      "evidence": "Arch guest, docker installed, alpine wget probe to 1.1.1.1: BASELINE=reachable -> OLD(unpatched ruleset)=blocked -> NEW(patched ruleset)=reachable; sshd active throughout. The OLD leg reproduces the outage this fixes."
+    },
+    {
+      "command": "nft -c -f <rendered ruleset>",
+      "result": "pass",
+      "evidence": "NFT SYNTAX OK for the file write_nftables_ruleset() generates with ALLOW_WEB/ALLOW_DNS both true."
+    },
+    {
+      "command": "shellcheck -x --severity=style linux_configuration/features/lib/wg_firewall.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    },
+    {
+      "command": "live host check after applying the same five rules by hand",
+      "result": "pass",
+      "evidence": "signal-api container regained DNS and outbound; /v1/devices/+420720355763 went 400 'Closed unexpectedly' -> 200; the Signal bot answered !cat and !dog live at 18:28."
+    }
+  ],
+  "risks": [
+    "Containers may now forward to the LAN, which is Docker's own default posture but is a relaxation of a bare default-drop forward chain",
+    "restore_docker_rules restarts dockerd, so containers without a restart policy stay down until started again"
+  ],
+  "rollback": [
+    "git revert the commit, then re-run setup_wireguard_ssh.sh (or nft -f /etc/nftables.conf) to reapply the previous ruleset",
+    "After rollback, expect bridged containers to lose outbound networking again: verify with 'docker run --rm --network bridge alpine wget -q -O /dev/null -T 6 https://1.1.1.1'"
+  ]
+}
