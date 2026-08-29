@@ -49,7 +49,14 @@ EOF
 
 :${WEBSITE_PORT} {
 	root * /srv
-	try_files {path} /index.html
+	# {path}/index.html is the load-bearing middle term: the website
+	# prerenders each blog post to dist/blog/<slug>/index.html, and
+	# try_files does NOT resolve a directory to its index on its own.
+	# Without it every post silently falls through to the SPA shell and
+	# is served as the landing page -- right content once React boots,
+	# wrong <title> and no link preview, which looks like nothing is
+	# wrong until you check the tab.
+	try_files {path} {path}/index.html /index.html
 	file_server
 	encode gzip
 }

@@ -1,0 +1,36 @@
+{
+  "intent": "Make kuhy.duckdns.org serve each prerendered blog post's own HTML file instead of falling through to the SPA shell, so a shared post URL has the right title and link preview.",
+  "scope": [
+    "linux_configuration/features/lib/website_build.sh (the inner Caddyfile template only)",
+    "Non-goal: no change to the reverse-proxy snippet, the compose stack, ports, or the build command"
+  ],
+  "changes": [
+    "try_files gains the middle term {path}/index.html, so a request for /blog/<slug> resolves to dist/blog/<slug>/index.html",
+    "Added a comment recording why the middle term is load-bearing, because its absence fails silently"
+  ],
+  "verification": [
+    {
+      "command": "docker run caddy:2.8 with the old directive, curl each route",
+      "result": "fail",
+      "evidence": "/, /blog, /blog/hello-world and /blog/nope ALL returned <title>Krzysztof Rudnicki</title> — every post served as the landing page"
+    },
+    {
+      "command": "docker run caddy:2.8 with the new directive, curl each route",
+      "result": "pass",
+      "evidence": "/blog -> 'Blog — Krzysztof Rudnicki'; /blog/hello-world -> 'Hello, world — Krzysztof Rudnicki'; /blog/nope still falls back to the SPA shell as intended"
+    },
+    {
+      "command": "shellcheck linux_configuration/features/lib/website_build.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": [
+    "A directory in dist/ that shares a name with a client-side route would now win over the SPA fallback; today only /blog/<slug> directories exist, and they are exactly the ones that should win",
+    "The change only takes effect after setup_personal_website.sh rewrites the managed Caddyfile and restarts the container"
+  ],
+  "rollback": [
+    "Restore the single-term try_files line and rerun setup_personal_website.sh",
+    "After rollback, confirm / still serves and accept that blog posts revert to SPA-shell titles"
+  ]
+}
