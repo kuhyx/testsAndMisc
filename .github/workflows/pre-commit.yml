@@ -29,6 +29,7 @@ jobs:
           path: .utils
 
       - uses: actions/setup-python@v5
+        id: setup-python
         with:
           python-version: "3.x"
           # See the note in python-tests.yml: caches the pip download cache,
@@ -127,10 +128,22 @@ jobs:
       # pre-commit builds a virtualenv per hook repo on first use, which is
       # slower than the pip install itself. Keyed on the hook definitions, so
       # it invalidates exactly when a hook's repo or rev changes.
+      # The interpreter goes in the key, resolved rather than typed. A
+      # `language: python` hook env is built by whichever Python pre-commit ran
+      # under, and restoring one built by a different release is silent: the
+      # hooks keep working right up to the first syntax the old interpreter
+      # cannot parse. This key said `py3.12` as a literal while the job had
+      # moved to `3.x`, so 3.14-only source (PEP 758's `except A, B:`) reached
+      # pylint and the debug-statement hook running on a cached 3.12.14 and
+      # came back as "multiple exception types must be parenthesized" -- a
+      # failure with no local reproduction, since developer caches were built
+      # on 3.14. `steps.setup-python.outputs.python-version` cannot drift from
+      # what was actually installed.
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-py3.12-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: >-
+            pre-commit-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install dependencies
         run: |
