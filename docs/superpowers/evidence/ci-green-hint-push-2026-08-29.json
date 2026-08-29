@@ -1,0 +1,36 @@
+{
+  "intent": "Make the CI-baseline guard's own error message tell the whole truth: the fix-forward escape hatch has to be given at commit AND at push, because the hook runs at both stages.",
+  "scope": [
+    "meta/scripts/check_ci_green.sh: the header comment and the failure hint",
+    "Non-goal: changing when the guard fires, what it checks, or the semantics of CI_GREEN_SKIP"
+  ],
+  "changes": [
+    "Header comment now documents both invocations and why the second is needed (the pre-push CI mirror re-runs pre-commit in a clean worktree against the same still-red baseline)",
+    "Failure hint now prints `CI_GREEN_SKIP=1 git push` beneath the commit form, plus one line naming the mirror as the reason"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck meta/scripts/check_ci_green.sh",
+      "result": "pass",
+      "evidence": "shellcheck OK (no output)"
+    },
+    {
+      "command": "CI_GREEN_SKIP=1 bash meta/scripts/check_ci_green.sh",
+      "result": "pass",
+      "evidence": "check_ci_green.sh: CI_GREEN_SKIP is set / skipping the CI-baseline check (pre-push ci-mirror is the real gate). exit 0"
+    },
+    {
+      "command": "bash meta/scripts/check_ci_green.sh",
+      "result": "pass",
+      "evidence": "silent, exit 0, against a main that is green as of 6eb70de0"
+    }
+  ],
+  "risks": [
+    "The red path's exact wording is not covered by a test; there is no test file for this script in the repo, so a future edit could break the hint without failing anything.",
+    "If ci_mirror.sh ever starts scrubbing the environment, the documented push form stops working and this message becomes wrong."
+  ],
+  "rollback": [
+    "git revert the commit; the change is comment and printf text only, so nothing depends on it.",
+    "After rollback, confirm the guard still exits 0 on a green main and 1 on a red one."
+  ]
+}

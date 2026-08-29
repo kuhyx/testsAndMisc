@@ -18,8 +18,13 @@
 # failing is how a red baseline gets buried under changes that make it harder
 # to bisect.
 #
-# Bypass for a deliberate fix-forward commit:
+# Bypass for a deliberate fix-forward commit. It must be given TWICE, because
+# this hook runs at both stages: once at commit, and again inside the pre-push
+# CI mirror's clean-worktree `pre-commit` run, which sees the same still-red
+# baseline. The variable is read from the environment and the mirror does not
+# scrub it, so exporting it for the push carries through:
 #   CI_GREEN_SKIP=1 git commit ...
+#   CI_GREEN_SKIP=1 git push
 # ============================================================================
 
 set -euo pipefail
@@ -76,6 +81,8 @@ if [[ ${#failed[@]} -gt 0 ]]; then
 	printf '\nCommitting more work onto a failing baseline buries the breakage.\n' >&2
 	printf 'Fix it first, or if THIS commit is the fix:\n' >&2
 	printf '  CI_GREEN_SKIP=1 git commit ...\n' >&2
+	printf '  CI_GREEN_SKIP=1 git push\n' >&2
+	printf '(both: the pre-push CI mirror re-runs this same check.)\n' >&2
 	exit 1
 fi
 
