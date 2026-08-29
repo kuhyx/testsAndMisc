@@ -76,10 +76,17 @@ EOF
 }
 
 # --- Phase 8: start the website container -----------------------------------
+# Last HTTP status seen by wait_for_website, so a failure can say whether the
+# server was unreachable or merely answering wrongly. Those are different bugs
+# and the old message named only the first one.
+WEBSITE_LAST_CODE=""
+
 wait_for_website() {
 	local _
 	for _ in $(seq 1 30); do
-		if curl -sf -o /dev/null "http://127.0.0.1:${WEBSITE_PORT}/"; then
+		WEBSITE_LAST_CODE="$(curl -s -o /dev/null -w '%{http_code}' \
+			--max-time 5 "http://127.0.0.1:${WEBSITE_PORT}/" || echo "000")"
+		if [[ "$WEBSITE_LAST_CODE" == "200" ]]; then
 			return 0
 		fi
 		sleep 1
@@ -89,11 +96,30 @@ wait_for_website() {
 
 start_website() {
 	log_info "Starting the personal-website container…"
-	docker compose -f "$WEBSITE_COMPOSE" up -d
+	# --force-recreate is required, not tidiness. Two failure modes need it,
+	# and compose cannot see either one:
+	#
+	#   1. The Caddyfile is a BIND MOUNT, so its contents are not part of the
+	#      container's config hash. Editing it changes nothing compose compares,
+	#      it reports "Running", and the new directives never load. A blog post
+	#      served as the landing page is exactly this bug.
+	#   2. A bind mount is resolved once, at container start. Anything that
+	#      replaces dist/ rather than emptying it (rm -rf, a git clean, moving
+	#      the checkout) leaves the container mounted on the old, unlinked
+	#      inode -- /srv reads as empty and every request 404s while the
+	#      container still looks healthy.
+	#
+	# Recreating is under a second for a static file server, so it is cheaper
+	# than either failure being diagnosed by hand.
+	docker compose -f "$WEBSITE_COMPOSE" up -d --force-recreate
 	if wait_for_website; then
 		log_ok "Website answering on http://127.0.0.1:${WEBSITE_PORT}/."
 	else
-		die "Website did not become reachable on 127.0.0.1:${WEBSITE_PORT}."
+		if [[ "$WEBSITE_LAST_CODE" == "000" ]]; then
+			die "Website unreachable on 127.0.0.1:${WEBSITE_PORT} (no response)."
+		fi
+		die "Website on 127.0.0.1:${WEBSITE_PORT} answered HTTP ${WEBSITE_LAST_CODE}, not 200. \
+A 404 here usually means the container's /srv bind mount is stale or ${WEBSITE_SRC}/dist is empty."
 	fi
 }
 

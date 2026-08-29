@@ -1,0 +1,42 @@
+{
+  "intent": "Make the website deploy apply Caddyfile changes and survive a replaced dist/ directory, instead of reporting a healthy container that serves 404s.",
+  "scope": [
+    "linux_configuration/features/lib/website_build.sh (start_website and wait_for_website only)",
+    "Non-goal: no change to the Gitea stack, the firewall step, the build, or the edge reload"
+  ],
+  "changes": [
+    "start_website now runs docker compose up -d --force-recreate; compose cannot detect a bind-mounted Caddyfile's contents changing, nor a bind mount left on an unlinked inode, so it reported 'Running' and applied neither",
+    "wait_for_website records the actual HTTP status instead of using curl -sf, so a failure distinguishes 'no response' from 'answered 404' -- different bugs that had one message",
+    "The 404 message names the two real causes: a stale /srv bind mount, or an empty dist/"
+  ],
+  "verification": [
+    {
+      "command": "observed live after setup_personal_website.sh",
+      "result": "fail",
+      "evidence": "Container 'Up 6 hours', Caddy logs healthy, but docker exec ls /srv returned empty and curl 127.0.0.1:8088/ returned 404; dist/ had been replaced with a new inode (84695030) after container start"
+    },
+    {
+      "command": "rm -rf dist && pnpm build, then curl",
+      "result": "fail",
+      "evidence": "Reproduced deterministically: inode 84695030 -> 84695031, container /srv empty, curl -> 404"
+    },
+    {
+      "command": "source website_build.sh && start_website (patched), against that broken state",
+      "result": "pass",
+      "evidence": "Container Recreated; /srv lists assets blog cv.pdf index.html; / -> 200, /blog/hello-world -> 200 with title 'Hello, world — Krzysztof Rudnicki'"
+    },
+    {
+      "command": "shellcheck + bash -n linux_configuration/features/lib/website_build.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": [
+    "Every deploy now restarts the static container, so there is a sub-second window where the loopback port refuses connections; the edge Caddy retries and the wait loop tolerates it",
+    "--force-recreate discards any state inside the container; this service is a read-only static file server and holds none"
+  ],
+  "rollback": [
+    "Drop --force-recreate and restore the curl -sf wait loop",
+    "After rollback, verify a Caddyfile edit actually takes effect by curling a prerendered blog post and checking its <title>, since that is what silently regresses"
+  ]
+}
