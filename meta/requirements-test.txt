@@ -23,7 +23,7 @@
 
 anthropic==1.2.0
 beautifulsoup4==4.15.0
-coverage==7.15.4
+coverage==7.16.0
 defusedxml==0.7.1
 markdownify==1.2.3
 numpy==2.5.2

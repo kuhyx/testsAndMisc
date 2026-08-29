@@ -15,7 +15,7 @@ berserk==0.14.0
 black==26.5.1
 bottle==0.13.4
 codespell==2.4.3
-coverage==7.15.4
+coverage==7.16.0
 darglint==1.8.1
 dead==2.1.0
 defusedxml==0.7.1
