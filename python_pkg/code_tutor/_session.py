@@ -7,7 +7,7 @@ No LLM calls or judgment logic live here.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from rich.table import Table
@@ -125,9 +125,7 @@ def run_session(
             progress["struggled"].append(item.id)
         else:
             progress["skipped"].append(item.id)
-        progress["last_session"] = datetime.now(tz=timezone.utc).isoformat(
-            timespec="seconds"
-        )
+        progress["last_session"] = datetime.now(tz=UTC).isoformat(timespec="seconds")
         save_progress(codebase, progress)
 
     _show_summary(results, console)

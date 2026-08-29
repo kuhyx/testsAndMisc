@@ -6,7 +6,7 @@ matches" it would upload a duplicate on every transport hiccup.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import requests
@@ -48,7 +48,7 @@ def test_recent_start_times_parses_offsets(monkeypatch: pytest.MonkeyPatch) -> N
     )
     times = client.recent_start_times(1)
     assert times is not None
-    assert times[0] == datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc)
+    assert times[0] == datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC)
 
 
 def test_recent_start_times_treats_naive_as_utc(
@@ -58,7 +58,7 @@ def test_recent_start_times_treats_naive_as_utc(
         monkeypatch, _Resp(200, [{"start_time": "2026-08-22T21:51:05"}])
     )
     times = client.recent_start_times(1)
-    assert times == [datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc)]
+    assert times == [datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC)]
 
 
 def test_recent_start_times_accepts_zulu(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -66,7 +66,7 @@ def test_recent_start_times_accepts_zulu(monkeypatch: pytest.MonkeyPatch) -> Non
         monkeypatch, _Resp(200, [{"start_time": "2026-08-22T21:51:05Z"}])
     )
     times = client.recent_start_times(1)
-    assert times == [datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc)]
+    assert times == [datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC)]
 
 
 def test_unparseable_entries_are_dropped_not_fatal(
@@ -87,7 +87,7 @@ def test_unparseable_entries_are_dropped_not_fatal(
         ),
     )
     assert client.recent_start_times(1) == [
-        datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc)
+        datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC)
     ]
 
 
@@ -114,26 +114,24 @@ def test_non_list_body_is_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_already_present_tolerates_recording_skew() -> None:
     """The file said 21:51:04Z; Endurain stored 21:51:05Z. Same run."""
-    start = datetime(2026, 8, 22, 21, 51, 4, tzinfo=timezone.utc)
-    known = [datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc)]
+    start = datetime(2026, 8, 22, 21, 51, 4, tzinfo=UTC)
+    known = [datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC)]
     assert upload.already_present(start, known)
 
 
 def test_already_present_rejects_a_different_run() -> None:
-    start = datetime(2026, 8, 22, 21, 51, 4, tzinfo=timezone.utc)
-    known = [datetime(2026, 8, 22, 19, 0, 0, tzinfo=timezone.utc)]
+    start = datetime(2026, 8, 22, 21, 51, 4, tzinfo=UTC)
+    known = [datetime(2026, 8, 22, 19, 0, 0, tzinfo=UTC)]
     assert not upload.already_present(start, known)
 
 
 def test_tolerance_boundary_is_inclusive() -> None:
-    start = datetime(2026, 8, 22, 21, 51, 4, tzinfo=timezone.utc)
-    inside = [datetime(2026, 8, 22, 21, 53, 4, tzinfo=timezone.utc)]
-    outside = [datetime(2026, 8, 22, 21, 53, 5, tzinfo=timezone.utc)]
+    start = datetime(2026, 8, 22, 21, 51, 4, tzinfo=UTC)
+    inside = [datetime(2026, 8, 22, 21, 53, 4, tzinfo=UTC)]
+    outside = [datetime(2026, 8, 22, 21, 53, 5, tzinfo=UTC)]
     assert upload.already_present(start, inside)
     assert not upload.already_present(start, outside)
 
 
 def test_already_present_against_nothing_is_false() -> None:
-    assert not upload.already_present(
-        datetime(2026, 8, 22, 21, 51, 4, tzinfo=timezone.utc), []
-    )
+    assert not upload.already_present(datetime(2026, 8, 22, 21, 51, 4, tzinfo=UTC), [])

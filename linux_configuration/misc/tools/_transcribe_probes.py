@@ -151,7 +151,7 @@ def prepare_model(model_name: str, model_dir: str) -> bool:
             download_root=model_dir,
         )
         logger.info("Model prepared.")
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         logger.exception("Failed to prepare model")
         return False
     return True
@@ -171,7 +171,7 @@ def test_cuda() -> bool:
     try:
         fw.WhisperModel("tiny", device="cuda", compute_type="float16")
         logger.info("CUDA test init succeeded.")
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         logger.exception("CUDA test failed")
         return False
     return True

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -104,7 +104,7 @@ def test_activity_start_reads_local_wall_time() -> None:
     assert parsed.tzinfo is not None
     expected = datetime(
         2026, 8, 14, 0, 58, 45, tzinfo=datetime.now().astimezone().tzinfo
-    ).astimezone(timezone.utc)
+    ).astimezone(UTC)
     assert parsed == expected
 
 

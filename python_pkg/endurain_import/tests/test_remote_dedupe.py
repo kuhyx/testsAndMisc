@@ -6,7 +6,7 @@ trace, so the server is the only place these runs are visible.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -28,7 +28,7 @@ _RUN_NAME = "RunnerUp_2026-08-22-23-51-04_Running.tcx"
 def _run_start() -> datetime:
     return datetime(
         2026, 8, 22, 23, 51, 4, tzinfo=datetime.now().astimezone().tzinfo
-    ).astimezone(timezone.utc)
+    ).astimezone(UTC)
 
 
 def test_run_already_in_endurain_is_skipped_not_reuploaded(
@@ -63,7 +63,7 @@ def test_a_genuinely_new_run_still_uploads(
     """The remote check must not become a blanket refusal to upload."""
     _env(monkeypatch, tmp_path, inbox)
     _file(inbox, _RUN_NAME)
-    other = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    other = datetime(2026, 1, 1, tzinfo=UTC)
     client = _StubMainClient(Result(Outcome.OK, 7, "ok"), remote=[other])
     _patch_client(monkeypatch, client)
     assert main() == 0

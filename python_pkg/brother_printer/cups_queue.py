@@ -126,7 +126,7 @@ def _cups_cancel_job(job_id: str) -> bool:
             timeout=5,
             check=True,
         )
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
+    except subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError:
         return False
     return True
 

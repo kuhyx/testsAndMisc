@@ -51,7 +51,7 @@ def _get_pyusb_device_info() -> dict[str, str]:
         dev = usb_core.find(idVendor=BROTHER_USB_VENDOR_ID)
         if dev is None:
             return {}
-    except (ImportError, OSError, ValueError):
+    except ImportError, OSError, ValueError:
         return {}
     return {
         "product": dev.product or "",
@@ -78,7 +78,7 @@ def is_cups_scheduler_running() -> bool:
         return (
             "is running" in r.stdout.lower() and "not running" not in r.stdout.lower()
         )
-    except (subprocess.TimeoutExpired, OSError):
+    except subprocess.TimeoutExpired, OSError:
         return False
 
 
@@ -93,7 +93,7 @@ def start_cups() -> bool:
             timeout=15,
             check=True,
         )
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
+    except subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError:
         return False
     for _ in range(10):
         if is_cups_scheduler_running():
@@ -197,7 +197,7 @@ def _query_usb_port_status_raw(cups_state: str = "") -> USBPortStatus | None:
             if dev.is_kernel_driver_active(0):
                 dev.detach_kernel_driver(0)
                 detached = True
-        except (usb_core.USBError, NotImplementedError):
+        except usb_core.USBError, NotImplementedError:
             pass
 
         usb_util.claim_interface(dev, 0)
@@ -213,6 +213,6 @@ def _query_usb_port_status_raw(cups_state: str = "") -> USBPortStatus | None:
                 with contextlib.suppress(Exception):
                     dev.attach_kernel_driver(0)
             usb_util.dispose_resources(dev)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         logger.debug("USB port status query failed", exc_info=True)
         return None

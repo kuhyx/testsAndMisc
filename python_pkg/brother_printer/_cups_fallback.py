@@ -64,7 +64,7 @@ def _get_cups_ipp_status(printer_name: str) -> dict[str, str]:
             check=False,
         )
         return _parse_ipp_attributes(r.stdout)
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+    except subprocess.TimeoutExpired, subprocess.SubprocessError, OSError:
         return {}
 
 

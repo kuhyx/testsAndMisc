@@ -14,11 +14,11 @@ a generator route is predicted to lift specifically the HUMAN_PRIOR six.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 
-class Difficulty(str, Enum):
+class Difficulty(StrEnum):
     """Why a subject is expected to be easy or hard, not how hard to draw."""
 
     SAFE = "SAFE"

@@ -10,7 +10,7 @@ owned by the calling thread.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 # scalar() is shared: record_files counts rows before and after. The rest are
@@ -63,7 +63,7 @@ def _now() -> str:
     Returns:
         str: Timestamp suitable for the index's text date columns.
     """
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def local_name(md5_b64: str, tim: int, ext: str) -> str:

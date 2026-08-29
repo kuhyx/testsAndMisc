@@ -10,7 +10,7 @@ the WebDAV and adb routes under different filenames.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import hashlib
 import json
 from typing import TYPE_CHECKING, Any
@@ -78,7 +78,7 @@ def activity_start(path: Path) -> datetime | None:
         )
     except ValueError:
         return None
-    return naive.astimezone(timezone.utc)
+    return naive.astimezone(UTC)
 
 
 def file_digest(path: Path) -> str:
@@ -164,4 +164,4 @@ class Ledger:
 
 def now_iso() -> str:
     """UTC timestamp for ledger entries."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

@@ -181,7 +181,7 @@ def main() -> int:
     # requests.RequestException covers the transport failures; OSError/ValueError
     # cover a malformed response body. ConnectionError subclasses OSError, so a
     # separate requests handler would be unreachable.
-    except (OSError, ValueError, RuntimeError, requests.RequestException):
+    except OSError, ValueError, RuntimeError, requests.RequestException:
         _logger.exception("Endurain is not reachable at %s", base_url)
         return 1
 

@@ -12,7 +12,7 @@ poison both the rejects store and the bake-off metrics.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 # All applicable gates passed.
@@ -25,7 +25,7 @@ EXIT_GATE_FAILURE: Final = 1
 EXIT_HARNESS_ERROR: Final = 2
 
 
-class Code(str, Enum):
+class Code(StrEnum):
     """Machine-readable gate failure codes.
 
     Values are SCREAMING_SNAKE so they survive a round trip through JSONL and

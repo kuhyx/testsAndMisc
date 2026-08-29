@@ -8,18 +8,14 @@ to be constructed to test a decision.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-# ``str, Enum`` rather than ``StrEnum`` throughout: mypy runs with
-# ``python_version = "3.10"`` and ``StrEnum`` only exists from 3.11, so it would
-# degrade to ``Any`` and silently disable type checking on every enum here.
 
-
-class Verdict(str, Enum):
+class Verdict(StrEnum):
     """What the user decided about a video.
 
     The member is ``SKIP`` rather than ``PASS`` only because ruff's S105 reads a
@@ -31,7 +27,7 @@ class Verdict(str, Enum):
     SKIP = "pass"
 
 
-class TaskKind(str, Enum):
+class TaskKind(StrEnum):
     """What the background worker should do next."""
 
     DOWNLOAD = "download"
@@ -39,7 +35,7 @@ class TaskKind(str, Enum):
     IDLE = "idle"
 
 
-class Emptiness(str, Enum):
+class Emptiness(StrEnum):
     """Why the reviewer has nothing to show."""
 
     NOT_EMPTY = "not_empty"
@@ -126,7 +122,7 @@ class ResumePlan:
     discard: bool
 
 
-class Outcome(str, Enum):
+class Outcome(StrEnum):
     """How a download ended."""
 
     COMPLETED = "completed"

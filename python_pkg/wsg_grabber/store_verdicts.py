@@ -10,7 +10,7 @@ unbounded and lets it survive quitting the reviewer.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from python_pkg.wsg_grabber.models import ReviewedItem, ReviewItem, Verdict
@@ -27,7 +27,7 @@ def _now() -> str:
     Returns:
         str: Timestamp suitable for the index's text date columns.
     """
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _scalar(conn: sqlite3.Connection, sql: str, params: list[str]) -> int:

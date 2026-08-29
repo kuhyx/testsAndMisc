@@ -6,7 +6,7 @@ module carries a small JSONC reader. Every write is preceded by a backup.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 import re
@@ -74,7 +74,7 @@ def _parse_jsonc(text: str) -> dict[str, object]:
 def _backup(path: Path) -> Path | None:
     if not path.exists():
         return None
-    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
     dst = path.with_suffix(f".{ts}.bak")
     shutil.copy2(path, dst)
     return dst

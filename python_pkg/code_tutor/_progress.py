@@ -115,7 +115,7 @@ def append_session_record(codebase: Path, record: LessonRecord) -> None:
     """
     sessions_dir = config_dir(codebase) / "sessions"
     sessions_dir.mkdir(parents=True, exist_ok=True)
-    today = datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()
+    today = datetime.datetime.now(tz=datetime.UTC).date().isoformat()
     log_file = sessions_dir / f"{today}.jsonl"
     line = json.dumps(asdict(record), ensure_ascii=False)
     with log_file.open("a", encoding="utf-8") as fh:

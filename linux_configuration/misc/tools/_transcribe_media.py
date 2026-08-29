@@ -43,7 +43,7 @@ def _probe_with_ffmpeg_python(
         fmt = probe.get("format", {})
         if "duration" in fmt:
             return float(fmt["duration"])
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         pass
     return None
 
@@ -126,7 +126,7 @@ def _ffmpeg_transcode_to_wav16_mono(
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         with contextlib.suppress(OSError):
             Path(tmp_path).unlink()
         return None

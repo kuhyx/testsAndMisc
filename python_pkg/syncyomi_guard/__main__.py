@@ -50,7 +50,7 @@ def _notify(title: str, body: str) -> None:
             check=False,
             timeout=10,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return
 
 

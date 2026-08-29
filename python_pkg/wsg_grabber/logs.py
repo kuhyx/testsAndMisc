@@ -21,7 +21,7 @@ under the same key.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import itertools
 import json
 import os
@@ -108,7 +108,7 @@ def start(level: str = "info", *, echo: bool = False) -> Path:
     stop()
     directory = logs_dir()
     directory.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%S")
+    stamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S")
     path = _free_path(directory, f"session-{stamp}-{os.getpid()}")
     with _SESSION.lock:
         _SESSION.sink = path.open("a", encoding="utf-8")
@@ -146,7 +146,7 @@ def event(name: str, level: str = "info", **fields: object) -> None:
     if _RANK.get(level, _RANK["info"]) < _SESSION.threshold:
         return
     record = {
-        "ts": datetime.now(tz=timezone.utc).isoformat(),
+        "ts": datetime.now(tz=UTC).isoformat(),
         "seq": next(_SESSION.counter),
         "level": level,
         "event": name,

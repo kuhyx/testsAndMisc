@@ -8,7 +8,7 @@ what lets an unchanged thread cost a 304 rather than a re-parse.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ def _now() -> str:
     Returns:
         str: Timestamp suitable for the index's text date columns.
     """
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def known_threads(conn: sqlite3.Connection) -> dict[int, int]:

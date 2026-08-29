@@ -9,7 +9,7 @@ time docker hiccuped, which is the bug the dedupe check exists to prevent.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import subprocess
 
 import pytest
@@ -43,8 +43,8 @@ def _db_returning(
 def test_parses_rows_into_utc() -> None:
     db = _db_returning(_proc(stdout="2026-08-22 23:51:05+02\n2026-08-19 19:10:06+02\n"))
     assert db.recent_start_times(1) == [
-        datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc),
-        datetime(2026, 8, 19, 17, 10, 6, tzinfo=timezone.utc),
+        datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC),
+        datetime(2026, 8, 19, 17, 10, 6, tzinfo=UTC),
     ]
 
 
@@ -76,9 +76,7 @@ def test_os_error_is_unknown() -> None:
 
 def test_unparseable_rows_are_dropped_not_fatal() -> None:
     db = _db_returning(_proc(stdout="not a timestamp\n2026-08-22 23:51:05+02\n\n"))
-    assert db.recent_start_times(1) == [
-        datetime(2026, 8, 22, 21, 51, 5, tzinfo=timezone.utc)
-    ]
+    assert db.recent_start_times(1) == [datetime(2026, 8, 22, 21, 51, 5, tzinfo=UTC)]
 
 
 def test_query_is_parameterised_and_user_id_coerced() -> None:

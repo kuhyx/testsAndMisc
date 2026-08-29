@@ -44,7 +44,7 @@ def read_lock_pid(store_dir: Path) -> int | None:
     try:
         first_line = lock_path.read_text(encoding="utf-8").strip().splitlines()[0]
         return int(first_line)
-    except (IndexError, OSError, ValueError):
+    except IndexError, OSError, ValueError:
         return None
 
 
@@ -75,7 +75,7 @@ def load_per_core() -> float:
     try:
         first_field = LOADAVG_PATH.read_text(encoding="utf-8").split(maxsplit=1)[0]
         load = float(first_field)
-    except (IndexError, OSError, ValueError):
+    except IndexError, OSError, ValueError:
         return 0.0
     return load / (os.cpu_count() or 1)
 

@@ -84,7 +84,7 @@ def _load_consumable_state() -> dict[str, int]:
             "last_printer_count": int(data.get("last_printer_count", 0)),
             "last_cups_total": int(data.get("last_cups_total", 0)),
         }
-    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+    except OSError, json.JSONDecodeError, ValueError, TypeError:
         return defaults
 
 

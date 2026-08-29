@@ -14,7 +14,7 @@ rejected" and "might have been committed" decides whether a retry is safe:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
@@ -177,14 +177,14 @@ def _parse_start(raw: object) -> datetime | None:
     if not isinstance(raw, str) or not raw:
         return None
     try:
-        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(raw)
     except ValueError:
         return None
     # Endurain returns local-offset timestamps; a naive value is read as UTC
     # so the comparison below never comes down to the reader's timezone.
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def already_present(start: datetime, known: list[datetime]) -> bool:

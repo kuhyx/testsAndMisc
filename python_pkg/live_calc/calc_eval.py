@@ -21,13 +21,13 @@ import operator
 import resource
 import signal
 import sys
-from typing import TYPE_CHECKING, NoReturn, TypeAlias
+from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from types import FrameType
 
-Number: TypeAlias = int | float
+type Number = int | float
 
 # Whitelisted callables, addressed by the name used in the expression.
 _FUNCTIONS: dict[str, Callable[..., Number]] = {

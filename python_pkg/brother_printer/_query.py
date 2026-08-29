@@ -36,7 +36,7 @@ def run_command_text(args: list[str], *, timeout: float = 5) -> str:
             timeout=timeout,
             check=False,
         )
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+    except subprocess.TimeoutExpired, subprocess.SubprocessError, OSError:
         logger.debug("Command failed: %s", args, exc_info=True)
         return ""
     return result.stdout

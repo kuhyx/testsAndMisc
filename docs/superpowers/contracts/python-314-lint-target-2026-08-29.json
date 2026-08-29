@@ -1,0 +1,18 @@
+{
+  "title": "Grade against 3.14, not just run on it",
+  "objective": "meta/pyproject.toml's ruff, mypy and pylint targets must name the same Python that requires-python and the CI pin already name (3.14), and the tree must be clean under those targets. Success is every lint, type and style gate passing at py314 with no suppressions added.",
+  "acceptance_criteria": [
+    "meta/pyproject.toml has target-version = \"py314\", python_version = \"3.14\" and py-version = \"3.14\"",
+    "pre-commit run ruff --all-files passes",
+    "pre-commit run ruff-format --all-files passes",
+    "pre-commit run mypy --all-files passes",
+    "pre-commit run pylint --all-files passes",
+    "No noqa, type: ignore or per-file-ignores were added"
+  ],
+  "out_of_scope": [
+    "Dependency version pins (handled by the separate freshness gate and its own commit)",
+    "CI workflow files, which already pin python-version 3.x",
+    "app/ and web/ subtrees, which are not Python"
+  ],
+  "verifier": "pre-commit run --all-files (ruff, ruff-format, mypy, pylint), plus the repo's CI mirror on push"
+}

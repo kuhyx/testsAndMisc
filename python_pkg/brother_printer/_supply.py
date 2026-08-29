@@ -80,7 +80,7 @@ def _parse_supply_value(values: list[str], index: int) -> int:
     """Safely parse an integer from a supply value list."""
     try:
         return int(values[index])
-    except (IndexError, ValueError):
+    except IndexError, ValueError:
         return 0
 
 

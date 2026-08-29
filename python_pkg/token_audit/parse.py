@@ -45,7 +45,7 @@ def _load_line(line: str) -> dict[str, Any] | None:
     """Parse one JSONL line, returning ``None`` if it is not a usable record."""
     try:
         record = json.loads(line)
-    except (ValueError, UnicodeDecodeError):
+    except ValueError, UnicodeDecodeError:
         return None
     return record if isinstance(record, dict) else None
 

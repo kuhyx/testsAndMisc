@@ -9,9 +9,8 @@ declaration instead of branching logic scattered through the gates.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
 import tomllib
+from typing import TYPE_CHECKING, Any
 
 from python_pkg.artgate.codes import DECLARABLE, RESULT_ONLY, Code
 

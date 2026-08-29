@@ -104,7 +104,7 @@ def load_baseline(state_dir: Path) -> PayloadStats | None:
             chapters=int(raw["chapters"]),
             sources=int(raw["sources"]),
         )
-    except (OSError, ValueError, KeyError, TypeError):
+    except OSError, ValueError, KeyError, TypeError:
         return None
 
 

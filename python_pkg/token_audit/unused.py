@@ -66,7 +66,7 @@ def mcp_usage(config: Path | None = None) -> list[Usage]:
     config = config or Path.home() / ".claude.json"
     try:
         names = list(json.loads(config.read_text()).get("mcpServers", {}))
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return []
     return usage_for(names, _MCP_CALL)
 

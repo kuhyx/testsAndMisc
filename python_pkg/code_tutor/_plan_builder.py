@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -135,7 +135,7 @@ def build_plan(
 
     return {
         "codebase_path": str(codebase.resolve()),
-        "created_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
+        "created_at": datetime.now(tz=UTC).isoformat(timespec="seconds"),
         "total_items": len(ordered),
         "source_fingerprint": codebase_fingerprint(codebase),
         "sessions": sessions,

@@ -2,7 +2,7 @@
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import logging
 from pathlib import Path
 import secrets
@@ -143,7 +143,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Create folder named after the current timestamp
-    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     folder = f"generated_images_{timestamp}"
 
     # Display used parameters

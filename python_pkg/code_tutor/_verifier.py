@@ -5,7 +5,7 @@ The LLM explanation is NEVER shown before the user attempts to explain.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import time
 from typing import TYPE_CHECKING
 
@@ -139,7 +139,7 @@ class Verifier:
             ``"struggled"``, or ``"skipped"``.
         """
         snippet = _read_snippet(item, codebase_path)
-        timestamp = datetime.now(tz=timezone.utc).isoformat(timespec="seconds")
+        timestamp = datetime.now(tz=UTC).isoformat(timespec="seconds")
         lines_str = f"{item.start_line}-{item.end_line}"
         title = f"{item.file}  lines {lines_str}"
 

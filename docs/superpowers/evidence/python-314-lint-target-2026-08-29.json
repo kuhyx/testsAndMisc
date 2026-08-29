@@ -1,0 +1,44 @@
+{
+  "intent": "Make ruff, mypy and pylint grade this repo against the same Python the code actually runs on, so the fleet's 'exactly one Python, always the newest' decision holds for the graders and not just for CI.",
+  "scope": [
+    "meta/pyproject.toml: ruff target-version, mypy python_version, pylint py-version",
+    "python_pkg/**: the source rewrites those three knobs then required",
+    "Non-goal: dependency pins, CI workflow files, and anything under app/ or web/"
+  ],
+  "changes": [
+    "pin_ci_python.py rewrote target-version py310 -> py314, python_version 3.10 -> 3.14 and py-version 3.10 -> 3.14 in meta/pyproject.toml",
+    "ruff --fix applied UP017 (datetime.timezone.utc -> datetime.UTC) across the tree",
+    "ruff-format applied PEP 758 in its stable style: except (A, B): becomes except A, B:",
+    "Deleted a comment in python_pkg/wsg_grabber/models.py that justified avoiding StrEnum under mypy at 3.10, directly above a class Verdict(StrEnum) that had already stopped obeying it"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run ruff --all-files",
+      "result": "pass",
+      "evidence": "ruff (legacy alias) Passed"
+    },
+    {
+      "command": "pre-commit run ruff-format --all-files",
+      "result": "pass",
+      "evidence": "ruff format Passed"
+    },
+    {
+      "command": "pre-commit run mypy --all-files",
+      "result": "pass",
+      "evidence": "mypy Passed"
+    },
+    {
+      "command": "pre-commit run pylint --all-files",
+      "result": "pass",
+      "evidence": "pylint Passed"
+    }
+  ],
+  "risks": [
+    "PEP 758 makes the source a SyntaxError on 3.13 and older, and except A, B: is visually identical to the Python 2 except E, name: idiom that meant something entirely different. requires-python already said >=3.14; kuhy chose this over holding ruff a release back on 2026-08-29.",
+    "A future ruff release could add further target-gated formatter changes; the same three knobs are where that would surface."
+  ],
+  "rollback": [
+    "git revert the commit: the three knobs and the source rewrites move together, so reverting restores a self-consistent py310 target.",
+    "After rollback, re-run pre-commit run --all-files; ruff at py310 will not reintroduce the UP017 or PEP 758 forms."
+  ]
+}

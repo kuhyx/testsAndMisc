@@ -32,7 +32,7 @@ def _run(args: list[str]) -> str:
             timeout=10,
             check=False,
         )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired, FileNotFoundError:
         return ""
     return proc.stdout.strip()
 

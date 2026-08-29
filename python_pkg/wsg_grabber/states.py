@@ -8,7 +8,7 @@ run forever.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 from python_pkg.wsg_grabber.constants import MAX_ATTEMPTS
@@ -17,7 +17,7 @@ from python_pkg.wsg_grabber.constants import MAX_ATTEMPTS
 # and would collapse to ``Any``, disabling checking on every member below.
 
 
-class FileState(str, Enum):
+class FileState(StrEnum):
     """Where a file is in its lifecycle."""
 
     NEW = "new"
@@ -30,7 +30,7 @@ class FileState(str, Enum):
     GONE = "gone"
 
 
-class FileEvent(str, Enum):
+class FileEvent(StrEnum):
     """Something that happened to a file."""
 
     CLAIMED = "claimed"

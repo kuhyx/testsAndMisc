@@ -170,6 +170,6 @@ def _check_plan_file(plan_file: Path, file: Path) -> Path | None:
         data = json.loads(plan_file.read_text(encoding="utf-8"))
         codebase = Path(str(data.get("codebase_path", "")))
         file.relative_to(codebase)
-    except (ValueError, KeyError, OSError):
+    except ValueError, KeyError, OSError:
         return None
     return codebase

@@ -52,7 +52,7 @@ def _json_field_bytes(path: Path, field: str) -> int:
         return 0
     try:
         data = json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return 0
     if field not in data:
         return 0
@@ -75,7 +75,7 @@ def _mcp_names(path: Path, field: str = "mcpServers") -> list[str]:
         return []
     try:
         return sorted(json.loads(path.read_text()).get(field, {}))
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return []
 
 
@@ -85,7 +85,7 @@ def _enabled_plugins() -> list[str]:
         return []
     try:
         plugins = json.loads(SETTINGS.read_text()).get("enabledPlugins", {})
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return []
     return sorted(name for name, on in plugins.items() if on)
 

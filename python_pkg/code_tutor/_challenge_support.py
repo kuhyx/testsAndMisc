@@ -107,7 +107,7 @@ def _show_test_panels(
         try:
             source = test_file.read_text(encoding="utf-8", errors="replace")
             tree = ast.parse(source)
-        except (OSError, SyntaxError):
+        except OSError, SyntaxError:
             continue
         src_lines = source.splitlines()
         func_names = {nid.split("::")[-1] for nid in node_ids}
@@ -195,7 +195,7 @@ def _extract_signature_block(item: CodeItem, codebase_path: str) -> str:
     try:
         source = path.read_text(encoding="utf-8", errors="replace")
         tree = ast.parse(source)
-    except (OSError, SyntaxError):
+    except OSError, SyntaxError:
         return f"def {item.name}(...):"
 
     lines = source.splitlines()

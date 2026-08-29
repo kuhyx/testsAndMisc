@@ -11,7 +11,7 @@ requires-python = ">=3.14"
 # RUFF - Extremely fast Python linter and formatter (written in Rust)
 # ============================================================================
 [tool.ruff]
-target-version = "py310"
+target-version = "py314"
 # Include all Python files
 include = ["*.py", "**/*.py"]
 # Exclude vendored/build directories
@@ -112,7 +112,7 @@ docstring-code-format = true
 # MYPY - Static type checker (most aggressive settings)
 # ============================================================================
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.14"
 # Strict mode enables most checks
 strict = true
 # Additional aggressive settings
@@ -181,7 +181,7 @@ persistent = true
 # Jobs to use for parallel execution (0 = auto)
 jobs = 0
 # Minimum Python version
-py-version = "3.10"
+py-version = "3.14"
 # Ignore vendored directories. "tests" and "conftest.py" are basename
 # matches: test suites and pytest fixtures intentionally use patterns
 # (protected-access, missing docstrings, fixture-arg shadowing) that don't

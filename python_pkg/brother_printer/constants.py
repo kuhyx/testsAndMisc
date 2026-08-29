@@ -211,7 +211,7 @@ def get_status_info(code: str) -> tuple[str, str, str]:
         return derived
     try:
         numeric = int(code)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return _unknown_status(code)
     exact = BROTHER_STATUS_CODES.get(numeric)
     if exact is not None:

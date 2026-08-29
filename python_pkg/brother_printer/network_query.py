@@ -33,7 +33,7 @@ def snmp_walk(ip: str, oid: str, community: str, timeout: int) -> list[str]:
             for line in r.stdout.strip().splitlines()
             if line.strip()
         ]
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+    except subprocess.TimeoutExpired, subprocess.SubprocessError, OSError:
         return []
 
 
@@ -62,7 +62,7 @@ def _check_snmp_connectivity(ip: str, community: str, timeout: int) -> str | Non
             timeout=10,
             check=True,
         )
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
+    except subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError:
         return f"Cannot reach printer at {ip} via SNMP."
     return None
 
