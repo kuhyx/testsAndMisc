@@ -1,27 +1,21 @@
-"""Orchestrate the morning wake/workout flow as one sequential routine.
+"""Run the morning workout lock, started at the phone's alarm time.
 
-The wake alarm (``wake_alarm``, https://github.com/kuhyx/wake-alarm) and the
-workout screen lock (``screen_locker``, https://github.com/kuhyx/screen-locker)
-used to run as two independent ``graphical-session.target`` user services,
-each opening its own fullscreen ``-topmost`` Tk window. On a wake morning they
-could grab the screen at the same time, so the alarm could end up hidden
-behind the workout lock (or vice versa).
+This used to sequence two fullscreen Tk windows: the PC wake alarm first, then
+the workout screen lock. The PC no longer wakes anyone -- the phone does, and
+`wake_alarm._alarm` has been deleted -- so there is only one leg left and no
+collision left to prevent.
 
-This orchestrator makes them one coherent flow by running them as **sequential
-subprocesses**: the alarm runs first and owns the fullscreen until it is
-dismissed, then the workout lock runs. Only one fullscreen window is ever alive
-at a time, so they can never collide. Each subprocess still self-gates (the
-alarm only fires on alarm days when undismissed; the lock exits if a skip was
-earned or the workout is already logged), so this is safe to run on every wake.
+What still points here: `wake-alarm-trigger.timer` ticks every minute and
+starts `morning-routine.service` at the synced alarm time
+(`wake_alarm._constants.TRIGGER_TARGET_UNIT`). Keeping this indirection means
+that unit name stays true, and the workout lock keeps its own gates.
 
-Both ``wake_alarm`` and ``screen_locker`` are pip-installed into system
-Python's user site-packages (each repo's own install.sh does this), so
-``python -m <module>`` resolves them with no extra ``PYTHONPATH``/``cwd``
-plumbing here.
+``screen_locker`` is pip-installed into system Python's user site-packages by
+its own install.sh, so ``python -m <module>`` resolves it with no extra
+``PYTHONPATH``/``cwd`` plumbing here.
 
 Usage:
-    python -m python_pkg.morning_routine._orchestrator --with-alarm  # resume
-    python -m python_pkg.morning_routine._orchestrator               # lock only
+    python -m python_pkg.morning_routine._orchestrator
 """
 
 from __future__ import annotations
@@ -36,7 +30,6 @@ from python_pkg.shared.logging_setup import configure_logging
 _logger = logging.getLogger(__name__)
 
 # Modules invoked as ``python -m <module> --production``.
-ALARM_MODULE: str = "wake_alarm._alarm"
 WORKOUT_LOCK_MODULE: str = "screen_locker.screen_lock"
 
 
@@ -59,11 +52,6 @@ def _run_module(module: str) -> int:
     return result.returncode
 
 
-def _run_alarm() -> int:
-    """Run the wake alarm and block until it is dismissed (or self-exits)."""
-    return _run_module(ALARM_MODULE)
-
-
 def _run_workout_lock() -> int:
     """Run the workout screen lock after the alarm has been dealt with."""
     return _run_module(WORKOUT_LOCK_MODULE)
@@ -73,11 +61,6 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse CLI arguments for the orchestrator."""
     parser = argparse.ArgumentParser(description="Unified morning routine.")
     parser.add_argument(
-        "--with-alarm",
-        action="store_true",
-        help="Run the wake alarm before the workout lock (used on resume).",
-    )
-    parser.add_argument(
         "--production",
         action="store_true",
         help="Production mode (kept for systemd/CLI symmetry).",
@@ -86,14 +69,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main() -> None:
-    """Entry point: optionally run the alarm, then always run the workout lock."""
+    """Entry point: run the workout lock."""
     configure_logging()
-    args = _parse_args(sys.argv[1:])
-    # Alarm first so it owns the fullscreen and escalates until dismissed; only
-    # then hand off to the workout lock. Running them in this order in a single
-    # process guarantees they never fight for the screen.
-    if args.with_alarm:
-        _run_alarm()
+    _parse_args(sys.argv[1:])
     _run_workout_lock()
 
 

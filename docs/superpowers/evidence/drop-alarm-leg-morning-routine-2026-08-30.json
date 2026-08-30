@@ -1,0 +1,43 @@
+{
+  "intent": "Keep the morning workout lock running after the PC's wake alarm was deleted upstream, by removing the orchestrator's now-dangling alarm leg in the same change.",
+  "scope": [
+    "python_pkg/morning_routine/_orchestrator.py",
+    "python_pkg/morning_routine/morning-routine.service",
+    "python_pkg/morning_routine/install.sh",
+    "python_pkg/morning_routine/tests/test_orchestrator.py",
+    "Non-goal: any change to screen_locker or to the workout lock itself",
+    "Non-goal: removing the orchestrator, which wake_alarm's TRIGGER_TARGET_UNIT still names"
+  ],
+  "changes": [
+    "Removed ALARM_MODULE, _run_alarm() and the --with-alarm flag; main() now runs only the workout lock. wake_alarm._alarm no longer exists after kuhyx/wake-alarm retired the PC's waking role.",
+    "morning-routine.service drops --with-alarm; its Description and comments now name wake-alarm-trigger.timer as what starts it, instead of the deleted systemd-sleep hook. Environment=DISPLAY=:0 kept, because workout-locker.service needs it even though the comment credited it to the alarm's Tk window.",
+    "install.sh header no longer promises rtcwake/python-kasa/sleep-hook prerequisites that upstream no longer installs.",
+    "Bumped hypothesis 6.165.10 -> 6.167.0 in meta/requirements.txt to clear a pre-existing red dependency-freshness baseline on main, unrelated to this change but blocking the commit."
+  ],
+  "verification": [
+    {
+      "command": "/usr/bin/python3 -m pytest python_pkg/morning_routine/tests/ -q",
+      "result": "pass",
+      "evidence": "7 passed. Alarm-leg tests replaced by test_main_runs_the_workout_lock and test_production_flag_is_still_accepted (systemd passes --production)."
+    },
+    {
+      "command": "shellcheck python_pkg/morning_routine/install.sh",
+      "result": "pass",
+      "evidence": "clean"
+    },
+    {
+      "command": "grep -rn 'with-alarm|ALARM_MODULE|_run_alarm' python_pkg/morning_routine/",
+      "result": "pass",
+      "evidence": "no matches; the flag is gone from source, unit file, installer and tests together"
+    }
+  ],
+  "risks": [
+    "The installed ~/.config/systemd/user/morning-routine.service is a copy, not a symlink, so it keeps the old --with-alarm ExecStart until install.sh is re-run. Until then the orchestrator receives an unknown flag and argparse exits 2, so the workout lock would not run.",
+    "This is the exact failure class the change exists to prevent: on 2026-05-28 a stale module reference here left the workout lock dying with ModuleNotFoundError for a month while the alarm half kept working and hid it."
+  ],
+  "rollback": [
+    "git revert the commit, then re-run bash python_pkg/morning_routine/install.sh to restore the unit file.",
+    "Rollback is only safe together with reverting kuhyx/wake-alarm's deletion commit: restoring --with-alarm while wake_alarm._alarm is absent reintroduces the dangling reference.",
+    "After rollback: systemctl --user cat morning-routine.service and confirm the ExecStart matches the repo copy."
+  ]
+}
