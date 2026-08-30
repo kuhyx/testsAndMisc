@@ -1,0 +1,73 @@
+{
+  "intent": "A drift check that nobody runs is not a check. Install systemd units that run `setup_wireguard_ssh.sh verify` at every boot and daily, so a stale /etc/nftables.conf fails a unit instead of waiting to be noticed after every bridged container has silently lost the internet.",
+  "scope": [
+    "linux_configuration/features/lib/wg_verify_units.sh",
+    "linux_configuration/features/setup_wireguard_ssh.sh",
+    "linux_configuration/features/lib/wg_sshd.sh",
+    "linux_configuration/features/lib/tests/test_wg_verify_units.sh",
+    "Non-goal: changing the ruleset or the two invariants verify_nft already gates on",
+    "Non-goal: notifications; a failed unit in `systemctl --failed` is the gate",
+    "meta/requirements.txt (unrelated baseline fix, see changes)"
+  ],
+  "changes": [
+    "New lib wg_verify_units.sh splits rendering from installing, the same way render/write_nftables_ruleset already do, so the generated unit CONTENT is assertable without a daemon-reload.",
+    "nftables-drift.service is Type=oneshot, After=nftables.service docker.service network-online.target. network-online.target is load-bearing: detect_lan_subnet shells out to `ip route get 1.1.1.1` and dies when there is no route, which at boot would be indistinguishable from real drift.",
+    "Deliberately NOT Requires=nftables.service: a dead nftables.service means the ruleset is not loaded at all, the most serious version of the fault, and the unit must run and fail rather than be skipped as unsatisfiable.",
+    "ProtectSystem=strict + ProtectHome=read-only: verify only reads, and the saved LAN_SUBNET lives in the repo under $HOME, where a root-owned rewrite would lock the non-root subcommands out of their own config. The unit makes that write impossible instead of merely unlikely.",
+    "ExecStart points at the repo checkout, not a copy under /usr/local/bin: the check is 'does /etc match what THIS repo generates', and a stale copy of a drift detector agrees with the drift.",
+    "The units are installed by `setup`, by `allow-web` and `allow-dns` (the commands that regenerate /etc/nftables.conf, so exactly when the check must exist), and by a new `install-verify` subcommand for retrofitting an existing machine.",
+    "Bumped the gatelock pin gattag v0.7.2 -> v0.7.3 in meta/requirements.txt to clear a pre-existing red dependency-freshness baseline on main, unrelated to this change but blocking the commit via the ci-baseline-green hook."
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/features/lib/tests/test_wg_verify_units.sh",
+      "result": "pass",
+      "evidence": "12 passed, 0 failed. Asserts ExecStart, Type=oneshot, all three After= orderings, the absence of Requires=, both Protect* settings, WantedBy=multi-user.target, and the timer's Unit=/Persistent=/WantedBy=."
+    },
+    {
+      "command": "meta/scripts/shell_coverage_jail.sh --subject linux_configuration/features/lib/tests/run_all.sh $(cat .../jail_args) --min 0 --fail-on-case-error -- ''",
+      "result": "pass",
+      "evidence": "The whole features/lib suite passes under the jail with the new file added; exit 0, no FAIL lines. Same invocation meta/scripts/ci_mirror_shell.sh uses pre-push."
+    },
+    {
+      "command": "vm run nftdrift 'sudo setup_wireguard_ssh.sh install-verify' then a reboot with /etc/nftables.conf drifted",
+      "result": "pass",
+      "evidence": "Boot-time run FAILED as required: `systemctl is-failed` -> failed; `systemctl --failed` lists it; the journal carries the unified diff of the removed `iifname \"docker0\" accept` line AND '[ERROR] live forward chain does NOT accept docker0 -- bridged containers have no network.' Both invariants fired."
+    },
+    {
+      "command": "vm run nftdrift 'sudo setup_wireguard_ssh.sh allow-web' then a second reboot",
+      "result": "pass",
+      "evidence": "No false positive: unit active, journal shows '[ OK ] /etc/nftables.conf matches what this script generates.' and '[ OK ] live forward chain lets Docker through.'; systemctl --failed count for it is 0; timer armed for 00:00."
+    },
+    {
+      "command": "sudo linux_configuration/features/setup_wireguard_ssh.sh install-verify && sudo systemctl start nftables-drift.service (host)",
+      "result": "pass",
+      "evidence": "Installed and enabled on the real machine; the run is green on both invariants and nftables-drift.timer is listed for Mon 2026-08-31 00:00:00 CEST. Not yet observed across a real host reboot -- that was proven in vmbox."
+    },
+    {
+      "command": "shellcheck -x --severity=style on every changed shell file",
+      "result": "pass",
+      "evidence": "clean"
+    },
+    {
+      "command": "systemd-analyze verify on the rendered units",
+      "result": "pass",
+      "evidence": "No findings for either unit; the only output was pre-existing noise about unrelated host units."
+    },
+    {
+      "command": "git ls-remote --tags https://github.com/kuhyx/utils | grep gatelock",
+      "result": "pass",
+      "evidence": "gatelock-v0.7.3 is the newest tag; the pin now names it, which is what the freshness gate compares against."
+    }
+  ],
+  "risks": [
+    "ExecStart hardcodes the repo path resolved at install time. Moving or renaming the checkout leaves the unit failing at every boot -- loudly, which is the correct direction, but it is a failure about the unit rather than about the firewall.",
+    "The host installation has not yet survived a real reboot; only the vmbox guest has. The first real reboot is the true test, and a false positive there would show as a failed unit rather than as a network outage.",
+    "allow-web/allow-dns now also (re)install the units, so those commands touch /etc/systemd/system where they previously did not."
+  ],
+  "rollback": [
+    "sudo systemctl disable --now nftables-drift.timer && sudo systemctl disable nftables-drift.service",
+    "sudo rm /etc/systemd/system/nftables-drift.{service,timer} && sudo systemctl daemon-reload",
+    "git revert the commit. After rollback: confirm `systemctl list-unit-files nftables-drift.*` reports nothing, and remember that `setup_wireguard_ssh.sh verify` is once again a check nobody runs."
+  ]
+}

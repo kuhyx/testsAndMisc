@@ -229,6 +229,8 @@ Commands:
   allow-dns        Open udp/tcp 53 from the LAN in the firewall (for the DNS blocker on this host).
   verify           Check /etc/nftables.conf matches this script and that
                    the live forward chain still lets Docker through.
+  install-verify   Install the units that run 'verify' at every boot, so
+                   drift fails a unit instead of waiting to be noticed.
   status           Show WireGuard/firewall/sshd status.
   revoke <name>    Remove a peer.
   help             Show this message.

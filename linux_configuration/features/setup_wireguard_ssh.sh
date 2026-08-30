@@ -81,6 +81,8 @@ source "$SCRIPT_DIR/lib/wg_keys.sh"
 source "$SCRIPT_DIR/lib/wg_firewall.sh"
 # shellcheck source=lib/wg_sshd.sh
 source "$SCRIPT_DIR/lib/wg_sshd.sh"
+# shellcheck source=lib/wg_verify_units.sh
+source "$SCRIPT_DIR/lib/wg_verify_units.sh"
 
 main() {
 	local cmd="${1:-help}"
@@ -89,7 +91,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web | allow-dns | verify)
+	setup | add-peer | revoke | allow-web | allow-dns | verify | install-verify)
 		require_root "$@"
 		;;
 	esac
@@ -103,6 +105,7 @@ main() {
 		enable_wg_service
 		write_nftables_ruleset
 		verify_nftables_then_apply
+		install_verify_units
 		harden_sshd
 		setup_duckdns
 		print_router_instructions
@@ -115,12 +118,21 @@ main() {
 		;;
 	allow-web)
 		allow_web
+		# Re-armed on every apply: this is the command that regenerates
+		# /etc/nftables.conf, so it is exactly when the drift check must
+		# exist. Leaving it to a separate step people must remember is the
+		# gap that let the same outage happen twice.
+		install_verify_units
 		;;
 	allow-dns)
 		allow_dns
+		install_verify_units
 		;;
 	verify)
 		verify_nft
+		;;
+	install-verify)
+		install_verify_units
 		;;
 	status)
 		status_cmd
