@@ -227,6 +227,8 @@ Commands:
   add-peer <name>  Provision a new phone/laptop and print its QR code.
   allow-web        Open tcp/80 and tcp/443 in the firewall (for a web server on this host).
   allow-dns        Open udp/tcp 53 from the LAN in the firewall (for the DNS blocker on this host).
+  verify           Check /etc/nftables.conf matches this script and that
+                   the live forward chain still lets Docker through.
   status           Show WireGuard/firewall/sshd status.
   revoke <name>    Remove a peer.
   help             Show this message.

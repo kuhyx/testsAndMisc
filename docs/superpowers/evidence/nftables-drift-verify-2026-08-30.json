@@ -1,0 +1,40 @@
+{
+  "intent": "Make the Docker cut-off caused by a stale /etc/nftables.conf detectable instead of silent. The 2026-08-29 fix landed in wg_firewall.sh but was only ever hand-applied to the live ruleset; /etc/nftables.conf kept the bare default-drop forward chain, so the 2026-08-30 reboot reloaded it and cut every bridged container off again. Nothing compared the generated ruleset with the persisted one, so the regression was invisible until the Signal bot went deaf for a second time.",
+  "scope": [
+    "linux_configuration/features/lib/wg_firewall.sh (split render_nftables_ruleset out of write_nftables_ruleset; add verify_nft)",
+    "linux_configuration/features/setup_wireguard_ssh.sh (new 'verify' subcommand, added to the require_root list)",
+    "linux_configuration/features/lib/wg_sshd.sh (usage text only)",
+    "Non-goal: no change to the generated ruleset itself — the forward-chain fix from 334c0cd9 is unchanged",
+    "Non-goal: no change to the input chain, WireGuard, sshd hardening or DuckDNS"
+  ],
+  "changes": [
+    "render_nftables_ruleset(target) is split out of write_nftables_ruleset so the ruleset can be regenerated into a scratch file with no backup and no side effects; write_nftables_ruleset keeps the backup and delegates to it",
+    "verify_nft() gates on two invariants and exits non-zero: (1) /etc/nftables.conf is byte-identical to what the script generates, printing a unified diff when it is not, and (2) the LIVE 'inet filter forward' chain still contains 'iifname \"docker0\" accept'. It names the exact re-apply command on failure",
+    "'verify' wired into main() and into usage; it needs root because 'nft list chain' does"
+  ],
+  "verification": [
+    {
+      "command": "sudo setup_wireguard_ssh.sh verify (on the live host, before re-applying)",
+      "result": "pass",
+      "evidence": "Exits non-zero and reports both failures on the currently-broken host: '/etc/nftables.conf has DRIFTED from this script' with a diff showing exactly the missing forward-chain block (ct established,related + docker0/br-* accepts), and 'live forward chain does NOT accept docker0'. This is the regression reproducing, which is what the gate is for."
+    },
+    {
+      "command": "diff of rendered output vs /etc/nftables.conf",
+      "result": "pass",
+      "evidence": "The only difference is the intended forward-chain block; the input and output chains, DHCP/DNS/web rules and LAN subnet render byte-identical. Confirms the render/write refactor did not change the generated ruleset."
+    },
+    {
+      "command": "shellcheck -x --severity=style linux_configuration/features/setup_wireguard_ssh.sh",
+      "result": "pass",
+      "evidence": "exit 0, no findings (follows the sourced libs)"
+    }
+  ],
+  "risks": [
+    "verify_nft needs root for 'nft list chain'; run without sudo it reports the live-chain check as failed rather than as unknown",
+    "The drift check is byte-exact, so an intentional hand-edit of /etc/nftables.conf will be reported as drift — which is the intended behaviour, but means the fix is always 're-run allow-web', never 'edit the file'"
+  ],
+  "rollback": [
+    "git revert this commit; write_nftables_ruleset keeps working because render_nftables_ruleset is only a refactor of its body",
+    "After rollback, re-run 'sudo setup_wireguard_ssh.sh allow-web' if /etc/nftables.conf is still stale, and confirm with: docker run --rm --network bridge redis:8-alpine sh -c 'nc -w4 -z 1.1.1.1 443 && echo OK'"
+  ]
+}

@@ -82,7 +82,6 @@ source "$SCRIPT_DIR/lib/wg_firewall.sh"
 # shellcheck source=lib/wg_sshd.sh
 source "$SCRIPT_DIR/lib/wg_sshd.sh"
 
-
 main() {
 	local cmd="${1:-help}"
 
@@ -90,7 +89,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web | allow-dns)
+	setup | add-peer | revoke | allow-web | allow-dns | verify)
 		require_root "$@"
 		;;
 	esac
@@ -119,6 +118,9 @@ main() {
 		;;
 	allow-dns)
 		allow_dns
+		;;
+	verify)
+		verify_nft
 		;;
 	status)
 		status_cmd
