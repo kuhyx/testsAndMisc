@@ -13,5 +13,5 @@
     "Notifications: a failed unit is the gate; notify-send from a root system unit is not.",
     "Section 1 of the handoff (signal-bot boot resilience), which shipped separately in kuhyx/signal-bot."
   ],
-  "verifier": "linux_configuration/features/lib/tests/test_wg_verify_units.sh under meta/scripts/shell_coverage_jail.sh; plus two real reboots in ~/utils/vmbox (drifted -> failed unit, clean -> active unit) and a live run on the host."
+  "verifier": "linux_configuration/features/lib/tests/test_wg_verify_units.sh under meta/scripts/shell_coverage_jail.sh; plus two real reboots in ~/src/utils/vmbox (drifted -> failed unit, clean -> active unit) and a live run on the host."
 }

@@ -39,8 +39,8 @@ systemctl status hosts-guard.path hosts-bind-mount.service
 sudo /usr/local/sbin/unlock-hosts
 
 # Reinstall/repair
-sudo ~/linux-configuration/hosts/install.sh
-sudo ~/linux-configuration/hosts/guard/setup_hosts_guard.sh
+sudo ~/src/hosts-blocker/install.sh
+sudo ~/src/hosts-blocker/guard/setup_hosts_guard.sh
 ````
 
 ## DO NOT

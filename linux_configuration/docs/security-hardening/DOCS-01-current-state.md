@@ -57,7 +57,7 @@
 
 ### 3. Screen Locker (Python - External Repo)
 
-**File:** `/home/kuhy/testsAndMisc/python_pkg/screen_locker/screen_lock.py`
+**File:** `/home/kuhy/src/testsAndMisc/python_pkg/screen_locker/screen_lock.py`
 
 **Current Workout Types:**
 

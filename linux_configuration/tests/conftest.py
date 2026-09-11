@@ -24,6 +24,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT_DIRS = (
     _REPO_ROOT / "meta" / "scripts",  # validate_evidence, validate_contract
     _REPO_ROOT / "linux_configuration" / "utils",  # fast_count
+    _REPO_ROOT / "linux_configuration" / "fixes",  # g29_shifter_capture
     _REPO_ROOT
     / "linux_configuration"
     / "misc"

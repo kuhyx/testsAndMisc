@@ -167,7 +167,7 @@ LIMITATION (needs fix):
 
 You are an expert on the screen_lock.py workout locker. You understand:
 
-FILE LOCATION: ~/testsAndMisc/python_pkg/screen_locker/screen_lock.py (1261 lines)
+FILE LOCATION: ~/src/testsAndMisc/python_pkg/screen_locker/screen_lock.py (1261 lines)
 
 PURPOSE:
 

@@ -24,7 +24,7 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
 ## Core workflows (what to run)
 
 - Fresh machine: run from repo root
-  - `fresh-install/main.sh` (bootstraps configs, GPU, hosts, i3, pacman wrapper, services). It assumes the repo is at `~/linux-configuration` in some steps.
+  - `fresh-install/main.sh` (bootstraps configs, GPU, hosts, i3, pacman wrapper, services). It assumes the repo is at `~/src/testsAndMisc/linux_configuration` in some steps.
 - Periodic services: `sudo periodic_background/setup_periodic_system.sh` (installs timer, startup service, hosts monitor, and browser pre-exec wrapper; then performs an initial run).
 - Pacman wrapper only: `sudo periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh` (backs up pacman and wires the wrapper). The wrapper auto-runs hosts-guard pre/post hooks and can self-setup periodic services when missing.
 - Hosts guard:
@@ -66,4 +66,4 @@ For in-depth understanding of specific components, see these dedicated guides:
 | Midnight Shutdown | Auto-shutdown at night        | `periodic_background/digital_wellbeing/setup_midnight_shutdown.sh`  |
 | Compulsive Block  | Limit app launches            | `periodic_background/digital_wellbeing/block_compulsive_opening.sh` |
 | Music Wrapper     | Block music during focus      | `periodic_background/digital_wellbeing/youtube-music-wrapper.sh`    |
-| Screen Locker     | Require workout to unlock     | External: `~/testsAndMisc/python_pkg/screen_locker/`                |
+| Screen Locker     | Require workout to unlock     | External: `~/src/testsAndMisc/python_pkg/screen_locker/`                |

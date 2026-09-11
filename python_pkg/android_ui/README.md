@@ -1,7 +1,7 @@
 # android_ui — drive Android apps by element, never by coordinates
 
-Shared across every repo with an Android surface (`~/screen-locker`'s
-workout_app, `~/todo`, `~/dufs-cloud/app`). Works against a plain release APK
+Shared across every repo with an Android surface (`~/src/screen-locker`'s
+workout_app, `~/src/todo`, `~/src/dufs-cloud/app`). Works against a plain release APK
 on a physical device over `adb` — no root, no emulator, no Flutter debug
 connection, no change to app source.
 
@@ -31,7 +31,7 @@ false results before they were understood:
 ## Use
 
 ```bash
-export PYTHONPATH=~/testsAndMisc
+export PYTHONPATH=~/src/testsAndMisc
 python3 -m python_pkg.android_ui dump
 python3 -m python_pkg.android_ui find "Connect Firebase"
 python3 -m python_pkg.android_ui --exact tap "Back"

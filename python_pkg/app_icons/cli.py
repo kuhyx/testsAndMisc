@@ -1,9 +1,9 @@
 """Command-line entry point for the shared app-icon generator.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python -m python_pkg.app_icons list
-    PYTHONPATH=~/testsAndMisc python -m python_pkg.app_icons preview -o sheet.png
-    PYTHONPATH=~/testsAndMisc python -m python_pkg.app_icons generate --app todo
+    PYTHONPATH=~/src/testsAndMisc python -m python_pkg.app_icons list
+    PYTHONPATH=~/src/testsAndMisc python -m python_pkg.app_icons preview -o sheet.png
+    PYTHONPATH=~/src/testsAndMisc python -m python_pkg.app_icons generate --app todo
 """
 
 from __future__ import annotations

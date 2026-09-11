@@ -34,7 +34,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 readonly GITEA_DOMAIN="gitea.kuhy.duckdns.org"
 readonly GITEA_ADMIN_USER="kuhyx"
 readonly GITEA_ADMIN_EMAIL="krzysztofrudnicki0@gmail.com"
-readonly GITEA_DATA_DIR="${HOME}/gitea"
+readonly GITEA_DATA_DIR="${HOME}/services/gitea"
 readonly COMPOSE_FILE="${GITEA_DATA_DIR}/docker-compose.yml"
 readonly CADDYFILE="${GITEA_DATA_DIR}/Caddyfile"
 # Per-service Caddy site blocks live here as individual *.caddy snippets so

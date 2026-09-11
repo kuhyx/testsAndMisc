@@ -6,10 +6,10 @@
     "python_pkg/app_icons/_glyph_art_more.py - the glyph's SVG fragment",
     "Non-goal: no new accent. The family accent #B8862E is shared; apps are distinguished by glyph shape only.",
     "Non-goal: no change to the 13 existing glyphs or to any other app's entry.",
-    "The consuming repo (~/phone-focus-mode) is committed separately; it blocks binaries, so the icon lands there in vector form."
+    "The consuming repo (~/src/phone-focus-mode) is committed separately; it blocks binaries, so the icon lands there in vector form."
   ],
   "changes": [
-    "Added AppIcon(key='focus_owner', repo=~/phone-focus-mode/focus-owner, glyph='padlock-closed', accent='#B8862E', linux=False). The repo path points into the monorepo because focus-owner was absorbed as a subtree on 2026-08-24 and both the standalone clone and its GitHub repo are gone.",
+    "Added AppIcon(key='focus_owner', repo=~/src/phone-focus-mode/focus-owner, glyph='padlock-closed', accent='#B8862E', linux=False). The repo path points into the monorepo because focus-owner was absorbed as a subtree on 2026-08-24 and both the standalone clone and its GitHub repo are gone.",
     "Added the _PADLOCK_CLOSED glyph fragment: shackle stroked (inheriting the wrapping group's round caps), body filled in the accent, keyhole punched back out in the field colour via fill-rule='evenodd'. Splitting stroke and fill is deliberate - a fully stroked padlock loses its keyhole at 48dp, a fully filled one loses the shackle's opening.",
     "Geometry computed against style.py rather than eyeballed, per the lesson recorded on _NOTE_ASCENDER: body 292..732 x 520..792; shackle centreline r=132 about (512,520) giving an outer top of 352, inside the 232 safe edge, with legs at x=380/644 inside the body; keyhole leaves 60px of body above and 76px below the stem, both clear of MIN_NEGATIVE_SPACE=36."
   ],

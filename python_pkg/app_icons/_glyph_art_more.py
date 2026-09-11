@@ -130,3 +130,47 @@ _BOWL_STAR = """\
 L 430 493 L 459 397 L 379 337 L 479 335 Z" fill="{{ACCENT}}" stroke="none"/>
     <path d="M 268 566 L 756 566"/>
     <path d="M 348 566 C 348 700 420 752 512 752 C 604 752 676 700 676 566"/>"""
+
+
+# A handset under a broadcast arc: the bot's control panel, reached from
+# somewhere else. The arc is what makes it "remote" rather than "settings",
+# and it is detached from the body on purpose -- an arc that *meets* the body
+# is a padlock shackle, and padlock-closed is already in this family.
+#
+# Filled body with punched-out buttons, not a stroked outline, for the reason
+# the nib and the anvil are filled: a 200-wide stroked body leaves a 56px
+# interior at STROKE_WIDTH=72, which fills in solid at 48dp.
+#
+# Geometry, all inside SAFE_BOX (232..792) and clear of MIN_NEGATIVE_SPACE=36:
+#   body    x=412..612, y=440..792, corner radius 56
+#   buttons r=40 at (512,540) and (512,680). Edge gap between them 60; to the
+#           body's top edge 60, to its bottom edge 72, to each side wall 60
+#   arc     r=132 about the body's top centre (512,440), drawn between its
+#           135 and 45 degree points (419,347)-(605,347)
+#
+# The arc's *lowest* ink is its endpoints at y=347 plus half the stroke = 383,
+# which is 57 clear of the body at 440 -- not the arc's centre, which is
+# inside the body. Total ink y=272..792 and x=383..641, both within the box.
+_REMOTE_WAVE = """\
+    <path d="M 419 347 A 132 132 0 0 1 605 347"/>
+    <path fill="{{ACCENT}}" fill-rule="evenodd" stroke="none" d="\
+M 468 440 L 556 440 A 56 56 0 0 1 612 496 L 612 736 A 56 56 0 0 1 556 792 \
+L 468 792 A 56 56 0 0 1 412 736 L 412 496 A 56 56 0 0 1 468 440 Z \
+M 512 500 A 40 40 0 0 0 512 580 A 40 40 0 0 0 512 500 Z \
+M 512 640 A 40 40 0 0 0 512 720 A 40 40 0 0 0 512 640 Z"/>"""
+
+
+# House with a tick inside: the home, cleared. A stroked house outline rather
+# than a broom or sparkle -- a broom reads as a paintbrush at 48dp, and the
+# family already leans on "check" for done-ness (see checklist).
+#
+# Geometry, all inside SAFE_BOX (232..792) and clear of MIN_NEGATIVE_SPACE=36:
+#   house   apex (512,280), eaves y=480 at x=272/752, walls down to y=752.
+#           Apex ink with the round join reaches ~y=244, inside the box.
+#   tick    (400,560)-(480,640)-(630,500). Bottom ink 676 vs floor ink 716
+#           -> 40 gap; right ink 666 vs wall ink 716 -> 50; left ink 364 vs
+#           wall ink 308 -> 56; top ink 464 vs the roof line at x=630
+#           (y=363, ink to 399) -> 65.
+_HOUSE_TICK = """\
+    <path d="M 272 752 L 272 480 L 512 280 L 752 480 L 752 752 Z"/>
+    <path d="M 400 560 L 480 640 L 630 500"/>"""

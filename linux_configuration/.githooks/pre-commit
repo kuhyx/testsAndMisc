@@ -15,8 +15,9 @@ printf '  ✓ toolchain complete\n'
 
 printf 'Running auto-fixers and shell_check before committing...\n'
 
-# Get list of staged shell files
-mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sh|bash|zsh)$' || true)
+# Get list of staged shell files. zsh is deliberately excluded: neither shfmt
+# nor shellcheck parses zsh (SC1071), so .zsh files get `zsh -n` further down.
+mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sh|bash)$' || true)
 
 if [[ ${#staged_files[@]} -gt 0 ]]; then
   printf 'Auto-fixing %d shell file(s)...\n' "${#staged_files[@]}"
@@ -44,7 +45,7 @@ printf 'Running shell_check validation...\n'
 # Run shell_check to validate all checks
 # Note: We only validate the staged files since we just auto-formatted them
 # Validate only shellcheck, not shfmt (we already applied formatting)
-mapfile -d '' -t staged_shell_files < <(git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.(sh|bash|zsh)$' || true)
+mapfile -d '' -t staged_shell_files < <(git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.(sh|bash)$' || true)
 
 if [[ ${#staged_shell_files[@]} -gt 0 ]]; then
   # Run shellcheck on staged files (guaranteed present by verify_toolchain)
@@ -56,6 +57,15 @@ if [[ ${#staged_shell_files[@]} -gt 0 ]]; then
     exit 1
   fi
 fi
+
+# zsh files: syntax check only, with the shell that will actually run them.
+mapfile -d '' -t staged_zsh_files < <(git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.zsh$' || true)
+for file in "${staged_zsh_files[@]}"; do
+  if ! zsh -n "$file"; then
+    printf '\nCommit aborted: zsh -n found a syntax error in %s.\n' "$file" >&2
+    exit 1
+  fi
+done
 
 printf 'shell_check passed.\n'
 

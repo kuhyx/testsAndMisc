@@ -1,8 +1,8 @@
 """Command-line entry point for the offline Arch Wiki RAG corpus.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python -m python_pkg.archwiki_rag sync
-    PYTHONPATH=~/testsAndMisc python -m python_pkg.archwiki_rag sync --reindex
+    PYTHONPATH=~/src/testsAndMisc python -m python_pkg.archwiki_rag sync
+    PYTHONPATH=~/src/testsAndMisc python -m python_pkg.archwiki_rag sync --reindex
 """
 
 from __future__ import annotations

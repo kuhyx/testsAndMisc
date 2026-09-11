@@ -8,7 +8,7 @@
 
 ````
 I need to implement comprehensive security hardening for a Linux digital wellbeing system.
-The codebase is at ~/linux-configuration/ with these components needing changes:
+The codebase is at ~/src/testsAndMisc/linux_configuration/ with these components needing changes:
 
 ## 1. HOSTS PROTECTION - nsswitch.conf Guard
 
@@ -42,7 +42,7 @@ Changes needed:
 
 ## 3. SCREEN LOCKER - External Repo
 
-Location: ~/testsAndMisc/python_pkg/screen_locker/screen_lock.py
+Location: ~/src/testsAndMisc/python_pkg/screen_locker/screen_lock.py
 
 Changes needed:
 - REMOVE the "Running" workout option entirely (too easy to fake)
@@ -173,7 +173,7 @@ Modified files:
 
 External repo (separate changes):
 
-- ~/testsAndMisc/python_pkg/screen_locker/screen_lock.py (remove running, harden table tennis)
+- ~/src/testsAndMisc/python_pkg/screen_locker/screen_lock.py (remove running, harden table tennis)
 
 ```
 

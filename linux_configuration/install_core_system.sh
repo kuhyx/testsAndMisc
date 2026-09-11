@@ -6,14 +6,14 @@
 # a clone that fails is a loud module failure, never a silent skip.
 #
 # CORE modules (always installed):
-#   0. Guard library (guardctl) – github.com/kuhyx/utils (~/utils/guard-lib)
-#   1. Workout screen locker    – github.com/kuhyx/screen-locker (~/screen-locker)
-#   2. Hosts blocking setup     – github.com/kuhyx/hosts-blocker (~/hosts-blocker)
+#   0. Guard library (guardctl) – github.com/kuhyx/utils (~/src/utils/guard-lib)
+#   1. Workout screen locker    – github.com/kuhyx/screen-locker (~/src/screen-locker)
+#   2. Hosts blocking setup     – github.com/kuhyx/hosts-blocker (~/src/hosts-blocker)
 #   3. Midnight shutdown timer  – github.com/kuhyx/digital-wellbeing
 #
 # SECONDARY modules (prompted unless --all / --none given):
 #   4. Steam backlog enforcer   – github.com/kuhyx/steam-backlog-enforcer
-#   5. Pacman wrapper           – github.com/kuhyx/digital-wellbeing (~/digital-wellbeing)
+#   5. Pacman wrapper           – github.com/kuhyx/digital-wellbeing (~/src/digital-wellbeing)
 #   6. i3 configuration         – i3/
 #   7. Compulsive opening block – block_compulsive_opening.sh
 #

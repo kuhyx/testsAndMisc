@@ -186,7 +186,7 @@ kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
   <div class="code"><pre>preflight            # deps, docker up, gitea-caddy present
 migrate_caddy_snippets   # split TODAY's Caddyfile → sites/*.caddy (keep dufs, sync)
 relocate_gitea       # re-run setup_gitea.sh (now writes import + gitea.caddy)
-build_website        # pnpm build → ~/personal-website/dist
+build_website        # pnpm build → ~/src/personal-website/dist
 write_website_stack  # loopback caddy compose + inner Caddyfile
 write_website_snippet# sites/website.caddy → kuhy.duckdns.org
 start_website        # container up on 127.0.0.1:8088

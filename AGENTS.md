@@ -32,19 +32,19 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 [`dufs-cloud`](https://github.com/kuhyx/dufs-cloud),
 [`build-your-x`](https://github.com/kuhyx/build-your-x) (lives at `~/build_your_x`),
 [`reverse-survivors`](https://github.com/kuhyx/reverse-survivors),
-[`kcd2-dice-solver`](https://github.com/kuhyx/kcd2-dice-solver) (lives at `~/kcd2-dice-solver`),
+[`kcd2-dice-solver`](https://github.com/kuhyx/kcd2-dice-solver) (lives at `~/src/kcd2-dice-solver`),
 [`focus-owner`](https://github.com/kuhyx/focus-owner),
 [`mtk-root`](https://github.com/kuhyx/mtk-root),
 [`system-maintenance`](https://github.com/kuhyx/system-maintenance) (lives at
-`~/system-maintenance`),
+`~/src/system-maintenance`),
 [`android-guardian`](https://github.com/kuhyx/android-guardian) (lives at
 `~/android-guardian`),
 [`phone-focus-mode`](https://github.com/kuhyx/phone-focus-mode) (with
 `python_pkg/focus_policy`),
 [`hosts-blocker`](https://github.com/kuhyx/hosts-blocker) (lives at
-`~/hosts-blocker`),
+`~/src/hosts-blocker`),
 [`digital-wellbeing`](https://github.com/kuhyx/digital-wellbeing) (lives at
-`~/digital-wellbeing`; carries the six suites that used to sit in
+`~/src/digital-wellbeing`; carries the six suites that used to sit in
 `linux_configuration/tests/`). Monorepo callers resolve both via
 `linux_configuration/lib/extracted_repos.sh`, which reads the invoking user's
 home from `SUDO_USER` — never `$HOME`, which is `/root` under sudo and under

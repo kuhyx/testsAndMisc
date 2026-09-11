@@ -17,56 +17,56 @@ its timer next fires.
 ```
 ## systemd units
   /etc/systemd/system/dns-blocklist-refresh.service
-      7:ExecStart=/home/kuhy/testsAndMisc/linux_configuration/features/setup_dns_blocker.sh refresh
+      7:ExecStart=/home/kuhy/src/testsAndMisc/linux_configuration/features/setup_dns_blocker.sh refresh
   /etc/systemd/system/media-organizer.service
-      10:ExecStart=/home/kuhy/testsAndMisc/linux_configuration/utils/organize_downloads.sh
+      10:ExecStart=/home/kuhy/src/testsAndMisc/linux_configuration/utils/organize_downloads.sh
   /home/kuhy/.config/systemd/user/endurain-import.service
-      3:Documentation=file:///home/kuhy/testsAndMisc/endurain/README.md
-      11:WorkingDirectory=/home/kuhy/testsAndMisc
-      21:ExecStart=/usr/bin/bash -c 'ENDURAIN_API_KEY="$(cat /home/kuhy/testsAndMisc/endurain/.api_key)" /home/kuhy/testsAndMisc/.venv/bin/python -m python_pkg.endurain_import'
+      3:Documentation=file:///home/kuhy/src/testsAndMisc/endurain/README.md
+      11:WorkingDirectory=/home/kuhy/src/testsAndMisc
+      21:ExecStart=/usr/bin/bash -c 'ENDURAIN_API_KEY="$(cat /home/kuhy/src/testsAndMisc/endurain/.api_key)" /home/kuhy/src/testsAndMisc/.venv/bin/python -m python_pkg.endurain_import'
   /home/kuhy/.config/systemd/user/morning-routine.service
-      13:Environment=PYTHONPATH=%h/testsAndMisc
-      16:WorkingDirectory=%h/testsAndMisc
+      13:Environment=PYTHONPATH=%h/src/testsAndMisc
+      16:WorkingDirectory=%h/src/testsAndMisc
   /home/kuhy/.config/systemd/user/syncyomi-guard.service
-      8:WorkingDirectory=/home/kuhy/testsAndMisc
-      9:Environment=PYTHONPATH=/home/kuhy/testsAndMisc
+      8:WorkingDirectory=/home/kuhy/src/testsAndMisc
+      9:Environment=PYTHONPATH=/home/kuhy/src/testsAndMisc
 
 ## /etc references
   /etc/guard-lib/targets/nsswitch.conf
-      4:PLUGIN="/home/kuhy/testsAndMisc/linux_configuration/periodic_background/hosts/guard/plugins/nsswitch-plugin.sh"
+      4:PLUGIN="/home/kuhy/src/testsAndMisc/linux_configuration/periodic_background/hosts/guard/plugins/nsswitch-plugin.sh"
   /etc/guard-lib/targets/resolved.conf
-      4:PLUGIN="/home/kuhy/testsAndMisc/linux_configuration/periodic_background/hosts/guard/plugins/resolved-plugin.sh"
+      4:PLUGIN="/home/kuhy/src/testsAndMisc/linux_configuration/periodic_background/hosts/guard/plugins/resolved-plugin.sh"
 
 ## installed scripts referencing the repo
   /usr/local/bin/hosts-file-monitor.sh
-      10:HOSTS_INSTALL_SCRIPT="/home/kuhy/testsAndMisc/linux_configuration/periodic_background/hosts/install.sh"
+      10:HOSTS_INSTALL_SCRIPT="/home/kuhy/src/testsAndMisc/linux_configuration/periodic_background/hosts/install.sh"
   /usr/local/bin/periodic-system-maintenance.sh
-      26:PACMAN_WRAPPER_INSTALL="/home/kuhy/testsAndMisc/linux_configuration/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
-      27:MAKEPKG_WRAPPER_INSTALL="/home/kuhy/testsAndMisc/linux_configuration/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
-      28:HOSTS_INSTALL_SCRIPT="/home/kuhy/testsAndMisc/linux_configuration/periodic_background/hosts/install.sh"
+      26:PACMAN_WRAPPER_INSTALL="/home/kuhy/src/testsAndMisc/linux_configuration/periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh"
+      27:MAKEPKG_WRAPPER_INSTALL="/home/kuhy/src/testsAndMisc/linux_configuration/periodic_background/digital_wellbeing/pacman/install_makepkg_wrapper.sh"
+      28:HOSTS_INSTALL_SCRIPT="/home/kuhy/src/testsAndMisc/linux_configuration/periodic_background/hosts/install.sh"
   /usr/local/bin/wsg-grabber
       4:export PYTHONPATH="/home/kuhy/testsAndMisc${PYTHONPATH:+:$PYTHONPATH}"
 
 ## symlinks into the repo
-  /home/kuhy/.config/i3blocks/claude_usage.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/claude_usage.sh
-  /home/kuhy/.config/i3blocks/config -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/config
-  /home/kuhy/.config/i3blocks/cpu_monitor.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/cpu_monitor.sh
-  /home/kuhy/.config/i3blocks/disk.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/disk.sh
-  /home/kuhy/.config/i3blocks/ethernet.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/ethernet.sh
-  /home/kuhy/.config/i3blocks/gpu_monitor.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/gpu_monitor.sh
-  /home/kuhy/.config/i3blocks/memory.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/memory.sh
-  /home/kuhy/.config/i3blocks/motherboard_temp.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/motherboard_temp.sh
-  /home/kuhy/.config/i3blocks/pc_startup_status.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/pc_startup_status.sh
-  /home/kuhy/.config/i3blocks/persist_common.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/persist_common.sh
-  /home/kuhy/.config/i3blocks/shutdown_countdown.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/shutdown_countdown.sh
-  /home/kuhy/.config/i3blocks/time.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/time.sh
-  /home/kuhy/.config/i3blocks/volume.sh -> /home/kuhy/testsAndMisc/linux_configuration/i3blocks/volume.sh
-  /home/kuhy/.local/bin/keepass-open -> /home/kuhy/testsAndMisc/linux_configuration/features/keepass-open.sh
-  /home/kuhy/.local/bin/line-speed-probe.sh -> /home/kuhy/testsAndMisc/linux_configuration/diagnostics/line-speed-probe.sh
-  /home/kuhy/.local/bin/steam-download-duty.sh -> /home/kuhy/testsAndMisc/linux_configuration/diagnostics/steam-download-duty.sh
-  /home/kuhy/.oh-my-zsh/custom/calc-live.zsh -> /home/kuhy/testsAndMisc/linux_configuration/zsh/calc-live.zsh
-  /home/kuhy/.oh-my-zsh/custom/claude-tty-fix.zsh -> /home/kuhy/testsAndMisc/linux_configuration/zsh/claude-tty-fix.zsh
-  /home/kuhy/.oh-my-zsh/custom/token-savers.zsh -> /home/kuhy/testsAndMisc/linux_configuration/zsh/token-savers.zsh
+  /home/kuhy/.config/i3blocks/claude_usage.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/claude_usage.sh
+  /home/kuhy/.config/i3blocks/config -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/config
+  /home/kuhy/.config/i3blocks/cpu_monitor.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/cpu_monitor.sh
+  /home/kuhy/.config/i3blocks/disk.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/disk.sh
+  /home/kuhy/.config/i3blocks/ethernet.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/ethernet.sh
+  /home/kuhy/.config/i3blocks/gpu_monitor.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/gpu_monitor.sh
+  /home/kuhy/.config/i3blocks/memory.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/memory.sh
+  /home/kuhy/.config/i3blocks/motherboard_temp.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/motherboard_temp.sh
+  /home/kuhy/.config/i3blocks/pc_startup_status.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/pc_startup_status.sh
+  /home/kuhy/.config/i3blocks/persist_common.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/persist_common.sh
+  /home/kuhy/.config/i3blocks/shutdown_countdown.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/shutdown_countdown.sh
+  /home/kuhy/.config/i3blocks/time.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/time.sh
+  /home/kuhy/.config/i3blocks/volume.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/i3blocks/volume.sh
+  /home/kuhy/.local/bin/keepass-open -> /home/kuhy/src/testsAndMisc/linux_configuration/features/keepass-open.sh
+  /home/kuhy/.local/bin/line-speed-probe.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/diagnostics/line-speed-probe.sh
+  /home/kuhy/.local/bin/steam-download-duty.sh -> /home/kuhy/src/testsAndMisc/linux_configuration/diagnostics/steam-download-duty.sh
+  /home/kuhy/.oh-my-zsh/custom/calc-live.zsh -> /home/kuhy/src/testsAndMisc/linux_configuration/zsh/calc-live.zsh
+  /home/kuhy/.oh-my-zsh/custom/claude-tty-fix.zsh -> /home/kuhy/src/testsAndMisc/linux_configuration/zsh/claude-tty-fix.zsh
+  /home/kuhy/.oh-my-zsh/custom/token-savers.zsh -> /home/kuhy/src/testsAndMisc/linux_configuration/zsh/token-savers.zsh
 ```
 
 ## Depth-cap progress

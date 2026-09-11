@@ -9,7 +9,7 @@ not measured from a rendered page.
 
 ---
 
-## kcd2_dice_solver (`~/testsAndMisc/kcd2_dice_solver`, Vite/TS)
+## kcd2_dice_solver (`~/src/testsAndMisc/kcd2_dice_solver`, Vite/TS)
 
 Design tokens live in `src/index.css` (422 lines), a single `:root` block of
 CSS custom properties consumed by all 5 component files. This is the correct
@@ -60,7 +60,7 @@ system (see Rule 4).
 
 ---
 
-## bucket_catch frontend (`~/testsAndMisc/bucket_catch/packages/frontend`, Vite/TS)
+## bucket_catch frontend (`~/src/testsAndMisc/bucket_catch/packages/frontend`, Vite/TS)
 
 **Confirmed: no shared design tokens exist.** `src/index.css` is a 12-line
 reset only (box-sizing + html/body/#root margin/font/background/color) — no

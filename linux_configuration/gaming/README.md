@@ -28,7 +28,7 @@ sudo chmod 440 /etc/sudoers.d/player2-steam
 **4. Symlink the script into PATH:**
 
 ```bash
-sudo ln -sf ~/testsAndMisc/linux_configuration/gaming/start-player2.sh /usr/local/bin/start-player2
+sudo ln -sf ~/src/testsAndMisc/linux_configuration/gaming/start-player2.sh /usr/local/bin/start-player2
 ```
 
 **5. Start the getty on tty2** (needed if LightDM autologin is configured, otherwise tty2 has no login prompt):

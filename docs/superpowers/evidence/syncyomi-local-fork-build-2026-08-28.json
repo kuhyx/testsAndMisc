@@ -8,7 +8,7 @@
   ],
   "changes": [
     "SYNCYOMI_IMAGE defaults to the local build syncyomi-kuhy:local, overridable back to a registry tag; adds SYNCYOMI_SRC and the fork URL.",
-    "ensure_local_image() builds that image from ~/syncyomi-src (cloning the fork if absent) before the container starts, under DOCKER_BUILDKIT=1 because the Dockerfile reads $BUILDPLATFORM; SYNCYOMI_REBUILD=1 forces a rebuild.",
+    "ensure_local_image() builds that image from ~/vendor/syncyomi-src (cloning the fork if absent) before the container starts, under DOCKER_BUILDKIT=1 because the Dockerfile reads $BUILDPLATFORM; SYNCYOMI_REBUILD=1 forces a rebuild.",
     "configure_caddy() now owns gitea/sites/<subdomain>.caddy instead of appending to the shared Caddyfile, deletes a legacy inline block, and validates the config before reloading.",
     "Preflight installs git and docker-buildx alongside the existing packages."
   ],
@@ -36,12 +36,12 @@
   ],
   "risks": [
     "The deployed build is develop (v1.1.14 + dependency bumps), not the v1.1.11 image it replaced; schema stays at version 8 and internal/database is unchanged between those points, so no migration runs.",
-    "A machine without ~/syncyomi-src now clones the fork on first setup, which needs network and a Docker build (~4 min) instead of an image pull.",
+    "A machine without ~/vendor/syncyomi-src now clones the fork on first setup, which needs network and a Docker build (~4 min) instead of an image pull.",
     "The Caddy snippet is only rewritten when its content differs, so hand edits to that file are overwritten by design."
   ],
   "rollback": [
     "SYNCYOMI_IMAGE=ghcr.io/syncyomi/syncyomi:v1.1.11 ./linux_configuration/features/setup_syncyomi.sh setup",
-    "Cold database copy: ~/syncyomi_safe_2026-08-28/pre-local-build/cold/syncyomi.db (schema version 8).",
+    "Cold database copy: ~/archive/2026-08-28-syncyomi_safe/pre-local-build/cold/syncyomi.db (schema version 8).",
     "After rollback, re-run the guard and confirm 2163 manga, then a phone sync round-trip."
   ]
 }

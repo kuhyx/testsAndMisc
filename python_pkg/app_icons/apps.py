@@ -51,7 +51,7 @@ APPS: Final[dict[str, AppIcon]] = {
             # The live app: ~/dufs_client is a stale, remote-less checkout that
             # was superseded when dufs-cloud absorbed it (see testsAndMisc
             # CLAUDE.md). Same package name, so it is easy to icon the wrong one.
-            repo=_HOME / "dufs-cloud" / "app",
+            repo=_HOME / "src/dufs-cloud" / "app",
             accent="#B8862E",
             glyph="cloud-down",
             icon_name="dufs-client",
@@ -61,7 +61,7 @@ APPS: Final[dict[str, AppIcon]] = {
             key="focus_owner",
             # Absorbed into the phone-focus-mode monorepo on 2026-08-24; the
             # standalone ~/focus-owner clone is gone, as is its GitHub repo.
-            repo=_HOME / "phone-focus-mode" / "focus-owner",
+            repo=_HOME / "src/phone-focus-mode" / "focus-owner",
             accent="#B8862E",
             glyph="padlock-closed",
             icon_name="focus-owner",
@@ -69,7 +69,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="workout_app",
-            repo=_HOME / "screen-locker" / "stronglift_replacement" / "workout_app",
+            repo=_HOME / "src/screen-locker" / "stronglift_replacement" / "workout_app",
             accent="#B8862E",
             glyph="barbell",
             icon_name="workout-app",
@@ -77,7 +77,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="wake_alarm_sync",
-            repo=_HOME / "wake-alarm" / "phone_app",
+            repo=_HOME / "src/wake-alarm" / "phone_app",
             accent="#B8862E",
             glyph="clock",
             icon_name="wake-alarm-sync",
@@ -85,7 +85,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="diet_guard_app",
-            repo=_HOME / "diet-guard" / "app",
+            repo=_HOME / "src/diet-guard" / "app",
             accent="#B8862E",
             glyph="shield-cutlery",
             icon_name="diet-guard-app",
@@ -93,7 +93,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="todo",
-            repo=_HOME / "todo",
+            repo=_HOME / "src/todo",
             accent="#B8862E",
             glyph="checklist",
             icon_name="todo",
@@ -101,7 +101,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="untools",
-            repo=_HOME / "untools",
+            repo=_HOME / "src/untools",
             accent="#B8862E",
             glyph="decision-tree",
             icon_name="untools",
@@ -111,7 +111,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="punchme",
-            repo=_HOME / "punchme",
+            repo=_HOME / "src/punchme",
             accent="#B8862E",
             glyph="punch-card",
             icon_name="punchme",
@@ -120,7 +120,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="restaurant_rater",
-            repo=_HOME / "restaurant-rater",
+            repo=_HOME / "src/restaurant-rater",
             accent="#B8862E",
             glyph="bowl-star",
             icon_name="restaurant-rater",
@@ -129,7 +129,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="habit_stack",
-            repo=_HOME / "habit_stack",
+            repo=_HOME / "src/habit_stack",
             accent="#B8862E",
             glyph="chain-link",
             icon_name="habit-stack",
@@ -137,7 +137,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="home_inventory",
-            repo=_HOME / "home_inventory",
+            repo=_HOME / "src/home_inventory",
             accent="#B8862E",
             glyph="storage-box",
             icon_name="home-inventory",
@@ -145,7 +145,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="epopeja_karta",
-            repo=_HOME / "epopeja_karta",
+            repo=_HOME / "src/epopeja_karta",
             accent="#B8862E",
             glyph="quill-nib",
             icon_name="epopeja-karta",
@@ -158,7 +158,7 @@ APPS: Final[dict[str, AppIcon]] = {
             key="octoforge",
             # The Flutter app is a subdirectory of the repo: the repo root
             # holds the pure-Dart core and the tooling alongside it.
-            repo=_HOME / "octoforge" / "octoforge" / "app",
+            repo=_HOME / "src/octoforge" / "app",
             accent="#B8862E",
             glyph="anvil",
             icon_name="octoforge",
@@ -168,7 +168,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="kuhylog",
-            repo=_HOME / "kuhylog" / "kuhylog",
+            repo=_HOME / "src/kuhylog",
             accent="#B8862E",
             glyph="track-bars",
             icon_name="kuhylog",
@@ -179,7 +179,7 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="lyricanki",
-            repo=_HOME / "lyricanki",
+            repo=_HOME / "src/lyricanki",
             accent="#B8862E",
             glyph="note-ascender",
             icon_name="lyricanki",
@@ -189,13 +189,34 @@ APPS: Final[dict[str, AppIcon]] = {
         ),
         AppIcon(
             key="betting_sim",
-            repo=_HOME / "betting-sim" / "app",
+            repo=_HOME / "src/betting-sim" / "app",
             accent="#B8862E",
             glyph="track-bars",
             icon_name="betting_sim",
             # Ships to Android natively and to Linux via a Chrome-wrapped web
             # build, so the GTK embedder is never used and the hicolor set
             # would go unread.
+            linux=False,
+        ),
+        AppIcon(
+            key="home_guard_app",
+            repo=_HOME / "src/home-guard" / "app",
+            accent="#B8862E",
+            glyph="house-tick",
+            icon_name="home-guard",
+            linux=False,
+        ),
+        AppIcon(
+            key="signalbot_remote",
+            # Inside the bot's own repository, not beside it: the app is a
+            # client of that repo's management API, and kuhy's call was that a
+            # route change and the client change land in one commit.
+            repo=_HOME / "src/signal-bot" / "app",
+            accent="#B8862E",
+            glyph="remote-wave",
+            icon_name="signalbot_remote",
+            # Android only. The bot's desktop control is the TypeScript page
+            # it already has, served on loopback.
             linux=False,
         ),
     )

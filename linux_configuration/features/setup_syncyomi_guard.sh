@@ -21,9 +21,9 @@ readonly REPO_ROOT
 readonly UNIT_DIR="${HOME}/.config/systemd/user"
 readonly SERVICE_NAME="syncyomi-guard.service"
 readonly TIMER_NAME="syncyomi-guard.timer"
-readonly SNAPSHOT_DIR="${HOME}/syncyomi/snapshots"
+readonly SNAPSHOT_DIR="${HOME}/services/syncyomi/snapshots"
 readonly STATE_DIR="${HOME}/.local/share/syncyomi_guard"
-readonly DB_PATH="${HOME}/syncyomi/config/syncyomi.db"
+readonly DB_PATH="${HOME}/services/syncyomi/config/syncyomi.db"
 
 log_info() { echo "[*] $*"; }
 log_ok() { echo "[+] $*"; }

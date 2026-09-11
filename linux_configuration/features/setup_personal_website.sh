@@ -43,14 +43,14 @@ readonly WEBSITE_DOMAIN="kuhy.duckdns.org"
 readonly GITEA_DOMAIN="gitea.kuhy.duckdns.org"
 readonly WEBSITE_PORT="8088"
 # React/TS source lives in its own standalone repo (github.com/kuhyx/personal-website),
-# cloned at ~/personal-website; the runtime data dir holds the generated compose +
+# cloned at ~/src/personal-website; the runtime data dir holds the generated compose +
 # inner Caddyfile.
-readonly WEBSITE_SRC="${HOME}/personal-website"
-readonly WEBSITE_DATA_DIR="${HOME}/personal-website-serve"
+readonly WEBSITE_SRC="${HOME}/src/personal-website"
+readonly WEBSITE_DATA_DIR="${HOME}/services/personal-website-serve"
 readonly WEBSITE_COMPOSE="${WEBSITE_DATA_DIR}/docker-compose.yml"
 readonly WEBSITE_INNER_CADDY="${WEBSITE_DATA_DIR}/Caddyfile"
 # Shared edge owned by setup_gitea.sh.
-readonly GITEA_DATA_DIR="${HOME}/gitea"
+readonly GITEA_DATA_DIR="${HOME}/services/gitea"
 readonly CADDYFILE="${GITEA_DATA_DIR}/Caddyfile"
 readonly SITES_DIR="${GITEA_DATA_DIR}/sites"
 readonly WEBSITE_SNIPPET="${SITES_DIR}/website.caddy"
@@ -60,8 +60,8 @@ readonly GITEA_SCRIPT="${SCRIPT_DIR}/setup_gitea.sh"
 readonly WG_SCRIPT="${SCRIPT_DIR}/setup_wireguard_ssh.sh"
 # Canonical CV data (rendered by the CV repo's build_cv.py); copied into the
 # website build. A committed copy in the repo keeps the build standalone.
-readonly CV_JSON_SRC="${HOME}/CV/generic/cv.json"
-readonly CV_PDF_SRC="${HOME}/CV/generic/cv-en.pdf"
+readonly CV_JSON_SRC="${HOME}/src/CV/generic/cv.json"
+readonly CV_PDF_SRC="${HOME}/src/CV/generic/cv-en.pdf"
 
 die() {
 	log_error "$1"

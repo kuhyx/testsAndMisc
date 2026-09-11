@@ -1,9 +1,9 @@
 """Command-line entry point for the /wsg/ grabber.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber scrape --seconds 60
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber stats
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber scrape --seconds 60
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber stats
 """
 
 from __future__ import annotations

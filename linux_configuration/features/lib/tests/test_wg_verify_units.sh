@@ -22,7 +22,7 @@ trap _t_teardown EXIT
 # shellcheck source=../wg_verify_units.sh
 . "$SCRIPT_DIR/../wg_verify_units.sh"
 
-readonly ENTRY="/home/kuhy/testsAndMisc/linux_configuration/features/setup_wireguard_ssh.sh"
+readonly ENTRY="/home/kuhy/src/testsAndMisc/linux_configuration/features/setup_wireguard_ssh.sh"
 UNIT_DIR="$TEST_TMPDIR/units"
 mkdir -p "$UNIT_DIR"
 

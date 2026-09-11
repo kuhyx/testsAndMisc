@@ -36,7 +36,7 @@ To remove it entirely:
 ```bash
 sudo systemctl disable --now stunnel-dot.service dot-cert-sync.timer
 sudo rm -f /etc/stunnel/dot-resolver.conf /etc/systemd/system/stunnel-dot.service
-rm -f ~/gitea/sites/dns.caddy && docker exec gitea-caddy caddy reload \
+rm -f ~/services/gitea/sites/dns.caddy && docker exec gitea-caddy caddy reload \
   --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 

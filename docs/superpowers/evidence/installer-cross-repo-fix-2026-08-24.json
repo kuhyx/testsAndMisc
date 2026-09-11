@@ -14,7 +14,7 @@
     "hosts-blocker: stop_hosts_guard/restart_hosts_guard now handle the guard-lib instances (guard-file@hosts.*, guard-bind-mount@hosts.service) as well as the legacy per-file units, and refresh the canonical copy with 'guardctl file-guard sync hosts' -- without this a SECOND install run fought a live read-only bind mount and the install was not idempotent.",
     "screen-locker: install_systemd.sh installs its own runtime dependencies (tk for the tkinter shared library, plus the pinned gatelock and crdt-sync git dependencies). It previously installed none, so the post-install workout check crashed and the installer exited 1 on any fresh machine.",
     "steam-backlog-enforcer: install.sh no longer aborts under `set -euo pipefail` when a bare `read` finds no stdin; it defaults to not installing the systemd service when stdin is not a TTY, with STEAM_ENFORCER_INSTALL_SERVICE=y to opt in.",
-    "tests/lib/security_apps.sh: the screen_locker section resolves the extracted repo via extracted_repo_dir instead of a hardcoded $HOME/testsAndMisc/python_pkg path, and its assertions were rewritten against the current implementation (SPORT_CHOICES, SPORT_TABLE_TENNIS, _validate_table_tennis, sets_won, MANUAL_WORKOUT_REFLECTION_MIN_CHARS) because the four symbols it used to grep for no longer exist anywhere in the codebase."
+    "tests/lib/security_apps.sh: the screen_locker section resolves the extracted repo via extracted_repo_dir instead of a hardcoded $HOME/src/testsAndMisc/python_pkg path, and its assertions were rewritten against the current implementation (SPORT_CHOICES, SPORT_TABLE_TENNIS, _validate_table_tennis, sets_won, MANUAL_WORKOUT_REFLECTION_MIN_CHARS) because the four symbols it used to grep for no longer exist anywhere in the codebase."
   ],
   "verification": [
     {
@@ -25,7 +25,7 @@
     {
       "command": "bash linux_configuration/tests/test_security_hardening.sh (host, after the path+assertion fix)",
       "result": "23 passed / 0 skipped",
-      "evidence": "The five screen_locker checks now execute against ~/screen-locker and pass. Note this is a changed measuring instrument as well as a changed measurement: the suite is 24 checks today, so the task file's '18 passed / 6 skipped out of 17' target was stale and could not be matched literally."
+      "evidence": "The five screen_locker checks now execute against ~/src/screen-locker and pass. Note this is a changed measuring instrument as well as a changed measurement: the suite is 24 checks today, so the task file's '18 passed / 6 skipped out of 17' target was stale and could not be matched literally."
     },
     {
       "command": "vm run <guest> 'bash guest_verify.sh' -- pristine vmbox guest, installer clones its own siblings",

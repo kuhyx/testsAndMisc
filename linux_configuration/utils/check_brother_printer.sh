@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Check Brother laser printer consumable/maintenance status.
 # Thin wrapper that ensures dependencies are present, then runs the
-# Python implementation in ~/testsAndMisc/python_pkg/brother_printer.
+# Python implementation in ~/src/testsAndMisc/python_pkg/brother_printer.
 #
 # Usage:
 #   ./check_brother_printer.sh              # auto-detect USB or network
@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-PYTHON_PKG_DIR="${HOME}/testsAndMisc/python_pkg"
+PYTHON_PKG_DIR="${HOME}/src/testsAndMisc/python_pkg"
 BROTHER_MODULE="brother_printer"
 
 # ── Ensure dependencies ─────────────────────────────────────────────

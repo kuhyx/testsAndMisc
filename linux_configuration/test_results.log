@@ -2,7 +2,7 @@
 Security Hardening Test Suite
 ==========================================
 
-Testing components in: /home/kuhy/linux-configuration
+Testing components in: /home/kuhy/src/testsAndMisc/linux_configuration
 
 --- HOSTS GUARD ---
 [0;32m✅ PASS[0m: /etc/hosts is immutable

@@ -28,9 +28,9 @@ from python_pkg.syncyomi_guard.store import (
 )
 from python_pkg.syncyomi_guard.verdict import Status, Thresholds, Verdict, compare
 
-_DEFAULT_DB = Path("/home/kuhy/syncyomi/config/syncyomi.db")
+_DEFAULT_DB = Path("/home/kuhy/services/syncyomi/config/syncyomi.db")
 _DEFAULT_STATE = Path.home() / ".local/share/syncyomi_guard"
-_DEFAULT_SNAPSHOTS = Path.home() / "syncyomi/snapshots"
+_DEFAULT_SNAPSHOTS = Path.home() / "services/syncyomi/snapshots"
 _DEFAULT_KEEP = 14
 
 

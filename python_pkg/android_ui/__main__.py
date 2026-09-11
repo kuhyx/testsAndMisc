@@ -1,7 +1,7 @@
 """Module entry point for the Android UI driver.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.android_ui --help
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.android_ui --help
 """
 
 from __future__ import annotations

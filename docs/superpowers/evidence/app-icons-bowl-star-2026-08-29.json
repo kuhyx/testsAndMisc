@@ -1,5 +1,5 @@
 {
-  "intent": "Give the new ~/restaurant-rater app a launcher icon from the shared family, so it stops shipping the stock Flutter beach icon.",
+  "intent": "Give the new ~/src/restaurant-rater app a launcher icon from the shared family, so it stops shipping the stock Flutter beach icon.",
   "scope": [
     "python_pkg/app_icons/_glyph_art_more.py - the new SVG fragment",
     "python_pkg/app_icons/glyphs.py - register the glyph in GLYPHS",
@@ -14,14 +14,14 @@
   ],
   "verification": [
     {
-      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons list",
+      "command": "PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons list",
       "result": "pass",
-      "evidence": "bowl-star appears under Glyphs; 'restaurant_rater #B8862E bowl-star /home/kuhy/restaurant-rater' appears under Apps."
+      "evidence": "bowl-star appears under Glyphs; 'restaurant_rater #B8862E bowl-star /home/kuhy/src/restaurant-rater' appears under Apps."
     },
     {
-      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app restaurant_rater",
+      "command": "PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons generate --app restaurant_rater",
       "result": "pass",
-      "evidence": "wrote 6 asset files to /home/kuhy/restaurant-rater/assets/icon (icon/foreground/monochrome, svg+png each). The generator's safe-box and negative-space checks did not fire."
+      "evidence": "wrote 6 asset files to /home/kuhy/src/restaurant-rater/assets/icon (icon/foreground/monochrome, svg+png each). The generator's safe-box and negative-space checks did not fire."
     },
     {
       "command": "visual review of the rendered 640px icon.png",

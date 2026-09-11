@@ -1,5 +1,5 @@
 {
-  "intent": "Extract linux_configuration/periodic_background/hosts/ into its own public repo (github.com/kuhyx/hosts-blocker, cloned at ~/hosts-blocker), clearing 5 of the 46 remaining directory-depth violations without disturbing the live hosts blocker or its guards.",
+  "intent": "Extract linux_configuration/periodic_background/hosts/ into its own public repo (github.com/kuhyx/hosts-blocker, cloned at ~/src/hosts-blocker), clearing 5 of the 46 remaining directory-depth violations without disturbing the live hosts blocker or its guards.",
   "scope": [
     "REMOVED: linux_configuration/periodic_background/hosts/ (15 files)",
     "ADDED: linux_configuration/lib/extracted_repos.sh (shared resolver)",
@@ -14,7 +14,7 @@
     "No source file was modified during extraction: all 15 files are byte-identical to the monorepo copies (verified with diff -r). install.sh already resolved its lib/ via BASH_SOURCE and needed no rewrite.",
     "Added linux_configuration/lib/extracted_repos.sh: resolves an extracted repo's checkout via SUDO_USER's passwd entry (NOT $HOME, which is /root under sudo), supports a <NAME>_DIR override, and fails loudly with a clone instruction when absent.",
     "Reused the existing REAL_HOME resolution already present in check_and_enable_services.sh for screen-locker rather than sourcing a second resolver into it.",
-    "fresh-install/main.sh uses \"$HOME/hosts-blocker/install.sh\" because it runs from ~/linux-configuration (a different repo) and is not sudo-re-exec'd at that point.",
+    "fresh-install/main.sh uses \"$HOME/src/hosts-blocker/install.sh\" because it runs from ~/src/testsAndMisc/linux_configuration (a different repo) and is not sudo-re-exec'd at that point.",
     "The new repo ships NO shfmt hook, deliberately: guard/plugins/*.sh are space-indented and unformatted in the monorepo too (its git hook shfmt's only STAGED files), and their installed copies under /usr/local/share/guard-lib-plugins/ are byte-identical by md5. An shfmt hook would rewrite both on first commit and break that identity."
   ],
   "verification": [
@@ -29,7 +29,7 @@
       "evidence": "IDENTICAL — no source file altered by the extraction."
     },
     {
-      "command": "./lib/tests/run_all.sh (in ~/hosts-blocker, the real clone location)",
+      "command": "./lib/tests/run_all.sh (in ~/src/hosts-blocker, the real clone location)",
       "result": "pass",
       "evidence": "test_hosts_protect.sh: 25 passed, 0 failed. All hosts install test files passed."
     },
@@ -41,7 +41,7 @@
     {
       "command": "sudo -n bash -c 'source lib/extracted_repos.sh; extracted_repo_dir hosts-blocker'",
       "result": "pass",
-      "evidence": "HOME=/home/kuhy resolved=/home/kuhy/hosts-blocker — resolves the invoking user, not /root/hosts-blocker."
+      "evidence": "HOME=/home/kuhy resolved=/home/kuhy/src/hosts-blocker — resolves the invoking user, not /root/hosts-blocker."
     },
     {
       "command": "HOSTS_BLOCKER_DIR=/nonexistent require_extracted_repo hosts-blocker",
@@ -75,7 +75,7 @@
     }
   ],
   "risks": [
-    "A machine without ~/hosts-blocker cloned now fails the hosts install step. That is deliberate and loud (clone instruction printed); the previous silent-skip mode is what caused five months of dead self-repair after the 2026-05-15 reorg.",
+    "A machine without ~/src/hosts-blocker cloned now fails the hosts install step. That is deliberate and loud (clone instruction printed); the previous silent-skip mode is what caused five months of dead self-repair after the 2026-05-15 reorg.",
     "install_core_system.sh on a genuinely fresh machine will hard-stop at the hosts module until the repo is cloned. INSTALLER_FIX_TASK.md already tracks fresh-machine installer defects and has been updated to name the new location.",
     "The guard plugins remain unformatted. If an shfmt hook is ever added to hosts-blocker it will rewrite them, and the installed copies must be re-synced in the same change.",
     "The live hosts blocker was NOT re-installed as part of this change; /etc/hosts and its guards are untouched and still enforced from their installed copies."

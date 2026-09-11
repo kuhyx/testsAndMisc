@@ -27,7 +27,7 @@ Backed by repeated, concrete evidence across multiple sessions/repos.
 ### MCP Inspector (mcp, typescript, 10.6k★)
 
 You author and maintain **7+ MCP servers** (`i3wm-mcp`, `yay-mcp`, `aseprite-mcp`, `reaper-mcp`, `opengameart-mcp`,
-`freesound-mcp`, plus 23 more under `~/mcp-servers/servers/`) per `project-mcp-server-fleet.md` and the deployment
+`freesound-mcp`, plus 23 more under `~/src/mcp-servers/servers/`) per `project-mcp-server-fleet.md` and the deployment
 skill `project-mcp-per-repo-pattern.md`. Nothing in your memory or tooling survey shows a dedicated tool/resource/prompt
 debugger for the servers you _build_ — you've been testing them indirectly through Claude Code sessions themselves.
 MCP Inspector is a GUI built exactly for this gap: exercising tools/resources/prompts in isolation before wiring a new
@@ -44,7 +44,7 @@ which your own hook (`track_reads_pretool.sh`, since disabled) was already tryin
 
 ### Docker MCP Gateway (mcp, sandbox, cli, 1.5k★)
 
-You run 23+ Dockerfiles for self-hosted MCP server containers (`~/mcp-servers/servers/*`) per the repo survey, on top
+You run 23+ Dockerfiles for self-hosted MCP server containers (`~/src/mcp-servers/servers/*`) per the repo survey, on top
 of an already-Docker-heavy self-hosted stack (Gitea, SearXNG, Syncyomi, Joplin Server, all `docker-compose.yml`-based).
 A container-aware MCP gateway is a direct fit for consolidating discovery/auth across a fleet this size, rather than
 each server being wired in ad hoc. Speculative on the _specific_ tool, high-confidence on the _need_ — you already
@@ -153,7 +153,7 @@ demonstrated preference for deterministic scripts you can read, diff, and put un
 ### browser-use, Stagehand, Steel (standalone browser-agent harnesses)
 
 Rejected as _redundant_, not irrelevant — you already have `claude-in-chrome` MCP tools wired in and actively used this
-session, plus `servo-fetch` (Servo-engine fetch/crawl/screenshot MCP) under `~/mcp-servers/servers/`. Both solve the
+session, plus `servo-fetch` (Servo-engine fetch/crawl/screenshot MCP) under `~/src/mcp-servers/servers/`. Both solve the
 "drive a real browser from an agent" problem you'd otherwise reach for these tools to solve. No session shows friction
 with the browser tooling you already have that a swap would fix.
 

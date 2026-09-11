@@ -8,6 +8,6 @@ Description=Mirror KeePass vault into dufs cloud folder
 [Service]
 Type=oneshot
 User=__USER__
-# Only the vault file — not the whole ~/Keepass dir (keeps local .backup_* vaults
+# Only the vault file — not the whole ~/data/Keepass dir (keeps local .backup_* vaults
 # off the public server). No --delete: the cloud folder may hold other files.
 ExecStart=/usr/bin/rsync -a __HOME__/Keepass/Passwords.kdbx __CLOUD_ROOT__/Keepass/

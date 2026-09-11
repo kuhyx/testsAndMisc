@@ -84,7 +84,7 @@ LEECHBLOCK_SCRIPT="$DW_REPO/install_leechblock.sh"
 REMOVE_GUEST_MODE_SCRIPT="$DW_REPO/remove_guest_mode.sh"
 VBOX_HOSTS_SCRIPT="$DW_REPO/virtualbox/enforce_vbox_hosts.sh"
 # screen-locker was EXTRACTED out of this monorepo into its own repo
-# (github.com/kuhyx/screen-locker, checked out at ~/screen-locker), so these
+# (github.com/kuhyx/screen-locker, checked out at ~/src/screen-locker), so these
 # paths deliberately live outside testsAndMisc. They used to point at
 # python_pkg/screen_locker/, which stopped existing at extraction time — the
 # result was check_workout_locker reporting a red "error" for a service that was

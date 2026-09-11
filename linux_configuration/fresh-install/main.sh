@@ -164,7 +164,7 @@ for entry in "${aur_packages[@]}"; do
 	install_from_aur "$repo_url" "$pkg_name"
 done
 
-cd ~/linux-configuration/fresh-install
+cd ~/src/testsAndMisc/linux_configuration/fresh-install
 if [ ! -d "$HOME/.config/mpv" ]; then
 	mkdir -p "$HOME/.config/mpv"
 fi
@@ -176,10 +176,10 @@ else
 	echo "Oh My Zsh is already installed"
 fi
 
-cd ~/linux-configuration
-sudo "$HOME/hosts-blocker/install.sh"
+cd ~/src/testsAndMisc/linux_configuration
+sudo "$HOME/src/hosts-blocker/install.sh"
 i3/install.sh
-"$HOME/digital-wellbeing/pacman/install_pacman_wrapper.sh"
+"$HOME/src/digital-wellbeing/pacman/install_pacman_wrapper.sh"
 fixes/nvidia_troubleshoot.sh
 sudo features/setup_activitywatch.sh
 sudo utils/setup_media_organizer.sh

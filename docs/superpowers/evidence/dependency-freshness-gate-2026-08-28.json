@@ -8,7 +8,7 @@
   "changes": [
     "Exact-pinned 95 previously range-specified dependencies to their newest stable release, via ~/.claude/scripts/apply_dep_pins.py driven by the gate's own --json findings.",
     "Moved the gatelock git-tag dependency from gatelock-v0.1.0 to gatelock-v0.7.2 -- six minor versions of drift that a PEP 508 direct reference hid from every previous check.",
-    "Installed the shared gate's three pieces (delegate, pre-commit hook, CI workflow) from ~/utils/dep_freshness/templates."
+    "Installed the shared gate's three pieces (delegate, pre-commit hook, CI workflow) from ~/src/utils/dep_freshness/templates."
   ],
   "verification": [
     {
@@ -17,7 +17,7 @@
       "evidence": "exit 0; clean venv rebuilt from the repinned meta/requirements.txt, pre-commit --all-files and the full suite green inside it"
     },
     {
-      "command": "~/utils/scripts/check_dependency_freshness.sh --all",
+      "command": "~/src/utils/scripts/check_dependency_freshness.sh --all",
       "result": "pass",
       "evidence": "exit 0 -- 97 findings before, 0 after"
     }

@@ -139,7 +139,7 @@
   <h3>The two things this change adds a home for</h3>
   <ul>
     <li><b>A file store</b> reachable from a phone on mobile data — the “Google Drive alternative”.</li>
-    <li><b>The KeePassXC vault</b>: a single encrypted file, <code class="inl">~/Keepass/Passwords.kdbx</code>. KeePass has no built-in cloud sync by design — you choose where the file lives.</li>
+    <li><b>The KeePassXC vault</b>: a single encrypted file, <code class="inl">~/data/Keepass/Passwords.kdbx</code>. KeePass has no built-in cloud sync by design — you choose where the file lives.</li>
   </ul>
 
   <div class="note"><b>dufs</b> is the chosen tool: a single ~2.5 MB Rust binary that serves a <i>real filesystem folder</i> over HTTP with a web UI <b>and</b> built-in WebDAV. Because it serves the folder directly, an <code class="inl">rsync</code> (or any local write) into that folder shows up instantly — no database, no re-scan step. Contrast Seafile, which stores files in an internal block database that <code class="inl">rsync</code> cannot write into.</p></div>
@@ -171,7 +171,7 @@
       <div class="arrow">→</div>
       <div class="node"><b>rsync</b><span>only the .kdbx</span></div>
       <div class="arrow">→</div>
-      <div class="node"><b>~/cloud/Keepass</b><span>phone pulls via WebDAV</span></div>
+      <div class="node"><b>~/data/cloud/Keepass</b><span>phone pulls via WebDAV</span></div>
     </div>
   </div>
   <p>On the phone, <b>KeePassDX</b> opens the database straight from the WebDAV URL — so the “mobile app” requirement is met with zero custom code.</p>
@@ -252,14 +252,14 @@ bad="$(printf '%s\n' "$staged" | grep -E '(^|/)\.dufs_cloud\.conf$' || true)"
   <h2 id="playground">4 · Playground — the serve-dir guard</h2>
   <p>Type a candidate <code class="inl">CLOUD_ROOT</code> and see the exact verdict <code class="inl">assert_cloud_root_safe</code> would give. (Assumes <code class="inl">$HOME=/home/kuhy</code>, repo <code class="inl">/home/kuhy/testsAndMisc</code>. Paths are resolved like <code class="inl">readlink -m</code>, so <code class="inl">..</code> collapses.)</p>
   <div class="mw">
-    <input id="mwIn" value="/home/kuhy/cloud" spellcheck="false" oninput="mwEval()">
+    <input id="mwIn" value="/home/kuhy/data/cloud" spellcheck="false" oninput="mwEval()">
     <div id="mwOut" class="verdict"></div>
     <div class="chips">
-      <span class="chip" onclick="mwSet('/home/kuhy/cloud')">~/cloud</span>
+      <span class="chip" onclick="mwSet('/home/kuhy/data/cloud')">~/cloud</span>
       <span class="chip" onclick="mwSet('/home/kuhy')">~ (home)</span>
       <span class="chip" onclick="mwSet('/home/kuhy/.ssh')">~/.ssh</span>
       <span class="chip" onclick="mwSet('/home/kuhy/.config/dufs')">~/.config/dufs</span>
-      <span class="chip" onclick="mwSet('/home/kuhy/testsAndMisc/x')">inside the repo</span>
+      <span class="chip" onclick="mwSet('/home/kuhy/src/testsAndMisc/x')">inside the repo</span>
       <span class="chip" onclick="mwSet('/srv/cloud/../../home/kuhy/.gnupg')">traversal → .gnupg</span>
       <span class="chip" onclick="mwSet('/srv/cloud')">/srv/cloud</span>
     </div>
@@ -288,9 +288,9 @@ bad="$(printf '%s\n' "$staged" | grep -E '(^|/)\.dufs_cloud\.conf$' || true)"
   }
   function guard(cloudRoot){
     // Mirrors assert_cloud_root_safe: HOME and / are blocked ONLY as an exact
-    // match (subdirs of HOME like ~/cloud are fine); .ssh/.config/.gnupg and
+    // match (subdirs of HOME like ~/data/cloud are fine); .ssh/.config/.gnupg and
     // the repo are blocked as exact-or-prefix.
-    var HOME='/home/kuhy', REPO='/home/kuhy/testsAndMisc';
+    var HOME='/home/kuhy', REPO='/home/kuhy/src/testsAndMisc';
     var r = resolve(cloudRoot);
     if (r===HOME) return {ok:false, why:'Resolves to '+r+' — that is $HOME itself; serving it would expose everything.'};
     if (r==='/')  return {ok:false, why:'Resolves to / — the whole filesystem. Refused.'};
@@ -363,7 +363,7 @@ bad="$(printf '%s\n' "$staged" | grep -E '(^|/)\.dufs_cloud\.conf$' || true)"
       rat: "assert_config_gitignored refuses to persist the secret unless git confirms it's ignored — a runtime, fail-closed check."
     },
     {
-      q: "Why does the sync copy only Passwords.kdbx instead of the whole ~/Keepass directory?",
+      q: "Why does the sync copy only Passwords.kdbx instead of the whole ~/data/Keepass directory?",
       opts: [
         "Because rsync cannot recurse into directories that contain hidden dot-folders.",
         "Because copying the directory would exceed dufs's per-file upload size limit.",

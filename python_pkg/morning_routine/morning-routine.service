@@ -10,10 +10,10 @@ Type=simple
 # DISPLAY/PYTHONPATH mirror workout-locker.service so Tk can open the X server;
 # the short sleep lets the session export DISPLAY first.
 Environment=DISPLAY=:0
-Environment=PYTHONPATH=%h/testsAndMisc
+Environment=PYTHONPATH=%h/src/testsAndMisc
 ExecStartPre=/bin/sleep 1
 ExecStart=/usr/bin/python -m python_pkg.morning_routine._orchestrator --production
-WorkingDirectory=%h/testsAndMisc
+WorkingDirectory=%h/src/testsAndMisc
 Restart=on-failure
 RestartSec=2s
 RestartPreventExitStatus=0

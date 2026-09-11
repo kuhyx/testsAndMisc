@@ -4,10 +4,10 @@ Paste everything below into a **fresh** Claude session (`/clear` first).
 
 ---
 
-`~/testsAndMisc/linux_configuration/install_core_system.sh` is the documented
+`~/src/testsAndMisc/linux_configuration/install_core_system.sh` is the documented
 way to set this machine up from scratch. It does not work. Three defects were
 found on 2026-08-22 by running the real installer in a disposable Arch VM
-(`~/utils/vmbox`) rather than by reading it — 2 of its 7 modules cannot install
+(`~/src/utils/vmbox`) rather than by reading it — 2 of its 7 modules cannot install
 at all, and a third installs something that silently does nothing.
 
 **Do not trust this file's line numbers without re-checking them.** They were
@@ -37,14 +37,14 @@ machine already exists in the repos, but the documented install path never runs 
 
 Both packages were extracted into their own repos. Verified on disk 2026-08-22:
 
-- `~/screen-locker/install_systemd.sh` (5637 b, executable)
-- `~/steam-backlog-enforcer/install.sh` (3248 b, executable)
+- `~/src/screen-locker/install_systemd.sh` (5637 b, executable)
+- `~/src/steam-backlog-enforcer/install.sh` (3248 b, executable)
 
 "Workout screen locker" is a **CORE** module, so a fresh machine fails on the
 first thing the installer does.
 
-Note this makes the installer **cross-repo**: `~/testsAndMisc` no longer owns
-that code. That is design question (b) below — do not just hardcode `~/screen-locker`
+Note this makes the installer **cross-repo**: `~/src/testsAndMisc` no longer owns
+that code. That is design question (b) below — do not just hardcode `~/src/screen-locker`
 and call it done without putting the question to kuhy.
 
 ## Defect 2 — guard-lib is required but never installed
@@ -52,14 +52,14 @@ and call it done without putting the question to kuhy.
 `scripts/periodic_background/digital_wellbeing/setup_midnight_shutdown.sh`
 depends on `guardctl` and dies with `guardctl not found on PATH`. Nothing in
 `install_core_system.sh` installs guard-lib, which lives at
-`~/utils/guard-lib/install.sh` — a **third** sibling repo.
+`~/src/utils/guard-lib/install.sh` — a **third** sibling repo.
 
 So the CORE module "Midnight shutdown timer" always fails on a fresh machine.
 
 ## Defect 3 — the hosts file-guards are installed only by a one-shot script
 
 `install.sh` in the extracted `hosts-blocker` repo
-(github.com/kuhyx/hosts-blocker, checked out at `~/hosts-blocker`; it was
+(github.com/kuhyx/hosts-blocker, checked out at `~/src/hosts-blocker`; it was
 `scripts/periodic_background/hosts/install.sh` when this was written)
 never installs the
 hosts/nsswitch/resolved file-guards. Its own comment block around **line 109**
@@ -90,10 +90,10 @@ diff; the second stops `single_use/fixes/` from being load-bearing, which is
 arguably what "single use" is supposed to mean.
 
 **(b) How should a testsAndMisc installer reach code in sibling repos?**
-`~/screen-locker`, `~/steam-backlog-enforcer` and `~/utils/guard-lib` are
+`~/src/screen-locker`, `~/src/steam-backlog-enforcer` and `~/src/utils/guard-lib` are
 separate repos now. Options, none obviously right:
 
-1. **Expect-adjacent** — check for `~/screen-locker` etc., fail with a clear
+1. **Expect-adjacent** — check for `~/src/screen-locker` etc., fail with a clear
    message naming the repo to clone. Simple; the installer stops being
    self-contained.
 2. **Clone if missing** — the installer clones the siblings it needs. Works on
@@ -112,7 +112,7 @@ an actionable message rather than silently skipping a module.
 The fix is done when, in a **fresh** vmbox guest:
 
 ```bash
-vm share ~/testsAndMisc && vm share ~/utils
+vm share ~/src/testsAndMisc && vm share ~/src/utils
 vm new inst
 vm run inst 'git clone --no-hardlinks -q /mnt/hostrepo/testsAndMisc ~/tam'
 # plus whatever cloning question (b)'s answer implies for the sibling repos
@@ -134,16 +134,16 @@ vm run inst 'cd ~/tam && echo y | bash linux_configuration/install_core_system.s
 
 - **Sandbox first, always.** This is a root installer that writes `/etc`,
   systemd units, pacman hooks and `chattr +i`. Never run it on the host to
-  test it. `~/utils/vmbox`: `vm new` / `vm run` / `vm reset`. A sandbox pass
+  test it. `~/src/utils/vmbox`: `vm new` / `vm run` / `vm reset`. A sandbox pass
   does **not** prove the host is fine — report it that way.
 - Installers prompt; `vm run` closes stdin, so pipe `echo y |`.
 - vmbox is fast: `vm run` ~14s cold / ~3s warm, `vm reset` ~2s. Reuse one
   sandbox, do not rebuild per command.
-- `~/utils/vmbox/SESSION_RESULTS.md` has the full 2026-08-22 measurements.
-- The 250-line file cap applies (`~/utils/file_length`). `install.sh` is at
+- `~/src/utils/vmbox/SESSION_RESULTS.md` has the full 2026-08-22 measurements.
+- The 250-line file cap applies (`~/src/utils/file_length`). `install.sh` is at
   130 lines and the migration at 169 — merging them wholesale will breach it,
   which is worth weighing in design question (a).
-- `~/testsAndMisc` requires a `docs/superpowers/evidence/*.json` artifact for
+- `~/src/testsAndMisc` requires a `docs/superpowers/evidence/*.json` artifact for
   any code change (pre-commit gate `ai-evidence-contract`); copy
   `docs/superpowers/evidence/template.json`.
 

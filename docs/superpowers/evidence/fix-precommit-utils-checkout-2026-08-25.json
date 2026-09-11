@@ -6,13 +6,13 @@
     "Non-goal: changing any gate's rules, or restyling the existing icon family"
   ],
   "changes": [
-    "pre-commit.yml now checks out kuhyx/utils into .utils/ and points UTILS_ROOT at it. The md-naming and file-length hooks are thin shims that exec the real gate out of that repo; a runner has no ~/utils, so both failed with 'shared gate not found at /home/runner/utils/...' and the workflow has been red since 2026-08-24. The dedicated md-naming.yml already did this checkout — this copies the same approach rather than inventing one.",
+    "pre-commit.yml now checks out kuhyx/utils into .utils/ and points UTILS_ROOT at it. The md-naming and file-length hooks are thin shims that exec the real gate out of that repo; a runner has no ~/src/utils, so both failed with 'shared gate not found at /home/runner/utils/...' and the workflow has been red since 2026-08-24. The dedicated md-naming.yml already did this checkout — this copies the same approach rather than inventing one.",
     "Registered app_icons entry 'punchme' (shared family accent #B8862E, glyph punch-card, linux=False since the app is Android-only).",
     "Added the _PUNCH_CARD glyph: a time card with a clipped corner, a column of four punched holes and three ruled lines. The first draft put two holes above two wide slots and read unmistakably as a face (eyes over teeth) at every size, which is why the holes are now a vertical column."
   ],
   "verification": [
     {
-      "command": "UTILS_ROOT=/home/kuhy/utils bash scripts/check_md_naming.sh README.md",
+      "command": "UTILS_ROOT=/home/kuhy/src/utils bash scripts/check_md_naming.sh README.md",
       "result": "pass",
       "evidence": "Exit 0. With UTILS_ROOT=/nonexistent the same shim fails with 'shared gate not found at /nonexistent/scripts/check_md_naming.sh', so the override is what the fix relies on and it is proven in both directions."
     },
@@ -32,7 +32,7 @@
       "evidence": "All hooks passed, including pylint, bandit and 'pytest with coverage enforcement'."
     },
     {
-      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app punchme --android",
+      "command": "PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons generate --app punchme --android",
       "result": "pass",
       "evidence": "Wrote 6 asset files and regenerated the Android mipmaps with no safe-box warning. Rendered at full size, circle-masked and 48dp and reviewed each; legible at all three."
     }

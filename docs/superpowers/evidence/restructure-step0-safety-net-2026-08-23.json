@@ -21,7 +21,7 @@
     {
       "command": "./meta/scripts/report_live_state.sh --check; echo $?",
       "result": "pass",
-      "evidence": "Exit code 1 with 'live references into /home/kuhy/testsAndMisc remain', which is correct at baseline since nothing has moved yet."
+      "evidence": "Exit code 1 with 'live references into /home/kuhy/src/testsAndMisc remain', which is correct at baseline since nothing has moved yet."
     },
     {
       "command": "14 hand-built path cases through check_directory_depth.sh",

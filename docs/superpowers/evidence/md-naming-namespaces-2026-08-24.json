@@ -31,14 +31,14 @@
       "evidence": "exit 0 -- the basis for deleting both refactor todos"
     },
     {
-      "command": "python3 -m pytest md_naming/tests/ (in ~/utils)",
+      "command": "python3 -m pytest md_naming/tests/ (in ~/src/utils)",
       "result": "pass",
       "evidence": "71 passed; 100% branch coverage on the gate"
     }
   ],
   "risks": [
     "A rename breaks an inbound link not caught by the reference sweep. Mitigated: the sweep covered ~/.claude/CLAUDE.md, rules/, skills/, memory/ and every tracked .md; a bare-basename match was deliberately narrowed after a dry run showed it would corrupt vendored node_modules files.",
-    "A doc classified TASK is actually finished, or vice versa. Mitigated: verdicts came from content audits cross-checked against repo code, and are recorded in ~/utils/md_naming/migrate/classify.py.",
+    "A doc classified TASK is actually finished, or vice versa. Mitigated: verdicts came from content audits cross-checked against repo code, and are recorded in ~/src/utils/md_naming/migrate/classify.py.",
     "The gate depends on kuhyx/utils being present; CI checks it out, and the shim fails loudly with install instructions if it is missing."
   ],
   "rollback": [

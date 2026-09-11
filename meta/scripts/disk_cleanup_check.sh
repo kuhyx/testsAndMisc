@@ -206,7 +206,7 @@ if ((journal_kb > 204800)); then
 fi
 
 # 19. AUR source dirs — old archives (>30 days)
-aur_dir="$HOME/aur"
+aur_dir="$HOME/sdk/aur"
 if [[ -d "$aur_dir" ]]; then
 	old_archives_kb=$(find "$aur_dir" \
 		\( -name "*.pkg.tar.zst" -o -name "*.tar.gz" -o -name "*.tar.xz" \
@@ -215,7 +215,7 @@ if [[ -d "$aur_dir" ]]; then
 		awk '{t+=$1} END{print t+0}')
 	if ((old_archives_kb > 0)); then
 		report "AUR old archives (>30d)" "$old_archives_kb" \
-			"find ~/aur '*.pkg.tar.zst' -mtime +30 -delete"
+			"find ~/sdk/aur '*.pkg.tar.zst' -mtime +30 -delete"
 		if confirm "Delete old AUR archives (>30 days)?"; then
 			find "$aur_dir" \
 				\( -name "*.pkg.tar.zst" -o -name "*.tar.gz" -o -name "*.tar.xz" \

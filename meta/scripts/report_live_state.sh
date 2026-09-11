@@ -19,7 +19,7 @@ set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
-readonly REPO="${REPO:-$HOME/testsAndMisc}"
+readonly REPO="${REPO:-$HOME/src/testsAndMisc}"
 
 CHECK_ONLY=0
 
@@ -40,8 +40,8 @@ report_systemd() {
 		[[ -n "$unit" ]] || continue
 		found=1
 		printf '  %s\n' "$unit"
-		grep -n "$REPO\|%h/testsAndMisc" "$unit" | sed 's/^/      /'
-	done < <(grep -rl "$REPO\|%h/testsAndMisc" \
+		grep -n "$REPO\|%h/src/testsAndMisc" "$unit" | sed 's/^/      /'
+	done < <(grep -rl "$REPO\|%h/src/testsAndMisc" \
 		/etc/systemd/system "$HOME/.config/systemd/user" 2>/dev/null | sort)
 	((found)) || echo "  (none)"
 	return "$found"

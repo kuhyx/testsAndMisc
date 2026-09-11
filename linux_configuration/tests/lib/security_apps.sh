@@ -73,7 +73,7 @@ sec_tests_screen_locker() {
 	echo "--- SCREEN LOCKER ---"
 
 	# screen_locker was EXTRACTED to github.com/kuhyx/screen-locker. This used
-	# to hardcode $HOME/testsAndMisc/python_pkg/screen_locker/, which stopped
+	# to hardcode $HOME/src/testsAndMisc/python_pkg/screen_locker/, which stopped
 	# existing -- so all five checks below silently SKIPPED, reporting a clean
 	# run for tests that never executed. $HOME is also wrong under sudo; use the
 	# shared resolver, which handles the sudo/systemd cases.

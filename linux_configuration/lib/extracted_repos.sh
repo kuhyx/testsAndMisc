@@ -59,7 +59,7 @@ extracted_repo_dir() {
 # yourself" is not actionable -- there is nothing to clone it with yet.
 #
 # The clone runs as the HUMAN user, never as root. Installers re-exec themselves
-# via sudo, and a root-owned ~/screen-locker silently breaks every later git
+# via sudo, and a root-owned ~/src/screen-locker silently breaks every later git
 # operation the user makes in it. A sandbox never catches this (the guest runs
 # as root throughout), so the ownership is forced here rather than assumed.
 #

@@ -15,7 +15,7 @@ phone-deploy() { bash "$HOME/.claude/scripts/phone_deploy.sh" "${1:-.}" "${@:2}"
 
 # autopsy [subcommand ...] — the transcript analyzer; defaults to `report`.
 # Try: autopsy candidates | autopsy measure | autopsy report --mark-reviewed
-autopsy() { PYTHONPATH="$HOME/testsAndMisc" python3 -m python_pkg.session_autopsy "${1:-report}" "${@:2}"; }
+autopsy() { PYTHONPATH="$HOME/src/testsAndMisc" python3 -m python_pkg.session_autopsy "${1:-report}" "${@:2}"; }
 
 # yay-clean [--dry-run] <pkg>...|--all — remove yay cache dirs plain rm chokes
 # on (read-only fakeroot/Bazel trees). The cache was 314GB on 2026-07-24.

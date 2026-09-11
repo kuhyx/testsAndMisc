@@ -1,4 +1,4 @@
-# Working safely in a shared `~/testsAndMisc` checkout
+# Working safely in a shared `~/src/testsAndMisc` checkout
 
 Split out of `refactor_claude_todo_resume.md` (which hit the 250-line cap it
 exists to enforce). Nothing here is specific to the file-length refactor -- it

@@ -336,7 +336,7 @@ printf '\nResults: %d passed, %d failed\n' "${PASS}" "${FAIL}"
 - [ ] **Step 1.3: Run the test to verify it passes**
 
 ```bash
-cd /home/kuhy/testsAndMisc
+cd /home/kuhy/src/testsAndMisc
 bash phone_focus_mode/lib/tests/test_adb_common.sh
 ```
 
@@ -1762,7 +1762,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=%h/testsAndMisc/scripts/run_all/run_phone.sh auto
+ExecStart=%h/src/testsAndMisc/scripts/run_all/run_phone.sh auto
 StandardOutput=journal
 StandardError=journal
 ```

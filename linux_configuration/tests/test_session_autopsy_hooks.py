@@ -153,7 +153,7 @@ class TestSessionEndHookLaunchesIngest:
         assert "ingest" in argv
         assert str(transcript) in argv
         assert "--quiet" in argv
-        assert f"PYTHONPATH={home}/mcp-servers/session-autopsy" in argv
+        assert f"PYTHONPATH={home}/src/mcp-servers/session-autopsy" in argv
         assert "timeout 120" in argv
 
     def test_creates_the_autopsy_home(self, tmp_path: Path) -> None:

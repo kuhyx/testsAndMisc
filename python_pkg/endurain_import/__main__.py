@@ -4,7 +4,7 @@ Run from a systemd user timer. Configuration comes from the environment:
 
     ENDURAIN_URL        base URL (default http://127.0.0.1:8085)
     ENDURAIN_API_KEY    API key with activities:upload (required)
-    ENDURAIN_INBOX      WebDAV inbox (default ~/cloud/RunnerUp)
+    ENDURAIN_INBOX      WebDAV inbox (default ~/data/cloud/RunnerUp)
     ENDURAIN_STATE      ledger directory (default ~/.local/state/endurain-import)
     ENDURAIN_BULK_DIR   bulk_import dir for files the server rejected
     ENDURAIN_NO_ADB     set to 1 to disable the phone fallback
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger("endurain_import")
 
 _DEFAULT_URL = "http://127.0.0.1:8085"
-_DEFAULT_INBOX = Path.home() / "cloud" / "RunnerUp"
+_DEFAULT_INBOX = Path.home() / "data/cloud" / "RunnerUp"
 _DEFAULT_STATE = Path.home() / ".local" / "state" / "endurain-import"
 _DEFAULT_USER_ID = 1
 

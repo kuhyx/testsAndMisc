@@ -5,9 +5,9 @@ before, and shows them one at a time for a keep/pass decision — mpv embedded i
 a Tk window with the buttons directly underneath.
 
 ```bash
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber          # review
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber scrape   # no UI
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber stats
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber          # review
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber scrape   # no UI
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber stats
 ```
 
 `k` / `→` keeps, `j` / `space` / `←` passes, `u` / `Backspace` undoes, `q` /

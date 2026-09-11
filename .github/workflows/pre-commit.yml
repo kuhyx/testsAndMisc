@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # The md-naming / file-length hooks are thin shims that exec the shared
-      # gate out of the utils repo. A runner has no ~/utils, so without this
+      # gate out of the utils repo. A runner has no ~/src/utils, so without this
       # checkout they fail with "shared gate not found" -- which is exactly
       # how this workflow went red on 2026-08-24.
       UTILS_ROOT: ${{ github.workspace }}/.utils

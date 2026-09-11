@@ -29,10 +29,10 @@ Verify any of it:
 ## What landed this session
 
 **`hosts-blocker`** — [github.com/kuhyx/hosts-blocker](https://github.com/kuhyx/hosts-blocker),
-cloned at `~/hosts-blocker`. 52 commits.
+cloned at `~/src/hosts-blocker`. 52 commits.
 
 **`digital-wellbeing`** — [github.com/kuhyx/digital-wellbeing](https://github.com/kuhyx/digital-wellbeing),
-cloned at `~/digital-wellbeing`. 89 commits, and it carries the six suites that
+cloned at `~/src/digital-wellbeing`. 89 commits, and it carries the six suites that
 used to sit in `linux_configuration/tests/`.
 
 **The cap enforces.** `--warn` is gone from the `directory-depth-cap` hook, and
@@ -76,7 +76,7 @@ copies were the only ones on the machine.
 - **`syncyomi-guard` is red** since 00:00 on 2026-08-23, working as designed:
   the library collapsed from 2185 manga to 8. See the
   `syncyomi-restore-silent-partial` memory; do NOT checkpoint the WAL before
-  recovering. Newest snapshot: `~/syncyomi/snapshots/`, 2026-08-15.
+  recovering. Newest snapshot: `~/services/syncyomi/snapshots/`, 2026-08-15.
 
 ## Traps worth keeping
 

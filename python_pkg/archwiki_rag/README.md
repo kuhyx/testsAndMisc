@@ -22,7 +22,7 @@ search.
 ./install.sh
 
 # Manual refresh.
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.archwiki_rag sync --reindex
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.archwiki_rag sync --reindex
 
 # Query it.
 claude-archwiki

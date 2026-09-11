@@ -5,19 +5,19 @@
     "Non-goal: no change to the generator, the glyph set, or any other app's icon"
   ],
   "changes": [
-    "Registered betting_sim: repo ~/betting-sim/app, accent #B8862E, glyph track-bars (rising bars with a plotted trend point, which reads as odds movement).",
+    "Registered betting_sim: repo ~/src/betting-sim/app, accent #B8862E, glyph track-bars (rising bars with a plotted trend point, which reads as odds movement).",
     "Set linux=false: betting-sim's desktop target is a Chrome-wrapped web build rather than the GTK embedder, so the hicolor PNG set would go unread."
   ],
   "verification": [
     {
       "command": "PYTHONPATH=. python3 -m python_pkg.app_icons list",
       "result": "pass",
-      "evidence": "betting_sim  #B8862E  track-bars  /home/kuhy/betting-sim/app"
+      "evidence": "betting_sim  #B8862E  track-bars  /home/kuhy/src/betting-sim/app"
     },
     {
       "command": "PYTHONPATH=. python3 -m python_pkg.app_icons generate --app betting_sim --android",
       "result": "pass",
-      "evidence": "wrote 6 asset files to /home/kuhy/betting-sim/app/assets/icon; mipmaps generated after adding flutter_launcher_icons to the app pubspec"
+      "evidence": "wrote 6 asset files to /home/kuhy/src/betting-sim/app/assets/icon; mipmaps generated after adding flutter_launcher_icons to the app pubspec"
     },
     {
       "command": "visual check of assets/icon/icon.png",

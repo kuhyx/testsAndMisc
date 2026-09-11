@@ -75,7 +75,7 @@ touching anything.
    one.** This is the highest-value artifact on the phone.
    ```bash
    adb -s 23181JEGR08034 shell 'find /sdcard -iname "*.kdbx" 2>/dev/null'
-   adb -s 23181JEGR08034 pull <path> ~/phone-backup/
+   adb -s 23181JEGR08034 pull <path> ~/data/phone-backup/
    ```
 3. **Write down on paper**: mBank customer ID + password, Revolut passcode,
    Signal PIN, KeePassDX master password, both Google passwords.
@@ -87,13 +87,13 @@ touching anything.
 5. **Signal**: Settings → Backups → On-device backups. **Record the 30-digit
    passphrase on paper** — it is not your Signal PIN.
    ```bash
-   adb -s 23181JEGR08034 pull /sdcard/Signal/Backups/ ~/phone-backup/signal/
+   adb -s 23181JEGR08034 pull /sdcard/Signal/Backups/ ~/data/phone-backup/signal/
    ```
    Registration Lock: forgetting the PIN locks you out for up to 7 days.
 6. **Photos and downloads**:
    ```bash
-   adb -s 23181JEGR08034 pull /sdcard/DCIM/ ~/phone-backup/DCIM/
-   adb -s 23181JEGR08034 pull /sdcard/Download/ ~/phone-backup/Download/
+   adb -s 23181JEGR08034 pull /sdcard/DCIM/ ~/data/phone-backup/DCIM/
+   adb -s 23181JEGR08034 pull /sdcard/Download/ ~/data/phone-backup/Download/
    ```
 7. **mBank**: in the transactional service, note how to remove a paired device.
    The old phone stays listed as active after a reset and must be detached.

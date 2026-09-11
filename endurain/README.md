@@ -5,7 +5,7 @@ fed by RunnerUp exports from the phone.
 
 **Endurain is a viewer.** `screen-locker`'s workout gate still reads the phone
 over adb and is untouched by anything here — a WebDAV drop folder is trivially
-spoofable by anything that can write to `~/cloud`, so it must never become an
+spoofable by anything that can write to `~/data/cloud`, so it must never become an
 unlock authority.
 
 ## Paths
@@ -14,7 +14,7 @@ unlock authority.
 | ------------- | --------------------------------------------------------------------------- |
 | Public URL    | `https://endurain.kuhy.duckdns.org`                                         |
 | Local URL     | `http://127.0.0.1:8085` (loopback only)                                     |
-| WebDAV inbox  | `https://kuhy-cloud.duckdns.org/RunnerUp` → `~/cloud/RunnerUp/`             |
+| WebDAV inbox  | `https://kuhy-cloud.duckdns.org/RunnerUp` → `~/data/cloud/RunnerUp/`             |
 | Runtime data  | `/var/opt/endurain/`                                                        |
 | Ledger        | `~/.local/state/endurain-import/ledger.json`                                |
 | Importer code | `../python_pkg/endurain_import/` (repo requires Python under `python_pkg/`) |
@@ -23,9 +23,9 @@ unlock authority.
 ## Flow
 
 ```
-phone --(WebDAV, manual tap)--> dufs ~/cloud/RunnerUp/ --\
+phone --(WebDAV, manual tap)--> dufs ~/data/cloud/RunnerUp/ --\
                                                           >-- importer --> Endurain
-phone --(adb pull, fallback)--> ~/cloud/RunnerUp/ -------/
+phone --(adb pull, fallback)--> ~/data/cloud/RunnerUp/ -------/
 ```
 
 A systemd user timer (`endurain-import.timer`) runs every 15 min.
@@ -48,7 +48,7 @@ cd .. && .venv/bin/python -m pytest python_pkg/endurain_import/tests/ -q  # 52 t
 - **The WebDAV URL must not end in a slash.** RunnerUp builds the target as
   `url + fileBase + fileExt` where `fileBase` already starts with `/`.
 - **`MKCOL` is not supported by dufs.** RunnerUp `PROPFIND`s the directory and
-  only issues `MKCOL` on 404, so `~/cloud/RunnerUp/` must exist on disk or
+  only issues `MKCOL` on 404, so `~/data/cloud/RunnerUp/` must exist on disk or
   adding the account fails with an opaque generic error (upstream #1147/#1172).
 - **HTTPS is mandatory.** RunnerUp targets `targetSdk 36` with no
   `usesCleartextTraffic`, so Android blocks plain HTTP. Self-signed certs are

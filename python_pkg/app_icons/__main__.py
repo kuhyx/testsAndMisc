@@ -1,7 +1,7 @@
 """Module entry point for the shared app-icon generator.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons --help
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons --help
 """
 
 from __future__ import annotations

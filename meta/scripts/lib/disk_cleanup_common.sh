@@ -83,7 +83,7 @@ print_report_only() {
 	for manual_entry in \
 		"$HOME/Downloads/too_big:~/Downloads/too_big" \
 		"$HOME/Downloads:~/Downloads total" \
-		"$HOME/inne:~/inne" \
+		"$HOME/media/inne:~/media/inne" \
 		"/Games:/Games — still playing?"; do
 		dir="${manual_entry%%:*}"
 		label="${manual_entry#*:}"

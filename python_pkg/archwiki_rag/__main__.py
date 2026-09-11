@@ -1,7 +1,7 @@
 """Module entry point for the offline Arch Wiki RAG corpus builder.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.archwiki_rag --help
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.archwiki_rag --help
 """
 
 from __future__ import annotations

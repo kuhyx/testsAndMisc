@@ -2,7 +2,7 @@
 # setup_keepass_sync.sh — set up "one KeePass vault, synced everywhere".
 #
 # IDENTICAL on every Linux device (PC and laptop alike): each keeps one local
-# working vault at ~/Keepass/Passwords.kdbx and syncs it to the canonical copy
+# working vault at ~/data/Keepass/Passwords.kdbx and syncs it to the canonical copy
 # on the dufs server over WebDAV, at the moment you open KeePass. You open the
 # vault with a single command — `keepass-open` — on every machine. The phone
 # uses KeePassDX (same idea: enter password → Synchronize over WebDAV → use).
@@ -22,13 +22,19 @@ readonly CONFIG_DIR="$HOME/.config/keepass-sync"
 readonly CONFIG="$CONFIG_DIR/config.env"
 readonly BIN_DIR="$HOME/.local/bin"
 readonly KEYRING_SERVICE="${KP_KEYRING_SERVICE:-keepass-sync}"
-readonly LOCAL_DB="$HOME/Keepass/Passwords.kdbx"
+readonly LOCAL_DB="$HOME/data/Keepass/Passwords.kdbx"
 
 C() { printf '\033[1;34m[keepass-setup]\033[0m %s\n' "$*"; }
 OK() { printf '\033[1;32m  ✓\033[0m %s\n' "$*"; }
 WARN() { printf '\033[1;33m  !\033[0m %s\n' "$*"; }
-die() { printf '\033[1;31m[keepass-setup] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { grep -E '^#( |$)' "$0" | sed -E 's/^# ?//'; exit 0; }
+die() {
+	printf '\033[1;31m[keepass-setup] ERROR:\033[0m %s\n' "$*" >&2
+	exit 1
+}
+usage() {
+	grep -E '^#( |$)' "$0" | sed -E 's/^# ?//'
+	exit 0
+}
 
 install_deps() {
 	C "Installing dependencies"
@@ -55,7 +61,8 @@ main() {
 	read -r -p "dufs vault URL [https://kuhy-cloud.duckdns.org/Keepass/Passwords.kdbx]: " url
 	url="${url:-https://kuhy-cloud.duckdns.org/Keepass/Passwords.kdbx}"
 	read -r -p "dufs web username: " user
-	read -r -s -p "dufs web password (server credential — cached in keyring): " dpass; echo
+	read -r -s -p "dufs web password (server credential — cached in keyring): " dpass
+	echo
 	[[ -n "$user" && -n "$dpass" ]] || die "dufs username/password required"
 	printf '%s' "$dpass" | secret-tool store --label='dufs server password (keepass-sync)' \
 		service "$KEYRING_SERVICE" key dufs
@@ -86,8 +93,8 @@ main() {
 	# --- retire the old one-way mirror unit (dufs host only) ----------------
 	# is-enabled/is-active are pipe-free and work as non-root (unlike
 	# `list-unit-files | grep -q`, which misfires under set -o pipefail).
-	if systemctl is-enabled keepass-cloud-sync.path >/dev/null 2>&1 \
-		|| systemctl is-active keepass-cloud-sync.path >/dev/null 2>&1; then
+	if systemctl is-enabled keepass-cloud-sync.path >/dev/null 2>&1 ||
+		systemctl is-active keepass-cloud-sync.path >/dev/null 2>&1; then
 		C "Retiring the old one-way keepass-cloud-sync units"
 		sudo systemctl disable --now keepass-cloud-sync.path keepass-cloud-sync.service 2>/dev/null || true
 		OK "old one-way sync retired"

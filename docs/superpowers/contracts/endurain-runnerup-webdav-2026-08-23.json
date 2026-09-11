@@ -1,13 +1,13 @@
 {
   "title": "Endurain viewer fed by RunnerUp WebDAV exports",
-  "objective": "Stand up self-hosted Endurain behind the existing Caddy edge and import RunnerUp activities into it, primarily over WebDAV from the phone with an adb pull as fallback. Endurain is a VIEWER only: screen-locker's workout gate keeps reading the phone over adb and is not modified, because a WebDAV drop folder is spoofable by anything that can write to ~/cloud and must never become a screen-unlock authority. Success means real activities from the phone are visible in Endurain, importing twice never creates a duplicate, and screen-locker still passes its full suite.",
+  "objective": "Stand up self-hosted Endurain behind the existing Caddy edge and import RunnerUp activities into it, primarily over WebDAV from the phone with an adb pull as fallback. Endurain is a VIEWER only: screen-locker's workout gate keeps reading the phone over adb and is not modified, because a WebDAV drop folder is spoofable by anything that can write to ~/data/cloud and must never become a screen-unlock authority. Success means real activities from the phone are visible in Endurain, importing twice never creates a duplicate, and screen-locker still passes its full suite.",
   "acceptance_criteria": [
     "Endurain reachable at https://endurain.kuhy.duckdns.org with a valid Let's Encrypt certificate",
     "At least 4 real RunnerUp activities imported and visible, with correct distance and duration",
     "Re-running the importer over already-imported files creates ZERO new activities",
     "The .gpx and .tcx of a single run import as ONE activity, not two",
     "The seeded admin/admin login is rejected before the service is ever published",
-    "The phone-facing WebDAV credential cannot read ~/cloud/Keepass or gdrive_backups",
+    "The phone-facing WebDAV credential cannot read ~/data/cloud/Keepass or gdrive_backups",
     "screen-locker's full test suite still passes at 100% coverage"
   ],
   "out_of_scope": [

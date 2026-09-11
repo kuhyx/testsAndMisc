@@ -30,7 +30,7 @@
       "evidence": "No findings against the generated unit; the only output was pre-existing warnings about unrelated units on this host."
     },
     {
-      "command": "systemd-run --user --wait -p ProtectSystem=strict -p ProtectHome=read-only -p ReadWritePaths=/home/kuhy/personal-website ... running the three real build steps",
+      "command": "systemd-run --user --wait -p ProtectSystem=strict -p ProtectHome=read-only -p ReadWritePaths=/home/kuhy/src/personal-website ... running the three real build steps",
       "result": "pass",
       "evidence": "vite build ok / ssr build ok / prerender ok, and `touch $HOME/.pw-sandbox-should-fail` was refused with 'Read-only file system'. The sandbox permits exactly the checkout."
     }

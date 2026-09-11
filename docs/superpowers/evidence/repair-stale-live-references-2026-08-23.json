@@ -32,7 +32,7 @@
     {
       "command": "resolver across all four invocation modes",
       "result": "pass",
-      "evidence": "as user -> /home/kuhy/hosts-blocker; via sudo -> same; as root with SUDO_USER/USER unset -> same; HOSTS_BLOCKER_DIR=/opt/hb -> /opt/hb (override still wins)."
+      "evidence": "as user -> /home/kuhy/src/hosts-blocker; via sudo -> same; as root with SUDO_USER/USER unset -> same; HOSTS_BLOCKER_DIR=/opt/hb -> /opt/hb (override still wins)."
     },
     {
       "command": "sudo visudo -c",

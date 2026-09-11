@@ -11,7 +11,7 @@
 #
 # What it does (idempotent — safe to re-run):
 #   - Installs runtime deps.
-#   - Writes ~/searxng/{docker-compose.yml,core-config/settings.yml}.
+#   - Writes ~/services/searxng/{docker-compose.yml,core-config/settings.yml}.
 #   - Runs valkey (limiter backend) on 127.0.0.1:6379.
 #   - Runs searxng on 127.0.0.1:8090, both with network_mode: host.
 #   - Adds a reverse-proxy + security-header snippet to the shared edge.
@@ -53,13 +53,13 @@ readonly VALKEY_PORT="6379"
 # searxng/searxng:latest as of 2026-08-09 == release 2026.8.4. See the comment
 # on the image: line in the compose heredoc for why this is pinned.
 readonly SEARX_IMAGE="searxng/searxng@sha256:f4c8e59de166ed71f6380c0847c312ca51f0d41996e31d0559163b6b09ecde52"
-readonly SEARX_DATA_DIR="${HOME}/searxng"
+readonly SEARX_DATA_DIR="${HOME}/services/searxng"
 readonly SEARX_COMPOSE="${SEARX_DATA_DIR}/docker-compose.yml"
 readonly SEARX_CONFIG_DIR="${SEARX_DATA_DIR}/core-config"
 readonly SEARX_SETTINGS="${SEARX_CONFIG_DIR}/settings.yml"
 readonly SEARX_LIMITER="${SEARX_CONFIG_DIR}/limiter.toml"
 # Shared edge owned by setup_gitea.sh.
-readonly GITEA_DATA_DIR="${HOME}/gitea"
+readonly GITEA_DATA_DIR="${HOME}/services/gitea"
 readonly SITES_DIR="${GITEA_DATA_DIR}/sites"
 readonly SEARX_SNIPPET="${SITES_DIR}/searx.caddy"
 readonly CADDY_CONTAINER="gitea-caddy"
@@ -160,7 +160,6 @@ source "$SCRIPT_DIR/lib/searxng_start.sh"
 source "$SCRIPT_DIR/lib/searxng_expose.sh"
 # shellcheck source=lib/searxng_status.sh
 source "$SCRIPT_DIR/lib/searxng_status.sh"
-
 
 main() {
 	local cmd="${1:-setup}"

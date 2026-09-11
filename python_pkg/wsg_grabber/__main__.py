@@ -1,7 +1,7 @@
 """Module entry point.
 
 Usage:
-    PYTHONPATH=~/testsAndMisc python3 -m python_pkg.wsg_grabber --help
+    PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber --help
 """
 
 from __future__ import annotations

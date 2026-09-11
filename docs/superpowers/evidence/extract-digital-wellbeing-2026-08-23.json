@@ -1,5 +1,5 @@
 {
-  "intent": "Extract the last over-cap unit into github.com/kuhyx/digital-wellbeing (cloned at ~/digital-wellbeing), then delete --warn from the directory-depth-cap hook so the cap enforces for real. This is the closing step of the restructure campaign.",
+  "intent": "Extract the last over-cap unit into github.com/kuhyx/digital-wellbeing (cloned at ~/src/digital-wellbeing), then delete --warn from the directory-depth-cap hook so the cap enforces for real. This is the closing step of the restructure campaign.",
   "scope": [
     "REMOVED: linux_configuration/periodic_background/digital_wellbeing/ (80 tracked files)",
     "REMOVED: 6 test suites + 2 test libs from linux_configuration/tests/",
@@ -33,7 +33,7 @@
       "evidence": "ALL 80 TRACKED FILES IDENTICAL. node_modules (340 files) and __pycache__ correctly excluded -- the repo has 80 tracked files, not the 423 on disk."
     },
     {
-      "command": "~/digital-wellbeing/tests/run_all.sh",
+      "command": "~/src/digital-wellbeing/tests/run_all.sh",
       "result": "pass",
       "evidence": "All six regression suites plus the discovered lib/tests/run_all.sh pass: 'All digital-wellbeing suites passed.'"
     },
@@ -55,7 +55,7 @@
     {
       "command": "sudo sha256sum -c --status /var/lib/pacman-wrapper/source.sha256",
       "result": "pass",
-      "evidence": "Exit 0. The manifest embeds ABSOLUTE paths and had named deleted scripts/ paths since the flatten, so the drift check reported a permanent false 'stale or tampered'. It now names ~/digital-wellbeing and verifies -- with unchanged hashes, confirming the extracted bytes are identical."
+      "evidence": "Exit 0. The manifest embeds ABSOLUTE paths and had named deleted scripts/ paths since the flatten, so the drift check reported a permanent false 'stale or tampered'. It now names ~/src/digital-wellbeing and verifies -- with unchanged hashes, confirming the extracted bytes are identical."
     },
     {
       "command": "report_live_state.sh --check | grep -c linux_configuration/scripts/",

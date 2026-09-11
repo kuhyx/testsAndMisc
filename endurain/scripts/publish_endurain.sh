@@ -20,7 +20,7 @@ SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
 readonly APP_URL="http://127.0.0.1:8085"
 readonly PUBLIC_HOST="endurain.kuhy.duckdns.org"
-readonly EDGE_DIR="${HOME}/gitea"
+readonly EDGE_DIR="${HOME}/services/gitea"
 readonly SITE_FILE="${EDGE_DIR}/sites/endurain.caddy"
 readonly EDGE_CONTAINER="gitea-caddy"
 

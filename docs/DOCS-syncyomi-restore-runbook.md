@@ -25,7 +25,7 @@ Upstream, open and unfixed: [#1634] and [#1638].
 ## Fixed on this phone (2026-08-28)
 
 The phone no longer runs the upstream APK. It runs
-[kuhyx/TachiyomiSY](https://github.com/kuhyx/TachiyomiSY) (`~/tachiyomisy`,
+[kuhyx/TachiyomiSY](https://github.com/kuhyx/TachiyomiSY) (`~/vendor/tachiyomisy`,
 commit "Serialize backup restore and refuse to sync a collapsed library"),
 which carries three changes upstream does not have:
 
@@ -52,8 +52,8 @@ the official APK rather than sitting beside it, and is signed with
 
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
-  ~/tachiyomisy/gradlew -p ~/tachiyomisy assembleFoss -PsyReplaceUpstream
-adb install -r ~/tachiyomisy/app/build/outputs/apk/foss/app-arm64-v8a-foss.apk
+  ~/vendor/tachiyomisy/gradlew -p ~/vendor/tachiyomisy assembleFoss -PsyReplaceUpstream
+adb install -r ~/vendor/tachiyomisy/app/build/outputs/apk/foss/app-arm64-v8a-foss.apk
 ```
 
 Never install an official TachiyomiSY APK over it: the signatures differ, so
@@ -137,13 +137,13 @@ systemctl --user list-timers syncyomi-guard.timer
 journalctl --user -u syncyomi-guard.service -n 20
 ```
 
-Snapshots live in `~/syncyomi/snapshots/` and are ordinary `.tachibk` files —
+Snapshots live in `~/services/syncyomi/snapshots/` and are ordinary `.tachibk` files —
 `adb push` one to the phone and restore it directly.
 
 **Retention: 14 snapshots at 30-minute intervals is about 7 hours of history.**
 That covers a fast incident — the 2026-08-09 window was 51 seconds — but not a
 slow drift noticed days later. For that, the reference copy is
-`~/syncyomi/recovery/`, which is never pruned.
+`~/services/syncyomi/recovery/`, which is never pruned.
 
 After a **deliberate** library purge the guard will report a collapse; accept
 the new state with `--accept` to re-baseline.
@@ -167,7 +167,7 @@ and 1 won. The phone was not losing a merge — it was honestly reporting what i
 had. The restore writes manga and chapters but silently drops the category
 tables, which is the narrow form of the same 1.13.2 bug.
 
-The categories still exist in `~/syncyomi/recovery/syncyomi_recovered_2026-08-09.tachibk`
+The categories still exist in `~/services/syncyomi/recovery/syncyomi_recovered_2026-08-09.tachibk`
 (18 definitions, 1724 memberships). Getting them into the app needs the
 downgrade path — 1.12.0 → restore → verify → upgrade — which was not attempted.
 If a future SY release fixes #1634, retry the restore before the downgrade.
@@ -181,7 +181,7 @@ payload may still exist as stale pages in `syncyomi.db-wal`.
 the WAL and the only remaining copy with it. Snapshot all three files first:
 
 ```bash
-sudo cp -a ~/syncyomi/config/syncyomi.db{,-shm,-wal} /some/safe/dir/
+sudo cp -a ~/services/syncyomi/config/syncyomi.db{,-shm,-wal} /some/safe/dir/
 ```
 
 Then rebuild by applying every WAL frame over the base database, last writer
@@ -189,7 +189,7 @@ wins, and extract `sync_data.data`. The 2026-08-09 reconstruction and its
 verification are recorded in
 `docs/superpowers/evidence/syncyomi-library-recovery-2026-08-09.json`.
 
-**`~/syncyomi/recovery/recovered.db` is a forensic artifact, not a database.**
+**`~/services/syncyomi/recovery/recovered.db` is a forensic artifact, not a database.**
 It was assembled by splicing pages from several checkpoint generations, so it is
 not any single committed SQLite state — `quick_check` passes and the payload
 blob decodes, but do **not** copy it over `config/syncyomi.db`. The deliverable

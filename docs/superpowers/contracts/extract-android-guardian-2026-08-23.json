@@ -12,7 +12,7 @@
     "pre-commit passes without --no-verify."
   ],
   "out_of_scope": [
-    "Moving heavy_job_lock.sh to ~/utils: the measurement does not support it, and every consumer but the installer already reads the installed copy.",
+    "Moving heavy_job_lock.sh to ~/src/utils: the measurement does not support it, and every consumer but the installer already reads the installed copy.",
     "The adb push half of update_android_hosts.sh, which needs a device in a writable state.",
     "digital_wellbeing itself, which is the next and last extraction."
   ],

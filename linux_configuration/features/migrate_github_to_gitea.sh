@@ -27,8 +27,8 @@ source "$SCRIPT_DIR/../lib/common.sh"
 readonly GITEA_DOMAIN="kuhy.duckdns.org"
 readonly GITEA_OWNER="kuhyx"
 readonly GITHUB_OWNER="kuhyx"
-readonly GITEA_TOKEN_FILE="${HOME}/gitea/.admin_token"
-readonly GITHUB_MIRROR_TOKEN_FILE="${HOME}/gitea/.github_mirror_token"
+readonly GITEA_TOKEN_FILE="${HOME}/services/gitea/.admin_token"
+readonly GITHUB_MIRROR_TOKEN_FILE="${HOME}/services/gitea/.github_mirror_token"
 
 die() {
 	log_error "$1"

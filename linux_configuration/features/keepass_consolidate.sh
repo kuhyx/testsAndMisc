@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-CANONICAL="${KP_CANONICAL:-$HOME/cloud/Keepass/Passwords.kdbx}"
+CANONICAL="${KP_CANONICAL:-$HOME/data/cloud/Keepass/Passwords.kdbx}"
 SEARCH_ROOT="${KP_SEARCH_ROOT:-$HOME}"
 DRY_RUN=0
 STATE_DIR="${KP_STATE_DIR:-$HOME/.config/keepass-sync}"
@@ -25,16 +25,34 @@ STATE_DIR="${KP_STATE_DIR:-$HOME/.config/keepass-sync}"
 EXCLUDE_ARGS=()
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-	--canonical) CANONICAL="$2"; shift 2 ;;
-	--root) SEARCH_ROOT="$2"; shift 2 ;;
-	--exclude) EXCLUDE_ARGS+=("$2"); shift 2 ;;
-	--dry-run|-n) DRY_RUN=1; shift ;;
-	*) echo "unknown arg: $1" >&2; exit 2 ;;
+	--canonical)
+		CANONICAL="$2"
+		shift 2
+		;;
+	--root)
+		SEARCH_ROOT="$2"
+		shift 2
+		;;
+	--exclude)
+		EXCLUDE_ARGS+=("$2")
+		shift 2
+		;;
+	--dry-run | -n)
+		DRY_RUN=1
+		shift
+		;;
+	*)
+		echo "unknown arg: $1" >&2
+		exit 2
+		;;
 	esac
 done
 
 log() { printf '[keepass-consolidate] %s\n' "$*" >&2; }
-die() { printf '[keepass-consolidate] ERROR: %s\n' "$*" >&2; exit 1; }
+die() {
+	printf '[keepass-consolidate] ERROR: %s\n' "$*" >&2
+	exit 1
+}
 
 MASTER_PW="${KP_MASTER_PW:-}"
 [[ -n "$MASTER_PW" ]] || die "KP_MASTER_PW not set (needed to open/merge vaults)"
@@ -47,18 +65,23 @@ FD="$(command -v fd || command -v fdfind || true)"
 opens() { printf '%s\n' "$MASTER_PW" | keepassxc-cli ls "$1" >/dev/null 2>&1; }
 opens "$CANONICAL" || die "master password does not open the canonical vault — aborting"
 
-backup() {  # backup <file> — copy into a timestamped sibling .backup_ dir
+backup() { # backup <file> — copy into a timestamped sibling .backup_ dir
 	local f="$1" bdir
 	bdir="$(dirname "$f")/.backup_$(date +%Y%m%d_%H%M%S)_consolidate"
-	mkdir -p "$bdir"; cp -f "$f" "$bdir/"
+	mkdir -p "$bdir"
+	cp -f "$f" "$bdir/"
 }
 
 # --- exclude prefixes: dirs whose vaults are NOT strays -----------------------
 # Critically the dufs serve-path: on the machine running dufs that directory IS
-# the remote canonical store (e.g. ~/cloud/Keepass) — it must never be treated
+# the remote canonical store (e.g. ~/data/cloud/Keepass) — it must never be treated
 # as a stray and removed. Plus any --exclude args and KP_EXCLUDE (colon-list).
 EXCLUDES=()
-_add_exclude() { local p; p="$(readlink -f "$1" 2>/dev/null || echo "$1")"; [[ -n "$p" ]] && EXCLUDES+=("$p"); }
+_add_exclude() {
+	local p
+	p="$(readlink -f "$1" 2>/dev/null || echo "$1")"
+	[[ -n "$p" ]] && EXCLUDES+=("$p")
+}
 _dufs_cfg="$HOME/.config/dufs/dufs.yaml"
 if [[ -f "$_dufs_cfg" ]]; then
 	_sp="$(sed -nE 's/^serve-path:[[:space:]]*//p' "$_dufs_cfg" | head -1)"
@@ -67,7 +90,7 @@ fi
 IFS=':' read -r -a _kp_excl <<<"${KP_EXCLUDE:-}"
 for e in "${_kp_excl[@]}" "${EXCLUDE_ARGS[@]}"; do [[ -n "$e" ]] && _add_exclude "$e"; done
 
-is_excluded() {  # is_excluded <abs-path> — under any excluded prefix?
+is_excluded() { # is_excluded <abs-path> — under any excluded prefix?
 	local p="$1" ex
 	for ex in "${EXCLUDES[@]}"; do
 		[[ "$p" == "$ex" || "$p" == "$ex"/* ]] && return 0
@@ -90,8 +113,8 @@ STRAYS=()
 for f in "${CANDIDATES[@]}"; do
 	[[ -f "$f" ]] || continue
 	local_abs="$(readlink -f "$f")"
-	[[ "$local_abs" == "$CANON_ABS" ]] && continue   # the canonical itself
-	is_excluded "$local_abs" && continue             # dufs store / excluded dirs
+	[[ "$local_abs" == "$CANON_ABS" ]] && continue # the canonical itself
+	is_excluded "$local_abs" && continue           # dufs store / excluded dirs
 	# Skip our own timestamped backups defensively (in case fd glob missed).
 	[[ "$f" == *"/.backup_"* ]] && continue
 	STRAYS+=("$f")

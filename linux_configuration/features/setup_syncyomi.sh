@@ -29,13 +29,13 @@ set -euo pipefail
 #   SYNCYOMI_IMAGE=ghcr.io/syncyomi/syncyomi:v1.1.11 ./setup_syncyomi.sh
 # Any value containing a "/" is treated as a registry image and pulled as-is.
 readonly SYNCYOMI_IMAGE="${SYNCYOMI_IMAGE:-syncyomi-kuhy:local}"
-readonly SYNCYOMI_SRC="${SYNCYOMI_SRC:-${HOME}/syncyomi-src}"
+readonly SYNCYOMI_SRC="${SYNCYOMI_SRC:-${HOME}/vendor/syncyomi-src}"
 readonly SYNCYOMI_FORK_URL="https://github.com/kuhyx/syncyomi.git"
 readonly SYNCYOMI_PORT=8282
 readonly SYNCYOMI_LOCAL="http://127.0.0.1:${SYNCYOMI_PORT}"
 
-# --- Data dir + secrets (outside the git repo, like ~/gitea) -----------------
-readonly DATA_DIR="${HOME}/syncyomi"
+# --- Data dir + secrets (outside the git repo, like ~/services/gitea) -----------------
+readonly DATA_DIR="${HOME}/services/syncyomi"
 readonly COMPOSE_FILE="${DATA_DIR}/docker-compose.yml"
 readonly CONFIG_TOML="${DATA_DIR}/config/config.toml"
 readonly CONF_FILE="${DATA_DIR}/.syncyomi.conf"
@@ -43,8 +43,8 @@ readonly TOKEN_FILE="${DATA_DIR}/.api_token"
 
 # --- Existing host infrastructure (from setup_gitea.sh / install_joplin.sh) --
 readonly CADDY_CONTAINER="gitea-caddy"
-readonly CADDYFILE="${HOME}/gitea/Caddyfile"
-readonly CADDY_SITES_DIR="${HOME}/gitea/sites"
+readonly CADDYFILE="${HOME}/services/gitea/Caddyfile"
+readonly CADDY_SITES_DIR="${HOME}/services/gitea/sites"
 readonly CADDYFILE_IN_CONTAINER="/etc/caddy/Caddyfile"
 readonly DUCKDNS_UPDATER="${HOME}/.joplin-server/duckdns-update.sh"
 
@@ -121,7 +121,7 @@ load_config() {
 
 save_config() {
 	# 0600 — holds the plaintext SyncYomi password so re-runs stay
-	# non-interactive. Lives under ~/syncyomi (outside the git repo).
+	# non-interactive. Lives under ~/services/syncyomi (outside the git repo).
 	umask 077
 	{
 		printf 'SYNCYOMI_USER=%q\n' "${SYNCYOMI_USER}"

@@ -8,17 +8,17 @@ drawn at one stroke weight and optically centred so a row of them lines up.
 
 ```bash
 # what is registered
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons list
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons list
 
 # contact sheet for visual review: full size / circle-masked / 48dp
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons preview -o /tmp/sheet.png
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons preview -o /tmp/sheet.png
 
 # write assets into every app repo and rebuild the Android mipmaps
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --android
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons generate --android
 
 # one app, plus the hicolor PNGs for a Linux desktop target
-PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons \
-    generate --app todo --android --linux-out ~/todo/linux/icons
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons \
+    generate --app todo --android --linux-out ~/src/todo/linux/icons
 ```
 
 ## What gets written
@@ -58,7 +58,7 @@ review the contact sheet, then verify on the phone.
 ## Tests
 
 ```bash
-cd ~/testsAndMisc
+cd ~/src/testsAndMisc
 python3 -m pytest python_pkg/app_icons --cov=python_pkg.app_icons \
     --cov-report=term-missing
 ```

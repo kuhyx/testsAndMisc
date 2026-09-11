@@ -35,7 +35,7 @@ exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
 exec --no-startup-id nm-applet
 
 # Keep screen awake and unlocked; also treat controller input as activity
-exec --no-startup-id bash /home/kuhy/testsAndMisc/linux_configuration/utils/turn_off_auto_idle_screen_shutdown.sh --watch-controller
+exec --no-startup-id bash /home/kuhy/src/testsAndMisc/linux_configuration/utils/turn_off_auto_idle_screen_shutdown.sh --watch-controller
 
 # Use pactl to adjust volume in PulseAudio.
 set $refresh_i3status killall -SIGUSR1 i3status
@@ -59,7 +59,7 @@ bindsym $mod+Return exec terminator
 
 # scratchpad calculator: floating popup running the live-calc widget (type
 # math, results appear as you type; Ctrl-D to close)
-bindsym $mod+c exec --no-startup-id /home/kuhy/testsAndMisc/linux_configuration/zsh/calc-popup.sh
+bindsym $mod+c exec --no-startup-id /home/kuhy/src/testsAndMisc/linux_configuration/zsh/calc-popup.sh
 for_window [window_role="calc"] floating enable, border pixel 3, resize set 820 px 220 px, move position center
 
 # kill focused window

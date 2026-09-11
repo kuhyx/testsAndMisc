@@ -51,7 +51,7 @@ else
 fi
 
 # Test 5: google-chrome is blocked
-if grep -qi "google-chrome" ~/linux-configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt; then
+if grep -qi "google-chrome" ~/src/testsAndMisc/linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt; then
     test_result "google-chrome in blocked list" "pass"
 else
     test_result "google-chrome in blocked list" "fail"
