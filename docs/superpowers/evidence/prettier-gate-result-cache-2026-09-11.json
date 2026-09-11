@@ -1,0 +1,47 @@
+{
+  "intent": "Make `git push` return in about a second instead of ~13s, by not paying Node's startup cost to re-check markdown/JSON/YAML files whose content, prettier version and prettier config are all unchanged since their last clean check.",
+  "scope": [
+    "meta/scripts/run_prettier_capped.sh - the prettier hook's runner",
+    "endurain/README.md and linux_configuration/.github/copilot-instructions.md - reflowed by prettier after the ~ reorganisation lengthened paths inside them",
+    "Non-goal: changing what prettier checks, its config, or the ci-mirror gate. The set of files that must be clean is identical before and after.",
+    "Non-goal: the first push after a requirements.txt change, which still rebuilds a clean venv by design."
+  ],
+  "changes": [
+    "run_prettier_capped.sh now keys a result cache on sha256(file content) plus a fingerprint of `prettier --version` and every prettier config file, so a cached verdict cannot survive an edit, a prettier upgrade or a config change.",
+    "Files with a cached clean verdict are dropped from the argv; when the argv empties, prettier is never started at all.",
+    "Only a clean verdict is recorded - a failing check is re-run next time, so the cache can never mask a formatting regression.",
+    "The cache is wholesale-pruned past 20000 entries, which costs one slow run rather than correctness.",
+    "The systemd-run memory cap (MemoryMax=512M, MemorySwapMax=0) is preserved exactly, per the oom-prevention skill."
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/run_prettier_capped.sh <40 tracked markdown files>  # cold, then warm",
+      "result": "pass",
+      "evidence": "cold 0.652s with 40 cache entries written; warm 0.057s printing 'prettier: 40 file(s) unchanged since their last clean check'. 11x faster with no prettier process started."
+    },
+    {
+      "command": "append trailing whitespace to README.md, re-run the same file list",
+      "result": "pass",
+      "evidence": "[warn] README.md - the edited file misses the cache and is re-checked; after `git checkout -- README.md` the run is clean again. Cache keyed on content, so an edit cannot be masked."
+    },
+    {
+      "command": "git push --dry-run  (pre-push: prettier + ci-mirror + pre-commit pre-push stage)",
+      "result": "pass",
+      "evidence": "13.0s before this change, 2.9s after, on the same 106-file push range. ci-mirror itself is 0.02s when its green-tree cache hits; the remainder was prettier's repeated Node startups."
+    },
+    {
+      "command": "shellcheck -x -S warning meta/scripts/run_prettier_capped.sh",
+      "result": "pass",
+      "evidence": "no findings; shfmt applied, matching the repo's tab style."
+    }
+  ],
+  "risks": [
+    "A cached verdict is trusted without re-running prettier. It is invalidated by file content, prettier version and prettier config, so the remaining exposure is a prettier behaviour change that ships without a version bump - which does not happen for a pinned release.",
+    "The cache lives under XDG_CACHE_HOME, outside the repo, so it is per-machine and a fresh clone or a cleared cache simply pays one full run.",
+    "prettier errors rather than warns on an explicitly-listed symbolic link (CLAUDE.md -> AGENTS.md). That behaviour is unchanged by this patch, but it means a push range containing CLAUDE.md fails the hook for a reason unrelated to formatting."
+  ],
+  "rollback": [
+    "git revert the commit, or restore the previous run_prettier_capped.sh which called `prettier --check \"$@\"` unconditionally inside the same systemd-run scope.",
+    "After rollback, run `git push --dry-run` and confirm the prettier hook still passes; delete ${XDG_CACHE_HOME:-~/.cache}/prettier-gate, which is then unused."
+  ]
+}

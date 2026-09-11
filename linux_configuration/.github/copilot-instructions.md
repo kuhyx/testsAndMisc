@@ -66,4 +66,4 @@ For in-depth understanding of specific components, see these dedicated guides:
 | Midnight Shutdown | Auto-shutdown at night        | `periodic_background/digital_wellbeing/setup_midnight_shutdown.sh`  |
 | Compulsive Block  | Limit app launches            | `periodic_background/digital_wellbeing/block_compulsive_opening.sh` |
 | Music Wrapper     | Block music during focus      | `periodic_background/digital_wellbeing/youtube-music-wrapper.sh`    |
-| Screen Locker     | Require workout to unlock     | External: `~/src/testsAndMisc/python_pkg/screen_locker/`                |
+| Screen Locker     | Require workout to unlock     | External: `~/src/testsAndMisc/python_pkg/screen_locker/`            |

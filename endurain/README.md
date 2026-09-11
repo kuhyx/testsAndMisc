@@ -14,7 +14,7 @@ unlock authority.
 | ------------- | --------------------------------------------------------------------------- |
 | Public URL    | `https://endurain.kuhy.duckdns.org`                                         |
 | Local URL     | `http://127.0.0.1:8085` (loopback only)                                     |
-| WebDAV inbox  | `https://kuhy-cloud.duckdns.org/RunnerUp` → `~/data/cloud/RunnerUp/`             |
+| WebDAV inbox  | `https://kuhy-cloud.duckdns.org/RunnerUp` → `~/data/cloud/RunnerUp/`        |
 | Runtime data  | `/var/opt/endurain/`                                                        |
 | Ledger        | `~/.local/state/endurain-import/ledger.json`                                |
 | Importer code | `../python_pkg/endurain_import/` (repo requires Python under `python_pkg/`) |
