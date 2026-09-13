@@ -21,9 +21,9 @@ unit="${SYSTEMD_UNIT_DIR}/media-organizer.service"
 arch_reset
 _t_stub journalctl 'echo "Archived and active journals take up 4.2G in the file system."'
 fix_journal
-_t_contains "$(_t_calls)" "journalctl --vacuum-size=300M" \
+_t_contains "$(_t_calls)" "journalctl --vacuum-size=4G" \
 	"fix_journal: vacuums a multi-gigabyte journal"
-_t_contains "$(cat "$dropin" 2>/dev/null)" "SystemMaxUse=300M" \
+_t_contains "$(cat "$dropin" 2>/dev/null)" "SystemMaxUse=4G" \
 	"fix_journal: writes the permanent size cap"
 _t_contains "$(_t_calls)" "systemctl restart systemd-journald" \
 	"fix_journal: restarts journald after writing the cap"
@@ -32,17 +32,17 @@ _t_contains "$(_t_calls)" "systemctl restart systemd-journald" \
 arch_reset
 _t_stub journalctl 'echo "Archived and active journals take up 240.0M in the file system."'
 out="$(fix_journal 2>&1)"
-_t_contains "$out" "already under 1GiB" \
+_t_contains "$out" "already under 4G" \
 	"fix_journal: reports a journal that is already small enough"
 _t_lacks "$(_t_calls)" "journalctl --vacuum-size" \
 	"fix_journal: does not vacuum a journal measured in megabytes"
-_t_contains "$(cat "$dropin" 2>/dev/null)" "SystemMaxUse=300M" \
+_t_contains "$(cat "$dropin" 2>/dev/null)" "SystemMaxUse=4G" \
 	"fix_journal: still writes the cap for a small journal"
 
 # The cap already exists: it is not rewritten and journald is not restarted.
 arch_reset
 _t_stub journalctl 'echo "120.0M"'
-printf '[Journal]\nSystemMaxUse=300M\n' >"$dropin"
+printf '[Journal]\nSystemMaxUse=4G\n' >"$dropin"
 out="$(fix_journal 2>&1)"
 _t_contains "$out" "size cap already configured" \
 	"fix_journal: reports an already-configured size cap"

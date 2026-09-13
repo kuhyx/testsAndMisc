@@ -15,27 +15,31 @@ fix_journal() {
 	local needs_vacuum=false
 	# Optional space before the unit: journalctl prints "305.5M in the file
 	# system", with no separator, so requiring one made this dead code.
-	if [[ $usage_line =~ ([0-9]+\.?[0-9]*)\ ?G ]]; then
+	# Cap is 4G. 300M held about two days on kuhy's desktop: one Steam boot
+	# wrote 480k journal lines, and the evidence for a curfew failure two
+	# weeks earlier was already gone (2026-09-13). Only a journal past the
+	# cap gets vacuumed, so a healthy 2G journal is left alone.
+	if [[ $usage_line =~ ([0-9]+)\.?[0-9]*\ ?G ]] && ((BASH_REMATCH[1] >= 4)); then
 		needs_vacuum=true
 	fi
 
 	if [[ $needs_vacuum == "true" ]]; then
-		journalctl --vacuum-size=300M
+		journalctl --vacuum-size=4G
 	else
-		log_ok "Journal is already under 1GiB."
+		log_ok "Journal is already under 4G."
 	fi
 
 	# Create permanent size cap via drop-in
 	local dropin_dir="${JOURNALD_CONF_DIR:-/etc/systemd/journald.conf.d}"
 	local dropin_file="$dropin_dir/size-limit.conf"
 
-	if [[ -f $dropin_file ]] && grep -q 'SystemMaxUse=300M' "$dropin_file"; then
+	if [[ -f $dropin_file ]] && grep -q 'SystemMaxUse=4G' "$dropin_file"; then
 		log_ok "Journal size cap already configured."
 	else
 		mkdir -p "$dropin_dir"
 		cat >"$dropin_file" <<'JOURNALEOF'
 [Journal]
-SystemMaxUse=300M
+SystemMaxUse=4G
 JOURNALEOF
 		systemctl restart systemd-journald
 	fi

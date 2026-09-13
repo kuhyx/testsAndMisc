@@ -1,0 +1,14 @@
+{
+  "title": "Arch journal cap 300M -> 4G, vacuum only past the cap",
+  "objective": "The systemd journal keeps weeks of history on kuhy's desktop, not days: a 300M cap held about two days once one Steam boot wrote 480k lines, and the evidence for a curfew failure was gone when it was needed. Every Arch copy of the journal tweak installs a 4G cap and treats 'large' as past that cap.",
+  "acceptance_criteria": [
+    "fix_arch_performance.sh, optimize_arch_desktop.sh and the perf report write SystemMaxUse=4G and vacuum to 4G only when usage is >= 4G",
+    "a journal measured in megabytes, or under 4G, is neither vacuumed nor reported as large",
+    "test_arch_hardware_boot.sh, test_arch_perf_fixes.sh, test_arch_perf_report_fixes.sh and test_arch_perf_report.sh pass unchanged in count"
+  ],
+  "out_of_scope": [
+    "the Ubuntu copy of the same fix (ubuntu_perf_more.sh) -- not this machine",
+    "rate-limiting the Steam flood itself -- fixed at source in steam-backlog-enforcer"
+  ],
+  "verifier": "bash linux_configuration/fixes/lib/tests/test_arch_hardware_boot.sh; bash linux_configuration/fixes/lib/tests/test_arch_perf_fixes.sh; bash linux_configuration/fixes/lib/tests/test_arch_perf_report_fixes.sh; bash linux_configuration/fixes/lib/tests/test_arch_perf_report.sh"
+}

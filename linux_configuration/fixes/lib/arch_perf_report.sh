@@ -40,7 +40,9 @@ check_journal_size() {
 		local value unit
 		value="${BASH_REMATCH[1]}"
 		unit="${BASH_REMATCH[2]}"
-		if [[ $unit == "G" ]]; then
+		# Large means past the 4G cap arch_perf_fixes.sh/arch_hardware.sh
+		# install; a 2G journal is deliberate retention, not a finding.
+		if [[ $unit == "G" ]] && ((${value%%.*} >= 4)); then
 			add_finding "Systemd journal is large (${value}G); excessive logs can waste I/O and disk space."
 		fi
 	fi
@@ -66,9 +68,9 @@ apply_safe_fixes() {
 	local journal_line
 	journal_line=$(journalctl --disk-usage 2>/dev/null || true)
 	# Optional space, as in check_journal_size above.
-	if [[ $journal_line =~ ([0-9]+\.?[0-9]*)\ ?G ]]; then
-		journalctl --vacuum-size=300M
-		add_action "Vacuumed systemd journal to 300M."
+	if [[ $journal_line =~ ([0-9]+)\.?[0-9]*\ ?G ]] && ((BASH_REMATCH[1] >= 4)); then
+		journalctl --vacuum-size=4G
+		add_action "Vacuumed systemd journal to 4G."
 	fi
 }
 

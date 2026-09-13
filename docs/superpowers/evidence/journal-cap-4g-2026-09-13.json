@@ -1,0 +1,50 @@
+{
+  "intent": "Keep enough systemd journal on the Arch desktop to diagnose a failure two weeks later: raise the installed cap from 300M to 4G and only vacuum a journal that is actually past it.",
+  "scope": [
+    "linux_configuration/fixes/lib/arch_hardware.sh (tweak_journal)",
+    "linux_configuration/fixes/lib/arch_perf_fixes.sh (fix_journal)",
+    "linux_configuration/fixes/lib/arch_perf_report.sh (check_journal_size, apply_safe_fixes)",
+    "the three test suites that pin those values",
+    "Non-goal: ubuntu_perf_more.sh keeps 300M (not this machine)"
+  ],
+  "changes": [
+    "SystemMaxUse=300M -> 4G in the drop-in each script writes and in the already-configured check.",
+    "Vacuum threshold: usage must be reported in G with an integer part >= 4, instead of any value in G; vacuum target 4G.",
+    "Report: 'journal is large' only past 4G, so a 2G journal is deliberate retention, not a finding."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/fixes/lib/tests/test_arch_hardware_boot.sh",
+      "result": "pass",
+      "evidence": "arch_hardware (boot/journal): 26 passed, 0 failed"
+    },
+    {
+      "command": "bash linux_configuration/fixes/lib/tests/test_arch_perf_fixes.sh",
+      "result": "pass",
+      "evidence": "arch_perf_fixes: 21 passed, 0 failed"
+    },
+    {
+      "command": "bash linux_configuration/fixes/lib/tests/test_arch_perf_report_fixes.sh; bash linux_configuration/fixes/lib/tests/test_arch_perf_report.sh",
+      "result": "pass",
+      "evidence": "arch_perf_report (fixes/summary): 21 passed; arch_perf_report (probes): 17 passed"
+    },
+    {
+      "command": "shellcheck lib/arch_hardware.sh lib/arch_perf_fixes.sh lib/arch_perf_report.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    },
+    {
+      "command": "printf '[Journal]\\nSystemMaxUse=4G\\n' > /etc/systemd/journald.conf.d/size-limit.conf && systemctl restart systemd-journald (host)",
+      "result": "pass",
+      "evidence": "journalctl --disk-usage: 305.1M in the file system; cap now 4G"
+    }
+  ],
+  "risks": [
+    "Up to 4G of /var/log/journal on a 3.6T disk with 1.8T free -- negligible.",
+    "Three copies of the same logic still exist; they were changed together but remain duplicates."
+  ],
+  "rollback": [
+    "git revert the commit and re-run the fix script, or write SystemMaxUse=300M into the drop-in and restart systemd-journald.",
+    "Validate with journalctl --disk-usage and cat /etc/systemd/journald.conf.d/size-limit.conf."
+  ]
+}

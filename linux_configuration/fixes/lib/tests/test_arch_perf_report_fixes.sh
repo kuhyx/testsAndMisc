@@ -72,9 +72,9 @@ _t_stub systemctl 'exit 0'
 _t_stub journalctl 'echo "Archived and active journals take up 4.2G in the file system."'
 apply_safe_fixes >"${TEST_TMPDIR}/out" 2>&1
 out="$(cat "${TEST_TMPDIR}/out")"
-_t_contains "$(_t_calls)" "journalctl --vacuum-size=300M" \
+_t_contains "$(_t_calls)" "journalctl --vacuum-size=4G" \
 	"apply_safe_fixes: vacuums a multi-gigabyte journal"
-_t_contains "$(_t_actions)" "Vacuumed systemd journal to 300M" \
+_t_contains "$(_t_actions)" "Vacuumed systemd journal to 4G" \
 	"apply_safe_fixes: records the vacuum as an action"
 
 # --- print_summary ----------------------------------------------------------

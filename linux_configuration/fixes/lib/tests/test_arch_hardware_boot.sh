@@ -106,7 +106,7 @@ _t_stub_stdin journalctl <<'STUB'
 exit 0
 STUB
 _t_run tweak_journal
-_t_contains "$(_t_calls)" "journalctl --vacuum-size=300M" \
+_t_contains "$(_t_calls)" "journalctl --vacuum-size=4G" \
 	"tweak_journal: vacuums a 4.2G journal printed without a space"
 
 # Case 19: the spaced form still matches, so the fix is a widening.
@@ -119,7 +119,7 @@ _t_stub_stdin journalctl <<'STUB'
 exit 0
 STUB
 _t_run tweak_journal
-_t_contains "$(_t_calls)" "journalctl --vacuum-size=300M" \
+_t_contains "$(_t_calls)" "journalctl --vacuum-size=4G" \
 	"tweak_journal: still vacuums when the unit is spaced"
 
 # Case 20: a megabyte-sized journal is left alone.
@@ -132,10 +132,10 @@ _t_stub_stdin journalctl <<'STUB'
 exit 0
 STUB
 _t_run tweak_journal
-_t_lacks "$(_t_calls)" "journalctl --vacuum-size=300M" \
+_t_lacks "$(_t_calls)" "journalctl --vacuum-size=4G" \
 	"tweak_journal: does not vacuum a 305.5M journal"
-_t_contains "$out" "already under 1GiB" "tweak_journal: reports the journal is small"
-_t_contains "$(cat "${JOURNALD_CONF_DIR}/size-limit.conf")" "SystemMaxUse=300M" \
+_t_contains "$out" "already under 4G" "tweak_journal: reports the journal is small"
+_t_contains "$(cat "${JOURNALD_CONF_DIR}/size-limit.conf")" "SystemMaxUse=4G" \
 	"tweak_journal: writes the size cap drop-in"
 _t_contains "$(_t_calls)" "systemctl restart systemd-journald" \
 	"tweak_journal: restarts journald after writing the cap"
@@ -143,7 +143,7 @@ _t_contains "$(_t_calls)" "systemctl restart systemd-journald" \
 # Case 21: the cap is already configured -> not rewritten, journald not restarted.
 arch_desktop_reset
 _t_stub journalctl 'exit 0'
-printf '[Journal]\nSystemMaxUse=300M\n' >"${JOURNALD_CONF_DIR}/size-limit.conf"
+printf '[Journal]\nSystemMaxUse=4G\n' >"${JOURNALD_CONF_DIR}/size-limit.conf"
 _t_run tweak_journal
 _t_contains "$out" "size cap already configured" \
 	"tweak_journal: reports the cap is already in place"
