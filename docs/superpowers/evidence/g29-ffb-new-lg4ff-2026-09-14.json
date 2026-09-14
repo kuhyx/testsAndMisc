@@ -1,0 +1,42 @@
+{
+  "intent": "Restore G29 force feedback in BeamNG.drive native Linux and give the wheel an installable/revertible new-lg4ff driver upgrade.",
+  "scope": [
+    "linux_configuration/fixes/install_new_lg4ff.sh (new)",
+    "linux_configuration/docs/DOCS-g29-ffb.md (new), docs/DOCS-g29-shifter.md (cross-link)",
+    "The SDL env var itself lives in steam-backlog-enforcer (_desktop_env.py, commit 0f5d234) and in the BeamNG Steam launch options; not in this repo"
+  ],
+  "changes": [
+    "install_new_lg4ff.sh: installs new-lg4ff-dkms-git from AUR, verifies dkms placed hid-logitech under updates/dkms/, regenerates initramfs presets that bundle hid-logitech, reloads the module when the wheel is present; --status and --revert (pacman -Rns + depmod + reload)",
+    "DOCS-g29-ffb.md: the SDL3 hidapi lg4ff diagnosis (12,201 'Failed to get joystick3 FFB effect status' lines), narrow vs broad SDL hint, the missing %command% launch-option bug, new-lg4ff traps"
+  ],
+  "verification": [
+    {
+      "command": "grep -c 'FFB effect status' ~/.local/share/BeamNG/BeamNG.drive/current/beamng.log (after relaunch with SDL_JOYSTICK_HIDAPI_LG4FF=0)",
+      "result": "pass",
+      "evidence": "0 (was 12201); haptic feature line 'Constant' (kernel path); user confirmed force + self-centring in a car"
+    },
+    {
+      "command": "python3 /tmp/g29_ff_probe.py (evdev FF_CONSTANT +/-0x7fff, 2 s each)",
+      "result": "pass",
+      "evidence": "user: 'it moved all the way to the left and to the right' - kernel driver drives the motor"
+    },
+    {
+      "command": "vmbox lg4ff: makepkg new-lg4ff-dkms-git; install_new_lg4ff.sh; --status; --revert",
+      "result": "pass",
+      "evidence": "install rc=0 (module file updates/dkms/hid-logitech.ko.zst), status rc=0, revert rc=0 (module file back to kernel/drivers/hid/, package removed). Passed in vmbox only; host run pending"
+    },
+    {
+      "command": "shellcheck linux_configuration/fixes/install_new_lg4ff.sh; pre-commit run --files <changed>",
+      "result": "pass",
+      "evidence": "shellcheck clean; all hooks Passed"
+    }
+  ],
+  "risks": [
+    "Host initramfs bundles hid-logitech (autodetect); the script regenerates all presets with mkinitcpio -P, which touches /boot",
+    "modprobe -r hid_logitech while a game holds the evdev node drops that handle; run with games closed"
+  ],
+  "rollback": [
+    "install_new_lg4ff.sh --revert (pacman -Rns new-lg4ff-dkms-git, depmod, mkinitcpio -P, module reload)",
+    "Validate: --status shows module file under kernel/drivers/hid/ and ff caps 300040000 0"
+  ]
+}
