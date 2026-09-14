@@ -1,0 +1,28 @@
+{
+  "intent": "Stop install_new_lg4ff.sh from regenerating the initramfs when the dkms pacman hook has already done it.",
+  "scope": ["linux_configuration/fixes/install_new_lg4ff.sh regen_initramfs()"],
+  "changes": [
+    "Regenerate only when an image carries hid-logitech from the location modprobe no longer resolves to; images without the module, or already matching, are left alone"
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/fixes/install_new_lg4ff.sh --status",
+      "result": "pass",
+      "evidence": "rc=0 on the host with new-lg4ff installed (module file updates/dkms/hid-logitech.ko.zst, loaded hid-logitech-new)"
+    },
+    {
+      "command": "lsinitcpio -l /boot/initramfs-linux.img | grep hid-logitech",
+      "result": "pass",
+      "evidence": "empty after the host install: the hook-regenerated image no longer bundles the module, so the conditional path reports 'already matches' instead of a 20 s rebuild"
+    },
+    {
+      "command": "shellcheck linux_configuration/fixes/install_new_lg4ff.sh",
+      "result": "pass",
+      "evidence": "clean"
+    }
+  ],
+  "risks": [
+    "A hand-built initramfs that bundles the in-tree copy is still caught: it lists kernel/drivers/hid/ while modprobe resolves updates/dkms/"
+  ],
+  "rollback": ["git revert; the unconditional regen returns"]
+}

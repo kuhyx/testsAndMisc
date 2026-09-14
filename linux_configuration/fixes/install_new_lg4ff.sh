@@ -82,19 +82,23 @@ reload_module() {
 }
 
 regen_initramfs() {
-	# Only the images that actually carry the module need rebuilding.
-	local img rebuilt=0
+	# Rebuild only when an image carries hid-logitech from the OTHER location
+	# than modprobe now resolves. The dkms pacman hook already regenerates on
+	# install and remove, so this is a safety net, not the normal path.
+	local want="kernel/drivers/hid/hid-logitech"
+	[[ "$(module_path)" == */updates/dkms/* ]] && want="updates/dkms/hid-logitech"
+	local img stale=0 listing
 	for img in /boot/initramfs-*.img; do
 		[[ -f $img ]] || continue
-		if lsinitcpio -l "$img" 2>/dev/null | grep -q 'hid-logitech'; then
-			rebuilt=1
-		fi
+		listing="$(lsinitcpio -l "$img" 2>/dev/null | grep 'hid-logitech' || true)"
+		[[ -z $listing ]] && continue
+		grep -q "$want" <<<"$listing" || stale=1
 	done
-	if ((rebuilt)); then
-		log "initramfs bundles hid-logitech: regenerating all presets"
+	if ((stale)); then
+		log "initramfs bundles the other hid-logitech: regenerating all presets"
 		sudo mkinitcpio -P
 	else
-		log "initramfs does not bundle hid-logitech: nothing to regenerate"
+		log "initramfs already matches $(module_path)"
 	fi
 }
 
