@@ -19,7 +19,9 @@ collect_basics() {
 	local cpu_count
 	cpu_count=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 	local load1
-	load1=$(awk '{print int($1)}' /proc/loadavg 2>/dev/null || echo 0)
+	# Overridable so the tests do not depend on the host being idle: the
+	# "quiet machine" case went red whenever a game was running on the host.
+	load1=$(awk '{print int($1)}' "${LOADAVG_FILE:-/proc/loadavg}" 2>/dev/null || echo 0)
 	if [[ ${load1:-0} -ge ${cpu_count:-1} ]]; then
 		add_finding "1-minute load average is at/above CPU thread count (${load1}/${cpu_count}); background tasks may be saturating the system."
 	fi

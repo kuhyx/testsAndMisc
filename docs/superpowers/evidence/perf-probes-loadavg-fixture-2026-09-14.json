@@ -1,0 +1,29 @@
+{
+  "intent": "Make the arch_perf_probes lib tests independent of the host's real load average so the pre-push ci-mirror gate is not red whenever a game is running.",
+  "scope": [
+    "linux_configuration/fixes/lib/arch_perf_probes.sh (LOADAVG_FILE override, default /proc/loadavg)",
+    "linux_configuration/fixes/lib/tests/arch_perf_harness.sh (fixture written by arch_reset)",
+    "linux_configuration/fixes/lib/tests/test_arch_perf_probes.sh (deterministic load cases)"
+  ],
+  "changes": [
+    "collect_basics reads the 1-minute load from ${LOADAVG_FILE:-/proc/loadavg}; behaviour on the host is unchanged",
+    "The harness exports LOADAVG_FILE into TEST_TMPDIR and arch_reset writes a quiet fixture (0.10)",
+    "The load test now asserts the (16/16) finding from a 16.50 fixture instead of SKIPping when the host is idle; a missing file case asserts no finding"
+  ],
+  "verification": [
+    {
+      "command": "./linux_configuration/fixes/lib/tests/test_arch_perf_probes.sh",
+      "result": "pass",
+      "evidence": "arch_perf_probes (basics/governor): 17 passed, 0 failed (was 16 with one SKIP, and 1 failed at host load 22/16)"
+    },
+    {
+      "command": "./linux_configuration/fixes/lib/tests/run_all.sh (host load ~19/16, BeamNG running)",
+      "result": "pass",
+      "evidence": "All fixes lib test files passed."
+    }
+  ],
+  "risks": ["None on the host: the default path is the real /proc/loadavg"],
+  "rollback": [
+    "git revert the commit; the tests return to reading the real load and go red under host load"
+  ]
+}

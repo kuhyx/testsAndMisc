@@ -67,20 +67,25 @@ _t_contains "$findings" "ACPI errors detected" \
 _t_contains "$findings" "Xorg is using high CPU (45%)" \
 	"collect_basics: flags a CPU-hungry Xorg"
 
-# A load average at or above the thread count is flagged. /proc/loadavg is
-# read directly by the lib, so the case is driven by a low CPU count instead.
+# A load average at or above the thread count is flagged.
 arch_reset
-_t_stub getconf 'echo 1'
+_t_stub getconf 'echo 16'
 _t_stub systemctl 'exit 0'
 _t_stub journalctl 'exit 0'
 _t_stub ps 'echo none'
+echo "16.50 12.00 9.00 3/900 1" >"${LOADAVG_FILE}"
 collect_basics
-if [[ $(awk '{print int($1)}' /proc/loadavg) -ge 1 ]]; then
-	_t_contains "$(_t_findings)" "load average is at/above CPU thread count" \
-		"collect_basics: flags a load average at or above the thread count"
-else
-	_t_pass "collect_basics: SKIP load case (this host's 1-minute load is below 1)"
-fi
+_t_contains "$(_t_findings)" "load average is at/above CPU thread count (16/16)" \
+	"collect_basics: flags a load average at or above the thread count"
+
+# An unreadable load file degrades to 0 rather than aborting the probe.
+arch_reset
+_t_stub systemctl 'exit 0'
+_t_stub journalctl 'exit 0'
+_t_stub ps 'echo none'
+rm -f "${LOADAVG_FILE}"
+collect_basics
+_t_eq "" "$(_t_findings)" "collect_basics: missing load file is not a finding"
 
 # --- check_cpu_governor -----------------------------------------------------
 

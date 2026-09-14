@@ -37,6 +37,9 @@ export REPORT_FILE="${TEST_TMPDIR}/report.log"
 export JOURNALD_CONF_DIR="${TEST_TMPDIR}/journald.conf.d"
 export SYSTEMD_UNIT_DIR="${TEST_TMPDIR}/systemd_units"
 export ORGANIZE_SCRIPT_CANDIDATES="${TEST_TMPDIR}/organize_downloads.sh"
+# collect_basics reads the 1-minute load from here; a fixture, not the real
+# /proc/loadavg, or the "quiet machine" case depends on nothing else running.
+export LOADAVG_FILE="${TEST_TMPDIR}/loadavg"
 export APPLY_SAFE_FIXES="false"
 export INSTALL_TOOLS="false"
 declare -a FINDINGS=()
@@ -85,6 +88,7 @@ arch_reset() {
 	rm -rf "${JOURNALD_CONF_DIR}" "${SYSTEMD_UNIT_DIR}"
 	mkdir -p "${JOURNALD_CONF_DIR}" "${SYSTEMD_UNIT_DIR}"
 	rm -f "${ORGANIZE_SCRIPT_CANDIDATES}"
+	echo "0.10 0.20 0.30 1/100 1" >"${LOADAVG_FILE}"
 	_t_full_path
 	_arch_default_stubs
 }
