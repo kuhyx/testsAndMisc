@@ -1,0 +1,37 @@
+{
+  "intent": "Commit the G29 shifter HID-BPF fix that has been live on the host since 2026-09-11 but was never added to git, splitting its two over-cap files on the way.",
+  "scope": [
+    "linux_configuration/fixes/fix_g29_shifter.sh, g29_shifter.bpf.c, g29_shifter_capture.py, systemd/g29-shifter-bpf.service, systemd/99-g29-shifter-ensure.rules",
+    "linux_configuration/tests/test_g29_shifter_capture.py (split), test_g29_shifter_capture_cli.py (new), conftest.py (G29Reports fixture)",
+    "linux_configuration/docs/DOCS-g29-shifter.md",
+    "No behaviour change to the installed fix; the host attachment was not touched"
+  ],
+  "changes": [
+    "Test file split at the record/CLI boundary (256 -> 164 + 107 lines); report builders moved into a conftest fixture class because the naming hook allows only test_*.py in tests/",
+    "g29_shifter_capture.py module docstring tightened (255 -> 252 -> under cap after ruff format)",
+    "DOCS-g29-shifter.md gains a cross-link to DOCS-g29-ffb.md"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q linux_configuration/tests/test_g29_shifter_capture.py linux_configuration/tests/test_g29_shifter_capture_cli.py --cov=g29_shifter_capture --cov-branch",
+      "result": "pass",
+      "evidence": "29 passed; g29_shifter_capture.py 151 stmts, 52 branches, 100%"
+    },
+    {
+      "command": "linux_configuration/fixes/fix_g29_shifter.sh --status",
+      "result": "pass",
+      "evidence": "persistent: /etc/udev-hid-bpf/g29_shifter.bpf.o + rule; attached now: yes; safety net: enabled (host, 2026-09-14 after the new-lg4ff module reload)"
+    },
+    {
+      "command": "pre-commit run --files <all shifter files>",
+      "result": "pass",
+      "evidence": "all hooks Passed"
+    }
+  ],
+  "risks": [
+    "None at runtime: the committed files are byte-identical in behaviour to what is installed"
+  ],
+  "rollback": [
+    "fix_g29_shifter.sh --remove detaches the program; git revert restores the untracked state"
+  ]
+}

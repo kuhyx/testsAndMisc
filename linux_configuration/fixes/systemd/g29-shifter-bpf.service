@@ -1,0 +1,15 @@
+[Unit]
+# Safety net for the G29 shifter HID-BPF fix (see docs/DOCS-g29-shifter.md).
+# udev-hid-bpf's own rule attaches the program on "add"; this unit re-checks
+# after boot and on every hotplug, and re-attaches if that rule ever misses.
+# Installed by fixes/fix_g29_shifter.sh; __SCRIPT__ is substituted there.
+Description=Ensure the G29 shifter HID-BPF fix is attached
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=__SCRIPT__ --ensure
+
+[Install]
+WantedBy=multi-user.target

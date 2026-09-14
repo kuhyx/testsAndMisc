@@ -79,3 +79,60 @@ def fake_importer(available: dict[str, object]) -> object:
         return available.get(name)
 
     return _try
+
+
+@pytest.fixture
+def g29() -> type[G29Reports]:
+    """Raw/xxd G29 report builders for the shifter-grader tests."""
+    return G29Reports
+
+
+class G29Reports:
+    """Builders for 12-byte G29 input reports with chosen gear and hall values."""
+
+    NEUTRAL_Y = 105
+    TOP_Y = 200
+    BOTTOM_Y = 45
+    X_LEFT = 60
+    X_CENTRE = 120
+    X_RIGHT = 180
+
+    @classmethod
+    def raw_report(
+        cls,
+        gears: int = 0,
+        x: int | None = None,
+        y: int | None = None,
+        *,
+        down: bool = False,
+    ) -> bytearray:
+        """One raw input report; X/Y default to the centred, neutral stick."""
+        import g29_shifter_capture as gsc
+
+        raw = bytearray(gsc.REPORT_LEN)
+        raw[2] = gears
+        raw[9] = cls.X_CENTRE if x is None else x
+        raw[10] = cls.NEUTRAL_Y if y is None else y
+        raw[11] = 0x40 if down else 0x00
+        return raw
+
+    @classmethod
+    def xxd_line(
+        cls,
+        gears: int = 0,
+        x: int | None = None,
+        y: int | None = None,
+        *,
+        down: bool = False,
+    ) -> str:
+        """The same report as one ``xxd -c 12`` line."""
+        raw = cls.raw_report(gears, x, y, down=down)
+        words = " ".join(raw[i : i + 2].hex() for i in range(0, len(raw), 2))
+        return f"00000000: {words}\n"
+
+    @staticmethod
+    def parse_lines(lines: list[str]) -> list[object]:
+        """Parse xxd lines into Report objects."""
+        import g29_shifter_capture as gsc
+
+        return list(gsc.parse(lines))

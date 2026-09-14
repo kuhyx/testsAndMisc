@@ -1,0 +1,15 @@
+{
+  "title": "G29 Driving Force Shifter: 1st/3rd engage reliably via HID-BPF",
+  "objective": "The shifter's top row (1st/3rd) rests at hall Y 180-193 on this unit, below the firmware's ~195 engage threshold, so those gears often did not register. A HID-BPF device_event program re-decodes 1st/3rd from the raw X/Y bytes with hysteresis (engage >= 160, release <= 140) and ORs the bit into the button byte before hid-logitech parses it. It never clears a bit, so the firmware's own decode cannot regress. Persistent across boot and hotplug via udev-hid-bpf install, a systemd safety-net unit and an ensure rule. Live on the host since 2026-09-11; this commit puts it under version control.",
+  "acceptance_criteria": [
+    "fix_g29_shifter.sh builds g29_shifter.bpf.c against the udev-hid-bpf headers and --status reports device, persistence, attachment and the safety net",
+    "g29_shifter_capture.py records raw hidraw reports and grades a capture per gate (attempts, misses); exit 1 on any miss",
+    "test_g29_shifter_capture.py + test_g29_shifter_capture_cli.py pass (29) with g29_shifter_capture.py at 100% branch coverage",
+    "every file is under the 250-line cap"
+  ],
+  "out_of_scope": [
+    "5th gear (no capture data for the top-right gate; left to the firmware)",
+    "force feedback (separate: DOCS-g29-ffb.md, install_new_lg4ff.sh)"
+  ],
+  "verifier": "python3 -m pytest -q linux_configuration/tests/test_g29_shifter_capture.py linux_configuration/tests/test_g29_shifter_capture_cli.py; linux_configuration/fixes/fix_g29_shifter.sh --status"
+}
