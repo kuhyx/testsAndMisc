@@ -8,21 +8,18 @@
 # The BPF build/attach itself needs the real wheel and root, so it is not
 # covered here. What IS covered is the logic that failed silently on the
 # 2026-09-15 and 2026-09-17 boots: telling "wheel in PS4 mode" apart from
-# "no wheel", and turning that into an exit code plus a desktop notification.
+# "no wheel", and turning that into an exit code and a message naming the mode.
 
 setup() {
 	REPO_DIR="$(cd -- "$(dirname -- "$BATS_TEST_FILENAME")/.." && pwd)"
 	SCRIPT="$REPO_DIR/fixes/fix_g29_shifter.sh"
 	export G29_HID_SYSFS="$BATS_TEST_TMPDIR/hid"
-	export G29_RUN_USER_DIR="$BATS_TEST_TMPDIR/run"
-	mkdir -p "$G29_HID_SYSFS" "$G29_RUN_USER_DIR"
-	# sudo stub: records every invocation, never attached, never fails.
-	STUB_LOG="$BATS_TEST_TMPDIR/sudo.log"
-	export STUB_LOG
+	mkdir -p "$G29_HID_SYSFS"
+	# sudo stub: udev-hid-bpf list-loaded prints nothing, i.e. not attached.
 	mkdir -p "$BATS_TEST_TMPDIR/bin"
 	cat >"$BATS_TEST_TMPDIR/bin/sudo" <<'STUB'
 #!/bin/bash
-echo "$*" >>"$STUB_LOG"
+exit 0
 STUB
 	chmod +x "$BATS_TEST_TMPDIR/bin/sudo"
 	export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
@@ -81,37 +78,19 @@ fake_hid() {
 	[[ "$output" == *"PS4 mode"* && "$output" == *"C260"* && "$output" == *"PS3"* ]]
 }
 
-# --- g29_notify_desktop ----------------------------------------------------
-
-@test "notify: reaches every user with a session bus, via sudo -u" {
-	mkdir -p "$G29_RUN_USER_DIR/$(id -u)"
-	: >"$G29_RUN_USER_DIR/$(id -u)/bus"
-	g29_notify_desktop "title" "body"
-	grep -q -- "-u $(id -nu) DBUS_SESSION_BUS_ADDRESS=unix:path=$G29_RUN_USER_DIR/$(id -u)/bus notify-send -u critical -r $G29_NOTIFY_ID" "$STUB_LOG"
-}
-
-@test "notify: no session bus means no call and no error" {
-	g29_notify_desktop "title" "body"
-	[ ! -e "$STUB_LOG" ]
-}
-
 # --- fix_g29_shifter.sh --ensure / --status --------------------------------
 
-@test "ensure: no wheel exits 0 without notifying" {
+@test "ensure: no wheel exits 0" {
 	run "$SCRIPT" --ensure
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"no G29 on the HID bus"* ]]
-	run ! grep -q notify-send "$STUB_LOG"
 }
 
-@test "ensure: PS4 mode exits 1 and notifies the desktop" {
+@test "ensure: PS4 mode exits 1 and names the mode" {
 	fake_hid 0003:046D:C260 0001 desc
-	mkdir -p "$G29_RUN_USER_DIR/$(id -u)"
-	: >"$G29_RUN_USER_DIR/$(id -u)/bus"
 	run "$SCRIPT" --ensure
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"PS4 mode"* ]]
-	grep -q "notify-send -u critical .*G29 shifter fix NOT active" "$STUB_LOG"
 }
 
 @test "ensure: already attached is a no-op even in PS4 mode" {

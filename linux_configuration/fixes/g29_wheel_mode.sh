@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================================
-# Logitech G29: which mode is the wheel in, and how to tell the desktop.
+# Logitech G29: which mode is the wheel in.
 #
 # Sourced by fix_g29_shifter.sh and tests/test_fix_g29_shifter.bats.
 #
@@ -17,13 +17,11 @@
 [[ -n "${_G29_WHEEL_MODE_LOADED:-}" ]] && return 0
 _G29_WHEEL_MODE_LOADED=1
 
-# Overridable so tests can point at a fake sysfs tree / run dir.
+# Overridable so tests can point at a fake sysfs tree.
 G29_HID_SYSFS="${G29_HID_SYSFS:-/sys/bus/hid/devices}"
-G29_RUN_USER_DIR="${G29_RUN_USER_DIR:-/run/user}"
 readonly G29_PID_NATIVE="0003:046D:C24F"
 readonly G29_PID_PS4="0003:046D:C260"
 readonly G29_PID_COMPAT="0003:046D:C294"
-readonly G29_NOTIFY_ID=29029 # fixed notify-send id: repeats replace, never stack
 
 # Print the sysfs path of the first $1 device that has a report descriptor
 # (the wheel exposes two HID interfaces; only the joystick one has one).
@@ -60,20 +58,4 @@ g29_mode_explanation() {
 	native) echo "G29 in native mode (046D:C24F)" ;;
 	*) echo "unknown G29 mode '$1'" ;;
 	esac
-}
-
-# Critical desktop notification to every user with a session bus. This runs
-# from a root oneshot at boot/hotplug, so $DISPLAY / $DBUS_SESSION_BUS_ADDRESS
-# are not set -- it walks /run/user/*/bus instead. Never fails the caller.
-g29_notify_desktop() {
-	local title="$1" body="$2" bus uid user
-	for bus in "$G29_RUN_USER_DIR"/*/bus; do
-		[[ -e "$bus" ]] || continue
-		uid="${bus#"$G29_RUN_USER_DIR"/}"
-		uid="${uid%/bus}"
-		user="$(id -nu "$uid" 2>/dev/null)" || continue
-		sudo -u "$user" DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
-			notify-send -u critical -r "$G29_NOTIFY_ID" -a g29-shifter \
-			"$title" "$body" 2>/dev/null || true
-	done
 }

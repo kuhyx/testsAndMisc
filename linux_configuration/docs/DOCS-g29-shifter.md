@@ -1,8 +1,7 @@
 # Logitech G29 Driving Force Shifter: 1st/3rd not engaging (HID-BPF fix)
 
 Files: `fixes/g29_shifter.bpf.c` (the fix), `fixes/fix_g29_shifter.sh`
-(build/attach/install), `fixes/g29_wheel_mode.sh` (PS3/PS4 mode detection +
-desktop notification), `fixes/g29_shifter_capture.py` (grades a raw capture).
+(build/attach/install), `fixes/g29_wheel_mode.sh` (PS3/PS4 mode detection), `fixes/g29_shifter_capture.py` (grades a raw capture).
 Force feedback (a separate problem, SDL-side): `DOCS-g29-ffb.md`.
 
 ## Symptom
@@ -75,11 +74,10 @@ with the bad decode, which is indistinguishable from "the fix stopped working":
 2. `g29-shifter-bpf.service` (`systemd/`), enabled at `multi-user.target`, runs
    `fix_g29_shifter.sh --ensure`: a no-op when attached, re-attaches when not.
    No wheel → exit 0 (layer 3 re-runs it on plug-in). Wheel present in PS4 or
-   compatibility mode → exit 1 **and a critical desktop notification** to every
-   user with a session bus (`g29_notify_desktop`, via `sudo -u`, because the
-   unit is a root oneshot with no `$DISPLAY`); `Restart=on-failure` +
-   `RestartSec=5min` keeps re-checking and re-notifying (same notification id,
-   so it replaces rather than stacks) until the selector is flipped.
+   compatibility mode → exit 1 with the mode named, so `systemctl --failed`
+   and the journal say _why_ instead of "not found". No notification and no
+   retry loop: kuhy ruled that out (2026-09-18, "I want it to just work") —
+   flipping the selector re-enumerates the wheel, and layer 3 re-runs the unit.
 3. `/etc/udev/rules.d/99-g29-shifter-ensure.rules` pulls that unit in on every
    re-enumeration of `C24F` **or `C260`**, so a wheel powered on in the wrong
    mode is reported at once, and hotplug is covered as well as boot.

@@ -2,20 +2,18 @@
 # Safety net for the G29 shifter HID-BPF fix (see docs/DOCS-g29-shifter.md).
 # udev-hid-bpf's own rule attaches the program on "add"; this unit re-checks
 # after boot and on every hotplug, and re-attaches if that rule ever misses.
-# It exits 0 with no wheel present, and FAILS when the wheel is present in a
-# mode the fix cannot attach to (PS4 selector -> 046D:C260); the retry below
-# keeps re-checking and re-notifying the desktop until the selector is flipped.
+# It exits 0 with no wheel present, and FAILS (visibly, in the journal and
+# systemctl --failed) when the wheel is present in a mode the fix cannot
+# attach to (PS4 selector -> 046D:C260); flipping the selector re-enumerates
+# the wheel and the udev rule below runs it again.
 # Installed by fixes/fix_g29_shifter.sh; __SCRIPT__ is substituted there.
 Description=Ensure the G29 shifter HID-BPF fix is attached
 After=systemd-udevd.service
-StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
 RemainAfterExit=no
 ExecStart=__SCRIPT__ --ensure
-Restart=on-failure
-RestartSec=5min
 
 [Install]
 WantedBy=multi-user.target

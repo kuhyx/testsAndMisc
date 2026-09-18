@@ -1,0 +1,35 @@
+{
+  "intent": "Per kuhy (2026-09-18: 'I do not want it to work like this, I want it to just work normally'): drop the desktop notification and the 5-minute retry loop added earlier today. PS4 mode (046D:C260) cannot be supported on this PC at all (no kernel driver, SDL lg4ff has no c260 either, so FFB is dead too) and the selector is physical; the switch is now on PS3, where the fix attaches by itself at enumeration.",
+  "scope": [
+    "linux_configuration/fixes/g29_wheel_mode.sh: g29_notify_desktop, G29_RUN_USER_DIR and G29_NOTIFY_ID removed; mode detection kept",
+    "linux_configuration/fixes/fix_g29_shifter.sh: --ensure in PS4/compat mode still exits 1 naming the mode, no notification",
+    "linux_configuration/fixes/systemd/g29-shifter-bpf.service: Restart/RestartSec/StartLimitIntervalSec removed",
+    "linux_configuration/tests/test_fix_g29_shifter.bats: notify tests removed (11 remain)",
+    "linux_configuration/docs/DOCS-g29-shifter.md"
+  ],
+  "changes": [
+    "The failure in PS4 mode stays visible in the journal and systemctl --failed with the mode named, which is what was missing on the 2026-09-15/17 boots; nothing nags.",
+    "The test notification fired at 10:42 from root never appeared on kuhy's screen anyway; not debugged because the feature is gone."
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_fix_g29_shifter.bats",
+      "result": "pass",
+      "evidence": "1..11, all ok"
+    },
+    {
+      "command": "linux_configuration/fixes/fix_g29_shifter.sh (install mode, on the host)",
+      "result": "pass",
+      "evidence": "systemctl cat g29-shifter-bpf.service has no Restart/StartLimit lines; --status: wheel mode: native, attached now: yes, safety net: enabled"
+    },
+    {
+      "command": "pre-commit run --files <changed files>",
+      "result": "pass",
+      "evidence": "no Failed hooks"
+    }
+  ],
+  "risks": [
+    "A future PS4-mode boot is silent again except for a failed unit in the journal / systemctl --failed / --status"
+  ],
+  "rollback": ["git revert, re-run fix_g29_shifter.sh to reinstall the unit"]
+}

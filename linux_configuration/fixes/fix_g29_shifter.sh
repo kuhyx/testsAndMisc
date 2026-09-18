@@ -151,11 +151,9 @@ main() {
 			;;
 		*)
 			# The wheel still "works" here -- with the bad 1st/3rd decode this
-			# fix exists to remove -- so say it where it is seen. Exit 1 makes
-			# the unit retry (and re-notify) until the selector is flipped.
+			# fix exists to remove -- so fail visibly (journal, systemctl
+			# --failed) and name the mode instead of "not found".
 			log "$(g29_mode_explanation "$(g29_wheel_mode)")" >&2
-			g29_notify_desktop "G29 shifter fix NOT active" \
-				"$(g29_mode_explanation "$(g29_wheel_mode)")"
 			exit 1
 			;;
 		esac
