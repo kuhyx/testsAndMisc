@@ -1,0 +1,16 @@
+{
+  "title": "G29 shifter fix: detect PS4 mode instead of failing silently",
+  "objective": "On two consecutive boots the wheel enumerated as 046D:C260 (PS4 selector), hid-generic bound it, and the HID-BPF shifter fix, its udev rule and its ensure unit all looked for C24F only - the unit failed once with 'no G29 found' and 1st/3rd stayed broken all day. Make every layer recognise the mode, tell the desktop, and keep retrying until the selector is flipped.",
+  "acceptance_criteria": [
+    "g29_wheel_mode.sh classifies the HID bus as native/ps4/compat/absent from sysfs and is testable against a fake tree",
+    "fix_g29_shifter.sh --ensure exits 0 when no wheel is present, exits 1 and sends a critical desktop notification when the wheel is in PS4/compat mode, attaches when native",
+    "g29-shifter-bpf.service retries on failure every 5 minutes; 99-g29-shifter-ensure.rules also fires on C260",
+    "--status prints the wheel mode first",
+    "tests/test_fix_g29_shifter.bats passes (13) and every file is under the 250-line cap"
+  ],
+  "out_of_scope": [
+    "making the BPF program work in PS4 mode (different report layout, unmeasured; no kernel driver binds C260)",
+    "utils/toggle_wheel.sh, which also keys on c24f (separate power-toggle utility)"
+  ],
+  "verifier": "bats linux_configuration/tests/test_fix_g29_shifter.bats; linux_configuration/fixes/fix_g29_shifter.sh --status"
+}

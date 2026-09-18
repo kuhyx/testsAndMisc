@@ -1,7 +1,8 @@
 # Logitech G29 Driving Force Shifter: 1st/3rd not engaging (HID-BPF fix)
 
 Files: `fixes/g29_shifter.bpf.c` (the fix), `fixes/fix_g29_shifter.sh`
-(build/attach/install), `fixes/g29_shifter_capture.py` (grades a raw capture).
+(build/attach/install), `fixes/g29_wheel_mode.sh` (PS3/PS4 mode detection +
+desktop notification), `fixes/g29_shifter_capture.py` (grades a raw capture).
 Force feedback (a separate problem, SDL-side): `DOCS-g29-ffb.md`.
 
 ## Symptom
@@ -48,6 +49,22 @@ The Arch `udev-hid-bpf` package ships no headers; the script shallow-clones the
 matching upstream tag into `~/.cache/g29_shifter/` and compiles with the same
 clang flags as upstream's `meson.build`.
 
+## The PS3/PS4 selector (found 2026-09-18)
+
+The wheel has a physical PS3/PS4 switch and the USB identity follows it:
+
+| selector | enumerates as             | bound by                 | shifter fix |
+| -------- | ------------------------- | ------------------------ | ----------- |
+| PS3      | `046D:C294` → `046D:C24F` | hid-logitech (new-lg4ff) | attaches    |
+| PS4      | `046D:C260`               | hid-generic              | **cannot**  |
+
+`C260` has a different report layout, no kernel driver knows it (new-lg4ff
+0.5.0's table stops at `c24f`), and there is no software way out — only the
+switch. On the 2026-09-15 and 2026-09-17 boots the wheel came up as `C260`;
+every layer below looked for `C24F` only, so the unit failed once with
+"no G29 found", nothing was said, and 1st/3rd were dead until the selector was
+flipped ~1 day later (the journal shows `C260` → disconnect → `C294` → `C24F`).
+
 ## Surviving reboots
 
 Three layers, because a missed attach is silent — the wheel still works, just
@@ -57,18 +74,27 @@ with the bad decode, which is indistinguishable from "the fix stopped working":
    `/etc/udev/rules.d/99-hid-bpf-g29_shifter.rules`, which attaches on `add`.
 2. `g29-shifter-bpf.service` (`systemd/`), enabled at `multi-user.target`, runs
    `fix_g29_shifter.sh --ensure`: a no-op when attached, re-attaches when not.
+   No wheel → exit 0 (layer 3 re-runs it on plug-in). Wheel present in PS4 or
+   compatibility mode → exit 1 **and a critical desktop notification** to every
+   user with a session bus (`g29_notify_desktop`, via `sudo -u`, because the
+   unit is a root oneshot with no `$DISPLAY`); `Restart=on-failure` +
+   `RestartSec=5min` keeps re-checking and re-notifying (same notification id,
+   so it replaces rather than stacks) until the selector is flipped.
 3. `/etc/udev/rules.d/99-g29-shifter-ensure.rules` pulls that unit in on every
-   re-enumeration, so hotplug is covered as well as boot.
+   re-enumeration of `C24F` **or `C260`**, so a wheel powered on in the wrong
+   mode is reported at once, and hotplug is covered as well as boot.
 
-`--status` reports all of it. Verified 2026-09-12 by detaching and starting the
-unit: it re-attached and exited cleanly. That test also caught the unit failing
-with `HOME: unbound variable` — systemd has no `$HOME`, so the cache path now
-falls back.
+`--status` reports all of it, mode first. Verified 2026-09-12 by detaching and
+starting the unit: it re-attached and exited cleanly. That test also caught the
+unit failing with `HOME: unbound variable` — systemd has no `$HOME`, so the
+cache path now falls back. The mode/notification logic is covered by
+`tests/test_fix_g29_shifter.bats` against a fake sysfs tree.
 
 ## If the symptom returns after a boot
 
-Check `--status` first. If it says attached and gears still misbehave, the
-sensor's zero has drifted and the thresholds need recalibrating — the fixed
+Check `--status` first. `wheel mode: ps4` → flip the selector. If it says
+native + attached and gears still misbehave, the sensor's zero has drifted and
+the thresholds need recalibrating — the fixed
 `Y_TOP_RELEASE` (140) assumes the stick rests near Y≈105. A drift upward of
 ~+40 would park the rest position _above_ the release line, so a gear would
 engage and never let go (the car stays in gear). Measure the rest value:

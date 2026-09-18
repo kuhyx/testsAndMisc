@@ -26,13 +26,15 @@ readonly CACHE_DIR="${XDG_CACHE_HOME:-${HOME:-/var/cache}/.cache}/g29_shifter"
 readonly HEADERS_DIR="$CACHE_DIR/udev-hid-bpf"
 readonly BUILD_DIR="$CACHE_DIR/build"
 readonly OBJ="$BUILD_DIR/g29_shifter.bpf.o"
-readonly VID_PID="0003:046D:C24F"
 readonly INSTALLED_OBJ="/etc/udev-hid-bpf/g29_shifter.bpf.o"
 readonly INSTALLED_RULE="/etc/udev/rules.d/99-hid-bpf-g29_shifter.rules"
 readonly UNIT_NAME="g29-shifter-bpf.service"
 readonly UNIT_SRC_DIR="$SCRIPT_DIR/systemd"
 readonly ENSURE_RULE="/etc/udev/rules.d/99-g29-shifter-ensure.rules"
 readonly PACKAGES=(udev-hid-bpf bpf clang libbpf git)
+
+# shellcheck source=g29_wheel_mode.sh
+source "$SCRIPT_DIR/g29_wheel_mode.sh"
 
 MODE="install"
 
@@ -77,16 +79,14 @@ build() {
 	log "built $OBJ"
 }
 
-# The wheel exposes two HID interfaces; only the joystick one has a descriptor.
+# Native-mode device only; any other mode is named, not just "not found".
 find_device() {
 	local dev
-	for dev in /sys/bus/hid/devices/"$VID_PID".*; do
-		if [[ -s "$dev/report_descriptor" ]]; then
-			echo "$dev"
-			return
-		fi
-	done
-	echo "Error: no G29 ($VID_PID) with a report descriptor found in sysfs" >&2
+	if dev="$(g29_sysfs_device "$G29_PID_NATIVE")"; then
+		echo "$dev"
+		return
+	fi
+	echo "Error: $(g29_mode_explanation "$(g29_wheel_mode)")" >&2
 	exit 1
 }
 
@@ -101,15 +101,19 @@ install_safety_net() {
 	sed "s#__SCRIPT__#$SCRIPT_DIR/$SCRIPT_NAME#" "$UNIT_SRC_DIR/$UNIT_NAME" |
 		sudo install -m 644 /dev/stdin "$unit"
 	sudo install -m 644 "$UNIT_SRC_DIR/$(basename "$ENSURE_RULE")" "$ENSURE_RULE"
+	sudo udevadm control --reload
 	sudo systemctl daemon-reload
 	sudo systemctl enable "$UNIT_NAME"
 	log "safety net installed: $unit + $(basename "$ENSURE_RULE")"
 }
 
 show_status() {
-	local dev
-	dev="$(find_device)"
-	log "device: $dev"
+	local mode
+	mode="$(g29_wheel_mode)"
+	log "wheel mode: $mode ($(g29_mode_explanation "$mode"))"
+	if [[ "$mode" == native ]]; then
+		log "device: $(find_device)"
+	fi
 	if [[ -f "$INSTALLED_OBJ" && -f "$INSTALLED_RULE" ]]; then
 		log "persistent: $INSTALLED_OBJ + $(basename "$INSTALLED_RULE")"
 	else
@@ -138,6 +142,23 @@ main() {
 			log "already attached; nothing to do"
 			exit 0
 		fi
+		case "$(g29_wheel_mode)" in
+		native) ;;
+		absent)
+			# Not a failure: the udev rule re-runs this unit when it appears.
+			log "$(g29_mode_explanation absent); nothing to attach to"
+			exit 0
+			;;
+		*)
+			# The wheel still "works" here -- with the bad 1st/3rd decode this
+			# fix exists to remove -- so say it where it is seen. Exit 1 makes
+			# the unit retry (and re-notify) until the selector is flipped.
+			log "$(g29_mode_explanation "$(g29_wheel_mode)")" >&2
+			g29_notify_desktop "G29 shifter fix NOT active" \
+				"$(g29_mode_explanation "$(g29_wheel_mode)")"
+			exit 1
+			;;
+		esac
 		dev="$(find_device)"
 		if [[ -f "$INSTALLED_OBJ" ]]; then
 			sudo udev-hid-bpf add "$dev" "$INSTALLED_OBJ"
@@ -165,11 +186,10 @@ main() {
 		fetch_headers
 		build
 		sudo udev-hid-bpf install --force "$OBJ"
-		sudo udevadm control --reload
-		dev="$(find_device)"
-		# Re-trigger so the new rule attaches without a re-plug.
-		sudo udevadm trigger --action=add "$dev"
 		install_safety_net
+		dev="$(find_device)"
+		# Re-trigger so the new rules attach without a re-plug.
+		sudo udevadm trigger --action=add "$dev"
 		log "installed to /etc/udev-hid-bpf/ and attached to $dev"
 		show_status
 		;;

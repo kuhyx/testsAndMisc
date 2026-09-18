@@ -1,0 +1,47 @@
+{
+  "intent": "The G29 shifter fix stops failing silently when the wheel is powered on with its selector in the PS4 position: the ensure unit names the mode, sends a critical desktop notification, and retries every 5 minutes until the selector is flipped; a wheel that is merely absent no longer fails the unit.",
+  "scope": [
+    "linux_configuration/fixes/g29_wheel_mode.sh (new, sourced): mode detection native/ps4/compat/absent, explanation strings, root-safe desktop notification",
+    "linux_configuration/fixes/fix_g29_shifter.sh: find_device/--ensure/--status use the helper; udev reload moved after the ensure rule is installed",
+    "linux_configuration/fixes/systemd/g29-shifter-bpf.service: Restart=on-failure, RestartSec=5min, StartLimitIntervalSec=0",
+    "linux_configuration/fixes/systemd/99-g29-shifter-ensure.rules: also fires on 046D:C260",
+    "linux_configuration/tests/test_fix_g29_shifter.bats (new)",
+    "linux_configuration/docs/DOCS-g29-shifter.md",
+    "non-goal: supporting PS4 mode itself (C260 has a different report layout and no kernel driver; only the physical selector leaves it)"
+  ],
+  "changes": [
+    "Root cause from the journal: boots on 2026-09-15 and 2026-09-17 enumerated the wheel as 046D:C260 (PS4 mode, hid-generic). Every layer keyed on C24F, so the unit exited 1 with 'no G29 found' once at boot and nothing was said; 1st/3rd stayed on the firmware decode until the selector was flipped a day later (C260 -> disconnect -> C294 -> C24F).",
+    "g29_wheel_mode() classifies the HID bus; --ensure exits 0 when absent, exits 1 + notify-send -u critical (fixed id, replaces) when ps4/compat, attaches when native.",
+    "Unit retries on failure every 5 min so a notification lost before the session bus exists at boot is re-sent; ensure udev rule matches C260 so a wheel powered on in PS4 mode is reported at hotplug too."
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_fix_g29_shifter.bats",
+      "result": "pass",
+      "evidence": "1..13, all ok (mode classification, notify via sudo -u, --ensure exit codes 0/1 with fake sysfs, --status mode line)"
+    },
+    {
+      "command": "linux_configuration/fixes/fix_g29_shifter.sh (install mode, on the host)",
+      "result": "pass",
+      "evidence": "rebuilt + installed; systemctl cat shows Restart=on-failure/RestartSec=5min; rule contains C260; udevadm trigger re-ran the unit: 'already attached; nothing to do'; --status: wheel mode: native, attached now: yes"
+    },
+    {
+      "command": "sudo bash -c 'source g29_wheel_mode.sh; g29_notify_desktop ...' (root context, real /run/user/1000/bus)",
+      "result": "pass",
+      "evidence": "sent as uid 0 via sudo -u kuhy; on-screen appearance is user-confirmed"
+    },
+    {
+      "command": "pre-commit run --files <the six changed files>",
+      "result": "pass",
+      "evidence": "shellcheck clean after replacing printf-stub with quoted heredoc and '! grep' with 'run ! grep'; 250-line cap, shell-library-has-tests, codespell all pass"
+    }
+  ],
+  "risks": [
+    "PS4-mode notification repeats every 5 minutes until the selector is flipped (same notification id, so it replaces rather than stacks) - intended, but noisy if PS4 mode is ever wanted on purpose",
+    "vmbox deliberately skipped: the guest has no G29, so a sandbox pass proves nothing for a physical-input fix"
+  ],
+  "rollback": [
+    "git revert the commit, then re-run linux_configuration/fixes/fix_g29_shifter.sh to reinstall the previous unit + rule",
+    "validate with fix_g29_shifter.sh --status and systemctl cat g29-shifter-bpf.service"
+  ]
+}
