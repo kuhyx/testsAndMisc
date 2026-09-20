@@ -274,6 +274,11 @@ repos:
           - anthropic
           - rich
           - typer
+          # linux_configuration/installers: verify_helium drives Helium
+          # over the DevTools websocket; migrate_helium_passwords_to_basic re-encrypts
+          # Chromium os_crypt blobs (AES-CBC).
+          - websockets
+          - cryptography
         # Test suites and conftest fixtures are linted separately; they use
         # patterns (protected-access, missing docstrings, fixture shadowing)
         # that don't belong in the source-code 10/10 gate.
@@ -390,7 +395,9 @@ repos:
           # `artic` is SearXNG's engine id for the Art Institute of Chicago
           # (setup_searxng.sh), not a misspelling of "arctic" - renaming it
           # would stop matching the engine.
-          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,bloc,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph,iif,dokument,daa,artic
+          # `imput` is Helium's vendor (imput.net): its profile dir is
+          # `~/.config/net.imput.helium` and the installers/*helium* scripts spell it out.
+          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,bloc,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph,iif,dokument,daa,artic,imput
         exclude: ^(Bash/ffmpeg-build/|LaTeX/|.*\.geojson$)
 
   # ===========================================================================

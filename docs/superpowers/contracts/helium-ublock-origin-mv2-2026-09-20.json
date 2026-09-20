@@ -1,0 +1,19 @@
+{
+  "title": "Helium: full uBlock Origin (MV2) on a Chromium browser, with the Chromium profile cloned",
+  "objective": "Plain chromium (ungoogled-chromium 153) can no longer load full uBlock Origin: Chromium 151 removed the last MV2 code paths and the Web Store purged uBO on 2026-08-31. Install Helium (GPL-3, ungoogled-chromium base, bundles uBO as a component extension), clone the whole Chromium profile into it, keep the machine's browser wrapper (hosts-blocker refresh + LeechBlock NG) and the /etc/chromium policies in force, and prove all of it by exit code rather than a screenshot.",
+  "acceptance_criteria": [
+    "`verify_helium.py` exits 0 on the real profile: uBO has a background_page target and manifest_version 2 (not uBO Lite); every key in /etc/chromium/policies/managed/*.json appears on chrome://policy; adblock-tester.com scores >= 95/100.",
+    "`/usr/local/bin/helium-browser` resolves to browser-preexec-wrapper, so a Helium launch from dmenu or a shell gets the same LeechBlock NG --load-extension and hosts refresh as chromium.",
+    "`~/.config/net.imput.helium/Default` holds the same file list as `~/.config/chromium/Default`; Singleton* lock files are not carried; `~/.config/chromium` is untouched.",
+    "`install_helium.sh --clone-profile` runs end to end in a pristine vmbox guest (installs its own pacman deps, builds the AUR package without yay via makepkg + PGP key import) and then idempotently on the host.",
+    "`migrate_helium_passwords_to_basic.py` converts every v11 `logins` row to v10, round-trip-verifies each before writing, backs up `Login Data` first, refuses while Helium runs, and only then appends --password-store=basic to ~/.config/helium-browser-flags.conf so no restart can land between flag-on and rows-converted.",
+    "helium-browser-bin is listed in fresh-install/aur_packages.txt and helium-browser in the periodic browser wrapper + service-check lists."
+  ],
+  "out_of_scope": [
+    "Changing the default browser: it is librewolf, not chromium, so the Q4 answer's premise was wrong and the switch is held for an explicit yes.",
+    "Removing ungoogled-chromium; it stays installed as the fallback.",
+    "Refreshing the stale installed browser-preexec-wrapper (template in ~/src/system-maintenance has crash logging the host copy lacks).",
+    "The unrelated uncommitted python_pkg/android_ui + phone_lease work in the tree, which is what drags pytest-coverage below 100% in the full-tree hook run."
+  ],
+  "verifier": "verify_helium.py on the host profile (3/3 PASS, score 96) and inside vmbox after a from-scratch install; pre-commit run --files on every staged file; the os_crypt scheme in the migration script validated by decrypting + round-tripping 5 real v10 cookie blobs with the basic key (no keyring touched, no secrets printed)."
+}

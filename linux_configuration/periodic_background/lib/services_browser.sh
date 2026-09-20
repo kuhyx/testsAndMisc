@@ -37,7 +37,7 @@ check_guest_mode_removal() {
 
 	if [[ $policy_found == false ]]; then
 		# Only flag as issue if a Chromium browser is actually installed
-		if command -v thorium-browser &>/dev/null || command -v chromium &>/dev/null || command -v google-chrome &>/dev/null || command -v brave-browser &>/dev/null; then
+		if command -v helium-browser &>/dev/null || command -v thorium-browser &>/dev/null || command -v chromium &>/dev/null || command -v google-chrome &>/dev/null || command -v brave-browser &>/dev/null; then
 			issues+=("No guest mode removal policies found for installed browsers")
 			status="error"
 		else

@@ -1,0 +1,53 @@
+{
+  "intent": "Get full uBlock Origin (Manifest V2, not Lite) back on a FOSS Chromium-based browser after Chromium 151 dropped MV2: install Helium, clone the Chromium profile into it wholesale, keep the wrapper/policy/LeechBlock setup intact, and stop the gnome-keyring unlock prompt that autologin causes.",
+  "scope": [
+    "linux_configuration/installers/{install_helium.sh,verify_helium.py,migrate_helium_passwords_to_basic.py} (new)",
+    "linux_configuration/fresh-install/aur_packages.txt, periodic_background/lib/{periodic_browser,services_browser}.sh (register helium-browser)",
+    ".pre-commit-config.yaml (pylint deps websockets+cryptography; codespell ignores the vendor name `imput`)",
+    "meta/requirements.txt (+cryptography 50.0.1; anthropic 1.6.0 -> 1.7.0 for the freshness gate), meta/requirements-test.txt (anthropic)",
+    "Non-goals: default-browser switch (current default is librewolf), removing ungoogled-chromium, refreshing the stale host copy of browser-preexec-wrapper"
+  ],
+  "changes": [
+    "install_helium.sh: pacman deps, AUR install via yay or makepkg (+validpgpkeys import), /usr/local/bin/helium-browser -> browser-preexec-wrapper, --clone-profile with downgrade check (Helium's Chromium base parsed from `--version`) and running-browser refusal, then runs the verifier.",
+    "verify_helium.py: Xvfb + DevTools (port published via DevToolsActivePort, websockets sync client): asserts uBO background_page + manifest_version 2, every /etc/chromium/policies key on chrome://policy (shadow-DOM text walk), adblock-tester.com >= 95. d3ward was the first choice and is archived/dead.",
+    "migrate_helium_passwords_to_basic.py: re-encrypts v11 (keyring) `logins` rows as v10 (basic) with the Chromium Linux os_crypt scheme; round-trip check per row, backup first, refuses while Helium runs, appends --password-store=basic to the flags file only after success.",
+    "Profile clone on the host: rsync ~/.config/chromium -> ~/.config/net.imput.helium minus Singleton*/DevToolsActivePort/Crash Reports/BrowserMetrics*."
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/installers/verify_helium.py",
+      "result": "pass",
+      "evidence": "[PASS] uBlock Origin is MV2 (full, not Lite): name=uBlock Origin version=1.75.0 manifest_version=2 background_page=True; [PASS] 7 policies from /etc/chromium/policies/managed applied; [PASS] adblock-tester score >= 95/100: score=96"
+    },
+    {
+      "command": "vm new helium; vm scp ...; vm run helium './install_helium.sh --clone-profile'",
+      "result": "pass",
+      "evidence": "pristine guest: deps installed, helium-browser-bin built via makepkg after gpg --recv-keys, clone + downgrade check ok, verifier 3/3 PASS (0 policies in the guest), score 96"
+    },
+    {
+      "command": "linux_configuration/installers/install_helium.sh (host)",
+      "result": "pass",
+      "evidence": "package already installed; linked /usr/local/bin/helium-browser -> browser-preexec-wrapper; verifier 3/3 PASS"
+    },
+    {
+      "command": "python: decrypt + encrypt round-trip of 5 real v10 cookie blobs with derive_key(b'peanuts')",
+      "result": "pass",
+      "evidence": "5/5 blobs unpad cleanly and round-trip; a wrong key fails PKCS#7 unpadding, so this validates the os_crypt scheme without touching the keyring"
+    },
+    {
+      "command": "pre-commit run --files <all staged files>",
+      "result": "pass",
+      "evidence": "ruff, ruff-format, pylint (import-error gone once websockets+cryptography were added to the hook), shellcheck, shfmt, codespell, file-length, dependency-freshness all pass; pytest-coverage fails only on python_pkg/android_ui/cli.py 96% and python_pkg/phone_lease 0-65%, which are another session's uncommitted files (not staged here)"
+    }
+  ],
+  "risks": [
+    "The 5 keyring-encrypted passwords are unusable in Helium until the user runs migrate_helium_passwords_to_basic.py (it needs the keyring unlocked once); until then the keyring prompt persists.",
+    "Basic store = fixed key at rest, i.e. anyone with file access reads the passwords; on an autologin box that is already the practical state and matches the existing 36 v10 cookies.",
+    "adblock-tester.com is a third-party page; if it changes its score text the gate fails closed (score=-1)."
+  ],
+  "rollback": [
+    "yay -Rns helium-browser-bin; sudo rm /usr/local/bin/helium-browser; rm -rf ~/.config/net.imput.helium ~/.config/helium-browser-flags.conf — ~/.config/chromium was never modified.",
+    "Passwords: restore Default/'Login Data.pre-basic-<ts>' over 'Login Data' in the Helium profile.",
+    "Validate: chromium starts on its own profile; verify_helium.py exits 2 (binary absent)."
+  ]
+}

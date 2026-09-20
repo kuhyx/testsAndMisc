@@ -6,7 +6,7 @@
 
 add-trailing-comma==4.0.0
 aiohttp==3.14.3
-anthropic==1.6.0
+anthropic==1.7.0
 autoflake==2.4.0
 autopep8==2.3.2
 bandit==1.9.4
@@ -16,6 +16,7 @@ black==26.5.1
 bottle==0.13.4
 codespell==2.4.3
 coverage==7.16.1
+cryptography==50.0.1
 darglint==1.8.1
 dead==2.1.0
 defusedxml==0.7.1
