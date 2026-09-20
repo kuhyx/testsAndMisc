@@ -25,7 +25,7 @@ from typing import Self
 from websockets.sync.client import connect
 
 HELIUM_BIN = "/usr/bin/helium-browser"
-HELIUM_BIN_DIR = "/opt/helium-browser-bin"
+HELIUM_BIN_DIR = "^/opt/helium-browser-bin/"  # anchored pgrep -f pattern
 DEFAULT_PROFILE = str(Path.home() / ".config" / "net.imput.helium")
 UBO_ID = "blockjmkbacgjkknlgpkjjiijinjdanf"
 POLICY_DIR = Path("/etc/chromium/policies/managed")

@@ -11,8 +11,9 @@ Linux os_crypt scheme (unchanged since Chromium 4x): key = PBKDF2-HMAC-SHA1
 (secret, "saltysalt", 1 iter, 16 B); AES-128-CBC, IV = 16 spaces, PKCS#7;
 ``v11`` uses the keyring secret, ``v10`` uses the fixed string "peanuts".
 
-Needs the keyring unlocked ONCE — secret-tool pops the unlock dialog, so run
-this yourself, with the browser closed. Never prints a secret.
+Needs the keyring unlocked ONCE: it asks the Secret Service to unlock the
+default collection, which pops the gcr dialog. Browser must be closed.
+Never prints a secret.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ import time
 
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import secretstorage
 
 DEFAULT_PROFILE = Path.home() / ".config" / "net.imput.helium" / "Default"
 KEYRING_SCHEMA = "chrome_libsecret_os_crypt_password_v2"
@@ -37,7 +39,8 @@ KEY_LEN = 16
 BASIC_SECRET = b"peanuts"
 V10 = b"v10"
 V11 = b"v11"
-HELIUM_PROCESS_MARK = "/opt/helium-browser-bin"
+# Anchored: a shell whose argv merely mentions the path must not match.
+HELIUM_PROCESS_MARK = "^/opt/helium-browser-bin/"
 FLAGS_FILE = Path.home() / ".config" / "helium-browser-flags.conf"
 BASIC_FLAG = "--password-store=basic"
 
@@ -69,13 +72,27 @@ def encrypt(key: bytes, plain: bytes) -> bytes:
 
 
 def keyring_secret(application: str) -> bytes:
-    """Fetch the browser's Safe Storage secret (this pops the unlock dialog)."""
-    for attrs in (["application", application], []):
-        cmd = ["/usr/bin/secret-tool", "lookup", "xdg:schema", KEYRING_SCHEMA, *attrs]
-        out = subprocess.run(cmd, capture_output=True, check=False).stdout
-        if out:
-            return out.rstrip(b"\n")
-    msg = f"no {KEYRING_SCHEMA} item in the keyring (locked? dialog cancelled?)"
+    """Unlock the default keyring (this pops the gcr dialog) and read the key.
+
+    One D-Bus connection for the whole exchange: Secret Service prompt objects
+    live only as long as the connection that created them, which is why a
+    `secret-tool`/`busctl` sequence of separate processes can never work.
+    """
+    conn = secretstorage.dbus_init()
+    collection = secretstorage.get_default_collection(conn)
+    if collection.is_locked():
+        say("keyring is locked — answer the unlock dialog on screen")
+        if collection.unlock():  # True means the dialog was dismissed
+            msg = "unlock dialog dismissed; keyring still locked"
+            raise SystemExit(msg)
+    for attrs in (
+        {"xdg:schema": KEYRING_SCHEMA, "application": application},
+        {"xdg:schema": KEYRING_SCHEMA},
+    ):
+        items = list(collection.search_items(attrs))
+        if items:
+            return items[0].get_secret()
+    msg = f"no {KEYRING_SCHEMA} item in the default keyring"
     raise SystemExit(msg)
 
 

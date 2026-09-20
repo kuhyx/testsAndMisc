@@ -279,6 +279,7 @@ repos:
           # Chromium os_crypt blobs (AES-CBC).
           - websockets
           - cryptography
+          - secretstorage
         # Test suites and conftest fixtures are linted separately; they use
         # patterns (protected-access, missing docstrings, fixture shadowing)
         # that don't belong in the source-code 10/10 gate.

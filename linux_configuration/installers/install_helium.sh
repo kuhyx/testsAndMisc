@@ -53,7 +53,7 @@ usage() {
 
 # Everything the clone + verify steps fork: rsync, Xvfb, the CDP websocket
 # client; base-devel + git only matter on a box without yay (makepkg path).
-readonly -a PACMAN_DEPS=(rsync xorg-server-xvfb python-websockets python-cryptography base-devel git)
+readonly -a PACMAN_DEPS=(rsync xorg-server-xvfb python-websockets python-cryptography python-secretstorage base-devel git)
 
 validate_requirements() {
 	command -v pacman >/dev/null 2>&1 || {
