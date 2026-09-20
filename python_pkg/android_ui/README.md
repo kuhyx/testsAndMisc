@@ -87,3 +87,12 @@ ui.wait_for("Connected.", timeout=30)
     just gone empty.
 - Scrolling is not yet modelled: a widget outside the viewport is not in the
   tree. Scroll with `adb shell input swipe` first, or add `scroll_to()`.
+
+## One phone, many sessions
+
+Every command first takes this session's lease on the phone
+(`python_pkg.phone_lease`): the owner is the nearest ancestor `claude`
+process, the lease lasts 180 s past the last call, and a call from another
+session waits up to 60 s, then exits 3 naming the holder. Do not retry in a
+loop — use the phone's virtual display (`~/.claude/scripts/phone_vd.sh`) or
+the headless emulator (`~/.claude/scripts/phone_emu.sh`), or ask the user.

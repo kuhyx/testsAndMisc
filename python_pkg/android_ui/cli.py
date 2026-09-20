@@ -17,6 +17,7 @@ import argparse
 import sys
 
 from python_pkg.android_ui.driver import AndroidUi, UiAutomationError
+from python_pkg.phone_lease import PhoneBusyError, acquire
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -55,30 +56,51 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _lease_phone(serial: str | None, command: str) -> bool:
+    """Refresh this session's lease on the phone; False when another holds it.
+
+    Every command goes through here first, so a second session's taps wait
+    instead of landing in whatever this one has in front (2026-09-20: a
+    sandbox tap opened another session's manga reader). Serial-less calls
+    share one key: adb picks one device anyway.
+    """
+    try:
+        acquire(serial or "default", f"android_ui {command}")
+    except PhoneBusyError as exc:
+        sys.stderr.write(f"android-ui: {exc}\n")
+        return False
+    return True
+
+
+def _run(ui: AndroidUi, args: argparse.Namespace) -> None:
+    """Dispatch one parsed command to the driver."""
+    if args.command == "dump":
+        for element in ui.dump():
+            sys.stdout.write(f"{element}\n")
+    elif args.command == "find":
+        sys.stdout.write(f"{ui.find(args.query, exact=args.exact)}\n")
+    elif args.command == "tap":
+        found = ui.tap(args.query, exact=args.exact, timeout=args.timeout)
+        sys.stdout.write(f"tapped {found}\n")
+    elif args.command == "wait":
+        found = ui.wait_for(args.query, timeout=args.timeout, exact=args.exact)
+        sys.stdout.write(f"{found}\n")
+    elif args.command == "type":
+        ui.type_into(args.query, args.text, exact=args.exact, timeout=args.timeout)
+        sys.stdout.write(f"typed into {args.query!r} and verified\n")
+    elif args.command == "dismiss-keyboard":
+        ui.dismiss_keyboard()
+    elif args.command == "focus":
+        sys.stdout.write(f"{ui.current_focus()}\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI. Returns a process exit code."""
     args = _build_parser().parse_args(argv)
-    ui = AndroidUi(serial=args.serial)
-
+    if not _lease_phone(args.serial, args.command):
+        return 3
     try:
-        if args.command == "dump":
-            for element in ui.dump():
-                sys.stdout.write(f"{element}\n")
-        elif args.command == "find":
-            sys.stdout.write(f"{ui.find(args.query, exact=args.exact)}\n")
-        elif args.command == "tap":
-            found = ui.tap(args.query, exact=args.exact, timeout=args.timeout)
-            sys.stdout.write(f"tapped {found}\n")
-        elif args.command == "wait":
-            found = ui.wait_for(args.query, timeout=args.timeout, exact=args.exact)
-            sys.stdout.write(f"{found}\n")
-        elif args.command == "type":
-            ui.type_into(args.query, args.text, exact=args.exact, timeout=args.timeout)
-            sys.stdout.write(f"typed into {args.query!r} and verified\n")
-        elif args.command == "dismiss-keyboard":
-            ui.dismiss_keyboard()
-        elif args.command == "focus":
-            sys.stdout.write(f"{ui.current_focus()}\n")
+        _run(AndroidUi(serial=args.serial), args)
     except UiAutomationError as exc:
         # Loud and non-zero on purpose: a silent no-op here is exactly the
         # failure this package exists to eliminate. The message already names

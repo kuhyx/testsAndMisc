@@ -1,0 +1,33 @@
+{
+  "intent": "Two Claude sessions can no longer drive the phone at the same time: every android_ui call and every phone_deploy.sh run takes a per-serial lease owned by the session, and a foreign holder is refused by name with the alternatives spelled out.",
+  "scope": [
+    "python_pkg/phone_lease (new): lease file, owner identity, acquire/release/status, CLI",
+    "python_pkg/android_ui/cli.py: acquire the lease before every command (exit 3 when held elsewhere)",
+    "Non-goal: parallel driving of one screen; that is what the virtual display / emulator scripts in ~/.claude/scripts are for"
+  ],
+  "changes": [
+    "flock-guarded JSON lease per serial under ~/.cache/phone-lease/, 180 s TTL refreshed on every call",
+    "owner = nearest ancestor `claude` process (one per session); PHONE_LEASE_OWNER overrides",
+    "android_ui main() refuses with exit 3 and the holder's name; phone_deploy.sh exits 40"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run --files python_pkg/phone_lease/... python_pkg/android_ui/...",
+      "result": "pass",
+      "evidence": "all hooks passed; python_pkg 1886 passed, 100% line+branch coverage"
+    },
+    {
+      "command": "python3 -m python_pkg.android_ui -s 23181JEGR08034 focus; PHONE_LEASE_OWNER=other python3 -m python_pkg.android_ui -s 23181JEGR08034 focus",
+      "result": "pass",
+      "evidence": "first call refreshed claude:4102845's lease; the foreign call waited 60 s and exited 3: 'phone 23181JEGR08034 held by claude:4102845 (android_ui focus) until 17:32:00'"
+    }
+  ],
+  "risks": [
+    "A session that keeps calling android_ui holds the phone indefinitely (by design); `python3 -m python_pkg.phone_lease release <serial>` drops it",
+    "Raw adb use bypasses the lease; only the sanctioned tools take it"
+  ],
+  "rollback": [
+    "Revert this commit; android_ui returns to lease-free operation",
+    "Validate: python3 -m python_pkg.android_ui focus runs without touching ~/.cache/phone-lease"
+  ]
+}

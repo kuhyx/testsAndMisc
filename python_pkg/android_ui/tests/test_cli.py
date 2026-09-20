@@ -17,6 +17,7 @@ from python_pkg.android_ui.driver import (
     ElementNotFoundError,
     UiElement,
 )
+from python_pkg.phone_lease import PhoneBusyError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -39,11 +40,36 @@ def _element(label: str = "Connect Firebase") -> UiElement:
 
 @pytest.fixture
 def ui() -> Iterator[MagicMock]:
-    """Patch out the real device driver."""
-    with patch(f"{MOD}.AndroidUi") as factory:
+    """Patch out the real device driver and the phone lease."""
+    with patch(f"{MOD}.AndroidUi") as factory, patch(f"{MOD}.acquire"):
         instance = MagicMock()
         factory.return_value = instance
         yield instance
+
+
+class TestLease:
+    def test_every_command_refreshes_the_lease_first(self) -> None:
+        with patch(f"{MOD}.AndroidUi"), patch(f"{MOD}.acquire") as acquire:
+            assert cli.main(["-s", "SER1", "focus"]) == 0
+        acquire.assert_called_once_with("SER1", "android_ui focus")
+
+    def test_serial_less_calls_share_one_key(self) -> None:
+        with patch(f"{MOD}.AndroidUi"), patch(f"{MOD}.acquire") as acquire:
+            cli.main(["focus"])
+        assert acquire.call_args.args[0] == "default"
+
+    def test_a_foreign_lease_stops_the_command(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with (
+            patch(f"{MOD}.AndroidUi") as factory,
+            patch(
+                f"{MOD}.acquire", side_effect=PhoneBusyError("phone X held by claude:1")
+            ),
+        ):
+            assert cli.main(["-s", "X", "tap", "Save"]) == 3
+        factory.assert_not_called()
+        assert "held by claude:1" in capsys.readouterr().err
 
 
 class TestDump:

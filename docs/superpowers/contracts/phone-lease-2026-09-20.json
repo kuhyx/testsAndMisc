@@ -1,0 +1,15 @@
+{
+  "title": "One phone, one driving session at a time",
+  "objective": "Every sanctioned path that touches the phone (android_ui, phone_deploy.sh) is mutually exclusive across Claude sessions, with automatic expiry so no session has to remember to release, and a refusal that names the holder and the alternatives.",
+  "acceptance_criteria": [
+    "A second session's android_ui call against a phone leased by another session waits up to 60 s then exits 3 naming the holder",
+    "The same session's calls refresh the lease without waiting",
+    "A lease untouched for 180 s no longer blocks anyone",
+    "python_pkg.phone_lease and python_pkg.android_ui keep 100% line and branch coverage"
+  ],
+  "out_of_scope": [
+    "Making two sessions drive the same screen concurrently (virtual display / emulator scripts cover that)",
+    "Raw adb commands, which bypass the tools"
+  ],
+  "verifier": "pre-commit run --files <changed> (pytest with --cov-fail-under=100), plus the two-session refusal reproduced on the real phone"
+}
