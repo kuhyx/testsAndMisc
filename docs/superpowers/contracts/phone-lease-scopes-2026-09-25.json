@@ -1,0 +1,14 @@
+{
+  "title": "phone_lease: per-app leases, a short self-cleaning whole-phone lease, one serial",
+  "objective": "Two sessions each drive a different app on their own virtual display at the same time, only phone-wide actions take the whole phone, and a forgotten forced-Doze cannot outlive five minutes.",
+  "acceptance_criteria": [
+    "Package leases on different apps coexist; the same app is exclusive (exit 3).",
+    "A whole-phone lease conflicts with every foreign lease in both directions and is clamped to 300 s.",
+    "--cleanup commands run exactly once, on release or on expiry, with no holder action needed.",
+    "`holds` answers exit 0/1 for this owner and a scope (whole-phone implies every scope); `status --json` lists all live leases.",
+    "No caller ever leases a placeholder serial.",
+    "phone_deploy.sh and android_ui keep working unchanged."
+  ],
+  "out_of_scope": ["phone_deploy virtual-display default, android_ui --display, the raw-adb hook (other session)."],
+  "verifier": "CLI scenario on a temp lease dir; two concurrent phone_vd displays on the real phone; pytest python_pkg/phone_lease 65 passed at 100% branch coverage."
+}

@@ -1,0 +1,20 @@
+{
+  "intent": "Several Claude sessions can use one phone at once without interrupting each other: leases are per app, a whole-phone lease is short and cleans up after itself, and every caller agrees on the serial.",
+  "scope": ["python_pkg/phone_lease only (lease, ops, owner, serial, _cleanup, CLI, tests)", "Callers unchanged: phone_deploy.sh's `acquire \"$SERIAL\" --note --wait` and android_ui's acquire(serial, note) keep the real-screen scope", "phone_deploy/android_ui/raw-adb hook changes belong to the image-attachments-todo-dufs session"],
+  "changes": [
+    "Scopes: pkg:<package> (default pkg:__screen__) and whole-phone; per-package leases coexist, whole-phone conflicts with every foreign lease",
+    "whole-phone ttl capped at 300 s; --cleanup commands run exactly once on release or expiry, expiry enforced by a detached `reap` process that wakes at least every 5 s",
+    "One JSON file per phone holds all leases; pre-scope single-object files are read as a screen lease",
+    "resolve_serial: explicit, $ANDROID_SERIAL, $ADB_SERIAL, `adb get-serialno`; never a 'default' placeholder (the cause of the 2026-09-25 clash)",
+    "CLI: optional serial, --package/--whole-phone/--cleanup, status --json, holds, whoami; exit 4 when no phone",
+    "acquire(serial, note, *, scope, terms=Terms(ttl, wait, cleanup), owner, clock) to stay within max-args 6"
+  ],
+  "verification": [
+    {"command": "two owners via PHONE_LEASE_OWNER against a temp PHONE_LEASE_DIR", "result": "pass", "evidence": "pkg:a + pkg:b coexist (0 0); B on pkg:a -> 3; B whole-phone while A holds a package -> 3; ttl 999 clamped to +300 s; release ran cleanup; unreleased whole-phone ttl 3 refreshed at +2 s was reaped only after the refreshed expiry"},
+    {"command": "~/.claude/scripts/phone_vd.sh start as testA (umbrella) and testB (settings) on the real phone", "result": "pass", "evidence": "displays 7 and 8 side by side; tap on 7 changed only 7; display 0 unchanged; third owner on umbrella exit 43; stop released both package leases"},
+    {"command": "pytest python_pkg/phone_lease --cov --cov-branch", "result": "pass", "evidence": "65 passed; every phone_lease module 100% line and branch"},
+    {"command": "pre-commit run --files <changed-files>", "result": "pass", "evidence": "all hooks passed"}
+  ],
+  "risks": ["A reaper killed before expiry leaves cleanup to the next locked update of that phone's lease file, which runs it then."],
+  "rollback": ["git revert the commit; old lease files remain readable by the reverted code only if they hold a single object, so delete ~/.cache/phone-lease/*.json after reverting", "Re-run pytest python_pkg/phone_lease"]
+}

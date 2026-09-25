@@ -13,6 +13,7 @@ from python_pkg.phone_lease import (
     Clock,
     Lease,
     PhoneBusyError,
+    Terms,
     acquire,
     owner_id,
     release,
@@ -64,7 +65,7 @@ class TestOwnerId:
             d.mkdir(parents=True)
             (d / "comm").write_text(f"{comm}\n")
             (d / "stat").write_text(f"{pid} ({comm}) S {ppid} 1 1 0 -1\n")
-        with patch.object(lease_mod.Path, "read_text", _proc_reader(proc)):
+        with patch.object(Path, "read_text", _proc_reader(proc)):
             assert owner_id(pid=300, environ={}) == "claude:200"
 
     def test_falls_back_to_own_pid_without_a_claude_ancestor(
@@ -75,7 +76,7 @@ class TestOwnerId:
         d.mkdir(parents=True)
         (d / "comm").write_text("zsh\n")
         (d / "stat").write_text("300 (zsh) S 1 1 1 0 -1\n")
-        with patch.object(lease_mod.Path, "read_text", _proc_reader(proc)):
+        with patch.object(Path, "read_text", _proc_reader(proc)):
             assert owner_id(pid=300, environ={}) == "pid:300"
 
     def test_unreadable_proc_falls_back_to_own_pid(self) -> None:
@@ -100,7 +101,11 @@ class TestAcquire:
     def test_takes_a_free_phone(self, lease_dir: Path) -> None:
         clock = FakeClock()
         got = acquire(
-            "PIXEL", "deploy", owner="claude:1", ttl=10, clock=clock.as_clock()
+            "PIXEL",
+            "deploy",
+            owner="claude:1",
+            terms=Terms(ttl=10),
+            clock=clock.as_clock(),
         )
         assert got == Lease(
             serial="PIXEL", owner="claude:1", expires=1010.0, note="deploy"
@@ -109,32 +114,58 @@ class TestAcquire:
 
     def test_refreshes_the_same_owner(self) -> None:
         clock = FakeClock()
-        acquire("PIXEL", "a", owner="claude:1", ttl=10, clock=clock.as_clock())
+        acquire(
+            "PIXEL", "a", owner="claude:1", terms=Terms(ttl=10), clock=clock.as_clock()
+        )
         clock.now += 5
-        got = acquire("PIXEL", "b", owner="claude:1", ttl=10, clock=clock.as_clock())
+        got = acquire(
+            "PIXEL", "b", owner="claude:1", terms=Terms(ttl=10), clock=clock.as_clock()
+        )
         assert got.expires == 1015.0
         assert got.note == "b"
         assert clock.slept == []
 
     def test_waits_for_a_foreign_lease_to_expire(self) -> None:
         clock = FakeClock()
-        acquire("PIXEL", "other", owner="claude:2", ttl=3, clock=clock.as_clock())
+        acquire(
+            "PIXEL",
+            "other",
+            owner="claude:2",
+            terms=Terms(ttl=3),
+            clock=clock.as_clock(),
+        )
         got = acquire(
-            "PIXEL", "mine", owner="claude:1", ttl=10, wait=60, clock=clock.as_clock()
+            "PIXEL",
+            "mine",
+            owner="claude:1",
+            terms=Terms(ttl=10, wait=60),
+            clock=clock.as_clock(),
         )
         assert got.owner == "claude:1"
         assert clock.slept == [1.0, 1.0, 1.0]
 
     def test_gives_up_naming_the_holder(self) -> None:
         clock = FakeClock()
-        acquire("PIXEL", "manga", owner="claude:2", ttl=1000, clock=clock.as_clock())
+        acquire(
+            "PIXEL",
+            "manga",
+            owner="claude:2",
+            terms=Terms(ttl=1000),
+            clock=clock.as_clock(),
+        )
         with pytest.raises(
             PhoneBusyError, match=r"held by claude:2 \(manga\).*waited 2s"
         ):
-            acquire("PIXEL", "mine", owner="claude:1", wait=2, clock=clock.as_clock())
+            acquire(
+                "PIXEL",
+                "mine",
+                owner="claude:1",
+                terms=Terms(wait=2),
+                clock=clock.as_clock(),
+            )
 
     def test_uses_the_real_clock_by_default(self) -> None:
-        got = acquire("PIXEL", owner="claude:1", ttl=5)
+        got = acquire("PIXEL", owner="claude:1", terms=Terms(ttl=5))
         assert got.expires == pytest.approx(time.time() + 5, abs=2)
 
     def test_uses_the_real_owner_by_default(self) -> None:
@@ -181,11 +212,16 @@ class TestStatus:
         assert status("PIXEL") is None
 
     def test_expired_is_free(self) -> None:
-        acquire("PIXEL", owner="claude:1", ttl=1, clock=FakeClock(now=100.0).as_clock())
+        acquire(
+            "PIXEL",
+            owner="claude:1",
+            terms=Terms(ttl=1),
+            clock=FakeClock(now=100.0).as_clock(),
+        )
         assert status("PIXEL", now=200.0) is None
 
     def test_live_describes_the_holder(self) -> None:
-        acquire("PIXEL", "deploy", owner="claude:1", ttl=1000)
+        acquire("PIXEL", "deploy", owner="claude:1", terms=Terms(ttl=1000))
         live = status("PIXEL")
         assert live is not None
         assert live.describe().startswith(
