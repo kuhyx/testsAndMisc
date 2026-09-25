@@ -9,6 +9,9 @@
     "android_ui --display self|<id> drives only this session's display under that app's lease; every input call carries -d.",
     "Virtual-display trees come from the com.kuhy.a11ydump instrumentation helper, built from source and installed with adb install -r -t."
   ],
-  "out_of_scope": ["phone_lease scopes themselves (c0c51036)", "the ~/.claude hook wrapper, phone_deploy.sh and the phone-focus-mode whitelist (separate repos)"],
+  "out_of_scope": [
+    "phone_lease scopes themselves (c0c51036)",
+    "the ~/.claude hook wrapper, phone_deploy.sh and the phone-focus-mode whitelist (separate repos)"
+  ],
   "verifier": "pytest python_pkg/android_ui python_pkg/phone_guard at 100% branch coverage; pre-commit on the changed files; a real helper APK build; the live two-session run on the Pixel follows this commit."
 }

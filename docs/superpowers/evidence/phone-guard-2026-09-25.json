@@ -1,6 +1,9 @@
 {
   "intent": "Several Claude sessions act on one phone at once without interrupting each other; a raw `adb shell input tap` (no lease) had landed in another session's app on 2026-09-25.",
-  "scope": ["python_pkg/phone_guard (new: classify, _remote, _need, vd_state, hook, CLI, tests)", "python_pkg/android_ui (--display, _a11y_helper + A11yDump.java, -d on every input, tests split under the 250-line cap)"],
+  "scope": [
+    "python_pkg/phone_guard (new: classify, _remote, _need, vd_state, hook, CLI, tests)",
+    "python_pkg/android_ui (--display, _a11y_helper + A11yDump.java, -d on every input, tests split under the 250-line cap)"
+  ],
   "changes": [
     "phone_guard.classify maps every adb call in a shell command to a Need: nothing, screen, one app, whole phone, or a block",
     "phone_guard.hook applies it as the Claude Code PreToolUse hook: acquires as this session, waits 40 s, exits 2 on refusal",
@@ -9,10 +12,28 @@
     "The helper source sits flat beside the module (A11yDump.java, a11y_dump_manifest.xml) to respect the two-directory path cap"
   ],
   "verification": [
-    {"command": "pytest python_pkg/android_ui python_pkg/phone_guard --cov --cov-branch", "result": "pass", "evidence": "152 passed; every android_ui and phone_guard module 100% line and branch"},
-    {"command": "python3 -c 'from python_pkg.android_ui import _a11y_helper as h; print(h.build())'", "result": "pass", "evidence": "~/.cache/android_ui/a11ydump-fb2baa8888080a3c.apk built with the real SDK"},
-    {"command": "pre-commit run --files <changed-files>", "result": "pass", "evidence": "all hooks passed"}
+    {
+      "command": "pytest python_pkg/android_ui python_pkg/phone_guard --cov --cov-branch",
+      "result": "pass",
+      "evidence": "152 passed; every android_ui and phone_guard module 100% line and branch"
+    },
+    {
+      "command": "python3 -c 'from python_pkg.android_ui import _a11y_helper as h; print(h.build())'",
+      "result": "pass",
+      "evidence": "~/.cache/android_ui/a11ydump-fb2baa8888080a3c.apk built with the real SDK"
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    }
   ],
-  "risks": ["The hook passes unknown commands: it guards against interrupting other sessions, it is not a sandbox.", "The helper must stay in phone-focus-mode's whitelist or the focus-owner sweep hides it."],
-  "rollback": ["git revert the commit", "Remove the phone_guard_pretool.sh entry from ~/.claude/settings.json PreToolUse"]
+  "risks": [
+    "The hook passes unknown commands: it guards against interrupting other sessions, it is not a sandbox.",
+    "The helper must stay in phone-focus-mode's whitelist or the focus-owner sweep hides it."
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Remove the phone_guard_pretool.sh entry from ~/.claude/settings.json PreToolUse"
+  ]
 }
