@@ -108,7 +108,10 @@ that app's lease, so several sessions can act at once:
 comes from the `com.kuhy.a11ydump` instrumentation helper (`A11yDump.java`,
 `_a11y_helper.py`): built once into `~/.cache/android_ui/` and installed
 with `adb install -r -t` on first use. Its package must stay in
-phone-focus-mode's whitelist, or the focus-owner sweep hides it. Every
+phone-focus-mode's whitelist, or the focus-owner sweep hides it. Android
+runs one instrumentation per package, so a second `am instrument` kills
+the first: dumps of one phone queue behind a host-side `flock`
+(`~/.cache/android_ui/a11ydump-<serial>.lock`). Every
 `input` call carries `-d` (0 for the real screen), because input without it
 goes to whichever display last took focus. A numeric `--display` that is
 another session's virtual display is refused.

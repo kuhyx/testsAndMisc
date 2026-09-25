@@ -117,7 +117,10 @@ class AndroidUi(TextEntryMixin):
     def _dump_once(self) -> list[UiElement]:
         """Pull one accessibility-tree snapshot."""
         if self._display is not None:
-            return _parse_tree(_a11y_helper.dump_display(self._run, self._display))
+            xml = _a11y_helper.dump_display(
+                self._run, self._display, self._serial or "any"
+            )
+            return _parse_tree(xml)
         self._run("shell", "uiautomator", "dump", _REMOTE_DUMP, timeout=45.0)
         with tempfile.TemporaryDirectory() as tmp:
             local = Path(tmp) / "ui.xml"

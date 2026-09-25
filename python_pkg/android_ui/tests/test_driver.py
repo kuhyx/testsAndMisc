@@ -195,15 +195,15 @@ class TestVirtualDisplay:
         monkeypatch.setattr(instance, "_run", device.run)
         monkeypatch.setattr(f"{MOD}.time.sleep", lambda _s: None)
         xml = _tree(_node("Go", bounds="[0,0][100,100]"))
-        calls: list[int] = []
+        calls: list[tuple[int, str]] = []
 
-        def dump(run: object, display: int) -> str:
+        def dump(run: object, display: int, phone: str) -> str:
             del run
-            calls.append(display)
+            calls.append((display, phone))
             return xml
 
         monkeypatch.setattr(f"{MOD}._a11y_helper.dump_display", dump)
         instance.tap("Go")
         assert calls
-        assert set(calls) == {9}
+        assert set(calls) == {(9, "S")}
         assert ("shell", "input", "-d", "9", "tap", "50", "50") in device.calls

@@ -1,0 +1,36 @@
+{
+  "intent": "Two sessions reading their own virtual displays at the same moment must not kill each other's dump.",
+  "scope": [
+    "python_pkg/android_ui/_a11y_helper.py (lock), driver.py (passes the serial), tests, README"
+  ],
+  "changes": [
+    "dump_display runs install + am instrument under a per-phone flock at ~/.cache/android_ui/a11ydump-<serial>.lock",
+    "AndroidUi passes its serial so different phones do not queue behind each other"
+  ],
+  "verification": [
+    {
+      "command": "live two-session run on the Pixel 6a before the fix (fake owners claude:fakeA / claude:fakeB, 300 s)",
+      "result": "fail",
+      "evidence": "logcat: 'stop com.kuhy.a11ydump due to start instr' then 'Crash of app com.kuhy.a11ydump running instrumentation'; android_ui: 'a11y helper returned no tree: Process crashed'"
+    },
+    {
+      "command": "same run after the fix: /tmp/two_session/run.sh, DURATION=300",
+      "result": "pass",
+      "evidence": "A 219 element taps on Calculator (display 14), B 440 dp taps + dumps on Clock (display 13), 0 failures, empty stderr; 99 samples: display 0 stayed on Signal, 14 on Calculator, 13 on Clock; all five alarms still off"
+    },
+    {
+      "command": "raw adb from a Claude Bash call while claude:fakeA held pkg:__screen__",
+      "result": "pass",
+      "evidence": "`adb shell input -d 0 tap` blocked after 40 s naming claude:fakeA; `input keyevent 0` without -d blocked at once; `input -d 13 tap` refused as claude_fakeB's display"
+    },
+    {
+      "command": "pytest python_pkg/android_ui python_pkg/phone_guard --cov --cov-branch",
+      "result": "pass",
+      "evidence": "153 passed; every module 100% line and branch"
+    }
+  ],
+  "risks": [
+    "The lock is per host: sessions on another machine sharing the phone over adb are not serialised."
+  ],
+  "rollback": ["git revert the commit"]
+}

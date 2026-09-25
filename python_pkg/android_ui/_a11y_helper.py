@@ -14,7 +14,9 @@ never committed: the repo's binary gate forbids it, and the source is enough.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+import contextlib
+import fcntl
 import hashlib
 import os
 from pathlib import Path
@@ -208,18 +210,36 @@ def parse_result(output: str) -> str:
     raise UiAutomationError(msg)
 
 
-def dump_display(run: AdbRun, display: int) -> str:
+@contextlib.contextmanager
+def _one_at_a_time(phone: str) -> Iterator[None]:
+    """Hold this host's lock on the helper for one phone.
+
+    Android runs one instrumentation per package: a second ``am instrument``
+    force-stops the first ("stop ... due to start instr"), and so does an
+    ``install -r``. Two sessions dumping at once killed each other's dump in
+    the 2026-09-25 live test. A dump takes well under a second, so queueing
+    costs nothing noticeable; closing the file releases the lock.
+    """
+    path = cache_dir() / f"a11ydump-{phone}.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
+
+
+def dump_display(run: AdbRun, display: int, phone: str = "any") -> str:
     """Return ``display``'s accessibility tree as uiautomator-style XML."""
-    ensure_installed(run)
-    output = run(
-        "shell",
-        "am",
-        "instrument",
-        "-w",
-        "-e",
-        "display",
-        str(display),
-        _RUNNER,
-        timeout=45.0,
-    )
+    with _one_at_a_time(phone):
+        ensure_installed(run)
+        output = run(
+            "shell",
+            "am",
+            "instrument",
+            "-w",
+            "-e",
+            "display",
+            str(display),
+            _RUNNER,
+            timeout=45.0,
+        )
     return parse_result(output)

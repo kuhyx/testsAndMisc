@@ -1,0 +1,10 @@
+{
+  "title": "a11ydump: queue dumps of one phone behind a host lock",
+  "objective": "Concurrent android_ui --display calls from different sessions never crash each other's instrumentation.",
+  "acceptance_criteria": [
+    "install + am instrument run under a per-serial flock",
+    "a 300 s live run with two fake sessions has 0 failed taps/dumps"
+  ],
+  "out_of_scope": ["cross-host locking"],
+  "verifier": "Live two-session run on the Pixel 6a; pytest python_pkg/android_ui at 100% branch coverage."
+}

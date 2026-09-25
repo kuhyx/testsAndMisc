@@ -7,6 +7,7 @@ The real build and a real dump were verified on the Pixel 6a on 2026-09-25.
 
 from __future__ import annotations
 
+import fcntl
 from pathlib import Path
 import shutil
 import subprocess
@@ -187,7 +188,10 @@ class TestDevice:
         with pytest.raises(UiAutomationError, match="no tree"):
             helper.parse_result("INSTRUMENTATION_STATUS: nothing\n")
 
-    def test_dump_display(self) -> None:
+    def test_dump_display(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("ANDROID_UI_CACHE", str(tmp_path))
         run = MagicMock(return_value="INSTRUMENTATION_RESULT: xml=<h/>\n")
         with patch(f"{MOD}.ensure_installed") as ensure:
             assert helper.dump_display(run, 9) == "<h/>"
@@ -203,3 +207,25 @@ class TestDevice:
             "com.kuhy.a11ydump/.A11yDump",
             timeout=45.0,
         )
+
+    def test_dumps_of_one_phone_queue_behind_each_other(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A second `am instrument` force-stops the first, so the whole
+        # install + instrument must run under the phone's lock.
+        monkeypatch.setenv("ANDROID_UI_CACHE", str(tmp_path))
+        held: list[bool] = []
+
+        def run(*_args: str, **_kw: object) -> str:
+            with (tmp_path / "a11ydump-R58.lock").open("a") as other:
+                try:
+                    fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    held.append(True)
+                else:
+                    held.append(False)
+            return "INSTRUMENTATION_RESULT: xml=<h/>\n"
+
+        with patch(f"{MOD}.ensure_installed", side_effect=lambda r: r()):
+            assert helper.dump_display(run, 9, "R58") == "<h/>"
+        assert held == [True, True]
