@@ -9,6 +9,8 @@
     "No caller ever leases a placeholder serial.",
     "phone_deploy.sh and android_ui keep working unchanged."
   ],
-  "out_of_scope": ["phone_deploy virtual-display default, android_ui --display, the raw-adb hook (other session)."],
+  "out_of_scope": [
+    "phone_deploy virtual-display default, android_ui --display, the raw-adb hook (other session)."
+  ],
   "verifier": "CLI scenario on a temp lease dir; two concurrent phone_vd displays on the real phone; pytest python_pkg/phone_lease 65 passed at 100% branch coverage."
 }

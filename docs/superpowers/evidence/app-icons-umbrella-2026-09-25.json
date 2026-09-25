@@ -1,13 +1,43 @@
 {
   "intent": "The new Umbrella? Flutter app (~/src/umbrella, com.kuhy.umbrella) gets a launcher icon from the shared family instead of the stock Flutter icon.",
-  "scope": ["python_pkg/app_icons: new `umbrella` glyph and registry entry", "AppIcon dataclass moved to _app_icon.py so apps.py stays under the 250-line cap (re-exported, API unchanged)", "No change to style.py or any other app's icon"],
-  "changes": ["_glyph_art_more.py: _UMBRELLA, a filled scalloped canopy over a stroked J-handle, geometry inside SAFE_BOX with a 40px hook opening (>= MIN_NEGATIVE_SPACE)", "glyphs.py: registers the umbrella glyph", "apps.py: registers the umbrella app; AppIcon now imported from _app_icon.py and listed in __all__", "_app_icon.py: the AppIcon record, Path under TYPE_CHECKING"],
-  "verification": [
-    {"command": "PYTHONPATH=. python3 -m python_pkg.app_icons generate --app umbrella --android", "result": "pass", "evidence": "umbrella: wrote 6 asset files to ~/src/umbrella/assets/icon; regenerated Android mipmaps; no safe-box warning"},
-    {"command": "PYTHONPATH=. python3 -m python_pkg.app_icons preview -o /tmp/sheet.png", "result": "pass", "evidence": "umbrella renders in the family row at full size, circle mask and 48dp; reads as an umbrella"},
-    {"command": "pytest python_pkg/app_icons", "result": "pass", "evidence": "44 passed; registry invariants (real glyph, shared accent, hex accent) cover the new entry"},
-    {"command": "pre-commit run --files <changed-files>", "result": "pass", "evidence": "all hooks passed"}
+  "scope": [
+    "python_pkg/app_icons: new `umbrella` glyph and registry entry",
+    "AppIcon dataclass moved to _app_icon.py so apps.py stays under the 250-line cap (re-exported, API unchanged)",
+    "No change to style.py or any other app's icon"
   ],
-  "risks": ["Importers of AppIcon from apps.py keep working via the re-export; generate.py and test_generate.py still import it from there."],
-  "rollback": ["git revert the commit; the umbrella app keeps its already-generated PNGs", "Re-run pytest python_pkg/app_icons"]
+  "changes": [
+    "_glyph_art_more.py: _UMBRELLA, a filled scalloped canopy over a stroked J-handle, geometry inside SAFE_BOX with a 40px hook opening (>= MIN_NEGATIVE_SPACE)",
+    "glyphs.py: registers the umbrella glyph",
+    "apps.py: registers the umbrella app; AppIcon now imported from _app_icon.py and listed in __all__",
+    "_app_icon.py: the AppIcon record, Path under TYPE_CHECKING"
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -m python_pkg.app_icons generate --app umbrella --android",
+      "result": "pass",
+      "evidence": "umbrella: wrote 6 asset files to ~/src/umbrella/assets/icon; regenerated Android mipmaps; no safe-box warning"
+    },
+    {
+      "command": "PYTHONPATH=. python3 -m python_pkg.app_icons preview -o /tmp/sheet.png",
+      "result": "pass",
+      "evidence": "umbrella renders in the family row at full size, circle mask and 48dp; reads as an umbrella"
+    },
+    {
+      "command": "pytest python_pkg/app_icons",
+      "result": "pass",
+      "evidence": "44 passed; registry invariants (real glyph, shared accent, hex accent) cover the new entry"
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    }
+  ],
+  "risks": [
+    "Importers of AppIcon from apps.py keep working via the re-export; generate.py and test_generate.py still import it from there."
+  ],
+  "rollback": [
+    "git revert the commit; the umbrella app keeps its already-generated PNGs",
+    "Re-run pytest python_pkg/app_icons"
+  ]
 }
