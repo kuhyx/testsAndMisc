@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A test-only APK with no app code of its own: `am instrument` runs A11yDump
+     with a UiAutomation, which can read the accessibility tree of every
+     display, virtual ones included (`uiautomator dump` sees display 0 only). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.kuhy.a11ydump">
+    <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="36" />
+    <application android:label="a11ydump" android:hasCode="true" />
+    <instrumentation
+        android:name="com.kuhy.a11ydump.A11yDump"
+        android:targetPackage="com.kuhy.a11ydump" />
+</manifest>

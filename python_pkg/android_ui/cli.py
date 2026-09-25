@@ -9,6 +9,7 @@ successful no-op instead of guessing from a screenshot.
     android-ui tap "Connect Firebase"
     android-ui type "Sync account email" kuhy@example.com
     android-ui wait "Connected to Firebase." --timeout 30
+    android-ui --display self tap "Save"     # this session's phone_vd display
 """
 
 from __future__ import annotations
@@ -17,7 +18,24 @@ import argparse
 import sys
 
 from python_pkg.android_ui.driver import AndroidUi, UiAutomationError
-from python_pkg.phone_lease import PhoneBusyError, acquire
+from python_pkg.phone_guard.vd_state import display_owner, own_display
+from python_pkg.phone_lease import (
+    NoPhoneError,
+    PhoneBusyError,
+    acquire,
+    owner_id,
+    resolve_serial,
+    scope_of,
+)
+
+# Exit codes shared with phone_lease: 3 held elsewhere, 4 no phone.
+_EXIT_BUSY = 3
+_EXIT_NO_PHONE = 4
+_EXIT_BAD_DISPLAY = 5
+
+
+class _TargetError(RuntimeError):
+    """The requested display cannot be driven by this session."""
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -27,6 +45,11 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Drive an Android app by element, never by coordinates.",
     )
     parser.add_argument("-s", "--serial", help="target device serial")
+    parser.add_argument(
+        "--display",
+        help="drive a virtual display instead of the real screen: its logical "
+        "id, or 'self' for the one phone_vd.sh started for this session",
+    )
     parser.add_argument(
         "--exact",
         action="store_true",
@@ -56,16 +79,43 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _lease_phone(serial: str | None, command: str) -> bool:
-    """Refresh this session's lease on the phone; False when another holds it.
+def _target(serial: str, requested: str | None) -> tuple[int | None, str]:
+    """Return (display, lease scope) for ``--display``.
 
-    Every command goes through here first, so a second session's taps wait
-    instead of landing in whatever this one has in front (2026-09-20: a
-    sandbox tap opened another session's manga reader). Serial-less calls
-    share one key: adb picks one device anyway.
+    The real screen is shared, so it takes the screen lease. A virtual display
+    must be this session's own (another session's app would be driven blind)
+    and takes the lease on its app instead, which is what lets two sessions
+    work at the same time.
+    """
+    if requested is None or requested == "0":
+        return None, scope_of()  # the real screen: pkg:__screen__
+    mine = own_display(serial, owner_id())
+    if requested == "self":
+        if mine is None:
+            msg = "no virtual display for this session: run phone_vd.sh start <package>"
+            raise _TargetError(msg)
+        return mine.display, scope_of(mine.package)
+    if not requested.isdigit():
+        msg = f"--display takes a display id or 'self', not {requested!r}"
+        raise _TargetError(msg)
+    display = int(requested)
+    if mine is None or mine.display != display:
+        other = display_owner(serial, display)
+        whose = f"owned by {other.owner_dir}" if other else "not this session's"
+        msg = f"display {display} is {whose}; drive only your own (--display self)"
+        raise _TargetError(msg)
+    return display, scope_of(mine.package)
+
+
+def _lease_phone(serial: str, command: str, scope: str) -> bool:
+    """Refresh this session's lease; False when another session holds it.
+
+    Keyed by the resolved serial, never a placeholder: serial-less calls used
+    to lease "default" while phone_deploy leased the real serial, so neither
+    saw the other and one session's tap landed in another's app (2026-09-25).
     """
     try:
-        acquire(serial or "default", f"android_ui {command}")
+        acquire(serial, f"android_ui {command}", scope=scope)
     except PhoneBusyError as exc:
         sys.stderr.write(f"android-ui: {exc}\n")
         return False
@@ -97,10 +147,19 @@ def _run(ui: AndroidUi, args: argparse.Namespace) -> None:
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI. Returns a process exit code."""
     args = _build_parser().parse_args(argv)
-    if not _lease_phone(args.serial, args.command):
-        return 3
     try:
-        _run(AndroidUi(serial=args.serial), args)
+        serial = resolve_serial(args.serial)
+        display, scope = _target(serial, args.display)
+    except NoPhoneError as exc:
+        sys.stderr.write(f"android-ui: {exc}\n")
+        return _EXIT_NO_PHONE
+    except _TargetError as exc:
+        sys.stderr.write(f"android-ui: {exc}\n")
+        return _EXIT_BAD_DISPLAY
+    if not _lease_phone(serial, args.command, scope):
+        return _EXIT_BUSY
+    try:
+        _run(AndroidUi(serial=serial, display=display), args)
     except UiAutomationError as exc:
         # Loud and non-zero on purpose: a silent no-op here is exactly the
         # failure this package exists to eliminate. The message already names

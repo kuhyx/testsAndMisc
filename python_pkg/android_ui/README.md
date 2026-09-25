@@ -90,9 +90,30 @@ ui.wait_for("Connected.", timeout=30)
 
 ## One phone, many sessions
 
-Every command first takes this session's lease on the phone
-(`python_pkg.phone_lease`): the owner is the nearest ancestor `claude`
-process, the lease lasts 180 s past the last call, and a call from another
+Sessions share the phone by working on separate displays. By default every
+command drives the real screen (display 0) and takes this session's
+`pkg:__screen__` lease (`python_pkg.phone_lease`: owner = the nearest
+ancestor `claude` process, 180 s past the last call). A call from another
 session waits up to 60 s, then exits 3 naming the holder. Do not retry in a
-loop — use the phone's virtual display (`~/.claude/scripts/phone_vd.sh`) or
-the headless emulator (`~/.claude/scripts/phone_emu.sh`), or ask the user.
+loop.
+
+`--display self` drives this session's virtual display instead
+(`~/.claude/scripts/phone_vd.sh start <package>` creates it) and takes only
+that app's lease, so several sessions can act at once:
+
+    android-ui --display self dump
+    android-ui --display self tap "Save"
+
+`uiautomator dump` sees display 0 only, so on a virtual display the tree
+comes from the `com.kuhy.a11ydump` instrumentation helper (`A11yDump.java`,
+`_a11y_helper.py`): built once into `~/.cache/android_ui/` and installed
+with `adb install -r -t` on first use. Its package must stay in
+phone-focus-mode's whitelist, or the focus-owner sweep hides it. Every
+`input` call carries `-d` (0 for the real screen), because input without it
+goes to whichever display last took focus. A numeric `--display` that is
+another session's virtual display is refused.
+
+Raw `adb` from a Claude Bash call is covered too: the
+`~/.claude/hooks/phone_guard_pretool.sh` hook (`python_pkg.phone_guard`)
+takes the matching lease or blocks the call. See the `phone-deploy` skill,
+section 3, for the full rules.

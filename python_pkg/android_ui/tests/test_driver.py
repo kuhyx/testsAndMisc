@@ -11,70 +11,16 @@ because each of them looked like success at the time:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import NamedTuple
 
 import pytest
 
 from python_pkg.android_ui import driver as drv
+from python_pkg.android_ui.tests.conftest import FakeDevice
+from python_pkg.android_ui.tests.conftest import node as _node
+from python_pkg.android_ui.tests.conftest import tree as _tree
 
 MOD = "python_pkg.android_ui.driver"
-
-
-def _node(text: str = "", **attrs: str) -> str:
-    """Render one ``<node>`` element for a fake dump.
-
-    ``attrs`` accepts ``desc``, ``hint``, ``res``, ``cls``, ``bounds``,
-    ``enabled`` and ``focused``; each falls back to a representative default.
-    """
-    return (
-        f'<node text="{text}" content-desc="{attrs.get("desc", "")}" '
-        f'hint="{attrs.get("hint", "")}" '
-        f'resource-id="{attrs.get("res", "")}" '
-        f'class="{attrs.get("cls", "android.widget.TextView")}" '
-        f'bounds="{attrs.get("bounds", "[0,0][100,50]")}" '
-        f'enabled="{attrs.get("enabled", "true")}" '
-        f'focused="{attrs.get("focused", "false")}"/>'
-    )
-
-
-def _tree(*nodes: str) -> str:
-    """Wrap ``nodes`` in a hierarchy document."""
-    return f"<?xml version='1.0'?><hierarchy rotation='0'>{''.join(nodes)}</hierarchy>"
-
-
-class FakeDevice:
-    """Scripted stand-in for adb, recording every command it is given."""
-
-    def __init__(self, trees: list[str] | None = None) -> None:
-        self.trees = trees or [_tree(_node("Connect"))]
-        self.calls: list[tuple[str, ...]] = []
-        self.keyboard_shown = False
-        self.pulled = 0
-
-    def run(self, *args: str, timeout: float = 30.0) -> str:
-        """Answer an adb invocation."""
-        del timeout
-        self.calls.append(args)
-        if args[:2] == ("shell", "dumpsys") and args[2] == "input_method":
-            return f"mInputShown={'true' if self.keyboard_shown else 'false'}"
-        if args[:2] == ("shell", "dumpsys") and args[2] == "window":
-            return "mCurrentFocus=Window{ab12 u0 com.example/com.example.Main}"
-        if args[0] == "pull":
-            index = min(self.pulled, len(self.trees) - 1)
-            self.pulled += 1
-            Path(args[2]).write_text(self.trees[index], encoding="utf-8")
-        if args[:3] == ("shell", "input", "keyevent") and args[3] in {"111", "4"}:
-            self.keyboard_shown = False
-        return ""
-
-    def taps(self) -> list[tuple[int, int]]:
-        """Return every tap coordinate, in order."""
-        return [
-            (int(c[3]), int(c[4]))
-            for c in self.calls
-            if c[:3] == ("shell", "input", "tap")
-        ]
 
 
 class Harness(NamedTuple):
@@ -207,7 +153,9 @@ class TestTap:
         ui.device.trees = [_tree(_node("Go", bounds="[0,0][100,100]"))]
         ui.ui.tap("Go")
         keyevents = [
-            c for c in ui.device.calls if c[:3] == ("shell", "input", "keyevent")
+            c
+            for c in ui.device.calls
+            if c[:5] == ("shell", "input", "-d", "0", "keyevent")
         ]
         assert keyevents, "expected the keyboard to be dismissed first"
 
@@ -236,3 +184,26 @@ def test_real_text_outranks_the_hint_once_typed() -> None:
     (element,) = drv._parse_tree(_tree(dump))
 
     assert element.label == "17:30"
+
+
+class TestVirtualDisplay:
+    def test_reads_the_tree_through_the_helper_and_taps_with_d(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        device = FakeDevice()
+        instance = drv.AndroidUi(serial="S", display=9, settle_seconds=0.0)
+        monkeypatch.setattr(instance, "_run", device.run)
+        monkeypatch.setattr(f"{MOD}.time.sleep", lambda _s: None)
+        xml = _tree(_node("Go", bounds="[0,0][100,100]"))
+        calls: list[int] = []
+
+        def dump(run: object, display: int) -> str:
+            del run
+            calls.append(display)
+            return xml
+
+        monkeypatch.setattr(f"{MOD}._a11y_helper.dump_display", dump)
+        instance.tap("Go")
+        assert calls
+        assert set(calls) == {9}
+        assert ("shell", "input", "-d", "9", "tap", "50", "50") in device.calls

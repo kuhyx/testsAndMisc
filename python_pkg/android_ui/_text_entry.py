@@ -34,6 +34,10 @@ class TextEntryMixin(ABC):
         """Supplied by the concrete driver: run one adb command."""
 
     @abstractmethod
+    def _input(self, *args: str) -> str:
+        """Supplied by the concrete driver: ``input`` on the driven display."""
+
+    @abstractmethod
     def dump(self, *, retries: int = 4) -> list[UiElement]:
         """Supplied by the concrete driver: read the current UI tree."""
 
@@ -49,9 +53,9 @@ class TextEntryMixin(ABC):
             return
         # KEYCODE_MOVE_END (123) then a run of deletes is more reliable across
         # IMEs than CTRL+A, which not every keyboard honours.
-        self._run("shell", "input", "keyevent", "123")
+        self._input("keyevent", "123")
         for _ in range(length + 2):
-            self._run("shell", "input", "keyevent", "67")
+            self._input("keyevent", "67")
         time.sleep(self._settle)
 
     def editable_fields(self) -> list[UiElement]:
@@ -78,14 +82,14 @@ class TextEntryMixin(ABC):
         target = fields[index]
         before = target.text
         x, y = target.center
-        self._run("shell", "input", "tap", str(x), str(y))
+        self._input("tap", str(x), str(y))
         time.sleep(max(self._settle, 0.8))
         # REPLACE, don't append. `input text` inserts at the cursor, so typing
         # into a field that already holds something silently concatenates --
         # producing e.g. "old@example.comnew@example.com", which is accepted by
         # the widget, passes a "did the text change?" check, and is wrong.
         self._clear_focused_field(len(before))
-        self._run("shell", "input", "text", _escape(text))
+        self._input("text", _escape(text))
         time.sleep(self._settle)
         after = self.editable_fields()
         changed = any(
@@ -118,7 +122,7 @@ class TextEntryMixin(ABC):
         for keyevent in ("111", "4"):
             if not self.keyboard_is_up():
                 return
-            self._run("shell", "input", "keyevent", keyevent)
+            self._input("keyevent", keyevent)
             time.sleep(max(self._settle, 0.6))
         if self.keyboard_is_up():
             msg = (

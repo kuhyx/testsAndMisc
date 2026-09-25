@@ -17,12 +17,15 @@ from python_pkg.android_ui.driver import (
     ElementNotFoundError,
     UiElement,
 )
-from python_pkg.phone_lease import PhoneBusyError
+from python_pkg.phone_lease import NoPhoneError, PhoneBusyError
+
+SCREEN_SCOPE = "pkg:__screen__"
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 MOD = "python_pkg.android_ui.cli"
+pytestmark = pytest.mark.usefixtures("phone")
 
 
 def _element(label: str = "Connect Firebase") -> UiElement:
@@ -48,15 +51,22 @@ def ui() -> Iterator[MagicMock]:
 
 
 class TestLease:
-    def test_every_command_refreshes_the_lease_first(self) -> None:
-        with patch(f"{MOD}.AndroidUi"), patch(f"{MOD}.acquire") as acquire:
-            assert cli.main(["-s", "SER1", "focus"]) == 0
-        acquire.assert_called_once_with("SER1", "android_ui focus")
+    def test_every_command_refreshes_the_screen_lease_first(self) -> None:
+        with patch(f"{MOD}.AndroidUi") as factory, patch(f"{MOD}.acquire") as acquire:
+            assert cli.main(["-s", "SER2", "focus"]) == 0
+        acquire.assert_called_once_with("SER2", "android_ui focus", scope=SCREEN_SCOPE)
+        factory.assert_called_once_with(serial="SER2", display=None)
 
-    def test_serial_less_calls_share_one_key(self) -> None:
+    def test_serial_less_calls_lease_the_resolved_serial(self) -> None:
+        # Leasing a "default" key let two sessions drive one phone blind.
         with patch(f"{MOD}.AndroidUi"), patch(f"{MOD}.acquire") as acquire:
             cli.main(["focus"])
-        assert acquire.call_args.args[0] == "default"
+        assert acquire.call_args.args[0] == "SER1"
+
+    def test_no_phone_exits_4(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with patch(f"{MOD}.resolve_serial", side_effect=NoPhoneError("none")):
+            assert cli.main(["focus"]) == 4
+        assert "none" in capsys.readouterr().err
 
     def test_a_foreign_lease_stops_the_command(
         self, capsys: pytest.CaptureFixture[str]

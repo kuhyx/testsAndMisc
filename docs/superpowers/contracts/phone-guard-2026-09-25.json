@@ -1,0 +1,14 @@
+{
+  "title": "phone_guard: lease or block raw adb; android_ui drives a session's own virtual display",
+  "objective": "No Claude session's adb call can land in another session's app: raw adb in a Bash call takes the matching phone_lease or is blocked, and android_ui can tap by element on the session's own virtual display.",
+  "acceptance_criteria": [
+    "Reads (logcat, dumpsys, pull, screencap) pass with no lease.",
+    "Input or launches on display 0 take the pkg:__screen__ lease; install/force-stop take that app's lease; reboot, Wi-Fi/airplane/Doze and settings put take the whole-phone lease.",
+    "input text/keyevent without -d, and input aimed at another session's virtual display, exit 2 with a reason.",
+    "A lease held by another session is waited on for 40 s, then the call exits 2 naming the holder.",
+    "android_ui --display self|<id> drives only this session's display under that app's lease; every input call carries -d.",
+    "Virtual-display trees come from the com.kuhy.a11ydump instrumentation helper, built from source and installed with adb install -r -t."
+  ],
+  "out_of_scope": ["phone_lease scopes themselves (c0c51036)", "the ~/.claude hook wrapper, phone_deploy.sh and the phone-focus-mode whitelist (separate repos)"],
+  "verifier": "pytest python_pkg/android_ui python_pkg/phone_guard at 100% branch coverage; pre-commit on the changed files; a real helper APK build; the live two-session run on the Pixel follows this commit."
+}

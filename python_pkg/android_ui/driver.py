@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 
+from python_pkg.android_ui import _a11y_helper
 from python_pkg.android_ui._elements import (
     AmbiguousElementError,
     ElementNotFoundError,
@@ -38,11 +39,19 @@ class AndroidUi(TextEntryMixin):
         *,
         adb: str = "adb",
         settle_seconds: float = 0.4,
+        display: int | None = None,
     ) -> None:
-        """Create a driver. ``serial`` targets one of several devices."""
+        """Create a driver. ``serial`` targets one of several devices.
+
+        ``display`` drives one display (a session's virtual display from
+        ``phone_vd.sh``) instead of the real screen: input goes to it with
+        ``input -d`` and its tree comes from the a11y helper, because
+        ``uiautomator dump`` cannot see any display but 0.
+        """
         self._adb = adb
         self._serial = serial
         self._settle = settle_seconds
+        self._display = display
 
     def _run(self, *args: str, timeout: float = 30.0) -> str:
         """Run an adb command, returning stdout."""
@@ -68,6 +77,17 @@ class AndroidUi(TextEntryMixin):
             )
             raise UiAutomationError(msg)
         return done.stdout
+
+    def _input(self, *args: str) -> str:
+        """Run ``input`` on the display this driver targets.
+
+        Always with ``-d``, 0 meaning the real screen: without it, key and
+        text events go to whichever display last had focus, and a session's
+        virtual display takes focus the moment its app launches -- so another
+        session's typing lands in that app.
+        """
+        display = 0 if self._display is None else self._display
+        return self._run("shell", "input", "-d", str(display), *args)
 
     # ── Reading the screen ────────────────────────────────────────────────
 
@@ -96,6 +116,8 @@ class AndroidUi(TextEntryMixin):
 
     def _dump_once(self) -> list[UiElement]:
         """Pull one accessibility-tree snapshot."""
+        if self._display is not None:
+            return _parse_tree(_a11y_helper.dump_display(self._run, self._display))
         self._run("shell", "uiautomator", "dump", _REMOTE_DUMP, timeout=45.0)
         with tempfile.TemporaryDirectory() as tmp:
             local = Path(tmp) / "ui.xml"
@@ -161,7 +183,7 @@ class AndroidUi(TextEntryMixin):
             self.dismiss_keyboard()
             element = self.wait_for(query, timeout=timeout, exact=exact)
         x, y = element.center
-        self._run("shell", "input", "tap", str(x), str(y))
+        self._input("tap", str(x), str(y))
         time.sleep(self._settle)
         return element
 
@@ -182,10 +204,10 @@ class AndroidUi(TextEntryMixin):
         element = self.wait_for(query, timeout=timeout, exact=exact)
         before = element.text
         x, y = element.center
-        self._run("shell", "input", "tap", str(x), str(y))
+        self._input("tap", str(x), str(y))
         # The field has to actually take focus before keystrokes mean anything.
         time.sleep(max(self._settle, 0.8))
-        self._run("shell", "input", "text", _escape(text))
+        self._input("text", _escape(text))
         time.sleep(self._settle)
 
         for candidate in self.dump():

@@ -54,16 +54,19 @@ class FakeDevice:
             index = min(self.pulled, len(self.trees) - 1)
             self.pulled += 1
             Path(args[2]).write_text(self.trees[index], encoding="utf-8")
-        if args[:3] == ("shell", "input", "keyevent") and args[3] in {"111", "4"}:
+        if args[:5] == ("shell", "input", "-d", "0", "keyevent") and args[5] in {
+            "111",
+            "4",
+        }:
             self.keyboard_shown = False
         return ""
 
     def taps(self) -> list[tuple[int, int]]:
         """Return every tap coordinate, in order."""
         return [
-            (int(c[3]), int(c[4]))
+            (int(c[5]), int(c[6]))
             for c in self.calls
-            if c[:3] == ("shell", "input", "tap")
+            if c[:5] == ("shell", "input", "-d", "0", "tap")
         ]
 
 
@@ -98,7 +101,9 @@ class TestKeyboard:
     def test_dismiss_is_a_no_op_when_already_closed(self, ui: Harness) -> None:
         ui.ui.dismiss_keyboard()
         assert not [
-            c for c in ui.device.calls if c[:3] == ("shell", "input", "keyevent")
+            c
+            for c in ui.device.calls
+            if c[:5] == ("shell", "input", "-d", "0", "keyevent")
         ]
 
     def test_closes_on_the_second_keyevent_when_escape_is_ignored(
@@ -110,7 +115,9 @@ class TestKeyboard:
         monkeypatch.setattr(ui.ui, "keyboard_is_up", lambda: next(states, False))
         ui.ui.dismiss_keyboard()
         sent = [
-            c[3] for c in ui.device.calls if c[:3] == ("shell", "input", "keyevent")
+            c[5]
+            for c in ui.device.calls
+            if c[:5] == ("shell", "input", "-d", "0", "keyevent")
         ]
         assert sent == ["111", "4"]
 
@@ -152,7 +159,7 @@ class TestTyping:
         deletes = [
             c
             for c in ui.device.calls
-            if c[:3] == ("shell", "input", "keyevent") and c[3] == "67"
+            if c[:5] == ("shell", "input", "-d", "0", "keyevent") and c[5] == "67"
         ]
         assert deletes, "expected the field to be cleared first"
 
