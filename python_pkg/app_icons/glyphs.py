@@ -37,6 +37,7 @@ from python_pkg.app_icons._glyph_art_more import (
     _PUNCH_CARD,
     _REMOTE_WAVE,
     _TRACK_BARS,
+    _UMBRELLA,
 )
 
 
@@ -90,6 +91,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         ),
         Glyph("bowl-star", "Filled star above an open bowl", _BOWL_STAR),
         Glyph("house-tick", "House outline with a tick inside", _HOUSE_TICK),
+        Glyph("umbrella", "Filled umbrella canopy over a J-handle", _UMBRELLA),
         Glyph(
             "remote-wave",
             "Handset with punched buttons under a broadcast arc",

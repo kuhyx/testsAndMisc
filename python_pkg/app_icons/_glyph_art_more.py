@@ -174,3 +174,20 @@ M 512 640 A 40 40 0 0 0 512 720 A 40 40 0 0 0 512 640 Z"/>"""
 _HOUSE_TICK = """\
     <path d="M 272 752 L 272 480 L 512 280 L 752 480 L 752 752 Z"/>
     <path d="M 400 560 L 480 640 L 630 500"/>"""
+
+
+# Umbrella: a filled canopy with a scalloped hem over a stroked J-handle -- the
+# app answers exactly one question, "take it or not". Filled rather than
+# stroked because a stroked dome with ribs reads as a jellyfish at 48dp.
+#
+# Geometry, inside SAFE_BOX (232..792) and clear of MIN_NEGATIVE_SPACE=36:
+#   canopy  dome r=240 about (512,512): x 272..752, top y=272; hem is three
+#           r=80 scallops bulging up to y=432.
+#   handle  shaft x=512 from the hem (y=440) to y=700, then a hook r=56 about
+#           (456,700): ink reaches y=792 and x=364; the hook's inner opening
+#           is 112-72 = 40 wide.
+_UMBRELLA = """\
+    <path fill="{{ACCENT}}" stroke="none" d="\
+M 272 512 A 240 240 0 0 1 752 512 A 80 80 0 0 0 592 512 \
+A 80 80 0 0 0 432 512 A 80 80 0 0 0 272 512 Z"/>
+    <path d="M 512 440 L 512 700 A 56 56 0 0 1 400 700"/>"""
