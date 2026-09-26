@@ -165,7 +165,13 @@ class TestMisc:
         assert "com.example/.Main" in capsys.readouterr().out
 
     def test_serial_is_forwarded_to_the_driver(self) -> None:
-        with patch(f"{MOD}.AndroidUi") as factory:
+        # The lease is patched too: unpatched, this read the host's REAL phone
+        # lease, and while any session held it the call exited "busy" before
+        # building the driver (failed the gate on 2026-09-26).
+        with (
+            patch(f"{MOD}.AndroidUi") as factory,
+            patch(f"{MOD}._lease_phone", return_value=True),
+        ):
             factory.return_value = MagicMock()
             cli.main(["-s", "ABC123", "focus"])
             assert factory.call_args.kwargs["serial"] == "ABC123"

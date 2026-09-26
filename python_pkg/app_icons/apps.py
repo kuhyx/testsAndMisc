@@ -203,6 +203,14 @@ APPS: Final[dict[str, AppIcon]] = {
             icon_name="umbrella",
             linux=False,
         ),
+        AppIcon(
+            key="book_guard_app",
+            repo=_HOME / "src/book-guard/app",
+            accent="#B8862E",
+            glyph="open-book",
+            icon_name="book-guard",
+            linux=False,
+        ),
     )
 }
 

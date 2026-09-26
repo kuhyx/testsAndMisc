@@ -33,6 +33,7 @@ from python_pkg.app_icons._glyph_art_more import (
     _BOWL_STAR,
     _HOUSE_TICK,
     _NOTE_ASCENDER,
+    _OPEN_BOOK,
     _PADLOCK_CLOSED,
     _PUNCH_CARD,
     _REMOTE_WAVE,
@@ -92,6 +93,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("bowl-star", "Filled star above an open bowl", _BOWL_STAR),
         Glyph("house-tick", "House outline with a tick inside", _HOUSE_TICK),
         Glyph("umbrella", "Filled umbrella canopy over a J-handle", _UMBRELLA),
+        Glyph("open-book", "Open book, two filled pages", _OPEN_BOOK),
         Glyph(
             "remote-wave",
             "Handset with punched buttons under a broadcast arc",

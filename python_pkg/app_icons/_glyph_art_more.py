@@ -191,3 +191,19 @@ _UMBRELLA = """\
 M 272 512 A 240 240 0 0 1 752 512 A 80 80 0 0 0 592 512 \
 A 80 80 0 0 0 432 512 A 80 80 0 0 0 272 512 Z"/>
     <path d="M 512 440 L 512 700 A 56 56 0 0 1 400 700"/>"""
+
+
+# An open book, two filled pages either side of the spine -- book-guard, the
+# paper-book reading gate. Filled, not stroked: an outlined page at 72px weight
+# leaves an interior under MIN_NEGATIVE_SPACE and fills in at 48dp anyway.
+#
+# Geometry, inside SAFE_BOX (x=232..792, y=232..792):
+#   left page   x=232..488, top edge curving 344 -> ~318 -> 360, bottom
+#               728 -> ~700 -> 744
+#   right page  mirror image about x=512, x=536..792
+#   spine gap   488..536 = 48px, clear of MIN_NEGATIVE_SPACE=36, so the two
+#               pages never merge into one slab at launcher size.
+_OPEN_BOOK = """\
+    <path fill="{{ACCENT}}" stroke="none" d="\
+M 232 344 Q 372 290 488 360 L 488 744 Q 372 674 232 728 Z \
+M 536 360 Q 652 290 792 344 L 792 728 Q 652 674 536 744 Z"/>"""
