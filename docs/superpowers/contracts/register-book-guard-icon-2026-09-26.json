@@ -6,9 +6,6 @@
     "book_guard_app registered with the shared accent and generates Android assets",
     "test_cli passes regardless of the host's phone lease state"
   ],
-  "out_of_scope": [
-    "Restyling the family (style.py)",
-    "Any other app's glyph"
-  ],
+  "out_of_scope": ["Restyling the family (style.py)", "Any other app's glyph"],
   "verifier": "pre-commit (pytest with coverage enforcement) + python3 -m python_pkg.app_icons preview"
 }
