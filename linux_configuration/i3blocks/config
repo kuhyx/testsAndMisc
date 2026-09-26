@@ -51,6 +51,10 @@ interval=30
 color=#FFFFFF
 
 
+[gaming_budget]
+command=~/.config/i3blocks/gaming_budget.sh
+interval=30
+
 [screen_locker]
 command=~/.config/i3blocks/screen_locker.sh
 interval=30

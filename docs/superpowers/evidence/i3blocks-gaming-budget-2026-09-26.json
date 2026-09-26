@@ -1,0 +1,44 @@
+{
+  "intent": "Show today's gaming budget in the i3 bar: time left, used/total, and which bonuses (workout, LeetCode, reading) can still be earned.",
+  "scope": [
+    "linux_configuration/i3blocks/gaming_budget.sh (new block), linux_configuration/i3blocks/config",
+    "linux_configuration/tests/test_i3blocks_gaming_budget.sh, .github/workflows/shell-tests.yml",
+    "Non-goal: no changes to steam-backlog-enforcer, screen-locker, leetcode-guard or book-guard; the block only reads /api/budget"
+  ],
+  "changes": [
+    "New interval=30 block reads steam-backlog-enforcer GET /api/budget with one curl + one jq pass; colours follow the enforcer warn_at (1h yellow, 30m orange, 10m/blocked red)",
+    "Unearned-bonus sizes come from ~/.config/steam_backlog_enforcer/config.json via jq --slurpfile (never on argv, the file holds secrets), falling back to the enforcer defaults 2h/1h/1h",
+    "Never blank: dead server shows cached text marked (stale) in orange or 'budget server down' in red; bad state_status, ok:false and unparseable bodies are red and do not overwrite the cache",
+    "Behaviour test with a PATH-stubbed curl, wired into the shell-tests CI list"
+  ],
+  "verification": [
+    {
+      "command": "~/.config/i3blocks/gaming_budget.sh",
+      "result": "pass",
+      "evidence": "Live API: '🎮 2h00 left · 6h00/8h00 +📖1h' / '🎮 2h00' / #50FA7B, matching /api/budget (21600s used of 28800, reading bonus 0)"
+    },
+    {
+      "command": "i3-msg restart (run by the user)",
+      "result": "pass",
+      "evidence": "User confirmed the block renders in the bar as intended"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed (thresholds, blocked, overspent, config bonus sizes, stale, down, error states)"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All i3blocks efficiency regression tests passed"
+    }
+  ],
+  "risks": [
+    "Depends on the /api/budget JSON shape (today.*, rules.bonuses.*); a renamed field renders 'unreadable budget' in red rather than a wrong number",
+    "Bonus fallback sizes duplicate the enforcer defaults; they only matter when config.json leaves the fields unset"
+  ],
+  "rollback": [
+    "git revert the commit and remove ~/.config/i3blocks/gaming_budget.sh symlink",
+    "i3-msg restart and confirm the bar renders without the block"
+  ]
+}
