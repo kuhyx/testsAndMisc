@@ -121,15 +121,24 @@ jobs:
       # 2.6.1 is the newest release and its wheels stop at cp313, so on
       # newest-stable Python pip falls back to a source build -- which dies on
       # a missing `sdl-config` unless these are here. Only a pylint env BUILD
-      # needs them, so an exact cache hit skips the step.
-      - name: Install pygame build headers (pylint env build only)
-        if: matrix.group == 'pylint' && steps.cache.outputs.cache-hit != 'true'
+      # needs them (30 s of apt), and a restored cache usually already holds
+      # the env, so the build is tried first and the headers are installed
+      # only if it fails. Run against a non-Python file: pre-commit installs
+      # the hook env before filtering files, then has nothing to lint, so the
+      # only way this exits non-zero is the env build itself failing.
+      - name: Build the pylint hook env (pygame headers only if needed)
+        if: matrix.group == 'pylint'
         run: |
           set -euo pipefail
+          if pre-commit run pylint --files .pre-commit-config.yaml; then
+            exit 0
+          fi
+          echo "pylint env build failed -- installing pygame's build headers and retrying"
           pkgs=(libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
             libfreetype6-dev libportmidi-dev)
           sudo apt-get install -y "${pkgs[@]}" ||
             { sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"; }
+          pre-commit run pylint --files .pre-commit-config.yaml
 
       # Pin shellcheck instead of inheriting whatever ubuntu-latest ships.
       #
