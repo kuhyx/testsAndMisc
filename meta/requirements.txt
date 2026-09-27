@@ -39,7 +39,7 @@ gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.8.2#subdirectory=gatel
 genanki==0.13.1
 geopandas==1.1.4
 howlongtobeatpy==1.0.23
-hypothesis==6.168.1
+hypothesis==6.168.2
 importlib-metadata==9.0.1
 interrogate==1.7.0
 # isort is deliberately not pinned: nothing here imports it (ruff's isort
