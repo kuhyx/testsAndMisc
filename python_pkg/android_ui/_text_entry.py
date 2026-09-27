@@ -28,6 +28,7 @@ class TextEntryMixin(ABC):
     """The text-entry half of :class:`~python_pkg.android_ui.driver.AndroidUi`."""
 
     _settle: float
+    _display: int | None
 
     @abstractmethod
     def _run(self, *args: str, timeout: float = 30.0) -> str:
@@ -137,7 +138,17 @@ class TextEntryMixin(ABC):
         Without this, a caller cannot tell "the button is absent" from "the
         button is behind the keyboard", and the accessibility tree reports the
         button's laid-out position either way.
+
+        Always False on a virtual display: Android draws the IME on the
+        default display (``imeDisplayId=0``) even when its target window is
+        on a VD, so it can never cover a VD tap -- while ``mInputShown`` is
+        phone-wide. Checking it there meant another session typing on the
+        real screen made :meth:`dismiss_keyboard` press BACK on *this*
+        display, popping the route under test (2026-09-27, two sessions on
+        one phone).
         """
+        if self._display not in (None, 0):
+            return False
         out = self._run("shell", "dumpsys", "input_method")
         match = re.search(r"mInputShown=(\w+)", out)
         return match is not None and match.group(1) == "true"

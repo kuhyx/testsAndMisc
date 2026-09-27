@@ -1,0 +1,40 @@
+{
+  "intent": "Two Claude sessions sharing one phone must not disturb each other: a keyboard open on the real screen must never make android_ui press BACK on another session's virtual display.",
+  "scope": [
+    "python_pkg/android_ui/_text_entry.py (keyboard_is_up only)",
+    "Non-goal: no change to real-screen (display 0 / no display) behaviour, which still checks and dismisses the IME"
+  ],
+  "changes": [
+    "keyboard_is_up returns False when the driver targets a virtual display (display not None and not 0), so dismiss_keyboard sends no ESCAPE/BACK there",
+    "Test: a VD driver with the phone-wide keyboard shown runs no adb command at all"
+  ],
+  "verification": [
+    {
+      "command": "adb shell dumpsys input_method (live phone, 2026-09-27)",
+      "result": "pass",
+      "evidence": "every IME binding reads imeDisplayId=0, including one whose targetWin was com.kuhy.workout_app.sandbox on targetDisplayId=13: the IME is drawn on display 0 for VD windows"
+    },
+    {
+      "command": "python -m python_pkg.android_ui --display self tap ... (before the fix, while another session typed on the real screen)",
+      "result": "fail",
+      "evidence": "'the soft keyboard is still covering the screen after ESCAPE and BACK'; the BACK popped the workout route, a second run closed the app on the VD"
+    },
+    {
+      "command": "same taps after the fix",
+      "result": "pass",
+      "evidence": "tapped 'Dumbbell Lunge progression settings' / 'Warmup set' / 'Wins needed down' on the VD with the other session still active"
+    },
+    {
+      "command": "pytest python_pkg/android_ui --cov=python_pkg/android_ui --cov-branch",
+      "result": "pass",
+      "evidence": "87 passed; _text_entry.py 100% lines and branches"
+    }
+  ],
+  "risks": [
+    "A future Android build that draws the IME on the VD itself would make taps under it land on keys; the phone would have to show imeDisplayId=<vd> for that, which it does not today"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "After rollback, VD taps work again only while no other session has a keyboard open on the real screen"
+  ]
+}

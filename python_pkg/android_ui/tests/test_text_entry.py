@@ -98,6 +98,22 @@ class TestKeyboard:
         ui.device.keyboard_shown = False
         assert not ui.ui.keyboard_is_up()
 
+    def test_never_up_on_a_virtual_display(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The IME draws on display 0 even for a VD's window, so it cannot
+        # cover a VD tap -- but mInputShown is phone-wide. Reading it there
+        # let another session's keyboard make dismiss_keyboard press BACK on
+        # this display and pop the route under test (2026-09-27).
+        device = FakeDevice()
+        device.keyboard_shown = True
+        vd = drv.AndroidUi(settle_seconds=0.0, display=7)
+        monkeypatch.setattr(vd, "_run", device.run)
+        monkeypatch.setattr(f"{MOD}.time.sleep", lambda _s: None)
+        assert not vd.keyboard_is_up()
+        vd.dismiss_keyboard()
+        assert device.calls == [], "no dumpsys, and above all no BACK"
+
     def test_dismiss_is_a_no_op_when_already_closed(self, ui: Harness) -> None:
         ui.ui.dismiss_keyboard()
         assert not [
