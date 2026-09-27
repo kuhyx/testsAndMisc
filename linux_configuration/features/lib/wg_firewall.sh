@@ -28,6 +28,13 @@ render_nftables_ruleset() {
 		# saddr. Link-local only: :67 broadcasts never route in from the internet.
 		dhcp_rule=$'\n\t\tudp sport 68 udp dport 67 accept'
 	fi
+	# Home Assistant (setup_homeassistant.sh): its UI/API on 8123 for the phone
+	# app, from the LAN and over WireGuard only -- never the internet.
+	local ha_rule=""
+	if [[ ${ALLOW_HOMEASSISTANT:-false} == "true" ]]; then
+		ha_rule=$'\n\t\tip saddr '"${LAN_SUBNET}"$' tcp dport 8123 accept'
+		ha_rule+=$'\n\t\tiifname "'"${WG_IFACE}"$'" tcp dport 8123 accept'
+	fi
 	cat >"$target" <<EOF
 #!/usr/sbin/nft -f
 flush ruleset
@@ -46,7 +53,7 @@ table inet filter {
 		udp dport ${WG_PORT} accept
 
 		iifname "${WG_IFACE}" tcp dport 22 accept
-		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}${dns_rule}
+		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}${dns_rule}${ha_rule}
 	}
 	chain forward {
 		type filter hook forward priority 0; policy drop;

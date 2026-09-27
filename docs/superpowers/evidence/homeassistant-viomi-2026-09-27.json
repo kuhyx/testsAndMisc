@@ -1,0 +1,47 @@
+{
+  "intent": "Run Home Assistant on the PC so the Viomi V3 robot vacuum (viomi.vacuum.v13) can be controlled over the LAN from a FOSS UI, including the Home Assistant Android app, with tcp/8123 reachable from the LAN and WireGuard only.",
+  "scope": [
+    "linux_configuration/features/setup_homeassistant.sh (new)",
+    "linux_configuration/features/setup_wireguard_ssh.sh, lib/wg_sshd.sh, lib/wg_firewall.sh: persisted ALLOW_HOMEASSISTANT flag + allow-homeassistant subcommand",
+    "Non-goal: exposing Home Assistant to the internet; rooting the robot"
+  ],
+  "changes": [
+    "setup_homeassistant.sh writes ~/services/homeassistant/docker-compose.yml (host networking, image pinned by digest to 2026.9.4), installs al-one/hass-xiaomi-miot v1.1.5 into config/custom_components, starts the container and waits for the API; `status` self-diagnoses container, API, component version and firewall rule",
+    "render_nftables_ruleset emits `ip saddr <LAN> tcp dport 8123 accept` and `iifname wg0 tcp dport 8123 accept` when ALLOW_HOMEASSISTANT=true; allow_homeassistant() persists the flag and applies it like allow_dns"
+  ],
+  "verification": [
+    {
+      "command": "vm new hafw; sudo bash ~/lc/features/setup_wireguard_ssh.sh allow-homeassistant; nft list chain inet filter input; setup_wireguard_ssh.sh verify",
+      "result": "pass",
+      "evidence": "vmbox guest: both 8123 rules present in live input chain, ALLOW_HOMEASSISTANT=\"true\" persisted, verify: /etc/nftables.conf matches generator, forward chain lets Docker through"
+    },
+    {
+      "command": "render_nftables_ruleset into tmp; diff vs /etc/nftables.conf; nft -c -f; then host apply + sudo setup_wireguard_ssh.sh verify",
+      "result": "pass",
+      "evidence": "host diff was exactly the two 8123 lines; nft -c OK; verify: file matches generator and live chain. Applied via nft add rule (no flush) to avoid restarting dockerd under running containers"
+    },
+    {
+      "command": "bash linux_configuration/features/setup_homeassistant.sh setup",
+      "result": "pass",
+      "evidence": "Installed xiaomi_miot v1.1.5; container started; HA answers on http://127.0.0.1:8123 (HTTP 401)"
+    },
+    {
+      "command": "HA REST: POST /api/services/vacuum/start then vacuum/return_to_base on vacuum.viomi_v13_9f32_robot_cleaner",
+      "result": "pass",
+      "evidence": "state cleaning (miio status 5 Sweeping) then returning -> docked"
+    },
+    {
+      "command": "Pixel 6a, HA companion minimal 2026.6.5: login to http://192.168.1.43:8123, tap play then dock on the robot card",
+      "result": "pass",
+      "evidence": "state cleaning after play; returning -> docked 56 s after dock tap"
+    }
+  ],
+  "risks": [
+    "hass-xiaomi-miot issue #2677 (Developer-tools send_command broken since v1.1.0) is still open; vacuum start/dock verified working through entity services",
+    "Host networking: HA listens on 0.0.0.0:8123; only the nftables input rules keep it LAN/wg0-only"
+  ],
+  "rollback": [
+    "docker compose -f ~/services/homeassistant/docker-compose.yml down; set ALLOW_HOMEASSISTANT=\"false\" in features/.wireguard_ssh.conf and re-run sudo setup_wireguard_ssh.sh allow-web (regenerates the ruleset)",
+    "Validate: sudo setup_wireguard_ssh.sh verify passes and no dport 8123 rule remains"
+  ]
+}

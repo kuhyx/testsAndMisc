@@ -39,6 +39,7 @@ DUCKDNS_TOKEN="${DUCKDNS_TOKEN:-}"
 LAN_SUBNET="${LAN_SUBNET:-}"
 export ALLOW_WEB="${ALLOW_WEB:-false}"
 export ALLOW_DNS="${ALLOW_DNS:-false}"
+export ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT:-false}"
 
 die() {
 	log_error "$1"
@@ -52,6 +53,7 @@ DUCKDNS_TOKEN="${DUCKDNS_TOKEN}"
 LAN_SUBNET="${LAN_SUBNET}"
 ALLOW_WEB="${ALLOW_WEB}"
 ALLOW_DNS="${ALLOW_DNS}"
+ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT}"
 EOF
 	chmod 600 "$CONFIG_FILE"
 }
@@ -91,7 +93,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web | allow-dns | verify | install-verify)
+	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | verify | install-verify)
 		require_root "$@"
 		;;
 	esac
@@ -126,6 +128,10 @@ main() {
 		;;
 	allow-dns)
 		allow_dns
+		install_verify_units
+		;;
+	allow-homeassistant)
+		allow_homeassistant
 		install_verify_units
 		;;
 	verify)

@@ -204,6 +204,14 @@ allow_dns() {
 	log_ok "Opened udp/tcp 53 from ${LAN_SUBNET:-the LAN} in the input chain (persisted -- future 'setup' re-runs keep this rule)."
 }
 
+allow_homeassistant() {
+	export ALLOW_HOMEASSISTANT=true
+	save_config
+	write_nftables_ruleset
+	verify_nftables_then_apply
+	log_ok "Opened tcp/8123 from ${LAN_SUBNET:-the LAN} and ${WG_IFACE} (persisted)."
+}
+
 status_cmd() {
 	echo "=== WireGuard ==="
 	wg show 2>/dev/null || echo "(interface not up)"

@@ -1,0 +1,16 @@
+{
+  "title": "Home Assistant for LAN control of the Viomi V3 robot vacuum",
+  "objective": "Deploy Home Assistant on the PC (Docker, host networking, pinned image) with the hass-xiaomi-miot integration so viomi.vacuum.v13 can be started and docked over the LAN from a FOSS UI, and open tcp/8123 to the LAN and wg0 only through the existing single-source-of-truth firewall script. Success: start and dock work from the Home Assistant Android app on the Pixel 6a, and setup_wireguard_ssh.sh verify passes.",
+  "acceptance_criteria": [
+    "setup_homeassistant.sh setup is idempotent and ends with the HA API answering on 127.0.0.1:8123",
+    "setup_homeassistant.sh status reports container, API, xiaomi_miot version and the 8123 firewall rule",
+    "setup_wireguard_ssh.sh allow-homeassistant persists ALLOW_HOMEASSISTANT and renders exactly two 8123 accept rules (LAN subnet, wg0)",
+    "setup_wireguard_ssh.sh verify passes on the host after the change"
+  ],
+  "out_of_scope": [
+    "Exposing Home Assistant to the internet",
+    "Rooting or reflashing the robot",
+    "Automations, dashboards or other devices"
+  ],
+  "verifier": "vmbox run of allow-homeassistant + verify; host setup_wireguard_ssh.sh verify; setup_homeassistant.sh setup/status; on-device start/dock from the HA companion app"
+}
