@@ -133,7 +133,13 @@ jobs:
         if: matrix.group == 'pylint'
         run: |
           set -euo pipefail
-          if pre-commit run pylint --files .pre-commit-config.yaml; then
+          # The first attempt's output goes to a file: an expected sdl-config
+          # traceback would otherwise trip setup-python's problem matcher and
+          # put an error annotation on a green run. The retry below prints in
+          # full, so any other cause of failure still shows up there.
+          attempt_log="$RUNNER_TEMP/pylint-env-attempt.log"
+          if pre-commit run pylint --files .pre-commit-config.yaml >"$attempt_log" 2>&1; then
+            cat "$attempt_log"
             exit 0
           fi
           echo "pylint env build failed -- installing pygame's build headers and retrying"
