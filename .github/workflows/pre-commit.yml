@@ -89,9 +89,12 @@ jobs:
       # first, and the others would rebuild their hook envs on every run. The
       # restore-keys fall back to any env set built by the SAME interpreter
       # (this group's older config first, then any group's), so a config
-      # change rebuilds only the hooks whose rev moved.
+      # change rebuilds only the hooks whose rev moved. shellcheck is a
+      # `language: system` hook with no env to cache, so its group skips the
+      # ~120 MB restore (3-6 s) and the save.
       - uses: actions/cache@v4
         id: cache
+        if: matrix.group != 'shellcheck'
         with:
           path: ~/.cache/pre-commit
           key: >-
@@ -182,9 +185,10 @@ jobs:
       # workflow that does run them inherits the pin instead of re-deriving
       # it. Their real divergence risk is between developers: both REWRITE
       # files, so two versions reformat the repo back and forth. Installed in
-      # one group only; the other three would be paying for it twice over.
+      # one group only, pylint's: it finishes ~10 s ahead of the others, while
+      # rest (which also pays for zsh) was the slowest group with it.
       - name: Install prettier and shfmt (pinned)
-        if: matrix.group == 'rest'
+        if: matrix.group == 'pylint'
         env:
           PRETTIER_VERSION: 3.9.5
           SHFMT_VERSION: v3.13.1
@@ -219,5 +223,5 @@ jobs:
       # group's key, so without this the envs of every hook rev ever used
       # would ride along forever. gc drops the ones the config no longer names.
       - name: Prune stale hook envs before the cache is saved
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: matrix.group != 'shellcheck' && steps.cache.outputs.cache-hit != 'true'
         run: pre-commit gc
