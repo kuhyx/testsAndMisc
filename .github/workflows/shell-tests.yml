@@ -12,8 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The runner image ships apt lists, so the install is tried against them
+      # first; `apt-get update` runs only if that fails.
       - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
+        run: |
+          sudo apt-get install -y bats ||
+            { sudo apt-get update && sudo apt-get install -y bats; }
 
       - name: Run bats suites
         run: bats linux_configuration/tests/*.bats
@@ -44,6 +48,16 @@ jobs:
             printf '\n%d shell test(s) failed\n' "$failed"
             exit 1
           fi
+
+  # Split out of shell-tests, which ran it after the bats/side-effect-free
+  # steps: the ~39 s of runners was the whole job's critical path (59 s).
+  # On its own runner it overlaps with them instead. The runners themselves
+  # still run one after another -- some count execve calls or depend on
+  # timing, so running them concurrently would trade speed for flakes.
+  lib-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       # The lib/tests/ suites that came out of the 250-line-cap splits. These
       # are DISCOVERED rather than listed: every split adds another

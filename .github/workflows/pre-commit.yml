@@ -11,14 +11,39 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # mypy (~24 s), shellcheck (~24 s) and pylint (~18 s) each walk the whole
+  # repo and made up most of a single ~82 s hook step; every other hook
+  # together is ~15 s. Each heavy hook gets its own runner and the rest share a
+  # fourth, so the workflow takes as long as the slowest group rather than the
+  # sum. The four groups together run exactly the hook set the single job ran.
   pre-commit:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: mypy
+            hooks: mypy
+          - group: pylint
+            hooks: pylint
+          - group: shellcheck
+            hooks: shellcheck
+          - group: rest
+            hooks: ""
+    name: pre-commit (${{ matrix.group }})
     env:
       # The md-naming / file-length hooks are thin shims that exec the shared
       # gate out of the utils repo. A runner has no ~/src/utils, so without this
       # checkout they fail with "shared gate not found" -- which is exactly
       # how this workflow went red on 2026-08-24.
       UTILS_ROOT: ${{ github.workspace }}/.utils
+      # SKIP=pytest-coverage: the Python tests workflow already runs the
+      # whole suite with the same 100% coverage gate, so running it again
+      # here doubled the cost of this job for no extra signal. It is the
+      # only hook skipped, and it is skipped because it is DUPLICATED, not
+      # because it is slow -- if that workflow is ever removed, drop this.
+      # `rest` also skips the three hooks that run in their own group above.
+      SKIP: ${{ matrix.group == 'rest' && 'pytest-coverage,mypy,pylint,shellcheck' || 'pytest-coverage' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,33 +53,83 @@ jobs:
           repository: kuhyx/utils
           path: .utils
 
+      # No `cache: pip` any more: it restored a 367 MB pip cache for the full
+      # requirements.txt, which this job no longer installs.
       - uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: "3.x"
-          # See the note in python-tests.yml: caches the pip download cache,
-          # keyed on the real meta/ path rather than the root symlink.
-          cache: pip
-          cache-dependency-path: meta/requirements.txt
+      - uses: astral-sh/setup-uv@v10.2.0
 
-      # zsh backs the zsh-syntax hook. apt does not let a patch release be
-      # selected, so this is pinned only to what the runner image provides;
-      # the version is echoed so a jump shows up in the log rather than as a
-      # mystery parse difference. Local machines compare on major.minor only.
-      - name: Install system dependencies
+      # Every hook brings its own environment except the `language: system`
+      # ones, and of those only dependency-freshness imports third-party code
+      # (pyyaml, packaging); check_requirements_sync.py, the evidence/contract
+      # validators and the session_autopsy mutation hook are stdlib-only. The
+      # full requirements.txt (~90 packages, a pygame source build included)
+      # used to be installed here for nothing: 49 s of every run.
+      - name: Install pre-commit and the system hooks' imports
+        run: uv pip install --system pre-commit pyyaml packaging
+
+      # pre-commit builds a virtualenv per hook repo on first use, which is
+      # slower than the pip install itself. Keyed on the hook definitions, so
+      # it invalidates exactly when a hook's repo or rev changes.
+      # The interpreter goes in the key, resolved rather than typed. A
+      # `language: python` hook env is built by whichever Python pre-commit ran
+      # under, and restoring one built by a different release is silent: the
+      # hooks keep working right up to the first syntax the old interpreter
+      # cannot parse. This key said `py3.12` as a literal while the job had
+      # moved to `3.x`, so 3.14-only source (PEP 758's `except A, B:`) reached
+      # pylint and the debug-statement hook running on a cached 3.12.14 and
+      # came back as "multiple exception types must be parenthesized" -- a
+      # failure with no local reproduction, since developer caches were built
+      # on 3.14. `steps.setup-python.outputs.python-version` cannot drift from
+      # what was actually installed.
+      #
+      # One cache per group: a shared key would hold whichever group saved
+      # first, and the others would rebuild their hook envs on every run. The
+      # restore-keys fall back to any env set built by the SAME interpreter
+      # (this group's older config first, then any group's), so a config
+      # change rebuilds only the hooks whose rev moved.
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: ~/.cache/pre-commit
+          key: >-
+            pre-commit-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ matrix.group }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ matrix.group }}-
+            pre-commit-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-
+
+      # zsh backs the zsh-syntax hook, which only the rest group runs. apt
+      # does not let a patch release be selected, so this is pinned only to
+      # what the runner image provides; the version is echoed so a jump shows
+      # up in the log rather than as a mystery parse difference. Local
+      # machines compare on major.minor only.
+      #
+      # The runner image ships apt lists, so the install is tried against
+      # them first; `apt-get update` (~14 s) runs only if that fails.
+      - name: Install system dependencies (zsh)
+        if: matrix.group == 'rest'
         run: |
           set -euo pipefail
-          sudo apt-get update
-          # The SDL headers are for pygame. 2.6.1 is the newest release and its
-          # wheels stop at cp313, so on newest-stable Python pip falls back to a
-          # source build -- which dies on a missing `sdl-config` unless these are
-          # here. Every repo runs exactly one Python and it is the newest, so the
-          # build gets what it needs rather than the job being held back.
-          sudo apt-get install -y zsh librsvg2-bin \
-            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-            libfreetype6-dev libportmidi-dev
+          pkgs=(zsh)
+          sudo apt-get install -y "${pkgs[@]}" ||
+            { sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"; }
           zsh --version
-          rsvg-convert --version
+
+      # The SDL headers are for pygame, one of pylint's additional_dependencies.
+      # 2.6.1 is the newest release and its wheels stop at cp313, so on
+      # newest-stable Python pip falls back to a source build -- which dies on
+      # a missing `sdl-config` unless these are here. Only a pylint env BUILD
+      # needs them, so an exact cache hit skips the step.
+      - name: Install pygame build headers (pylint env build only)
+        if: matrix.group == 'pylint' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          pkgs=(libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
+            libfreetype6-dev libportmidi-dev)
+          sudo apt-get install -y "${pkgs[@]}" ||
+            { sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"; }
 
       # Pin shellcheck instead of inheriting whatever ubuntu-latest ships.
       #
@@ -69,6 +144,7 @@ jobs:
       # Keep SHELLCHECK_VERSION in step with the version developers install;
       # the verification below fails loudly rather than silently drifting.
       - name: Install shellcheck (pinned)
+        if: matrix.group == 'shellcheck'
         env:
           SHELLCHECK_VERSION: v0.11.0
           SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
@@ -96,8 +172,10 @@ jobs:
       # the expected version of every `language: system` tool, and so a future
       # workflow that does run them inherits the pin instead of re-deriving
       # it. Their real divergence risk is between developers: both REWRITE
-      # files, so two versions reformat the repo back and forth.
+      # files, so two versions reformat the repo back and forth. Installed in
+      # one group only; the other three would be paying for it twice over.
       - name: Install prettier and shfmt (pinned)
+        if: matrix.group == 'rest'
         env:
           PRETTIER_VERSION: 3.9.5
           SHFMT_VERSION: v3.13.1
@@ -125,36 +203,12 @@ jobs:
           fi
           echo "prettier ${prettier_installed} and shfmt ${shfmt_installed} pinned and on PATH"
 
-      # pre-commit builds a virtualenv per hook repo on first use, which is
-      # slower than the pip install itself. Keyed on the hook definitions, so
-      # it invalidates exactly when a hook's repo or rev changes.
-      # The interpreter goes in the key, resolved rather than typed. A
-      # `language: python` hook env is built by whichever Python pre-commit ran
-      # under, and restoring one built by a different release is silent: the
-      # hooks keep working right up to the first syntax the old interpreter
-      # cannot parse. This key said `py3.12` as a literal while the job had
-      # moved to `3.x`, so 3.14-only source (PEP 758's `except A, B:`) reached
-      # pylint and the debug-statement hook running on a cached 3.12.14 and
-      # came back as "multiple exception types must be parenthesized" -- a
-      # failure with no local reproduction, since developer caches were built
-      # on 3.14. `steps.setup-python.outputs.python-version` cannot drift from
-      # what was actually installed.
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          key: >-
-            pre-commit-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: pre-commit run (${{ matrix.group }})
+        run: pre-commit run ${{ matrix.hooks }} --all-files --show-diff-on-failure
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pre-commit
-
-      - name: Run pre-commit hooks
-        # SKIP=pytest-coverage: the Python tests workflow already runs the
-        # whole suite with the same 100% coverage gate, so running it again
-        # here doubled the cost of this job for no extra signal. It is the
-        # only hook skipped, and it is skipped because it is DUPLICATED, not
-        # because it is slow -- if that workflow is ever removed, drop this.
-        run: SKIP=pytest-coverage pre-commit run --all-files --show-diff-on-failure
+      # A cache restored through restore-keys is saved again under this
+      # group's key, so without this the envs of every hook rev ever used
+      # would ride along forever. gc drops the ones the config no longer names.
+      - name: Prune stale hook envs before the cache is saved
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: pre-commit gc

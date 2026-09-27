@@ -43,25 +43,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-          # Cache the pip DOWNLOAD cache, keyed on the requirements file, so a
-          # run that changes nothing about dependencies reuses the wheels
-          # instead of re-fetching ~80 packages from PyPI. Points at
-          # meta/requirements.txt, not the root symlink: the cache key is
-          # hashed from the file at this path, and hashing a symlink is not
-          # the same as hashing its target.
-          cache: pip
-          cache-dependency-path: meta/requirements-test.txt
+      # uv with a cached wheel store replaces pip + setup-python's pip cache.
+      # Keyed on meta/requirements-test.txt, not the root requirements.txt
+      # symlink: the key is hashed from the file at this path, and hashing a
+      # symlink is not the same as hashing its target.
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: meta/requirements-test.txt
+      # The runner image ships apt lists, so the install is tried against them
+      # first; `apt-get update` (~14 s of a 31 s step) runs only if that fails.
       - name: Install system dependencies
         run: |
           set -euo pipefail
-          sudo apt-get update && sudo apt-get install -y librsvg2-bin
+          sudo apt-get install -y librsvg2-bin ||
+            { sudo apt-get update && sudo apt-get install -y librsvg2-bin; }
           rsvg-convert --version
+      # The TEST subset, not the full requirements.txt. This job runs pytest
+      # and nothing else, so the ~62 linters and formatters in the full list
+      # were pure install time. See meta/requirements-test.txt.
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # The TEST subset, not the full requirements.txt. This job runs
-          # pytest and nothing else, so the ~62 linters and formatters in the
-          # full list were pure install time. See meta/requirements-test.txt.
-          pip install -r meta/requirements-test.txt
+        run: uv pip install --system -r meta/requirements-test.txt
+      # -n auto spreads the suite over every runner core (pytest-xdist is in
+      # requirements-test.txt; pytest-cov merges the workers' coverage):
+      # 26.8 s -> 13.8 s locally, same 2051 tests, same 100.00%. -q cancels
+      # the -v in pyproject's addopts, so 2000+ PASSED lines are not streamed
+      # to the log; -p no:sugar keeps pytest-sugar's redraws out of it too.
       - name: Run pytest with coverage
-        run: pytest --cov=python_pkg --cov-branch --cov-report=term-missing --cov-fail-under=100
+        run: >-
+          pytest -n auto -q -p no:sugar
+          --cov=python_pkg --cov-branch --cov-report=term-missing --cov-fail-under=100
