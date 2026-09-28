@@ -94,13 +94,18 @@ def test_undo_puts_a_passed_file_back(session: app.Session) -> None:
 
 
 def test_undo_survives_a_collision_rename(session: app.Session) -> None:
-    """A verdict may have renamed the file; undo must follow the real name."""
+    """A verdict may have renamed the file; undo must follow the real name.
+
+    The stray ``clip.webm`` has no index row, so the prune that follows the
+    pass deletes it -- which is exactly why the rename must never be undone
+    by guessing the original name.
+    """
     _downloaded(session)
     (paths.trash_dir() / "clip.webm").write_bytes(b"older")
     state = session.commit(app.initial_state(session), Verdict.SKIP)
     assert (paths.trash_dir() / "clip-2.webm").exists()
+    assert not (paths.trash_dir() / "clip.webm").exists()
 
     state = session.undo(state)
     assert (paths.incoming_dir() / "clip.webm").read_bytes() == b"video"
-    assert (paths.trash_dir() / "clip.webm").read_bytes() == b"older"
     assert not (paths.trash_dir() / "clip-2.webm").exists()

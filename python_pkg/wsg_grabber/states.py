@@ -28,6 +28,9 @@ class FileState(StrEnum):
     KEPT = "kept"
     PASSED = "passed"
     GONE = "gone"
+    # A pass whose file has since been pruned from trash/: still known, so it
+    # is never downloaded again, but no longer undoable.
+    PURGED = "purged"
 
 
 class FileEvent(StrEnum):
@@ -45,7 +48,7 @@ class FileEvent(StrEnum):
 
 
 TERMINAL: Final[frozenset[FileState]] = frozenset(
-    {FileState.KEPT, FileState.PASSED, FileState.GONE},
+    {FileState.KEPT, FileState.PASSED, FileState.GONE, FileState.PURGED},
 )
 
 CLAIMABLE: Final[frozenset[FileState]] = frozenset(

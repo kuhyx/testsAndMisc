@@ -165,3 +165,72 @@ def restore_for_review(conn: sqlite3.Connection, md5_b64: str, name: str) -> Non
         """,
         (FileState.READY.value, name, md5_b64),
     )
+
+
+def recent_passed_names(conn: sqlite3.Connection, limit: int) -> set[str]:
+    """Return the trash names of the *limit* most recent passes.
+
+    These are the files the trash prune keeps; everything else in ``trash/``
+    goes.
+
+    Args:
+        conn: Open connection.
+        limit: How many passes to keep.
+
+    Returns:
+        set[str]: Filenames inside ``trash/``.
+    """
+    rows = conn.execute(
+        """
+        SELECT reviewed_name FROM files
+         WHERE state = ? AND reviewed_name IS NOT NULL
+         ORDER BY reviewed_at DESC, md5 DESC
+         LIMIT ?
+        """,
+        (FileState.PASSED.value, limit),
+    ).fetchall()
+    return {str(row["reviewed_name"]) for row in rows}
+
+
+def purge_older_passes(conn: sqlite3.Connection, limit: int) -> int:
+    """Mark every pass beyond the *limit* newest as purged.
+
+    A purged row keeps its md5, so the catalog never re-downloads the file,
+    but drops out of the undo trail because its bytes are gone.
+
+    Args:
+        conn: Open connection.
+        limit: How many passes stay undoable.
+
+    Returns:
+        int: Rows changed.
+    """
+    cursor = conn.execute(
+        """
+        UPDATE files
+           SET state = ?, reviewed_name = NULL
+         WHERE state = ?
+           AND md5 NOT IN (
+               SELECT md5 FROM files
+                WHERE state = ? AND reviewed_name IS NOT NULL
+                ORDER BY reviewed_at DESC, md5 DESC
+                LIMIT ?
+           )
+        """,
+        (FileState.PURGED.value, FileState.PASSED.value, FileState.PASSED.value, limit),
+    )
+    return int(cursor.rowcount)
+
+
+def rename_kept(conn: sqlite3.Connection, old: str, new: str) -> None:
+    """Record that a kept file changed name while being migrated.
+
+    Args:
+        conn: Open connection.
+        old: Name the verdict recorded.
+        new: Name the file has now.
+    """
+    conn.execute(
+        "UPDATE files SET reviewed_name = ? WHERE state = ? AND reviewed_name = ?",
+        (new, FileState.KEPT.value, old),
+    )

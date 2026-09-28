@@ -16,6 +16,7 @@ from python_pkg.wsg_grabber import (
     db,
     downloader,
     files,
+    housekeeping,
     logs,
     net,
     paths,
@@ -86,6 +87,7 @@ class Session:
             verdict.target_state(choice),
             move.dst.name,
         )
+        housekeeping.after_verdict(self.conn, choice)
         return review.on_verdict(state, choice)
 
     def undo(self, state: SessionState) -> SessionState:
@@ -100,9 +102,7 @@ class Session:
         action = store_verdicts.newest_verdict(self.conn, paths.incoming_dir())
         if action is None:
             return state
-        source = (
-            paths.keep_dir() if action.choice is Verdict.KEEP else paths.trash_dir()
-        ) / action.reviewed_name
+        source = housekeeping.locate_reviewed(action)
         # Mirror what commit does: never assume the old name is free again.
         destination = verdict.unique_destination(
             paths.incoming_dir(),
@@ -197,6 +197,7 @@ def open_session(*, include_archive: bool = True) -> Session:
     paths.ensure_dirs()
     conn = db.open_index(paths.db_path())
     store.reset_in_flight(conn)
+    housekeeping.on_startup(conn)
     events: queue.SimpleQueue[DownloadEvent] = queue.SimpleQueue()
     stop = threading.Event()
     session = Session(conn=conn, events=events, stop=stop)

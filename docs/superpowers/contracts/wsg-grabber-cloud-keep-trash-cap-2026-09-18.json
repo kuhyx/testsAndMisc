@@ -1,0 +1,18 @@
+{
+  "title": "wsg_grabber: keep to the cloud folder, cap trash at 200 passes",
+  "objective": "Kept videos land somewhere a person looks (~/data/cloud/Media/<year>/wsg, ~/Downloads without the cloud folder) instead of ~/.local/share/wsg_grabber/keep, and trash/ stops growing without bound: only the 200 most recent passes stay on disk and undoable, everything older is deleted for good.",
+  "acceptance_criteria": [
+    "`wsg-grabber stats` prints `keep dir ~/data/cloud/Media/<this year>/wsg`, and a keep verdict moves the file there.",
+    "With HOME pointed at a tree without data/cloud, a keep lands in $HOME/Downloads.",
+    "After startup and after every pass, `ls trash | wc -l` is at most 200 and the survivors are exactly the 200 newest reviewed_at PASSED rows; orphans without an index row are deleted too.",
+    "Rows for deleted trash files become the new terminal state `purged`: still in known_md5s (never re-downloaded), excluded from the undo trail.",
+    "The old keep/ contents are migrated on first start (same name+size at the destination drops the duplicate, other clashes get a -2 suffix and the index row is renamed), and the empty keep/ is removed.",
+    "Undo still restores a keep from wherever it ended up (this year's cloud folder, earlier years', ~/Downloads, the legacy keep/, Media/<year>/<month>) and a pass from trash/."
+  ],
+  "out_of_scope": [
+    "Capping kept files: they are the product and stay forever.",
+    "A schema column for the keep directory; the candidate search covers every location without one.",
+    "Any change to dufs-cloud, the gallery, or the media-cloud-sync timer."
+  ],
+  "verifier": "pytest python_pkg/wsg_grabber/tests (303 passed, every wsg_grabber module 100% branch coverage); rehearsal in a fabricated HOME with a copy of the real index and stand-in files; then the real run: keep/ 342 -> cloud 647, trash 23218 files / 77 GB -> 200 files / 823 MB, 23018 rows purged."
+}

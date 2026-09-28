@@ -1,0 +1,46 @@
+{
+  "intent": "Kept /wsg/ videos go to the dufs cloud folder (or ~/Downloads as fallback) instead of a buried data dir, and trash/ is capped at the newest 200 passes with everything older deleted.",
+  "scope": [
+    "python_pkg/wsg_grabber/paths.py: cloud_root, downloads_dir, cloud_keep_dir, keep_dir (cloud or Downloads), legacy_keep_dir, kept_candidates",
+    "python_pkg/wsg_grabber/_prune.py, _migrate_keep.py, housekeeping.py (new); files.remove; FileState.PURGED; store_verdicts recent_passed_names / purge_older_passes / rename_kept",
+    "app.py wires on_startup / after_verdict / locate_reviewed; cli.py and README drop the 'nothing is ever deleted' promise",
+    "Non-goal: capping kept files, touching dufs-cloud or the media sync timer"
+  ],
+  "changes": [
+    "keep_dir() resolves per call to ~/data/cloud/Media/<year>/wsg when the cloud folder exists, else ~/Downloads",
+    "prune_trash deletes every trash/ file outside the 200 newest reviewed_at passes (orphans included) and marks the rows purged; runs at startup and after each pass",
+    "migrate_keep moves the legacy keep/ into the current keep dir once (dedupe by name+size, suffix + index rename on clash) and removes the empty dir",
+    "undo locates a kept file through kept_candidates so year rollover, cloud absence and the media sync sweep do not lose the verdict"
+  ],
+  "verification": [
+    {
+      "command": "~/.claude/scripts/capped.sh python -m pytest python_pkg/wsg_grabber/tests -q",
+      "result": "pass",
+      "evidence": "303 passed; every python_pkg/wsg_grabber module at 100% line+branch coverage"
+    },
+    {
+      "command": "HOME=/tmp/wsgfake/home XDG_DATA_HOME=$HOME/.local/share python -m python_pkg.wsg_grabber scrape --seconds 1  (copy of the real index, 23218 stand-in trash files, 50 stand-in keep files, fake data/cloud)",
+      "result": "pass",
+      "evidence": "keep.migrated moved=50; trash.pruned removed=23018 purged_rows=23018 retained=200; all 200 newest reviewed_at names present; keep/ removed; stats shows keep dir under data/cloud, and ~/Downloads after rm -rf data/cloud"
+    },
+    {
+      "command": "python -m python_pkg.wsg_grabber scrape --seconds 1  (real home)",
+      "result": "pass",
+      "evidence": "keep/ 342 -> ~/data/cloud/Media/2026/wsg 647 (was 305), keep/ gone; trash 23218 files / 77G -> 200 files / 823M; stats: kept 648, passed 200, purged 23018"
+    },
+    {
+      "command": "pre-commit run --files <18 changed files>",
+      "result": "pass",
+      "evidence": "no hook output beyond Passed/Skipped"
+    }
+  ],
+  "risks": [
+    "Purging is irreversible; the first run deleted 77 GB of passed videos, as agreed (Q3).",
+    "A keep made while the cloud folder is absent lands in ~/Downloads and is swept by media-cloud-sync into Media/<year>/<month>; undo follows it via kept_candidates but a same-name suffix applied by that sync would break the link.",
+    "Kept videos in Media/<year>/wsg now appear in the dufs gallery and get thumbnails."
+  ],
+  "rollback": [
+    "git revert the commit; kept files stay in the cloud folder (undo will still find them there through the old keep_dir only if moved back by hand)",
+    "Validate with `python -m python_pkg.wsg_grabber stats` and the test suite"
+  ]
+}

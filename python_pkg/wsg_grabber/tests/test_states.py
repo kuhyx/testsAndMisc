@@ -80,8 +80,13 @@ def test_illegal_transition_from_a_terminal_state_raises() -> None:
         next_state(FileState.GONE, FileEvent.CLAIMED, 0)
 
 
-def test_terminal_states_are_exactly_the_three_end_points() -> None:
-    assert {FileState.KEPT, FileState.PASSED, FileState.GONE} == TERMINAL
+def test_terminal_states_are_exactly_the_four_end_points() -> None:
+    assert {
+        FileState.KEPT,
+        FileState.PASSED,
+        FileState.GONE,
+        FileState.PURGED,
+    } == TERMINAL
     for state in TERMINAL:
         assert is_terminal(state)
     for state in CLAIMABLE:

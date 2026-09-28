@@ -1,9 +1,9 @@
 """The only code in this package that moves bytes around on disk.
 
 Deliberately tiny, because everything interesting about a verdict was already
-decided in :mod:`python_pkg.wsg_grabber.verdict`. There is no ``unlink`` here:
-a passed video is relocated to ``trash/`` and stays there until the user
-removes it.
+decided in :mod:`python_pkg.wsg_grabber.verdict`. The one ``unlink`` lives
+here too, so that "what touches the disk" stays a one-module question; only
+:mod:`python_pkg.wsg_grabber._prune` and the keep migration call it.
 """
 
 from __future__ import annotations
@@ -61,4 +61,20 @@ def apply_move(move: FileMove) -> bool:
         return False
     move.dst.parent.mkdir(parents=True, exist_ok=True)
     move.src.replace(move.dst)
+    return True
+
+
+def remove(path: Path) -> bool:
+    """Delete a file for good.
+
+    Args:
+        path: File to delete.
+
+    Returns:
+        bool: True when a file was removed; False when nothing was there.
+    """
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return False
     return True

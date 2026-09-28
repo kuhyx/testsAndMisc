@@ -15,33 +15,42 @@ PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.wsg_grabber stats
 
 ## Undo
 
-Misclicked? `u` takes the last verdict back: the file returns from `keep/` or
-`trash/` to `incoming/`, the index row goes back to _ready_, the counter is
-corrected, and that video is on screen again. Whatever was showing when you hit
-undo goes to the front of the queue, so nothing is skipped.
+Misclicked? `u` takes the last verdict back: the file returns from the keep
+folder or `trash/` to `incoming/`, the index row goes back to _ready_, the
+counter is corrected, and that video is on screen again. Whatever was showing
+when you hit undo goes to the front of the queue, so nothing is skipped.
 
-It steps back through **any number of verdicts, and survives quitting** — the
-trail lives in the index, not in memory, so reopening the reviewer can still
-undo what you decided yesterday. The status bar shows how many are left
-(`u undoes (17)`), and the button greys out when there is nothing to take back.
-If you cleared `trash/` by hand in the meantime, undo says so in the log and
-drops that entry rather than failing on it repeatedly.
+It **survives quitting** — the trail lives in the index, not in memory, so
+reopening the reviewer can still undo what you decided yesterday. The status
+bar shows how many are left (`u undoes (17)`), and the button greys out when
+there is nothing to take back. Keeps are undoable for as long as the file is
+still in any place a keep can end up (`housekeeping.locate_reviewed` looks in
+this year's cloud folder, earlier years', `~/Downloads`, the old `keep/`, and
+wherever the media sync swept it); passes are undoable while they are among
+the newest `TRASH_RETAIN` (200). If a file has gone anyway, undo says so in
+the log and drops that entry rather than failing on it repeatedly.
 
 ## Storage
 
 ```
+~/data/cloud/Media/<year>/wsg/   you kept these (falls back to ~/Downloads
+                                 on a machine without the cloud folder)
 ~/.local/share/wsg_grabber/
 ├── index.db     sqlite, remembers every file ever seen
 ├── incoming/    downloaded, awaiting your verdict
-├── keep/        you kept these
-└── trash/       you passed on these — NOTHING here is ever removed automatically
+└── trash/       you passed on these — only the newest 200 passes stay
 ```
 
-**No downloaded video is ever deleted.** A pass moves the file into `trash/`;
-emptying it is your call. `unlink` appears only on things that are not videos —
-a corrupt or abandoned `.part`, and mpv's control socket — and `files.apply_move`
-refuses to overwrite an existing destination, so a move can never destroy a
-video you already decided on.
+A keep goes where you actually look: the dufs cloud folder, so it shows up in
+the gallery and on the phone. The first start after this change moved the old
+`keep/` contents across (`_migrate_keep.py`).
+
+A pass goes into `trash/`, and `_prune.py` deletes everything there except the
+200 most recent passes — at startup and after every pass. Their index rows
+become _purged_: still known, so the file is never downloaded again, but no
+longer undoable. Before this cap existed 23k files / 77 GB had piled up.
+`files.apply_move` still refuses to overwrite an existing destination, so a
+move can never destroy a video you already decided on.
 
 ## Why it never shows you the same video twice
 
@@ -142,7 +151,10 @@ XDG_DATA_HOME=/tmp/wsg-sandbox python3 -m python_pkg.wsg_grabber stats
 | `store_threads.py`  | Which threads were visited, and their HTTP stamps.                |
 | `store_verdicts.py` | The review trail that undo walks back.                            |
 | `downloader.py`     | The background worker thread.                                     |
-| `files.py`          | The only module that moves files.                                 |
+| `files.py`          | The only module that moves or deletes files.                      |
+| `housekeeping.py`   | Around a verdict: keep migration, trash prune, finding a keep.    |
+| `_migrate_keep.py`  | One-off move of the old `keep/` into the cloud folder.            |
+| `_prune.py`         | Caps `trash/` at the newest 200 passes.                           |
 | `player.py`         | mpv as a subprocess over its JSON IPC socket.                     |
 | `ui.py`             | The only module that imports `tkinter`.                           |
 | `logs.py`           | Structured JSONL event log.                                       |

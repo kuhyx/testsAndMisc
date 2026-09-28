@@ -23,12 +23,13 @@ from python_pkg.wsg_grabber import (
     store_threads,
     ui,
 )
+from python_pkg.wsg_grabber._logs_report import show_logs, summarise
 
 # Re-exported so `cli.show_logs` / `cli.summarise` keep working for callers and
 # tests; the implementation lives in _logs_report to keep this module under the
 # 250-line cap. __all__ is what marks them as re-exports -- the `X as X` alias
 # form is rejected here (ruff PLC0414) and then stripped as unused.
-from python_pkg.wsg_grabber._logs_report import show_logs, summarise
+from python_pkg.wsg_grabber.constants import TRASH_RETAIN
 from python_pkg.wsg_grabber.states import FileState
 
 if TYPE_CHECKING:
@@ -49,8 +50,8 @@ _REPORT_EVERY_S = 15.0
 
 _DESCRIPTION = (
     "Scrape 4chan /wsg/ for videos and triage them with a keep/pass reviewer. "
-    "Nothing is ever deleted: a pass moves the file into the trash directory "
-    "for you to clear by hand."
+    "A keep goes to the cloud folder (or ~/Downloads); a pass goes to trash, "
+    "where only the newest passes are kept."
 )
 
 
@@ -159,7 +160,7 @@ def stats() -> int:
             _emit(f"  {state.value:<12} {counts.get(state.value, 0)}")
         _emit(f"threads      {len(store_threads.known_threads(conn))}")
         _emit(f"keep dir     {paths.keep_dir()}")
-        _emit(f"trash dir    {paths.trash_dir()}  (never emptied automatically)")
+        _emit(f"trash dir    {paths.trash_dir()}  (newest {TRASH_RETAIN} passes kept)")
     finally:
         conn.close()
     return 0

@@ -45,9 +45,10 @@ def test_parser_exposes_the_subcommands() -> None:
     assert parsed.seconds == pytest.approx(5.0)
 
 
-def test_help_mentions_that_nothing_is_deleted() -> None:
+def test_help_says_where_keeps_and_passes_go() -> None:
     text = cli.build_parser().format_help()
-    assert "Nothing is ever deleted" in text
+    assert "cloud folder" in text
+    assert "newest passes are kept" in text
     assert "trash" in text
 
 
@@ -76,7 +77,7 @@ def test_stats_reports_every_state(capsys: pytest.CaptureFixture[str]) -> None:
     out = capsys.readouterr().out
     assert "known files  1" in out
     assert "new          1" in out
-    assert "never emptied automatically" in out
+    assert "newest 200 passes kept" in out
 
 
 def test_scrape_runs_and_shuts_down(

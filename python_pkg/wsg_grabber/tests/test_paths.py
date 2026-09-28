@@ -35,11 +35,40 @@ def test_derived_paths_live_under_the_data_dir() -> None:
     for candidate in (
         paths.db_path(),
         paths.incoming_dir(),
-        paths.keep_dir(),
+        paths.legacy_keep_dir(),
         paths.trash_dir(),
         paths.ipc_socket_path(),
     ):
         assert candidate.parent == root
+
+
+def test_keep_dir_falls_back_to_downloads_without_the_cloud_folder() -> None:
+    assert not paths.cloud_root().exists()
+    assert paths.keep_dir() == Path.home() / "Downloads"
+
+
+def test_keep_dir_uses_the_cloud_media_folder_for_this_year() -> None:
+    paths.cloud_root().mkdir(parents=True)
+    kept = paths.keep_dir()
+    assert kept.parent.parent == paths.cloud_root() / "Media"
+    assert kept.name == "wsg"
+    assert kept.parent.name.isdigit()
+    assert kept == paths.cloud_keep_dir(int(kept.parent.name))
+
+
+def test_kept_candidates_cover_every_place_a_keep_can_end_up() -> None:
+    media = paths.cloud_root() / "Media"
+    for sub in ("2025/wsg", "2026/wsg", "2026/09", "2026/notes.txt"):
+        (media / sub).parent.mkdir(parents=True, exist_ok=True)
+    (media / "2025/wsg").mkdir(parents=True)
+    (media / "2026/wsg").mkdir(parents=True)
+    (media / "2026/09").mkdir(parents=True)
+    (media / "2026/notes.txt").write_text("")
+    candidates = paths.kept_candidates()
+    assert candidates[0] == paths.keep_dir()
+    assert candidates[1:3] == [media / "2025/wsg", media / "2026/wsg"]
+    assert candidates[3:5] == [paths.legacy_keep_dir(), paths.downloads_dir()]
+    assert candidates[5:] == [media / "2026/09"]
 
 
 def test_socket_path_names_the_board() -> None:

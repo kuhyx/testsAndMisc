@@ -98,6 +98,11 @@ CONTROL_BAR_HEIGHT_PX: Final[int] = 96
 WINDOW_WIDTH_PX: Final[int] = 1100
 WINDOW_HEIGHT_PX: Final[int] = 800
 
+# How many passed videos stay in trash/ (newest first) and so stay undoable.
+# Everything older is deleted for good; 23k files / 77 GB had piled up before
+# this bound existed.
+TRASH_RETAIN: Final[int] = 200
+
 KEEP_KEYS: Final[tuple[str, ...]] = ("<k>", "<Right>")
 PASS_KEYS: Final[tuple[str, ...]] = ("<j>", "<space>", "<Left>")
 UNDO_KEYS: Final[tuple[str, ...]] = ("<u>", "<BackSpace>")
