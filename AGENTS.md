@@ -41,6 +41,8 @@ Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhy
 `~/android-guardian`),
 [`phone-focus-mode`](https://github.com/kuhyx/phone-focus-mode) (with
 `python_pkg/focus_policy`),
+[`wsg-grabber`](https://github.com/kuhyx/wsg-grabber) (private; lives at
+`~/src/wsg-grabber`),
 [`hosts-blocker`](https://github.com/kuhyx/hosts-blocker) (lives at
 `~/src/hosts-blocker`),
 [`digital-wellbeing`](https://github.com/kuhyx/digital-wellbeing) (lives at

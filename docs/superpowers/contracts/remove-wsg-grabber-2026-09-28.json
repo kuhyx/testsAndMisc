@@ -1,0 +1,16 @@
+{
+  "title": "Remove wsg_grabber from the monorepo after extracting it",
+  "objective": "wsg_grabber lives only in kuhyx/wsg-grabber (private, ~/src/wsg-grabber); nothing in testsAndMisc still carries or runs it, and main's CI is green.",
+  "acceptance_criteria": [
+    "python_pkg/wsg_grabber/ no longer exists in the tree.",
+    "kuhyx/wsg-grabber holds the package's history (14 commits) plus the standalone setup, and its suite passes at 100% branch coverage.",
+    "/usr/local/bin/wsg-grabber runs from ~/src/wsg-grabber and `wsg-grabber stats` reads the live index.",
+    "AGENTS.md lists wsg-grabber among the extracted repos.",
+    "Pre-commit checks and dependency freshness are green on the pushed commit."
+  ],
+  "out_of_scope": [
+    "The metadata, duplicate-detection and report features; they are built in the new repo.",
+    "Rewriting historical docs that mention the old path."
+  ],
+  "verifier": "ls python_pkg/wsg_grabber fails; git -C ~/src/wsg-grabber log --oneline | wc -l; cat /usr/local/bin/wsg-grabber; wsg-grabber stats; gh run list --branch main"
+}
