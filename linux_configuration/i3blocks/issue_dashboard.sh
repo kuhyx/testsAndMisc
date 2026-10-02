@@ -2,7 +2,7 @@
 
 # ============================================================================
 # issue-dashboard status for i3blocks: issues to do, agents working, work
-# ready to merge.
+# ready to merge, and merged issues awaiting their opener's close.
 #
 # Opened the same way as book_guard.sh: a click runs issue-dashboard-desktop,
 # which reuses the dashboard server if it is answering (starting it detached
@@ -57,6 +57,7 @@ field todo
 field working
 field ready
 field failed
+field awaiting
 field updated_epoch
 
 if [[ -z $todo || -z $working || -z $ready || -z $failed || -z $updated_epoch ]]; then
@@ -71,6 +72,12 @@ if ((now - updated_epoch > STALE_SECONDS)); then
 fi
 
 text="📋 ${todo} · ⚙ ${working} · ✓ ${ready}"
+# Merged, waiting for the opener to close: shown only when there is some, and
+# never a colour, since it waits on someone else. Optional because a server
+# older than the awaiting column does not write it.
+if ((${awaiting:-0} > 0)); then
+	text="$text · ⏳ ${awaiting}"
+fi
 short="📋 ${todo}"
 color=$WHITE
 if ((failed > 0)); then

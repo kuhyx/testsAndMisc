@@ -1,0 +1,37 @@
+{
+  "intent": "Merged-but-open issues (Merge only tags the opener, kado-no-akari #21) get their own 'Awaiting opener' column in ~/src/issue-dashboard and an 'awaiting' count in status.json; the i3bar issue_dashboard block shows it as '⏳ N' instead of counting it as to do.",
+  "scope": [
+    "linux_configuration/i3blocks/issue_dashboard.sh - read the optional 'awaiting' field and show '· ⏳ N' between '✓' and '✗' when N > 0",
+    "linux_configuration/tests/test_i3blocks_issue_dashboard.sh - awaiting text, hidden at zero, ordering, colour, old-format file without the key",
+    "Non-goal: the dashboard change itself (local repo ~/src/issue-dashboard, commit 0e6077c); the running dashboard server was not restarted."
+  ],
+  "changes": [
+    "awaiting is optional: a status.json from a server older than the column has no key and still renders '📋 N · ⚙ N · ✓ N', never grey.",
+    "awaiting never changes the colour (it waits on the opener, not kuhy) and stays out of the short text; zero is hidden like '✗'.",
+    "Still zero forks on the hot path: one more regex field read and an arithmetic test."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_issue_dashboard.sh",
+      "result": "pass",
+      "evidence": "awaiting / hidden-at-zero / ordering with ✗ / colour / old-format / stale / missing / broken / empty / click asserted; strace still shows one execve and no clone/fork."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All i3blocks efficiency regression tests passed."
+    },
+    {
+      "command": "ISSUE_DASHBOARD_STATUS=<status.json from a scratch issue-dashboard server on a fixture source> issue_dashboard.sh",
+      "result": "pass",
+      "evidence": "'📋 1 · ⚙ 0 · ✓ 1 · ⏳ 2 · ✗ 1' #FF5555 from {todo 1, ready 1, awaiting 2, failed 1}; the live old-format status.json still renders '📋 14 · ⚙ 0 · ✓ 0' #FFFFFF."
+    }
+  ],
+  "risks": [
+    "'⏳' shows only once kuhy restarts the dashboard server; until then the old server keeps writing merged-open issues into todo."
+  ],
+  "rollback": [
+    "git revert this commit; the block reads the old fields only.",
+    "Confirm the bar still renders '📋 N · ⚙ N · ✓ N'."
+  ]
+}

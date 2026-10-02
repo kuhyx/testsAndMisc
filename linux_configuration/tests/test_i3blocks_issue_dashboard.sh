@@ -39,13 +39,15 @@ chmod +x "$BIN_DIR/launcher"
 
 STATUS="$TMP_DIR/status.json"
 
-# status <todo> <working> <ready> <failed> <age-seconds>
+# status <todo> <working> <ready> <failed> <age-seconds> [awaiting]
+# With no awaiting the file has no "awaiting" key, as an older server writes.
 status() {
-	local epoch
+	local epoch awaiting=''
 	printf -v epoch '%(%s)T' -1
 	epoch=$((epoch - $5))
-	printf '{"repo": "Sepci0/kado-no-akari", "todo": %s, "working": %s, "ready": %s, "failed": %s, "updated": "x", "updated_epoch": %s}\n' \
-		"$1" "$2" "$3" "$4" "$epoch" >"$STATUS"
+	[[ -n ${6:-} ]] && awaiting=", \"awaiting\": $6"
+	printf '{"repo": "Sepci0/kado-no-akari", "todo": %s, "working": %s, "ready": %s%s, "failed": %s, "updated": "x", "updated_epoch": %s}\n' \
+		"$1" "$2" "$3" "$awaiting" "$4" "$epoch" >"$STATUS"
 }
 
 run_block() {
@@ -75,6 +77,22 @@ out=$(run_block)
 assert_eq '📋 3 · ⚙ 0 · ✓ 2 · ✗ 1' "$(line 1 "$out")" 'failed text'
 assert_eq '#FF5555' "$(line 3 "$out")" 'a failed agent is red'
 
+printf 'Checking merged issues awaiting their opener...\n'
+
+status 3 0 0 0 5 2
+out=$(run_block)
+assert_eq '📋 3 · ⚙ 0 · ✓ 0 · ⏳ 2' "$(line 1 "$out")" 'awaiting text'
+assert_eq '📋 3' "$(line 2 "$out")" 'awaiting stays out of the short text'
+assert_eq '#FFFFFF' "$(line 3 "$out")" 'awaiting alone is white'
+
+status 3 0 0 0 5 0
+assert_eq '📋 3 · ⚙ 0 · ✓ 0' "$(line 1 "$(run_block)")" 'zero awaiting is hidden'
+
+status 3 0 2 1 5 2
+out=$(run_block)
+assert_eq '📋 3 · ⚙ 0 · ✓ 2 · ⏳ 2 · ✗ 1' "$(line 1 "$out")" 'awaiting sits between ready and failed'
+assert_eq '#FF5555' "$(line 3 "$out")" 'failed still wins the colour'
+
 printf 'Checking failure states are never blank or stale numbers...\n'
 
 status 4 1 2 0 600
@@ -94,7 +112,7 @@ assert_eq '📋 dashboard' "$(line 1 "$(run_block)")" 'empty status'
 
 printf 'Checking the hot path forks nothing...\n'
 
-status 4 1 2 0 5
+status 4 1 2 0 5 1
 if command -v strace >/dev/null 2>&1; then
 	ISSUE_DASHBOARD_STATUS="$STATUS" strace -f -o "$TMP_DIR/trace" -e trace=execve,clone,clone3,fork,vfork \
 		bash "$BLOCK" >/dev/null
