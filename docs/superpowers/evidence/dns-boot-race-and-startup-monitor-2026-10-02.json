@@ -12,10 +12,26 @@
     "check_and_enable_services: remove check_startup_monitor (pc_startup was removed in 765fa925) and default HOSTS_BLOCKER/DW/WORKOUT_LOCKER repos to ~/src/<repo>"
   ],
   "verification": [
-    {"command": "pre-commit run --files <the 11 files> (shell-coverage-ratchet runs the suites in the jail)", "result": "pass", "evidence": "all hooks passed, ratchet 100%"},
-    {"command": "vmbox: dnsmasq with interface=<absent>, bind-interfaces vs bind-dynamic; Requires= vs Wants= on a failing dependency", "result": "pass", "evidence": "bind-interfaces: DIED 'unknown interface lanx0'; bind-dynamic: survived, bound 10.199.0.1:5353 after the interface appeared; Requires=: inactive; Wants=: active"},
-    {"command": "host: setup_dot_resolver.sh + dns_units functions + validate_and_enable", "result": "pass", "evidence": "dnsmasq --test OK; stunnel-dot active on 10.8.0.1:853, TLSv1.3 Verification OK; DNS answers on 127.0.0.1 and 192.168.1.43; no network-online in dnsmasq After="},
-    {"command": "sudo check_and_enable_services.sh --status (host) and vmbox diff against HEAD", "result": "pass", "evidence": "full run, no 'not found'; only diff vs HEAD is the removed PC Startup Monitor section"}
+    {
+      "command": "pre-commit run --files <the 11 files> (shell-coverage-ratchet runs the suites in the jail)",
+      "result": "pass",
+      "evidence": "all hooks passed, ratchet 100%"
+    },
+    {
+      "command": "vmbox: dnsmasq with interface=<absent>, bind-interfaces vs bind-dynamic; Requires= vs Wants= on a failing dependency",
+      "result": "pass",
+      "evidence": "bind-interfaces: DIED 'unknown interface lanx0'; bind-dynamic: survived, bound 10.199.0.1:5353 after the interface appeared; Requires=: inactive; Wants=: active"
+    },
+    {
+      "command": "host: setup_dot_resolver.sh + dns_units functions + validate_and_enable",
+      "result": "pass",
+      "evidence": "dnsmasq --test OK; stunnel-dot active on 10.8.0.1:853, TLSv1.3 Verification OK; DNS answers on 127.0.0.1 and 192.168.1.43; no network-online in dnsmasq After="
+    },
+    {
+      "command": "sudo check_and_enable_services.sh --status (host) and vmbox diff against HEAD",
+      "result": "pass",
+      "evidence": "full run, no 'not found'; only diff vs HEAD is the removed PC Startup Monitor section"
+    }
   ],
   "risks": [
     "bind-dynamic also listens on addresses that appear later on enp6s0 (intended)",

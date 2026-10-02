@@ -7,6 +7,9 @@
     "No startup_monitor references remain; the services suites pass at the coverage ratchet",
     "Host: stunnel-dot active and serving TLS on 10.8.0.1:853"
   ],
-  "out_of_scope": ["Firewall rules", "Applying compulsive-block wrappers or LeechBlock (guard warnings left for the owner)"],
+  "out_of_scope": [
+    "Firewall rules",
+    "Applying compulsive-block wrappers or LeechBlock (guard warnings left for the owner)"
+  ],
   "verifier": "pre-commit (shell-coverage-ratchet in the namespace jail), vmbox behaviour check, setup_dot_resolver.sh --check on the host"
 }
