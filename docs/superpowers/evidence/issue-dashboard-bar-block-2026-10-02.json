@@ -1,0 +1,39 @@
+{
+  "intent": "Make the issue dashboard (~/src/issue-dashboard) one click away from the i3 bar: an [issue_dashboard] block shows issues to do, agents working and work ready to merge, turns red when an agent or a proof failed, and a click opens the dashboard window the same way [book_guard] opens book-guard.",
+  "scope": [
+    "linux_configuration/i3blocks/issue_dashboard.sh - new block script",
+    "linux_configuration/i3blocks/config - [issue_dashboard] entry after [book_guard], interval=30",
+    "linux_configuration/tests/test_i3blocks_issue_dashboard.sh - behaviour test",
+    "Non-goal: the dashboard itself (lives in ~/src/issue-dashboard, local repo); i3/i3blocks were not reloaded on the live session."
+  ],
+  "changes": [
+    "issue_dashboard.sh reads the one-line status.json the dashboard server rewrites on every refresh (~/data/issue-dashboard/status.json): '📋 <to do> · ⚙ <working> · ✓ <ready>', white normally, green when something is ready to merge, red with '· ✗ <n>' when an agent or a proof failed, grey '📋 dashboard' when the file is missing, unreadable or older than 180 s (server not running). Zero forks on the hot path: one builtin read, bash regex, printf clock.",
+    "A click runs ~/.local/bin/issue-dashboard-desktop via setsid -f, which reuses the dashboard server or starts it detached and opens an app window.",
+    "~/.config/i3blocks/issue_dashboard.sh symlinked to the repo file, the way i3/install.sh links every i3blocks/* file."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_issue_dashboard.sh",
+      "result": "pass",
+      "evidence": "fresh / ready / failed / stale / missing / broken / empty / click asserted; strace shows exactly one execve (bash) and no clone/fork on the hot path."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All i3blocks efficiency regression tests passed."
+    },
+    {
+      "command": "~/.config/i3blocks/issue_dashboard.sh (live status.json from the real server)",
+      "result": "pass",
+      "evidence": "'📋 5 · ⚙ 0 · ✓ 0' #FFFFFF while the server ran against Sepci0/kado-no-akari; '📋 dashboard' #6272A4 before it had ever run; BLOCK_BUTTON=1 started the launcher, which opened the (stubbed) browser with --app=http://127.0.0.1:8765/."
+    }
+  ],
+  "risks": [
+    "The block appears only after the next i3 reload; nothing was reloaded on the live session.",
+    "A click with issue-dashboard-desktop missing does nothing (errors are silenced so the bar never breaks)."
+  ],
+  "rollback": [
+    "git revert this commit and remove ~/.config/i3blocks/issue_dashboard.sh; i3-msg reload.",
+    "Confirm the bar still renders [book_guard] and the other blocks."
+  ]
+}
