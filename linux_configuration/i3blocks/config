@@ -59,6 +59,10 @@ interval=30
 command=~/.config/i3blocks/screen_locker.sh
 interval=30
 
+[book_guard]
+command=~/.config/i3blocks/book_guard.sh
+interval=30
+
 [shutdown_countdown]
 command=~/.config/i3blocks/shutdown_countdown.sh
 interval=60

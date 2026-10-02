@@ -1,0 +1,49 @@
+{
+  "intent": "Make book-guard openable from the i3 bar the same way screen-locker is: a [book_guard] block shows this month's paper-book pace, and a click opens the book-guard desktop window. Move the shared pins to gatelock 0.9.0 (the new shared morning-session reader) and today's newest stable releases.",
+  "scope": [
+    "linux_configuration/i3blocks/book_guard.sh - new block script",
+    "linux_configuration/i3blocks/config - [book_guard] entry next to [screen_locker]",
+    "linux_configuration/tests/test_i3blocks_book_guard.sh - behaviour test",
+    "meta/requirements.txt - gatelock 0.9.0 and newest-stable pins",
+    "Non-goal: the stale tracked linux_configuration/i3/config (it already lacks the workout-locker and leetcode-guard exec lines); the live ~/.config/i3/config got the book-guard exec line."
+  ],
+  "changes": [
+    "book_guard.sh reads the state.json book-guard publishes into ~/data/cloud/Reading on every inbox pass and gate run (no server, one jq pass): green on pace, yellow behind but unlocked (escaped / free day / unlocked tag), red when locked, orange when missing or older than 45 min, red with DISARMED when book-guard.timer is inactive. A click runs book-guard-desktop via setsid, which opens another window if it is already serving.",
+    "meta/requirements.txt: gatelock 0.8.2 -> 0.9.0; anthropic 1.11.0, cryptography 50.0.2, flake8-bugbear 26.9.30, geopandas 1.2.0, howlongtobeatpy 1.0.24, pyflakes 4.0.1, selenium 4.50.0, mypy 2.4.0, pylint 4.1.1, ruff 0.16.10."
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_book_guard.sh",
+      "result": "pass",
+      "evidence": "on pace / locked / escaped / free day / other / stale / disarmed / missing / broken / click all asserted; systemctl and the launcher stubbed on PATH."
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All i3blocks efficiency regression tests passed."
+    },
+    {
+      "command": "~/.config/i3blocks/book_guard.sh (live state.json)",
+      "result": "pass",
+      "evidence": "'📖 0/300 · 10p behind (escaped)' #F1FA8C; block live in the bar after i3-msg reload."
+    },
+    {
+      "command": ".venv/bin/python -m pytest python_pkg/code_tutor (the only anthropic/geopandas/selenium/cryptography importer)",
+      "result": "pass",
+      "evidence": "217 passed on anthropic 1.11.0."
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "all hooks passed, including dependency-freshness."
+    }
+  ],
+  "risks": [
+    "cryptography 50.0.2 stays outside pyopenssl/mitmproxy's declared ranges, as 50.0.1 already was.",
+    "A click with book-guard-desktop missing does nothing (errors are silenced so the bar never breaks)."
+  ],
+  "rollback": [
+    "git revert this commit and remove ~/.config/i3blocks/book_guard.sh; i3-msg reload.",
+    "Confirm the bar still renders [screen_locker] and the other blocks."
+  ]
+}
