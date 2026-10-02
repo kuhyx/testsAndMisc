@@ -62,9 +62,12 @@ CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
 REAL_HOME="$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f6)"
 [[ -n $REAL_HOME ]] || REAL_HOME="/home/$REAL_USER"
-HOSTS_BLOCKER_REPO="${HOSTS_BLOCKER_DIR:-$REAL_HOME/hosts-blocker}"
+# The extracted repos live under ~/src since the home-tidy reorganisation.
+# These defaults still said ~/<repo> after it, so every "fix" below that runs
+# an installer from them pointed at a directory that no longer existed.
+HOSTS_BLOCKER_REPO="${HOSTS_BLOCKER_DIR:-$REAL_HOME/src/hosts-blocker}"
 # digital-wellbeing was EXTRACTED too (github.com/kuhyx/digital-wellbeing).
-DW_REPO="${DIGITAL_WELLBEING_DIR:-$REAL_HOME/digital-wellbeing}"
+DW_REPO="${DIGITAL_WELLBEING_DIR:-$REAL_HOME/src/digital-wellbeing}"
 
 # Script paths
 PACMAN_WRAPPER_INSTALL="$DW_REPO/pacman/install_pacman_wrapper.sh"
@@ -73,7 +76,6 @@ MAKEPKG_WRAPPER_INSTALL="$DW_REPO/pacman/install_makepkg_wrapper.sh"
 PACMAN_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/source.sha256"
 MAKEPKG_WRAPPER_MANIFEST="/var/lib/pacman-wrapper/makepkg-source.sha256"
 MIDNIGHT_SHUTDOWN_SCRIPT="$DW_REPO/setup_midnight_shutdown.sh"
-STARTUP_MONITOR_SCRIPT="$DW_REPO/setup_pc_startup_monitor.sh"
 PERIODIC_SYSTEM_SCRIPT="$CONFIG_DIR/periodic_background/setup_periodic_system.sh"
 # hosts-blocker was EXTRACTED (github.com/kuhyx/hosts-blocker). Resolved
 # below, after REAL_HOME is computed, for the same reason screen-locker is.
@@ -89,7 +91,7 @@ VBOX_HOSTS_SCRIPT="$DW_REPO/virtualbox/enforce_vbox_hosts.sh"
 # python_pkg/screen_locker/, which stopped existing at extraction time — the
 # result was check_workout_locker reporting a red "error" for a service that was
 # installed and enabled the whole time, while its "fix" silently did nothing.
-WORKOUT_LOCKER_REPO="$REAL_HOME/screen-locker"
+WORKOUT_LOCKER_REPO="$REAL_HOME/src/screen-locker"
 WORKOUT_LOCKER_INSTALL_SCRIPT="$WORKOUT_LOCKER_REPO/install_systemd.sh"
 WORKOUT_LOCKER_SCRIPT="$WORKOUT_LOCKER_REPO/screen_locker/screen_lock.py"
 HOSTS_INSTALL_SCRIPT="$HOSTS_BLOCKER_REPO/install.sh"
@@ -161,7 +163,6 @@ main() {
 	check_pacman_wrapper
 	check_makepkg_wrapper
 	check_midnight_shutdown
-	check_startup_monitor
 	check_periodic_systems
 	check_hosts
 	check_compulsive_blocker

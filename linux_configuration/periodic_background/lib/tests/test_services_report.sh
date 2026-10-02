@@ -31,9 +31,9 @@ reset_state
 set_service_status "pacman_wrapper" "ok"
 set_service_status "makepkg_wrapper" "warning"
 set_service_status "midnight_shutdown" "error"
-set_service_status "startup_monitor" "n/a"
+set_service_status "hosts" "n/a"
 set_service_status "periodic_systems" "skipped"
-# The remaining six keys are deliberately left unset so the ":-unknown"
+# The remaining five keys are deliberately left unset so the ":-unknown"
 # default and its *) colour arm are exercised too.
 ISSUES_FOUND=0
 out="$(print_summary)"

@@ -51,7 +51,10 @@ install_units() {
 Description=DNS-over-TLS front end for dnsmasq blocklist
 After=network-online.target dnsmasq.service wg-quick@wg0.service
 Wants=network-online.target
-Requires=dnsmasq.service
+; Wants, not Requires: stunnel only forwards to 127.0.0.1:53 per connection,
+; and a Requires= turned one failed dnsmasq start at boot into a DoT outage
+; that lasted until someone restarted stunnel by hand.
+Wants=dnsmasq.service
 ; Binding to the WireGuard address fails if the interface is not up yet.
 After=sys-devices-virtual-net-wg0.device
 

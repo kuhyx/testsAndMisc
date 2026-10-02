@@ -14,8 +14,13 @@ write_dnsmasq_conf() {
 
 # Listen only on the LAN interface (leaves 127.0.0.53 free for the
 # systemd-resolved stub that the /etc/hosts installer enables).
+# bind-dynamic, not bind-interfaces: at boot dnsmasq can start before
+# ${LAN_IFACE} exists, and bind-interfaces then dies with "unknown interface".
+# Its 5 s restart recovered, but stunnel-dot's start job had already failed on
+# the dependency and was never retried, so DoT stayed down every boot.
+# bind-dynamic binds the address whenever the interface appears.
 interface=${LAN_IFACE}
-bind-interfaces
+bind-dynamic
 
 # Do NOT read /etc/hosts (huge + immutable); the blocklist comes from the feed.
 no-hosts
@@ -40,12 +45,10 @@ EOF
 install_restart_dropin() {
 	ensure_dir "$DNSMASQ_DROPIN_DIR"
 	cat >"$DNSMASQ_DROPIN" <<'EOF'
-# Managed by setup_dns_blocker.sh -- keep the resolver up and wait for the
-# network so bind-interfaces can bind the LAN address at boot.
-[Unit]
-After=network-online.target
-Wants=network-online.target
-
+# Managed by setup_dns_blocker.sh -- keep the resolver up.
+# No network-online ordering: the stock unit is Before=network-online.target,
+# so After= here was an ordering cycle systemd broke by deleting a job at every
+# boot. bind-dynamic (dnsmasq.conf) makes waiting for the NIC unnecessary.
 [Service]
 Restart=always
 RestartSec=5

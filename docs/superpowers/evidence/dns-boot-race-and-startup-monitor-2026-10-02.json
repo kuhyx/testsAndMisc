@@ -1,0 +1,28 @@
+{
+  "intent": "DNS-over-TLS (stunnel-dot) comes up at every boot, dnsmasq has no ordering cycle, and the service checker stops expecting the removed pc_startup feature and finds the extracted repos under ~/src.",
+  "scope": [
+    "linux_configuration/features/lib/dns_units.sh, dot_resolver_install.sh and their tests",
+    "linux_configuration/periodic_background check_and_enable_services.sh, services_units.sh, services_report.sh and their tests",
+    "Non-goal: the firewall, the blocklist feed, the guard warnings (compulsive-block, LeechBlock, workout-locker) this checker reports"
+  ],
+  "changes": [
+    "dnsmasq: bind-dynamic instead of bind-interfaces, so starting before enp6s0 exists no longer exits with 'unknown interface'",
+    "dnsmasq drop-in: drop After/Wants=network-online.target, which cycled with the stock Before=network-online.target",
+    "stunnel-dot.service: Wants=dnsmasq.service instead of Requires=, so one failed dnsmasq start no longer kills DoT until a manual restart",
+    "check_and_enable_services: remove check_startup_monitor (pc_startup was removed in 765fa925) and default HOSTS_BLOCKER/DW/WORKOUT_LOCKER repos to ~/src/<repo>"
+  ],
+  "verification": [
+    {"command": "pre-commit run --files <the 11 files> (shell-coverage-ratchet runs the suites in the jail)", "result": "pass", "evidence": "all hooks passed, ratchet 100%"},
+    {"command": "vmbox: dnsmasq with interface=<absent>, bind-interfaces vs bind-dynamic; Requires= vs Wants= on a failing dependency", "result": "pass", "evidence": "bind-interfaces: DIED 'unknown interface lanx0'; bind-dynamic: survived, bound 10.199.0.1:5353 after the interface appeared; Requires=: inactive; Wants=: active"},
+    {"command": "host: setup_dot_resolver.sh + dns_units functions + validate_and_enable", "result": "pass", "evidence": "dnsmasq --test OK; stunnel-dot active on 10.8.0.1:853, TLSv1.3 Verification OK; DNS answers on 127.0.0.1 and 192.168.1.43; no network-online in dnsmasq After="},
+    {"command": "sudo check_and_enable_services.sh --status (host) and vmbox diff against HEAD", "result": "pass", "evidence": "full run, no 'not found'; only diff vs HEAD is the removed PC Startup Monitor section"}
+  ],
+  "risks": [
+    "bind-dynamic also listens on addresses that appear later on enp6s0 (intended)",
+    "stunnel now starts even if dnsmasq is down; queries fail until dnsmasq is back, which Restart=always plus the watchdog already handle"
+  ],
+  "rollback": [
+    "git revert this commit, then rerun setup_dns_blocker.sh setup and setup_dot_resolver.sh",
+    "Validate with: systemctl is-active dnsmasq stunnel-dot; setup_dot_resolver.sh --check"
+  ]
+}

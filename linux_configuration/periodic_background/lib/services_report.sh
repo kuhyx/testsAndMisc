@@ -38,7 +38,7 @@ print_summary() {
 	printf "%-25s %s\n" "Service" "Status"
 	printf "%-25s %s\n" "-------" "------"
 
-	for service in pacman_wrapper makepkg_wrapper midnight_shutdown startup_monitor periodic_systems hosts compulsive_blocker leechblock guest_mode_removal vbox_hosts workout_locker; do
+	for service in pacman_wrapper makepkg_wrapper midnight_shutdown periodic_systems hosts compulsive_blocker leechblock guest_mode_removal vbox_hosts workout_locker; do
 		local status
 		status="$(get_service_status "$service")"
 		local color

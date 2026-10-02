@@ -76,46 +76,6 @@ check_midnight_shutdown >/dev/null
 _t_not_called 'ran setup_midnight_shutdown' "--status never runs the setup script"
 _t_eq "error" "$(get_service_status "midnight_shutdown")" "the error is still recorded"
 
-echo "== check_startup_monitor: fully healthy records ok =="
-reset_state
-make_installer "$STARTUP_MONITOR_SCRIPT"
-sysfile etc/systemd/system/pc-startup-monitor.service
-sysfile usr/local/bin/pc-startup-check.sh
-printf 'pc-startup-monitor.timer\n' >"${DEV}/enabled"
-printf 'pc-startup-monitor.timer\n' >"${DEV}/active"
-check_startup_monitor >/dev/null
-_t_eq "ok" "$(get_service_status "startup_monitor")" "a fully healthy install records ok"
-
-echo "== check_startup_monitor: missing files are errors and are repaired =="
-reset_state
-make_installer "$STARTUP_MONITOR_SCRIPT"
-printf 'pc-startup-monitor.timer\n' >"${DEV}/enabled"
-printf 'pc-startup-monitor.timer\n' >"${DEV}/active"
-check_startup_monitor >/dev/null
-_t_called 'ran setup_pc_startup_monitor' "missing files run the setup script"
-
-echo "== check_startup_monitor: timer disabled is downgraded to warning =="
-reset_state
-make_installer "$STARTUP_MONITOR_SCRIPT"
-sysfile etc/systemd/system/pc-startup-monitor.service
-sysfile usr/local/bin/pc-startup-check.sh
-: >"${DEV}/enabled"
-: >"${DEV}/active"
-check_startup_monitor >/dev/null
-# Same regression as check_midnight_shutdown above.
-_t_eq "error" "$(get_service_status "startup_monitor")" "disabled+inactive stays an error"
-_t_called 'ran setup_pc_startup_monitor' "so the disabled timer IS repaired"
-
-echo "== check_startup_monitor: enabled but inactive is a warning, not a fix =="
-reset_state
-make_installer "$STARTUP_MONITOR_SCRIPT"
-sysfile etc/systemd/system/pc-startup-monitor.service
-sysfile usr/local/bin/pc-startup-check.sh
-printf 'pc-startup-monitor.timer\n' >"${DEV}/enabled"
-: >"${DEV}/active"
-check_startup_monitor >/dev/null
-_t_not_called 'ran setup_pc_startup_monitor' "an inactive-only timer is not reinstalled"
-
 echo "== check_periodic_systems: every unit healthy short-circuits =="
 reset_state
 make_installer "$PERIODIC_SYSTEM_SCRIPT"

@@ -57,49 +57,6 @@ check_midnight_shutdown() {
 		enable
 }
 
-check_startup_monitor() {
-	header "PC Startup Monitor"
-
-	local status="ok"
-	local issues=()
-
-	# Check timer (the timer triggers the service, so we check the timer)
-	if systemctl is-enabled pc-startup-monitor.timer &>/dev/null; then
-		msg "pc-startup-monitor.timer is enabled"
-	else
-		issues+=("pc-startup-monitor.timer is not enabled")
-		status="error"
-	fi
-
-	if systemctl is-active pc-startup-monitor.timer &>/dev/null; then
-		msg "pc-startup-monitor.timer is active"
-	else
-		issues+=("pc-startup-monitor.timer is not active")
-		if [[ $status != "error" ]]; then status="warning"; fi
-	fi
-
-	# Check service file exists
-	if [[ -f "${SYSROOT}/etc/systemd/system/pc-startup-monitor.service" ]]; then
-		msg "pc-startup-monitor.service file exists"
-	else
-		issues+=("pc-startup-monitor.service file missing")
-		status="error"
-	fi
-
-	# Check monitor script
-	if [[ -f "${SYSROOT}/usr/local/bin/pc-startup-check.sh" ]]; then
-		msg "Startup check script exists"
-	else
-		issues+=("pc-startup-check.sh not found")
-		status="error"
-	fi
-
-	report_and_fix issues status "startup_monitor" \
-		"Setting up startup monitor..." \
-		"$STARTUP_MONITOR_SCRIPT" \
-		"pc-startup-monitor.timer"
-}
-
 check_periodic_systems() {
 	header "Periodic System Maintenance"
 

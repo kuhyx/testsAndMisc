@@ -1,0 +1,12 @@
+{
+  "title": "DoT survives boot; service checker matches the machine",
+  "objective": "stunnel-dot.service must be active after every boot without manual restarts, dnsmasq must not form an ordering cycle with network-online.target, and check_and_enable_services.sh must neither check the removed pc_startup feature nor resolve extracted repos at stale ~/<repo> paths.",
+  "acceptance_criteria": [
+    "Generated dnsmasq conf uses bind-dynamic and the drop-in has no network-online ordering (test_dns_units.sh)",
+    "Generated stunnel-dot.service has Wants=dnsmasq.service and no Requires=dnsmasq (test_dot_resolver_install.sh)",
+    "No startup_monitor references remain; the services suites pass at the coverage ratchet",
+    "Host: stunnel-dot active and serving TLS on 10.8.0.1:853"
+  ],
+  "out_of_scope": ["Firewall rules", "Applying compulsive-block wrappers or LeechBlock (guard warnings left for the owner)"],
+  "verifier": "pre-commit (shell-coverage-ratchet in the namespace jail), vmbox behaviour check, setup_dot_resolver.sh --check on the host"
+}

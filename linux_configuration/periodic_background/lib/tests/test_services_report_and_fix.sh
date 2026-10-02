@@ -28,26 +28,26 @@ echo "== report_and_fix: an ok service is recorded and left alone =="
 reset_state
 declare -a issues=()
 status="ok"
-report_and_fix issues status "startup_monitor" "fixing..." "$STARTUP_MONITOR_SCRIPT" "" >/dev/null
-_t_eq "ok" "$(get_service_status "startup_monitor")" "an ok status is recorded"
+report_and_fix issues status "midnight_shutdown" "fixing..." "$MIDNIGHT_SHUTDOWN_SCRIPT" "" >/dev/null
+_t_eq "ok" "$(get_service_status "midnight_shutdown")" "an ok status is recorded"
 _t_eq "0" "$ISSUES_FOUND" "an ok service counts no issues"
-_t_not_called 'ran setup_pc' "an ok service runs no installer"
+_t_not_called 'ran setup_midnight' "an ok service runs no installer"
 
 echo "== report_and_fix: a warning is reported but never repaired =="
 reset_state
-make_installer "$STARTUP_MONITOR_SCRIPT"
+make_installer "$MIDNIGHT_SHUTDOWN_SCRIPT"
 issues=("timer is not active")
 status="warning"
 # Captured to a file rather than `$(...)`: report_and_fix mutates ISSUES_FOUND
 # and SERVICE_STATUS, and a command substitution would strand both in a
 # subshell, making the assertions below silently test nothing.
-report_and_fix issues status "startup_monitor" "fixing..." \
-	"$STARTUP_MONITOR_SCRIPT" "" >"${TEST_TMPDIR}/out.txt"
+report_and_fix issues status "midnight_shutdown" "fixing..." \
+	"$MIDNIGHT_SHUTDOWN_SCRIPT" "" >"${TEST_TMPDIR}/out.txt"
 out="$(cat "${TEST_TMPDIR}/out.txt")"
 _t_called_in "$out" "timer is not active" "the warning text is printed"
 _t_eq "1" "$ISSUES_FOUND" "a warning counts as an issue"
-_t_not_called 'ran setup_pc' "a warning does not trigger the installer"
-_t_eq "warning" "$(get_service_status "startup_monitor")" "the warning status is recorded"
+_t_not_called 'ran setup_midnight' "a warning does not trigger the installer"
+_t_eq "warning" "$(get_service_status "midnight_shutdown")" "the warning status is recorded"
 
 echo "== report_and_fix: --status reports errors without repairing =="
 reset_state

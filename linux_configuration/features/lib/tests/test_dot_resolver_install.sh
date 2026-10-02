@@ -86,6 +86,14 @@ _t_file_has "$STUNNEL_CONF" "cert = $CERT_DIR/combined.pem" "stunnel reads the s
 _t_stub systemctl
 install_units
 _t_file_has /etc/systemd/system/stunnel-dot.service 'stunnel' "stunnel unit installed"
+# Requires= turned one failed dnsmasq start at boot into a DoT outage that
+# outlived dnsmasq's own 5 s recovery; Wants= lets stunnel start regardless.
+_t_file_has /etc/systemd/system/stunnel-dot.service '^Wants=dnsmasq\.service$' "stunnel only Wants dnsmasq"
+if grep -q '^Requires=dnsmasq' /etc/systemd/system/stunnel-dot.service; then
+	_t_fail "Requires=dnsmasq.service would fail stunnel whenever dnsmasq's first start fails"
+else
+	_t_pass "no Requires=dnsmasq.service"
+fi
 _t_file_has /etc/systemd/system/dot-cert-sync.service "$SYNC_SCRIPT" "cert-sync service runs the sync script"
 _t_file_has /etc/systemd/system/dot-cert-sync.timer 'OnCalendar' "cert-sync timer is scheduled"
 _t_called 'daemon-reload' "units are followed by a daemon-reload"
