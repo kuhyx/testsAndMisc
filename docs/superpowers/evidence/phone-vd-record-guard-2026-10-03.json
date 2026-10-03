@@ -1,0 +1,29 @@
+{
+  "intent": "Pin that `phone_vd.sh record start|stop` (new in ~/.claude: real MP4 video of a session's own virtual display via a read-only scrcpy) passes the phone_guard PreToolUse hook as a lease-free read, while the adb input that drives the recorded app still takes that app's lease.",
+  "scope": [
+    "python_pkg/phone_guard/tests/test_hook.py",
+    "Non-goal: changing phone_guard classification -- the hook only inspects commands containing 'adb', so `phone_vd.sh record` never reached it and needed no change"
+  ],
+  "changes": [
+    "TestLeases.test_recording_own_display_is_a_read: record start/stop take no lease and are not blocked; `phone_vd.sh record start a.mp4 && adb shell input -d 9 swipe ...` on the session's own display takes exactly pkg:<its app>"
+  ],
+  "verification": [
+    {
+      "command": "capped.sh python3 -m pytest python_pkg/phone_guard -q --cov-branch --cov-report=term-missing",
+      "result": "pass",
+      "evidence": "68 passed; every python_pkg/phone_guard module 100% statements and branches"
+    },
+    {
+      "command": "phone_vd.sh record start ~/data/claude-scratch/phone-record/vd37_final.mp4; 5 x adb shell input -d 37 swipe; phone_vd.sh record stop (Pixel 6a 23181JEGR08034, VD 37 running com.android.settings)",
+      "result": "pass",
+      "evidence": "ffprobe: h264 1080x2400, duration 10.511 s, 307 frames (~29 fps avg, ~35 fps while scrolling); the hook let every call through (the unit test pins that the swipe maps to pkg:<own app>; not observed live)"
+    }
+  ],
+  "risks": [
+    "A raw `scrcpy --display-id=<other VD>` still bypasses the guard (no 'adb' in the command); phone_vd.sh only ever records the caller's own display"
+  ],
+  "rollback": [
+    "git revert this commit; it only adds a test and this evidence file",
+    "Run python3 -m pytest python_pkg/phone_guard afterwards"
+  ]
+}

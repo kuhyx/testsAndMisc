@@ -75,6 +75,21 @@ class TestLeases:
         assert run("adb shell input -d 9 tap 5 5") == 0
         assert acquire.call_args.kwargs["scope"] == "pkg:dev.kuhy.todo"
 
+    def test_recording_own_display_is_a_read(
+        self, acquire: MagicMock, isolated_state: Path
+    ) -> None:
+        # `phone_vd.sh record` mirrors this session's VD read-only (scrcpy
+        # --no-control), like `shot`: never blocked, no lease. Only the input
+        # that drives the recorded app takes that app's lease.
+        make_display(isolated_state, "S", "claude_1", "9", "dev.kuhy.todo")
+        assert run("~/.claude/scripts/phone_vd.sh record start out/a.mp4") == 0
+        assert run("~/.claude/scripts/phone_vd.sh record stop") == 0
+        acquire.assert_not_called()
+        both = "phone_vd.sh record start a.mp4 && adb shell input -d 9 swipe 1 2 3 4"
+        assert run(both) == 0
+        scopes = [call.kwargs["scope"] for call in acquire.call_args_list]
+        assert scopes == ["pkg:dev.kuhy.todo"]
+
     def test_another_sessions_display_is_refused(
         self,
         acquire: MagicMock,
