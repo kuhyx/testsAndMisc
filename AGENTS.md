@@ -84,7 +84,7 @@ hooks travel with the repo. `.git/hooks/` is unused — **never run
   files, and pytest for changed packages — but **not on the push's critical
   path**. The push spawns a detached, niced worker and returns in well under a
   second; the worker records a verdict for the tree it checked. A recorded
-  failure refuses the *next* push until the tree is verified in the foreground
+  failure refuses the _next_ push until the tree is verified in the foreground
   with `CI_MIRROR_SYNC=1 git push`, so a broken tree reaches GitHub at most
   once. A tree that already passed costs nothing to re-push.
   `prettier` caches its verdict per file content + prettier version + config,
