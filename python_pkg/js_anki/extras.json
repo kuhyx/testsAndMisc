@@ -1,27 +1,252 @@
 [
- {"method":"Map get/set/has","tier":"core","task":"Store and read key/value pairs in a Map","call":"m.set(k, v); m.get(k); m.has(k); m.size","mutates":true,"returns":"set() returns the Map (chainable); get() returns undefined if missing","example":"const m=new Map(); m.set('a',1); return [m.get('a'),m.get('b'),m.has('a'),m.size];","expected":"[1,null,true,1]","gotcha":"size is a property, not a method. Map keeps insertion order and allows any key type."},
- {"method":"Map delete","tier":"core","task":"Delete a key from a Map","call":"m.delete(k)","mutates":true,"returns":"true if the key existed, else false","example":"const m=new Map([['a',1]]); return [m.delete('a'),m.delete('a'),m.size];","expected":"[true,false,0]"},
- {"method":"Map counter","tier":"core","task":"Count frequencies with a Map","call":"m.set(c, (m.get(c) ?? 0) + 1)","mutates":true,"returns":"(idiom)","example":"const m=new Map(); for (const c of 'aab') m.set(c,(m.get(c)??0)+1); return [...m];","expected":"[[\"a\",2],[\"b\",1]]"},
- {"method":"Map iterate","tier":"core","task":"Loop over a Map's key/value pairs","call":"for (const [k, v] of m) { ... }   // m.keys(), m.values() too","returns":"iterates [key, value] pairs in insertion order","example":"const out=[]; for (const [k,v] of new Map([['a',1],['b',2]])) out.push(k+v); return out;","expected":"[\"a1\",\"b2\"]"},
- {"method":"Set basics","tier":"core","task":"Track unique values in a Set","call":"const s = new Set(arr); s.add(x); s.has(x); s.delete(x); s.size","mutates":true,"returns":"add() returns the Set; has()/delete() return boolean","example":"const s=new Set([1,2,2,3]); s.add(4); return [s.size,s.has(2),s.delete(9)];","expected":"[4,true,false]"},
- {"method":"Set dedupe","tier":"core","task":"Remove duplicates from an array","call":"[...new Set(arr)]","mutates":false,"returns":"new array, first-seen order","example":"return [...new Set([3,1,3,2,1])];","expected":"[3,1,2]"},
- {"method":"Object.entries","tier":"core","task":"Get [key, value] pairs of an object","call":"Object.entries(obj)   // Object.keys / Object.values","mutates":false,"returns":"array of [key, value]","example":"return Object.entries({a:1,b:2});","expected":"[[\"a\",1],[\"b\",2]]","gotcha":"Integer-like keys come first in ascending order, regardless of insertion."},
- {"method":"Object.fromEntries","tier":"core","task":"Build an object from [key, value] pairs","call":"Object.fromEntries(pairs)","mutates":false,"returns":"new object","example":"return Object.fromEntries([['a',1],['b',2]]);","expected":"{\"a\":1,\"b\":2}","gotcha":"Works with a Map too: Object.fromEntries(map)."},
- {"method":"Object counter","tier":"core","task":"Count frequencies with a plain object","call":"o[c] = (o[c] || 0) + 1","mutates":true,"returns":"(idiom)","example":"const o={}; for (const c of 'aab') o[c]=(o[c]||0)+1; return o;","expected":"{\"a\":2,\"b\":1}","gotcha":"Keys become strings; prefer Map when keys are numbers or you need .size."},
- {"method":"Math.max / Math.min","tier":"core","task":"Max / min of an array","call":"Math.max(...arr)","mutates":false,"returns":"number; Math.max() is -Infinity, Math.min() is Infinity","example":"return [Math.max(...[1,5,3]),Math.min(...[1,5,3])];","expected":"[5,1]","gotcha":"Spread of ~100k+ items overflows the stack; use a loop or reduce."},
- {"method":"Infinity sentinel","tier":"core","task":"Initialize a running min / max","call":"let best = Infinity;   // or -Infinity for max","returns":"(idiom)","example":"let best=Infinity; for (const x of [4,2,8]) best=Math.min(best,x); return best;","expected":"2"},
- {"method":"Math.floor / trunc","tier":"core","task":"Integer division (and negatives)","call":"Math.floor(a / b)   // Math.trunc rounds toward 0","returns":"number","example":"return [Math.floor(-7/2),Math.trunc(-7/2),Math.floor(7/2)];","expected":"[-4,-3,3]","gotcha":"Floor and trunc differ for negatives. Math.round(-2.5) is -2 (ties go toward +∞)."},
- {"method":"Math.ceil / round / abs / sqrt / pow","tier":"core","task":"Ceil, round, absolute value, square root, power","call":"Math.ceil(x); Math.round(x); Math.abs(x); Math.sqrt(x); x ** n","returns":"number","example":"return [Math.ceil(2.1),Math.round(2.5),Math.abs(-3),Math.sqrt(16),2**10];","expected":"[3,3,3,4,1024]"},
- {"method":"parseInt / Number","tier":"core","task":"Convert a string to a number","call":"parseInt(s, 10)   // Number(s) for strict","returns":"number (NaN on failure)","example":"return [parseInt('42px',10),String(Number('42px'))];","expected":"[42,\"NaN\"]","gotcha":"parseInt is lenient (stops at the first bad char); Number is strict. Always pass the radix."},
- {"method":"toString(radix) / parseInt(s, radix)","tier":"core","task":"Convert between decimal and binary (or another base)","call":"n.toString(2); parseInt(s, 2)","returns":"string / number","example":"return [(5).toString(2),parseInt('101',2)];","expected":"[\"101\",5]"},
- {"method":"Bit operations","tier":"core","task":"Shift, mask, XOR, and shift-left bit tricks","call":"n >> 1; n & 1; a ^ b; 1 << k","returns":"32-bit signed integer","example":"return [7>>1,7&1,5^3,1<<3];","expected":"[3,1,6,8]","gotcha":"Bitwise ops work on 32-bit signed ints: above 2^31 use BigInt. >>> 0 gives unsigned."},
- {"method":"Sort numbers asc/desc","tier":"core","task":"Sort numbers ascending and descending","call":"arr.sort((a, b) => a - b)   // desc: b - a","returns":"the SAME array, sorted in place","example":"const a=[3,1,2]; return [[...a].sort((x,y)=>x-y),[...a].sort((x,y)=>y-x)];","expected":"[[1,2,3],[3,2,1]]","gotcha":"The comparator returns a number, not a boolean: (a, b) => a > b misbehaves."},
- {"method":"Sort by two keys","tier":"core","task":"Sort pairs by the first value, then by the second","call":"arr.sort((a, b) => a[0] - b[0] || a[1] - b[1])","returns":"the SAME array, sorted in place","example":"return [[2,1],[1,5],[1,2]].sort((a,b)=>a[0]-b[0]||a[1]-b[1]);","expected":"[[1,2],[1,5],[2,1]]","gotcha":"0 is falsy, so || falls through to the next key only on ties."},
- {"method":"Sort strings by length","tier":"core","task":"Sort strings by length","call":"arr.sort((a, b) => a.length - b.length)","returns":"the SAME array, sorted in place","example":"return ['ccc','a','bb'].sort((a,b)=>a.length-b.length);","expected":"[\"a\",\"bb\",\"ccc\"]"},
- {"method":"Swap with destructuring","tier":"core","task":"Swap two variables (or array slots) without a temp","call":"[a, b] = [b, a]   // [arr[i], arr[j]] = [arr[j], arr[i]]","returns":"(idiom)","example":"let a=1,b=2; [a,b]=[b,a]; return [a,b];","expected":"[2,1]","gotcha":"The previous line must end with a semicolon or ASI joins them."},
- {"method":"Array destructuring + rest","tier":"core","task":"Split off the first element and keep the rest","call":"const [first, ...rest] = arr","returns":"(idiom)","example":"const [first,...rest]=[1,2,3]; return [first,rest];","expected":"[1,[2,3]]"},
- {"method":"Spread copy","tier":"core","task":"Copy an array / append without mutating","call":"const b = [...a, x]","mutates":false,"returns":"new array (SHALLOW copy)","example":"const a=[1,2]; const b=[...a,3]; return [b,a];","expected":"[[1,2,3],[1,2]]","gotcha":"Nested arrays are still shared. For 2D grids: grid.map((r) => [...r])."},
- {"method":"Object destructuring + rest","tier":"core","task":"Pull one field out of an object and keep the rest","call":"const { a, ...rest } = obj","returns":"(idiom)","example":"const {a,...r}={a:1,b:2,c:3}; return [a,r];","expected":"[1,{\"b\":2,\"c\":3}]"},
- {"method":"structuredClone","tier":"core","task":"Deep-copy a nested array/object","call":"structuredClone(x)","mutates":false,"returns":"deep copy","example":"const a=[[1]]; const b=structuredClone(a); b[0][0]=9; return a;","expected":"[[1]]","gotcha":"Throws on functions. JSON.parse(JSON.stringify(x)) loses undefined/Map/Set."},
- {"method":"?? vs ||","tier":"core","task":"Default a value only when null/undefined (not for 0)","call":"x ?? fallback","returns":"x unless it is null/undefined","example":"return [0||5,0??5];","expected":"[5,0]","gotcha":"|| also replaces 0, '' and false; ?? only replaces null and undefined."}
+  {
+    "method": "Map get/set/has",
+    "tier": "core",
+    "task": "Store and read key/value pairs in a Map",
+    "call": "m.set(k, v); m.get(k); m.has(k); m.size",
+    "mutates": true,
+    "returns": "set() returns the Map (chainable); get() returns undefined if missing",
+    "example": "const m=new Map(); m.set('a',1); return [m.get('a'),m.get('b'),m.has('a'),m.size];",
+    "expected": "[1,null,true,1]",
+    "gotcha": "size is a property, not a method. Map keeps insertion order and allows any key type."
+  },
+  {
+    "method": "Map delete",
+    "tier": "core",
+    "task": "Delete a key from a Map",
+    "call": "m.delete(k)",
+    "mutates": true,
+    "returns": "true if the key existed, else false",
+    "example": "const m=new Map([['a',1]]); return [m.delete('a'),m.delete('a'),m.size];",
+    "expected": "[true,false,0]"
+  },
+  {
+    "method": "Map counter",
+    "tier": "core",
+    "task": "Count frequencies with a Map",
+    "call": "m.set(c, (m.get(c) ?? 0) + 1)",
+    "mutates": true,
+    "returns": "(idiom)",
+    "example": "const m=new Map(); for (const c of 'aab') m.set(c,(m.get(c)??0)+1); return [...m];",
+    "expected": "[[\"a\",2],[\"b\",1]]"
+  },
+  {
+    "method": "Map iterate",
+    "tier": "core",
+    "task": "Loop over a Map's key/value pairs",
+    "call": "for (const [k, v] of m) { ... }   // m.keys(), m.values() too",
+    "returns": "iterates [key, value] pairs in insertion order",
+    "example": "const out=[]; for (const [k,v] of new Map([['a',1],['b',2]])) out.push(k+v); return out;",
+    "expected": "[\"a1\",\"b2\"]"
+  },
+  {
+    "method": "Set basics",
+    "tier": "core",
+    "task": "Track unique values in a Set",
+    "call": "const s = new Set(arr); s.add(x); s.has(x); s.delete(x); s.size",
+    "mutates": true,
+    "returns": "add() returns the Set; has()/delete() return boolean",
+    "example": "const s=new Set([1,2,2,3]); s.add(4); return [s.size,s.has(2),s.delete(9)];",
+    "expected": "[4,true,false]"
+  },
+  {
+    "method": "Set dedupe",
+    "tier": "core",
+    "task": "Remove duplicates from an array",
+    "call": "[...new Set(arr)]",
+    "mutates": false,
+    "returns": "new array, first-seen order",
+    "example": "return [...new Set([3,1,3,2,1])];",
+    "expected": "[3,1,2]"
+  },
+  {
+    "method": "Object.entries",
+    "tier": "core",
+    "task": "Get [key, value] pairs of an object",
+    "call": "Object.entries(obj)   // Object.keys / Object.values",
+    "mutates": false,
+    "returns": "array of [key, value]",
+    "example": "return Object.entries({a:1,b:2});",
+    "expected": "[[\"a\",1],[\"b\",2]]",
+    "gotcha": "Integer-like keys come first in ascending order, regardless of insertion."
+  },
+  {
+    "method": "Object.fromEntries",
+    "tier": "core",
+    "task": "Build an object from [key, value] pairs",
+    "call": "Object.fromEntries(pairs)",
+    "mutates": false,
+    "returns": "new object",
+    "example": "return Object.fromEntries([['a',1],['b',2]]);",
+    "expected": "{\"a\":1,\"b\":2}",
+    "gotcha": "Works with a Map too: Object.fromEntries(map)."
+  },
+  {
+    "method": "Object counter",
+    "tier": "core",
+    "task": "Count frequencies with a plain object",
+    "call": "o[c] = (o[c] || 0) + 1",
+    "mutates": true,
+    "returns": "(idiom)",
+    "example": "const o={}; for (const c of 'aab') o[c]=(o[c]||0)+1; return o;",
+    "expected": "{\"a\":2,\"b\":1}",
+    "gotcha": "Keys become strings; prefer Map when keys are numbers or you need .size."
+  },
+  {
+    "method": "Math.max / Math.min",
+    "tier": "core",
+    "task": "Max / min of an array",
+    "call": "Math.max(...arr)",
+    "mutates": false,
+    "returns": "number; Math.max() is -Infinity, Math.min() is Infinity",
+    "example": "return [Math.max(...[1,5,3]),Math.min(...[1,5,3])];",
+    "expected": "[5,1]",
+    "gotcha": "Spread of ~100k+ items overflows the stack; use a loop or reduce."
+  },
+  {
+    "method": "Infinity sentinel",
+    "tier": "core",
+    "task": "Initialize a running min / max",
+    "call": "let best = Infinity;   // or -Infinity for max",
+    "returns": "(idiom)",
+    "example": "let best=Infinity; for (const x of [4,2,8]) best=Math.min(best,x); return best;",
+    "expected": "2"
+  },
+  {
+    "method": "Math.floor / trunc",
+    "tier": "core",
+    "task": "Integer division (and negatives)",
+    "call": "Math.floor(a / b)   // Math.trunc rounds toward 0",
+    "returns": "number",
+    "example": "return [Math.floor(-7/2),Math.trunc(-7/2),Math.floor(7/2)];",
+    "expected": "[-4,-3,3]",
+    "gotcha": "Floor and trunc differ for negatives. Math.round(-2.5) is -2 (ties go toward +∞)."
+  },
+  {
+    "method": "Math.ceil / round / abs / sqrt / pow",
+    "tier": "core",
+    "task": "Ceil, round, absolute value, square root, power",
+    "call": "Math.ceil(x); Math.round(x); Math.abs(x); Math.sqrt(x); x ** n",
+    "returns": "number",
+    "example": "return [Math.ceil(2.1),Math.round(2.5),Math.abs(-3),Math.sqrt(16),2**10];",
+    "expected": "[3,3,3,4,1024]"
+  },
+  {
+    "method": "parseInt / Number",
+    "tier": "core",
+    "task": "Convert a string to a number",
+    "call": "parseInt(s, 10)   // Number(s) for strict",
+    "returns": "number (NaN on failure)",
+    "example": "return [parseInt('42px',10),String(Number('42px'))];",
+    "expected": "[42,\"NaN\"]",
+    "gotcha": "parseInt is lenient (stops at the first bad char); Number is strict. Always pass the radix."
+  },
+  {
+    "method": "toString(radix) / parseInt(s, radix)",
+    "tier": "core",
+    "task": "Convert between decimal and binary (or another base)",
+    "call": "n.toString(2); parseInt(s, 2)",
+    "returns": "string / number",
+    "example": "return [(5).toString(2),parseInt('101',2)];",
+    "expected": "[\"101\",5]"
+  },
+  {
+    "method": "Bit operations",
+    "tier": "core",
+    "task": "Shift, mask, XOR, and shift-left bit tricks",
+    "call": "n >> 1; n & 1; a ^ b; 1 << k",
+    "returns": "32-bit signed integer",
+    "example": "return [7>>1,7&1,5^3,1<<3];",
+    "expected": "[3,1,6,8]",
+    "gotcha": "Bitwise ops work on 32-bit signed ints: above 2^31 use BigInt. >>> 0 gives unsigned."
+  },
+  {
+    "method": "Sort numbers asc/desc",
+    "tier": "core",
+    "task": "Sort numbers ascending and descending",
+    "call": "arr.sort((a, b) => a - b)   // desc: b - a",
+    "returns": "the SAME array, sorted in place",
+    "example": "const a=[3,1,2]; return [[...a].sort((x,y)=>x-y),[...a].sort((x,y)=>y-x)];",
+    "expected": "[[1,2,3],[3,2,1]]",
+    "gotcha": "The comparator returns a number, not a boolean: (a, b) => a > b misbehaves."
+  },
+  {
+    "method": "Sort by two keys",
+    "tier": "core",
+    "task": "Sort pairs by the first value, then by the second",
+    "call": "arr.sort((a, b) => a[0] - b[0] || a[1] - b[1])",
+    "returns": "the SAME array, sorted in place",
+    "example": "return [[2,1],[1,5],[1,2]].sort((a,b)=>a[0]-b[0]||a[1]-b[1]);",
+    "expected": "[[1,2],[1,5],[2,1]]",
+    "gotcha": "0 is falsy, so || falls through to the next key only on ties."
+  },
+  {
+    "method": "Sort strings by length",
+    "tier": "core",
+    "task": "Sort strings by length",
+    "call": "arr.sort((a, b) => a.length - b.length)",
+    "returns": "the SAME array, sorted in place",
+    "example": "return ['ccc','a','bb'].sort((a,b)=>a.length-b.length);",
+    "expected": "[\"a\",\"bb\",\"ccc\"]"
+  },
+  {
+    "method": "Swap with destructuring",
+    "tier": "core",
+    "task": "Swap two variables (or array slots) without a temp",
+    "call": "[a, b] = [b, a]   // [arr[i], arr[j]] = [arr[j], arr[i]]",
+    "returns": "(idiom)",
+    "example": "let a=1,b=2; [a,b]=[b,a]; return [a,b];",
+    "expected": "[2,1]",
+    "gotcha": "The previous line must end with a semicolon or ASI joins them."
+  },
+  {
+    "method": "Array destructuring + rest",
+    "tier": "core",
+    "task": "Split off the first element and keep the rest",
+    "call": "const [first, ...rest] = arr",
+    "returns": "(idiom)",
+    "example": "const [first,...rest]=[1,2,3]; return [first,rest];",
+    "expected": "[1,[2,3]]"
+  },
+  {
+    "method": "Spread copy",
+    "tier": "core",
+    "task": "Copy an array / append without mutating",
+    "call": "const b = [...a, x]",
+    "mutates": false,
+    "returns": "new array (SHALLOW copy)",
+    "example": "const a=[1,2]; const b=[...a,3]; return [b,a];",
+    "expected": "[[1,2,3],[1,2]]",
+    "gotcha": "Nested arrays are still shared. For 2D grids: grid.map((r) => [...r])."
+  },
+  {
+    "method": "Object destructuring + rest",
+    "tier": "core",
+    "task": "Pull one field out of an object and keep the rest",
+    "call": "const { a, ...rest } = obj",
+    "returns": "(idiom)",
+    "example": "const {a,...r}={a:1,b:2,c:3}; return [a,r];",
+    "expected": "[1,{\"b\":2,\"c\":3}]"
+  },
+  {
+    "method": "structuredClone",
+    "tier": "core",
+    "task": "Deep-copy a nested array/object",
+    "call": "structuredClone(x)",
+    "mutates": false,
+    "returns": "deep copy",
+    "example": "const a=[[1]]; const b=structuredClone(a); b[0][0]=9; return a;",
+    "expected": "[[1]]",
+    "gotcha": "Throws on functions. JSON.parse(JSON.stringify(x)) loses undefined/Map/Set."
+  },
+  {
+    "method": "?? vs ||",
+    "tier": "core",
+    "task": "Default a value only when null/undefined (not for 0)",
+    "call": "x ?? fallback",
+    "returns": "x unless it is null/undefined",
+    "example": "return [0||5,0??5];",
+    "expected": "[5,0]",
+    "gotcha": "|| also replaces 0, '' and false; ?? only replaces null and undefined."
+  }
 ]
