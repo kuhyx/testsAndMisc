@@ -28,11 +28,6 @@ _logger = logging.getLogger(__name__)
 PHONE_EXPORT_DIR = "/sdcard/Documents/RunnerUp"
 ACTIVITY_SUFFIXES = (".tcx", ".gpx", ".fit")
 _ADB_TIMEOUT = 60
-# Pins which phone to pull from when more than one device is attached.
-# Without it every adb call fails with "more than one device/emulator" --
-# silently, as a warning on a path nobody watches -- the moment a second
-# device shows up. Left unset, the single attached device is used.
-ADB_SERIAL_ENV = "ENDURAIN_ADB_SERIAL"
 # Pins which phone to pull from when more than one device is attached. Without
 # it every adb call fails with "more than one device/emulator" -- silently, as
 # a warning on the fallback path -- the moment a second device (a spare handset,

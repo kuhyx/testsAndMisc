@@ -1,0 +1,15 @@
+{
+  "title": "token_audit v2 + repo contract in testsAndMisc",
+  "objective": "token_audit measures deduplicated, subagent-inclusive, per-model USD spend over the window since the last snapshot and scores ledger levers; testsAndMisc satisfies the shared repo contract.",
+  "acceptance_criteria": [
+    "python_pkg/token_audit at 100% branch coverage, no suppressions, every file <= 250 lines",
+    "Tests never write to ~/.claude/token-report (autouse conftest redirect)",
+    "python3 -m python_pkg.token_audit --no-write runs and reports the window since the previous snapshot",
+    "check_repo_contract.sh passes; dependency freshness --all passes"
+  ],
+  "out_of_scope": [
+    "~/.claude hooks and the /token-optimization skill (separate repo)",
+    "Other packages' coverage"
+  ],
+  "verifier": "pytest --cov-branch, pre-commit on changed files, CI on push"
+}

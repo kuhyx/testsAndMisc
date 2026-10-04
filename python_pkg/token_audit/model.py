@@ -73,6 +73,7 @@ class Turn:
     is_sidechain: bool
     message_id: str = ""
     tool_calls: int = 0
+    timestamp: float = 0.0
 
     @property
     def cost(self) -> float:
@@ -94,6 +95,9 @@ class ToolCall:
     result_tokens: int
     path: str | None = None
     skill: str | None = None
+    # A Bash call that ran ``git commit`` or ``finish_auto.sh``: the closest
+    # transcript-visible proxy for "an issue got solved", used for USD/commit.
+    commit: bool = False
 
     @property
     def is_image(self) -> bool:
@@ -120,6 +124,11 @@ class Session:
     cwd: str | None = None
     turns: list[Turn] = field(default_factory=list)
     tools: list[ToolCall] = field(default_factory=list)
+    # Set only for subagent transcripts: the spawning session and the
+    # agentType / description from the sibling ``.meta.json``.
+    parent_id: str | None = None
+    agent_type: str | None = None
+    description: str | None = None
     # Cost-weighted tokens spent re-sending images that were still live in
     # context. Computed by :mod:`imagecost`, which needs the interleaved order
     # of images and turns and so cannot be derived from these lists alone.

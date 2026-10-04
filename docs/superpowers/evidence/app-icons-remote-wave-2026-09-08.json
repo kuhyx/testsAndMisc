@@ -1,0 +1,48 @@
+{
+  "intent": "Give the new signal-bot phone app (~/signal-bot/app) a launcher icon from the shared family, so it stops shipping the stock Flutter beach icon.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art_more.py - the new SVG fragment",
+    "python_pkg/app_icons/glyphs.py - register the glyph in GLYPHS",
+    "python_pkg/app_icons/apps.py - register the app so --app signalbot_remote passes argument validation",
+    "Non-goal: no change to the shared accent #B8862E or the charcoal field; a glyph is distinguished by silhouette only",
+    "Non-goal: no change to any existing app's icon",
+    "Non-goal: the app itself, its Flutter code and its Cloudflare transport all live in ~/signal-bot and are committed there"
+  ],
+  "changes": [
+    "Added _REMOTE_WAVE: a filled handset (x=412..612, y=440..792, r=56) with two punched-out buttons (r=40 at 512,540 and 512,680) under a detached stroked arc (r=132 about 512,440, drawn 135deg to 45deg). Total ink y=272..792, x=383..641, inside the 560 safe box.",
+    "The arc is detached from the body on purpose: an arc that meets the body is a padlock shackle, and padlock-closed is already in this family.",
+    "The body is filled rather than stroked, for the same reason as _QUILL_NIB and _ANVIL: a 200-wide stroked body leaves a 56px interior at STROKE_WIDTH=72 and fills in solid at 48dp.",
+    "Registered Glyph('remote-wave', ...) in GLYPHS and AppIcon(key='signalbot_remote', glyph='remote-wave', linux=False) in APPS, pointing at ~/signal-bot/app."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons list",
+      "result": "pass",
+      "evidence": "remote-wave appears under Glyphs; 'signalbot_remote #B8862E remote-wave /home/kuhy/signal-bot/app' appears under Apps."
+    },
+    {
+      "command": "PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app signalbot_remote --android",
+      "result": "pass",
+      "evidence": "wrote 6 asset files to /home/kuhy/signal-bot/app/assets/icon and regenerated the Android mipmaps. The generator's safe-box and negative-space checks did not fire. A first attempt failed because flutter_launcher_icons was not yet in the app's pubspec; the config block was added and it then succeeded."
+    },
+    {
+      "command": "visual review of the rendered preview sheet (full size, circle-masked, 48dp)",
+      "result": "pass",
+      "evidence": "Reads as a handset with a signal arc at all three sizes. The two buttons stay separate at 48dp (60px edge gap against MIN_NEGATIVE_SPACE=36) and the arc keeps it from reading as a domino."
+    },
+    {
+      "command": "python3 -m coverage run --branch --source=python_pkg/app_icons -m pytest python_pkg/app_icons/tests",
+      "result": "pass",
+      "evidence": "44 passed; python_pkg/app_icons at 100% line and branch coverage. The registry invariants (every app references a real glyph, accents are shared, no glyph paints the background) iterate over APPS and GLYPHS, so the new entries are exercised by the existing tests."
+    }
+  ],
+  "risks": [
+    "The glyph is new artwork, so only a visual check can confirm it reads correctly at 48dp. Mitigated by rendering and reviewing the actual preview sheet rather than trusting the SVG source.",
+    "Not yet verified on the phone: kuhy's device is unavailable until 2026-09-10, so the launcher has not rendered this icon on real hardware.",
+    "_glyph_art_more.py is now 160 lines. Together with _glyph_art.py it exists solely to stay under the 250-line cap, so a third file will be needed before long."
+  ],
+  "rollback": [
+    "git revert the commit. The three edits are additive - no existing glyph, app or shared token is touched - so a revert cannot change any other app's icon.",
+    "After rollback, re-run 'python3 -m python_pkg.app_icons list' and confirm the remaining 16 glyphs still resolve. The already-generated PNGs in ~/signal-bot/app would then have no source in this repo, so revert that repo's icon commit too or regenerate from a restored glyph."
+  ]
+}

@@ -81,7 +81,14 @@ hooks travel with the repo. `.git/hooks/` is unused — **never run
   then `pre-commit run --hook-stage pre-commit`.
 - **pre-push**: `pre-commit run --hook-stage pre-push` — `prettier` and
   `ci-mirror`. `ci-mirror` runs a clean-venv install, `pre-commit run` over all
-  files, and pytest for changed packages.
+  files, and pytest for changed packages — but **not on the push's critical
+  path**. The push spawns a detached, niced worker and returns in well under a
+  second; the worker records a verdict for the tree it checked. A recorded
+  failure refuses the *next* push until the tree is verified in the foreground
+  with `CI_MIRROR_SYNC=1 git push`, so a broken tree reaches GitHub at most
+  once. A tree that already passed costs nothing to re-push.
+  `prettier` caches its verdict per file content + prettier version + config,
+  so unchanged files never start Node.
 
 Bootstrap a clone or new machine:
 
@@ -161,3 +168,12 @@ number of error codes, so it is weaker than the `strict = true` in the config.
 - `docs/superpowers/evidence/template.json` — evidence template
 - `.github/workflows/` — `pre-commit`, `python-tests`, `shell-tests`, and one
   CI workflow per app
+
+## Commands
+
+- run: n/a: monorepo of independent scripts and apps, no single entry point (see Repository Layout)
+- test: `python3 -m pytest -q -o addopts="--strict-markers --strict-config"`
+- test-changed: `scripts/test_changed.sh`
+- lint: `pre-commit run --hook-stage pre-commit`
+- coverage: `python3 -m pytest -q --cov=python_pkg --cov-branch --cov-report=xml -o addopts="--strict-markers --strict-config"`
+- coverage-gaps: `coverage-gaps coverage.xml`

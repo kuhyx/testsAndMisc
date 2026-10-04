@@ -44,9 +44,9 @@ source "$ROOT/meta/scripts/ci_mirror_range.sh"
 source "$ROOT/meta/scripts/ci_mirror_shell.sh"
 # shellcheck source=meta/scripts/ci_mirror_mem.sh
 source "$ROOT/meta/scripts/ci_mirror_mem.sh"
+source "$ROOT/meta/scripts/ci_mirror_async.sh"
 
 # Records the tree hash of the last fully-green run; see tree_cache_*.
-readonly GREEN_CACHE="$ROOT/.ci-mirror-venv/.last-green-tree"
 
 LOGDIR=""
 
@@ -211,23 +211,14 @@ run_python_gate() {
 	(cd "$CHECKOUT" && "$VENV_DIR/bin/python" meta/scripts/pytest_changed_packages.py "${args[@]}")
 }
 
-# Short-circuit a re-push of a tree that already passed.
-#
-# Keyed on the whole-repo tree hash of HEAD, so it self-invalidates when
-# anything in the tree changes -- including the gate's own scripts. A rebase
-# that lands the identical tree, or a retried push after a network failure,
-# then costs nothing. The record lives inside .ci-mirror-venv/ (already
-# gitignored) so it never shows up in `git status` or a jail fingerprint.
-tree_is_known_green() {
-	local head_tree stored
-	head_tree="$(git -C "$ROOT" rev-parse 'HEAD^{tree}')"
-	[[ -f "$GREEN_CACHE" ]] || return 1
-	stored="$(cat "$GREEN_CACHE")"
-	[[ "$head_tree" == "$stored" ]]
-}
-
-record_tree_green() {
-	git -C "$ROOT" rev-parse 'HEAD^{tree}' >"$GREEN_CACHE" 2>/dev/null || true
+# The gates themselves, shared by the foreground, background and sync paths.
+# The green-tree short-circuit and the verdict bookkeeping they depend on
+# live in ci_mirror_async.sh.
+run_full_gate() {
+	ensure_venv
+	run_gates_in_clean_worktree
+	record_tree_green
+	log "all CI gates passed locally — safe to push"
 }
 
 main() {
@@ -236,10 +227,18 @@ main() {
 		log "this exact tree already passed the full gate — nothing to redo"
 		exit 0
 	fi
-	ensure_venv
-	run_gates_in_clean_worktree
-	record_tree_green
-	log "all CI gates passed locally — safe to push"
+	if [[ "${CI_MIRROR_WORKER:-}" == "1" ]]; then
+		run_as_worker
+		exit 0
+	fi
+	# A previous background run that failed blocks this push, whichever mode
+	# the user then chooses.
+	block_on_previous_failure
+	if [[ "${CI_MIRROR_SYNC:-}" == "1" ]]; then
+		run_full_gate
+		exit 0
+	fi
+	spawn_worker
 }
 
 main "$@"

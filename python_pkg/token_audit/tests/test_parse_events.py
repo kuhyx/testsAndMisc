@@ -84,23 +84,6 @@ def test_events_carry_expected_types(tmp_path: Path) -> None:
     assert isinstance(events["turn"], Turn)
 
 
-def test_find_transcripts_filters_by_window(tmp_path: Path) -> None:
-    project = tmp_path / "proj"
-    project.mkdir()
-    old = project / "old.jsonl"
-    new = project / "new.jsonl"
-    old.write_text("{}", encoding="utf-8")
-    new.write_text("{}", encoding="utf-8")
-    import os
-
-    os.utime(old, (1000, 1000))
-    os.utime(new, (50_000, 50_000))
-
-    assert parse.find_transcripts(tmp_path, since=10_000) == [new]
-    assert parse.find_transcripts(tmp_path, since=0, until=2000) == [old]
-    assert len(parse.find_transcripts(tmp_path, since=0)) == 2
-
-
 @pytest.mark.parametrize("payload", [None, "abcdefgh"])
 def test_result_tokens_handles_missing_content(payload: str | None) -> None:
     assert parse._result_tokens({"content": payload}) >= 0

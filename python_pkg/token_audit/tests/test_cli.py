@@ -18,10 +18,11 @@ def _transcript(
     turns: int = 2,
     *,
     image: bool = False,
+    stamp: str | None = None,
 ) -> Path:
     project = root / "proj"
     project.mkdir(exist_ok=True)
-    records = []
+    records: list[dict[str, object]] = []
     if image:
         records += [
             {
@@ -63,6 +64,8 @@ def _transcript(
                 },
             },
         )
+    if stamp is not None:
+        records = [r | {"timestamp": stamp} for r in records]
     path = project / f"{name}.jsonl"
     path.write_text("\n".join(json.dumps(r) for r in records), encoding="utf-8")
     return path
@@ -145,7 +148,7 @@ def test_explicit_since_and_until_window(tmp_path: Path) -> None:
 
 
 def test_until_before_files_yields_no_data(tmp_path: Path) -> None:
-    _transcript(tmp_path)
+    _transcript(tmp_path, stamp="2026-01-01T00:00:00+00:00")
     code = cli.main(
         ["--root", str(tmp_path), "--since", "0", "--until", "1", "--no-write"]
     )
@@ -170,8 +173,11 @@ def test_second_run_reports_delta(
     args = ["--root", str(tmp_path), "--out", str(out_dir), "--days", "36500"]
     cli.main(args)
     capsys.readouterr()
-    cli.main(args)
-    assert "Week over week" in capsys.readouterr().out
+    # A bare rerun starts where the first ended (nothing new); pin the window.
+    cli.main([*args, "--since", "0"])
+    out = capsys.readouterr().out
+    assert "## Since the previous analysis" in out
+    assert "| usd_per_day |" in out
 
 
 def test_parser_defaults() -> None:
@@ -190,3 +196,12 @@ def test_help_exits_zero(flag: str) -> None:
     with pytest.raises(SystemExit) as excinfo:
         cli.main([flag])
     assert excinfo.value.code == 0
+
+
+def test_rerun_starts_where_previous_window_ended(tmp_path: Path) -> None:
+    _transcript(tmp_path)
+    out_dir = tmp_path / "out"
+    args = ["--root", str(tmp_path), "--out", str(out_dir), "--days", "36500"]
+    assert cli.main(args) == 0
+    # The first run's window end is now the default start: nothing newer.
+    assert cli.main(args) == cli.EXIT_NO_DATA

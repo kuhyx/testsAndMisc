@@ -20,8 +20,10 @@ the design here:
 from __future__ import annotations
 
 import json
+import re
 from typing import TYPE_CHECKING, Any
 
+from python_pkg.token_audit import discover, records, turns
 from python_pkg.token_audit.model import IMAGE_SUFFIXES, Session, ToolCall, Turn
 
 if TYPE_CHECKING:
@@ -39,6 +41,9 @@ CHARS_PER_TOKEN = 4
 # far better estimate than the base64 payload length, which is ~20x too high.
 # Halving a screenshot's dimensions cuts this roughly fourfold.
 IMAGE_TOKENS = 2566
+
+# Commands that land work: a plain commit or the scripted wrap-up.
+COMMIT = re.compile(r"\bgit(\s+-C\s+\S+)?\s+commit\b|finish_auto\.sh")
 
 
 def _load_line(line: str) -> dict[str, Any] | None:
@@ -61,31 +66,6 @@ def _blocks(record: dict[str, Any]) -> list[dict[str, Any]]:
     return [block for block in content if isinstance(block, dict)]
 
 
-def _usage(record: dict[str, Any]) -> tuple[dict[str, Any], dict[str, int]] | None:
-    """Return an assistant record's message and its integer usage fields.
-
-    The message is returned alongside the usage block so callers that need both
-    (the model id lives on the message) never have to re-validate its type.
-    """
-    message = record.get("message")
-    if not isinstance(message, dict):
-        return None
-    usage = message.get("usage")
-    if not isinstance(usage, dict):
-        return None
-    return message, {k: v for k, v in usage.items() if isinstance(v, int)}
-
-
-def _model(message: dict[str, Any]) -> str:
-    """Return the model id that served a record, or a placeholder.
-
-    Only ever called after :func:`_usage` has confirmed the message is a dict,
-    so it takes the message itself rather than re-checking the record.
-    """
-    model = message.get("model")
-    return model if isinstance(model, str) else "unknown"
-
-
 def _result_tokens(block: dict[str, Any], *, is_image: bool = False) -> int:
     """Estimate how many tokens a tool result occupied in context.
 
@@ -106,32 +86,64 @@ def _result_tokens(block: dict[str, Any], *, is_image: bool = False) -> int:
     return len(json.dumps(content)) // CHARS_PER_TOKEN
 
 
-def iter_events(path: Path) -> Iterator[tuple[str, object]]:
+def iter_events(
+    path: Path,
+    window: records.Window | None = None,
+) -> Iterator[tuple[str, object]]:
     """Yield ``("turn", Turn)`` and ``("tool", ToolCall)`` in transcript order.
 
     Emitting a single ordered stream — rather than two lists — is what lets
-    :mod:`imagecost` count how many turns each image survived for.
+    :mod:`imagecost` count how many turns each image survived for. Turns are
+    one per API message (see :mod:`records`), and only records inside
+    ``window`` are emitted.
     """
     pending: dict[str, dict[str, Any]] = {}
+    merger = records.TurnMerger()
     with path.open(encoding="utf-8", errors="replace") as handle:
         for line in handle:
             record = _load_line(line)
-            if record is None:
+            if record is None or not records.in_window(record, window):
                 continue
+            pairs: list[tuple[str, object]] = []
             for block in _blocks(record):
-                kind = block.get("type")
-                if kind == "tool_use":
-                    call_id = block.get("id")
-                    if isinstance(call_id, str):
-                        pending[call_id] = block
-                elif kind == "tool_result":
-                    call = _pair_result(block, pending)
-                    if call is not None:
-                        yield "tool", call
-            found = _usage(record)
+                pairs += _block_events(block, pending, merger)
+            yield from pairs
+            found = turns.usage_of(record)
             if found is not None:
-                message, usage = found
-                yield "turn", _build_turn(record, message, usage)
+                done = merger.push(turns.build_turn(record, *found))
+                if done is not None:
+                    yield "turn", done
+    held = merger.flush()
+    if held is not None:
+        yield "turn", held
+
+
+def _block_events(
+    block: dict[str, Any],
+    pending: dict[str, dict[str, Any]],
+    merger: records.TurnMerger,
+) -> list[tuple[str, object]]:
+    """Events one content block emits: remember a ``tool_use``, pair a result.
+
+    A ``tool_result`` ends the assistant message before it, so the held turn is
+    released first to keep the stream in transcript order.
+    """
+    kind = block.get("type")
+    if kind == "tool_use":
+        call_id = block.get("id")
+        if isinstance(call_id, str):
+            pending[call_id] = block
+        return []
+    if kind != "tool_result":
+        return []
+    out: list[tuple[str, object]] = []
+    held = merger.flush()
+    if held is not None:
+        out.append(("turn", held))
+    call = _pair_result(block, pending)
+    if call is not None:
+        out.append(("tool", call))
+    return out
 
 
 def _pair_result(
@@ -146,12 +158,14 @@ def _pair_result(
     tool_input = tool_input if isinstance(tool_input, dict) else {}
     path = tool_input.get("file_path")
     skill = tool_input.get("skill")
+    command = tool_input.get("command")
     call_path = path if isinstance(path, str) else None
     return ToolCall(
         name=str(use.get("name") or "unknown"),
         result_tokens=_result_tokens(block, is_image=_looks_like_image(call_path)),
         path=call_path,
         skill=skill if isinstance(skill, str) else None,
+        commit=isinstance(command, str) and COMMIT.search(command) is not None,
     )
 
 
@@ -163,74 +177,24 @@ def _looks_like_image(path: str | None) -> bool:
     return dot != -1 and path[dot:].lower() in IMAGE_SUFFIXES
 
 
-def _build_turn(
-    record: dict[str, Any],
-    message: dict[str, Any],
-    usage: dict[str, int],
-) -> Turn:
-    """Build a :class:`Turn` from an assistant record's usage block."""
-    context = usage.get("cache_read_input_tokens", 0) + usage.get(
-        "cache_creation_input_tokens",
-        0,
+def load_session(path: Path, window: records.Window | None = None) -> Session:
+    """Read one transcript file into a :class:`Session`.
+
+    A subagent transcript (``<session>/subagents/agent-*.jsonl``) is tagged
+    with its parent session id and the ``agentType``/``description`` the
+    spawning ``Agent`` call recorded in the sibling ``.meta.json``.
+    """
+    session = Session(
+        session_id=path.stem, path=str(path), cwd=discover.first_cwd(path)
     )
-    message_id = message.get("id")
-    content = message.get("content")
-    tool_calls = (
-        sum(
-            1
-            for block in content
-            if isinstance(block, dict) and block.get("type") == "tool_use"
-        )
-        if isinstance(content, list)
-        else 0
-    )
-    return Turn(
-        usage=usage,
-        context=context,
-        model=_model(message),
-        is_sidechain=bool(record.get("isSidechain")),
-        message_id=message_id if isinstance(message_id, str) else "",
-        tool_calls=tool_calls,
-    )
-
-
-def _first_cwd(path: Path) -> str | None:
-    """Return the working directory a transcript was recorded in."""
-    with path.open(encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            record = _load_line(line)
-            if record is not None:
-                cwd = record.get("cwd")
-                if isinstance(cwd, str):
-                    return cwd
-    return None
-
-
-def load_session(path: Path) -> Session:
-    """Read one transcript file into a :class:`Session`."""
-    session = Session(session_id=path.stem, path=str(path), cwd=_first_cwd(path))
-    for kind, event in iter_events(path):
+    if path.parent.name == "subagents":
+        meta = discover.agent_meta(path)
+        session.parent_id = path.parent.parent.name
+        session.agent_type = str(meta.get("agentType") or "unknown")
+        session.description = str(meta.get("description") or "")
+    for kind, event in iter_events(path, window):
         if kind == "turn" and isinstance(event, Turn):
             session.turns.append(event)
         elif isinstance(event, ToolCall):
             session.tools.append(event)
     return session
-
-
-def find_transcripts(
-    root: Path,
-    since: float,
-    until: float | None = None,
-) -> list[Path]:
-    """Return transcripts modified inside the window, newest first.
-
-    Modification time is the selector because it is the only per-file timestamp
-    available without opening the file, and a session's mtime is when it was
-    last active — exactly the notion of "used this week" the report wants.
-    """
-    found: list[tuple[float, Path]] = []
-    for path in sorted(root.glob("*/*.jsonl")):
-        mtime = path.stat().st_mtime
-        if mtime >= since and (until is None or mtime <= until):
-            found.append((mtime, path))
-    return [path for _, path in sorted(found, reverse=True)]

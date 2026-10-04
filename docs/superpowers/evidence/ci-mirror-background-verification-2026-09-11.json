@@ -1,0 +1,51 @@
+{
+  "intent": "Make `git push` return in well under a second instead of 22s-to-minutes, by taking the CI mirror off the push's critical path without giving up the guarantee it exists for.",
+  "scope": [
+    "meta/scripts/ci_mirror_async.sh - new: verdict bookkeeping, the detached worker, and the green-tree short-circuit moved here",
+    "meta/scripts/ci_mirror.sh - main() gains three modes (worker / sync / async); the gates themselves are unchanged",
+    ".pre-commit-config.yaml - hook name now describes the background behaviour",
+    "AGENTS.md (CLAUDE.md symlinks to it) - documents the new pre-push contract",
+    "meta/requirements.txt - matplotlib 3.11.2, which went red on main after release",
+    "Non-goal: changing which gates run or what they check. A verified tree is verified by exactly the same commands as before."
+  ],
+  "changes": [
+    "`git push` spawns a detached, niced (nice -n 19, ionice -c 3) worker for HEAD's tree and returns. Measured at 0.028s.",
+    "The worker records a verdict of ok or fail for the tree it checked, plus the full log, under .ci-mirror-venv/verdicts/.",
+    "A recorded failure refuses the NEXT push, printing the last 40 lines of the failing log and the foreground escape hatch, so a broken tree can reach GitHub at most once - where CI sees the same commit within minutes.",
+    "CI_MIRROR_SYNC=1 restores the old blocking behaviour for a push that must be verified before it lands.",
+    "Workers serialise on a flock rather than skipping when one is already in flight: skipping would have left a newly pushed tree permanently unverified, which was a hole in the first draft of this patch.",
+    "The green-tree short-circuit is unchanged in behaviour - a tree that already passed still costs nothing to re-push."
+  ],
+  "verification": [
+    {
+      "command": "PRE_COMMIT_FROM_REF=42e41319~1 PRE_COMMIT_TO_REF=42e41319 bash meta/scripts/ci_mirror.sh   # async push path",
+      "result": "pass",
+      "evidence": "0.028s total, printing 'verification running in the background (tree 68346b01e46a)'; `pgrep` confirmed the detached worker was running after the command returned."
+    },
+    {
+      "command": "block_on_previous_failure with a synthetic 'fail' verdict in an isolated VENV_DIR",
+      "result": "pass",
+      "evidence": "exit 1, the failing log's tail echoed to stderr, and the CI_MIRROR_SYNC=1 hint printed. With the verdict flipped to 'ok' the same call passes straight through."
+    },
+    {
+      "command": "timing baseline before the change: bash meta/scripts/ci_mirror.sh with the green marker cleared",
+      "result": "pass",
+      "evidence": "22.6s for a 6-file scoped range with a warm venv; 70.8s when requirements.txt had changed and the clean venv was rebuilt. The clean worktree checkout itself is only 0.048s, so the cost is the verification work, not overhead."
+    },
+    {
+      "command": "shellcheck -x -S warning meta/scripts/ci_mirror.sh meta/scripts/ci_mirror_async.sh",
+      "result": "pass",
+      "evidence": "no findings; shfmt applied. ci_mirror.sh is 244 lines, under the repo's 250-line cap."
+    }
+  ],
+  "risks": [
+    "A commit that fails the mirror can reach GitHub once, before the verdict lands. This is the tradeoff kuhy chose explicitly over a 22s-to-minutes blocking push; GitHub CI and the next push both catch it.",
+    "Several pushes in quick succession queue workers that serialise on the lock, so a verdict can lag the push by the length of the runs ahead of it. Each worker still checks its own tree.",
+    "The worker is detached with setsid, so it survives the terminal that started it. It is niced and ionice idle, so it yields to interactive work, but it will still be running after the push prompt returns.",
+    "Paths in ci_mirror_async.sh are computed in functions because the file is sourced before ci_mirror.sh defines VENV_DIR; defining them as readonly constants there would silently resolve to /verdicts."
+  ],
+  "rollback": [
+    "git revert the commit. ci_mirror.sh's main() returns to calling ensure_venv / run_gates_in_clean_worktree / record_tree_green inline, and pushes block again.",
+    "After rollback, delete .ci-mirror-venv/verdicts/, which is then unused, and confirm `git push` still runs the gate in the foreground."
+  ]
+}

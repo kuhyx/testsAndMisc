@@ -185,20 +185,36 @@ repos:
   # Was on pre-push, but force-push diffs caused full-repo scans + OOM.
   # ===========================================================================
   - repo: https://github.com/pylint-dev/pylint
-    rev: v3.3.2
+    rev: v4.0.8
     hooks:
       - id: pylint
         stages: [pre-commit]
         args:
           - --rcfile=pyproject.toml
-          - --fail-under=8.0
+          - --fail-under=10
           - --jobs=0
+        # Every third-party import a linted source file makes, pinned as in
+        # meta/requirements.txt: pylint scores each unresolved one as
+        # import-error, which is a config gap dressed up as a code defect.
         additional_dependencies:
           - pytest
           - python-chess
           - requests
           - pygame
-        exclude: ^(Bash/|\.venv/)
+          - anthropic==1.5.0
+          - beautifulsoup4==4.15.0
+          - defusedxml==0.7.1
+          - markdownify==1.2.3
+          - numpy==2.5.3
+          - pillow==12.3.0
+          - rich==15.0.0
+          - typer==0.27.2
+        # Test suites are ruff's; pylint grades source. The rcfile's
+        # `ignore = ["tests"]` cannot do this on its own -- it matches only
+        # the basename of what pylint is handed, and pre-commit hands it
+        # explicit file paths -- so the exclusion lives here, as in the root
+        # config.
+        exclude: ^(Bash/|\.venv/)|(^|/)(tests/|conftest\.py)
 
   # ===========================================================================
   # BANDIT - Security linter (per-commit on changed files only)

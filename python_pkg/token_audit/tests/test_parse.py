@@ -186,7 +186,7 @@ def test_load_session_ignores_events_of_other_types(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = _write(tmp_path, [_assistant(usage={"output_tokens": 1})])
-    monkeypatch.setattr(parse, "iter_events", lambda _: iter([("turn", "not a Turn")]))
+    monkeypatch.setattr(parse, "iter_events", lambda *_: iter([("turn", "not a Turn")]))
     session = parse.load_session(path)
     assert session.turns == []
     assert session.tools == []

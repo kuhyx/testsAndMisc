@@ -348,13 +348,19 @@ repos:
         # on unrelated commits. Skips itself where ~/.claude is absent (CI).
         files: ^(linux_configuration/tests/test_session_autopsy_hooks\.py|meta/scripts/mutate_session_autopsy_hooks\.py)$
       - id: ci-mirror
-        name: CI mirror (clean-venv install + --all-files + changed-pkg pytest)
+        name: CI mirror (background; a failed verdict blocks the next push)
         entry: bash meta/scripts/ci_mirror.sh
         language: system
         pass_filenames: false
         always_run: true
         require_serial: true
         stages: [pre-push]
+      - id: repo-contract
+        name: repo contract (CLAUDE.md Commands + test_changed)
+        entry: scripts/check_repo_contract.sh
+        language: system
+        pass_filenames: false
+        files: ^(CLAUDE\.md|AGENTS\.md|scripts/test_changed\.sh)$
 
   # ===========================================================================
   # VULTURE - Dead code detection (disabled - doesn't work well with pre-commit)

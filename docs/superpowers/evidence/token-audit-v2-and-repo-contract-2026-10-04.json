@@ -1,0 +1,41 @@
+{
+  "intent": "token_audit reports real spend: deduplicated per-message usage, subagent sidechains included, per-model USD, time-windowed snapshots + lever ledger scored by /token-optimization; testsAndMisc gets the shared repo contract (CLAUDE.md Commands, scripts/test_changed.sh, CI gate) and newest-stable pins.",
+  "scope": [
+    "python_pkg/token_audit: records, discover, pricing (+prices.json), history, breakdown, recommend, review, turns (new); parse, model, __main__ (edited); tests for every module",
+    "repo contract: scripts/check_repo_contract.sh, scripts/test_changed.sh, .github/workflows/repo-contract.yml, AGENTS.md Commands, pre-commit hook",
+    "meta/requirements.txt: pylint 4.1.2, websockets 17.2, pyflakes 4.0.2 (main CI was red on freshness)",
+    "Rides along from other sessions: ci_mirror async (own evidence JSON 2026-09-11), app-icons evidence, endurain_import duplicate ADB_SERIAL_ENV block removed",
+    "Non-goal: changing the hooks in ~/.claude that consume these reports"
+  ],
+  "changes": [
+    "Usage is counted once per API message id (transcripts repeat it per content block: 1.9x overcount before)",
+    "Subagent transcripts are discovered and attributed (were 35% of spend and invisible)",
+    "Each run analyses only records after the previous snapshot, writes history/<ts>.json and scores ledger levers against it; usd_per_commit metric",
+    "history.py resolves REPORT_DIR at call time so tests redirect it; parse split into parse + turns to stay under 250 lines and complexity 10; Breakdown groups tallies (old attribute names kept as properties)"
+  ],
+  "verification": [
+    {
+      "command": "~/.claude/scripts/capped.sh python3 -m pytest python_pkg/token_audit python_pkg/endurain_import -q --cov-branch",
+      "result": "pass",
+      "evidence": "291 passed; every python_pkg/token_audit module at 100% line+branch coverage (1108 stmts, 260 branches, 0 missed)"
+    },
+    {
+      "command": "~/.claude/scripts/capped.sh python3 -m python_pkg.token_audit --no-write",
+      "result": "pass",
+      "evidence": "Analysed 20-24 sessions in 0.15s; window starts at the previous snapshot; ~/.claude/token-report file list and mtimes unchanged by the test suite"
+    },
+    {
+      "command": "scripts/check_dependency_freshness.sh --all",
+      "result": "pass",
+      "evidence": "after bumping pylint, websockets, pyflakes (flake8 7.4.1 allows pyflakes <4.1.0)"
+    }
+  ],
+  "risks": [
+    "Absolute USD figures before 2026-10-04 double-counted ~1.9x; comparisons across that date are rate-only.",
+    "prices.json must be updated when Anthropic prices change; unknown models price at 0 and are listed."
+  ],
+  "rollback": [
+    "git revert <this commit>: token_audit v1 report format returns; no data migration needed",
+    "Snapshots under ~/.claude/token-report/history are additive and can stay"
+  ]
+}
