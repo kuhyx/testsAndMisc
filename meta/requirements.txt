@@ -12,7 +12,7 @@ autopep8==2.3.2
 bandit==1.9.4
 beautifulsoup4==4.15.0
 berserk==0.14.0
-black==26.5.1
+black==26.10.0
 bottle==0.13.4
 codespell==2.4.3
 coverage==7.16.2
@@ -71,7 +71,7 @@ pytest-sugar==1.1.1
 pytest-timeout==2.4.0
 pytest-xdist==3.8.0
 python-chess==1.999
-python-kasa==0.10.2
+python-kasa==0.11.0.1
 pyupgrade==3.21.2
 radon==6.0.1
 reorder-python-imports==3.17.0
