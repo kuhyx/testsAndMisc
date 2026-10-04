@@ -104,25 +104,31 @@ _t_called 'daemon-reload' "units are followed by a daemon-reload"
 out="$(open_firewall 2>&1)"
 _t_has "$out" 'WireGuard-only' "wg-bound install needs no router forward"
 
-# nft present and the rule already there: must not add a duplicate.
+# nft present: the rule goes through the firewall owner's allow-dot, which
+# persists ALLOW_DOT so a later re-apply keeps it (a bare 'nft add rule' was
+# silently dropped by the next one).
 _t_stub nft
-printf '#!/usr/bin/env bash\nprintf "nft %%s\\n" "$*" >>"%s/calls.log"\nif [[ $* == *list* ]]; then printf "iifname \\"wg0\\" tcp dport %s accept\\n" ; fi\nexit 0\n' \
-	"$TEST_TMPDIR" "$DOT_PORT" >"$TEST_TMPDIR/bin/nft"
-chmod +x "$TEST_TMPDIR/bin/nft"
+WG_SCRIPT="$TEST_TMPDIR/bin/wg_owner"
+printf '#!/usr/bin/env bash\nprintf "wg_owner %%s\\n" "$*" >>"%s/calls.log"\nexit 0\n' \
+	"$TEST_TMPDIR" >"$WG_SCRIPT"
+chmod +x "$WG_SCRIPT"
 out="$(open_firewall 2>&1)"
-_t_has "$out" 'already permits' "an existing wg0 rule is not duplicated"
+_t_has "$out" 'wg0 only (persisted)' "the wg0 rule is opened through the firewall owner"
+_t_called 'wg_owner allow-dot' "open_firewall runs setup_wireguard_ssh.sh allow-dot"
+if grep -q 'add rule inet filter input iifname wg0' "$TEST_TMPDIR/calls.log"; then
+	_t_fail "no unpersisted runtime 'nft add rule' for the wg0 branch"
+else
+	_t_pass "no unpersisted runtime 'nft add rule' for the wg0 branch"
+fi
 
-# nft present and the rule missing: must add it, scoped to wg0.
-printf '#!/usr/bin/env bash\nprintf "nft %%s\\n" "$*" >>"%s/calls.log"\nexit 0\n' \
-	"$TEST_TMPDIR" >"$TEST_TMPDIR/bin/nft"
-chmod +x "$TEST_TMPDIR/bin/nft"
+# allow-dot fails (e.g. sshd check rolled it back): warn and carry on.
+printf '#!/usr/bin/env bash\nexit 1\n' >"$WG_SCRIPT"
 out="$(open_firewall 2>&1)"
-_t_has "$out" 'wg0 only' "a missing wg0 rule is added"
-_t_called 'add rule inet filter input iifname wg0' "the added rule is scoped to the tunnel"
+_t_has "$out" 'WARNING: could not open' "a failed allow-dot warns instead of aborting"
+unset WG_SCRIPT
 
-# nft present but the ADD fails (a locked-down or read-only ruleset): the
-# install must warn and carry on, never abort. `nft list` still has to succeed
-# or the outer guard short-circuits before the add is attempted.
+# The public branch still adds its rule at runtime; its add-failure path
+# needs an nft whose 'list' succeeds and 'add' fails.
 cat >"$TEST_TMPDIR/bin/nft" <<'NFT'
 #!/usr/bin/env bash
 printf 'nft %s\n' "$*" >>"$TEST_TMPDIR/calls.log"
@@ -130,8 +136,6 @@ printf 'nft %s\n' "$*" >>"$TEST_TMPDIR/calls.log"
 exit 0
 NFT
 chmod +x "$TEST_TMPDIR/bin/nft"
-out="$(open_firewall 2>&1)"
-_t_has "$out" 'WARNING: could not add nftables rule' "a failed wg0 rule add warns instead of aborting"
 
 # --- open_firewall: the publicly-bound branch -------------------------------
 # A public bind is an open resolver, so the rule MUST carry a rate limit.

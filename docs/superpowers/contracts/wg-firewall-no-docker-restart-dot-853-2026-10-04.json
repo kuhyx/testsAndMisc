@@ -1,0 +1,16 @@
+{
+  "title": "Firewall applies leave Docker alone; DoT 853 persisted",
+  "objective": "Any setup_wireguard_ssh.sh allow-* apply must replace only the inet filter table, never restart docker or its containers while docker's own rules are intact, and keep tcp/853 on wg0 (DoT) across every re-apply and reboot via a persisted ALLOW_DOT flag.",
+  "acceptance_criteria": [
+    "Rendered ruleset has no 'flush ruleset' and declares-then-deletes inet filter before defining it (test_wg_firewall.sh)",
+    "restore_docker_rules restarts docker only when 'iptables -t nat -S DOCKER' fails (test_wg_firewall.sh)",
+    "ALLOW_DOT=true renders iifname wg0 tcp dport 853 accept; open_firewall goes through allow-dot (test_wg_firewall.sh, test_dot_resolver_install.sh)",
+    "vmbox: re-apply leaves docker, a probe container and a foreign nft table untouched; first-boot load works",
+    "Host: allow-dot applied with docker and gitea-caddy start times unchanged; verify reports no drift"
+  ],
+  "out_of_scope": [
+    "The publicly bound DoT branch's runtime rate-limited rule",
+    "Changing which ports are open beyond adding 853 on wg0"
+  ],
+  "verifier": "lib/tests/run_all.sh in shell_coverage_jail.sh, vmbox guest dotfw, setup_wireguard_ssh.sh verify on the host"
+}

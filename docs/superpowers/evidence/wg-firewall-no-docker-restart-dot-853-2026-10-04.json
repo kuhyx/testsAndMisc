@@ -1,0 +1,41 @@
+{
+  "intent": "A firewall apply (setup_wireguard_ssh.sh allow-*) no longer bounces Docker and its containers, and the DoT rule (tcp/853 on wg0) survives every re-apply instead of vanishing.",
+  "scope": [
+    "linux_configuration/features/lib/wg_firewall.sh: ruleset replaces only 'table inet filter'; restore_docker_rules restarts docker only when its nat DOCKER chain is gone; ALLOW_DOT renders 853 on wg0; allow_dot()",
+    "linux_configuration/features/setup_wireguard_ssh.sh, lib/wg_sshd.sh: ALLOW_DOT default/save_config, allow-dot subcommand and usage",
+    "linux_configuration/features/lib/dot_resolver_install.sh: wg-bound branch goes through 'setup_wireguard_ssh.sh allow-dot' instead of a runtime 'nft add rule'",
+    "Tests: new lib/tests/test_wg_firewall.sh; test_dot_resolver_install.sh wg-branch cases rewritten",
+    "Non-goal: the publicly bound DoT branch still adds its rate-limited rule at runtime"
+  ],
+  "changes": [
+    "'flush ruleset' replaced by 'table inet filter' + 'delete table inet filter' before the definition: atomic, leaves Docker's (iptables-nft) and Tailscale's tables alone, and loads on a first boot",
+    "restore_docker_rules checks 'iptables -t nat -S DOCKER' and only restarts docker when that chain is missing",
+    "sshd-death rollback deletes only inet filter instead of flushing the whole ruleset",
+    "ALLOW_DOT persisted in .wireguard_ssh.conf; open_firewall calls allow-dot so the rule is rendered on every apply"
+  ],
+  "verification": [
+    {
+      "command": "vmbox guest dotfw (iptables-nft, docker 29 + busybox probe, an extra 'inet sentinel' table): old HEAD allow-homeassistant vs new allow-dot",
+      "result": "pass",
+      "evidence": "old: all non-inet-filter tables deleted, docker + probe restarted; new re-apply from healthy state: docker ActiveEnterTimestamp and probe StartedAt unchanged, sentinel and docker tables kept; verify clean; systemctl restart nftables and first-boot load (no table) rc=0"
+    },
+    {
+      "command": "sudo setup_wireguard_ssh.sh allow-dot (host, iptables legacy)",
+      "result": "pass",
+      "evidence": "'docker's own firewall rules are intact; containers untouched'; docker since 2026-09-28 12:41:15 and gitea-caddy StartedAt unchanged; live input chain gains iifname wg0 tcp dport 853 accept; verify: nftables.conf matches; anki/gitea HTTPS 200"
+    },
+    {
+      "command": "lib/tests/test_wg_firewall.sh (root in vmbox) ; shell_coverage_jail.sh --subject lib/tests/run_all.sh <jail_args> --min 0 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "12 passed incl. real nft -c; jailed suite rc=0"
+    }
+  ],
+  "risks": [
+    "Tables left over from an older ruleset outside inet filter are no longer flushed by an apply (none exist on the host).",
+    "If docker's rules live somewhere other than the nat DOCKER chain, a missing-rules state would not trigger the rebuild."
+  ],
+  "rollback": [
+    "git revert this commit, then sudo setup_wireguard_ssh.sh allow-web to re-render (old code restarts docker once)",
+    "After rollback: setup_wireguard_ssh.sh verify, and confirm containers reach the network"
+  ]
+}

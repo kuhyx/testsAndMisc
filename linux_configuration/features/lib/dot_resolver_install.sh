@@ -100,12 +100,12 @@ open_firewall() {
 	# added explicitly, scoped to the tunnel interface.
 	if [[ "$BIND_ADDR" != "0.0.0.0" ]]; then
 		if command -v nft >/dev/null 2>&1 && sudo nft list table inet filter >/dev/null 2>&1; then
-			if sudo nft list table inet filter | grep -q "iifname \"wg0\" tcp dport $DOT_PORT"; then
-				log "nftables already permits $DOT_PORT on wg0"
+			# Through the firewall's owner, which persists ALLOW_DOT and renders
+			# the rule: an 'nft add rule' here vanished at the next re-apply.
+			if sudo bash "${WG_SCRIPT:-${SCRIPT_DIR}/setup_wireguard_ssh.sh}" allow-dot; then
+				log "Permitted TCP $DOT_PORT on wg0 only (persisted)"
 			else
-				sudo nft add rule inet filter input iifname wg0 tcp dport "$DOT_PORT" accept ||
-					log "WARNING: could not add nftables rule for $DOT_PORT on wg0"
-				log "Permitted TCP $DOT_PORT on wg0 only"
+				log "WARNING: could not open $DOT_PORT on wg0 (setup_wireguard_ssh.sh allow-dot)"
 			fi
 		fi
 		log "No router port-forward needed - $BIND_ADDR is WireGuard-only."

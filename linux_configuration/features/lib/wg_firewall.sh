@@ -12,14 +12,14 @@ render_nftables_ruleset() {
 	local target="$1"
 	detect_lan_subnet
 	local web_rule=""
-	if [[ $ALLOW_WEB == "true" ]]; then
+	if [[ ${ALLOW_WEB:-false} == "true" ]]; then
 		web_rule=$'\n\t\ttcp dport { 80, 443 } accept'
 	fi
 	# DNS blocker (setup_dns_blocker.sh): serve DNS (53) -- and DHCP (67) when
 	# this PC is the LAN DHCP server -- to LAN clients only. Restricted to the
 	# LAN subnet so nothing is ever exposed to the internet.
 	local dns_rule="" dhcp_rule=""
-	if [[ $ALLOW_DNS == "true" ]]; then
+	if [[ ${ALLOW_DNS:-false} == "true" ]]; then
 		dns_rule=$'\n\t\tip saddr '"${LAN_SUBNET}"$' udp dport 53 accept'
 		dns_rule+=$'\n\t\tip saddr '"${LAN_SUBNET}"$' tcp dport 53 accept'
 		# DHCP clients have no IP yet (saddr 0.0.0.0 -> 255.255.255.255) and the
@@ -35,9 +35,20 @@ render_nftables_ruleset() {
 		ha_rule=$'\n\t\tip saddr '"${LAN_SUBNET}"$' tcp dport 8123 accept'
 		ha_rule+=$'\n\t\tiifname "'"${WG_IFACE}"$'" tcp dport 8123 accept'
 	fi
+	# DNS-over-TLS (setup_dot_resolver.sh, bound to the WireGuard address):
+	# rendered here so a re-apply keeps it -- a runtime 'nft add rule' did not.
+	local dot_rule=""
+	if [[ ${ALLOW_DOT:-false} == "true" ]]; then
+		dot_rule=$'\n\t\tiifname "'"${WG_IFACE}"$'" tcp dport 853 accept'
+	fi
 	cat >"$target" <<EOF
 #!/usr/sbin/nft -f
-flush ruleset
+# Replaces ONLY this table, atomically. 'flush ruleset' also deleted every
+# other table (Docker's under iptables-nft, Tailscale's), which is what made
+# each apply restart docker. Declaring the table first makes the delete safe
+# on a boot where it does not exist yet.
+table inet filter
+delete table inet filter
 
 table inet filter {
 	chain input {
@@ -53,7 +64,7 @@ table inet filter {
 		udp dport ${WG_PORT} accept
 
 		iifname "${WG_IFACE}" tcp dport 22 accept
-		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}${dns_rule}${ha_rule}
+		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}${dns_rule}${ha_rule}${dot_rule}
 	}
 	chain forward {
 		type filter hook forward priority 0; policy drop;
@@ -120,16 +131,19 @@ verify_nft() {
 	return "$status"
 }
 
-# 'flush ruleset' above deletes Docker's own tables along with everything
-# else, and dockerd only rebuilds them on its next network event -- so
-# without this, containers keep running with no NAT and no forwarding until
-# somebody happens to restart one. Restarting dockerd rebuilds them at once;
-# containers with a restart policy come back by themselves.
+# Docker keeps its NAT/forward rules in iptables (legacy on this host, so not
+# even visible to nft). Replacing only 'inet filter' leaves them alone, so a
+# restart -- which bounces every container -- is reserved for when they are
+# really gone (e.g. a hand-run 'nft flush ruleset' under iptables-nft).
 restore_docker_rules() {
 	if ! is_service_active docker; then
 		return 0
 	fi
-	log_warn "Restarting docker so it can rebuild the nft rules the flush removed."
+	if iptables -t nat -S DOCKER >/dev/null 2>&1; then
+		log_ok "docker's own firewall rules are intact; containers untouched."
+		return 0
+	fi
+	log_warn "docker's nat rules are missing; restarting docker to rebuild them."
 	systemctl restart docker
 	log_ok "docker restarted; its firewall rules are back."
 }
@@ -141,11 +155,19 @@ verify_nftables_then_apply() {
 	nft -f "$NFT_CONF"
 	sleep 2
 	if ! is_service_active sshd; then
-		nft flush ruleset
+		nft delete table inet filter
 		die "sshd died after applying nftables -- rolled back. Investigate before retrying."
 	fi
 	log_ok "nftables applied; sshd is still active."
 	restore_docker_rules
 	log_warn "Before closing this terminal, open a SECOND ssh session now and confirm it connects."
 	enable_service nftables
+}
+
+allow_dot() {
+	export ALLOW_DOT=true
+	save_config
+	write_nftables_ruleset
+	verify_nftables_then_apply
+	log_ok "Opened tcp/853 on ${WG_IFACE} (persisted)."
 }

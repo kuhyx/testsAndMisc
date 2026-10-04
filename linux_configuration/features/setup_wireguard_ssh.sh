@@ -40,6 +40,7 @@ LAN_SUBNET="${LAN_SUBNET:-}"
 export ALLOW_WEB="${ALLOW_WEB:-false}"
 export ALLOW_DNS="${ALLOW_DNS:-false}"
 export ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT:-false}"
+export ALLOW_DOT="${ALLOW_DOT:-false}"
 
 die() {
 	log_error "$1"
@@ -54,6 +55,7 @@ LAN_SUBNET="${LAN_SUBNET}"
 ALLOW_WEB="${ALLOW_WEB}"
 ALLOW_DNS="${ALLOW_DNS}"
 ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT}"
+ALLOW_DOT="${ALLOW_DOT}"
 EOF
 	chmod 600 "$CONFIG_FILE"
 }
@@ -93,7 +95,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | verify | install-verify)
+	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | allow-dot | verify | install-verify)
 		require_root "$@"
 		;;
 	esac
@@ -132,6 +134,10 @@ main() {
 		;;
 	allow-homeassistant)
 		allow_homeassistant
+		install_verify_units
+		;;
+	allow-dot)
+		allow_dot
 		install_verify_units
 		;;
 	verify)
