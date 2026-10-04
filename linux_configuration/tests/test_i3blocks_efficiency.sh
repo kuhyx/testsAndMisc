@@ -211,4 +211,16 @@ assert_equals '▶ 23:00 (override)' "$(printf '%s\n' "$shutdown_override_output
 assert_equals '#50FA7B' "$(printf '%s\n' "$shutdown_override_output" | sed -n '3p')" \
 	'shutdown countdown should show green while an override is active'
 
+# Minute precision: *_MINUTES (minutes after midnight) wins over the
+# strict-rounded legacy *_HOUR copy, so 18:30 is shown and enforced as 18:30.
+shutdown_minutes_file="$TMP_DIR/shutdown-schedule-minutes.conf"
+printf '%s\n' MON_WED_MINUTES=1380 THU_SUN_MINUTES=1110 MORNING_END_MINUTES=300 \
+	MON_WED_HOUR=23 THU_SUN_HOUR=18 MORNING_END_HOUR=5 >"$shutdown_minutes_file"
+shutdown_minutes_output=$(TZ=UTC NOW_EPOCH="$(epoch_utc '2026-05-01 18:15:00')" SHUTDOWN_CONFIG="$shutdown_minutes_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
+assert_equals '⏻ 18:30' "$(printf '%s\n' "$shutdown_minutes_output" | sed -n '1p')" \
+	'shutdown countdown should show the minute-precision shutdown time'
+shutdown_minutes_output=$(TZ=UTC NOW_EPOCH="$(epoch_utc '2026-05-01 18:31:00')" SHUTDOWN_CONFIG="$shutdown_minutes_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
+assert_equals '⏻ SHUTDOWN' "$(printf '%s\n' "$shutdown_minutes_output" | sed -n '1p')" \
+	'shutdown countdown should be due once the shutdown minute has passed'
+
 printf 'All i3blocks efficiency regression tests passed.\n'

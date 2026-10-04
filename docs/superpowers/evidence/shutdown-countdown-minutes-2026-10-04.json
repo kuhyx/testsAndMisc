@@ -1,0 +1,37 @@
+{
+  "intent": "The i3blocks shutdown countdown shows and enforces minute-precision shutdown times (e.g. 18:30) now that /etc/shutdown-schedule.conf carries *_MINUTES keys, while still reading pre-migration hour-only files.",
+  "scope": [
+    "linux_configuration/i3blocks/shutdown_countdown.sh",
+    "linux_configuration/tests/test_i3blocks_efficiency.sh",
+    "Non-goal: the writers (screen-locker helper, digital-wellbeing installer) live in their own repos"
+  ],
+  "changes": [
+    "Parse MON_WED_MINUTES/THU_SUN_MINUTES/MORNING_END_MINUTES, prefer them, fall back to *_HOUR * 60; reject values outside 0-1440",
+    "Shutdown epoch and window thresholds computed from minutes; still builtins only (no forks)",
+    "Regression test: 18:30 minutes config shows '⏻ 18:30' at 18:15 and '⏻ SHUTDOWN' at 18:31 while the legacy HOUR copy says 18"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All i3blocks efficiency regression tests passed (fork count <= 1 for the countdown)"
+    },
+    {
+      "command": "SHUTDOWN_CONFIG=<dual|legacy fixture> NOW_EPOCH=<Tue 17:00/18:29/18:31, Thu 22:00> bash shutdown_countdown.sh",
+      "result": "pass",
+      "evidence": "dual: 18:30, 18:30, SHUTDOWN, SHUTDOWN; legacy (19/23): 19:00, 19:00, 19:00, 23:00"
+    },
+    {
+      "command": "bash ~/.config/i3blocks/shutdown_countdown.sh (live, symlinked)",
+      "result": "pass",
+      "evidence": "⏻ 23:00 against the host's current hour-only /etc/shutdown-schedule.conf"
+    }
+  ],
+  "risks": [
+    "A config with only *_MINUTES and malformed values shows INVALID TIME instead of a countdown (display only; enforcement is the check script)"
+  ],
+  "rollback": [
+    "git revert the commit; the old script reads the *_HOUR keys, which every writer still emits",
+    "Re-run the live block and confirm it shows the hour-rounded time"
+  ]
+}
