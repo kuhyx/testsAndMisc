@@ -25,6 +25,7 @@ anthropic==1.11.0
 beautifulsoup4==4.15.0
 coverage==7.16.2
 defusedxml==0.7.1
+genanki==0.13.1
 markdownify==1.2.3
 numpy==2.5.3
 pillow==12.3.0

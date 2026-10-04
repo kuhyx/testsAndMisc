@@ -1,0 +1,16 @@
+{
+  "title": "js_anki: verified Anki deck for JS built-ins",
+  "objective": "A single command builds an .apkg of flip-and-self-grade cards for LeetCode-relevant JS Array/String methods and related idioms, where every card example has been executed in Node and matches its stated result.",
+  "acceptance_criteria": [
+    "python -m python_pkg.js_anki build exits 0 and writes the .apkg",
+    "A deliberately wrong expected value makes the build exit non-zero",
+    "The .apkg imports into desktop Anki with the expected card count and renders correctly",
+    "100% line and branch coverage and a clean pre-commit run"
+  ],
+  "out_of_scope": [
+    "Type-in-answer cards",
+    "Committing the .apkg binary",
+    "Changes to other python_pkg packages"
+  ],
+  "verifier": "python -m python_pkg.js_anki build; pytest python_pkg/js_anki --cov-branch; pre-commit run"
+}

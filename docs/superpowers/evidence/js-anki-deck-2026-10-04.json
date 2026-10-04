@@ -1,0 +1,38 @@
+{
+  "intent": "Generate a verified Anki .apkg deck so JS/TS Array, String, Map/Set/Object/Math and sort/destructuring idioms can be memorized for LeetCode.",
+  "scope": [
+    "New package python_pkg/js_anki (models, verify, deck, cli, runner.js, 3 JSON data files, tests)",
+    "genanki added to meta/requirements-test.txt and the pylint hook additional_dependencies",
+    "Non-goals: no type-in cards, no add-ons, .apkg is a gitignored build artifact"
+  ],
+  "changes": [
+    "98 entries -> 199 flip/self-grade cards (task, behaviour, argument-order) in JS::Array, JS::String and JS::Extras subdecks plus ::Rare tiers",
+    "Every example is executed in Node during the build and the build exits 1 if any result differs from the stated one",
+    "Deterministic model/deck ids and note GUIDs so re-importing updates cards instead of duplicating"
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=. python3 -m python_pkg.js_anki build",
+      "result": "pass",
+      "evidence": "verified 98 examples; wrote 199 cards"
+    },
+    {
+      "command": "pytest python_pkg/js_anki --cov=python_pkg.js_anki --cov-branch",
+      "result": "pass",
+      "evidence": "24 passed, 100% line and branch coverage"
+    },
+    {
+      "command": "manual: anki js_methods.apkg",
+      "result": "pass",
+      "evidence": "User imported into desktop Anki and confirmed the cards look ok"
+    }
+  ],
+  "risks": [
+    "Node must be on PATH to build the deck",
+    "LeetCode's Node version may lack ES2023 methods (toSorted, findLast) on older runtimes"
+  ],
+  "rollback": [
+    "git revert the commit; delete python_pkg/js_anki/build/",
+    "Remove the imported JS deck from Anki"
+  ]
+}

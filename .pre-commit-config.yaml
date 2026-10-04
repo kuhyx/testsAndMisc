@@ -270,6 +270,8 @@ repos:
           # artgate computes image gates over pixel arrays. Same reason again:
           # it is the first package here to import numpy.
           - numpy
+          # js_anki builds the Anki .apkg; same isolated-venv reason as above.
+          - genanki
           - gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.1.0#subdirectory=gatelock
           - anthropic
           - rich
