@@ -96,12 +96,12 @@ earner() {
 	jq -nc --arg n "$1" --arg l "$2" --argjson e "$3" --argjson s "$4" \
 		'{name: $n, label: $l, earned_seconds: $e, bonus_seconds: $s}'
 }
-jq -n --argjson earners "[$(earner workout workout 7200 7200),$(earner leetcode LeetCode 0 3600),$(earner reading reading 0 3600),$(earner anki Anki 0 1800),$(earner piano Piano 0 5400)]" \
+jq -n --argjson earners "[$(earner workout workout 7200 7200),$(earner leetcode LeetCode 0 3600),$(earner reading reading 0 3600),$(earner anki Anki 0 1800),$(earner automation Automation 0 1800),$(earner piano Piano 0 5400)]" \
 	'{ok: true, state_status: "ok",
 	  today: {seconds_used: 0, budget_seconds: 14400, seconds_remaining: 14400, blocked: false},
 	  rules: {bonuses: {}, earners: $earners}}' >"$FIXTURE"
 printf '{"leetcode_bonus_seconds":0}\n' >"$CONFIG_FILE"
-assert_eq '🎮 4h00 left · 0h00/4h00 +🧩1h +📖1h +🗂30m +Piano1h30' "$(line 1)" \
+assert_eq '🎮 4h00 left · 0h00/4h00 +🧩1h +📖1h +🗂30m +⚙30m +Piano1h30' "$(line 1)" \
 	'registry order, earned omitted, sizes from the daemon not the config, label for an unmapped earner'
 rm -f "$CONFIG_FILE"
 

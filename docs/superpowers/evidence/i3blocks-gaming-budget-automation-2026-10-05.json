@@ -1,0 +1,30 @@
+{
+  "intent": "The i3 gaming-budget block shows the new earned_time 0.3.0 automation earner (anki-guard's Automation-deck quota) as ⚙ instead of its text label.",
+  "scope": [
+    "linux_configuration/i3blocks/gaming_budget.sh",
+    "linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+    "Non-goal: no change to how the budget is computed or rendered; only the icon map grows"
+  ],
+  "changes": [
+    "Icon map gains automation: ⚙ beside workout 💪, leetcode 🧩, reading 📖, anki 🗂",
+    "The .rules.earners test case lists an automation earner and expects '+⚙30m' in registry order"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/i3blocks/gaming_budget.sh (live enforcer API, after restarting on earned-time 0.3.0)",
+      "result": "pass",
+      "evidence": "'🎮 1h19 left · 5h44/7h03 +📖1h +🗂30m +⚙30m'; /api/budget lists automation 0/1800"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed, incl. '+🧩1h +📖1h +🗂30m +⚙30m +Piano1h30'"
+    }
+  ],
+  "risks": [
+    "⚙ (U+2699) without a variation selector may render as text-style in some fonts; it is still one glyph wide."
+  ],
+  "rollback": [
+    "git revert this commit; automation then shows as its label 'Automation30m'"
+  ]
+}

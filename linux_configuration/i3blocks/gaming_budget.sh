@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Gaming time budget for i3blocks: time left today, used/total, and which
-# bonuses (workout, LeetCode, reading, Anki, ...) are still there to be earned.
+# bonuses (workout, LeetCode, reading, Anki, Automation, ...) are still there to be earned.
 #
 # Reads steam-backlog-enforcer's /api/budget, which already folds in the
 # screen-locker, leetcode-guard and book-guard bonuses. Like screen_locker.sh
@@ -74,7 +74,7 @@ rendered=$(jq -r \
 		# registry (.rules.earners) is the source of truth, so a new earner
 		# needs only an icon here; an older daemon falls back to the three
 		# fixed fields and the configured sizes.
-		| {workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂"} as $icon
+		| {workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙"} as $icon
 		| (if .rules.earners then
 			[.rules.earners[] | [.earned_seconds, .bonus_seconds, ($icon[.name] // .label)]]
 		  else
