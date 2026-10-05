@@ -1,0 +1,36 @@
+{
+  "intent": "The i3 gaming-budget block lists every earned_time earner the enforcer reports (now including Anki), so a new earner needs only an icon here, and sub-hour bonuses read as minutes.",
+  "scope": [
+    "linux_configuration/i3blocks/gaming_budget.sh",
+    "linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+    "Non-goal: no change to how the budget is computed; the block still only reads steam-backlog-enforcer's /api/budget"
+  ],
+  "changes": [
+    "Unearned bonuses come from .rules.earners ([{name, label, earned_seconds, bonus_seconds}], steam-backlog-enforcer 7ab65dd) with an icon map {workout 💪, leetcode 🧩, reading 📖, anki 🗂}; an unmapped earner shows its label",
+    "A daemon without .rules.earners falls back to the old three fixed fields and the configured sizes",
+    "bonus_hm prints '30m' for sizes under an hour instead of '0h30'"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/i3blocks/gaming_budget.sh (live enforcer API)",
+      "result": "pass",
+      "evidence": "'🎮 2h10 left · 4h53/7h03 +📖1h +🗂30m' / '🎮 2h10' / #50FA7B; /api/budget lists workout and leetcode earned, reading 0/3600, anki 0/1800"
+    },
+    {
+      "command": "user looked at the bar",
+      "result": "pass",
+      "evidence": "kuhy confirmed the '+🗂30m' bar 'looks ok' (2026-10-05)"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed, incl. the new .rules.earners case: registry order, earned omitted, daemon sizes win over config, label for an unmapped earner, 30m and 1h30 sizes; old-daemon fallback cases unchanged"
+    }
+  ],
+  "risks": [
+    "An earner whose name is missing from the icon map shows its text label, which is wider in the bar."
+  ],
+  "rollback": [
+    "git revert this commit; the block goes back to the three fixed bonuses and Anki disappears from the bar"
+  ]
+}

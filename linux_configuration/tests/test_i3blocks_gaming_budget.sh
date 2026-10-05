@@ -90,6 +90,21 @@ write_budget 0 18000 18000 false 0 0 0
 assert_eq '🎮 5h00 left · 0h00/5h00 +💪1h30 +📖1h' "$(line 1)" 'configured sizes, zero-size bonus omitted'
 rm -f "$CONFIG_FILE"
 
+printf 'Checking a daemon that lists the registry (.rules.earners)...\n'
+# earner NAME LABEL EARNED SIZE -> one JSON object for .rules.earners.
+earner() {
+	jq -nc --arg n "$1" --arg l "$2" --argjson e "$3" --argjson s "$4" \
+		'{name: $n, label: $l, earned_seconds: $e, bonus_seconds: $s}'
+}
+jq -n --argjson earners "[$(earner workout workout 7200 7200),$(earner leetcode LeetCode 0 3600),$(earner reading reading 0 3600),$(earner anki Anki 0 1800),$(earner piano Piano 0 5400)]" \
+	'{ok: true, state_status: "ok",
+	  today: {seconds_used: 0, budget_seconds: 14400, seconds_remaining: 14400, blocked: false},
+	  rules: {bonuses: {}, earners: $earners}}' >"$FIXTURE"
+printf '{"leetcode_bonus_seconds":0}\n' >"$CONFIG_FILE"
+assert_eq '🎮 4h00 left · 0h00/4h00 +🧩1h +📖1h +🗂30m +Piano1h30' "$(line 1)" \
+	'registry order, earned omitted, sizes from the daemon not the config, label for an unmapped earner'
+rm -f "$CONFIG_FILE"
+
 printf 'Checking a dead server shows the cached value as stale...\n'
 write_budget 21600 28800 7200 false 7200 3600 0
 run_block >/dev/null

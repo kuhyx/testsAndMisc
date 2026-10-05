@@ -2,7 +2,7 @@
 
 # ============================================================================
 # Gaming time budget for i3blocks: time left today, used/total, and which
-# bonuses (workout, LeetCode, reading) are still there to be earned.
+# bonuses (workout, LeetCode, reading, Anki, ...) are still there to be earned.
 #
 # Reads steam-backlog-enforcer's /api/budget, which already folds in the
 # screen-locker, leetcode-guard and book-guard bonuses. Like screen_locker.sh
@@ -61,7 +61,7 @@ rendered=$(jq -r \
 	--arg red "$RED" --arg orange "$ORANGE" --arg yellow "$YELLOW" --arg green "$GREEN" '
 	def hm: (. / 60 | round) as $m
 		| "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)";
-	def bonus_hm: hm | sub("h00$"; "h");
+	def bonus_hm: if . < 3600 then "\(. / 60 | round)m" else hm | sub("h00$"; "h") end;
 	($cfg[0] // {}) as $c
 	| if .state_status != "ok" then ["nocache", "🎮 state \(.state_status)", "🎮 !", $red]
 	elif .ok != true then ["nocache", "🎮 budget error", "🎮 !", $red]
@@ -70,10 +70,18 @@ rendered=$(jq -r \
 		| .rules.bonuses as $b
 		| ([$t.seconds_remaining, 0] | max) as $left
 		| "\($t.seconds_used | hm)/\($t.budget_seconds | hm)" as $ratio
-		# Unearned bonuses: [earned, configured size (enforcer default), icon].
-		| [ [$b.workout, ($c.workout_bonus_seconds // 7200), "💪"],
-		    [$b.leetcode, ($c.leetcode_bonus_seconds // 3600), "🧩"],
-		    [$b.reading, ($c.reading_bonus_seconds // 3600), "📖"] ]
+		# Unearned bonuses: [earned, size, icon]. A daemon that lists the
+		# registry (.rules.earners) is the source of truth, so a new earner
+		# needs only an icon here; an older daemon falls back to the three
+		# fixed fields and the configured sizes.
+		| {workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂"} as $icon
+		| (if .rules.earners then
+			[.rules.earners[] | [.earned_seconds, .bonus_seconds, ($icon[.name] // .label)]]
+		  else
+			[ [$b.workout, ($c.workout_bonus_seconds // 7200), "💪"],
+			  [$b.leetcode, ($c.leetcode_bonus_seconds // 3600), "🧩"],
+			  [$b.reading, ($c.reading_bonus_seconds // 3600), "📖"] ]
+		  end)
 		| map(select((.[0] // 0) == 0 and .[1] > 0) | "+\(.[2])\(.[1] | bonus_hm)")
 		| (if length > 0 then " " + join(" ") else "" end) as $todo
 		| if $t.blocked or $left <= 0 then
