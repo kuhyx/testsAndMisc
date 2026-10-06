@@ -32,6 +32,7 @@ jobs:
           tests=(
             test_i3blocks_gaming_budget.sh
             test_i3blocks_persist_common.sh
+            test_i3blocks_shutdown_hint.sh
             test_setup_dns_blocker.sh
           )
           failed=0

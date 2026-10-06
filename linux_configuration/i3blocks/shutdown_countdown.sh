@@ -8,6 +8,9 @@ set -euo pipefail
 SHUTDOWN_CONFIG=${SHUTDOWN_CONFIG:-/etc/shutdown-schedule.conf}
 SKIP_DATES_FILE=${SKIP_DATES_FILE:-/etc/shutdown-skip-dates}
 OVERRIDES_FILE=${OVERRIDES_FILE:-/etc/shutdown-schedule-overrides.conf}
+BUDGET_API=${GAMING_BUDGET_API:-http://127.0.0.1:8000/api/budget}
+# earned_time's SHUTDOWN_CEILING_MINUTES (23:00): no earner pushes past it.
+SHUTDOWN_CEILING_MINUTES=${SHUTDOWN_CEILING_MINUTES:-1380}
 
 # Function to show error state in i3blocks and exit
 show_error() {
@@ -148,6 +151,31 @@ if override_match=$(find_override_covering "$shutdown_epoch_today"); then
 	exit 0
 fi
 
+# Earners not yet done today, rendered like gaming_budget.sh: " +🧩1h +📖1h".
+# The enforcer's /api/budget reports gaming seconds per earner; every
+# earned_time earner moves shutdown by the same amount, so that one source
+# serves both blocks. Past the earned_time shutdown ceiling the extra is lost,
+# hence the "→max" note. Server down = no hint: the time above is still right.
+earner_hint() {
+	local headroom_seconds=$(((SHUTDOWN_CEILING_MINUTES - shutdown_time_minutes) * 60))
+	local ceiling_hhmm budget_json
+	((headroom_seconds > 0)) || return 0
+	command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 || return 0
+	budget_json=$(curl -fsS --max-time 2 "$BUDGET_API" 2>/dev/null) || return 0
+	printf -v ceiling_hhmm '%02d:%02d' $((SHUTDOWN_CEILING_MINUTES / 60)) $((SHUTDOWN_CEILING_MINUTES % 60))
+	jq -r --argjson headroom "$headroom_seconds" --arg ceiling "$ceiling_hhmm" '
+		def bonus_hm: (. / 60 | round) as $m
+			| if $m < 60 then "\($m)m"
+			else "\($m / 60 | floor)h" + ($m % 60 | if . == 0 then "" else "\(.)" | if length < 2 then "0" + . else . end end) end;
+		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙"} as $icon
+		| select(.ok == true)
+		| [.rules.earners[]? | select((.earned_seconds // 0) == 0 and .bonus_seconds > 0)]
+		| select(length > 0)
+		| " " + (map("+\($icon[.name] // .label)\(.bonus_seconds | bonus_hm)") | join(" "))
+		+ (if (map(.bonus_seconds) | add) > $headroom then " →max \($ceiling)" else "" end)
+	' <<<"$budget_json" 2>/dev/null || true
+}
+
 minutes_until_shutdown=$((shutdown_time_minutes - current_time_minutes))
 
 if [[ $minutes_until_shutdown -le 30 ]]; then
@@ -160,6 +188,6 @@ else
 	color="#6272A4"
 fi
 
-echo "⏻ $(format_hhmm "$shutdown_epoch_today")"
+echo "⏻ $(format_hhmm "$shutdown_epoch_today")$(earner_hint)"
 echo "⏻"
 echo "$color"

@@ -1,0 +1,40 @@
+{
+  "intent": "The i3 shutdown block shows which earners can still push shutdown later, like the gaming-budget block does: '⏻ 22:00 +🧩1h +📖1h +🗂30m +⚙30m →max 23:00'.",
+  "scope": [
+    "linux_configuration/i3blocks/shutdown_countdown.sh",
+    "linux_configuration/tests/test_i3blocks_shutdown_hint.sh",
+    "linux_configuration/tests/test_i3blocks_efficiency.sh",
+    ".github/workflows/shell-tests.yml",
+    "Non-goal: no hint in the override or SHUTDOWN states; no change to how shutdown is computed (screen-locker owns that)"
+  ],
+  "changes": [
+    "earner_hint reads the enforcer's /api/budget .rules.earners and lists those with earned_seconds == 0, using bonus_seconds as the shutdown amount (equal for every earned_time earner today)",
+    "'→max 23:00' is appended when the listed bonuses exceed the headroom to SHUTDOWN_CEILING_MINUTES (default 1380, earned_time's ceiling); no hint at all at the ceiling",
+    "A dead or erroring server shows the bare time, which still comes from /etc/shutdown-schedule.conf",
+    "Efficiency test stubs curl as a dead server and allows 2 execs (bash + curl); new behaviour test runs in the shell-tests CI job"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/i3blocks/shutdown_countdown.sh (live enforcer, conf at 22:00)",
+      "result": "pass",
+      "evidence": "'⏻ 22:00 +🧩1h +📖1h +🗂30m +⚙30m →max 23:00'; after the LeetCode solve was applied: '⏻ 23:00'"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_shutdown_hint.sh",
+      "result": "pass",
+      "evidence": "All shutdown hint tests passed (listing, ceiling note, all-earned, 1h30 padding, unknown earner label, server down / ok:false / non-JSON)"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh && bash linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+      "result": "pass",
+      "evidence": "All i3blocks efficiency regression tests passed; All gaming_budget checks passed"
+    }
+  ],
+  "risks": [
+    "If an earner's shutdown_minutes ever differs from its gaming_minutes, the hint shows the gaming amount; /api/budget does not expose shutdown amounts.",
+    "The 23:00 ceiling is duplicated from earned_time as a default; a registry change needs SHUTDOWN_CEILING_MINUTES or this default updated."
+  ],
+  "rollback": [
+    "git revert this commit; the block shows the bare '⏻ HH:MM' again"
+  ]
+}

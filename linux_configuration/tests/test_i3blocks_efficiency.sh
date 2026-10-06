@@ -55,6 +55,14 @@ count_execs() {
 	grep -c 'execve(' "$log_file"
 }
 
+# A dead budget server: shutdown_countdown.sh's earner hint must never reach
+# the real enforcer from a test, and with no hint it runs no jq either.
+cat >"$BIN_DIR/curl" <<'EOF'
+#!/bin/bash
+exit 7
+EOF
+chmod +x "$BIN_DIR/curl"
+
 cat >"$BIN_DIR/pacman" <<'EOF'
 #!/bin/bash
 exit 1
@@ -190,7 +198,8 @@ assert_equals '⏻ 21:00' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n
 	'shutdown countdown should show the exact clock time of the next shutdown'
 assert_equals '#F1FA8C' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n '3p')" \
 	'shutdown countdown should show yellow for two hours or less remaining'
-assert_le "$(count_execs "$I3BLOCKS_DIR/shutdown_countdown.sh")" 1 \
+# bash itself plus the one curl for the earner hint; no date helpers.
+assert_le "$(count_execs "$I3BLOCKS_DIR/shutdown_countdown.sh")" 2 \
 	'shutdown countdown should avoid date helpers in the hot path'
 
 shutdown_window_epoch=$(epoch_utc '2026-05-01 21:15:00')
