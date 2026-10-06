@@ -37,5 +37,5 @@ pytest-timeout==2.4.0
 pytest-xdist==3.8.0
 requests==2.34.2
 rich==15.0.0
-typer==0.27.2
+typer==0.27.3
 typing_extensions==4.16.0
