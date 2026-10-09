@@ -1,0 +1,43 @@
+{
+  "intent": "The endurain_import phone fallback stops re-pulling RunnerUp exports that were already imported, so each run no longer copies the whole phone history back into the WebDAV inbox, and one summary line says what happened.",
+  "scope": [
+    "python_pkg/endurain_import/sources.py: PROCESSED_DIRNAME, processed_dir_for(), pull_from_phone skip + summary log",
+    "python_pkg/endurain_import/__main__.py: uses processed_dir_for() instead of a literal 'processed'",
+    "python_pkg/endurain_import/tests/test_phone_pull.py: new tests",
+    "Non-goal: the phone is still read-only; nothing on it is deleted"
+  ],
+  "changes": [
+    "pull_from_phone skips a name already in the inbox (pending) or in processed/ (imported) before any adb pull",
+    "One summary line per run: on phone / pulled / skipped imported / skipped pending / failed; logged at WARNING when any pull failed, INFO otherwise",
+    "processed_dir_for(inbox) is the single definition shared by the importer and the fallback"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q --cov=python_pkg.endurain_import --cov-branch python_pkg/endurain_import",
+      "result": "pass",
+      "evidence": "103 passed; endurain_import 100% line+branch (sources.py was 97%, lines 174-175 uncovered, before the new tests)"
+    },
+    {
+      "command": "python3 -m python_pkg.endurain_import with stub adb on PATH, stub Endurain on 127.0.0.1:18999, temp inbox (1 file in processed/, 1 in inbox, 1 new, 1 failing pull)",
+      "result": "pass",
+      "evidence": "WARNING phone fallback: 4 on phone, 1 pulled, 1 skipped as already imported, 1 skipped as already in the inbox, 1 failed; adb pull called only for the new and the failing file; second run: 0 pulled, 3 skipped as already imported, 0 uploads"
+    },
+    {
+      "command": "live run on the host (reported by the caller session, 17:56)",
+      "result": "pass",
+      "evidence": "27 on phone, 0 pulled, 27 skipped as already imported"
+    },
+    {
+      "command": "pre-commit run --files sources.py __main__.py tests/test_phone_pull.py",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    }
+  ],
+  "risks": [
+    "A file deleted from processed/ by hand would be pulled again (then deduped by the ledger), which is the intended recovery path."
+  ],
+  "rollback": [
+    "git revert this commit",
+    "After rollback: the next timer run re-pulls the phone history into the inbox; the ledger still prevents duplicate uploads"
+  ]
+}

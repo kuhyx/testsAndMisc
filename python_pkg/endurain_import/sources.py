@@ -27,6 +27,8 @@ _logger = logging.getLogger(__name__)
 # RunnerUp's File synchronizer target on the phone.
 PHONE_EXPORT_DIR = "/sdcard/Documents/RunnerUp"
 ACTIVITY_SUFFIXES = (".tcx", ".gpx", ".fit")
+# Subdirectory of the inbox that holds files already delivered to Endurain.
+PROCESSED_DIRNAME = "processed"
 _ADB_TIMEOUT = 60
 # Pins which phone to pull from when more than one device is attached. Without
 # it every adb call fails with "more than one device/emulator" -- silently, as
@@ -36,6 +38,15 @@ ADB_SERIAL_ENV = "ENDURAIN_ADB_SERIAL"
 # Resolved at call time so a missing adb is reported as "no device" rather than
 # crashing the whole import run.
 _ADB_BIN = shutil.which("adb") or "adb"
+
+
+def processed_dir_for(inbox: Path) -> Path:
+    """Return where ``inbox`` keeps files this importer has already delivered.
+
+    Single definition shared by the importer (which moves files there) and the
+    phone fallback (which must not pull them back out of the phone again).
+    """
+    return inbox / PROCESSED_DIRNAME
 
 
 def inbox_files(inbox: Path) -> list[Path]:
@@ -128,9 +139,12 @@ def resolve_serial() -> str | None:
 def pull_from_phone(inbox: Path) -> list[Path]:
     """Copy RunnerUp exports from the phone into ``inbox``.
 
-    Returns the paths newly written. Files already present in the inbox are
-    left alone; content-level deduplication happens later against the ledger,
-    so a name collision here is not authoritative either way.
+    Returns the paths newly written. A file is skipped when its name already
+    sits in the inbox (waiting to be imported) or in ``processed/`` (already
+    imported). The phone keeps every export forever, so without the
+    ``processed/`` check each run re-pulls the whole history into the inbox,
+    where it re-triggers every inotify watcher on that directory. Content-level
+    deduplication still happens later against the ledger.
     """
     serial = resolve_serial()
     if serial is None:
@@ -148,22 +162,39 @@ def pull_from_phone(inbox: Path) -> list[Path]:
         if line.strip().lower().endswith(ACTIVITY_SUFFIXES)
     ]
     inbox.mkdir(parents=True, exist_ok=True)
+    processed = processed_dir_for(inbox)
     pulled: list[Path] = []
+    pending = imported = failed = 0
     for name in names:
         target = inbox / name
         if target.exists():
+            pending += 1
+            continue
+        if (processed / name).exists():
+            imported += 1
             continue
         staged = inbox / f".{name}.partial"
         ok, err = _adb(["pull", f"{PHONE_EXPORT_DIR}/{name}", str(staged)], serial)
         if not ok:
             _logger.warning("adb pull failed for %s: %s", name, err.strip())
             staged.unlink(missing_ok=True)
+            failed += 1
             continue
         # Rename only after a complete pull, so a partial transfer is never
         # picked up as a whole activity by this or any concurrent run.
         shutil.move(str(staged), str(target))
         pulled.append(target)
 
-    if pulled:
-        _logger.info("pulled %d file(s) from the phone", len(pulled))
+    # Failed pulls are each reported above; the summary escalates too so a
+    # partially broken fallback is visible in the one line people read.
+    _logger.log(
+        logging.WARNING if failed else logging.INFO,
+        "phone fallback: %d on phone, %d pulled, %d skipped as already "
+        "imported, %d skipped as already in the inbox, %d failed",
+        len(names),
+        len(pulled),
+        imported,
+        pending,
+        failed,
+    )
     return pulled

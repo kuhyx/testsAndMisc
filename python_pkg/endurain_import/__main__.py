@@ -45,7 +45,11 @@ from python_pkg.endurain_import.ledger import (
     file_digest,
     now_iso,
 )
-from python_pkg.endurain_import.sources import inbox_files, pull_from_phone
+from python_pkg.endurain_import.sources import (
+    inbox_files,
+    processed_dir_for,
+    pull_from_phone,
+)
 from python_pkg.endurain_import.upload import (
     EndurainClient,
     Outcome,
@@ -186,7 +190,7 @@ def main() -> int:
         return 1
 
     ledger = Ledger(state / "ledger.json")
-    processed_dir = inbox / "processed"
+    processed_dir = processed_dir_for(inbox)
 
     if os.environ.get("ENDURAIN_NO_ADB") != "1":
         pull_from_phone(inbox)
