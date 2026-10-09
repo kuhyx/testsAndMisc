@@ -1,8 +1,8 @@
 #!/bin/bash
-# Behaviour tests for shutdown_countdown.sh's earner hint: which earners are
-# listed, their amounts, the 23:00 ceiling note, and the states that show no
-# hint. curl is stubbed on PATH to serve a fixture, so nothing talks to the
-# real enforcer.
+# Behaviour tests for shutdown_countdown.sh's rendering of daily-limits' cache
+# ($DAILY_LIMITS_CACHE): the applied time, the unearned-earner hint (todo and
+# unknown), the ceiling note driven by `shutdown_after`, and the stale/missing/
+# garbage markers.
 
 set -euo pipefail
 
@@ -30,68 +30,79 @@ assert_eq() {
 printf '{}' | jq -e . >/dev/null 2>&1 ||
 	fail 'a working jq is required for the shutdown hint tests (pacman -S jq)'
 
-# Stub curl: print $FIXTURE, or fail like `curl -f` on a dead server.
-BIN_DIR="$TMP_DIR/bin"
-mkdir -p "$BIN_DIR"
-cat >"$BIN_DIR/curl" <<'STUB'
-#!/bin/bash
-[[ -r ${FIXTURE:-} ]] || exit 7
-cat "$FIXTURE"
-STUB
-chmod +x "$BIN_DIR/curl"
-
-FIXTURE="$TMP_DIR/budget.json"
+CACHE="$TMP_DIR/daily-limits.json"
+RENDER="$TMP_DIR/render"
 SCHEDULE="$TMP_DIR/schedule.conf"
 NO_OVERRIDES="$TMP_DIR/overrides.conf"
 : >"$NO_OVERRIDES"
 # 2026-05-01 is a Friday, so THU_SUN_MINUTES applies.
 NOW=$(TZ=UTC date -d '2026-05-01 18:00:00' +%s)
-
-# write_earners NAME:EARNED:BONUS ... -- the /api/budget earners list.
-write_earners() {
-	local rows=() name earned bonus
+# write_cache APPLIED GENERATED_AT TODO... where TODO is NAME:STATUS:MINUTES:AFTER.
+# APPLIED may be "null" (then resolved = 20:00 is shown). Each todo entry is also
+# an earner, carrying its shutdown_minutes.
+write_cache() {
+	local applied=$1 generated=$2
+	shift 2
+	[[ $applied == null ]] || applied="\"$applied\""
+	local earners=() todos=() name status minutes after spec
 	for spec in "$@"; do
-		IFS=: read -r name earned bonus <<<"$spec"
-		rows+=("{\"name\":\"$name\",\"label\":\"$name\",\"earned_seconds\":$earned,\"bonus_seconds\":$bonus}")
+		IFS=: read -r name status minutes after <<<"$spec"
+		earners+=("{\"name\":\"$name\",\"label\":\"$name\",\"status\":\"$status\",\"shutdown_minutes\":$minutes,\"gaming_minutes\":$minutes}")
+		todos+=("{\"name\":\"$name\",\"label\":\"$name\",\"status\":\"$status\",\"shutdown_after\":\"$after\"}")
 	done
 	local IFS=,
-	printf '{"ok":true,"rules":{"earners":[%s]}}\n' "${rows[*]}" >"$FIXTURE"
+	printf '{"date":"2026-05-01","generated_at":%s,"shutdown":{"applied":%s,"resolved":"20:00","floor":"20:00","ceiling":"23:00"},"gaming":{"budget_minutes":180,"used_minutes":null,"ceiling_minutes":480,"day":"2026-05-01"},"earners":[%s],"todo":[%s]}\n' \
+		"$generated" "$applied" "${earners[*]}" "${todos[*]}" >"$CACHE"
+	rm -f "$RENDER" # force a re-render for the new content
 }
 
 # first_line SHUTDOWN_MINUTES -- the block's full_text at 18:00.
 first_line() {
 	printf 'THU_SUN_MINUTES=%s\nMON_WED_MINUTES=%s\nMORNING_END_MINUTES=300\n' \
 		"$1" "$1" >"$SCHEDULE"
-	TZ=UTC NOW_EPOCH="$NOW" PATH="$BIN_DIR:$PATH" FIXTURE="$FIXTURE" \
+	TZ=UTC NOW_EPOCH="$NOW" DAILY_LIMITS_CACHE="$CACHE" DAILY_LIMITS_RENDER_CACHE="$RENDER" \
 		SHUTDOWN_CONFIG="$SCHEDULE" OVERRIDES_FILE="$NO_OVERRIDES" \
 		SKIP_DATES_FILE=/dev/null bash "$BLOCK" | sed -n 1p
 }
 
-printf 'Checking unearned earners are listed with icon and amount...\n'
-write_earners workout:7200:7200 leetcode:0:3600 reading:0:3600 anki:0:1800 automation:0:1800
-assert_eq '⏻ 20:00 +🧩1h +📖1h +🗂30m +⚙30m' "$(first_line 1200)" \
-	'earned ones hidden, the rest listed; 3h fits under 23:00'
+printf 'Checking not-done earners are listed with icon and amount...\n'
+write_cache 20:00 "$NOW" leetcode:todo:60:21:00 reading:todo:60:22:00 anki:todo:30:22:30 automation:todo:30:23:00
+assert_eq '⏻ 20:00 +🧩1h +📖1h +🗂30m +⚙30m →max 23:00' "$(first_line 1200)" \
+	'cumulative shutdown_after reaching 23:00 gives the ceiling note'
+write_cache 20:00 "$NOW" leetcode:todo:60:21:00 reading:todo:60:22:00
+assert_eq '⏻ 20:00 +🧩1h +📖1h' "$(first_line 1200)" 'below the ceiling: no note'
 
-printf 'Checking the ceiling note once the bonuses overflow 23:00...\n'
-assert_eq '⏻ 22:00 +🧩1h +📖1h +🗂30m +⚙30m →max 23:00' "$(first_line 1320)" \
-	'3h of bonuses with 1h of headroom'
+printf 'Checking unknown earners are shown with ? and counted...\n'
+write_cache 20:00 "$NOW" leetcode:unknown:60:21:00 reading:todo:60:22:00 anki:unknown:30:23:00
+assert_eq '⏻ 20:00 +🧩?1h +📖1h +🗂?30m →max 23:00' "$(first_line 1200)" \
+	'unknown marked, and its shutdown_after still drives →max'
 
-printf 'Checking nothing is listed at the ceiling or with all earned...\n'
+printf 'Checking the applied time wins, resolved is the fallback...\n'
+write_cache 21:30 "$NOW"
+assert_eq '⏻ 21:30' "$(first_line 1200)" 'applied time shown'
+write_cache null "$NOW"
+assert_eq '⏻ 20:00' "$(first_line 1200)" 'applied null falls back to resolved'
+
+printf 'Checking nothing is listed at the ceiling or with all done...\n'
+write_cache 23:00 "$NOW" leetcode:todo:60:23:00
 assert_eq '⏻ 23:00' "$(first_line 1380)" 'no headroom, no hint'
-write_earners leetcode:3600:3600 reading:3600:3600
-assert_eq '⏻ 20:00' "$(first_line 1200)" 'everything earned'
+write_cache 20:00 "$NOW"
+assert_eq '⏻ 20:00' "$(first_line 1200)" 'everything done'
 
-printf 'Checking odd amounts and unknown earners...\n'
-write_earners leetcode:0:5400 newgate:0:900
+printf 'Checking odd amounts and unmapped earners...\n'
+write_cache 20:00 "$NOW" leetcode:todo:90:21:30 newgate:todo:15:21:45
 assert_eq '⏻ 20:00 +🧩1h30 +newgate15m' "$(first_line 1200)" \
-	'1h30 padded like gaming_budget.sh; unknown earner falls back to label'
+	'1h30 padded like gaming_budget.sh; unmapped earner falls back to label'
 
-printf 'Checking a dead or unhappy server shows the bare time...\n'
-rm -f "$FIXTURE"
-assert_eq '⏻ 20:00' "$(first_line 1200)" 'server down'
-printf '{"ok":false}\n' >"$FIXTURE"
-assert_eq '⏻ 20:00' "$(first_line 1200)" 'budget error'
-printf 'not json\n' >"$FIXTURE"
-assert_eq '⏻ 20:00' "$(first_line 1200)" 'unreadable reply'
+printf 'Checking stale, missing and unreadable caches show a marker...\n'
+write_cache 21:30 "$((NOW - 181))" leetcode:todo:60:22:30
+assert_eq '⏻ 20:00 ⏱? 3m' "$(first_line 1200)" 'stale: config time, no cache numbers'
+write_cache 21:30 "$((NOW - 180))"
+assert_eq '⏻ 21:30' "$(first_line 1200)" '180 s is still fresh'
+rm -f "$CACHE"
+assert_eq '⏻ 20:00 ⏱?' "$(first_line 1200)" 'missing cache'
+printf 'not json\n' >"$CACHE"
+rm -f "$RENDER"
+assert_eq '⏻ 20:00 ⏱!' "$(first_line 1200)" 'unreadable cache'
 
 printf 'All shutdown hint tests passed.\n'

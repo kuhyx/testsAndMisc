@@ -55,13 +55,10 @@ count_execs() {
 	grep -c 'execve(' "$log_file"
 }
 
-# A dead budget server: shutdown_countdown.sh's earner hint must never reach
-# the real enforcer from a test, and with no hint it runs no jq either.
-cat >"$BIN_DIR/curl" <<'EOF'
-#!/bin/bash
-exit 7
-EOF
-chmod +x "$BIN_DIR/curl"
+# shutdown_countdown.sh renders daily-limits' cache; keep these checks off the
+# machine's real $XDG_RUNTIME_DIR files.
+export DAILY_LIMITS_CACHE="$TMP_DIR/daily-limits.json"
+export DAILY_LIMITS_RENDER_CACHE="$TMP_DIR/shutdown.render"
 
 cat >"$BIN_DIR/pacman" <<'EOF'
 #!/bin/bash
@@ -193,14 +190,17 @@ shutdown_overrides_empty="$TMP_DIR/shutdown-overrides-empty.conf"
 # is 21:00. The block shows the exact clock time of the shutdown, not a
 # relative countdown.
 shutdown_countdown_epoch=$(epoch_utc '2026-05-01 19:30:00')
+printf '{"date":"2026-05-01","generated_at":%s,"shutdown":{"applied":"21:00","resolved":"21:00","floor":"20:00","ceiling":"23:00"},"gaming":{"budget_minutes":180,"used_minutes":null,"ceiling_minutes":480},"earners":[],"todo":[]}\n' \
+	"$shutdown_countdown_epoch" >"$DAILY_LIMITS_CACHE"
 shutdown_countdown_output=$(TZ=UTC NOW_EPOCH="$shutdown_countdown_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
 assert_equals '⏻ 21:00' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n '1p')" \
 	'shutdown countdown should show the exact clock time of the next shutdown'
 assert_equals '#F1FA8C' "$(printf '%s\n' "$shutdown_countdown_output" | sed -n '3p')" \
 	'shutdown countdown should show yellow for two hours or less remaining'
-# bash itself plus the one curl for the earner hint; no date helpers.
-assert_le "$(count_execs "$I3BLOCKS_DIR/shutdown_countdown.sh")" 2 \
-	'shutdown countdown should avoid date helpers in the hot path'
+# The run above rendered the cache; with the cache file unchanged a tick is
+# bash alone: no jq, no curl, no date helpers.
+assert_le "$(NOW_EPOCH="$shutdown_countdown_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" OVERRIDES_FILE="$shutdown_overrides_empty" TZ=UTC count_execs "$I3BLOCKS_DIR/shutdown_countdown.sh")" 1 \
+	'shutdown countdown should fork nothing once the cache is rendered'
 
 shutdown_window_epoch=$(epoch_utc '2026-05-01 21:15:00')
 shutdown_window_output=$(TZ=UTC NOW_EPOCH="$shutdown_window_epoch" SHUTDOWN_CONFIG="$shutdown_config_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
@@ -225,9 +225,12 @@ assert_equals '#50FA7B' "$(printf '%s\n' "$shutdown_override_output" | sed -n '3
 shutdown_minutes_file="$TMP_DIR/shutdown-schedule-minutes.conf"
 printf '%s\n' MON_WED_MINUTES=1380 THU_SUN_MINUTES=1110 MORNING_END_MINUTES=300 \
 	MON_WED_HOUR=23 THU_SUN_HOUR=18 MORNING_END_HOUR=5 >"$shutdown_minutes_file"
+# No cache here: the config itself is under test, so the block falls back to it
+# and marks the missing cache.
+rm -f "$DAILY_LIMITS_CACHE"
 shutdown_minutes_output=$(TZ=UTC NOW_EPOCH="$(epoch_utc '2026-05-01 18:15:00')" SHUTDOWN_CONFIG="$shutdown_minutes_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
-assert_equals '⏻ 18:30' "$(printf '%s\n' "$shutdown_minutes_output" | sed -n '1p')" \
-	'shutdown countdown should show the minute-precision shutdown time'
+assert_equals '⏻ 18:30 ⏱?' "$(printf '%s\n' "$shutdown_minutes_output" | sed -n '1p')" \
+	'shutdown countdown should show the minute-precision config time when the cache is missing'
 shutdown_minutes_output=$(TZ=UTC NOW_EPOCH="$(epoch_utc '2026-05-01 18:31:00')" SHUTDOWN_CONFIG="$shutdown_minutes_file" OVERRIDES_FILE="$shutdown_overrides_empty" PATH="$BIN_DIR:$PATH" bash "$I3BLOCKS_DIR/shutdown_countdown.sh")
 assert_equals '⏻ SHUTDOWN' "$(printf '%s\n' "$shutdown_minutes_output" | sed -n '1p')" \
 	'shutdown countdown should be due once the shutdown minute has passed'

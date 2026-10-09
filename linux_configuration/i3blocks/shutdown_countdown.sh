@@ -2,15 +2,28 @@
 # Shutdown countdown status script for i3blocks.
 # Shows the exact absolute time of the next enforced shutdown, or the
 # overridden time if a shutdown-override-manager.sh window rescues it.
+#
+# The applied time and the still-unearned earners come from daily-limits'
+# cache ($XDG_RUNTIME_DIR/daily-limits.json, rewritten every 60 s); this
+# script owns no earner logic. The cache is re-parsed with jq only when its
+# mtime changes, the rendered result is kept in a small file, so a steady-state
+# tick forks nothing. A missing or >180 s old cache shows a "⏱?" marker (and
+# the config-derived time), never old cache numbers. Left-click opens
+# `daily-limits --gui`.
 
 set -euo pipefail
 
 SHUTDOWN_CONFIG=${SHUTDOWN_CONFIG:-/etc/shutdown-schedule.conf}
 SKIP_DATES_FILE=${SKIP_DATES_FILE:-/etc/shutdown-skip-dates}
 OVERRIDES_FILE=${OVERRIDES_FILE:-/etc/shutdown-schedule-overrides.conf}
-BUDGET_API=${GAMING_BUDGET_API:-http://127.0.0.1:8000/api/budget}
-# earned_time's SHUTDOWN_CEILING_MINUTES (23:00): no earner pushes past it.
-SHUTDOWN_CEILING_MINUTES=${SHUTDOWN_CEILING_MINUTES:-1380}
+LIMITS_CACHE=${DAILY_LIMITS_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/daily-limits.json}
+RENDER_CACHE=${DAILY_LIMITS_RENDER_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/i3blocks-shutdown.render}
+readonly STALE_AFTER_SECONDS=180
+
+# Left-click: open the daily-limits popup (a fork only on click).
+if [[ ${BLOCK_BUTTON:-0} -eq 1 ]] && command -v daily-limits >/dev/null 2>&1; then
+	daily-limits --gui >/dev/null 2>&1 &
+fi
 
 # Function to show error state in i3blocks and exit
 show_error() {
@@ -151,30 +164,70 @@ if override_match=$(find_override_covering "$shutdown_epoch_today"); then
 	exit 0
 fi
 
-# Earners not yet done today, rendered like gaming_budget.sh: " +🧩1h +📖1h".
-# The enforcer's /api/budget reports gaming seconds per earner; every
-# earned_time earner moves shutdown by the same amount, so that one source
-# serves both blocks. Past the earned_time shutdown ceiling the extra is lost,
-# hence the "→max" note. Server down = no hint: the time above is still right.
-earner_hint() {
-	local headroom_seconds=$(((SHUTDOWN_CEILING_MINUTES - shutdown_time_minutes) * 60))
-	local ceiling_hhmm budget_json
-	((headroom_seconds > 0)) || return 0
-	command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 || return 0
-	budget_json=$(curl -fsS --max-time 2 "$BUDGET_API" 2>/dev/null) || return 0
-	printf -v ceiling_hhmm '%02d:%02d' $((SHUTDOWN_CEILING_MINUTES / 60)) $((SHUTDOWN_CEILING_MINUTES % 60))
-	jq -r --argjson headroom "$headroom_seconds" --arg ceiling "$ceiling_hhmm" '
-		def bonus_hm: (. / 60 | round) as $m
+# One jq pass renders three lines: generated_at, the applied shutdown time
+# (falling back to the resolved one) and the hint for earners still in `todo`,
+# e.g. " +🧩1h +📖?1h →max 23:00" ("?" = status unknown, still counted). "→max"
+# appears once the cumulative `shutdown_after` of the todo list reaches the ceiling.
+# Re-run only when the cache file is newer than the render.
+render_limits() {
+	local rendered
+	command -v jq >/dev/null 2>&1 || return 1
+	rendered=$(jq -r '
+		def bonus_hm: . as $m
 			| if $m < 60 then "\($m)m"
 			else "\($m / 60 | floor)h" + ($m % 60 | if . == 0 then "" else "\(.)" | if length < 2 then "0" + . else . end end) end;
 		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙"} as $icon
-		| select(.ok == true)
-		| [.rules.earners[]? | select((.earned_seconds // 0) == 0 and .bonus_seconds > 0)]
-		| select(length > 0)
-		| " " + (map("+\($icon[.name] // .label)\(.bonus_seconds | bonus_hm)") | join(" "))
-		+ (if (map(.bonus_seconds) | add) > $headroom then " →max \($ceiling)" else "" end)
-	' <<<"$budget_json" 2>/dev/null || true
+		| (.earners | map({(.name): .}) | add // {}) as $by
+		| (.shutdown.applied // .shutdown.resolved) as $time
+		| (.shutdown.ceiling) as $ceiling
+		| (if $time < $ceiling and (.todo | length) > 0
+			then " " + (.todo | map("+\($icon[.name] // .label)\(if .status == "unknown" then "?" else "" end)\($by[.name].shutdown_minutes // 0 | bonus_hm)") | join(" "))
+				+ (if (.todo | map(.shutdown_after) | max) >= $ceiling then " →max \($ceiling)" else "" end)
+			else "" end) as $hint
+		| .generated_at, $time, $hint' "$LIMITS_CACHE" 2>/dev/null) || return 1
+	printf '%s\n' "$rendered" >"$RENDER_CACHE"
 }
+
+# Sets limits_state (fresh|stale|missing|bad), limits_time, limits_hint, limits_age.
+limits_state=missing
+limits_time=''
+limits_hint=''
+limits_age=0
+load_limits() {
+	local gen=''
+	[[ -r $LIMITS_CACHE ]] || return 0
+	limits_state=bad
+	if [[ $LIMITS_CACHE -nt $RENDER_CACHE ]]; then
+		render_limits || return 0
+	fi
+	{
+		read -r gen
+		read -r limits_time
+		IFS= read -r limits_hint || true
+	} <"$RENDER_CACHE" 2>/dev/null || return 0
+	[[ $gen =~ ^[0-9]+$ && $limits_time =~ ^[0-9]{2}:[0-9]{2}$ ]] || return 0
+	limits_age=$((now_epoch - gen))
+	if ((limits_age > STALE_AFTER_SECONDS || limits_age < -STALE_AFTER_SECONDS)); then
+		limits_state=stale
+	else
+		limits_state=fresh
+	fi
+}
+
+load_limits
+
+printf -v shutdown_label '%(%H:%M)T' "$shutdown_epoch_today"
+hint=''
+case $limits_state in
+fresh)
+	shutdown_label=$limits_time
+	hint=$limits_hint
+	shutdown_time_minutes=$((10#${limits_time%:*} * 60 + 10#${limits_time#*:}))
+	;;
+stale) hint=" ⏱? $((limits_age / 60))m" ;;
+missing) hint=' ⏱?' ;;
+bad) hint=' ⏱!' ;;
+esac
 
 minutes_until_shutdown=$((shutdown_time_minutes - current_time_minutes))
 
@@ -188,6 +241,6 @@ else
 	color="#6272A4"
 fi
 
-echo "⏻ $(format_hhmm "$shutdown_epoch_today")$(earner_hint)"
+echo "⏻ ${shutdown_label}${hint}"
 echo "⏻"
 echo "$color"

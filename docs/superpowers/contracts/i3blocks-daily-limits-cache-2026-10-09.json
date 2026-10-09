@@ -1,0 +1,15 @@
+{
+  "title": "i3blocks: shutdown and gaming blocks render from the daily-limits cache",
+  "objective": "Both status-bar blocks show today's shutdown time, gaming budget and the unearned earners from $XDG_RUNTIME_DIR/daily-limits.json, with no earner logic duplicated in shell and no fork in the steady-state tick beyond bash itself.",
+  "acceptance_criteria": [
+    "Live output keeps the existing format (⏻ HH:MM +💪2h ... →max 23:00, 🎮 Xh left · used/budget +...)",
+    "A cache older than 180 s or missing shows ⏱? and never stale numbers",
+    "Unknown earners are shown with a ? marker, not hidden",
+    "test_i3blocks_gaming_budget.sh, test_i3blocks_shutdown_hint.sh and test_i3blocks_efficiency.sh pass, and pre-commit is clean"
+  ],
+  "out_of_scope": [
+    "The daily-limits app itself (kuhyx/daily-limits)",
+    "Shutdown enforcement in screen-locker / digital-wellbeing"
+  ],
+  "verifier": "bash linux_configuration/i3blocks/{gaming_budget,shutdown_countdown}.sh; bash linux_configuration/tests/test_i3blocks_*.sh; pre-commit run"
+}

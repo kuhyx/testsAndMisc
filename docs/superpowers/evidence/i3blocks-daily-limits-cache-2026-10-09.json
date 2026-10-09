@@ -1,0 +1,39 @@
+{
+  "intent": "The i3blocks shutdown and gaming_budget blocks render from the daily-limits cache ($XDG_RUNTIME_DIR/daily-limits.json), so the earner list, sizes and ceiling come from the earned_time registry instead of being duplicated in shell; left-click opens daily-limits --gui.",
+  "scope": [
+    "linux_configuration/i3blocks/gaming_budget.sh, shutdown_countdown.sh",
+    "linux_configuration/tests/test_i3blocks_{gaming_budget,shutdown_hint,efficiency}.sh",
+    "Non-goal: changing the shutdown enforcement itself (screen-locker / digital-wellbeing)"
+  ],
+  "changes": [
+    "gaming_budget.sh: drop the curl to the enforcer /api/budget, the config.json read and the fallback bonus sizes; read gaming budget/used/day and the not-done earners from the cache",
+    "shutdown_countdown.sh: replace earner_hint() with render_limits/load_limits fed by todo[]; →max from shutdown_after reaching the ceiling; unknown earners shown with '?'",
+    "Both: a cache older than 180 s (or from the future) shows a ⏱? marker and never stale numbers; jq runs only when the cache mtime changes (rendered line cached in $XDG_RUNTIME_DIR)",
+    "Tests rewritten from the curl stub to DAILY_LIMITS_CACHE fixtures; the shutdown exec bound drops from 2 to 1"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/i3blocks/gaming_budget.sh; bash linux_configuration/i3blocks/shutdown_countdown.sh (live, daily-limits timer running)",
+      "result": "pass",
+      "evidence": "🎮 0h43 left · 2h17/3h00 +💪2h +🧩1h +📖1h +🗂30m +⚙30m / ⏻ 20:00 +💪2h +🧩1h +📖1h +🗂30m +⚙30m →max 23:00 — same format as before the change"
+    },
+    {
+      "command": "capped.sh bash tests/test_i3blocks_gaming_budget.sh; test_i3blocks_shutdown_hint.sh; test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed. / All shutdown hint tests passed. / All i3blocks efficiency regression tests passed."
+    },
+    {
+      "command": "strace -f -c (clone+execve per tick)",
+      "result": "pass",
+      "evidence": "gaming steady state 0 clone + 1 execve (was 4 + 3 with curl and jq); shutdown 3 clone + 1 execve (was 8 + 3)"
+    }
+  ],
+  "risks": [
+    "If the daily-limits user timer stops, both blocks show ⏱? (shutdown falls back to the local config time, which is still correct)",
+    "daily-limits must be on PATH for left-click; otherwise the click does nothing"
+  ],
+  "rollback": [
+    "git revert this commit; the blocks go back to the enforcer API and the in-script earner table",
+    "After a rollback, check the bar shows numbers again with the enforcer running"
+  ]
+}
