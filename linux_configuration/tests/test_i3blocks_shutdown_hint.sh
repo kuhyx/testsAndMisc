@@ -105,4 +105,23 @@ printf 'not json\n' >"$CACHE"
 rm -f "$RENDER"
 assert_eq '⏻ 20:00 ⏱!' "$(first_line 1200)" 'unreadable cache'
 
+printf 'Checking a left-click opens the popup without ~/.local/bin on PATH...\n'
+mkdir -p "$TMP_DIR/click-bin"
+printf '#!/bin/bash\necho "gui $*" >>"%s/clicks"\n' "$TMP_DIR" >"$TMP_DIR/daily-limits-stub"
+printf '#!/bin/bash\necho "notify $*" >>"%s/clicks"\n' "$TMP_DIR" >"$TMP_DIR/click-bin/notify-send"
+chmod +x "$TMP_DIR/daily-limits-stub" "$TMP_DIR/click-bin/notify-send"
+# i3blocks' PATH has no ~/.local/bin: the launcher must be found by its path.
+BLOCK_BUTTON=1 DAILY_LIMITS_BIN="$TMP_DIR/daily-limits-stub" PATH="$TMP_DIR/click-bin:/usr/bin:/bin" first_line 1200 >/dev/null
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+	[[ -s "$TMP_DIR/clicks" ]] && break
+	sleep 0.1
+done
+assert_eq 'gui --gui' "$(cat "$TMP_DIR/clicks" 2>/dev/null)" 'left-click runs daily-limits --gui'
+rm -f "$TMP_DIR/clicks"
+# A missing launcher says so instead of a silent no-op.
+BLOCK_BUTTON=1 DAILY_LIMITS_BIN="$TMP_DIR/absent" PATH="$TMP_DIR/click-bin:/usr/bin:/bin" first_line 1200 >/dev/null
+assert_eq "notify -u critical daily-limits not installed: $TMP_DIR/absent" "$(cat "$TMP_DIR/clicks" 2>/dev/null)" \
+	'a missing launcher raises a notification'
+rm -f "$TMP_DIR/clicks"
+
 printf 'All shutdown hint tests passed.\n'

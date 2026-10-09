@@ -30,8 +30,15 @@ emit() {
 	printf '%s\n%s\n%s\n' "$1" "$2" "$3"
 }
 
-if [[ ${BLOCK_BUTTON:-0} -eq 1 ]] && command -v daily-limits >/dev/null 2>&1; then
-	daily-limits --gui >/dev/null 2>&1 &
+# i3blocks' PATH has no ~/.local/bin, where daily-limits' install.sh puts it,
+# so a bare `daily-limits` made every click a silent no-op.
+readonly DAILY_LIMITS_BIN=${DAILY_LIMITS_BIN:-$HOME/.local/bin/daily-limits}
+if [[ ${BLOCK_BUTTON:-0} -eq 1 ]]; then
+	if [[ -x $DAILY_LIMITS_BIN ]]; then
+		setsid -f "$DAILY_LIMITS_BIN" --gui >/dev/null 2>&1
+	else
+		notify-send -u critical 'daily-limits' "not installed: $DAILY_LIMITS_BIN" || true
+	fi
 fi
 
 # One jq pass renders four lines: generated_at, full text, short text, color.

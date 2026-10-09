@@ -1,0 +1,31 @@
+{
+  "intent": "Left-clicking the ⏻ or 🎮 i3blocks block opens the daily-limits popup; before this, every click was a silent no-op.",
+  "scope": [
+    "linux_configuration/i3blocks/gaming_budget.sh, shutdown_countdown.sh",
+    "linux_configuration/tests/test_i3blocks_gaming_budget.sh, test_i3blocks_shutdown_hint.sh"
+  ],
+  "changes": [
+    "Root cause: the i3blocks process PATH has no ~/.local/bin, where daily-limits' install.sh puts the binary, so `command -v daily-limits` failed and the click was dropped",
+    "Both blocks call DAILY_LIMITS_BIN (default $HOME/.local/bin/daily-limits) by path, detached with setsid -f",
+    "A missing launcher raises a critical notify-send instead of doing nothing",
+    "Regression tests: click with PATH=/usr/bin:/bin runs `--gui`; missing launcher notifies"
+  ],
+  "verification": [
+    {
+      "command": "env -i PATH=/usr/local/bin:/usr/bin:/bin BLOCK_BUTTON=1 DAILY_LIMITS_BIN=<stub> bash i3blocks/{gaming_budget,shutdown_countdown}.sh (i3blocks' real PATH from /proc/<pid>/environ)",
+      "result": "pass",
+      "evidence": "stub log: 'clicked --gui' twice; block output unchanged (🎮 2h35 left · 2h25/5h00 ..., ⏻ 22:00 ... →max 23:00)"
+    },
+    {
+      "command": "capped.sh bash tests/test_i3blocks_gaming_budget.sh; test_i3blocks_shutdown_hint.sh; test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed. / All shutdown hint tests passed. / All i3blocks efficiency regression tests passed."
+    }
+  ],
+  "risks": [
+    "If daily-limits is installed elsewhere, DAILY_LIMITS_BIN must be set in the i3blocks environment"
+  ],
+  "rollback": [
+    "git revert this commit; clicks go back to doing nothing under i3blocks' PATH"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "title": "i3blocks: left-click on ⏻/🎮 opens the daily-limits popup",
+  "objective": "A left-click on either block launches `daily-limits --gui` even though i3blocks' PATH lacks ~/.local/bin, and a missing launcher is reported instead of ignored.",
+  "acceptance_criteria": [
+    "With PATH=/usr/bin:/bin and BLOCK_BUTTON=1 both blocks run $DAILY_LIMITS_BIN --gui",
+    "A missing launcher triggers notify-send",
+    "The three i3blocks test suites pass and pre-commit is clean"
+  ],
+  "out_of_scope": ["The daily-limits GUI itself", "A phone version"],
+  "verifier": "bash linux_configuration/tests/test_i3blocks_{gaming_budget,shutdown_hint,efficiency}.sh; pre-commit run"
+}

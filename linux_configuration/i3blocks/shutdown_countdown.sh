@@ -20,9 +20,12 @@ LIMITS_CACHE=${DAILY_LIMITS_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/daily-limits.json}
 RENDER_CACHE=${DAILY_LIMITS_RENDER_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/i3blocks-shutdown.render}
 readonly STALE_AFTER_SECONDS=180
 
-# Left-click: open the daily-limits popup (a fork only on click).
-if [[ ${BLOCK_BUTTON:-0} -eq 1 ]] && command -v daily-limits >/dev/null 2>&1; then
-	daily-limits --gui >/dev/null 2>&1 &
+# Left-click opens the popup, by path: i3blocks' PATH has no ~/.local/bin.
+readonly DAILY_LIMITS_BIN=${DAILY_LIMITS_BIN:-$HOME/.local/bin/daily-limits}
+if [[ ${BLOCK_BUTTON:-0} -eq 1 && -x $DAILY_LIMITS_BIN ]]; then
+	setsid -f "$DAILY_LIMITS_BIN" --gui >/dev/null 2>&1
+elif [[ ${BLOCK_BUTTON:-0} -eq 1 ]]; then
+	notify-send -u critical 'daily-limits' "not installed: $DAILY_LIMITS_BIN" || true
 fi
 
 # Function to show error state in i3blocks and exit
