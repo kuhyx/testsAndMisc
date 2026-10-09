@@ -63,8 +63,28 @@ if grep -q 'dport 853' "$RULES"; then
 else
 	_t_pass "ALLOW_DOT=false renders no 853 rule"
 fi
+printf '\n-- the workout poke is LAN-only --\n'
+if grep -q 'dport 8773' "$RULES"; then
+	_t_fail "ALLOW_WORKOUT_POKE unset renders no 8773 rule"
+else
+	_t_pass "ALLOW_WORKOUT_POKE unset renders no 8773 rule"
+fi
+ALLOW_WORKOUT_POKE="true"
+render_nftables_ruleset "$RULES"
+_t_file_has "$RULES" 'ip saddr 192.168.1.0/24 tcp dport 8773 accept' \
+	"ALLOW_WORKOUT_POKE opens 8773 to the LAN subnet"
+_t_eq "1" "$(grep -c 'dport 8773' "$RULES")" \
+	"exactly one 8773 rule: no wg0 rule, the poke never rides WireGuard"
+ALLOW_WORKOUT_POKE="false"
+render_nftables_ruleset "$RULES"
+if grep -q 'dport 8773' "$RULES"; then
+	_t_fail "ALLOW_WORKOUT_POKE=false renders no 8773 rule"
+else
+	_t_pass "ALLOW_WORKOUT_POKE=false renders no 8773 rule"
+fi
 if command -v nft >/dev/null 2>&1; then
 	ALLOW_DOT="true"
+	ALLOW_WORKOUT_POKE="true"
 	render_nftables_ruleset "$RULES"
 	if nft -c -f "$RULES" >/dev/null 2>&1; then
 		_t_pass "nft -c accepts the rendered ruleset"
@@ -99,5 +119,23 @@ if grep -q 'iptables\|systemctl' "$TEST_TMPDIR/calls.log"; then
 else
 	_t_pass "an inactive docker is not touched"
 fi
+
+printf '\n-- allow-workout-poke persists the flag, then applies it --\n'
+# save_config belongs to setup_wireguard_ssh.sh and the apply needs root, so
+# both are recorded instead; the ruleset itself is the real render.
+save_config() {
+	printf 'save_config ALLOW_WORKOUT_POKE=%s\n' "$ALLOW_WORKOUT_POKE" >>"$TEST_TMPDIR/calls.log"
+}
+verify_nftables_then_apply() { printf 'apply\n' >>"$TEST_TMPDIR/calls.log"; }
+: >"$TEST_TMPDIR/calls.log"
+rm -f "$NFT_CONF" "${NFT_CONF}.new"
+ALLOW_WORKOUT_POKE="false"
+out="$(allow_workout_poke 2>&1)"
+mapfile -t calls <"$TEST_TMPDIR/calls.log"
+_t_eq "save_config ALLOW_WORKOUT_POKE=true|apply" "$(IFS='|' && printf '%s' "${calls[*]}")" \
+	"the flag is saved as true before the ruleset is applied"
+_t_file_has "${NFT_CONF}.new" 'ip saddr 192.168.1.0/24 tcp dport 8773 accept' \
+	"the applied ruleset carries the LAN-only 8773 rule"
+_t_has "$out" 'not wg0' "the confirmation says the port stays off WireGuard"
 
 _t_report "test_wg_firewall.sh"

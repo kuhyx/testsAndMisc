@@ -41,6 +41,7 @@ export ALLOW_WEB="${ALLOW_WEB:-false}"
 export ALLOW_DNS="${ALLOW_DNS:-false}"
 export ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT:-false}"
 export ALLOW_DOT="${ALLOW_DOT:-false}"
+export ALLOW_WORKOUT_POKE="${ALLOW_WORKOUT_POKE:-false}"
 
 die() {
 	log_error "$1"
@@ -56,6 +57,7 @@ ALLOW_WEB="${ALLOW_WEB}"
 ALLOW_DNS="${ALLOW_DNS}"
 ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT}"
 ALLOW_DOT="${ALLOW_DOT}"
+ALLOW_WORKOUT_POKE="${ALLOW_WORKOUT_POKE}"
 EOF
 	chmod 600 "$CONFIG_FILE"
 }
@@ -95,7 +97,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | allow-dot | verify | install-verify)
+	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | allow-dot | allow-workout-poke | verify | install-verify)
 		require_root "$@"
 		;;
 	esac
@@ -138,6 +140,10 @@ main() {
 		;;
 	allow-dot)
 		allow_dot
+		install_verify_units
+		;;
+	allow-workout-poke)
+		allow_workout_poke
 		install_verify_units
 		;;
 	verify)

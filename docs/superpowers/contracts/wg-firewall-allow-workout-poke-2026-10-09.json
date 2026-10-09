@@ -1,0 +1,15 @@
+{
+  "title": "Firewall: LAN-only tcp/8773 for the workout poke",
+  "objective": "setup_wireguard_ssh.sh allow-workout-poke opens tcp/8773 from the LAN subnet only (never wg0), persists ALLOW_WORKOUT_POKE so every later re-apply keeps it, and leaves it closed when the flag is unset or false.",
+  "acceptance_criteria": [
+    "ALLOW_WORKOUT_POKE unset or false renders no dport 8773 rule (test_wg_firewall.sh)",
+    "ALLOW_WORKOUT_POKE=true renders exactly one 8773 rule: ip saddr ${LAN_SUBNET} tcp dport 8773 accept (test_wg_firewall.sh)",
+    "allow_workout_poke saves the flag as true before verify-then-apply, and the applied ruleset carries the rule (test_wg_firewall.sh)",
+    "Host: nft list ruleset shows the rule after the user ran allow-workout-poke"
+  ],
+  "out_of_scope": [
+    "Any wg0 rule for 8773",
+    "The poke server itself (screen-locker repo)"
+  ],
+  "verifier": "lib/tests/test_wg_firewall.sh, lib/tests/run_all.sh in shell_coverage_jail.sh, nft list ruleset on the host"
+}

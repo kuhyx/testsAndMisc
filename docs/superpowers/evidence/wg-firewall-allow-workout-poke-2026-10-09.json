@@ -1,0 +1,43 @@
+{
+  "intent": "screen-locker's workout poke (phone POSTs a finished workout to tcp/8773) can reach the PC from the home LAN, persisted across firewall re-applies, without exposing the port on WireGuard.",
+  "scope": [
+    "linux_configuration/features/lib/wg_firewall.sh: ALLOW_WORKOUT_POKE renders 'ip saddr ${LAN_SUBNET} tcp dport 8773 accept'; allow_workout_poke()",
+    "linux_configuration/features/setup_wireguard_ssh.sh: default, save_config, require_root list, allow-workout-poke dispatch",
+    "linux_configuration/features/lib/wg_sshd.sh: usage line",
+    "linux_configuration/features/lib/tests/test_wg_firewall.sh: render + apply-path tests",
+    "Non-goal: no wg0 rule for 8773; off the LAN the poke fails fast and the normal sync credits the workout"
+  ],
+  "changes": [
+    "New ALLOW_WORKOUT_POKE flag (default false) persisted in .wireguard_ssh.conf like ALLOW_DOT",
+    "allow-workout-poke subcommand: export flag, save_config, render, verify-then-apply, install verify units"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/features/lib/tests/test_wg_firewall.sh",
+      "result": "pass",
+      "evidence": "18 passed, 0 failed: unset/false render no 8773 rule; true renders exactly one, LAN-only; allow_workout_poke saves the flag as true before applying and the applied ruleset carries the rule"
+    },
+    {
+      "command": "shell_coverage_jail.sh --subject linux_configuration/features/lib/tests/run_all.sh <jail_args> --min 0 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "jailed suite exit 0"
+    },
+    {
+      "command": "sudo setup_wireguard_ssh.sh allow-workout-poke on the host (run by the user)",
+      "result": "pass",
+      "evidence": "nft list ruleset shows ip saddr <LAN> tcp dport 8773 accept in inet filter input"
+    },
+    {
+      "command": "pre-commit run --files <the four files>",
+      "result": "pass",
+      "evidence": "all hooks passed"
+    }
+  ],
+  "risks": [
+    "Any LAN host can reach tcp/8773; the poke server authenticates requests itself."
+  ],
+  "rollback": [
+    "git revert this commit, set ALLOW_WORKOUT_POKE=false in .wireguard_ssh.conf and re-run any allow-* to re-render",
+    "After rollback: setup_wireguard_ssh.sh verify reports no drift and no 8773 rule"
+  ]
+}
