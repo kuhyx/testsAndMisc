@@ -31,6 +31,7 @@ from python_pkg.app_icons._glyph_art import (
 )
 from python_pkg.app_icons._glyph_art_more import (
     _BOWL_STAR,
+    _HOURGLASS,
     _HOUSE_TICK,
     _NOTE_ASCENDER,
     _OPEN_BOOK,
@@ -94,6 +95,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
         Glyph("house-tick", "House outline with a tick inside", _HOUSE_TICK),
         Glyph("umbrella", "Filled umbrella canopy over a J-handle", _UMBRELLA),
         Glyph("open-book", "Open book, two filled pages", _OPEN_BOOK),
+        Glyph("hourglass", "Capped hourglass with sand still in the top", _HOURGLASS),
         Glyph(
             "remote-wave",
             "Handset with punched buttons under a broadcast arc",

@@ -1,0 +1,15 @@
+{
+  "title": "app_icons: daily_limits gets the hourglass glyph in the shared family",
+  "objective": "The daily-limits phone app ships a family launcher icon (charcoal #211D1B field, shared accent #B8862E) instead of the stock Flutter icon, with no change to any other app's icon.",
+  "acceptance_criteria": [
+    "`generate --app daily_limits --android` writes assets/icon and the Android mipmaps for ~/src/daily-limits/app",
+    "The registry keeps one accent (#B8862E) and one field (style.BACKGROUND) for every app",
+    "The diff to python_pkg/app_icons is additive only, so every other app renders byte-identically",
+    "python_pkg/app_icons tests pass at 100% line and branch coverage; pre-commit is clean"
+  ],
+  "out_of_scope": [
+    "A per-app background or accent override (decided 2026-10-09: the generator's shared colours are right)",
+    "Committing the daily-limits app itself"
+  ],
+  "verifier": ".venv/bin/python -m pytest -q python_pkg/app_icons --cov=python_pkg/app_icons --cov-branch; pre-commit run"
+}

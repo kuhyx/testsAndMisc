@@ -211,6 +211,14 @@ APPS: Final[dict[str, AppIcon]] = {
             icon_name="book-guard",
             linux=False,
         ),
+        AppIcon(
+            key="daily_limits",
+            repo=_HOME / "src/daily-limits/app",
+            accent="#B8862E",
+            glyph="hourglass",
+            icon_name="daily-limits",
+            linux=False,
+        ),
     )
 }
 

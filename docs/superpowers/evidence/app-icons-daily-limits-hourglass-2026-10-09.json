@@ -1,0 +1,41 @@
+{
+  "intent": "Give the daily-limits phone app an on-style launcher icon: an hourglass (a daily allowance that runs out) in the shared accent on the family charcoal.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art_more.py, glyphs.py: the `hourglass` glyph",
+    "python_pkg/app_icons/apps.py: the `daily_limits` registry entry",
+    "python_pkg/app_icons/tests/test_registry.py: no glyph reused across apps; hourglass sand takes the accent marker"
+  ],
+  "changes": [
+    "New `hourglass` glyph: capped bars, crossed sides, sand filled in the accent so the monochrome layer recolours it",
+    "daily_limits registered with accent #B8862E and the default style.BACKGROUND field",
+    "Invariant test: apps are told apart by glyph, so a new app may not reuse one (track-bars is the pre-existing exception)"
+  ],
+  "verification": [
+    {
+      "command": "PATH=~/sdk/fvm/versions/3.47.7/bin:$PATH python3 -m python_pkg.app_icons generate --app daily_limits --android",
+      "result": "pass",
+      "evidence": "daily_limits: wrote 6 asset files; regenerated Android mipmaps; ic_launcher_background #211D1B"
+    },
+    {
+      "command": "phone_deploy.sh ~/src/daily-limits/app (adb install -r on 23181JEGR08034)",
+      "result": "pass",
+      "evidence": "Install Success; the APK's mipmap-xxxhdpi ic_launcher.png is byte-identical to the generated one (hourglass in #B8862E on #211D1B); confirmed by kuhy"
+    },
+    {
+      "command": ".venv/bin/python -m pytest -q python_pkg/app_icons --cov=python_pkg/app_icons --cov-branch",
+      "result": "pass",
+      "evidence": "47 passed; every python_pkg/app_icons module 100% line and branch"
+    },
+    {
+      "command": "git diff python_pkg/app_icons | grep -c '^-[^-]'",
+      "result": "pass",
+      "evidence": "0 removed lines: renderer and other registry entries untouched, so other apps' icons are byte-identical"
+    }
+  ],
+  "risks": [
+    "`generate` runs `dart run`, which needs a Dart SDK satisfying the app's ^3.13.5; the system dart 3.13.3 fails, so put the fvm 3.47.7 SDK first on PATH"
+  ],
+  "rollback": [
+    "git revert this commit; daily_limits disappears from the registry and the glyph library"
+  ]
+}

@@ -207,3 +207,25 @@ _OPEN_BOOK = """\
     <path fill="{{ACCENT}}" stroke="none" d="\
 M 232 344 Q 372 290 488 360 L 488 744 Q 372 674 232 728 Z \
 M 536 360 Q 652 290 792 344 L 792 728 Q 652 674 536 744 Z"/>"""
+
+
+# An hourglass with sand still in the top bulb -- daily-limits, today's PC
+# shutdown time and gaming budget: a daily allowance that runs out. Chosen over
+# a clock-with-a-cap because `clock` is already wake_alarm_sync's glyph.
+#
+# Geometry, inside SAFE_BOX (ink x=284..740, y=236..788):
+#   caps    bars at y=272 and y=752, x=320..704.
+#   glass   straight sides (352,272)->(512,512)->(352,752) and mirror; the
+#           sides cross at the neck, so the waist is solid, not a sliver.
+#   sand    filled to the glass centrelines, so it fuses with the outline:
+#           top bulb from the neck up to y=392, leaving an empty band 84 tall
+#           and 73+ wide below the cap; bottom bulb a pile up to y=680. Every
+#           gap clears MIN_NEGATIVE_SPACE=36.
+_HOURGLASS = """\
+    <path d="M 320 272 L 704 272"/>
+    <path d="M 320 752 L 704 752"/>
+    <path d="M 352 272 L 672 752"/>
+    <path d="M 672 272 L 352 752"/>
+    <path fill="{{ACCENT}}" stroke="none" d="\
+M 432 392 L 592 392 L 512 512 Z \
+M 400 680 L 624 680 L 672 752 L 352 752 Z"/>"""

@@ -45,6 +45,13 @@ class TestFamilyInvariants:
             assert len(app.accent) == 7
             int(app.accent[1:], 16)
 
+    def test_no_glyph_is_reused(self) -> None:
+        """Apps are told apart by glyph; a new app must not borrow one."""
+        shared_by_design = {"track-bars"}  # kuhylog + betting_sim, pre-existing
+        used = [app.glyph for app in apps.APPS.values()]
+        reused = {glyph for glyph in used if used.count(glyph) > 1}
+        assert reused <= shared_by_design
+
     def test_safe_box_fits_inside_canvas(self) -> None:
         assert style.SAFE_BOX < style.CANVAS
         assert style.MIN_NEGATIVE_SPACE == style.STROKE_WIDTH / 2
@@ -64,3 +71,14 @@ class TestFamilyInvariants:
                 f"{glyph.name} paints style.BACKGROUND; cut the hole with "
                 f'fill-rule="evenodd" instead'
             )
+
+
+class TestHourglassGlyph:
+    def test_daily_limits_uses_it(self) -> None:
+        assert apps.get_app("daily_limits").glyph == "hourglass"
+
+    def test_sand_is_filled_in_the_accent(self) -> None:
+        """The sand takes the accent marker, so the monochrome layer recolours it."""
+        body = glyphs.get_glyph("hourglass").body
+        assert f'fill="{style.ACCENT_MARKER}"' in body
+        assert 'stroke="none"' in body
