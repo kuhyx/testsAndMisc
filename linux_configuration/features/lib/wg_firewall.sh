@@ -36,12 +36,12 @@ render_nftables_ruleset() {
 		ha_rule+=$'\n\t\tiifname "'"${WG_IFACE}"$'" tcp dport 8123 accept'
 	fi
 	# Workout poke (screen-locker workout-poke.service): the phone POSTs a
-	# finished workout to tcp/8773 the moment it ends. LAN only, deliberately
+	# finished workout to tcp/8774 the moment it ends. LAN only, deliberately
 	# NO wg0 rule: off the home LAN the poke fails fast and the normal sync
 	# credits the workout instead.
 	local poke_rule=""
 	if [[ ${ALLOW_WORKOUT_POKE:-false} == "true" ]]; then
-		poke_rule=$'\n\t\tip saddr '"${LAN_SUBNET}"$' tcp dport 8773 accept'
+		poke_rule=$'\n\t\tip saddr '"${LAN_SUBNET}"$' tcp dport 8774 accept'
 	fi
 	# DNS-over-TLS (setup_dot_resolver.sh, bound to the WireGuard address):
 	# rendered here so a re-apply keeps it -- a runtime 'nft add rule' did not.
@@ -185,5 +185,5 @@ allow_workout_poke() {
 	save_config
 	write_nftables_ruleset
 	verify_nftables_then_apply
-	log_ok "Opened tcp/8773 from ${LAN_SUBNET:-the LAN} only, not ${WG_IFACE} (persisted)."
+	log_ok "Opened tcp/8774 from ${LAN_SUBNET:-the LAN} only, not ${WG_IFACE} (persisted)."
 }

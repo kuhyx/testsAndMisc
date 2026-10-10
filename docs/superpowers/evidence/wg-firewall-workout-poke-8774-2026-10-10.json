@@ -1,0 +1,31 @@
+{
+  "intent": "The phone's instant workout poke reaches screen-locker on tcp/8774; tcp/8773 is left to book-guard's desktop wrapper (loopback), whose window the poke server had been answering.",
+  "scope": [
+    "linux_configuration/features/lib/wg_firewall.sh, wg_sshd.sh, tests/test_wg_firewall.sh",
+    "Non-goal: any other firewall rule; the poke stays LAN-only with no wg0 rule"
+  ],
+  "changes": [
+    "LAN-only poke rule renders 'ip saddr <LAN> tcp dport 8774 accept' instead of 8773",
+    "allow-workout-poke help and confirmation text name tcp/8774"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/features/lib/tests/test_wg_firewall.sh",
+      "result": "pass",
+      "evidence": "18 passed, 0 failed (nft -c skipped: not permitted unprivileged)"
+    },
+    {
+      "command": "vm run pokefw 'echo y | sudo bash ~/lc/features/setup_wireguard_ssh.sh allow-workout-poke'",
+      "result": "pass",
+      "evidence": "vmbox: exit 0, live ruleset has 'ip saddr 192.168.1.0/24 tcp dport 8774 accept', no 8773 rule, sshd active, second ssh session connects. Not verified on the host at commit time."
+    }
+  ],
+  "risks": [
+    "Until the host re-applies, the live ruleset still opens 8773 (nothing listens on the LAN there) and blocks 8774, so the poke fails fast and the regular sync credits workouts",
+    "nftables-drift reports drift until the host re-applies"
+  ],
+  "rollback": [
+    "git revert, then sudo bash linux_configuration/features/setup_wireguard_ssh.sh allow-workout-poke",
+    "Check: sudo nft list ruleset | grep 877 shows the restored port"
+  ]
+}
