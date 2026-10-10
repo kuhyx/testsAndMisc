@@ -1,0 +1,35 @@
+{
+  "intent": "main goes green again: 'Pre-commit checks' and 'dependency freshness' failed on 2026-10-09 only because pins fell behind new upstream releases.",
+  "scope": [
+    "meta/requirements.txt, meta/requirements-test.txt",
+    "Non-goal: pre-commit hook revs (not checked by the freshness gate)"
+  ],
+  "changes": [
+    "anthropic 1.12.1 -> 1.13.0 (both files), pyupgrade 3.21.2 -> 3.22.0, reorder-python-imports 3.17.0 -> 3.18.0",
+    "black 26.10.0 -> 26.10.1, pipdeptree 4.2.5 -> 4.2.6, ruff 0.16.10 -> 0.17.0, selenium 4.50.0 -> 4.51.0 (went stale since the red run)"
+  ],
+  "verification": [
+    {
+      "command": "scripts/check_dependency_freshness.sh meta/requirements.txt meta/requirements-test.txt",
+      "result": "pass",
+      "evidence": "exit 0 (only the existing typescript transitive exception listed)"
+    },
+    {
+      "command": "pip install --dry-run -r meta/requirements.txt -r meta/requirements-test.txt",
+      "result": "pass",
+      "evidence": "resolves, exit 0"
+    },
+    {
+      "command": "pytest python_pkg/code_tutor (fresh venv from meta/requirements-test.txt, anthropic 1.13.0)",
+      "result": "pass",
+      "evidence": "217 passed"
+    }
+  ],
+  "risks": [
+    "ruff 0.17.0 from requirements.txt may flag new rules when run outside pre-commit (pre-commit pins its own ruff rev)"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Re-run scripts/check_dependency_freshness.sh: it will report the old pins as behind again"
+  ]
+}
