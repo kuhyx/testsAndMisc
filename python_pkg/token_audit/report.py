@@ -157,8 +157,8 @@ def render(
     lines += ["", "## Tool result payloads (estimated tokens returned)", ""]
     lines += _table(
         [
-            (name, f"{tok:,} over {axes.tool_calls[name]:,} calls")
-            for name, tok in axes.tool_tokens.most_common(TOP_N)
+            (name, f"{tok:,} over {axes.tools.calls[name]:,} calls")
+            for name, tok in axes.tools.tokens.most_common(TOP_N)
         ],
         ("tool", "result tokens"),
     )

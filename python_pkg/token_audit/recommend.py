@@ -19,7 +19,7 @@ SUBAGENT_OPUS_SHARE = 0.5
 OVER_BUDGET_SHARE = 0.2
 HOME_CWD_SHARE = 0.2
 BATCHING_MIN = 1.15
-BASH_TOKENS_PER_CALL = 250
+BASH_BIG_SHARE = 0.25
 PREFIX_GROWTH = 0.05
 IMAGE_SHARE = 0.03
 
@@ -108,15 +108,16 @@ def _mechanics(m: dict[str, Any], prev: dict[str, Any] | None) -> list[Lever]:
                 "a whole read-only chain and report once",
             ),
         )
-    bash = _num(m, "bash_tokens_per_call")
-    if bash > BASH_TOKENS_PER_CALL:
+    big = _num(m, "bash_big_result_share")
+    if big > BASH_BIG_SHARE:
         out.append(
             Lever(
                 "agent mechanics",
                 "Large Bash results",
-                f"{bash:.0f} result tokens per Bash call",
-                "compress command output (RTK if its A/B won) and keep "
-                "| head/| tail discipline",
+                f"{big:.0%} of Bash result tokens come from results over 2k "
+                f"({_num(m, 'bash_tokens_per_day'):,.0f} tokens/day)",
+                "read files with ranges (sed -n 'a,bp', grep -n), never cat a "
+                "whole file; cap every pipeline stage, not just the last",
             ),
         )
     if prev is not None:

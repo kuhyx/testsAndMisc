@@ -1,0 +1,31 @@
+{
+  "intent": "Every subagent in the token audit carries a task label and type; no '?' / 'unknown' rows in the subagent tables.",
+  "scope": [
+    "python_pkg/token_audit/discover.py, python_pkg/token_audit/parse.py and their tests",
+    "Non-goal: no hook or settings.json change; every Agent launch already records a description"
+  ],
+  "changes": [
+    "agent_meta borrows a missing description/type from the same agent-<id>.meta.json in another session dir (background agents that outlive /clear continue in the new session's subagents/ with no meta)",
+    "load_session falls back to the first user prompt line (60 chars), then '(no label) agent-<id>', instead of '?'"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q python_pkg/token_audit/tests --cov=python_pkg.token_audit --cov-branch",
+      "result": "pass",
+      "evidence": "200 passed, 100.00% branch coverage"
+    },
+    {
+      "command": "python3 -m python_pkg.token_audit --since 1791123199.748 --until 1791627950.749 --no-write",
+      "result": "pass",
+      "evidence": "Same window as the 2026-10-10 snapshot: 'unknown' ($35.23) and '?' ($35.93) rows gone; all 14 affected files labelled from the spawning session's meta"
+    }
+  ],
+  "risks": [
+    "Agent ids colliding across sessions would borrow the wrong label (ids are 17 random hex chars; none seen across 479 files)",
+    "One extra glob over projects/*/*/subagents per unlabelled subagent file"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Re-run the audit with --no-write and confirm the old '?' row returns"
+  ]
+}

@@ -90,13 +90,26 @@ class Batching:
         return self.calls / self.messages if self.messages else 0.0
 
 
+BIG_RESULT = 2000
+
+
+@dataclass
+class ToolPayloads:
+    """Tool-result tokens and call counts per tool name."""
+
+    tokens: Counter[str] = field(default_factory=Counter)
+    calls: Counter[str] = field(default_factory=Counter)
+    # Tokens from results over BIG_RESULT: the part a range/head would have
+    # cut (whole-file cat/sed dumps).
+    big_tokens: Counter[str] = field(default_factory=Counter)
+
+
 @dataclass
 class Axes:
     """Every ranking the report needs, in one pass over the sessions."""
 
     project: Counter[str] = field(default_factory=Counter)
-    tool_tokens: Counter[str] = field(default_factory=Counter)
-    tool_calls: Counter[str] = field(default_factory=Counter)
+    tools: ToolPayloads = field(default_factory=ToolPayloads)
     mcp_calls: Counter[str] = field(default_factory=Counter)
     skills: Counter[str] = field(default_factory=Counter)
     models: Counter[str] = field(default_factory=Counter)
@@ -155,8 +168,10 @@ def _add_batching(axes: Axes, session: Session) -> None:
 def _add_tools(axes: Axes, session: Session) -> None:
     """Attribute tool-result payloads to tools, MCP servers and skills."""
     for call in session.tools:
-        axes.tool_tokens[call.name] += call.result_tokens
-        axes.tool_calls[call.name] += 1
+        axes.tools.tokens[call.name] += call.result_tokens
+        axes.tools.calls[call.name] += 1
+        if call.result_tokens > BIG_RESULT:
+            axes.tools.big_tokens[call.name] += call.result_tokens
         server = call.mcp_server
         if server is not None:
             axes.mcp_calls[server] += 1

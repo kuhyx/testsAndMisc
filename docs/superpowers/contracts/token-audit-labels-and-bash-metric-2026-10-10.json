@@ -1,0 +1,15 @@
+{
+  "title": "token_audit: label every subagent; Bash metric per day + big-result share",
+  "objective": "The weekly audit must attribute every subagent dollar to a task label (no '?'/'unknown' rows) and must not report a Bash-output regression that is only a shrinking call count. Success: the 2026-10-04..10-10 window renders with no '?'/'unknown' subagent rows, and the snapshot compares bash_tokens_per_day and bash_big_result_share instead of bash_tokens_per_call.",
+  "acceptance_criteria": [
+    "Subagent files continued in a post-/clear session borrow the spawning session's agent-<id>.meta.json; otherwise the first prompt line labels them; never '?'",
+    "extra_metrics emits bash_tokens_per_day and bash_big_result_share (results > 2000 tokens); COMPARED uses them",
+    "The Large-Bash lever keys on bash_big_result_share > 0.25",
+    "token_audit tests pass at 100% branch coverage"
+  ],
+  "out_of_scope": [
+    "De-duplicating the 8 API calls that appear in both the original and continuation subagent file",
+    "A PreToolUse guard against whole-file cat/sed (needs settings.json, user's call)"
+  ],
+  "verifier": "python3 -m pytest python_pkg/token_audit --cov=python_pkg/token_audit --cov-branch; python3 -m python_pkg.token_audit --since <10-04 14:13 UTC> --no-write --recommend"
+}

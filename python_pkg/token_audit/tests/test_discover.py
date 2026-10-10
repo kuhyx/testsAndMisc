@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -49,3 +50,75 @@ def test_agent_meta_empty_when_missing_or_bad(tmp_path: Path) -> None:
     assert discover.agent_meta(path) == {}
     _touch(tmp_path / "agent-1.meta.json", 1, "garbage")
     assert discover.agent_meta(path) == {}
+
+
+def _meta(path: Path, meta: dict[str, object] | str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = meta if isinstance(meta, str) else json.dumps(meta)
+    path.write_text(text, encoding="utf-8")
+
+
+def test_agent_meta_prefers_own_description(tmp_path: Path) -> None:
+    own = tmp_path / "p" / "s" / "subagents" / "agent-1.meta.json"
+    _meta(own, {"agentType": "Plan", "description": "mine"})
+    _meta(
+        tmp_path / "p" / "o" / "subagents" / "agent-1.meta.json", {"description": "x"}
+    )
+    path = own.parent / "agent-1.jsonl"
+    assert discover.agent_meta(path) == {"agentType": "Plan", "description": "mine"}
+
+
+def test_agent_meta_borrows_missing_fields(tmp_path: Path) -> None:
+    sub = tmp_path / "p" / "new" / "subagents"
+    _meta(sub / "agent-2.meta.json", {"agentType": "fork", "spawnDepth": 0})
+    _meta(tmp_path / "p" / "bad" / "subagents" / "agent-2.meta.json", "not json")
+    _meta(tmp_path / "p" / "nod" / "subagents" / "agent-2.meta.json", {"x": 1})
+    _meta(
+        tmp_path / "q" / "old" / "subagents" / "agent-2.meta.json",
+        {"agentType": "general-purpose", "description": "spawned"},
+    )
+    assert discover.agent_meta(sub / "agent-2.jsonl") == {
+        "agentType": "fork",
+        "description": "spawned",
+    }
+
+
+def test_agent_meta_empty_when_nothing_found(tmp_path: Path) -> None:
+    path = tmp_path / "p" / "s" / "subagents" / "agent-3.jsonl"
+    path.parent.mkdir(parents=True)
+    assert discover.agent_meta(path) == {}
+
+
+def test_first_prompt_skips_non_prompts_and_truncates(tmp_path: Path) -> None:
+    rows = [
+        "junk",
+        json.dumps({"type": "assistant", "message": {"content": "no"}}),
+        json.dumps({"type": "user", "message": "flat"}),
+        json.dumps({"type": "user", "message": {"content": 7}}),
+        json.dumps(
+            {"type": "user", "message": {"content": ["s", {"type": "tool_result"}]}}
+        ),
+        json.dumps({"type": "user", "message": {"content": "  \n"}}),
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"content": [{"type": "text", "text": "x" * 80}]},
+            }
+        ),
+    ]
+    path = _touch(tmp_path / "t.jsonl", 1, "\n".join(rows))
+    assert discover.first_prompt(path) == "x" * 59 + "…"
+    assert discover.first_prompt(path, limit=100) == "x" * 80
+
+
+def test_first_prompt_text_block_without_text(tmp_path: Path) -> None:
+    row = {"type": "user", "message": {"content": [{"type": "text"}]}}
+    path = _touch(tmp_path / "t.jsonl", 1, json.dumps(row))
+    assert discover.first_prompt(path) == ""
+
+
+def test_first_prompt_strips_harness_wrappers(tmp_path: Path) -> None:
+    text = "<fork-boilerplate>\nYou are a fork <b>x</b>\n</fork-boilerplate>\nFix CI"
+    row = {"type": "user", "message": {"content": text}}
+    path = _touch(tmp_path / "t.jsonl", 1, json.dumps(row))
+    assert discover.first_prompt(path) == "Fix CI"

@@ -35,6 +35,8 @@ def test_extra_metrics_without_bash_or_spend() -> None:
     totals, axes = _axes(bash=False, spend=False)
     m = review.extra_metrics(totals, axes)
     assert m["bash_tokens_per_call"] == 0.0
+    assert m["bash_tokens_per_day"] == 0.0
+    assert m["bash_big_result_share"] == 0.0
     assert m["image_usd_share"] == 0.0
 
 
@@ -113,3 +115,13 @@ def test_render_with_levers_ignores_old_or_missing_previous(
     for prev in (None, {"v": 1, "metrics": {"standing_tokens_est": 100}}):
         text = "\n".join(review.render(snap, prev, levers=True))
         assert "Always-loaded context grew" not in text
+
+
+def test_extra_metrics_bash_per_day_and_big_share() -> None:
+    usage = {"output_tokens": 10}
+    turn = Turn(usage=usage, context=0, model="claude-opus-5", is_sidechain=False)
+    tools = [ToolCall("Bash", 3000), ToolCall("Bash", 1000), ToolCall("Read", 5000)]
+    totals, axes = attribute.build([Session("s", "s.jsonl", turns=[turn], tools=tools)])
+    m = review.extra_metrics(totals, axes, days=2.0)
+    assert m["bash_tokens_per_day"] == 2000.0
+    assert m["bash_big_result_share"] == 0.75

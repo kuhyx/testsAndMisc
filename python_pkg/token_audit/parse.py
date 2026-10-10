@@ -182,7 +182,8 @@ def load_session(path: Path, window: records.Window | None = None) -> Session:
 
     A subagent transcript (``<session>/subagents/agent-*.jsonl``) is tagged
     with its parent session id and the ``agentType``/``description`` the
-    spawning ``Agent`` call recorded in the sibling ``.meta.json``.
+    spawning ``Agent`` call recorded in the sibling ``.meta.json``. With no
+    description anywhere, the first prompt line stands in, then the agent id.
     """
     session = Session(
         session_id=path.stem, path=str(path), cwd=discover.first_cwd(path)
@@ -191,7 +192,11 @@ def load_session(path: Path, window: records.Window | None = None) -> Session:
         meta = discover.agent_meta(path)
         session.parent_id = path.parent.parent.name
         session.agent_type = str(meta.get("agentType") or "unknown")
-        session.description = str(meta.get("description") or "")
+        session.description = str(
+            meta.get("description")
+            or discover.first_prompt(path)
+            or f"(no label) {path.stem}"
+        )
     for kind, event in iter_events(path, window):
         if kind == "turn" and isinstance(event, Turn):
             session.turns.append(event)

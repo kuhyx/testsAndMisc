@@ -137,7 +137,9 @@ def main(argv: list[str] | None = None) -> int:
     priced = breakdown.build(sessions, pricing.load())
     snap["v"] = review.SNAPSHOT_VERSION
     snap["effective_window"] = {"since": priced.earliest, "until": priced.latest}
-    snap["metrics"] = breakdown.metrics(priced) | review.extra_metrics(totals, axes)
+    snap["metrics"] = breakdown.metrics(priced) | review.extra_metrics(
+        totals, axes, priced.days
+    )
     previous = history.last_snapshot(args.out)
     markdown = report.render(totals, axes, window, sessions, snap, None)
     markdown += "\n".join(

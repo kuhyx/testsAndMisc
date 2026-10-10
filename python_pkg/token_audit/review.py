@@ -27,20 +27,30 @@ COMPARED: tuple[str, ...] = (
     "over_budget_usd_share",
     "home_cwd_usd_share",
     "batching_calls_per_msg",
-    "bash_tokens_per_call",
+    # Per-day + big-result share, not per-call: a per-call mean rose 41% on
+    # 2026-10-10 with Bash tokens/day flat, only because cheap calls vanished.
+    "bash_tokens_per_day",
+    "bash_big_result_share",
     "standing_tokens_est",
 )
 
 
-def extra_metrics(totals: Totals, axes: Axes) -> dict[str, float]:
+def extra_metrics(totals: Totals, axes: Axes, days: float = 0.0) -> dict[str, float]:
     """Metrics that come from the token axes rather than from dollars."""
-    bash_calls = axes.tool_calls.get("Bash", 0)
+    bash_calls = axes.tools.calls.get("Bash", 0)
+    bash_tokens = axes.tools.tokens.get("Bash", 0)
     standing = sum(s.est_tokens for s in surfaces.collect())
     return {
         "batching_calls_per_msg": round(axes.batching.per_message, 3),
         "bash_tokens_per_call": (
-            round(axes.tool_tokens.get("Bash", 0) / bash_calls, 1)
+            round(axes.tools.tokens.get("Bash", 0) / bash_calls, 1)
             if bash_calls
+            else 0.0
+        ),
+        "bash_tokens_per_day": round(bash_tokens / days, 1) if days else 0.0,
+        "bash_big_result_share": (
+            round(axes.tools.big_tokens["Bash"] / bash_tokens, 4)
+            if bash_tokens
             else 0.0
         ),
         "image_usd_share": (

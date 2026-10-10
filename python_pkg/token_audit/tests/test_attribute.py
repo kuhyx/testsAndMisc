@@ -85,8 +85,8 @@ def test_tool_mcp_and_skill_axes() -> None:
         ToolCall(name="Skill", result_tokens=1, skill="finish"),
     ]
     _, axes = attribute.build([_session(tools=tools)])
-    assert axes.tool_tokens["Read"] == 15
-    assert axes.tool_calls["Read"] == 2
+    assert axes.tools.tokens["Read"] == 15
+    assert axes.tools.calls["Read"] == 2
     assert axes.mcp_calls["aseprite"] == 1
     assert axes.skills["finish"] == 1
     assert axes.images.count == 1

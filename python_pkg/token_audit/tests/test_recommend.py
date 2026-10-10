@@ -15,7 +15,8 @@ def _fire_all() -> dict[str, Any]:
         "over_budget_usd_share": 0.5,
         "home_cwd_usd_share": 0.4,
         "batching_calls_per_msg": 1.05,
-        "bash_tokens_per_call": 900,
+        "bash_big_result_share": 0.4,
+        "bash_tokens_per_day": 900_000,
         "standing_tokens_est": 120,
         "image_usd_share": 0.1,
     }

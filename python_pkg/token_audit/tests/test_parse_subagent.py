@@ -54,7 +54,36 @@ def test_load_session_subagent_without_meta_defaults(tmp_path: Path) -> None:
     path.write_text("{}", encoding="utf-8")
     session = parse.load_session(path)
     assert session.agent_type == "unknown"
-    assert session.description == ""
+    assert session.description == "(no label) agent-b"
+
+
+def test_load_session_borrows_label_across_clear(tmp_path: Path) -> None:
+    """An agent that outlived ``/clear`` keeps its spawning session's label."""
+    old = tmp_path / "proj" / "old" / "subagents"
+    new = tmp_path / "proj" / "new" / "subagents"
+    old.mkdir(parents=True)
+    new.mkdir(parents=True)
+    (old / "agent-c.meta.json").write_text(
+        json.dumps({"agentType": "Explore", "description": "map the repo"}),
+        encoding="utf-8",
+    )
+    path = new / "agent-c.jsonl"
+    path.write_text("{}", encoding="utf-8")
+    session = parse.load_session(path)
+    assert session.agent_type == "Explore"
+    assert session.description == "map the repo"
+
+
+def test_load_session_falls_back_to_first_prompt(tmp_path: Path) -> None:
+    sub = tmp_path / "proj" / "sess-3" / "subagents"
+    sub.mkdir(parents=True)
+    path = sub / "agent-d.jsonl"
+    prompt: dict[str, object] = {
+        "type": "user",
+        "message": {"content": "\nAudit the hooks\nmore"},
+    }
+    path.write_text(_line(prompt), encoding="utf-8")
+    assert parse.load_session(path).description == "Audit the hooks"
 
 
 def test_window_filters_records_by_timestamp(tmp_path: Path) -> None:
