@@ -1,0 +1,31 @@
+{
+  "intent": "The i3 bar shows today's Automation tutor progress (tutor n/4), hides at 4/4, and a click opens the tutor via plc-lab's run.sh.",
+  "scope": [
+    "linux_configuration/i3blocks/automation_tutor.sh, the [automation_tutor] stanza in linux_configuration/i3blocks/config, linux_configuration/tests/test_i3blocks_automation_tutor.sh",
+    "Non-goal: no ledger HMAC check (earned_time owns that); display only"
+  ],
+  "changes": [
+    "New block counts kind==credit rows dated today in ~/.local/share/automation_tutor/ledger.json; hidden at 4/4; orange message when jq is missing or the ledger is unreadable",
+    "Click runs ~/src/plc-lab/run.sh (override AUTOMATION_TUTOR_RUN); ledger override AUTOMATION_TUTOR_LEDGER",
+    "Hermetic test with a stub run.sh and fixture ledgers: no ledger, 2 today + 1 yesterday, 4 today, unreadable, click"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_automation_tutor.sh",
+      "result": "pass",
+      "evidence": "automation_tutor block: all checks passed"
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "shellcheck, codespell, file caps and shell hooks passed"
+    }
+  ],
+  "risks": [
+    "i3blocks config is deployed by the installer; the block only appears after the next deploy to ~/.config/i3blocks"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Remove [automation_tutor] from ~/.config/i3blocks/config and reload i3blocks"
+  ]
+}

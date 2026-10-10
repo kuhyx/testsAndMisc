@@ -63,6 +63,10 @@ interval=30
 command=~/.config/i3blocks/book_guard.sh
 interval=30
 
+[automation_tutor]
+command=~/.config/i3blocks/automation_tutor.sh
+interval=30
+
 [issue_dashboard]
 command=~/.config/i3blocks/issue_dashboard.sh
 interval=30
