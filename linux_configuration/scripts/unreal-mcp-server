@@ -1,0 +1,8 @@
+#!/bin/bash
+# Launch the unreal-mcp Python server over stdio.
+# ~/.local/bin/unreal-mcp-server is a symlink here, installed by
+# features/install_unreal_mcp.sh. Set UNREAL_MCP_PYTHON_DIR when the repo was
+# installed with --install-dir somewhere other than the default.
+set -euo pipefail
+python_dir="${UNREAL_MCP_PYTHON_DIR:-${HOME}/.local/share/unreal-mcp/unreal-mcp/Python}"
+exec uv --directory "${python_dir}" run unreal_mcp_server.py "${1:-}" </dev/null

@@ -1,0 +1,37 @@
+{
+  "intent": "Hand-placed ~/.local/bin scripts are version-controlled in linux_configuration/scripts/ while every existing ~/.local/bin path keeps working through a symlink.",
+  "scope": [
+    "linux_configuration/scripts/{fix-execstack-launch.sh,nvidia-pmon-logger.sh,usage-report-catchup.sh,krita-scaled.sh,blender-mcp-host,blender-mcp-serve,unreal-mcp-server}, linux_configuration/features/lib/unreal_mcp_repo.sh, linux_configuration/features/install_unreal_mcp.sh",
+    "Non-goal: no behaviour change to the moved scripts; callers are not edited"
+  ],
+  "changes": [
+    "Six scripts copied byte-for-byte (cmp-verified, mode preserved); ~/.local/bin/krita is now named krita-scaled.sh in the repo",
+    "unreal-mcp-server is tracked; it reads UNREAL_MCP_PYTHON_DIR (default ~/.local/share/unreal-mcp/unreal-mcp/Python) because a static file cannot bake in --install-dir",
+    "install_launcher replaces the heredoc with ln -sfn to the tracked wrapper, chown -h under sudo, and logs a warning to export UNREAL_MCP_PYTHON_DIR when --install-dir is non-default"
+  ],
+  "verification": [
+    {
+      "command": "for n in ...; do readlink -f ~/.local/bin/$n; bash -n ~/.local/bin/$n; done",
+      "result": "pass",
+      "evidence": "all seven names resolve into linux_configuration/scripts and parse"
+    },
+    {
+      "command": "source lib/unreal_mcp_repo.sh with USER_HOME=<tmpdir>; install_launcher twice over a stale regular file",
+      "result": "pass",
+      "evidence": "regular file replaced by symlink to scripts/unreal-mcp-server; second run idempotent; non-default install dir warning logged"
+    },
+    {
+      "command": "pre-commit run <shellcheck|no-inline-python|no-polling-antipatterns|shell-coverage-ratchet|file-length-cap> --files <staged>",
+      "result": "pass",
+      "evidence": "all passed"
+    }
+  ],
+  "risks": [
+    "A non-default --install-dir now needs UNREAL_MCP_PYTHON_DIR exported where the MCP client launches the server",
+    "Moving or renaming the repo checkout breaks the ~/.local/bin symlinks"
+  ],
+  "rollback": [
+    "git revert the commit, then cp the scripts from the previous ~/.local/bin state (git show <hash>:linux_configuration/scripts/<file>) over the symlinks",
+    "Check systemctl --user status nvidia-pmon.service usage-report-catchup.timer afterwards"
+  ]
+}

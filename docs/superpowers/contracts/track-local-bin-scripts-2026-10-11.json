@@ -1,0 +1,14 @@
+{
+  "title": "Track hand-placed ~/.local/bin scripts in linux_configuration/scripts",
+  "objective": "Every hand-placed script in ~/.local/bin (fix-execstack-launch.sh, nvidia-pmon-logger.sh, usage-report-catchup.sh, krita, blender-mcp-host, blender-mcp-serve, unreal-mcp-server) becomes a tracked file under linux_configuration/scripts/, and ~/.local/bin keeps a symlink with the original name so every caller (systemd user units, ~/.claude.json MCP config) still works. install_unreal_mcp.sh symlinks the launcher instead of generating it with a heredoc.",
+  "acceptance_criteria": [
+    "readlink -f ~/.local/bin/<name> resolves to linux_configuration/scripts/<file> for all seven names (krita -> krita-scaled.sh)",
+    "bash -n passes for every tracked script; git ls-files -s shows mode 100755",
+    "install_launcher creates ~/.local/bin/unreal-mcp-server as a symlink to the tracked wrapper, idempotently, and chowns the link (not the target) under sudo"
+  ],
+  "out_of_scope": [
+    "Editing systemd units, crontab or MCP configs (symlinks keep their paths valid)",
+    "Changing the moved scripts' behaviour"
+  ],
+  "verifier": "readlink -f + bash -n loop over ~/.local/bin entries; install_launcher run against a temp USER_HOME; pre-commit hooks on the staged files"
+}

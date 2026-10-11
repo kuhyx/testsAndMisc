@@ -41,143 +41,108 @@ set -euo pipefail
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
 readonly BIN_DIR="${HOME}/.local/bin"
-readonly LIB_DIR="${HOME}/.local/share/flutter-git-env"
-readonly WRAPPER="${LIB_DIR}/wrapper.sh"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+readonly SCRIPT_DIR
+WRAPPER="$(readlink -f "${SCRIPT_DIR}/../scripts/flutter-git-env-wrapper.sh")"
+readonly WRAPPER
+readonly LEGACY_DIR="${HOME}/.local/share/flutter-git-env"
 # Every SDK entry point that shells out to git to identify itself.
 readonly TOOLS=(flutter dart)
 
 log() { echo "$SCRIPT_NAME: $*"; }
 
 fail() {
-    echo "$SCRIPT_NAME: $*" >&2
-    exit 1
+	echo "$SCRIPT_NAME: $*" >&2
+	exit 1
 }
 
-write_wrapper() {
-    mkdir -p "$LIB_DIR" "$BIN_DIR"
-    cat > "$WRAPPER" <<'WRAPPER_EOF'
-#!/bin/bash
-
-# Strip the git-hook environment, then hand off to the real SDK binary.
-# Installed by linux_configuration/fixes/fix_flutter_git_env.sh
-# -- see that script for why this exists. Invoked through a symlink named
-# after the tool it fronts (flutter, dart).
-
-set -euo pipefail
-
-tool="$(basename "$0")"
-real="/usr/bin/${tool}"
-
-[[ -x $real ]] || {
-    echo "flutter-git-env: $real is missing or not executable" >&2
-    exit 127
-}
-
-# Drop our own directory so a PATH lookup inside the real tool cannot find
-# this wrapper again. The Flutter entry point does exactly such a lookup.
-clean_path=""
-IFS=':' read -r -a path_parts <<< "$PATH"
-for part in "${path_parts[@]}"; do
-    [[ $part == "$HOME/.local/bin" ]] && continue
-    clean_path="${clean_path:+$clean_path:}$part"
-done
-
-# GIT_DIR is the one that actually bites; the rest are exported by git in the
-# same breath and would mislead the SDK the same way.
-exec env \
-    -u GIT_DIR \
-    -u GIT_WORK_TREE \
-    -u GIT_INDEX_FILE \
-    -u GIT_COMMON_DIR \
-    -u GIT_OBJECT_DIRECTORY \
-    -u GIT_ALTERNATE_OBJECT_DIRECTORIES \
-    -u GIT_NAMESPACE \
-    -u GIT_PREFIX \
-    PATH="$clean_path" \
-    "$real" "$@"
-WRAPPER_EOF
-    chmod +x "$WRAPPER"
+# The wrapper is tracked in the repo; ~/.local/bin only holds symlinks to it.
+# A copy left by an older install (LEGACY_DIR) is generated, so it is removed.
+check_wrapper() {
+	[[ -x $WRAPPER ]] || fail "tracked wrapper missing: $WRAPPER"
+	mkdir -p "$BIN_DIR"
+	rm -rf "$LEGACY_DIR"
 }
 
 link_tools() {
-    local tool link
-    for tool in "${TOOLS[@]}"; do
-        link="${BIN_DIR}/${tool}"
-        if [[ -e $link && ! -L $link ]]; then
-            fail "$link exists and is not a symlink — refusing to overwrite it"
-        fi
-        ln -sfn "$WRAPPER" "$link"
-        log "linked $link -> $WRAPPER"
-    done
+	local tool link
+	for tool in "${TOOLS[@]}"; do
+		link="${BIN_DIR}/${tool}"
+		if [[ -e $link && ! -L $link ]]; then
+			fail "$link exists and is not a symlink — refusing to overwrite it"
+		fi
+		ln -sfn "$WRAPPER" "$link"
+		log "linked $link -> $WRAPPER"
+	done
 }
 
 check_path() {
-    case ":$PATH:" in
-        *":$BIN_DIR:"*) ;;
-        *) fail "$BIN_DIR is not on PATH — the wrapper would never be used" ;;
-    esac
-    local resolved
-    for tool in "${TOOLS[@]}"; do
-        resolved="$(command -v "$tool" || true)"
-        [[ $resolved == "${BIN_DIR}/${tool}" ]] ||
-            fail "$tool resolves to '$resolved', not the wrapper — check PATH order"
-    done
+	case ":$PATH:" in
+	*":$BIN_DIR:"*) ;;
+	*) fail "$BIN_DIR is not on PATH — the wrapper would never be used" ;;
+	esac
+	local resolved
+	for tool in "${TOOLS[@]}"; do
+		resolved="$(command -v "$tool" || true)"
+		[[ $resolved == "${BIN_DIR}/${tool}" ]] ||
+			fail "$tool resolves to '$resolved', not the wrapper — check PATH order"
+	done
 }
 
 # The real test: does the SDK still know what it is with GIT_DIR poisoned?
 verify() {
-    local probe_repo probe_version
-    probe_repo="$(mktemp -d)"
-    git -C "$probe_repo" init -q
-    git -C "$probe_repo" -c user.email=x@y -c user.name=x commit -q --allow-empty -m probe
+	local probe_repo probe_version
+	probe_repo="$(mktemp -d)"
+	git -C "$probe_repo" init -q
+	git -C "$probe_repo" -c user.email=x@y -c user.name=x commit -q --allow-empty -m probe
 
-    probe_version="$(GIT_DIR="$probe_repo/.git" flutter --version 2>&1 | head -1 || true)"
-    rm -rf "$probe_repo"
+	probe_version="$(GIT_DIR="$probe_repo/.git" flutter --version 2>&1 | head -1 || true)"
+	rm -rf "$probe_repo"
 
-    if grep -q '0\.0\.0-unknown' <<< "$probe_version"; then
-        fail "still broken: flutter reports an unknown SDK under GIT_DIR"
-    fi
-    if ! grep -q 'flutter/flutter' <<< "$probe_version"; then
-        fail "still broken: flutter reports '$probe_version' under GIT_DIR"
-    fi
-    log "verified: $probe_version"
+	if grep -q '0\.0\.0-unknown' <<<"$probe_version"; then
+		fail "still broken: flutter reports an unknown SDK under GIT_DIR"
+	fi
+	if ! grep -q 'flutter/flutter' <<<"$probe_version"; then
+		fail "still broken: flutter reports '$probe_version' under GIT_DIR"
+	fi
+	log "verified: $probe_version"
 }
 
 uninstall() {
-    local tool link
-    for tool in "${TOOLS[@]}"; do
-        link="${BIN_DIR}/${tool}"
-        if [[ -L $link && "$(readlink -f "$link")" == "$WRAPPER" ]]; then
-            rm -f "$link"
-            log "removed $link"
-        fi
-    done
-    rm -rf "$LIB_DIR"
-    log "uninstalled"
+	local tool link
+	for tool in "${TOOLS[@]}"; do
+		link="${BIN_DIR}/${tool}"
+		if [[ -L $link && "$(readlink -f "$link")" == "$WRAPPER" ]]; then
+			rm -f "$link"
+			log "removed $link"
+		fi
+	done
+	rm -rf "$LEGACY_DIR"
+	log "uninstalled"
 }
 
 main() {
-    case "${1:-}" in
-        --uninstall)
-            uninstall
-            return
-            ;;
-        --check)
-            [[ -x $WRAPPER ]] || fail "wrapper is not installed"
-            check_path
-            verify
-            return
-            ;;
-        "") ;;
-        *) fail "unknown option: $1 (expected --check or --uninstall)" ;;
-    esac
+	case "${1:-}" in
+	--uninstall)
+		uninstall
+		return
+		;;
+	--check)
+		[[ -x $WRAPPER ]] || fail "wrapper is not installed"
+		check_path
+		verify
+		return
+		;;
+	"") ;;
+	*) fail "unknown option: $1 (expected --check or --uninstall)" ;;
+	esac
 
-    command -v flutter >/dev/null 2>&1 || fail "flutter is not on PATH"
-    write_wrapper
-    link_tools
-    check_path
-    verify
-    log "done — flutter/dart now ignore an inherited GIT_DIR"
+	command -v flutter >/dev/null 2>&1 || fail "flutter is not on PATH"
+	check_wrapper
+	link_tools
+	check_path
+	verify
+	log "done — flutter/dart now ignore an inherited GIT_DIR"
 }
 
 main "$@"

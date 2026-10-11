@@ -1,0 +1,174 @@
+#!/bin/bash
+
+# ============================================================================
+# Start Blender as a headless MCP host for blender-mcp.
+#
+# The blender-mcp addon refuses to run under `blender --background`: its
+# command queue is pumped by bpy.app.timers, which never tick in background
+# mode, so requests would be accepted and then never execute. The addon's own
+# error message names the fix -- give Blender a display. Xvfb provides one
+# without putting a window on a real output (i3 focus stealing is an explicit
+# hazard here), and a real EEVEE render works fine against it.
+#
+# Known limitation: get_viewport_screenshot returns success but writes an
+# all-black PNG under Xvfb -- there is no GL viewport to capture. Use
+# bpy.ops.render.render(write_still=True) via execute_code instead; that is
+# verified working and is what the artgate 3D route needs anyway.
+# ============================================================================
+
+set -euo pipefail
+
+SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_NAME
+readonly ADDON_PATH="/home/kuhy/src/mcp-servers/servers/blender-mcp/addon.py"
+readonly START_SCRIPT="/home/kuhy/.local/share/blender-mcp-host/start_addon.py"
+readonly LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/blender-mcp-host.log"
+
+PORT="${BLENDER_PORT:-9876}"
+
+usage() {
+    echo "Usage: $SCRIPT_NAME [start|stop|status|restart]"
+    echo "  start    Launch headless Blender hosting the MCP socket (default)"
+    echo "  stop     Terminate the hosted Blender instance"
+    echo "  status   Report whether the socket is being served"
+    echo "  restart  stop, then start"
+    echo
+    echo "Env: BLENDER_PORT (default 9876)"
+    exit 0
+}
+
+validate_requirements() {
+    local missing=0
+    for tool in blender xvfb-run; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            echo "Error: required tool '$tool' not found in PATH" >&2
+            missing=1
+        fi
+    done
+    if [[ ! -f "$ADDON_PATH" ]]; then
+        echo "Error: addon not found at $ADDON_PATH" >&2
+        missing=1
+    fi
+    [[ $missing -eq 0 ]] || exit 1
+}
+
+# True when something is listening on the MCP port.
+port_is_served() {
+    ss -ltn 2>/dev/null | grep -q ":${PORT}\b"
+}
+
+# PID of the Blender process holding the port, empty if none.
+host_pid() {
+    host_pids | head -1
+}
+
+# Every process belonging to a host instance: the Blender that serves the
+# socket plus the xvfb-run wrapper that owns its display. Stopping only the
+# Blender pid leaves the wrapper behind, which then keeps a stale instance
+# alive and makes the next `start` a silent no-op.
+host_pids() {
+    pgrep -f "blender .*--python ${START_SCRIPT}" || true
+    pgrep -f "xvfb-run .*--python ${START_SCRIPT}" || true
+}
+
+do_start() {
+    if port_is_served; then
+        echo "Already serving on port ${PORT} (pid $(host_pid))"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$START_SCRIPT")" "$(dirname "$LOG_FILE")"
+
+    # The addon's register() auto-starts the server, so this script only needs
+    # to load it and then block -- Blender must stay alive to pump the timers.
+    cat > "$START_SCRIPT" <<'PY'
+"""Load the blender-mcp addon; Blender's event loop then serves the socket."""
+import importlib.util
+import sys
+
+_SPEC = importlib.util.spec_from_file_location(
+    "blendermcp_addon", "/home/kuhy/src/mcp-servers/servers/blender-mcp/addon.py")
+_MOD = importlib.util.module_from_spec(_SPEC)
+sys.modules["blendermcp_addon"] = _MOD
+_SPEC.loader.exec_module(_MOD)
+_MOD.register()
+print("blender-mcp-host: addon registered, serving", flush=True)
+PY
+
+    echo "Starting headless Blender on port ${PORT}..."
+    BLENDER_PORT="$PORT" nohup xvfb-run -a \
+        blender --factory-startup --python "$START_SCRIPT" \
+        >> "$LOG_FILE" 2>&1 &
+    disown
+
+    # Wait for the socket rather than sleeping a fixed guess.
+    local waited=0
+    while [[ $waited -lt 30 ]]; do
+        if port_is_served; then
+            echo "Serving on port ${PORT} (pid $(host_pid))"
+            echo "Log: $LOG_FILE"
+            return 0
+        fi
+        command sleep 1
+        waited=$((waited + 1))
+    done
+
+    echo "Error: port ${PORT} not served after ${waited}s; see $LOG_FILE" >&2
+    exit 1
+}
+
+do_stop() {
+    local pids=()
+    mapfile -t pids < <(host_pids)
+    if [[ ${#pids[@]} -eq 0 ]]; then
+        echo "Not running"
+        return 0
+    fi
+
+    kill "${pids[@]}" 2>/dev/null || true
+
+    # Confirm the port is actually released rather than trusting the signal;
+    # a half-dead instance would make the next start a no-op.
+    local waited=0 remaining=()
+    while [[ $waited -lt 10 ]]; do
+        mapfile -t remaining < <(host_pids)
+        if ! port_is_served && [[ ${#remaining[@]} -eq 0 ]]; then
+            echo "Stopped Blender host (${pids[*]})"
+            return 0
+        fi
+        command sleep 1
+        waited=$((waited + 1))
+    done
+
+    mapfile -t remaining < <(host_pids)
+    [[ ${#remaining[@]} -gt 0 ]] && kill -9 "${remaining[@]}" 2>/dev/null || true
+    command sleep 1
+    if port_is_served; then
+        echo "Error: port ${PORT} still served after SIGKILL" >&2
+        exit 1
+    fi
+    echo "Stopped Blender host (forced)"
+}
+
+do_status() {
+    if port_is_served; then
+        echo "serving  port=${PORT} pid=$(host_pid)"
+    else
+        echo "stopped  port=${PORT}"
+        exit 1
+    fi
+}
+
+main() {
+    validate_requirements
+    case "${1:-start}" in
+        start)   do_start ;;
+        stop)    do_stop ;;
+        status)  do_status ;;
+        restart) do_stop; command sleep 1; do_start ;;
+        -h|--help|help) usage ;;
+        *) echo "Unknown command: $1" >&2; exit 1 ;;
+    esac
+}
+
+main "$@"

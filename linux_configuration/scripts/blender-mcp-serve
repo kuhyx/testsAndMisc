@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# ============================================================================
+# MCP entrypoint: guarantee a Blender host exists, then serve the MCP protocol.
+#
+# Registered as the `blender` MCP server's command. The blender-mcp server
+# itself only *connects* to Blender's socket -- it cannot start Blender. If
+# nothing hosts port 9876 (e.g. after a reboot) the server comes up and every
+# tool call fails with a connection error, which reads like a broken MCP
+# rather than a missing host. Starting the host here makes that failure
+# impossible instead of relying on someone remembering to run a command.
+# ============================================================================
+
+set -euo pipefail
+
+readonly HOST_SCRIPT="/home/kuhy/.local/bin/blender-mcp-host"
+readonly SERVER_DIR="/home/kuhy/src/mcp-servers/servers/blender-mcp"
+readonly UV="/home/kuhy/.local/bin/uv"
+
+# stdout is the MCP JSON-RPC channel -- any stray byte written there corrupts
+# the protocol, so all host-startup chatter goes to stderr.
+"$HOST_SCRIPT" start >&2
+
+exec "$UV" run --directory "$SERVER_DIR" blender-mcp
