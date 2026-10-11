@@ -24,6 +24,30 @@ _t_called_in() { # <haystack> <needle> <what>
 	fi
 }
 
+_t_not_in() { # <haystack> <needle> <what>
+	if [[ "$1" == *"$2"* ]]; then
+		_t_fail "$3 (unexpected '$2')"
+	else
+		_t_pass "$3"
+	fi
+}
+
+# What install_wrapper leaves on /usr/bin/<app>: the marker the repair greps.
+wrapper_marker() { # <relative-path>
+	sysfile "$1"
+	printf 'exec /usr/local/bin/block-compulsive-opening.sh wrapper x\n' >"${SYSROOT_DIR}/$1"
+}
+
+# Register <relative-path> as owned by <pkg> in the fixture pacman db.
+own_path() { # <pkg> <relative-path>
+	sysfile "var/lib/pacman/local/$1-1-1/files"
+	printf '%%FILES%%\n%s\n' "$2" >"${SYSROOT_DIR}/var/lib/pacman/local/$1-1-1/files"
+}
+
+sys_state() { # <relative-path> -> present|absent
+	if [[ -e "${SYSROOT_DIR}/$1" ]]; then echo present; else echo absent; fi
+}
+
 TEST_USER="${SUDO_USER:-$USER}"
 
 echo "== check_compulsive_blocker: no target apps present =="
@@ -58,9 +82,70 @@ sysfile usr/local/bin/block-compulsive-opening.sh
 present_command discord
 absent_command beeper signal-desktop
 sysfile usr/bin/discord.orig
+wrapper_marker usr/bin/discord
+own_path discord usr/bin/discord
 check_compulsive_blocker >"${TEST_TMPDIR}/out.txt"
 _t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "discord wrapper installed" "a backed-up original counts as wrapped"
 _t_eq "ok" "$(get_service_status "compulsive_blocker")" "a wrapped app leaves status ok"
+_t_eq "0" "$FIXES_APPLIED" "an owned wrap is not touched"
+
+echo "== check_compulsive_blocker: a .orig left by a package removal is stale =="
+reset_state
+sysfile usr/local/bin/block-compulsive-opening.sh
+absent_command beeper signal-desktop discord
+# pacman removed /usr/bin/discord (our wrapper) but not the backup; another
+# package in the db proves the db is readable, so "unowned" is definite.
+sysfile usr/bin/discord.orig
+own_path signal-desktop usr/bin/signal-desktop
+check_compulsive_blocker >"${TEST_TMPDIR}/out.txt"
+_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "stale discord.orig left after package removal" "the stale backup is named"
+_t_not_in "$(cat "${TEST_TMPDIR}/out.txt")" "discord wrapper installed" "a stale backup is not reported as a wrapper"
+_t_eq "warning" "$(get_service_status "compulsive_blocker")" "a stale backup is a warning"
+_t_eq "absent" "$(sys_state usr/bin/discord.orig)" "the repair deletes the stale .orig"
+_t_eq "1" "$FIXES_APPLIED" "the removal is counted as a fix"
+_t_not_called 'ran block_compulsive_opening' "a stale backup does not rerun the installer"
+
+echo "== check_compulsive_blocker: a stale .orig takes its dangling wrapper with it =="
+reset_state
+sysfile usr/local/bin/block-compulsive-opening.sh
+absent_command beeper signal-desktop discord
+sysfile usr/bin/discord.orig
+wrapper_marker usr/bin/discord
+own_path signal-desktop usr/bin/signal-desktop
+check_compulsive_blocker >/dev/null
+_t_eq "absent" "$(sys_state usr/bin/discord)" "our wrapper on an unowned path is deleted"
+_t_eq "absent" "$(sys_state usr/bin/discord.orig)" "and so is its .orig"
+
+echo "== check_compulsive_blocker: --status reports a stale .orig but keeps it =="
+reset_state
+sysfile usr/local/bin/block-compulsive-opening.sh
+absent_command beeper signal-desktop discord
+sysfile usr/bin/discord.orig
+own_path signal-desktop usr/bin/signal-desktop
+STATUS_ONLY=1
+check_compulsive_blocker >"${TEST_TMPDIR}/out.txt"
+_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "stale discord.orig" "--status still names the stale backup"
+_t_eq "present" "$(sys_state usr/bin/discord.orig)" "--status deletes nothing"
+
+echo "== check_compulsive_blocker: --dry-run reports a stale .orig but keeps it =="
+reset_state
+sysfile usr/local/bin/block-compulsive-opening.sh
+absent_command beeper signal-desktop discord
+sysfile usr/bin/discord.orig
+own_path signal-desktop usr/bin/signal-desktop
+DRY_RUN=1
+check_compulsive_blocker >/dev/null
+_t_eq "present" "$(sys_state usr/bin/discord.orig)" "--dry-run deletes nothing"
+
+echo "== check_compulsive_blocker: an unreadable pacman db never prunes =="
+reset_state
+sysfile usr/local/bin/block-compulsive-opening.sh
+present_command discord
+absent_command beeper signal-desktop
+sysfile usr/bin/discord.orig
+check_compulsive_blocker >"${TEST_TMPDIR}/out.txt"
+_t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "discord wrapper installed" "no db: the backup still counts as a wrapper"
+_t_eq "present" "$(sys_state usr/bin/discord.orig)" "no db: the .orig is kept"
 
 echo "== check_compulsive_blocker: a symlinked wrapper without .orig is skipped =="
 reset_state

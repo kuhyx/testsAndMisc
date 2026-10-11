@@ -1,0 +1,36 @@
+{
+  "intent": "check_compulsive_blocker stops reporting a messaging app as wrapped when its package was removed and only /usr/bin/<app>.orig (the real launcher, a blocker bypass) is left; the repair deletes it.",
+  "scope": [
+    "linux_configuration/periodic_background/lib/services_apps.sh, linux_configuration/periodic_background/lib/tests/test_services_apps.sh",
+    "Installer/hook side lives in digital-wellbeing (commit 6867f29); non-goal: no change to the full-installer repair path"
+  ],
+  "changes": [
+    "_pkg_owns_path reads ${SYSROOT}/var/lib/pacman/local/*/files (0 owned, 1 unowned, 2 undeterminable) instead of calling the wrapped pacman",
+    "A .orig on an unowned /usr/bin/<app> is a warning 'stale <app>.orig left after package removal' and is removed via run (plus a dangling wrapper) unless --status; an unreadable db never prunes"
+  ],
+  "verification": [
+    {
+      "command": "periodic_background/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "test_services_apps.sh 38 passed 0 failed (new cases fail 8/38 against HEAD); all services suites pass"
+    },
+    {
+      "command": "vmbox guest cco: check_compulsive_blocker on a real stranded /usr/bin/discord.orig",
+      "result": "pass",
+      "evidence": "--status: warning, file kept; repair: FIXES=1, file gone; rerun: ok. Passed in vmbox, not verified on the host"
+    },
+    {
+      "command": "shellcheck -x services_apps.sh test_services_apps.sh",
+      "result": "pass",
+      "evidence": "clean"
+    }
+  ],
+  "risks": [
+    "A package that ships the app under a different path than /usr/bin/<app> would make its .orig look stale",
+    "The host's next periodic run will delete /usr/bin/discord.orig itself"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Run check_and_enable_services.sh --status and confirm the compulsive_blocker section"
+  ]
+}
