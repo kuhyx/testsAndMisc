@@ -1,0 +1,15 @@
+{
+  "title": "Install the tracked sync-dot-cert.sh instead of generating it",
+  "objective": "setup_dot_resolver.sh installs linux_configuration/scripts/sync-dot-cert.sh to /usr/local/bin with install -m 755 rather than writing it from a heredoc, with the same runtime behaviour (same docker cp paths, reload stunnel only on change) for the default domain and correct behaviour for a non-default --domain.",
+  "acceptance_criteria": [
+    "The installed /usr/local/bin/sync-dot-cert.sh is byte-identical to the tracked file and mode 755; a stale generated copy is replaced",
+    "dot-cert-sync.service ExecStart passes domain, Caddy container and cert dir",
+    "The tracked script assembles cert+key into a 600 combined.pem, reloads stunnel on change and is silent when unchanged",
+    "test_dot_resolver_install.sh passes inside shell_coverage_jail.sh and the change passes in vmbox"
+  ],
+  "out_of_scope": [
+    "Rewriting the live host files (kuhy re-runs setup_dot_resolver.sh)",
+    "Tracking deluge-fix-lt.py (blocked by repo lint for a verbatim copy)"
+  ],
+  "verifier": "meta/scripts/shell_coverage_jail.sh --subject linux_configuration/features/lib/tests/test_dot_resolver_install.sh <jail_args> --min 0 --fail-on-case-error; vmbox guest run"
+}

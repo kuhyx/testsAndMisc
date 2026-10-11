@@ -1,0 +1,36 @@
+{
+  "intent": "Every script installed to /usr/local/bin is a tracked repo file: sync-dot-cert.sh is installed from linux_configuration/scripts/ instead of being generated from a heredoc.",
+  "scope": [
+    "linux_configuration/scripts/sync-dot-cert.sh, linux_configuration/features/setup_dot_resolver.sh, linux_configuration/features/lib/dot_resolver_install.sh, linux_configuration/features/lib/tests/test_dot_resolver_install.sh",
+    "Non-goal: stunnel config and units stay generated; deluge-fix-lt.py is not in this commit (repo lint blocks a verbatim copy)"
+  ],
+  "changes": [
+    "scripts/sync-dot-cert.sh takes <domain> <caddy-container> <cert-dir> (defaults = the installer's) instead of baking them in; install_cert_sync does sudo install -m 755 of it and dies if it is missing",
+    "dot-cert-sync.service ExecStart and the installer's first sync pass the three arguments, so a non-default --domain reaches the timer; unused cert_source_dir removed"
+  ],
+  "verification": [
+    {
+      "command": "shell_coverage_jail.sh --subject features/lib/tests/test_dot_resolver_install.sh <jail_args> --min 0 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "no case errors; a mutated sync script (reload removed) makes the jail fail"
+    },
+    {
+      "command": "vmbox guest cco: install_cert_sync + install_units as root over a stale generated copy, then the installed script against a docker shim",
+      "result": "pass",
+      "evidence": "installed == tracked (cmp), 755 root, ExecStart passes domain/container/dir, docker cp paths identical to the live script, second run silent. Passed in vmbox, not verified on the host"
+    },
+    {
+      "command": "shellcheck -x on the four shell files",
+      "result": "pass",
+      "evidence": "clean"
+    }
+  ],
+  "risks": [
+    "The live /usr/local/bin/sync-dot-cert.sh and dot-cert-sync.service stay the old generated ones until setup_dot_resolver.sh is re-run",
+    "A bare manual sync-dot-cert.sh run uses the defaults, which must track the installer's constants"
+  ],
+  "rollback": [
+    "git revert the commit and re-run setup_dot_resolver.sh",
+    "Check systemctl start dot-cert-sync.service and setup_dot_resolver.sh --check"
+  ]
+}

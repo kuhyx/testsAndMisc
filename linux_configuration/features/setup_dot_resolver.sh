@@ -77,12 +77,6 @@ require_tools() {
 	fi
 }
 
-cert_source_dir() {
-	# Caddy stores certs per-domain under its data volume.
-	printf '/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/%s' \
-		"$DOMAIN"
-}
-
 verify_prerequisites() {
 	# A DoT endpoint in front of a resolver that is not running would answer
 	# every query with a connection error, which looks exactly like a network
@@ -110,6 +104,8 @@ verify_prerequisites() {
 }
 
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# Installed verbatim to $SYNC_SCRIPT; never generated (see install_cert_sync).
+readonly SYNC_SCRIPT_SRC="$SCRIPT_DIR/../scripts/sync-dot-cert.sh"
 # shellcheck source=lib/dot_resolver_install.sh
 source "$SCRIPT_DIR/lib/dot_resolver_install.sh"
 
@@ -126,7 +122,7 @@ main() {
 	install_units
 
 	log "Syncing certificate..."
-	sudo "$SYNC_SCRIPT" || die "certificate sync failed - has Caddy issued $DOMAIN yet?"
+	sudo "$SYNC_SCRIPT" "$DOMAIN" "$CADDY_CONTAINER" "$CERT_DIR" || die "certificate sync failed - has Caddy issued $DOMAIN yet?"
 
 	sudo systemctl enable --now stunnel-dot.service
 	sudo systemctl enable --now dot-cert-sync.timer
