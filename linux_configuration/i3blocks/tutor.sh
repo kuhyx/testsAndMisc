@@ -18,7 +18,16 @@ set -euo pipefail
 readonly LEDGER="${TUTOR_LEDGER:-$HOME/.local/share/tutor/ledger.json}"
 # i3blocks' PATH has no ~/src: absolute path.
 readonly RUN="${TUTOR_RUN:-$HOME/src/tutor/run.sh}"
-readonly TARGET=60 # earned_time daily cap, minutes
+# Minutes that earn the full reward today: a literal copy of earned_time's
+# per-weekday tutor quota (_quota.py, 0.10.0): Tue-Thu 15, Mon/Fri 30,
+# Sat/Sun 50. A builtin strftime, so the tick stays fork-free.
+printf -v weekday '%(%u)T' -1
+case $weekday in
+2 | 3 | 4) TARGET=15 ;;
+1 | 5) TARGET=30 ;;
+*) TARGET=50 ;;
+esac
+readonly TARGET
 
 readonly YELLOW='#F1FA8C'
 readonly ORANGE='#FFB86C'

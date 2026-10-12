@@ -1,0 +1,30 @@
+{
+  "intent": "The i3blocks tutor block shows progress against today's per-weekday tutor quota (15/30/50 minutes) instead of a fixed 60, matching earned_time 0.10.0.",
+  "scope": [
+    "linux_configuration/i3blocks/tutor.sh (TARGET derived from the weekday)",
+    "Non-goals: no change to earned_time, the tutor ledger format, or any service; the table is a literal copy of earned_time's _quota.py"
+  ],
+  "changes": [
+    "TARGET is now chosen per weekday via the printf %(%u)T builtin (fork-free): Tue-Thu 15, Mon/Fri 30, Sat/Sun 50 minutes, replacing the constant 60"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/i3blocks/tutor.sh (run on Monday 2026-10-12)",
+      "result": "pass",
+      "evidence": "Block printed '⚙ tutor 9/30' (Monday target 30)"
+    },
+    {
+      "command": "shellcheck linux_configuration/i3blocks/tutor.sh",
+      "result": "pass",
+      "evidence": "Clean, no findings"
+    }
+  ],
+  "risks": [
+    "The weekday table is duplicated from earned_time; a future quota change there must be mirrored here",
+    "Not run on every weekday; only Monday was observed live"
+  ],
+  "rollback": [
+    "git revert the commit (restores readonly TARGET=60)",
+    "Confirm the i3bar tutor block renders N/60 again"
+  ]
+}
