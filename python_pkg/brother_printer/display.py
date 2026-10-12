@@ -16,6 +16,7 @@ from python_pkg.brother_printer._severity import (
     _SEVERITY_ICONS,
     _SEVERITY_SUMMARIES,
 )
+from python_pkg.brother_printer._stuck_job import offer_backend_kill
 from python_pkg.brother_printer._supply import _collect_supply_items
 from python_pkg.brother_printer.constants import (
     BOLD,
@@ -120,9 +121,9 @@ def _display_cups_fallback_note(result: USBResult) -> None:
         )
     else:
         _out(
-            f"  {DIM}Note: pyusb not available; status obtained via"
-            f" CUPS only. Detailed toner/drum levels are not"
-            f" available in this mode.{RESET}"
+            f"  {DIM}Note: {result.cups.probe_note or 'USB status probe failed'};"
+            f" status obtained via CUPS only. Detailed toner/drum levels"
+            f" are not available in this mode.{RESET}"
         )
 
 
@@ -141,6 +142,8 @@ def display_usb_results(result: USBResult) -> None:
 
     if result.device == "cups":
         _display_cups_fallback_note(result)
+        if result.cups.orphaned_backend_pid:
+            offer_backend_kill(result.cups.orphaned_backend_pid)
 
     _out()
     printer_total = int(result.page_count) if result.page_count.isdigit() else 0

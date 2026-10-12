@@ -138,7 +138,7 @@ class TestGetStatusInfo:
         """
         severity, text, _ = get_status_info("41213")
         assert severity == "critical"
-        assert text == "Out of Paper"
+        assert text == "Out of Paper / not feeding"
 
     def test_derived_codes_are_not_pjl(self) -> None:
         """States we infer ourselves must not masquerade as printer reports."""

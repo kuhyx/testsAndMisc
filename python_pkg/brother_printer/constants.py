@@ -125,11 +125,14 @@ BROTHER_STATUS_CODES: dict[int, tuple[str, str, str]] = {
 # on a single-tray A4 printer).  So match the family and ignore the digits.
 # Each entry is an inclusive low/high bound plus the usual status triple.
 
+_PAPER_ACTION = "Load paper; if the tray is full, fan and reseat the stack."
+
 _STATUS_CODE_RANGES: tuple[tuple[int, int, tuple[str, str, str]], ...] = (
     (
         41000,
         41999,
-        ("critical", "Out of Paper", "Load paper into the paper tray."),
+        # A failed pick-up raises the same paper-empty bit as an empty tray.
+        ("critical", "Out of Paper / not feeding", _PAPER_ACTION),
     ),
     (
         50000,
@@ -188,6 +191,8 @@ _ERROR_REASON_MAP: tuple[tuple[tuple[str, ...], str, str], ...] = (
 DERIVED_TONER_END = "estimate:toner-end"
 DERIVED_TONER_LOW = "estimate:toner-low"
 DERIVED_CUPS_ERROR = "cups:error"
+DERIVED_JOB_STALLED = "cups:job-stalled"
+DERIVED_BACKEND_ORPHANED = "cups:backend-orphaned"
 
 _DERIVED_STATUS_CODES: dict[str, tuple[str, str, str]] = {
     DERIVED_TONER_END: (
@@ -200,6 +205,16 @@ _DERIVED_STATUS_CODES: dict[str, tuple[str, str, str]] = {
         "warn",
         "Printer reports an error",
         "Check the printer display for details.",
+    ),
+    DERIVED_JOB_STALLED: (
+        "critical",
+        "Print job stalled (no page progress in 15 s)",
+        "Paper likely failed to feed: reseat it or power-cycle the printer.",
+    ),
+    DERIVED_BACKEND_ORPHANED: (
+        "critical",
+        "Queue blocked by a hung backend of a cancelled job",
+        "Kill the hung backend (offered below); CUPS recovers on its own.",
     ),
 }
 

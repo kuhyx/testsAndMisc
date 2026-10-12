@@ -1,0 +1,48 @@
+{
+  "intent": "The Brother status report stops lying while a job is stuck: it names the real reason the USB probe was skipped, installs pyusb on its own, and flags a stalled job (paper misfeed) or a hung backend left behind by a cancelled job.",
+  "scope": [
+    "python_pkg/brother_printer/{_stuck_job,_cups_fallback,cups_service,constants,data_classes,display}.py, run.sh, tests",
+    "Non-goal: fixing the printer's paper pick-up, which is mechanical"
+  ],
+  "changes": [
+    "USBResult.probe_note carries _usb_probe_skip_reason(): CUPS busy / pyusb missing / printer silent; display prints it instead of 'pyusb not available'",
+    "run.sh ensure_pyusb: probes /usr/bin/python3 (what sudo runs; the user's python3 is a pyenv shim) and pacman-installs python-pyusb",
+    "_stuck_job.py: scans /proc for usb://Brother backends; orphaned backend of a cancelled job -> cups:backend-orphaned + y/N SIGKILL offer; job-impressions-completed frozen 15 s -> cups:job-stalled",
+    "41xxx status now reads 'Out of Paper / not feeding' since a misfeed sets the same paper-empty bit"
+  ],
+  "verification": [
+    {
+      "command": "./run.sh during stalled job 105 (2026-10-12 16:01)",
+      "result": "pass",
+      "evidence": "Note: USB status probe skipped: CUPS has a job on the printer; status obtained via CUPS only."
+    },
+    {
+      "command": "fake orphan (exec -a usb://Brother/... sleep 40) + display_usb_results with stdin y",
+      "result": "pass",
+      "evidence": "Queue blocked by a hung backend of a cancelled job / Kill hung backend PID 960784 ... Backend killed; process gone"
+    },
+    {
+      "command": "flag_stuck_job with frozen vs moving counter",
+      "result": "pass",
+      "evidence": "frozen: cups:job-stalled after 15.0s; moving: cleared after 1.0s"
+    },
+    {
+      "command": "python3 -m pytest -q --cov=python_pkg.brother_printer --cov-branch python_pkg/brother_printer/tests",
+      "result": "pass",
+      "evidence": "431 passed, coverage 100.00%"
+    },
+    {
+      "command": "lpr Krasnale-sie-rzadza.pdf (jobs 106, 107 pages 52-55), monitored via ipptool",
+      "result": "pass",
+      "evidence": "all 55 pages on paper, user-confirmed; printer back at 10001 Ready"
+    }
+  ],
+  "risks": [
+    "Stall window is 15 s: a healthy run froze the counter up to ~9 s, so a very slow first page could false-flag",
+    "A status run during printing now blocks up to 15 s while it samples progress"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Run ./run.sh on an idle printer and confirm Ready 10001"
+  ]
+}

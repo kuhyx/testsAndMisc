@@ -17,6 +17,7 @@ from python_pkg.brother_printer._query import (
     printer_info_from_cups,
     run_command_text,
 )
+from python_pkg.brother_printer._stuck_job import flag_stuck_job
 from python_pkg.brother_printer.constants import (
     _CUPS_REASONS_TO_STATUS,
     _CUPS_STATE_TO_STATUS,
@@ -27,9 +28,11 @@ from python_pkg.brother_printer.constants import (
 )
 from python_pkg.brother_printer.consumables import estimate_consumable_life
 from python_pkg.brother_printer.cups_service import (
+    _cups_is_busy,
     _ensure_cups_running,
     _get_pyusb_device_info,
     _query_usb_port_status_raw,
+    _usb_probe_skip_reason,
 )
 from python_pkg.brother_printer.data_classes import (
     USBPortStatus,
@@ -201,8 +204,19 @@ def query_usb_via_cups() -> USBResult:
         result.online = "TRUE"
         return result
 
+    _apply_cups_only_status(result, printer_name, ipp)
+    return result
+
+
+def _apply_cups_only_status(
+    result: USBResult, printer_name: str, ipp: dict[str, str]
+) -> None:
+    """Fill the status from CUPS alone, when the USB port could not be read."""
+    state = ipp.get("printer-state", "")
+    result.cups.probe_note = _usb_probe_skip_reason(state)
+    if _cups_is_busy(state) and flag_stuck_job(result, printer_name):
+        return
+    reasons = ipp.get("printer-state-reasons", "none")
     result.status_code = _map_cups_to_status_code(state, reasons)
     result.display = ipp.get("printer-state-message", "")
     result.online = "TRUE" if state.lower() in {"idle", "processing"} else "FALSE"
-
-    return result

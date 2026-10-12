@@ -73,6 +73,16 @@ class USBPortStatus:
 
 
 @dataclass
+class CupsDiagnosis:
+    """What the CUPS fallback learned beyond the status code itself."""
+
+    # Why port_status is None, in words for the report. Empty when it was read.
+    probe_note: str = ""
+    # PID of a usb:// backend still running for a cancelled job; 0 if none.
+    orphaned_backend_pid: int = 0
+
+
+@dataclass
 class USBResult:
     """Result from a USB PJL query."""
 
@@ -90,6 +100,7 @@ class USBResult:
     # (CUPS fallback mode), which forces the estimate onto the CUPS page log.
     page_count: str = ""
     port_status: USBPortStatus | None = None
+    cups: CupsDiagnosis = field(default_factory=CupsDiagnosis)
 
 
 @dataclass

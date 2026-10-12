@@ -156,6 +156,17 @@ def _cups_is_busy(cups_state: str) -> bool:
     return "processing" in cups_state.lower() or "printing" in cups_state.lower()
 
 
+def _usb_probe_skip_reason(cups_state: str) -> str:
+    """Explain why _query_usb_port_status_raw returned None."""
+    if _cups_is_busy(cups_state):
+        return "USB status probe skipped: CUPS has a job on the printer"
+    try:
+        _import_or_raise("usb.core")
+    except ImportError:
+        return "pyusb not installed (run.sh installs it)"
+    return "printer did not answer the USB status probe"
+
+
 def _query_usb_port_status_raw(cups_state: str = "") -> USBPortStatus | None:
     """Query the printer's port status without disturbing it.
 

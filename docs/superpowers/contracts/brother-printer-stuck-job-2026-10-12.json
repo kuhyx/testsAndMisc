@@ -1,0 +1,16 @@
+{
+  "title": "brother_printer: truthful probe note, pyusb auto-install, stuck-job detection",
+  "objective": "./run.sh says why the USB probe was skipped instead of falsely blaming pyusb, installs python-pyusb itself, and reports a stalled job or a hung backend of a cancelled job instead of 'Printing / processing job'.",
+  "acceptance_criteria": [
+    "While CUPS prints, the fallback note reads 'USB status probe skipped: CUPS has a job on the printer'",
+    "run.sh checks /usr/bin/python3 for usb.core and runs pacman -S --needed python-pyusb when it is missing",
+    "A frozen job-impressions-completed counter for 15 s reports cups:job-stalled",
+    "A usb://Brother backend whose job is no longer queued reports cups:backend-orphaned and offers a SIGKILL",
+    "brother_printer tests pass at 100% branch coverage"
+  ],
+  "out_of_scope": [
+    "Physical paper-feed problems on the HL-1110",
+    "Changing the queue default resolution"
+  ],
+  "verifier": "python3 -m pytest -q -o addopts='--strict-markers --strict-config' --cov=python_pkg.brother_printer --cov-branch python_pkg/brother_printer/tests"
+}

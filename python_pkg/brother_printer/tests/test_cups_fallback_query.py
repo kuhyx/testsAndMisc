@@ -100,3 +100,34 @@ class TestQueryUsbViaCups:
             result = query_usb_via_cups()
             assert result.status_code == "41000"
             assert result.online == "FALSE"
+
+
+class TestQueryUsbViaCupsStuckJob:
+    """A busy queue whose job goes nowhere must not read as "printing"."""
+
+    def _query(self, *, stuck: bool) -> tuple[object, MagicMock]:
+        with (
+            patch(f"{MOD}._ensure_cups_running", return_value=True),
+            patch(f"{MOD}.find_cups_printer_name", return_value="Brother"),
+            patch(f"{MOD}._get_pyusb_device_info", return_value={}),
+            patch(f"{MOD}.printer_info_from_cups", return_value={}),
+            patch(
+                f"{MOD}._get_cups_ipp_status",
+                return_value={"printer-state": "processing"},
+            ),
+            patch(f"{MOD}._get_cups_economode", return_value=""),
+            patch(f"{MOD}._query_usb_port_status_raw", return_value=None),
+            patch(f"{MOD}.flag_stuck_job", return_value=stuck) as flag,
+        ):
+            return query_usb_via_cups(), flag
+
+    def test_stuck_job_short_circuits(self) -> None:
+        result, flag = self._query(stuck=True)
+        flag.assert_called_once()
+        assert result.status_code == ""  # left for flag_stuck_job to set
+
+    def test_progressing_job_reads_as_printing(self) -> None:
+        result, flag = self._query(stuck=False)
+        flag.assert_called_once()
+        assert result.status_code == "10023"
+        assert "CUPS has a job" in result.cups.probe_note

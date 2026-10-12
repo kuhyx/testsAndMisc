@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from python_pkg.brother_printer.data_classes import (
+    CupsDiagnosis,
     USBPortStatus,
     USBResult,
 )
@@ -157,11 +158,17 @@ class TestDisplayCupsFallbackNote:
             _display_cups_fallback_note(r)
             assert "USB port query" in out.getvalue()
 
-    def test_without_port_status(self) -> None:
+    def test_without_port_status_shows_reason(self) -> None:
+        r = USBResult(cups=CupsDiagnosis(probe_note="pyusb not installed"))
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            _display_cups_fallback_note(r)
+            assert "Note: pyusb not installed;" in out.getvalue()
+
+    def test_without_port_status_or_reason(self) -> None:
         r = USBResult(port_status=None)
         with patch("sys.stdout", new_callable=StringIO) as out:
             _display_cups_fallback_note(r)
-            assert "pyusb not available" in out.getvalue()
+            assert "USB status probe failed" in out.getvalue()
 
 
 class TestDisplayUsbResults:
@@ -190,10 +197,29 @@ class TestDisplayUsbResults:
             patch(f"{MOD}.get_cups_queue_status"),
             patch(f"{MOD}.display_cups_queue_status"),
             patch(f"{MOD}._display_cups_fallback_note") as mock_fallback,
+            patch(f"{MOD}.offer_backend_kill") as mock_kill,
             patch("sys.stdout", new_callable=StringIO),
         ):
             display_usb_results(r)
             mock_fallback.assert_called_once()
+            mock_kill.assert_not_called()
+
+    def test_cups_device_offers_backend_kill(self) -> None:
+        r = USBResult(device="cups", cups=CupsDiagnosis(orphaned_backend_pid=4242))
+        with (
+            patch(f"{MOD}._display_report_header"),
+            patch(f"{MOD}._display_usb_device_info"),
+            patch(f"{MOD}._display_pjl_status"),
+            patch(f"{MOD}._display_page_count_estimate"),
+            patch(f"{MOD}._display_consumables_reference"),
+            patch(f"{MOD}.get_cups_queue_status"),
+            patch(f"{MOD}.display_cups_queue_status"),
+            patch(f"{MOD}._display_cups_fallback_note"),
+            patch(f"{MOD}.offer_backend_kill") as mock_kill,
+            patch("sys.stdout", new_callable=StringIO),
+        ):
+            display_usb_results(r)
+            mock_kill.assert_called_once_with(4242)
 
     def test_error(self) -> None:
         r = USBResult(error="fail")
