@@ -76,6 +76,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="also run flutter_launcher_icons to rebuild the Android mipmaps",
     )
     generate_parser.add_argument(
+        "--web",
+        action="store_true",
+        help="also overwrite favicon + PWA icons in the app's web/ directory",
+    )
+    generate_parser.add_argument(
         "--linux-out",
         type=Path,
         default=None,
@@ -132,10 +137,24 @@ def _cmd_preview(app_keys: list[str] | None, output: Path) -> int:
     return 0
 
 
+def _write_web(app: apps.AppIcon) -> None:
+    """Write web icons for one app, skipping apps without a web build.
+
+    Parameters:
+    app (apps.AppIcon): App to act on.
+    """
+    if not app.web_dir.is_dir():
+        _emit(f"  skipped web icons: no {app.web_dir}")
+        return
+    icons = generate.write_web_icons(app)
+    _emit(f"  wrote {len(icons)} web icons to {app.web_dir}")
+
+
 def _cmd_generate(
     app_keys: list[str] | None,
     *,
     android: bool,
+    web: bool,
     linux_out: Path | None,
 ) -> int:
     """Write icon assets, optionally driving the platform generators.
@@ -143,6 +162,7 @@ def _cmd_generate(
     Parameters:
     app_keys (list[str] | None): Selection from the command line.
     android (bool): Run flutter_launcher_icons afterwards.
+    web (bool): Write favicon + PWA icons into apps that have a ``web/`` dir.
     linux_out (Path | None): Directory for hicolor PNGs, or None to skip.
 
     Returns:
@@ -163,6 +183,9 @@ def _cmd_generate(
         if linux_out is not None and app.linux:
             icons = generate.write_linux_icons(app, linux_out)
             _emit(f"  wrote {len(icons)} hicolor PNGs to {linux_out}")
+
+        if web:
+            _write_web(app)
 
         if android:
             generate.run_flutter_launcher_icons(app)
@@ -187,5 +210,6 @@ def main(argv: list[str] | None = None) -> int:
     return _cmd_generate(
         args.app_keys,
         android=args.android,
+        web=args.web,
         linux_out=args.linux_out,
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -71,6 +72,36 @@ class TestWriteLinuxIcons:
         assert len(written) == len(style.LINUX_ICON_SIZES)
         assert raster.call_count == len(style.LINUX_ICON_SIZES)
         assert written[0] == tmp_path / "h" / "16" / "demo.png"
+
+
+class TestWriteWebIcons:
+    @patch(f"{MOD}.render.rasterise")
+    @patch(f"{MOD}.render.centre_offset", return_value=(0.0, 0.0))
+    def test_replaces_the_flutter_web_template_icons(
+        self, mock_offset: MagicMock, raster: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _app(tmp_path)
+        written = generate.write_web_icons(app)
+        assert [path.relative_to(app.web_dir).as_posix() for path in written] == [
+            "favicon.png",
+            "icons/Icon-192.png",
+            "icons/Icon-512.png",
+            "icons/Icon-maskable-192.png",
+            "icons/Icon-maskable-512.png",
+        ]
+        assert [call.args[2] for call in raster.call_args_list] == [
+            32,
+            192,
+            512,
+            192,
+            512,
+        ]
+        assert style.BACKGROUND in raster.call_args.args[0]
+
+    def test_safe_box_fits_the_maskable_safe_zone(self) -> None:
+        """The safe box's corners sit inside the maskable circle, so no clip."""
+        half_diagonal = style.SAFE_BOX / 2 * math.sqrt(2)
+        assert half_diagonal <= generate.MASKABLE_SAFE_RADIUS * style.CANVAS
 
 
 def _write_pubspec(app: AppIcon, *, background: str = "#1B1D21") -> Path:

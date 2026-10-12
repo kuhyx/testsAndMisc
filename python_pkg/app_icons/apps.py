@@ -24,9 +24,8 @@ APPS: Final[dict[str, AppIcon]] = {
     for app in (
         AppIcon(
             key="dufs_client",
-            # The live app: ~/dufs_client is a stale, remote-less checkout that
-            # was superseded when dufs-cloud absorbed it (see testsAndMisc
-            # CLAUDE.md). Same package name, so it is easy to icon the wrong one.
+            # The live app; ~/dufs_client is a stale checkout dufs-cloud
+            # absorbed. Same package name, so it is easy to icon the wrong one.
             repo=_HOME / "src/dufs-cloud" / "app",
             accent="#B8862E",
             glyph="cloud-down",
@@ -125,9 +124,8 @@ APPS: Final[dict[str, AppIcon]] = {
             accent="#B8862E",
             glyph="quill-nib",
             icon_name="epopeja-karta",
-            # A linux/ target exists, but only so the app can be driven on the
-            # desktop during development. It is a character sheet you bring to
-            # the table, so it ships no desktop entry and gets no hicolor set.
+            # linux/ exists only to drive the app during development; it is a
+            # table-side character sheet, so no desktop entry, no hicolor set.
             linux=False,
         ),
         AppIcon(
@@ -148,9 +146,8 @@ APPS: Final[dict[str, AppIcon]] = {
             accent="#B8862E",
             glyph="track-bars",
             icon_name="kuhylog",
-            # Android is the real target (home-screen widget, quick-settings
-            # tile); the Linux build exists for trying the UI without a phone,
-            # so it still wants the hicolor set.
+            # Android is the real target; the Linux build is for trying the UI
+            # without a phone, so it still wants the hicolor set.
             linux=True,
         ),
         AppIcon(
@@ -169,9 +166,8 @@ APPS: Final[dict[str, AppIcon]] = {
             accent="#B8862E",
             glyph="track-bars",
             icon_name="betting_sim",
-            # Ships to Android natively and to Linux via a Chrome-wrapped web
-            # build, so the GTK embedder is never used and the hicolor set
-            # would go unread.
+            # Android natively, Linux via a Chrome-wrapped web build: no GTK
+            # embedder, and no desktop entry to read a hicolor set.
             linux=False,
         ),
         AppIcon(
@@ -218,6 +214,16 @@ APPS: Final[dict[str, AppIcon]] = {
             glyph="hourglass",
             icon_name="daily-limits",
             linux=False,
+        ),
+        AppIcon(
+            key="tutor",
+            repo=_HOME / "src/tutor/app",
+            accent="#B8862E",
+            glyph="lightbulb",
+            icon_name="tutor",
+            # Desktop is the web build in a Chrome --app window, as for todo
+            # and home_inventory, whose desktop entries use the hicolor set.
+            linux=True,
         ),
     )
 }

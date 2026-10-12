@@ -29,6 +29,7 @@ from python_pkg.app_icons._glyph_art import (
     _SHIELD_CUTLERY,
     _STORAGE_BOX,
 )
+from python_pkg.app_icons._glyph_art_extra import _LIGHTBULB
 from python_pkg.app_icons._glyph_art_more import (
     _BOWL_STAR,
     _HOURGLASS,
@@ -57,9 +58,6 @@ class Glyph:
     description: str
     body: str
 
-
-# A cloud silhouette outline with a download arrow underneath: a client that
-# pulls files off a remote dufs server.
 
 GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
@@ -101,6 +99,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
             "Handset with punched buttons under a broadcast arc",
             _REMOTE_WAVE,
         ),
+        Glyph("lightbulb", "Filled lightbulb over a two-bar screw base", _LIGHTBULB),
     )
 }
 

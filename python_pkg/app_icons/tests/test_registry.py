@@ -82,3 +82,14 @@ class TestHourglassGlyph:
         body = glyphs.get_glyph("hourglass").body
         assert f'fill="{style.ACCENT_MARKER}"' in body
         assert 'stroke="none"' in body
+
+
+class TestLightbulbGlyph:
+    def test_tutor_uses_it(self) -> None:
+        app = apps.get_app("tutor")
+        assert app.glyph == "lightbulb"
+        assert app.web_dir == app.repo / "web"
+
+    def test_bulb_is_filled_in_the_accent(self) -> None:
+        """The bulb takes the accent marker, so the monochrome layer recolours it."""
+        assert f'fill="{style.ACCENT_MARKER}"' in glyphs.get_glyph("lightbulb").body

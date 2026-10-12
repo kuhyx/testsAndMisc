@@ -42,6 +42,18 @@ _LAYERS: Final[tuple[tuple[str, bool, str | None], ...]] = (
     ("icon_monochrome", False, style.MONOCHROME),
 )
 
+# (path under web/, size) for the files `flutter create` puts there.
+_WEB_ICONS: Final[tuple[tuple[str, int], ...]] = (
+    ("favicon.png", 32),
+    ("icons/Icon-192.png", 192),
+    ("icons/Icon-512.png", 512),
+    ("icons/Icon-maskable-192.png", 192),
+    ("icons/Icon-maskable-512.png", 512),
+)
+
+# Radius of the web maskable-icon safe zone, as a fraction of the icon size.
+MASKABLE_SAFE_RADIUS: Final[float] = 0.4
+
 
 def write_assets(app: AppIcon) -> list[Path]:
     """Write every icon layer for one app as SVG plus 1024px PNG.
@@ -87,6 +99,31 @@ def write_linux_icons(app: AppIcon, destination: Path) -> list[Path]:
     written: list[Path] = []
     for size in style.LINUX_ICON_SIZES:
         png_path = destination / str(size) / f"{app.icon_name}.png"
+        render.rasterise(svg_text, png_path, size)
+        written.append(png_path)
+    return written
+
+
+def write_web_icons(app: AppIcon) -> list[Path]:
+    """Overwrite the Flutter web template's favicon and PWA manifest icons.
+
+    The maskable variants are the same full-bleed render as the plain ones:
+    every glyph is kept inside ``style.SAFE_BOX``, whose corners sit inside
+    the maskable safe zone (the inner circle of radius 40% of the icon), so a
+    circle mask never clips the glyph.
+
+    Parameters:
+    app (AppIcon): App whose ``web/`` directory should be written.
+
+    Returns:
+    list[Path]: Every PNG written.
+    """
+    glyph = glyphs.get_glyph(app.glyph)
+    offset = render.centre_offset(glyph, app.accent)
+    svg_text = render.build_svg(glyph, app.accent, with_background=True, offset=offset)
+    written: list[Path] = []
+    for relative, size in _WEB_ICONS:
+        png_path = app.web_dir / relative
         render.rasterise(svg_text, png_path, size)
         written.append(png_path)
     return written

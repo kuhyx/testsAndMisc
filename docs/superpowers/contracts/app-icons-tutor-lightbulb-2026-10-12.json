@@ -1,0 +1,14 @@
+{
+  "title": "Tutor launcher icon (lightbulb) and generate --web",
+  "objective": "The shared app_icons generator registers `tutor` with a new `lightbulb` glyph that stays inside SAFE_BOX and reads at 48dp, and `generate --web` replaces a Flutter app's stock web favicon and PWA icons from the same registry entry, without a per-repo copy of the generator.",
+  "acceptance_criteria": [
+    "safe_box_overflow for the lightbulb is (0, 0) and every gap is >= MIN_NEGATIVE_SPACE",
+    "generate --app tutor --android --web writes assets/icon/*, the Android mipmaps and web/favicon.png + web/icons/Icon-{192,512,maskable-192,maskable-512}.png",
+    "python_pkg/app_icons stays at 100% line and branch coverage; every file <= 250 lines"
+  ],
+  "out_of_scope": [
+    "Changing style.py or any other app's glyph",
+    "Committing the generated files in ~/src/tutor"
+  ],
+  "verifier": "pytest --cov=python_pkg/app_icons --cov-branch; the generate and preview commands; pre-commit hooks on the staged files"
+}

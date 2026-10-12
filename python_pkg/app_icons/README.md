@@ -19,6 +19,11 @@ PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons generate --android
 # one app, plus the hicolor PNGs for a Linux desktop target
 PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons \
     generate --app todo --android --linux-out ~/src/todo/linux/icons
+
+# overwrite web/favicon.png + web/icons/Icon-*.png (apps with a web/ dir);
+# the maskable ones are safe because SAFE_BOX fits the 40% maskable circle
+PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons \
+    generate --app tutor --android --web
 ```
 
 ## What gets written

@@ -34,3 +34,8 @@ class AppIcon:
     def asset_dir(self) -> Path:
         """Return the directory holding this app's icon source assets."""
         return self.repo / "assets" / "icon"
+
+    @property
+    def web_dir(self) -> Path:
+        """Return the Flutter ``web/`` directory holding favicon and PWA icons."""
+        return self.repo / "web"

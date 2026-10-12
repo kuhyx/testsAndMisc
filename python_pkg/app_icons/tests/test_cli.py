@@ -101,6 +101,38 @@ class TestGenerateCommand:
         assert linux.call_count == 1
 
 
+class TestWebFlag:
+    @patch(f"{MOD}.generate.write_web_icons", return_value=[Path("w")])
+    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
+    @patch(f"{MOD}.generate.write_assets", return_value=[])
+    def test_writes_into_an_existing_web_dir(
+        self,
+        mock_write: MagicMock,
+        mock_overflow: MagicMock,
+        web: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        with patch.object(Path, "is_dir", return_value=True):
+            cli.main(["generate", "--app", "tutor", "--web"])
+        assert web.call_count == 1
+        assert "wrote 1 web icons" in capsys.readouterr().out
+
+    @patch(f"{MOD}.generate.write_web_icons")
+    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
+    @patch(f"{MOD}.generate.write_assets", return_value=[])
+    def test_skips_apps_without_a_web_dir(
+        self,
+        mock_write: MagicMock,
+        mock_overflow: MagicMock,
+        web: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        with patch.object(Path, "is_dir", return_value=False):
+            cli.main(["generate", "--app", "tutor", "--web"])
+        assert web.call_count == 0
+        assert "skipped web icons" in capsys.readouterr().out
+
+
 class TestParser:
     def test_requires_a_subcommand(self) -> None:
         with pytest.raises(SystemExit):

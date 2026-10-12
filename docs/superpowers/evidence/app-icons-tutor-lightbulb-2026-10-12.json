@@ -1,0 +1,38 @@
+{
+  "intent": "Give the new Tutor Flutter app an on-style launcher icon (filled lightbulb in the shared accent on the family charcoal) and let the shared generator also replace the stock Flutter web favicon and PWA icons.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art_extra.py, glyphs.py: the `lightbulb` glyph in a new glyph module (_glyph_art_more.py is at the line cap)",
+    "python_pkg/app_icons/apps.py: the `tutor` registry entry; four comments condensed to stay under 250 lines",
+    "python_pkg/app_icons/_app_icon.py, generate.py, cli.py: `generate --web` writes web/favicon.png and web/icons/Icon-*.png",
+    "python_pkg/app_icons/tests/: registry, web-icon and CLI tests; README usage line"
+  ],
+  "changes": [
+    "New `lightbulb` glyph: filled bulb over two stroked screw-base bars, 40px gaps (> MIN_NEGATIVE_SPACE), ink 372x560 inside SAFE_BOX",
+    "tutor registered with accent #B8862E, linux=True like todo/home_inventory (desktop = web build in a Chrome --app window)",
+    "write_web_icons renders the full icon at 32/192/512 into the Flutter web template paths; maskable variants reuse it because SAFE_BOX's half-diagonal (396px) is inside the 40% maskable radius (410px)",
+    "--web skips apps without a web/ directory"
+  ],
+  "verification": [
+    {
+      "command": "PATH=~/sdk/fvm/versions/3.47.7/bin:$PATH PYTHONPATH=. python3 -m python_pkg.app_icons generate --app tutor --android --web",
+      "result": "pass",
+      "evidence": "tutor: wrote 6 asset files; wrote 5 web icons; regenerated Android mipmaps; mipmap-xxxhdpi and web Icon-192 viewed: lightbulb on #211D1B, no Flutter logo"
+    },
+    {
+      "command": "PYTHONPATH=. python3 -m python_pkg.app_icons preview -o ~/data/claude-scratch/tutor-icons-sheet.png",
+      "result": "pass",
+      "evidence": "Sheet viewed: lightbulb reads at full size, circle-masked and 48dp next to the other 21 glyphs; safe_box_overflow (0, 0)"
+    },
+    {
+      "command": ".venv/bin/python -m pytest -q python_pkg/app_icons --cov=python_pkg/app_icons --cov-branch",
+      "result": "pass",
+      "evidence": "53 passed; every python_pkg/app_icons module 100% line and branch"
+    }
+  ],
+  "risks": [
+    "`generate --android` runs `dart run`, which needs the fvm 3.47.7 SDK first on PATH (system dart 3.13.3 is below the app's ^3.13.5)"
+  ],
+  "rollback": [
+    "git revert this commit; tutor and the lightbulb glyph leave the registry and --web disappears; other apps' icons are byte-identical either way"
+  ]
+}
