@@ -1,0 +1,29 @@
+{
+  "intent": "The i3 tutor block shows today's credited tutor minutes against the 60-minute daily cap; it used to count ledger rows against 4 and hid after 4 credited minutes since earned_time 0.8.0 made each row a minute count.",
+  "scope": [
+    "linux_configuration/i3blocks/tutor.sh, linux_configuration/tests/test_i3blocks_tutor.sh",
+    "Non-goal: no HMAC check (earned_time stays the authority)"
+  ],
+  "changes": [
+    "Sum detail.minutes of today's credit rows (legacy rows without it count 15, as earned_time does); TARGET 4 -> 60",
+    "Test fixture takes day:kind[:minutes]; new cases for summing, legacy rows and the 60/60 hidden state"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_tutor.sh",
+      "result": "pass",
+      "evidence": "tutor block: all checks passed"
+    },
+    {
+      "command": "bash linux_configuration/i3blocks/tutor.sh",
+      "result": "pass",
+      "evidence": "⚙ tutor 0/60 on the live ledger; same jq on 2026-10-11 gives 60, matching earned_time's 60 units that day"
+    }
+  ],
+  "risks": [
+    "A ledger row with non-numeric minutes would make jq fail and show the orange 'ledger unreadable' state"
+  ],
+  "rollback": [
+    "git revert the commit; the block goes back to counting rows / 4"
+  ]
+}

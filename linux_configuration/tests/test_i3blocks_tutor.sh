@@ -1,6 +1,6 @@
 #!/bin/bash
-# Behaviour tests for the i3blocks tutor block: today's credit
-# count, the hidden 4/4 state, the unreadable-ledger warning and the click.
+# Behaviour tests for the i3blocks tutor block: today's credited
+# minutes, the hidden 60/60 state, the unreadable-ledger warning and the click.
 # The ledger is a fixture and run.sh is a stub, so nothing reads the real
 # ledger and no tutor or browser is ever started.
 set -euo pipefail
@@ -45,13 +45,15 @@ LEDGER="$TMP_DIR/ledger.json"
 TODAY=$(date +%Y-%m-%d)
 YESTERDAY=$(date -d yesterday +%Y-%m-%d)
 
-# ledger <day:kind>...  (writes {"entries":[...]})
+# ledger <day:kind[:minutes]>...  (writes {"entries":[...]}; no minutes = legacy row)
 ledger() {
 	local rows=()
 	local spec
 	for spec in "$@"; do
-		rows+=("$(jq -n --arg day "${spec%%:*}" --arg kind "${spec##*:}" \
-			'{day: $day, kind: $kind}')")
+		local day kind minutes
+		IFS=: read -r day kind minutes <<<"$spec"
+		rows+=("$(jq -n --arg day "$day" --arg kind "$kind" --arg m "$minutes" \
+			'{day: $day, kind: $kind} + (if $m == "" then {} else {detail: {minutes: ($m | tonumber)}} end)')")
 	done
 	printf '%s\n' "${rows[@]}" | jq -s '{entries: .}' >"$LEDGER"
 }
@@ -69,22 +71,25 @@ printf 'Checking tutor block states...\n'
 
 rm -f "$LEDGER"
 out=$(run_block)
-assert_eq '⚙ tutor 0/4' "$(line 1 "$out")" 'no ledger is 0/4'
-assert_eq '⚙ 0/4' "$(line 2 "$out")" 'no ledger short text'
+assert_eq '⚙ tutor 0/60' "$(line 1 "$out")" 'no ledger is 0/60'
+assert_eq '⚙ 0/60' "$(line 2 "$out")" 'no ledger short text'
 assert_eq '#F1FA8C' "$(line 3 "$out")" 'progress is yellow'
 
-ledger "$TODAY:credit" "$TODAY:credit" "$YESTERDAY:credit"
+ledger "$TODAY:credit:3" "$TODAY:credit:1" "$YESTERDAY:credit:50"
 out=$(run_block)
-assert_eq '⚙ tutor 2/4' "$(line 1 "$out")" 'counts only today'
-assert_eq '⚙ 2/4' "$(line 2 "$out")" 'short text'
+assert_eq '⚙ tutor 4/60' "$(line 1 "$out")" 'sums only today'
+assert_eq '⚙ 4/60' "$(line 2 "$out")" 'short text'
 
-ledger "$TODAY:credit" "$TODAY:debit"
-assert_eq '⚙ tutor 1/4' "$(line 1 "$(run_block)")" 'only credit rows count'
+ledger "$TODAY:credit" "$TODAY:credit:2"
+assert_eq '⚙ tutor 17/60' "$(line 1 "$(run_block)")" 'legacy row counts 15'
 
-ledger "$TODAY:credit" "$TODAY:credit" "$TODAY:credit" "$TODAY:credit"
+ledger "$TODAY:credit:5" "$TODAY:debit:9"
+assert_eq '⚙ tutor 5/60' "$(line 1 "$(run_block)")" 'only credit rows count'
+
+ledger "$TODAY:credit:59" "$TODAY:credit:1"
 out=$(run_block)
-assert_eq '' "$(line 1 "$out")" '4/4 hides the block'
-assert_eq '' "$(line 2 "$out")" '4/4 short text hidden'
+assert_eq '' "$(line 1 "$out")" '60/60 hides the block'
+assert_eq '' "$(line 2 "$out")" '60/60 short text hidden'
 
 printf 'Checking failure states are never blank or green...\n'
 
