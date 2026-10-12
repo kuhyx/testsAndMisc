@@ -16,8 +16,8 @@ set -euo pipefail
 SHUTDOWN_CONFIG=${SHUTDOWN_CONFIG:-/etc/shutdown-schedule.conf}
 SKIP_DATES_FILE=${SKIP_DATES_FILE:-/etc/shutdown-skip-dates}
 OVERRIDES_FILE=${OVERRIDES_FILE:-/etc/shutdown-schedule-overrides.conf}
-LIMITS_CACHE=${DAILY_LIMITS_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/daily-limits.json}
-RENDER_CACHE=${DAILY_LIMITS_RENDER_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/i3blocks-shutdown.render}
+LIMITS_CACHE=${DAILY_LIMITS_CACHE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/daily-limits.json}
+RENDER_CACHE=${DAILY_LIMITS_RENDER_CACHE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/i3blocks-shutdown.render}
 readonly STALE_AFTER_SECONDS=180
 
 # Left-click opens the popup, by path: i3blocks' PATH has no ~/.local/bin.

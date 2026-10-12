@@ -16,7 +16,7 @@ set -euo pipefail
 readonly API='http://127.0.0.1:8770/api/status'
 readonly HEALTH='http://127.0.0.1:8770/api/health'
 readonly UI='http://127.0.0.1:8770/'
-readonly CACHE="${XDG_RUNTIME_DIR:-/tmp}/i3blocks-screen-locker.cache"
+readonly CACHE="${XDG_RUNTIME_DIR:-/run/user/$UID}/i3blocks-screen-locker.cache"
 
 # Dracula-ish palette, matching the other blocks in this bar.
 readonly RED='#FF5555'

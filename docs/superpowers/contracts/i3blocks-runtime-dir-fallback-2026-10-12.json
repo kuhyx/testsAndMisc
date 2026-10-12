@@ -1,0 +1,14 @@
+{
+  "title": "i3blocks: XDG_RUNTIME_DIR falls back to /run/user/$UID",
+  "objective": "The gaming, shutdown and screen-locker blocks read daily-limits' cache from /run/user/$UID when the X session has no XDG_RUNTIME_DIR, instead of looking in /tmp and showing '⏱? no data'.",
+  "acceptance_criteria": [
+    "With XDG_RUNTIME_DIR unset, gaming_budget.sh and shutdown_countdown.sh render the live cache (time left, unearned earners)",
+    "No i3blocks script falls back to /tmp for XDG_RUNTIME_DIR (checked in test_i3blocks_efficiency.sh)",
+    "test_i3blocks_{efficiency,shutdown_hint,gaming_budget}.sh pass"
+  ],
+  "out_of_scope": [
+    "Reconnecting systemd-logind to the system bus (needs a logind restart and relogin)",
+    "Finding what re-parses systemd units every ~6 s"
+  ],
+  "verifier": "bash linux_configuration/tests/test_i3blocks_efficiency.sh && bash linux_configuration/tests/test_i3blocks_shutdown_hint.sh && bash linux_configuration/tests/test_i3blocks_gaming_budget.sh"
+}

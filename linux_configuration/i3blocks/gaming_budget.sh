@@ -14,8 +14,8 @@
 
 set -euo pipefail
 
-readonly LIMITS_CACHE="${DAILY_LIMITS_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/daily-limits.json}"
-readonly RENDER_CACHE="${DAILY_LIMITS_RENDER_CACHE:-${XDG_RUNTIME_DIR:-/tmp}/i3blocks-gaming-budget.render}"
+readonly LIMITS_CACHE="${DAILY_LIMITS_CACHE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/daily-limits.json}"
+readonly RENDER_CACHE="${DAILY_LIMITS_RENDER_CACHE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/i3blocks-gaming-budget.render}"
 readonly STALE_AFTER_SECONDS=180
 
 # Dracula-ish palette, matching screen_locker.sh.

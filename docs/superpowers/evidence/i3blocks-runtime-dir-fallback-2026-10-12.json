@@ -1,0 +1,31 @@
+{
+  "intent": "i3blocks gaming/shutdown/screen-locker blocks find daily-limits' cache even when the X session started without XDG_RUNTIME_DIR.",
+  "scope": [
+    "linux_configuration/i3blocks/{gaming_budget,shutdown_countdown,screen_locker}.sh",
+    "linux_configuration/tests/test_i3blocks_efficiency.sh",
+    "Non-goal: repairing logind's lost bus connection (needs a logind restart/relogin)"
+  ],
+  "changes": [
+    "XDG_RUNTIME_DIR fallback changed from /tmp to /run/user/$UID (bash builtin, no fork)",
+    "Regression check: no i3blocks script may fall back to /tmp for XDG_RUNTIME_DIR"
+  ],
+  "verification": [
+    {
+      "command": "env -u XDG_RUNTIME_DIR bash linux_configuration/i3blocks/gaming_budget.sh (and shutdown_countdown.sh)",
+      "result": "pass",
+      "evidence": "🎮 5h00 left · 0h00/5h00 +🧩1h +📖1h +⚙1h / ⏻ 20:40 +🧩50m +📖30m +⚙1h →max 23:00; live bar confirmed by user"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_{efficiency,shutdown_hint,gaming_budget}.sh",
+      "result": "pass",
+      "evidence": "all three suites exit 0"
+    }
+  ],
+  "risks": [
+    "A non-systemd login would still have no /run/user/$UID; the blocks then show the existing missing-cache state"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Re-run the three i3blocks test suites"
+  ]
+}

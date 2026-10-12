@@ -235,4 +235,11 @@ shutdown_minutes_output=$(TZ=UTC NOW_EPOCH="$(epoch_utc '2026-05-01 18:31:00')" 
 assert_equals '⏻ SHUTDOWN' "$(printf '%s\n' "$shutdown_minutes_output" | sed -n '1p')" \
 	'shutdown countdown should be due once the shutdown minute has passed'
 
+# A session started while logind is off the bus has no XDG_RUNTIME_DIR; a /tmp
+# fallback then misses daily-limits' cache in /run/user/$UID (2026-10-12).
+if grep -n 'XDG_RUNTIME_DIR:-/tmp' "$I3BLOCKS_DIR"/*.sh; then
+	printf 'FAIL: XDG_RUNTIME_DIR must fall back to /run/user/<uid>, not /tmp\n' >&2
+	exit 1
+fi
+
 printf 'All i3blocks efficiency regression tests passed.\n'
