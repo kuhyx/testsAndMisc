@@ -54,7 +54,7 @@ render_limits() {
 		def hm: . as $m
 			| "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)";
 		def bonus_hm: if . < 60 then "\(.)m" else hm | sub("h00$"; "h") end;
-		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙"} as $icon
+		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙", tutor: "⚙"} as $icon
 		| .gaming as $g
 		| ([.earners[] | select(.status != "done" and .gaming_minutes > 0)
 			| "+\($icon[.name] // .label)\(if .status == "unknown" then "?" else "" end)\(.gaming_minutes | bonus_hm)"]

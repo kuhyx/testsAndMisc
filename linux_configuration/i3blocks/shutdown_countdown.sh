@@ -179,7 +179,7 @@ render_limits() {
 		def bonus_hm: . as $m
 			| if $m < 60 then "\($m)m"
 			else "\($m / 60 | floor)h" + ($m % 60 | if . == 0 then "" else "\(.)" | if length < 2 then "0" + . else . end end) end;
-		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙"} as $icon
+		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙", tutor: "⚙"} as $icon
 		| (.earners | map({(.name): .}) | add // {}) as $by
 		| (.shutdown.applied // .shutdown.resolved) as $time
 		| (.shutdown.ceiling) as $ceiling

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Behaviour tests for the i3blocks automation_tutor block: today's credit
+# Behaviour tests for the i3blocks tutor block: today's credit
 # count, the hidden 4/4 state, the unreadable-ledger warning and the click.
 # The ledger is a fixture and run.sh is a stub, so nothing reads the real
 # ledger and no tutor or browser is ever started.
@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
-BLOCK="$REPO_DIR/i3blocks/automation_tutor.sh"
+BLOCK="$REPO_DIR/i3blocks/tutor.sh"
 TMP_DIR=$(mktemp -d)
 
 cleanup() {
@@ -30,7 +30,7 @@ assert_eq() {
 }
 
 printf '{}' | jq -e . >/dev/null 2>&1 ||
-	fail 'a working jq is required for the automation_tutor tests (pacman -S jq)'
+	fail 'a working jq is required for the tutor block tests (pacman -S jq)'
 
 BIN_DIR="$TMP_DIR/bin"
 mkdir -p "$BIN_DIR"
@@ -57,7 +57,7 @@ ledger() {
 }
 
 run_block() {
-	AUTOMATION_TUTOR_LEDGER="$LEDGER" AUTOMATION_TUTOR_RUN="$BIN_DIR/run.sh" \
+	TUTOR_LEDGER="$LEDGER" TUTOR_RUN="$BIN_DIR/run.sh" \
 		bash "$BLOCK"
 }
 
@@ -65,7 +65,7 @@ line() {
 	sed -n "${1}p" <<<"$2"
 }
 
-printf 'Checking automation_tutor block states...\n'
+printf 'Checking tutor block states...\n'
 
 rm -f "$LEDGER"
 out=$(run_block)
@@ -103,4 +103,4 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
 done
 assert_eq 'clicked' "$(cat "$TMP_DIR/clicks" 2>/dev/null)" 'click runs run.sh'
 
-printf 'automation_tutor block: all checks passed\n'
+printf 'tutor block: all checks passed\n'

@@ -1,0 +1,36 @@
+{
+  "intent": "The automation tutor is now just Tutor (own repo ~/src/tutor, data ~/.local/share/tutor, earned_time 0.9.0 earner 'tutor'); the i3 bar follows the rename.",
+  "scope": [
+    "linux_configuration/i3blocks/tutor.sh (was automation_tutor.sh), the [tutor] stanza in linux_configuration/i3blocks/config, linux_configuration/tests/test_i3blocks_tutor.sh",
+    "gaming_budget.sh and shutdown_countdown.sh icon maps: earner 'tutor' gets the same gear as 'automation'",
+    "Non-goal: no change to what the block counts (still today's credit rows / 4)"
+  ],
+  "changes": [
+    "Ledger default ~/.local/share/tutor/ledger.json (override TUTOR_LEDGER); click runs ~/src/tutor/run.sh (override TUTOR_RUN)",
+    "Block and test renamed; ~/.config/i3blocks/tutor.sh symlink replaces automation_tutor.sh",
+    "tutor: \"⚙\" added beside automation in the two daily-limits renderers"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_tutor.sh",
+      "result": "pass",
+      "evidence": "tutor block: all checks passed"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_gaming_budget.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed."
+    },
+    {
+      "command": "~/.config/i3blocks/tutor.sh",
+      "result": "pass",
+      "evidence": "⚙ tutor 0/4 (live ledger at the new path)"
+    }
+  ],
+  "risks": [
+    "The i3blocks config is symlinked, so the [tutor] stanza is live on the next i3blocks reload; until then the old stanza points at a removed symlink"
+  ],
+  "rollback": [
+    "git revert the commit and re-link ~/.config/i3blocks/automation_tutor.sh"
+  ]
+}

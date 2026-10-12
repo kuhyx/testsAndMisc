@@ -1,0 +1,14 @@
+{
+  "title": "i3 bar: automation_tutor block renamed to tutor",
+  "objective": "The bar's tutor block reads ~/.local/share/tutor/ledger.json and a click runs ~/src/tutor/run.sh; the daily-limits renderers show the gear for earned_time 0.9.0's 'tutor' earner.",
+  "acceptance_criteria": [
+    "test_i3blocks_tutor.sh passes (counts, hidden at 4/4, unreadable ledger, click)",
+    "test_i3blocks_gaming_budget.sh passes",
+    "~/.config/i3blocks/tutor.sh prints 'tutor n/4' from the live ledger at the new path"
+  ],
+  "out_of_scope": [
+    "What the block counts (rows vs minutes) -- unchanged",
+    "The tutor itself (kuhyx/tutor)"
+  ],
+  "verifier": "bash linux_configuration/tests/test_i3blocks_tutor.sh; bash linux_configuration/tests/test_i3blocks_gaming_budget.sh"
+}

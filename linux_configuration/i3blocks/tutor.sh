@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ============================================================================
-# Automation tutor status for i3blocks: today's credited 15-minute blocks.
+# Tutor status for i3blocks: today's credited 15-minute blocks.
 #
-# A click runs plc-lab's run.sh, which starts the tutor if it is down and
+# A click runs ~/src/tutor/run.sh, which starts the tutor if it is down and
 # opens it in the browser -- nobody has to remember the port. Hidden once all
 # four blocks are in: nothing left to earn, nothing to click.
 #
@@ -14,9 +14,9 @@
 
 set -euo pipefail
 
-readonly LEDGER="${AUTOMATION_TUTOR_LEDGER:-$HOME/.local/share/automation_tutor/ledger.json}"
+readonly LEDGER="${TUTOR_LEDGER:-$HOME/.local/share/tutor/ledger.json}"
 # i3blocks' PATH has no ~/src: absolute path.
-readonly RUN="${AUTOMATION_TUTOR_RUN:-$HOME/src/plc-lab/run.sh}"
+readonly RUN="${TUTOR_RUN:-$HOME/src/tutor/run.sh}"
 readonly TARGET=4
 
 readonly YELLOW='#F1FA8C'
