@@ -1,0 +1,43 @@
+{
+  "intent": "Logitech C270 stays at 30 fps in Google Meet (Helium) in low light instead of dropping to ~15 fps and looking laggy.",
+  "scope": [
+    "linux_configuration/fixes/fix_webcam_c270.sh",
+    "linux_configuration/fixes/99-c270-fixed-framerate.rules",
+    "linux_configuration/tests/test_fix_webcam_c270.bats",
+    "Non-goal: manual exposure lock; auto exposure stays on"
+  ],
+  "changes": [
+    "udev rule sets exposure_dynamic_framerate=0 on the C270 capture node at every add event",
+    "Installer script with install/--remove/--status; installs v4l-utils if missing"
+  ],
+  "verification": [
+    {
+      "command": "v4l2-ctl -d /dev/video0 -c exposure_dynamic_framerate=0 (live, Meet open)",
+      "result": "pass",
+      "evidence": "User confirmed Meet video no longer laggy"
+    },
+    {
+      "command": "vm run c270 'fix_webcam_c270.sh; --status; --remove; --status'",
+      "result": "pass",
+      "evidence": "Rule installed then removed in vmbox, rc=0"
+    },
+    {
+      "command": "v4l2-ctl -c exposure_dynamic_framerate=1 && sudo udevadm trigger --action=add --settle /sys/class/video4linux/video0",
+      "result": "pass",
+      "evidence": "Host control read back exposure_dynamic_framerate: 0 after simulated plug-in"
+    },
+    {
+      "command": "bats linux_configuration/tests/test_fix_webcam_c270.bats",
+      "result": "pass",
+      "evidence": "5/5 ok"
+    }
+  ],
+  "risks": [
+    "Darker, noisier picture in dim rooms (fixed 33 ms max exposure)",
+    "Chromium could start resetting this control in a future version, undoing the rule per stream"
+  ],
+  "rollback": [
+    "fix_webcam_c270.sh --remove, then replug the camera",
+    "v4l2-ctl -d /dev/video0 -C exposure_dynamic_framerate reads the firmware value again"
+  ]
+}

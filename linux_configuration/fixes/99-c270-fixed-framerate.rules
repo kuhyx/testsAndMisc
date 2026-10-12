@@ -1,0 +1,7 @@
+# Logitech C270: stop the camera halving its frame rate in dim light.
+# With exposure_dynamic_framerate=1 (what the firmware comes up with) auto
+# exposure stretches frames to ~60 ms, i.e. ~15 fps, and Meet looks laggy.
+# Chromium/Helium never resets this control (its reset batch includes
+# FOCUS_AUTO, which the C270 lacks, so the whole batch fails), so setting it
+# once per plug-in is enough. Installed by fixes/fix_webcam_c270.sh.
+ACTION=="add", SUBSYSTEM=="video4linux", ATTR{index}=="0", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="0825", RUN+="/usr/bin/v4l2-ctl -d $devnode -c exposure_dynamic_framerate=0"
