@@ -24,3 +24,20 @@ _LIGHTBULB = """\
 A 150 150 0 0 1 662 442 C 662 500 576 510 576 556 Z"/>
     <path d="M 440 668 L 584 668"/>
     <path d="M 480 780 L 544 780"/>"""
+
+# Headphones -- tunedeck, a music player: the listening itself. A stroked
+# headband over two filled ear cups. The music note (``note-ascender``) is
+# lyricanki's, and a cassette's reels need more negative space than a 560px
+# box leaves at the family stroke weight, so the ear cups carry the meaning.
+#
+# Geometry, ink inside SAFE_BOX (x=256..768 = 512 wide, y=308..736 = 428 tall):
+#   band  semicircle r=216 about (512,560), so its ink tops out at y=308 and
+#         its ends land at x=296 / x=728, buried inside the cups.
+#   cups  filled rounded rects x=256..368 and x=656..768, y=520..736; the
+#         288px gap between them is far clear of MIN_NEGATIVE_SPACE=36.
+_HEADPHONES = """\
+    <path d="M 296 560 A 216 216 0 0 1 728 560"/>
+    <rect x="256" y="520" width="112" height="216" rx="40" \
+fill="{{ACCENT}}" stroke="none"/>
+    <rect x="656" y="520" width="112" height="216" rx="40" \
+fill="{{ACCENT}}" stroke="none"/>"""

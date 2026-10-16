@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Final
 
 from python_pkg.app_icons._app_icon import AppIcon
+from python_pkg.app_icons._apps_more import MORE_APPS
 
 __all__ = ["APPS", "AppIcon", "get_app"]
 
@@ -215,16 +216,7 @@ APPS: Final[dict[str, AppIcon]] = {
             icon_name="daily-limits",
             linux=False,
         ),
-        AppIcon(
-            key="tutor",
-            repo=_HOME / "src/tutor/app",
-            accent="#B8862E",
-            glyph="lightbulb",
-            icon_name="tutor",
-            # Desktop is the web build in a Chrome --app window, as for todo
-            # and home_inventory, whose desktop entries use the hicolor set.
-            linux=True,
-        ),
+        *MORE_APPS,
     )
 }
 

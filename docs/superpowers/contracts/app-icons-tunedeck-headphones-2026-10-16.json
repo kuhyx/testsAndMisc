@@ -1,0 +1,14 @@
+{
+  "title": "tunedeck launcher icon (headphones)",
+  "objective": "The shared app_icons generator registers `tunedeck` with a new `headphones` glyph that stays inside SAFE_BOX and reads at 48dp, without a per-repo copy of the generator, while apps.py stays under the 250-line cap.",
+  "acceptance_criteria": [
+    "generate --app tunedeck --android --web writes assets/icon/*, the Android mipmaps and the web icons",
+    "python_pkg/app_icons stays at 100% line and branch coverage; every file <= 250 lines",
+    "every other app's registry entry is unchanged (tutor only moves module)"
+  ],
+  "out_of_scope": [
+    "Changing style.py or any other app's glyph",
+    "Committing the generated files in ~/src/tunedeck from this repo"
+  ],
+  "verifier": "pytest --cov=python_pkg.app_icons --cov-branch; the generate and preview commands; pre-commit hooks on the staged files"
+}

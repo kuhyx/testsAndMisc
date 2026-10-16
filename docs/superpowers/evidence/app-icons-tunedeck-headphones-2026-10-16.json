@@ -1,0 +1,36 @@
+{
+  "intent": "Give the new tunedeck Flutter app (music / podcast player) an on-style launcher icon: headphones in the shared accent on the family charcoal.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art_extra.py, glyphs.py: the `headphones` glyph",
+    "python_pkg/app_icons/_apps_more.py, apps.py: tutor moves to MORE_APPS (apps.py was at 249 lines) and tunedeck joins it",
+    "python_pkg/app_icons/tests/test_registry.py: headphones registry tests"
+  ],
+  "changes": [
+    "New `headphones` glyph: stroked r=216 headband over two filled 112x216 ear cups, 288px gap between cups, ink 512x428 inside SAFE_BOX",
+    "tunedeck registered with accent #B8862E, linux=True (desktop is a web build in a Chrome --app window)",
+    "APPS merges MORE_APPS unchanged, so lookups and ordering of existing apps are the same"
+  ],
+  "verification": [
+    {
+      "command": "PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons generate --app tunedeck --android --web",
+      "result": "pass",
+      "evidence": "tunedeck: wrote 6 asset files; wrote 5 web icons; regenerated Android mipmaps; icon.png viewed: headphones on #211D1B"
+    },
+    {
+      "command": "PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons preview -o ~/data/claude-scratch/tunedeck-icon-sheet.png",
+      "result": "pass",
+      "evidence": "Sheet viewed: headphones read at full size, circle-masked and 48dp next to the other glyphs; no safe-box warning"
+    },
+    {
+      "command": "python3 -m pytest -q python_pkg/app_icons/tests --cov=python_pkg.app_icons --cov-branch",
+      "result": "pass",
+      "evidence": "55 passed; every python_pkg/app_icons module 100% line and branch"
+    }
+  ],
+  "risks": [
+    "The band's round caps show as small shoulders above the cups; intended as the headphone yoke"
+  ],
+  "rollback": [
+    "git revert this commit; tunedeck and the headphones glyph leave the registry; tutor's entry is byte-identical either way"
+  ]
+}

@@ -29,7 +29,7 @@ from python_pkg.app_icons._glyph_art import (
     _SHIELD_CUTLERY,
     _STORAGE_BOX,
 )
-from python_pkg.app_icons._glyph_art_extra import _LIGHTBULB
+from python_pkg.app_icons._glyph_art_extra import _HEADPHONES, _LIGHTBULB
 from python_pkg.app_icons._glyph_art_more import (
     _BOWL_STAR,
     _HOURGLASS,
@@ -100,6 +100,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
             _REMOTE_WAVE,
         ),
         Glyph("lightbulb", "Filled lightbulb over a two-bar screw base", _LIGHTBULB),
+        Glyph("headphones", "Headband arc over two filled ear cups", _HEADPHONES),
     )
 }
 

@@ -93,3 +93,16 @@ class TestLightbulbGlyph:
     def test_bulb_is_filled_in_the_accent(self) -> None:
         """The bulb takes the accent marker, so the monochrome layer recolours it."""
         assert f'fill="{style.ACCENT_MARKER}"' in glyphs.get_glyph("lightbulb").body
+
+
+class TestHeadphonesGlyph:
+    def test_tunedeck_uses_it(self) -> None:
+        app = apps.get_app("tunedeck")
+        assert app.glyph == "headphones"
+        assert app.linux
+
+    def test_cups_are_filled_in_the_accent(self) -> None:
+        """The cups take the accent marker, so the monochrome layer recolours it."""
+        body = glyphs.get_glyph("headphones").body
+        assert f'fill="{style.ACCENT_MARKER}"' in body
+        assert 'stroke="none"' in body
