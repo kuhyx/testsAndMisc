@@ -85,27 +85,22 @@ FILES YOU KNOW:
 
 - periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh - Main wrapper (823 lines)
 - periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh - Backs up real pacman
-- periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt - Always blocked
-- periodic_background/digital_wellbeing/pacman/pacman_whitelist.txt - Exceptions to keywords
-- periodic_background/digital_wellbeing/pacman/pacman_greylist.txt - Challenge required
 - periodic_background/digital_wellbeing/pacman/words.txt - Word scramble challenge words
 - /var/lib/pacman-wrapper/policy.sha256 - Integrity checksums
 
 KEY CONCEPTS:
 
 - Real pacman at /usr/bin/pacman.orig, wrapper symlinked to /usr/bin/pacman
-- Policy integrity verification via SHA256 before ANY operation
-- Three tiers: blocked (always denied), greylist (challenge), whitelist (bypass)
-- VirtualBox check is HARDCODED (cannot bypass via policy files)
+- Wrapper lib integrity verification via SHA256 before ANY operation
+- Package policy lists (blocked/greylist/whitelist) were retired 2026-10-17; hosts/DNS blocking covers them
+- VirtualBox check is HARDCODED (cannot bypass via wrapper libs)
 - Steam is weekend-only with word scramble challenge
 
 POLICY ENFORCEMENT:
 
-1. Load policy lists from text files
-2. Verify integrity hashes match
-3. Check if package matches blocked keywords (unless whitelisted)
-4. Check if greylisted (requires challenge)
-5. After transaction, remove any blocked packages that got installed
+1. Verify integrity hashes match
+2. Apply the hardcoded checks (VirtualBox challenge, Steam weekend challenge)
+3. Auto-install LeechBlock when a browser is installed
 
 HOSTS INTEGRATION:
 

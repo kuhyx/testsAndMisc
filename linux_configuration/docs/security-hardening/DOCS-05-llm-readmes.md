@@ -68,13 +68,12 @@ Intercept pacman to enforce package installation policies.
 
 ````
 
-## Policy Files
+## Files
 | File | Purpose |
 |------|---------|
-| pacman_blocked_keywords.txt | Substring match = always blocked |
-| pacman_whitelist.txt | Exact names that bypass blocking |
-| pacman_greylist.txt | Requires challenge to install |
 | words.txt | Word scramble challenge source |
+
+_Package policy lists (blocked keywords, whitelist, greylist) were retired 2026-10-17; hosts/DNS blocking covers them._
 
 ## Hardcoded Checks (cannot bypass via files)
 - VirtualBox → security challenge + hosts enforcement
@@ -85,11 +84,8 @@ Intercept pacman to enforce package installation policies.
 2. Periodic maintenance (auto-setup if missing)
 3. VirtualBox hosts enforcement
 
-## Adding Blocks
+## Updating the wrapper
 ```bash
-# Edit the blocked keywords file
-echo "newpackage" >> pacman_blocked_keywords.txt
-
 # Re-run installer to update checksums
 sudo ./install_pacman_wrapper.sh
 ````

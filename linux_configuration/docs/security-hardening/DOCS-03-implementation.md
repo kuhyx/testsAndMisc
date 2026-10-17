@@ -57,15 +57,9 @@ Changes needed:
 - Add input focus grabbing to prevent Alt+Tab escape
 - Disable window close keyboard shortcuts
 
-## 4. PACMAN WRAPPER - Chrome Block + LeechBlock Auto-Install
+## 4. PACMAN WRAPPER - LeechBlock Auto-Install
 
 Location: periodic_background/digital_wellbeing/pacman/
-
-Changes needed to pacman_blocked_keywords.txt:
-- Add: google-chrome
-- Add: google-chrome-stable
-- Add: chromium
-- Add: ungoogled-chromium
 
 New behavior in pacman_wrapper.sh:
 - After ANY browser is detected installed (via pacman -Qq check):
@@ -166,7 +160,6 @@ Modified files:
 
 - hosts/guard/setup_hosts_guard.sh (add nsswitch protection)
 - periodic_background/digital_wellbeing/setup_midnight_shutdown.sh (remove helpful messages)
-- periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt (add chrome)
 - periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh (leechblock auto-install)
 - periodic_background/digital_wellbeing/block_compulsive_opening.sh (auto-close timer)
 - periodic_background/digital_wellbeing/youtube-music-wrapper.sh (daemon integration)

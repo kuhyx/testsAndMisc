@@ -72,14 +72,12 @@ check_vbox_hosts() {
 	local issues=()
 
 	# Only check if VirtualBox is installed.
-	# This is NOT "skipped" in the sense of ducking a check: VirtualBox is absent
-	# AND deliberately blocked by pacman policy — pacman_blocked_keywords.txt lists
-	# virtualbox/vbox with the comment "can bypass /etc/hosts restrictions", which
-	# is the very thing this check enforces. With no VirtualBox there are no VMs to
-	# enforce /etc/hosts inside, so the check is genuinely not applicable. Report
-	# n/a so it reads as deliberate rather than something that got ducked.
+	# This is NOT "skipped" in the sense of ducking a check: with no VirtualBox
+	# there are no VMs to enforce /etc/hosts inside, so the check is genuinely not
+	# applicable. Report n/a so it reads as deliberate rather than something that
+	# got ducked.
 	if ! command -v VBoxManage &>/dev/null; then
-		note "VirtualBox not installed (blocked by pacman policy) — not applicable"
+		note "VirtualBox not installed — not applicable"
 		set_service_status "vbox_hosts" "n/a"
 		return
 	fi

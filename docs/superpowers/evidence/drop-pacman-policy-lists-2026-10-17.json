@@ -1,0 +1,34 @@
+{
+  "intent": "The pacman wrapper no longer has blocked-keyword, white or grey lists (removed in digital-wellbeing e2a7176); stop the services checker and docs from expecting them.",
+  "scope": [
+    "linux_configuration/periodic_background/lib/services_wrappers.sh and its test",
+    "linux_configuration/periodic_background/lib/services_browser.sh comment + note",
+    "linux_configuration/.github/copilot-instructions.md and linux_configuration/docs pacman docs",
+    "Non-goal: the wrapper itself lives in ~/src/digital-wellbeing"
+  ],
+  "changes": [
+    "check_pacman_wrapper only checks words.txt as a supporting file, no longer pacman_blocked_keywords.txt / pacman_whitelist.txt",
+    "test_services_wrappers.sh stages and removes only words.txt",
+    "VirtualBox n/a note no longer claims it is blocked by pacman policy",
+    "Docs drop the list files, greylist challenge and comparisons; integrity/immutability text now names the lock lib and pw_*.sh"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/periodic_background/lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "test_services_wrappers.sh: 29 passed, 0 failed; All check_and_enable_services test files passed."
+    },
+    {
+      "command": "bash linux_configuration/periodic_background/check_and_enable_services.sh --status",
+      "result": "pass",
+      "evidence": "Supporting file exists: /usr/local/bin/words.txt; no list-file lines; 'VirtualBox not installed — not applicable'. Drift flagged as expected until the hourly reinstall deploys digital-wellbeing e2a7176."
+    }
+  ],
+  "risks": [
+    "VirtualBox is now installable without friction; only post-transaction VM removal remains"
+  ],
+  "rollback": [
+    "git revert this commit together with digital-wellbeing e2a7176",
+    "Re-run install_pacman_wrapper.sh and check_and_enable_services.sh --status"
+  ]
+}

@@ -9,7 +9,7 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
   - `hosts/install.sh` builds and locks `/etc/hosts` (immutable/append-only; selective unblocks; custom blocks).
   - `hosts/guard/` enforcement is provided by guard-lib (`guardctl`, installed outside this repo): a `file-guard` instance per target (`hosts`, `nsswitch`, `resolved`) with a path-watcher, optional RO bind mount, generic pacman hooks, and per-target plugins under `hosts/guard/plugins/`. The pre-guard-lib scripts (`setup_hosts_guard.sh`, `enforce-*.sh`, per-target systemd units, `psychological/unlock-hosts.sh`) are archived at github.com/kuhyx/testsAndMisc-archive — see `./fixes/migrate_hosts_guard_to_guard_lib.sh` for how the migration works.
 - periodic_background/digital_wellbeing/pacman/: a policy-aware pacman wrapper with friction mechanics.
-  - `pacman_wrapper.sh` intercepts transactions, runs hosts-guard pre/post hooks, handles stale db lock, auto-wires maintenance services, and enforces package policy (blocked/whitelisted lists); adds weekend-only “Steam” challenge and a VirtualBox challenge powered by `words.txt`.
+  - `pacman_wrapper.sh` intercepts transactions, runs hosts-guard pre/post hooks, handles stale db lock, auto-wires maintenance services, adds a weekend-only “Steam” challenge powered by `words.txt`, and removes VirtualBox VMs after each transaction. It has no package block/allow lists (retired 2026-10-17; hosts/DNS blocking covers that).
   - `install_pacman_wrapper.sh` backs up `/usr/bin/pacman` to `pacman.orig` and symlinks to the wrapper.
 - periodic_background/system-maintenance/: templates and installer for periodic jobs and monitoring.
   - `setup_periodic_system.sh` installs: `/usr/local/bin/periodic-system-maintenance.sh`, a timer (`periodic-system-maintenance.timer`), a startup oneshot, and `hosts-file-monitor.service` that restores `/etc/hosts` if tampered. Also installs a browser pre-exec wrapper that re-runs the hosts installer before launching common browsers.
@@ -44,7 +44,7 @@ This repo automates Linux desktop bootstrap, hardening, and i3 setup. It’s pri
 
 - Follow the sudo re-exec + idempotent install pattern from `setup_periodic_system.sh` and `./fixes/migrate_hosts_guard_to_guard_lib.sh`.
 - Add new periodic behaviors as templates under `periodic_background/system-maintenance/bin` and `.../systemd`, then extend `setup_periodic_system.sh` to install/enable them.
-- Extend package policy by updating `periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt` or by adding `check_for_<pkg>` + `prompt_for_<pkg>_challenge` blocks in the wrapper.
+- Add package friction by adding `check_for_<pkg>` + `prompt_for_<pkg>_challenge` blocks in the wrapper (now in github.com/kuhyx/digital-wellbeing).
 - Run `meta/shell_check.sh` to detect things to fix before committing.
 
 ## Detailed LLM Documentation

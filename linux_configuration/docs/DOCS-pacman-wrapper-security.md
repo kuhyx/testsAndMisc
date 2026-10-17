@@ -8,35 +8,35 @@ This document describes the security enhancements made to the pacman wrapper to 
 
 The original pacman wrapper had the following vulnerabilities:
 
-1. **Easy Policy Bypass**: Users could edit `pacman_greylist.txt` or `pacman_blocked_keywords.txt` to remove restrictions, then reinstall the wrapper.
+1. **Easy Policy Bypass**: Users could edit the wrapper's helper libs (`pacman_lock_lib.sh`, `pw_*.sh`) to remove restrictions, then reinstall the wrapper.
 2. **VirtualBox Hosts Bypass**: VirtualBox VMs do not inherit the host machine's `/etc/hosts` file, allowing users to bypass content filtering within VMs.
-3. **No Tamper Detection**: The wrapper had no mechanism to detect if policy files had been modified.
+3. **No Tamper Detection**: The wrapper had no mechanism to detect if wrapper libs had been modified.
 
 ## Solutions Implemented
 
-### 1. Policy File Integrity Checks
+### 1. Wrapper Lib Integrity Checks
 
 **File**: `periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh`
 
 The installer now:
 
-- Generates SHA256 checksums of all policy files during installation
+- Generates SHA256 checksums of all wrapper libs during installation
 - Stores checksums in `/var/lib/pacman-wrapper/policy.sha256`
 - Makes the integrity file immutable using `chattr +i`
-- Makes policy files (`pacman_blocked_keywords.txt`, `pacman_greylist.txt`) immutable
+- Makes the lock lib (`pacman_lock_lib.sh`) immutable
 
 **File**: `periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh`
 
 The wrapper now:
 
-- Verifies policy file integrity on **every invocation**
+- Verifies wrapper lib integrity on **every invocation**
 - Compares current file checksums against stored checksums
 - **Blocks all operations** if tampering is detected
 - Displays security warnings and instructs user to reinstall
 
 **Benefits**:
 
-- Cannot bypass restrictions by editing policy files
+- Cannot bypass restrictions by editing wrapper libs
 - Tampering is immediately detected and blocked
 - Must use `chattr -i` (requires root) to modify files, making bypass harder
 
@@ -44,7 +44,7 @@ The wrapper now:
 
 **File**: `periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh`
 
-Added hardcoded VirtualBox detection that **cannot be bypassed** by editing policy files:
+Added hardcoded VirtualBox detection that **cannot be bypassed** by editing wrapper libs:
 
 ```bash
 function is_virtualbox_package() {
@@ -61,9 +61,9 @@ This function:
 
 **Enhanced Challenge**:
 
-- 7-letter words (harder than greylist's 6-letter words)
-- 150 words to memorize (more than greylist's 120)
-- 120-second timeout (longer than greylist's 90s)
+- 7-letter words
+- 150 words to memorize
+- 120-second timeout
 - 45-second initial delay (psychological friction)
 - 30-50 second post-challenge delay
 
@@ -128,13 +128,13 @@ The installer now:
 
 ### What's Protected
 
-1. **Policy files cannot be easily modified**:
+1. **Wrapper libs cannot be easily modified**:
    - Immutable attribute prevents casual editing
    - Requires `chattr -i` which requires root and knowledge
    - Changes are detected on next wrapper invocation
 
 2. **VirtualBox restrictions are hardcoded**:
-   - Cannot remove by editing policy files
+   - Cannot remove by editing wrapper libs
    - Would require modifying the wrapper code itself
    - Integrity checks would detect wrapper modification
 

@@ -28,22 +28,21 @@ sudo ./install_pacman_wrapper.sh
 
 This will:
 
-- Install the wrapper and policy files
+- Install the wrapper and wrapper libs
 - Generate integrity checksums
-- Make policy files immutable
+- Make the lock lib immutable
 - Install VirtualBox enforcement script
 
-### Updating Policy Files
+### Updating Wrapper Libs
 
-If you need to legitimately update policy files:
+If you need to legitimately update wrapper libs:
 
 ```bash
 # Remove immutable attribute
-sudo chattr -i /usr/local/bin/pacman_blocked_keywords.txt
-sudo chattr -i /usr/local/bin/pacman_greylist.txt
+sudo chattr -i /usr/local/bin/pacman_lock_lib.sh
 
 # Edit files as needed
-sudo nano /usr/local/bin/pacman_greylist.txt
+sudo nano /usr/local/bin/pacman_lock_lib.sh
 
 # Reinstall wrapper to update checksums
 cd periodic_background/digital_wellbeing/pacman
@@ -78,7 +77,7 @@ sudo chmod +x /usr/local/bin/vbox_sync.sh
 
 These enhancements follow the principle of **defense in depth**:
 
-- **Layer 1**: Immutable policy files (prevents casual editing)
+- **Layer 1**: Immutable lock lib (prevents casual editing)
 - **Layer 2**: Integrity checksums (detects tampering)
 - **Layer 3**: Hardcoded restrictions (cannot bypass via files)
 - **Layer 4**: VirtualBox enforcement (prevents VM bypass)
@@ -91,7 +90,7 @@ Each layer adds difficulty, making circumvention progressively harder while main
 Potential improvements:
 
 1. **Digital signatures**: Sign the wrapper script itself to detect modifications
-2. **Remote policy updates**: Fetch policy files from a trusted source
+2. **Remote updates**: Fetch wrapper libs from a trusted source
 3. **Logging**: Log all wrapper invocations and challenges to detect patterns
 4. **Time-based restrictions**: Different rules for different times/days
 5. **Multi-factor challenges**: Combine word challenges with other verification methods

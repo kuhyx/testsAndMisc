@@ -4,22 +4,22 @@
 
 The pacman wrapper had two critical security vulnerabilities:
 
-1. **Easy Policy Bypass**: Users could edit `pacman_greylist.txt` to remove "virtualbox", reinstall the wrapper, and bypass all restrictions.
+1. **Easy Policy Bypass**: Users could edit the wrapper's helper libs (`pacman_lock_lib.sh`, `pw_*.sh`) to remove restrictions, reinstall the wrapper, and bypass them.
 2. **VirtualBox Hosts Bypass**: VirtualBox VMs do not inherit the host's `/etc/hosts` file, allowing complete circumvention of content filtering inside VMs.
 
 ## Solution Overview
 
 Implemented a **defense-in-depth** security architecture with multiple layers:
 
-### Layer 1: Immutable Policy Files
+### Layer 1: Immutable Lock Lib
 
-- Policy files (`pacman_blocked_keywords.txt`, `pacman_greylist.txt`) are made immutable using `chattr +i`
+- The lock lib (`pacman_lock_lib.sh`) is made immutable using `chattr +i`; the `pw_*.sh` libs are only checksummed
 - Prevents casual editing without root access and knowledge of filesystem attributes
 - Requires explicit `chattr -i` command to modify
 
 ### Layer 2: SHA256 Integrity Checks
 
-- SHA256 checksums generated for all policy files during installation
+- SHA256 checksums generated for the wrapper libs during installation
 - Stored in `/var/lib/pacman-wrapper/policy.sha256` (also made immutable)
 - **Every wrapper invocation** verifies file integrity before proceeding
 - **Blocks all operations** if tampering is detected
@@ -29,11 +29,11 @@ Implemented a **defense-in-depth** security architecture with multiple layers:
 - VirtualBox detection is **compiled into the wrapper code**
 - Cannot be bypassed by editing any text file
 - Catches all packages matching `*virtualbox*` or `*vbox*` patterns
-- More difficult challenge than standard greylist:
-  - 7-letter words (vs 6 for greylist)
-  - 150 words to memorize (vs 120)
-  - 120-second timeout (vs 90s)
-  - 45-second initial delay (vs 30s)
+- Difficult word challenge:
+  - 7-letter words
+  - 150 words to memorize
+  - 120-second timeout
+  - 45-second initial delay
 
 ### Layer 4: VirtualBox Enforcement
 
@@ -69,7 +69,7 @@ Implemented a **defense-in-depth** security architecture with multiple layers:
 
 ### What's Now Protected
 
-✅ Policy files cannot be easily modified (immutable + checksums)  
+✅ Wrapper libs cannot be modified unnoticed (lock lib immutable, all libs checksummed)  
 ✅ VirtualBox restrictions are hardcoded (cannot bypass via file editing)  
 ✅ VMs inherit host's content filtering (DNS proxy + shared hosts)  
 ✅ Tampering is immediately detected and blocked  
@@ -96,7 +96,7 @@ Tests verify:
 - Integrity check function exists and is called early
 - Hardcoded VirtualBox detection exists
 - VirtualBox challenge function exists
-- Policy files are made immutable
+- The lock lib is made immutable
 - VirtualBox enforcement is integrated
 - Error handling is proper
 
@@ -109,9 +109,9 @@ sudo ./install_pacman_wrapper.sh
 
 This will:
 
-1. Install wrapper and policy files
+1. Install wrapper and wrapper libs
 2. Generate SHA256 checksums
-3. Make policy files immutable with `chattr +i`
+3. Make the lock lib immutable with `chattr +i`
 4. Install VirtualBox enforcement script
 5. Set up automatic enforcement
 
@@ -128,15 +128,15 @@ This will:
 - Must complete difficult word challenge (7-letter words, 120s timeout)
 - Enhanced warnings about security implications
 - Automatic VM configuration after successful installation
-- Cannot bypass by editing policy files
+- Cannot bypass by editing wrapper libs
 
 ### For Updating Policies
 
 If legitimate policy updates are needed:
 
 ```bash
-sudo chattr -i /usr/local/bin/pacman_greylist.txt
-sudo nano /usr/local/bin/pacman_greylist.txt
+sudo chattr -i /usr/local/bin/pacman_lock_lib.sh
+sudo nano /usr/local/bin/pacman_lock_lib.sh
 cd periodic_background/digital_wellbeing/pacman
 sudo ./install_pacman_wrapper.sh  # Regenerates checksums
 ```

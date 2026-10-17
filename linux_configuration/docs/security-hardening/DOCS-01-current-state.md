@@ -80,20 +80,18 @@
 **Files involved:**
 
 - [periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh](../periodic_background/digital_wellbeing/pacman/pacman_wrapper.sh) (823 lines)
-- [periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt](../periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt)
 - [periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh](../periodic_background/digital_wellbeing/pacman/install_pacman_wrapper.sh)
 
 **Current Protection:**
 
-1. ✅ Policy file integrity verification (SHA256)
-2. ✅ Blocked keywords list
-3. ✅ Greylist with challenge
-4. ✅ VirtualBox hardcoded check (cannot bypass via policy files)
-5. ✅ Steam weekend-only restriction
+1. ✅ Wrapper lib integrity verification (SHA256)
+2. ✅ VirtualBox hardcoded check (cannot bypass via wrapper libs)
+3. ✅ Steam weekend-only restriction
+
+_Note: the package policy lists (blocked keywords, whitelist, greylist) were retired 2026-10-17; hosts/DNS blocking covers them._
 
 **VULNERABILITIES IDENTIFIED:**
 
-- ❌ **Google Chrome not blocked** - `google-chrome` and `google-chrome-stable` missing from blocked list
 - ❌ No automatic LeechBlock installation when browsers are detected
 - ❌ User can download `.deb`/`.tar.gz` and install manually
 

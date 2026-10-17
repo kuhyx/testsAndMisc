@@ -50,13 +50,6 @@ else
     test_result "pacman wrapper installed" "fail"
 fi
 
-# Test 5: google-chrome is blocked
-if grep -qi "google-chrome" ~/src/testsAndMisc/linux_configuration/scripts/periodic_background/digital_wellbeing/pacman/pacman_blocked_keywords.txt; then
-    test_result "google-chrome in blocked list" "pass"
-else
-    test_result "google-chrome in blocked list" "fail"
-fi
-
 # Summary
 echo ""
 echo "=========================================="
@@ -75,6 +68,6 @@ This analysis identifies critical vulnerabilities and provides a comprehensive i
 1. **nsswitch.conf bypass** - Completely unprotected, defeats all hosts protections
 2. **Information disclosure** - Shutdown system tells users how to bypass
 3. **App lifetime** - Compulsive blockers don't limit session duration
-4. **Browser gaps** - Chrome not blocked, no LeechBlock auto-install
+4. **Browser gaps** - no LeechBlock auto-install
 
 The implementation prompt above should be used in a focused coding session to address all issues systematically.

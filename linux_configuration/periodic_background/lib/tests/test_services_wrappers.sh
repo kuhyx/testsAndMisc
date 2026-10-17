@@ -23,8 +23,6 @@ stage_pacman_ok() {
 	sysfile usr/bin/pacman.orig
 	ln -sf "${SERVICES_ROOT}/usr/local/bin/pacman_wrapper" "${SERVICES_ROOT}/usr/bin/pacman"
 	sysfile usr/local/bin/words.txt
-	sysfile usr/local/bin/pacman_blocked_keywords.txt
-	sysfile usr/local/bin/pacman_whitelist.txt
 	(cd "${SERVICES_ROOT}" && sha256sum usr/local/bin/pacman_wrapper >"$PACMAN_WRAPPER_MANIFEST")
 }
 
@@ -110,7 +108,7 @@ _t_called 'ran install_pacman_wrapper' "a missing .orig backup runs the installe
 echo "== check_pacman_wrapper: missing supporting files only warn =="
 reset_state
 stage_pacman_ok
-sysrm usr/local/bin/words.txt usr/local/bin/pacman_whitelist.txt
+sysrm usr/local/bin/words.txt
 run_pacman_check >"${TEST_TMPDIR}/out.txt"
 _t_called_in "$(cat "${TEST_TMPDIR}/out.txt")" "Supporting file missing" "a missing supporting file is reported"
 _t_not_called 'ran install_pacman_wrapper' "but it does not trigger a reinstall"

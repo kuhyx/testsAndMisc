@@ -50,13 +50,11 @@ check_pacman_wrapper() {
 	fi
 
 	# Check supporting files
-	for file in words.txt pacman_blocked_keywords.txt pacman_whitelist.txt; do
-		if [[ -f "${SYSROOT}/usr/local/bin/$file" ]]; then
-			msg "Supporting file exists: ${SYSROOT}/usr/local/bin/$file"
-		else
-			warn "Supporting file missing: ${SYSROOT}/usr/local/bin/$file"
-		fi
-	done
+	if [[ -f "${SYSROOT}/usr/local/bin/words.txt" ]]; then
+		msg "Supporting file exists: ${SYSROOT}/usr/local/bin/words.txt"
+	else
+		warn "Supporting file missing: ${SYSROOT}/usr/local/bin/words.txt"
+	fi
 
 	# Content drift — the check everything above misses. A correct symlink and a
 	# present file say nothing about WHICH version is deployed.
