@@ -25,6 +25,11 @@
       "evidence": "both resolve, rc=0"
     }
   ],
-  "risks": ["pillow 13 major: API removals could hit untested PIL paths in artgate/random_jpg"],
-  "rollback": ["git revert this commit", "re-run pre-commit run dependency-freshness --all-files"]
+  "risks": [
+    "pillow 13 major: API removals could hit untested PIL paths in artgate/random_jpg"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "re-run pre-commit run dependency-freshness --all-files"
+  ]
 }
