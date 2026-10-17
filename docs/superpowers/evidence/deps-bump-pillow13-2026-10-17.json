@@ -1,0 +1,30 @@
+{
+  "intent": "Turn main's red Pre-commit CI (dependency-freshness, 6+ findings since 6383bd74) green by moving every flagged pin to latest stable.",
+  "scope": [
+    "meta/requirements.txt, meta/requirements-test.txt, python_pkg/random_jpg/requirements.txt",
+    "Non-goal: .pre-commit-config.yaml hook revs (not flagged)"
+  ],
+  "changes": [
+    "anthropic 1.15.0, hypothesis 6.170.1, pipdeptree 4.2.8, pre-commit 4.7.0, reorder-python-imports 3.19.0, ruff 0.17.1",
+    "pillow 12.3.0 -> 13.0.0 (major) in all three manifests"
+  ],
+  "verification": [
+    {
+      "command": "pre-commit run dependency-freshness --all-files",
+      "result": "pass",
+      "evidence": "dependencies on newest stable....Passed (was FAILED: 6 findings in CI run 38918522094)"
+    },
+    {
+      "command": "python3 -m pytest -q python_pkg/artgate python_pkg/random_jpg (pillow 13.0.0 installed)",
+      "result": "pass",
+      "evidence": "128 passed in 0.21s; artgate and random_jpg are the only PIL importers"
+    },
+    {
+      "command": "uv pip compile -q meta/requirements.txt / meta/requirements-test.txt",
+      "result": "pass",
+      "evidence": "both resolve, rc=0"
+    }
+  ],
+  "risks": ["pillow 13 major: API removals could hit untested PIL paths in artgate/random_jpg"],
+  "rollback": ["git revert this commit", "re-run pre-commit run dependency-freshness --all-files"]
+}

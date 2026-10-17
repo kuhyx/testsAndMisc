@@ -6,7 +6,7 @@
 
 add-trailing-comma==4.0.0
 aiohttp==3.14.5
-anthropic==1.13.0
+anthropic==1.15.0
 autoflake==2.4.0
 autopep8==2.3.2
 bandit==1.9.4
@@ -39,7 +39,7 @@ gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.9.0#subdirectory=gatel
 genanki==0.13.1
 geopandas==1.2.0
 howlongtobeatpy==1.0.24
-hypothesis==6.169.0
+hypothesis==6.170.1
 importlib-metadata==9.0.1
 interrogate==1.7.0
 # isort is deliberately not pinned: nothing here imports it (ruff's isort
@@ -53,10 +53,10 @@ mccabe==0.7.0
 mypy==2.4.0
 numpy==2.5.4
 opencv-python==5.0.0.93
-pillow==12.3.0
+pillow==13.0.0
 pip-audit==2.10.1
-pipdeptree==4.2.7
-pre-commit==4.6.2
+pipdeptree==4.2.8
+pre-commit==4.7.0
 prospector==1.19.1
 pycodestyle==2.15.0
 pydocstyle==6.3.0
@@ -74,10 +74,10 @@ python-chess==1.999
 python-kasa==0.11.0.1
 pyupgrade==3.22.0
 radon==6.0.1
-reorder-python-imports==3.18.0
+reorder-python-imports==3.19.0
 requests==2.34.2
 rich==15.0.0
-ruff==0.17.0
+ruff==0.17.1
 # safety is deliberately not pinned: its only reference in this repo is a
 # commented-out pre-commit hook, and safety 3.8.1 declares `typer<0.26`,
 # which would hold the typer this repo actually imports below latest.

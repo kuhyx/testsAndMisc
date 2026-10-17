@@ -21,14 +21,14 @@
 # suite itself fails loudly here on a missing import.
 # ==============================================================================
 
-anthropic==1.13.0
+anthropic==1.15.0
 beautifulsoup4==4.15.0
 coverage==7.16.2
 defusedxml==0.7.1
 genanki==0.13.1
 markdownify==1.2.3
 numpy==2.5.4
-pillow==12.3.0
+pillow==13.0.0
 pytest==9.1.1
 pytest-cov==7.1.0
 pytest-randomly==5.0.0
