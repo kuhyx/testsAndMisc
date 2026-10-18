@@ -9,7 +9,7 @@ an ``if`` statement and lives here.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 # Rule thresholds. Each is the point past which the lever is worth a look,
@@ -33,6 +33,22 @@ class Lever:
     evidence: str
     action: str
     est_usd_per_day: float | None = None
+    # The snapshot metric the lever is meant to move: the join key to ledger
+    # lines, whose free-text titles never match these.
+    metric: str = ""
+
+
+# Snapshot metric each rule's lever targets, by title (titles are fixed).
+TITLE_METRIC: dict[str, str] = {
+    "Opus runs most subagent work": "subagent_opus_usd_share",
+    "Calls over the context budget": "over_budget_usd_share",
+    "Sessions started in ~": "home_cwd_usd_share",
+    "Independent tool calls not batched": "batching_calls_per_msg",
+    "Large Bash results": "bash_big_result_share",
+    "Always-loaded context grew": "standing_tokens_est",
+    "Images held in context": "image_usd_share",
+    "Unused MCP servers / skills": "standing_tokens_est",
+}
 
 
 def _num(metrics: dict[str, Any], key: str) -> float:
@@ -173,7 +189,8 @@ def candidates(
         + _mechanics(metrics, previous)
         + _dead(dead_mcp, dead_skills)
     )
-    return sorted(levers, key=lambda lv: -(lv.est_usd_per_day or 0.0))
+    tagged = [replace(lv, metric=TITLE_METRIC.get(lv.title, "")) for lv in levers]
+    return sorted(tagged, key=lambda lv: -(lv.est_usd_per_day or 0.0))
 
 
 def render(levers: list[Lever]) -> list[str]:

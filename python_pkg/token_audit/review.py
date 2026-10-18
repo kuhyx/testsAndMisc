@@ -101,25 +101,37 @@ def _ledger(snap: dict[str, Any]) -> list[str]:
     return out
 
 
+def candidates(
+    snap: dict[str, Any], prev: dict[str, Any] | None
+) -> list[recommend.Lever]:
+    """Every rule-based lever that fires for this snapshot."""
+    dead_mcp = [u.name for u in unused.mcp_usage() if u.dead]
+    dead_skills = [u.name for u in unused.skill_usage() if u.dead]
+    prev_metrics = (
+        prev.get("metrics") if prev and prev.get("v", 1) >= SNAPSHOT_VERSION else None
+    )
+    return recommend.candidates(snap["metrics"], prev_metrics, dead_mcp, dead_skills)
+
+
 def render(
-    snap: dict[str, Any], prev: dict[str, Any] | None, *, levers: bool
+    snap: dict[str, Any],
+    prev: dict[str, Any] | None,
+    *,
+    levers: bool,
+    found: list[recommend.Lever] | None = None,
 ) -> list[str]:
-    """Markdown for comparison, ledger and (optionally) candidate levers."""
+    """Markdown for comparison, ledger and (optionally) candidate levers.
+
+    ``found`` is the already-computed candidate list when the caller also
+    persists it in the snapshot, so the unused-surface scan runs once.
+    """
     lines = ["## Since the previous analysis", ""]
     lines += _comparison(snap["metrics"], prev)
     lines += ["", "## What helped (ledger)", ""]
     lines += _ledger(snap)
     if levers:
-        dead_mcp = [u.name for u in unused.mcp_usage() if u.dead]
-        dead_skills = [u.name for u in unused.skill_usage() if u.dead]
-        prev_metrics = (
-            prev.get("metrics")
-            if prev and prev.get("v", 1) >= SNAPSHOT_VERSION
-            else None
-        )
-        found = recommend.candidates(
-            snap["metrics"], prev_metrics, dead_mcp, dead_skills
-        )
+        if found is None:
+            found = candidates(snap, prev)
         lines += ["", "## Candidate levers (rule-based)", ""]
         lines += recommend.render(found)
     return lines

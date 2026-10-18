@@ -203,3 +203,10 @@ def load_session(path: Path, window: records.Window | None = None) -> Session:
         elif isinstance(event, ToolCall):
             session.tools.append(event)
     return session
+
+
+# Public names for the record primitives, shared with token_dashboard's walker
+# (which needs prompt boundaries and timestamps that iter_events drops).
+load_line = _load_line
+content_blocks = _blocks
+pair_result = _pair_result

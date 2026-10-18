@@ -1,0 +1,40 @@
+{
+  "intent": "A durable SQLite token store (~/data/token-dashboard/tokens.sqlite) that outlives Claude Code's transcript cleanup and feeds the control-panel /tokens cost dashboard, with 0 LLM tokens spent.",
+  "scope": [
+    "python_pkg/token_dashboard/ (new): walk, rows, store, schema v3 with ordered additive migrations, finalize, carry, efficiency, ab, levers, context_files, aux, commits, survival, blocks, ingest; detail layer: classify, detail, detail_rows, detail_store, marks, hook_join (per-call, per-mark and per-turn rows with creation + carry cost); ab_rows (per-assignment A/B outcomes)",
+    "python_pkg/token_audit: persist structured lever candidates (Lever.metric join key) and expose the record primitives the walker shares",
+    "Non-goal: the remaining dashboard panel groups A-Q (tracked in ~/src/control-panel/TODO-token-dashboard-panels.md)"
+  ],
+  "changes": [
+    "Resumable incremental ingest: walks changed transcripts until its --budget is spent, commits, exits pending if any remain",
+    "Schema migrations never drop the store; rows of vanished transcripts are kept",
+    "token_audit --recommend stores the lever candidates as data in the snapshot (snap['levers'])",
+    "New raw tables calls / marks / turn_detail (no schema version bump: CREATE IF NOT EXISTS) with key, cwd, model, ts, day, is_sub so the dashboard's filter clause applies; carry.Tracker settles creation (next call's cache-write multiplier x input price) and carry_calls too",
+    "ab.rebuild also stores per-assignment rows in ab_rows so the A/B panel can recount arms per cwd/model/scope"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q python_pkg/token_dashboard python_pkg/token_audit --cov=python_pkg/token_dashboard --cov=python_pkg/token_audit --cov-branch",
+      "result": "pass",
+      "evidence": "token_dashboard + token_audit: 100.00% line+branch coverage (pytest --cov, --cov-branch)"
+    },
+    {
+      "command": "python3 -m python_pkg.token_dashboard.ingest --budget 40",
+      "result": "pass",
+      "evidence": "token_dashboard: parsed 7 files, refreshed 2 sessions in 0.7s; exit 0"
+    },
+    {
+      "command": "sqlite3 tokens.sqlite 'DELETE FROM files' && python3 -m python_pkg.token_dashboard.ingest --budget 40",
+      "result": "pass",
+      "evidence": "full re-walk of 1616 transcripts in one 32.5 s pass; 114,599 calls, 103,713 turn_detail rows; store kept (backup tokens.v3-2026-10-18.sqlite)"
+    }
+  ],
+  "risks": [
+    "A schema change without a MIGRATIONS entry would leave old stores without the new column",
+    "Transcript format drift in Claude Code could make the walker skip new record types"
+  ],
+  "rollback": [
+    "git revert this commit; the store file is left untouched and stays readable by the previous code",
+    "Validate: control-panel /api/tokens/overview still answers from the existing store"
+  ]
+}

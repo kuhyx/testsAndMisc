@@ -88,3 +88,21 @@ def test_render_table_formats_estimates() -> None:
     assert lines[0].startswith("| category")
     assert "| $1.50 |" in lines[2]
     assert "| - |" in lines[3]
+
+
+def test_every_rule_title_maps_to_a_snapshot_metric() -> None:
+    metrics = {
+        "subagent_usd_share": 0.9,
+        "subagent_opus_usd_share": 0.9,
+        "over_budget_usd_share": 0.9,
+        "home_cwd_usd_share": 0.9,
+        "batching_calls_per_msg": 1.0,
+        "bash_big_result_share": 0.9,
+        "image_usd_share": 0.9,
+        "standing_tokens_est": 200,
+        "usd_total": 10,
+        "usd_per_day": 1,
+    }
+    found = recommend.candidates(metrics, {"standing_tokens_est": 100}, ["m"], [])
+    assert len(found) == len(recommend.TITLE_METRIC)
+    assert all(lv.metric == recommend.TITLE_METRIC[lv.title] for lv in found)

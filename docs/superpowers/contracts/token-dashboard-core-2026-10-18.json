@@ -1,0 +1,15 @@
+{
+  "title": "token_dashboard: durable token store + ingester (dashboard core)",
+  "objective": "Ingest Claude Code transcripts and aux sources into a durable, migrated SQLite store that the control-panel /tokens page reads, with an incremental pass under 60 s and 0 LLM tokens.",
+  "acceptance_criteria": [
+    "python_pkg/token_dashboard and python_pkg/token_audit stay at 100% line and branch coverage; every file <= 250 lines",
+    "python3 -m python_pkg.token_dashboard.ingest --budget 40 finishes in under 60 s and is resumable",
+    "schema.connect migrates a v1/v2 store forward without deleting rows",
+    "calls/marks/turn_detail rows are replaced, never duplicated, when a transcript is re-walked"
+  ],
+  "out_of_scope": [
+    "Remaining /tokens panel groups A-Q",
+    "Deleting or rebuilding ~/data/token-dashboard/tokens.sqlite"
+  ],
+  "verifier": "pytest --cov=python_pkg/token_dashboard --cov=python_pkg/token_audit --cov-branch; the ingest command; pre-commit hooks on the staged files"
+}

@@ -9,6 +9,7 @@ is worse than no number, because it gets acted on.
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
@@ -141,13 +142,18 @@ def main(argv: list[str] | None = None) -> int:
         totals, axes, priced.days
     )
     previous = history.last_snapshot(args.out)
+    found = review.candidates(snap, previous) if args.recommend else None
+    if found is not None:
+        # Persisted so the dashboard reads proposed levers as data instead of
+        # re-parsing this run's markdown table.
+        snap["levers"] = [asdict(lever) for lever in found]
     markdown = report.render(totals, axes, window, sessions, snap, None)
     markdown += "\n".join(
         [
             "",
             *breakdown.render(priced),
             "",
-            *review.render(snap, previous, levers=args.recommend),
+            *review.render(snap, previous, levers=args.recommend, found=found),
             "",
         ],
     )

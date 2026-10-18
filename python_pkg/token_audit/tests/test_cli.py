@@ -205,3 +205,28 @@ def test_rerun_starts_where_previous_window_ended(tmp_path: Path) -> None:
     assert cli.main(args) == 0
     # The first run's window end is now the default start: nothing newer.
     assert cli.main(args) == cli.EXIT_NO_DATA
+
+
+def test_recommend_persists_levers_as_structured_snapshot_data(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "projects"
+    root.mkdir()
+    _transcript(root, turns=3)
+    out = tmp_path / "out"
+    assert cli.main(["--root", str(root), "--out", str(out), "--recommend"]) == 0
+    (snap_path,) = (out / "history").glob("*.json")
+    snap = json.loads(snap_path.read_text(encoding="utf-8"))
+    assert isinstance(snap["levers"], list)
+    keys = {"title", "metric", "evidence", "action"}
+    assert all(keys <= set(lever) for lever in snap["levers"])
+
+
+def test_without_recommend_no_levers_key(tmp_path: Path) -> None:
+    root = tmp_path / "projects"
+    root.mkdir()
+    _transcript(root, turns=3)
+    out = tmp_path / "out"
+    assert cli.main(["--root", str(root), "--out", str(out)]) == 0
+    (snap_path,) = (out / "history").glob("*.json")
+    assert "levers" not in json.loads(snap_path.read_text(encoding="utf-8"))
