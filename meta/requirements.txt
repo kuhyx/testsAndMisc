@@ -35,11 +35,11 @@ flake8-pyi==26.5.0
 flake8-pytest-style==2.2.0
 flake8-return==1.2.0
 flake8-simplify==0.31.1
-gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.10.0#subdirectory=gatelock
+gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.11.0#subdirectory=gatelock
 genanki==0.13.1
 geopandas==1.2.0
 howlongtobeatpy==1.0.24
-hypothesis==6.170.1
+hypothesis==6.170.2
 importlib-metadata==9.0.1
 interrogate==1.7.0
 # isort is deliberately not pinned: nothing here imports it (ruff's isort
@@ -55,7 +55,7 @@ numpy==2.5.4
 opencv-python==5.0.0.93
 pillow==13.0.0
 pip-audit==2.10.1
-pipdeptree==4.2.8
+pipdeptree==4.2.9
 pre-commit==4.7.0
 prospector==1.19.1
 pycodestyle==2.15.0
