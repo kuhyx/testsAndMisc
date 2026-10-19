@@ -1,0 +1,15 @@
+{
+  "title": "i3blocks: shadow-week leisure block (leisure_shadow.sh)",
+  "objective": "Render daily-limits' `leisure_shadow` cache (contract C5) as `🛋 SHADOW <left> left · <used> used`, yellow under 30 min, red `🛋 SHADOW WOULD BLOCK · <used> used` at 0, never urgent.",
+  "acceptance_criteria": [
+    "bash linux_configuration/tests/test_i3blocks_leisure_shadow.sh passes",
+    "null/absent numbers render `🛋 SHADOW ⏱? no data`, never 0",
+    "the block always exits 0 and prints exactly three lines",
+    "[leisure_shadow] sits right after [gaming_budget] in linux_configuration/i3blocks/config"
+  ],
+  "out_of_scope": [
+    "Renaming the gaming block or its labels (Phase 2)",
+    "Any accounting: the numbers come from steam-backlog-enforcer via daily-limits"
+  ],
+  "verifier": "the test script above, shellcheck, and the block run against a forced fixture cache"
+}

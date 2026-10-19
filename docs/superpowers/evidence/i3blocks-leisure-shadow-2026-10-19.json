@@ -1,0 +1,37 @@
+{
+  "intent": "Show the shadow week's would-be leisure budget on i3bar: `🛋 SHADOW 3h12 left · 1h48 used`, yellow under 30 min, red `WOULD BLOCK` at 0, never urgent/blinking, honest `⏱? no data` while the enforcer's C4 fields are absent.",
+  "scope": [
+    "linux_configuration/i3blocks/leisure_shadow.sh (new block), its [leisure_shadow] config entry right after [gaming_budget]",
+    "linux_configuration/tests/test_i3blocks_leisure_shadow.sh + shell-tests.yml list",
+    "Non-goal: renaming the gaming block (Phase 2); the accounting (steam-backlog-enforcer) and the cache (daily-limits) live elsewhere"
+  ],
+  "changes": [
+    "leisure_shadow.sh renders daily-limits' cache `leisure_shadow` (contract C5) with gaming_budget.sh's render-cache + single jq pass; always exits 0 so i3blocks never marks it urgent",
+    "config: [leisure_shadow] block, interval=30, next to [gaming_budget]"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_leisure_shadow.sh",
+      "result": "pass",
+      "evidence": "All leisure_shadow checks passed (text, 30/29/1/0 boundaries, no data x3, stale, garbage, exit 0 + 3 lines, jq once per mtime, config placement)"
+    },
+    {
+      "command": "DAILY_LIMITS_CACHE=<forced fixture 570/600> bash linux_configuration/i3blocks/leisure_shadow.sh",
+      "result": "pass",
+      "evidence": "🛋 SHADOW 0h30 left · 9h30 used / 🛋 0h30 / #F8F8F2; live cache (no C4 yet): 🛋 SHADOW ⏱? no data"
+    },
+    {
+      "command": "shellcheck linux_configuration/i3blocks/leisure_shadow.sh linux_configuration/tests/test_i3blocks_leisure_shadow.sh; bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "shellcheck clean; All i3blocks efficiency regression tests passed"
+    }
+  ],
+  "risks": [
+    "Until steam-backlog-enforcer writes the C4 fields the block reads `⏱? no data` (by design)",
+    "One more 30 s block: a steady tick forks nothing (render cache), jq only when the cache changes"
+  ],
+  "rollback": [
+    "git revert the commit and rm ~/.config/i3blocks/leisure_shadow.sh, then pkill -x i3blocks; i3-msg reload",
+    "Check the bar shows the gaming block again with no gap"
+  ]
+}
