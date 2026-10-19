@@ -1,0 +1,36 @@
+{
+  "intent": "leisure_shadow.sh always exits 0 and prints the honest '🛋 SHADOW ⏱? no data' fallback when the daily-limits cache has no usable generated_at, instead of dying with 'null: unbound variable' and an empty i3blocks block.",
+  "scope": [
+    "linux_configuration/i3blocks/leisure_shadow.sh",
+    "linux_configuration/tests/test_i3blocks_leisure_shadow.sh",
+    "Non-goal: no change to the cache producer (daily-limits) or the stale threshold"
+  ],
+  "changes": [
+    "jq renders generated_at floored when numeric, 'none' otherwise; the script emits the orange no-data fallback for any non-integer value before the age arithmetic",
+    "Test covers generated_at absent, null and a string (exit 0, no-data text, orange) and a fractional timestamp still rendering normally"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_leisure_shadow.sh",
+      "result": "pass",
+      "evidence": "RED before the fix: 'FAIL: generated_at 'absent' still exits 0 (expected '0', actual '1')'; after: 'All leisure_shadow checks passed.'"
+    },
+    {
+      "command": "shellcheck linux_configuration/i3blocks/leisure_shadow.sh linux_configuration/tests/test_i3blocks_leisure_shadow.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    },
+    {
+      "command": "DAILY_LIMITS_CACHE=<cache without generated_at> bash linux_configuration/i3blocks/leisure_shadow.sh",
+      "result": "pass",
+      "evidence": "printed '🛋 SHADOW ⏱? no data' / '🛋 ⏱?' / '#FFB86C', rc=0; against the live cache: '🛋 SHADOW 6h34 left · 0h26 used', rc=0"
+    }
+  ],
+  "risks": [
+    "A producer that writes generated_at as a numeric string would now show 'no data' rather than a time; daily-limits writes a JSON number"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Re-run test_i3blocks_leisure_shadow.sh and check the bar block renders"
+  ]
+}

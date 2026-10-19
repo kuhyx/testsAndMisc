@@ -39,7 +39,7 @@ render_shadow() {
 		def hm: . as $m
 			| "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)";
 		(.leisure_shadow // {}) as $s
-		| .generated_at,
+		| (.generated_at | if type == "number" then floor else "none" end),
 		  (if $s.used_minutes == null or $s.budget_minutes == null then
 			"🛋 SHADOW ⏱? no data", "🛋 ⏱?", $orange
 		  elif $s.would_block or ($s.left_minutes // 0) <= 0 then
@@ -82,6 +82,11 @@ if [[ -n ${NOW_EPOCH:-} ]]; then
 	now=$NOW_EPOCH
 else
 	printf -v now '%(%s)T' -1
+fi
+# A cache without a numeric generated_at cannot be dated: say so, never crash.
+if [[ ! $generated_at =~ ^-?[0-9]+$ ]]; then
+	emit '🛋 SHADOW ⏱? no data' '🛋 ⏱?' "$ORANGE"
+	exit 0
 fi
 age=$((now - generated_at))
 if ((age > STALE_AFTER_SECONDS || age < -STALE_AFTER_SECONDS)); then

@@ -100,6 +100,22 @@ assert_eq '🛋 SHADOW ⏱? no data' "$(line 1)" 'a cache without leisure_shadow
 rm -f "$CACHE"
 assert_eq '🛋 SHADOW ⏱? no data' "$(line 1)" 'missing cache'
 
+printf 'Checking a cache without a usable generated_at says no data, exit 0...\n'
+for generated in '' '"generated_at":null,' '"generated_at":"soon",'; do
+	printf '{%s"leisure_shadow":{"budget_minutes":300,"used_minutes":60,"left_minutes":240,"would_block":false}}\n' \
+		"$generated" >"$CACHE"
+	rm -f "$RENDER"
+	set +e
+	output=$(run_block 2>&1)
+	status=$?
+	set -e
+	assert_eq '0' "$status" "generated_at '${generated:-absent}' still exits 0"
+	assert_eq '🛋 SHADOW ⏱? no data' "$(sed -n 1p <<<"$output")" "generated_at '${generated:-absent}'"
+	assert_eq '#FFB86C' "$(sed -n 3p <<<"$output")" "generated_at '${generated:-absent}' is orange"
+done
+write_cache 60 300 "$NOW.75"
+assert_eq '🛋 SHADOW 4h00 left · 1h00 used' "$(line 1)" 'a fractional generated_at is a timestamp'
+
 printf 'Checking a stale or garbage cache...\n'
 write_cache 60 300 "$((NOW - 181))"
 assert_eq '🛋 SHADOW ⏱? stale 3m' "$(line 1)" 'older than 180 s'
