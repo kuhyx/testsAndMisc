@@ -7,6 +7,9 @@
     "leisure_active missing/false/null/non-boolean: output identical to before",
     "gaming_budget exits 0 on a fractional or non-numeric generated_at"
   ],
-  "out_of_scope": ["daily-limits itself (own repo)", "enforcer and extension behaviour"],
+  "out_of_scope": [
+    "daily-limits itself (own repo)",
+    "enforcer and extension behaviour"
+  ],
   "verifier": "linux_configuration/tests/test_i3blocks_gaming_budget.sh, test_i3blocks_leisure_shadow.sh, test_i3blocks_efficiency.sh, shellcheck, pre-commit"
 }
