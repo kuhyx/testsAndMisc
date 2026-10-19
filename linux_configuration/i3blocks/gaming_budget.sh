@@ -10,6 +10,10 @@
 # when its mtime changes; the rendered block is kept in a small file, so a
 # steady-state tick forks nothing. A missing or >180 s old cache shows "⏱?",
 # never old numbers. Left-click opens `daily-limits --gui`.
+#
+# Phase 2 (leisure rollout): once the cache's top-level `leisure_active` is
+# true, the same block is the leisure budget: 🎮 becomes `🛋 Leisure`, colours
+# unchanged. A missing/false/non-boolean key keeps the 🎮 gaming label.
 # ============================================================================
 
 set -euo pipefail
@@ -41,7 +45,8 @@ if [[ ${BLOCK_BUTTON:-0} -eq 1 ]]; then
 	fi
 fi
 
-# One jq pass renders four lines: generated_at, full text, short text, color.
+# One jq pass renders five lines: generated_at, full text, short text, color
+# and the label (🎮, or `🛋 Leisure` once live) the stale state reuses.
 # Thresholds mirror the enforcer's own warn_at (1h, 30m, 10m). Bonuses still
 # not done are listed as " +💪2h +🧩?1h" ("?" = status unknown, still counted);
 # a gaming day other than the date is shown as " (10-08)"; used_minutes == null means the enforcer
@@ -54,28 +59,30 @@ render_limits() {
 		def hm: . as $m
 			| "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)";
 		def bonus_hm: if . < 60 then "\(.)m" else hm | sub("h00$"; "h") end;
-		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙", tutor: "⚙"} as $icon
+		{workout: "💪", leetcode: "🧩", reading: "📖", anki: "🗂", automation: "⚙", tutor: "⚙"} as $earner_icon
 		| .gaming as $g
+		| (if .leisure_active == true then ["🛋 Leisure", "🛋"] else ["🎮", "🎮"] end) as [$label, $icon]
 		| ([.earners[] | select(.status != "done" and .gaming_minutes > 0)
-			| "+\($icon[.name] // .label)\(if .status == "unknown" then "?" else "" end)\(.gaming_minutes | bonus_hm)"]
+			| "+\($earner_icon[.name] // .label)\(if .status == "unknown" then "?" else "" end)\(.gaming_minutes | bonus_hm)"]
 			| if length > 0 then " " + join(" ") else "" end) as $todo
 		| (if (.gaming.day // .date) != .date then " (\((.gaming.day // .date)[5:]))" else "" end) as $day
-		| .generated_at,
+		| (.generated_at | if type == "number" then floor else "none" end),
 		  (if $g.used_minutes == null then
-			"🎮 budget \($g.budget_minutes | hm)\($day)\($todo)", "🎮 \($g.budget_minutes | hm)", $grey
+			"\($label) budget \($g.budget_minutes | hm)\($day)\($todo)", "\($icon) \($g.budget_minutes | hm)", $grey
 		  else
 			([$g.budget_minutes - $g.used_minutes, 0] | max) as $left
 			| "\($g.used_minutes | hm)/\($g.budget_minutes | hm)\($day)" as $ratio
 			| if $left <= 0 then
-				"🎮 BLOCKED · \($ratio)\($todo)", "🎮 BLOCKED", $red
+				"\($label) BLOCKED · \($ratio)\($todo)", "\($icon) BLOCKED", $red
 			else
-				"🎮 \($left | hm) left · \($ratio)\($todo)", "🎮 \($left | hm)",
+				"\($label) \($left | hm) left · \($ratio)\($todo)", "\($icon) \($left | hm)",
 				(if $left <= 10 then $red
 				 elif $left <= 30 then $orange
 				 elif $left <= 60 then $yellow
 				 else $green end)
 			end
-		  end)' "$LIMITS_CACHE" 2>/dev/null) || return 1
+		  end),
+		  $label' "$LIMITS_CACHE" 2>/dev/null) || return 1
 	printf '%s\n' "$rendered" >"$RENDER_CACHE"
 }
 
@@ -100,6 +107,8 @@ fi
 	read -r full_text
 	read -r short_text
 	read -r color
+	# A render from before the label line (one tick after an upgrade) is 🎮.
+	read -r label || label='🎮'
 } <"$RENDER_CACHE" || {
 	emit '🎮 unreadable cache' '🎮 !' "$RED"
 	exit 0
@@ -110,9 +119,14 @@ if [[ -n ${NOW_EPOCH:-} ]]; then
 else
 	printf -v now '%(%s)T' -1
 fi
+# A cache without a numeric generated_at cannot be dated: say so, never crash.
+if [[ ! $generated_at =~ ^-?[0-9]+$ ]]; then
+	emit "$label ⏱? no data" "${label%% *} ⏱?" "$ORANGE"
+	exit 0
+fi
 age=$((now - generated_at))
 if ((age > STALE_AFTER_SECONDS || age < -STALE_AFTER_SECONDS)); then
-	emit "🎮 ⏱? stale $((age / 60))m" '🎮 ⏱?' "$ORANGE"
+	emit "$label ⏱? stale $((age / 60))m" "${label%% *} ⏱?" "$ORANGE"
 	exit 0
 fi
 

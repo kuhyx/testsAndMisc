@@ -104,6 +104,44 @@ assert_eq '🎮 2h00 left · 1h00/3h00 (10-08) +🧩1h' "$(line 1)" 'previous ga
 write_cache 60 180 "$NOW" "$D" leetcode:todo:60
 assert_eq '🎮 2h00 left · 1h00/3h00 +🧩1h' "$(line 1)" 'same day: no note'
 
+# set_live VALUE -- rewrite the cache's top-level leisure_active (Phase 2).
+set_live() {
+	jq -c ".leisure_active = $1" "$CACHE" >"$CACHE.new" && mv "$CACHE.new" "$CACHE"
+	rm -f "$RENDER"
+}
+
+printf 'Checking the leisure budget, once live, is labelled 🛋 Leisure...\n'
+write_cache 360 480 "$NOW" "$D" workout:done:120 reading:todo:60
+set_live true
+assert_eq '🛋 Leisure 2h00 left · 6h00/8h00 +📖1h' "$(line 1)" 'live full text'
+assert_eq '🛋 2h00' "$(line 2)" 'live short text'
+assert_eq '#50FA7B' "$(line 3)" 'live keeps the colour logic (green)'
+assert_eq '3' "$(run_block | wc -l)" 'live emits exactly full/short/colour'
+write_cache 460 480 "$NOW" "$D"
+set_live true
+assert_eq '#FFB86C' "$(line 3)" 'live keeps the colour logic (orange)'
+write_cache 300 300 "$NOW" "$D" leetcode:todo:60
+set_live true
+assert_eq '🛋 Leisure BLOCKED · 5h00/5h00 +🧩1h' "$(line 1)" 'live blocked text'
+assert_eq '🛋 BLOCKED' "$(line 2)" 'live blocked short text'
+assert_eq '#FF5555' "$(line 3)" 'live blocked is red'
+write_cache null 180 "$NOW" "$D"
+set_live true
+assert_eq '🛋 Leisure budget 3h00' "$(line 1)" 'live budget only'
+assert_eq '🛋 3h00' "$(line 2)" 'live budget only short text'
+write_cache 60 180 "$((NOW - 181))" "$D"
+set_live true
+assert_eq '🛋 Leisure ⏱? stale 3m' "$(line 1)" 'live stale keeps the leisure label'
+assert_eq '🛋 ⏱?' "$(line 2)" 'live stale short text'
+for value in false null '"yes"'; do
+	write_cache 60 180 "$NOW" "$D"
+	set_live "$value"
+	assert_eq '🎮 2h00 left · 1h00/3h00' "$(line 1)" "leisure_active $value is not live"
+done
+printf '%s\n%s\n%s\n%s\n' "$NOW" '🎮 old render' '🎮 old' '#50FA7B' >"$RENDER"
+touch -d '+1 min' "$RENDER"
+assert_eq '🎮 old render' "$(line 1)" 'a 4-line render from before the label line still shows'
+
 printf 'Checking a stale or missing cache never shows numbers as fresh...\n'
 write_cache 60 180 "$((NOW - 181))" "$D"
 assert_eq '🎮 ⏱? stale 3m' "$(line 1)" 'older than 180 s'
@@ -113,6 +151,19 @@ assert_eq '🎮 2h00 left · 1h00/3h00' "$(line 1)" '180 s is still fresh'
 rm -f "$CACHE"
 assert_eq '🎮 ⏱? no data' "$(line 1)" 'missing cache'
 assert_eq '🎮 ⏱?' "$(line 2)" 'missing cache short text'
+
+printf 'Checking an odd generated_at never crashes the block (always exit 0)...\n'
+write_cache 60 180 "$NOW.75" "$D"
+assert_eq '🎮 2h00 left · 1h00/3h00' "$(line 1)" 'a fractional generated_at is a timestamp'
+for generated in null '"soon"'; do
+	write_cache 60 180 "$generated" "$D"
+	set +e
+	output=$(run_block 2>&1)
+	status=$?
+	set -e
+	assert_eq '0' "$status" "generated_at $generated still exits 0"
+	assert_eq '🎮 ⏱? no data' "$(sed -n 1p <<<"$output")" "generated_at $generated says no data"
+done
 
 printf 'Checking an unreadable cache is red...\n'
 printf 'not json' >"$CACHE"

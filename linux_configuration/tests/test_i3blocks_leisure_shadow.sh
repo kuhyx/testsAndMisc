@@ -140,6 +140,29 @@ touch "$CACHE"
 PATH="$TMP_DIR/bin:$PATH" run_block >/dev/null
 assert_eq '2' "$(wc -l <"$TMP_DIR/jq.calls")" 'a rewritten cache is re-parsed'
 
+printf 'Checking the block hides itself once the leisure budget is live...\n'
+# set_live VALUE -- rewrite the cache's top-level leisure_active (Phase 2).
+set_live() {
+	jq -c ".leisure_active = $1" "$CACHE" >"$CACHE.new" && mv "$CACHE.new" "$CACHE"
+	rm -f "$RENDER"
+}
+for spec in '108 300' '300 300' 'null null' "60 300 $((NOW - 600))"; do
+	read -r used budget generated <<<"$spec"
+	write_cache "$used" "$budget" "${generated:-$NOW}"
+	set_live true
+	set +e
+	output=$(run_block)
+	status=$?
+	set -e
+	assert_eq '0' "$status" "live ($spec) exits 0"
+	assert_eq '' "$output" "live ($spec) prints nothing: the block is hidden"
+done
+for value in false null; do
+	write_cache 108 300
+	set_live "$value"
+	assert_eq '🛋 SHADOW 3h12 left · 1h48 used' "$(line 1)" "leisure_active $value still shows the shadow"
+done
+
 printf 'Checking the config wires the block next to gaming_budget...\n'
 CONFIG="$REPO_DIR/i3blocks/config"
 grep -A3 '^\[leisure_shadow\]$' "$CONFIG" | grep -q '^command=~/.config/i3blocks/leisure_shadow.sh$' ||

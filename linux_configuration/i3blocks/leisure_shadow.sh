@@ -11,6 +11,11 @@
 # steady-state tick forks nothing. Missing numbers say "⏱? no data", never 0;
 # a >180 s old cache says "stale". Yellow under 30 min, red at would-be 0.
 # Never urgent: it always exits 0 (i3blocks flashes exit 33 as urgent).
+#
+# Phase 2 (leisure rollout): once the cache's top-level `leisure_active` is
+# true the shadow week is over and the block prints nothing (i3bar hides it);
+# gaming_budget.sh shows the real leisure budget instead. A missing/false key
+# keeps the shadow block.
 # ============================================================================
 
 set -euo pipefail
@@ -31,6 +36,8 @@ emit() {
 }
 
 # One jq pass renders four lines: generated_at, full text, short text, color.
+# Once live full/short are empty and color is "hidden" (non-empty, so $(...)
+# cannot strip the lines): the "hidden" render.
 render_shadow() {
 	local rendered
 	rendered=$(jq -r \
@@ -40,7 +47,9 @@ render_shadow() {
 			| "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)";
 		(.leisure_shadow // {}) as $s
 		| (.generated_at | if type == "number" then floor else "none" end),
-		  (if $s.used_minutes == null or $s.budget_minutes == null then
+		  (if .leisure_active == true then
+			"", "", "hidden"
+		  elif $s.used_minutes == null or $s.budget_minutes == null then
 			"🛋 SHADOW ⏱? no data", "🛋 ⏱?", $orange
 		  elif $s.would_block or ($s.left_minutes // 0) <= 0 then
 			"🛋 SHADOW WOULD BLOCK · \($s.used_minutes | hm) used", "🛋 WOULD BLOCK", $red
@@ -77,6 +86,9 @@ fi
 	emit '🛋 SHADOW unreadable cache' '🛋 !' "$RED"
 	exit 0
 }
+
+# Hidden (leisure budget live): print nothing, whatever the cache's age.
+[[ -n $full_text ]] || exit 0
 
 if [[ -n ${NOW_EPOCH:-} ]]; then
 	now=$NOW_EPOCH

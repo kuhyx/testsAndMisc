@@ -1,0 +1,37 @@
+{
+  "intent": "Phase 2 of the leisure rollout, dormant until go-live: once daily-limits' cache says leisure_active, the gaming block reads '🛋 Leisure ...' (same colours) and the SHADOW block hides itself.",
+  "scope": [
+    "linux_configuration/i3blocks/gaming_budget.sh, leisure_shadow.sh and their two test scripts",
+    "Non-goal: no accounting, no new keys written; a missing/false key keeps today's output"
+  ],
+  "changes": [
+    "gaming_budget.sh: jq picks the label (🎮 or '🛋 Leisure') from .leisure_active == true; a 5th render line carries it to the stale state; an old 4-line render still reads as 🎮",
+    "gaming_budget.sh: generated_at is floored and a non-numeric one says 'no data' (it used to exit 1 on a fractional timestamp)",
+    "leisure_shadow.sh: when live the render is empty text + 'hidden' colour sentinel and the block prints nothing, exit 0, whatever the cache age"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_gaming_budget.sh && bash linux_configuration/tests/test_i3blocks_leisure_shadow.sh && bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed. All leisure_shadow checks passed. All i3blocks efficiency regression tests passed. (both new suites RED before the change)"
+    },
+    {
+      "command": "shellcheck linux_configuration/i3blocks/*.sh linux_configuration/tests/test_i3blocks_{gaming_budget,leisure_shadow}.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    },
+    {
+      "command": "fixture caches (daily-limits sample report, leisure_active false/true) through both blocks",
+      "result": "pass",
+      "evidence": "off: '🎮 1h26 left · 1h34/3h00 ...' + '🛋 SHADOW 3h12 left · 1h48 used'; on: '🛋 Leisure 1h26 left · 1h34/3h00 ...' + (nothing), all exit 0"
+    }
+  ],
+  "risks": [
+    "One tick after deploy the old 4-line render is read: shown as 🎮, never an error",
+    "Hidden shadow block depends on daily-limits >= ed274f2 writing leisure_active"
+  ],
+  "rollback": [
+    "git revert the commit; the symlinks in ~/.config/i3blocks pick it up on the next tick",
+    "Check both blocks render from the live cache again"
+  ]
+}

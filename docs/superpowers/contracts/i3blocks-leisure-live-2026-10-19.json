@@ -1,0 +1,12 @@
+{
+  "title": "i3blocks: leisure labels and hidden SHADOW block once the leisure budget is live",
+  "objective": "Build the i3blocks half of leisure Phase 2 dormant: when daily-limits' cache has leisure_active true, gaming_budget.sh shows '🛋 Leisure' with the same colour logic and leisure_shadow.sh prints nothing; a missing key keeps current behaviour; both always exit 0 and stay shellcheck clean.",
+  "acceptance_criteria": [
+    "leisure_active true: gaming_budget full text starts '🛋 Leisure', short text '🛋', colours unchanged (green/yellow/orange/red/grey)",
+    "leisure_active true: leisure_shadow prints 0 lines and exits 0, even for stale/no-data caches",
+    "leisure_active missing/false/null/non-boolean: output identical to before",
+    "gaming_budget exits 0 on a fractional or non-numeric generated_at"
+  ],
+  "out_of_scope": ["daily-limits itself (own repo)", "enforcer and extension behaviour"],
+  "verifier": "linux_configuration/tests/test_i3blocks_gaming_budget.sh, test_i3blocks_leisure_shadow.sh, test_i3blocks_efficiency.sh, shellcheck, pre-commit"
+}
