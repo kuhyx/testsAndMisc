@@ -1,0 +1,19 @@
+{
+  "intent": "hypothesis pin in meta/requirements.txt is the newest stable release again, so the dependency-freshness CI job goes green.",
+  "scope": [
+    "meta/requirements.txt (hypothesis only)",
+    "Non-goal: typescript 6.0.3 allowlist entry (unchanged, predicate still blocking)"
+  ],
+  "changes": [
+    "hypothesis 6.170.5 -> 6.170.6 (released after the previous bump landed)"
+  ],
+  "verification": [
+    {
+      "command": "scripts/check_dependency_freshness.sh --all --strict",
+      "result": "pass",
+      "evidence": "CI run for e4ca3717 reported exactly one finding: pypi:hypothesis 6.170.5 -> 6.170.6"
+    }
+  ],
+  "risks": ["patch release of a test-only dependency"],
+  "rollback": ["git revert this commit"]
+}
