@@ -1,0 +1,39 @@
+{
+  "intent": "redeploy_agent_ready_sites.sh --verify-only stops flaking FAIL on all three sites: the checks run concurrently, each with the checker's own 45 s network budget, and the whole script still ends inside 60 s.",
+  "scope": [
+    "linux_configuration/features/redeploy_agent_ready_sites.sh",
+    "linux_configuration/features/lib/tests/test_redeploy_agent_ready_sites.sh",
+    "Non-goal: changing the AgentReady checker in ~/src/utils; no live container restarts"
+  ],
+  "changes": [
+    "The three url checks run in parallel (in_parallel helper: per-job output files, exit status collected via wait, verdicts printed in fixed site order)",
+    "Each check passes --budget to the checker: min(45, RUN_DEADLINE(55) - elapsed - 5 s grace); the outer timeout is budget + 5 s and only a hang backstop. Below 3 s left, every site reports UNDETERMINED (no time left) and nothing starts",
+    "The three redeploy steps also run in parallel and the systemctl restart is now under the 20 s timeout too, so a full run fits 60 s worst case (20 s redeploy + <=35 s checks)",
+    "--help prints only the header block instead of every comment in the file"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/features/lib/tests/test_redeploy_agent_ready_sites.sh",
+      "result": "pass",
+      "evidence": "RED before the change: 18 passed, 6 failed (concurrency barriers, --budget 45, deadline budget, no-time-left). GREEN after: 25 passed, 0 failed"
+    },
+    {
+      "command": "bash linux_configuration/features/redeploy_agent_ready_sites.sh --verify-only (3 consecutive live runs)",
+      "result": "pass",
+      "evidence": "3/3 runs: PASS kuhy.duckdns.org, dice.kuhy.duckdns.org, popes.kuhy.duckdns.org, rc=0, 0.68-0.89 s wall each"
+    },
+    {
+      "command": "shellcheck -x + shfmt -d on both files",
+      "result": "pass",
+      "evidence": "no findings, no diff"
+    }
+  ],
+  "risks": [
+    "Parallel docker recreates of the two static sites contend for the docker daemon; they use separate compose dirs, and the 20 s per-step timeout still applies",
+    "AGENT_READY_RUN_DEADLINE env override exists for the tests; setting it high in production could exceed 60 s"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Re-run bash linux_configuration/features/redeploy_agent_ready_sites.sh --verify-only and confirm three verdict lines"
+  ]
+}
