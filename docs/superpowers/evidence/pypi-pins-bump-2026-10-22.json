@@ -1,0 +1,27 @@
+{
+  "intent": "Python pins in meta/requirements*.txt are the newest stable releases again, so the dependency-freshness gate and Pre-commit checks go green in CI.",
+  "scope": [
+    "meta/requirements.txt, meta/requirements-test.txt (anthropic, coverage, hypothesis, ruff, types-python-dateutil, websockets)",
+    "Non-goal: typescript 6.0.3 allowlist entry (unchanged, predicate still blocking)"
+  ],
+  "changes": [
+    "anthropic 1.15.0 -> 2.1.0, coverage 7.16.2 -> 7.17.0, hypothesis 6.170.2 -> 6.170.5",
+    "ruff 0.17.1 -> 0.17.2, types-python-dateutil 2.9.0.20260807 -> 2.9.0.20261021, websockets 17.2 -> 17.3"
+  ],
+  "verification": [
+    {
+      "command": "scripts/check_dependency_freshness.sh --all --strict",
+      "result": "pass",
+      "evidence": "see commit run; CI run 39843132891 listed exactly these 8 findings before the bump"
+    },
+    {
+      "command": "PYTHONPATH=<anthropic 2.1.0 target> pytest python_pkg/code_tutor/tests/test_claude_backend.py python_pkg/code_tutor/tests/test_llm_fallback.py",
+      "result": "pass",
+      "evidence": "16 passed with anthropic 2.1.0 (only importer: python_pkg/code_tutor)"
+    }
+  ],
+  "risks": [
+    "anthropic is a major bump; only code_tutor uses anthropic.Anthropic/APIError/messages.create/stream, covered by the 16 tests above"
+  ],
+  "rollback": ["git revert this commit"]
+}

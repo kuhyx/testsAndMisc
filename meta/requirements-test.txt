@@ -21,9 +21,9 @@
 # suite itself fails loudly here on a missing import.
 # ==============================================================================
 
-anthropic==1.15.0
+anthropic==2.1.0
 beautifulsoup4==4.15.0
-coverage==7.16.2
+coverage==7.17.0
 defusedxml==0.7.1
 genanki==0.13.1
 markdownify==1.2.3
