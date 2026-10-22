@@ -196,9 +196,9 @@ jobs:
       - name: Install prettier and shfmt (pinned)
         if: matrix.group == 'pylint'
         env:
-          PRETTIER_VERSION: 3.9.5
-          SHFMT_VERSION: v3.13.1
-          SHFMT_SHA256: fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1
+          PRETTIER_VERSION: 3.9.10
+          SHFMT_VERSION: v3.14.1
+          SHFMT_SHA256: 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf
         run: |
           set -euo pipefail
           npm install --global --no-fund --no-audit "prettier@${PRETTIER_VERSION}"

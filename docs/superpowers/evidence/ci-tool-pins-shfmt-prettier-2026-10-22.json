@@ -1,0 +1,43 @@
+{
+  "intent": "CI's pinned formatter versions match the newest stable releases and the versions the local hooks run, so local and CI never disagree on formatting.",
+  "scope": [
+    ".github/workflows/pre-commit.yml (SHFMT_VERSION, SHFMT_SHA256, PRETTIER_VERSION)",
+    "linux_configuration/.githooks/lib/common.sh (PINNED_TOOL_VERSIONS)",
+    "Non-goal: the dead nested linux_configuration/.github/workflows/shell-check.yml (GitHub never runs it); the shared dep_freshness gate"
+  ],
+  "changes": [
+    "shfmt v3.13.1 -> v3.14.1 (newest stable, GitHub releases/latest), SHA256 76e77641... taken from a real download and matching the release asset digest",
+    "prettier 3.9.5 -> 3.9.10 (npm dist-tag latest); local nvm-global prettier upgraded to 3.9.10 to match",
+    "shellcheck stays v0.11.0: already the newest stable release and what pacman ships locally"
+  ],
+  "verification": [
+    {
+      "command": "curl shfmt_v3.14.1_linux_amd64 && sha256sum && shfmt --version",
+      "result": "pass",
+      "evidence": "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf, v3.14.1"
+    },
+    {
+      "command": "source linux_configuration/.githooks/lib/common.sh; check_pinned_tool_versions",
+      "result": "pass",
+      "evidence": "no drift warning, rc=0 (local shfmt 3.14.1, prettier 3.9.10, shellcheck 0.11.0)"
+    },
+    {
+      "command": "pre-commit run prettier --hook-stage pre-push --all-files (prettier 3.9.10)",
+      "result": "pass",
+      "evidence": "Passed: the patch bump reformats nothing in the repo"
+    },
+    {
+      "command": "scripts/check_dependency_freshness.sh .github/workflows/pre-commit.yml",
+      "result": "pass",
+      "evidence": "rc=0; note its workflow parser only reads flutter/node/python-version, so it does not see these env pins"
+    }
+  ],
+  "risks": [
+    "A wrong SHA would only fail in CI's pylint group; mitigated by hashing a real download",
+    "Other developer machines still on shfmt 3.13.1 or prettier 3.9.5 now get the common.sh drift warning"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Check that the pre-commit workflow's 'Install prettier and shfmt (pinned)' step goes green"
+  ]
+}

@@ -109,8 +109,8 @@ Run this yourself, then retry:
 # nobody intended.
 readonly PINNED_TOOL_VERSIONS=(
 	"shellcheck:0.11.0:.github/workflows/pre-commit.yml (SHELLCHECK_VERSION)"
-	"prettier:3.9.5:.github/workflows/pre-commit.yml (PRETTIER_VERSION)"
-	"shfmt:3.13.1:.github/workflows/pre-commit.yml (SHFMT_VERSION)"
+	"prettier:3.9.10:.github/workflows/pre-commit.yml (PRETTIER_VERSION)"
+	"shfmt:3.14.1:.github/workflows/pre-commit.yml (SHFMT_VERSION)"
 	"zsh:5.9:.github/workflows/pre-commit.yml (zsh comes from apt; major.minor only)"
 )
 
@@ -123,13 +123,13 @@ _tool_version() {
 	local cmd="$1" raw=""
 
 	case "$cmd" in
-		shellcheck) raw="$(shellcheck --version 2>/dev/null | awk '/^version:/ { print $2 }')" ;;
-		prettier) raw="$(prettier --version 2>/dev/null)" ;;
-		shfmt) raw="$(shfmt --version 2>/dev/null)" ;;
-		# zsh patch releases are not selectable via apt, so compare major.minor
-		# only -- 5.9.2 locally and 5.9 in CI are not a meaningful divergence.
-		zsh) raw="$(zsh --version 2>/dev/null | awk '{ print $2 }' | cut -d. -f1,2)" ;;
-		*) return 1 ;;
+	shellcheck) raw="$(shellcheck --version 2>/dev/null | awk '/^version:/ { print $2 }')" ;;
+	prettier) raw="$(prettier --version 2>/dev/null)" ;;
+	shfmt) raw="$(shfmt --version 2>/dev/null)" ;;
+	# zsh patch releases are not selectable via apt, so compare major.minor
+	# only -- 5.9.2 locally and 5.9 in CI are not a meaningful divergence.
+	zsh) raw="$(zsh --version 2>/dev/null | awk '{ print $2 }' | cut -d. -f1,2)" ;;
+	*) return 1 ;;
 	esac
 
 	printf '%s' "${raw#v}"
