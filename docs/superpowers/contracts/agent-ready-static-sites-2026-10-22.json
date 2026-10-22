@@ -1,0 +1,15 @@
+{
+  "title": "Static-site Caddies serve AgentReady-compliant prerendered sites, with a narrow redeploy + verify",
+  "objective": "Both loopback static-site Caddies (personal website, kcd2 dice solver) render one shared site-block body that serves the prerendered dist/ with real 404s and the ai-catalog Link header, gain a sudo-free `serve` redeploy, and redeploy_agent_ready_sites.sh redeploys and verifies the three public static sites with the AgentReady checker.",
+  "acceptance_criteria": [
+    "e2e_agent_ready_caddy.sh website and dice: every assert passes and agent_ready url mode exits 0 against the rendered Caddyfile",
+    "Unknown paths return 404 with the site's 404 page, not the SPA shell with 200",
+    "`serve` refuses a missing dist/ before docker runs and recreates only that site's container",
+    "redeploy_agent_ready_sites.sh --verify-only prints one PASS/FAIL/UNDETERMINED line per site and exits 0 only when all pass"
+  ],
+  "out_of_scope": [
+    "Site content and build (personal-website, kcd2-dice-solver, signal-bot repos)",
+    "The shared edge Caddy, sudo/pacman steps and full setup rebuilds"
+  ],
+  "verifier": "linux_configuration/features/lib/tests/test_static_site_serve.sh, test_redeploy_agent_ready_sites.sh, e2e_agent_ready_caddy.sh website|dice, shellcheck, pre-commit"
+}

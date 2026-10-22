@@ -5,6 +5,9 @@
 # Sourced rather than run, so it inherits the caller's strict mode and
 # the helper functions and variables defined above the source line.
 
+# shellcheck source=static_site_caddy.sh
+source "${BASH_SOURCE[0]%/*}/static_site_caddy.sh"
+
 # --- Phase 5: build the website --------------------------------------------
 build_website() {
 	log_info "Installing website dependencies and building…"
@@ -48,17 +51,7 @@ EOF
 }
 
 :${WEBSITE_PORT} {
-	root * /srv
-	# {path}/index.html is the load-bearing middle term: the website
-	# prerenders each blog post to dist/blog/<slug>/index.html, and
-	# try_files does NOT resolve a directory to its index on its own.
-	# Without it every post silently falls through to the SPA shell and
-	# is served as the landing page -- right content once React boots,
-	# wrong <title> and no link preview, which looks like nothing is
-	# wrong until you check the tab.
-	try_files {path} {path}/index.html /index.html
-	file_server
-	encode gzip
+$(static_site_caddy_body)
 }
 EOF
 	log_ok "Wrote ${WEBSITE_COMPOSE} and ${WEBSITE_INNER_CADDY}."

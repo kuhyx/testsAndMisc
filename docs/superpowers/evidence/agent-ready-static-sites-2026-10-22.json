@@ -1,0 +1,45 @@
+{
+  "intent": "The personal website and kcd2 dice solver static Caddies serve their prerendered dist/ so both sites pass the AgentReady v2.0 checker (real 404s, discovery files, ai-catalog Link header), and a narrow sudo-free redeploy + verify exists for the three public static sites.",
+  "scope": [
+    "linux_configuration/features/lib/static_site_caddy.sh (new shared site-block body), website_build.sh, kcd2_serve.sh, kcd2_expose.sh",
+    "linux_configuration/features/setup_personal_website.sh and setup_kcd2_dice_solver.sh (new `serve` subcommand), redeploy_agent_ready_sites.sh (new)",
+    "linux_configuration/features/lib/tests: test_static_site_serve.sh, test_redeploy_agent_ready_sites.sh, e2e_agent_ready_caddy.sh",
+    "Non-goal: no edge Caddy, sudo, pacman or rebuild changes; site content lives in each site's own repo"
+  ],
+  "changes": [
+    "static_site_caddy.sh: one Caddy site-block body for both static sites (prerendered paths, real 404 via handle_errors, ai-catalog Link header) plus a dist/ presence guard; website_build.sh and kcd2_serve.sh render it instead of two drifting SPA catch-alls",
+    "kcd2_serve.sh readiness wait requires HTTP 200 with a body, so the non-empty 404 page no longer counts as ready",
+    "setup_* `serve`: re-render the inner compose + Caddyfile and recreate only that site's container",
+    "redeploy_agent_ready_sites.sh: serve both sites, restart the popes-site user unit, then run agent_ready url against each public URL (--verify-only skips the redeploy)"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/features/lib/tests/test_static_site_serve.sh && bash linux_configuration/features/lib/tests/test_redeploy_agent_ready_sites.sh",
+      "result": "pass",
+      "evidence": "static-site serve: 26 passed, 0 failed; redeploy agent-ready sites: 15 passed, 0 failed"
+    },
+    {
+      "command": "bash linux_configuration/features/lib/tests/e2e_agent_ready_caddy.sh website && bash linux_configuration/features/lib/tests/e2e_agent_ready_caddy.sh dice",
+      "result": "pass",
+      "evidence": "e2e agent-ready website: 16 passed, 0 failed; e2e agent-ready dice: 16 passed, 0 failed (real caddy:2.8 container serving a copy of each dist/)"
+    },
+    {
+      "command": "bash linux_configuration/features/redeploy_agent_ready_sites.sh --verify-only",
+      "result": "pass",
+      "evidence": "PASS kuhy.duckdns.org, dice.kuhy.duckdns.org, popes.kuhy.duckdns.org (rc=0); an earlier run hit the 10 s per-site CHECK_TIMEOUT on all three while the checker alone took 2-22 s"
+    },
+    {
+      "command": "shellcheck -x on all 10 changed/new scripts; pre-commit run on the staged files",
+      "result": "pass",
+      "evidence": "shellcheck clean; pre-commit hooks pass"
+    }
+  ],
+  "risks": [
+    "CHECK_TIMEOUT=10 in redeploy_agent_ready_sites.sh is tight: live checks took up to 22 s, which reports FAIL (timed out) on a healthy site",
+    "A `serve` with no dist/ is refused before docker runs; a stale dist/ is still served as-is"
+  ],
+  "rollback": [
+    "git revert the commit, then run setup_personal_website.sh / setup_kcd2_dice_solver.sh to re-render the old Caddyfiles",
+    "curl both sites and check the landing page returns 200"
+  ]
+}

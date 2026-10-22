@@ -25,6 +25,9 @@
 #
 # Usage:
 #   setup_personal_website.sh [setup]   Build + deploy (default).
+#   setup_personal_website.sh serve     Re-render the inner compose + Caddyfile
+#                                       and recreate only the website container
+#                                       (no sudo, pacman, rebuild or edge change).
 #   setup_personal_website.sh status    Self-diagnose the deployment.
 #   setup_personal_website.sh help      Show this help.
 #
@@ -174,11 +177,22 @@ source "$SCRIPT_DIR/lib/website_build.sh"
 # shellcheck source=lib/website_admin.sh
 source "$SCRIPT_DIR/lib/website_admin.sh"
 
+# serve: the narrow redeploy. The inner caddy runs with `admin off`, so a
+# Caddyfile change only loads on recreate; start_website forces one.
+serve_cmd() {
+	static_site_require_dist "${WEBSITE_SRC}/dist"
+	write_website_stack
+	start_website
+}
+
 main() {
 	local cmd="${1:-setup}"
 	case "$cmd" in
 	setup)
 		setup_cmd
+		;;
+	serve)
+		serve_cmd
 		;;
 	status)
 		status_cmd

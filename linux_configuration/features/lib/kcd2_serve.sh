@@ -5,6 +5,9 @@
 # Sourced rather than run, so it inherits the caller's strict mode and
 # the helper functions and variables defined above the source line.
 
+# shellcheck source=static_site_caddy.sh
+source "${BASH_SOURCE[0]%/*}/static_site_caddy.sh"
+
 # --- Phase 3: the static-serve stack ----------------------------------------
 write_serve_stack() {
 	ensure_dir "$DICE_DATA_DIR"
@@ -63,11 +66,7 @@ EOF
 
 :${DICE_PORT} {
 	bind 127.0.0.1
-	root * /srv
-	# Single-page bundle: unknown paths should serve the app, not 404.
-	try_files {path} /index.html
-	file_server
-	encode gzip
+$(static_site_caddy_body)
 }
 EOF
 	log_ok "Wrote ${DICE_COMPOSE} and ${DICE_INNER_CADDY}."
@@ -89,12 +88,14 @@ EOF
 # non-empty body. A bare "curl http://127.0.0.1:PORT/" sends Host: 127.0.0.1
 # and returns an empty 200 against a host-matcher misconfiguration — it passes
 # while every real request serves a blank page. Ask the question the edge asks.
+# The status matters as much as the body: the handle_errors 404 page has a body
+# too, so a non-empty 404 (an empty or stale /srv) must not count as ready.
 wait_for_site() {
-	local _ size
+	local _ code size
 	for _ in $(seq 1 30); do
-		size="$(curl -s -o /dev/null -w '%{size_download}' \
-			-H "Host: ${DICE_DOMAIN}" "http://127.0.0.1:${DICE_PORT}/" 2>/dev/null || echo 0)"
-		if [[ ${size:-0} -gt 0 ]]; then
+		read -r code size < <(curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
+			-H "Host: ${DICE_DOMAIN}" "http://127.0.0.1:${DICE_PORT}/" 2>/dev/null || echo "000 0")
+		if [[ $code == "200" && ${size:-0} -gt 0 ]]; then
 			return 0
 		fi
 		sleep 1

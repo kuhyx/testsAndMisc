@@ -10,16 +10,18 @@
 # :80 or :443 from every other site on the box. Gate on it rather than trust
 # the config to stay correct.
 assert_no_edge_conflict() {
-	local pid listeners
-	pid="$(docker inspect -f '{{.State.Pid}}' "$DICE_CONTAINER" 2>/dev/null || echo "")"
-	[[ -n $pid && $pid != "0" ]] || die "Could not read the ${DICE_CONTAINER} PID."
-
-	listeners="$(sudo -n ss -ltnp 2>/dev/null | grep "pid=${pid}," || true)"
+	local listeners
+	# netstat run INSIDE the container: it shares the host's network namespace
+	# but has its own pid namespace, so the only sockets it can attribute to a
+	# process ("<pid>/caddy") are the container's own. That is the same
+	# per-container listener table `sudo ss -ltnp | grep pid=` gave, without sudo.
+	listeners="$(docker exec "$DICE_CONTAINER" netstat -ltnp 2>/dev/null |
+		grep -E '[[:space:]][0-9]+/[^[:space:]]+[[:space:]]*$' || true)"
 
 	# Demand positive evidence FIRST. Asserting only the absence of :80/:443
-	# fails open: if `ss` returns nothing — a stale PID after a restart, or
-	# sudo -n unavailable — every "is it bad?" test misses and the guard happily
-	# reports success without having looked at anything.
+	# fails open: if netstat returns nothing — a container that already exited,
+	# or an image without busybox — every "is it bad?" test misses and the
+	# guard happily reports success without having looked at anything.
 	if ! grep -qE '(^|[[:space:]])127\.0\.0\.1:'"${DICE_PORT}"'([[:space:]]|$)' <<<"$listeners"; then
 		docker stop "$DICE_CONTAINER" >/dev/null 2>&1 || true
 		die "Could not confirm ${DICE_CONTAINER} listens on 127.0.0.1:${DICE_PORT}. Container stopped."
@@ -30,7 +32,7 @@ assert_no_edge_conflict() {
 	fi
 	# Must be on loopback, not 0.0.0.0/*: host networking would otherwise expose
 	# the unfronted static server to the whole LAN.
-	if grep -qE '(\*|0\.0\.0\.0):'"${DICE_PORT}"'\b' <<<"$listeners"; then
+	if grep -qE '(\*|0\.0\.0\.0|::):'"${DICE_PORT}"'\b' <<<"$listeners"; then
 		docker stop "$DICE_CONTAINER" >/dev/null 2>&1 || true
 		die "${DICE_CONTAINER} bound ${DICE_PORT} on all interfaces, not loopback. Container stopped."
 	fi
@@ -39,7 +41,9 @@ assert_no_edge_conflict() {
 
 start_site() {
 	log_info "Starting the ${DICE_CONTAINER} container…"
-	docker compose -f "$DICE_COMPOSE" up -d
+	# --force-recreate: the Caddyfile is a bind mount compose does not track,
+	# and the inner caddy runs with `admin off`, so only a recreate loads it.
+	docker compose -f "$DICE_COMPOSE" up -d --force-recreate
 	if wait_for_site; then
 		log_ok "Solver answering on http://127.0.0.1:${DICE_PORT}/."
 	else

@@ -25,6 +25,9 @@
 #
 # Usage:
 #   setup_kcd2_dice_solver.sh [setup]   Build + deploy (default).
+#   setup_kcd2_dice_solver.sh serve     Re-render the inner compose + Caddyfile
+#                                       and recreate only the kcd2-dice container
+#                                       (no sudo, pacman, rebuild or edge change).
 #   setup_kcd2_dice_solver.sh status    Self-diagnose the deployment.
 #   setup_kcd2_dice_solver.sh help      Show this help.
 #
@@ -115,11 +118,23 @@ source "$SCRIPT_DIR/lib/kcd2_expose.sh"
 # shellcheck source=lib/kcd2_autorebuild.sh
 source "$SCRIPT_DIR/lib/kcd2_autorebuild.sh"
 
+# serve: the narrow redeploy. The inner caddy runs with `admin off`, so a
+# Caddyfile change only loads on recreate; start_site forces one and keeps the
+# edge-conflict guard.
+serve_cmd() {
+	static_site_require_dist "${DICE_SRC}/dist"
+	write_serve_stack
+	start_site
+}
+
 main() {
 	local cmd="${1:-setup}"
 	case "$cmd" in
 	setup)
 		setup_cmd
+		;;
+	serve)
+		serve_cmd
 		;;
 	status)
 		status_cmd
