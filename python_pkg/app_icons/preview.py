@@ -12,7 +12,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from python_pkg.app_icons import apps, glyphs, render, style
+from python_pkg.app_icons import apps, fit, glyphs, render, style
 
 # Size each icon is drawn at in the contact sheet.
 _TILE = 512
@@ -122,7 +122,7 @@ def build_contact_sheet(keys: list[str], destination: Path) -> Path:
         for key in keys:
             app = apps.get_app(key)
             glyph = glyphs.get_glyph(app.glyph)
-            offset = render.centre_offset(glyph, app.accent)
+            offset = fit.placement(glyph, app.accent)
             svg_text = render.build_svg(
                 glyph, app.accent, with_background=True, offset=offset
             )

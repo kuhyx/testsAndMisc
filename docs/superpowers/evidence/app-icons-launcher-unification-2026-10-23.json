@@ -1,0 +1,45 @@
+{
+  "intent": "Every launcher icon in the shared family occupies the same circle (glyph auto-centred, furthest ink at INK_RADIUS = 340px, stroke width compensated) and every registered app carries a launcher name that the Pixel launcher never truncates.",
+  "scope": [
+    "python_pkg/app_icons only: fit.py, labels.py, _label_widths.py (new); render.py, style.py, cli.py, generate.py, preview.py, _app_icon.py, _apps_more.py, glyphs.py, _glyph_art_extra.py, README.md; their tests",
+    "Non-goal: regenerating assets inside the app repos (each app repo commits its own icons); repo_contract label gate in kuhyx/utils is committed separately"
+  ],
+  "changes": [
+    "fit.py: render, measure ink, derive a Placement that centres the ink box and scales it so the furthest inked pixel sits at style.INK_RADIUS, iterating because stroke width does not scale",
+    "style.py: INK_RADIUS = 340px plus ADAPTIVE_CANVAS_DP / INK_RADIUS_DP for vector-drawable consumers (phone-focus-mode)",
+    "labels.py + _label_widths.py: LABELS registry and rules (capital first letter, ASCII letters only, <= 10 chars, <= 522 wide in the Pixel launcher font); AppIcon.label reads it",
+    "render.py/cli.py: centre_offset, safe_box_overflow and the CLI safe-box warning removed (superseded by the fit)",
+    "glyphs/_glyph_art_extra/_apps_more: prompt-bubble (sufler) and camera (macro_cam) glyphs and registry entries",
+    "_app_icon.py: labels import moved to module top level (no cycle: labels imports only _label_widths) to satisfy PLC0415/C0415"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q -p no:cacheprovider python_pkg/app_icons --cov=python_pkg.app_icons --cov-branch --cov-report=term-missing --cov-fail-under=0",
+      "result": "pass",
+      "evidence": "126 passed in 7.24s; every python_pkg/app_icons/*.py file at 100% line+branch (fit.py 37 stmts/8 branches, labels.py 21/10, cli.py 66/20, render.py 36/2)"
+    },
+    {
+      "command": "scripts/test_changed.sh",
+      "result": "pass",
+      "evidence": "198 passed in 6.07s"
+    },
+    {
+      "command": "pre-commit run --files <the 20 app_icons files>",
+      "result": "pass",
+      "evidence": "first run: no-noqa, ruff PLC0415 and pylint C0415 failed on the lazy import in _app_icon.py; after moving it top-level, 38 hooks Passed, 0 failed"
+    },
+    {
+      "command": "python3 -m python_pkg.app_icons list && python3 -m python_pkg.app_icons preview -o /dev/shm/appicons_prev/sheet.png",
+      "result": "pass",
+      "evidence": "list shows sufler -> prompt-bubble +linux and macro_cam -> camera; preview wrote sheet.png with all 25 glyphs at visually equal size on the charcoal field"
+    }
+  ],
+  "risks": [
+    "Glyph sizes change for every app, so each app repo shows an icon diff the next time it regenerates",
+    "Label width table is measured for the Pixel launcher font; other launchers may truncate differently"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Rerun the app_icons pytest command above and the preview to confirm the old sizes return"
+  ]
+}

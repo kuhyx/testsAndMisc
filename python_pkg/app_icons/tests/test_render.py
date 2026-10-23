@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -41,8 +40,11 @@ class TestBuildSvg:
         assert style.BACKGROUND not in svg
 
     def test_offset_is_applied(self) -> None:
-        svg = render.build_svg(DOT, "#123456", with_background=False, offset=(3.5, -7))
-        assert 'transform="translate(3.5,-7)"' in svg
+        svg = render.build_svg(
+            DOT, "#123456", with_background=False, offset=render.Placement(3.5, -7, 2)
+        )
+        assert 'transform="translate(3.5,-7) scale(2)"' in svg
+        assert f'stroke-width="{style.STROKE_WIDTH / 2:g}"' in svg
 
     def test_accent_token_is_substituted(self) -> None:
         svg = render.build_svg(FILLED, "#ABCDEF", with_background=False)
@@ -63,47 +65,3 @@ class TestRasterise:
         assert argv[0] == "/usr/bin/rsvg-convert"
         assert "256" in argv
         assert run.call_args.kwargs["input"] == b"<svg/>"
-
-
-class TestInkBbox:
-    @patch(f"{MOD}.subprocess.run")
-    @patch(f"{MOD}.resolve_tool", return_value="/usr/bin/magick")
-    def test_parses_identify_output(self, mock_tool: MagicMock, run: MagicMock) -> None:
-        run.return_value = subprocess.CompletedProcess([], 0, stdout="400 300 +100 +50")
-        assert render._ink_bbox(Path("x.png")) == (400, 300, 100, 50)
-
-
-class TestCentreOffset:
-    @patch(f"{MOD}._ink_bbox", return_value=(400, 300, 112, 262))
-    @patch(f"{MOD}.rasterise")
-    def test_centres_ink_box(
-        self, mock_raster: MagicMock, mock_bbox: MagicMock
-    ) -> None:
-        dx, dy = render.centre_offset(DOT, "#FFFFFF")
-        # ink centre is (312, 412); canvas centre is 512.
-        assert (dx, dy) == (200, 100)
-
-    @patch(f"{MOD}._ink_bbox", return_value=(0, 0, 0, 0))
-    @patch(f"{MOD}.rasterise")
-    def test_empty_glyph_raises(
-        self, mock_raster: MagicMock, mock_bbox: MagicMock
-    ) -> None:
-        with pytest.raises(render.EmptyGlyphError) as excinfo:
-            render.centre_offset(DOT, "#FFFFFF")
-        assert excinfo.value.name == "dot"
-
-
-class TestSafeBoxOverflow:
-    @patch(f"{MOD}._ink_bbox", return_value=(600, 500, 0, 0))
-    @patch(f"{MOD}.rasterise")
-    def test_reports_horizontal_overflow(
-        self, mock_raster: MagicMock, mock_bbox: MagicMock
-    ) -> None:
-        assert render.safe_box_overflow(DOT, "#FFFFFF") == (600 - style.SAFE_BOX, 0)
-
-    @patch(f"{MOD}._ink_bbox", return_value=(100, 100, 0, 0))
-    @patch(f"{MOD}.rasterise")
-    def test_no_overflow_is_zero(
-        self, mock_raster: MagicMock, mock_bbox: MagicMock
-    ) -> None:
-        assert render.safe_box_overflow(DOT, "#FFFFFF") == (0, 0)

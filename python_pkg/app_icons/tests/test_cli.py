@@ -41,48 +41,31 @@ class TestPreviewCommand:
 
 
 class TestGenerateCommand:
-    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
     @patch(f"{MOD}.generate.write_assets", return_value=[Path("a"), Path("b")])
     def test_writes_assets_only_by_default(
         self,
         write: MagicMock,
-        mock_overflow: MagicMock,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         assert cli.main(["generate", "--app", "todo"]) == 0
         assert write.call_count == 1
         assert "wrote 2 asset files" in capsys.readouterr().out
 
-    @patch(f"{MOD}.render.safe_box_overflow", return_value=(12, 0))
-    @patch(f"{MOD}.generate.write_assets", return_value=[])
-    def test_warns_on_safe_box_overflow(
-        self,
-        mock_write: MagicMock,
-        mock_overflow: MagicMock,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        cli.main(["generate", "--app", "todo"])
-        assert "safe box" in capsys.readouterr().out
-
     @patch(f"{MOD}.generate.run_flutter_launcher_icons")
-    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
     @patch(f"{MOD}.generate.write_assets", return_value=[])
     def test_android_flag_runs_generator(
         self,
         mock_write: MagicMock,
-        mock_overflow: MagicMock,
         launcher: MagicMock,
     ) -> None:
         cli.main(["generate", "--app", "todo", "--android"])
         assert launcher.call_count == 1
 
     @patch(f"{MOD}.generate.write_linux_icons", return_value=[Path("x")])
-    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
     @patch(f"{MOD}.generate.write_assets", return_value=[])
     def test_linux_out_only_for_linux_apps(
         self,
         mock_write: MagicMock,
-        mock_overflow: MagicMock,
         linux: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -103,12 +86,10 @@ class TestGenerateCommand:
 
 class TestWebFlag:
     @patch(f"{MOD}.generate.write_web_icons", return_value=[Path("w")])
-    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
     @patch(f"{MOD}.generate.write_assets", return_value=[])
     def test_writes_into_an_existing_web_dir(
         self,
         mock_write: MagicMock,
-        mock_overflow: MagicMock,
         web: MagicMock,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
@@ -118,12 +99,10 @@ class TestWebFlag:
         assert "wrote 1 web icons" in capsys.readouterr().out
 
     @patch(f"{MOD}.generate.write_web_icons")
-    @patch(f"{MOD}.render.safe_box_overflow", return_value=(0, 0))
     @patch(f"{MOD}.generate.write_assets", return_value=[])
     def test_skips_apps_without_a_web_dir(
         self,
         mock_write: MagicMock,
-        mock_overflow: MagicMock,
         web: MagicMock,
         capsys: pytest.CaptureFixture[str],
     ) -> None:

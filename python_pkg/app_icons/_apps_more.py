@@ -33,4 +33,23 @@ MORE_APPS: Final[tuple[AppIcon, ...]] = (
         # window (see the repo's SPEC.md), so it gets the hicolor set too.
         linux=True,
     ),
+    AppIcon(
+        key="sufler",
+        repo=_HOME / "src/sufler",
+        accent="#B8862E",
+        glyph="prompt-bubble",
+        icon_name="sufler",
+        # packaging/sufler.desktop (Icon=sufler) installs the hicolor set
+        # from packaging/icons via the PKGBUILD.
+        linux=True,
+    ),
+    AppIcon(
+        key="macro_cam",
+        repo=_HOME / "src/macro-cam",
+        accent="#B8862E",
+        glyph="camera",
+        icon_name="macro-cam",
+        # Android only: no linux/ target and no desktop entry.
+        linux=False,
+    ),
 )

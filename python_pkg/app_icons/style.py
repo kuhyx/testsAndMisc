@@ -19,10 +19,23 @@ CENTRE: Final[float] = CANVAS / 2
 # cool-tinted #1B1D21, so relative lightness is unchanged.
 BACKGROUND: Final[str] = "#211D1B"
 
-# Android masks an adaptive icon down to roughly the inner 66% of the canvas.
-# Keeping every glyph inside this box means no launcher mask (circle, squircle,
-# teardrop, ...) can clip it.
+# Authoring box for glyph fragments. The renderer rescales every glyph to
+# INK_RADIUS anyway, so this only keeps hand-written coordinates comparable.
 SAFE_BOX: Final[int] = 560
+
+# Every glyph is scaled so its furthest inked pixel sits exactly this far from
+# the centre, so all icons occupy the same circle (kuhy, 2026-10-23: glyphs had
+# drifted from 250 to 394px, and focus_owner filled the whole mask). 340px is
+# 24.4dp on the adaptive canvas (flutter_launcher_icons' default 16% inset maps
+# 1024px onto 73.44dp), well inside Android's 33dp guaranteed-visible circle
+# and the 40% (410px) maskable-web safe zone.
+INK_RADIUS: Final[int] = 340
+
+# The same circle in dp, for routes that emit Android vectors instead of PNGs
+# (phone-focus-mode's focus_owner): flutter_launcher_icons insets the adaptive
+# foreground 16% per side, so the 1024px canvas covers 108 * 0.68 = 73.44dp.
+ADAPTIVE_CANVAS_DP: Final[float] = 108 * (1 - 2 * 0.16)
+INK_RADIUS_DP: Final[float] = INK_RADIUS / CANVAS * ADAPTIVE_CANVAS_DP
 
 # Single stroke weight for the whole family. Glyph negative space must stay at
 # or above STROKE_WIDTH / 2, otherwise adjacent strokes merge into a blob when

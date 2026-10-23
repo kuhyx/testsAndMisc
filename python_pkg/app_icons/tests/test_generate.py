@@ -6,7 +6,7 @@ import math
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
-from python_pkg.app_icons import generate, style
+from python_pkg.app_icons import generate, render, style
 from python_pkg.app_icons.apps import AppIcon
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ def _app(tmp_path: Path, *, linux: bool = False) -> AppIcon:
 
 class TestWriteAssets:
     @patch(f"{MOD}.render.rasterise")
-    @patch(f"{MOD}.render.centre_offset", return_value=(1.0, 2.0))
+    @patch(f"{MOD}.fit.placement", return_value=render.Placement(1.0, 2.0))
     def test_writes_three_svg_png_pairs(
         self, mock_offset: MagicMock, raster: MagicMock, tmp_path: Path
     ) -> None:
@@ -39,7 +39,7 @@ class TestWriteAssets:
         assert raster.call_count == 3
 
     @patch(f"{MOD}.render.rasterise")
-    @patch(f"{MOD}.render.centre_offset", return_value=(0.0, 0.0))
+    @patch(f"{MOD}.fit.placement", return_value=render.IDENTITY)
     def test_only_the_base_layer_has_the_field(
         self, mock_offset: MagicMock, mock_raster: MagicMock, tmp_path: Path
     ) -> None:
@@ -51,7 +51,7 @@ class TestWriteAssets:
         assert style.BACKGROUND not in foreground
 
     @patch(f"{MOD}.render.rasterise")
-    @patch(f"{MOD}.render.centre_offset", return_value=(0.0, 0.0))
+    @patch(f"{MOD}.fit.placement", return_value=render.IDENTITY)
     def test_monochrome_layer_is_white(
         self, mock_offset: MagicMock, mock_raster: MagicMock, tmp_path: Path
     ) -> None:
@@ -64,7 +64,7 @@ class TestWriteAssets:
 
 class TestWriteLinuxIcons:
     @patch(f"{MOD}.render.rasterise")
-    @patch(f"{MOD}.render.centre_offset", return_value=(0.0, 0.0))
+    @patch(f"{MOD}.fit.placement", return_value=render.IDENTITY)
     def test_one_png_per_hicolor_size(
         self, mock_offset: MagicMock, raster: MagicMock, tmp_path: Path
     ) -> None:
@@ -76,7 +76,7 @@ class TestWriteLinuxIcons:
 
 class TestWriteWebIcons:
     @patch(f"{MOD}.render.rasterise")
-    @patch(f"{MOD}.render.centre_offset", return_value=(0.0, 0.0))
+    @patch(f"{MOD}.fit.placement", return_value=render.IDENTITY)
     def test_replaces_the_flutter_web_template_icons(
         self, mock_offset: MagicMock, raster: MagicMock, tmp_path: Path
     ) -> None:

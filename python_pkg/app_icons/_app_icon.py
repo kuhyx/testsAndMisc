@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from python_pkg.app_icons.labels import LABELS
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -39,3 +41,8 @@ class AppIcon:
     def web_dir(self) -> Path:
         """Return the Flutter ``web/`` directory holding favicon and PWA icons."""
         return self.repo / "web"
+
+    @property
+    def label(self) -> str:
+        """Return the launcher name from :data:`~python_pkg.app_icons.labels.LABELS`."""
+        return LABELS[self.key]

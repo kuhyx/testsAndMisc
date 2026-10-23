@@ -1,0 +1,15 @@
+{
+  "title": "Shared icon generator fits every glyph to one ink circle and enforces launcher-name rules",
+  "objective": "python_pkg/app_icons renders every glyph centred with its furthest ink at INK_RADIUS = 340px (stroke width compensated), exposes the same radius in dp for vector consumers, holds a LABELS registry whose names meet kuhy's launcher-name rules, and registers the sufler (prompt-bubble) and macro_cam (camera) glyphs.",
+  "acceptance_criteria": [
+    "For every registered app, fit.placement yields a render whose ink box is centred and whose furthest inked pixel is INK_RADIUS from the centre within tolerance (test_fit.py)",
+    "Every LABELS entry starts with a capital, holds only ASCII letters, is <= 10 chars and <= 522 wide in the Pixel launcher font (test_labels.py, which also requires every registered app to have a unique label)",
+    "centre_offset, safe_box_overflow and the CLI safe-box warning are gone and nothing references them",
+    "pytest over python_pkg/app_icons reports 100% line and branch coverage for every module"
+  ],
+  "out_of_scope": [
+    "Regenerated icon assets inside the app repos",
+    "repo_contract's android:label gate in kuhyx/utils"
+  ],
+  "verifier": "python3 -m pytest -q -p no:cacheprovider python_pkg/app_icons --cov=python_pkg.app_icons --cov-branch; scripts/test_changed.sh; pre-commit run --files <changed files>; python3 -m python_pkg.app_icons preview"
+}

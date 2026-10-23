@@ -1,28 +1,50 @@
 """SVG assembly and rasterisation for the shared icon family.
 
-The interesting part here is :func:`centre_offset`. Glyphs are hand-authored, so
-their ink never lands exactly on the canvas centre; a barbell is wide and short,
-a cloud sits high. Rather than nudging coordinates by hand, the glyph is
-rendered once on its own, its ink bounding box is measured, and the whole
-fragment is translated so that box is centred. That is what makes a row of
-icons line up at the same optical height.
-
-Only the fragment is translated -- never scaled -- so every icon keeps exactly
-the family stroke weight.
+Glyphs are hand-authored, so their ink never lands on the canvas centre and
+never spans the same circle. :mod:`python_pkg.app_icons.fit` measures each one
+and returns a :class:`Placement`; :func:`build_svg` applies it. The fragment is
+translated and scaled, but the group's stroke width is divided by the scale,
+so every stroked icon keeps exactly the family stroke weight. A fragment with
+its own inner ``scale(k)`` writes ``stroke-width="{{STROKE/k}}"`` and gets the
+same compensation. Filled shapes have no stroke and simply scale.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+from dataclasses import dataclass
+import re
 import shutil
 import subprocess
-import tempfile
 from typing import TYPE_CHECKING
 
 from python_pkg.app_icons import style
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from python_pkg.app_icons.glyphs import Glyph
+
+
+# ``{{STROKE/k}}``: the family stroke weight inside a group already scaled by k.
+_STROKE_MARKER = re.compile(r"\{\{STROKE/(\d+(?:\.\d+)?)\}\}")
+
+
+@dataclass(frozen=True)
+class Placement:
+    """Where a glyph fragment lands: ``translate(dx, dy) scale(scale)``.
+
+    Parameters:
+    dx (float): Horizontal translation in canvas pixels.
+    dy (float): Vertical translation in canvas pixels.
+    scale (float): Uniform scale applied after the translation.
+    """
+
+    dx: float = 0.0
+    dy: float = 0.0
+    scale: float = 1.0
+
+
+IDENTITY = Placement()
 
 
 class ToolMissingError(RuntimeError):
@@ -74,7 +96,7 @@ def build_svg(
     accent: str,
     *,
     with_background: bool,
-    offset: tuple[float, float] = (0.0, 0.0),
+    offset: Placement = IDENTITY,
 ) -> str:
     """Assemble a complete SVG document for one icon layer.
 
@@ -83,14 +105,17 @@ def build_svg(
     accent (str): Hex colour for the glyph, e.g. ``"#26A69A"``.
     with_background (bool): Draw the shared charcoal field behind the glyph.
         False produces the transparent adaptive-icon layers.
-    offset (tuple[float, float]): ``(dx, dy)`` translation applied to the
-        fragment, normally the result of :func:`centre_offset`.
+    offset (Placement): Transform applied to the fragment, normally the
+        result of :func:`python_pkg.app_icons.fit.placement`.
 
     Returns:
     str: A standalone SVG document.
     """
     body = glyph.body.replace(style.ACCENT_MARKER, accent)
-    dx, dy = offset
+    body = _STROKE_MARKER.sub(
+        lambda m: f"{style.STROKE_WIDTH / (offset.scale * float(m[1])):g}", body
+    )
+    stroke = style.STROKE_WIDTH / offset.scale
     field = (
         f'\n  <rect width="{style.CANVAS}" height="{style.CANVAS}" '
         f'fill="{style.BACKGROUND}"/>'
@@ -101,9 +126,10 @@ def build_svg(
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{style.CANVAS}" '
         f'height="{style.CANVAS}" viewBox="0 0 {style.CANVAS} {style.CANVAS}">'
         f"{field}\n"
-        f'  <g fill="none" stroke="{accent}" stroke-width="{style.STROKE_WIDTH}" '
+        f'  <g fill="none" stroke="{accent}" stroke-width="{stroke:g}" '
         f'stroke-linecap="round" stroke-linejoin="round" '
-        f'transform="translate({dx:g},{dy:g})">\n'
+        f'transform="translate({offset.dx:g},{offset.dy:g}) '
+        f'scale({offset.scale:g})">\n'
         f"{body}\n"
         f"  </g>\n"
         f"</svg>\n"
@@ -133,71 +159,3 @@ def rasterise(svg_text: str, destination: Path, size: int) -> None:
         check=True,
         capture_output=True,
     )
-
-
-def _ink_bbox(png: Path) -> tuple[int, int, int, int]:
-    """Measure the non-transparent bounding box of a PNG.
-
-    Parameters:
-    png (Path): Image to measure.
-
-    Returns:
-    tuple[int, int, int, int]: ``(width, height, x, y)`` of the ink box.
-    """
-    result = subprocess.run(
-        [resolve_tool("magick"), str(png), "-trim", "-format", "%w %h %X %Y", "info:"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    width, height, x, y = result.stdout.split()
-    return int(width), int(height), int(x), int(y)
-
-
-def centre_offset(glyph: Glyph, accent: str) -> tuple[float, float]:
-    """Compute the translation that optically centres a glyph.
-
-    The glyph is rendered on a transparent canvas at full resolution, its ink
-    box is measured, and the offset from that box's centre to the canvas centre
-    is returned.
-
-    Parameters:
-    glyph (Glyph): Artwork to measure.
-    accent (str): Hex colour to render with. Colour does not affect the box,
-        but rsvg-convert needs a concrete value.
-
-    Returns:
-    tuple[float, float]: ``(dx, dy)`` to pass to :func:`build_svg`.
-
-    Raises:
-    EmptyGlyphError: If the glyph renders no visible ink.
-    """
-    probe = build_svg(glyph, accent, with_background=False)
-    with tempfile.TemporaryDirectory() as tmp:
-        png = Path(tmp) / "probe.png"
-        rasterise(probe, png, style.CANVAS)
-        width, height, x, y = _ink_bbox(png)
-    if width == 0 or height == 0:
-        raise EmptyGlyphError(glyph.name)
-    return style.CENTRE - (x + width / 2), style.CENTRE - (y + height / 2)
-
-
-def safe_box_overflow(glyph: Glyph, accent: str) -> tuple[int, int]:
-    """Measure how far a centred glyph exceeds the adaptive-icon safe box.
-
-    Anything above zero risks being clipped by a launcher mask.
-
-    Parameters:
-    glyph (Glyph): Artwork to check.
-    accent (str): Hex colour to render with.
-
-    Returns:
-    tuple[int, int]: Horizontal and vertical overflow in pixels, clamped at
-        zero.
-    """
-    probe = build_svg(glyph, accent, with_background=False)
-    with tempfile.TemporaryDirectory() as tmp:
-        png = Path(tmp) / "probe.png"
-        rasterise(probe, png, style.CANVAS)
-        width, height, _x, _y = _ink_bbox(png)
-    return max(0, width - style.SAFE_BOX), max(0, height - style.SAFE_BOX)

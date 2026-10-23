@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from python_pkg.app_icons import apps, generate, glyphs, preview, render, style
+from python_pkg.app_icons import apps, generate, glyphs, preview
 
 
 def _emit(message: str) -> None:
@@ -172,13 +172,6 @@ def _cmd_generate(
         app = apps.get_app(key)
         written = generate.write_assets(app)
         _emit(f"{app.key}: wrote {len(written)} asset files to {app.asset_dir}")
-
-        overflow = render.safe_box_overflow(glyphs.get_glyph(app.glyph), app.accent)
-        if any(overflow):
-            _emit(
-                f"  warning: glyph exceeds the {style.SAFE_BOX}px safe box "
-                f"by {overflow[0]}x{overflow[1]}px; a launcher mask may clip it"
-            )
 
         if linux_out is not None and app.linux:
             icons = generate.write_linux_icons(app, linux_out)

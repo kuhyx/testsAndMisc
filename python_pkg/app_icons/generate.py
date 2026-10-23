@@ -21,7 +21,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING, Final
 
-from python_pkg.app_icons import glyphs, render, style
+from python_pkg.app_icons import fit, glyphs, render, style
 
 # Matches a `flutter_launcher_icons:` block's `adaptive_icon_background:` line
 # so it can be kept in sync with style.BACKGROUND without a full YAML
@@ -65,7 +65,7 @@ def write_assets(app: AppIcon) -> list[Path]:
     list[Path]: Every file written, in creation order.
     """
     glyph = glyphs.get_glyph(app.glyph)
-    offset = render.centre_offset(glyph, app.accent)
+    offset = fit.placement(glyph, app.accent)
     written: list[Path] = []
     for stem, with_background, colour in _LAYERS:
         svg_text = render.build_svg(
@@ -94,7 +94,7 @@ def write_linux_icons(app: AppIcon, destination: Path) -> list[Path]:
     list[Path]: Every PNG written.
     """
     glyph = glyphs.get_glyph(app.glyph)
-    offset = render.centre_offset(glyph, app.accent)
+    offset = fit.placement(glyph, app.accent)
     svg_text = render.build_svg(glyph, app.accent, with_background=True, offset=offset)
     written: list[Path] = []
     for size in style.LINUX_ICON_SIZES:
@@ -108,7 +108,7 @@ def write_web_icons(app: AppIcon) -> list[Path]:
     """Overwrite the Flutter web template's favicon and PWA manifest icons.
 
     The maskable variants are the same full-bleed render as the plain ones:
-    every glyph is kept inside ``style.SAFE_BOX``, whose corners sit inside
+    every glyph is fitted to ``style.INK_RADIUS`` (340px of 1024), inside
     the maskable safe zone (the inner circle of radius 40% of the icon), so a
     circle mask never clips the glyph.
 
@@ -119,7 +119,7 @@ def write_web_icons(app: AppIcon) -> list[Path]:
     list[Path]: Every PNG written.
     """
     glyph = glyphs.get_glyph(app.glyph)
-    offset = render.centre_offset(glyph, app.accent)
+    offset = fit.placement(glyph, app.accent)
     svg_text = render.build_svg(glyph, app.accent, with_background=True, offset=offset)
     written: list[Path] = []
     for relative, size in _WEB_ICONS:

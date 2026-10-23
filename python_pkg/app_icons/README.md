@@ -21,7 +21,8 @@ PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons \
     generate --app todo --android --linux-out ~/src/todo/linux/icons
 
 # overwrite web/favicon.png + web/icons/Icon-*.png (apps with a web/ dir);
-# the maskable ones are safe because SAFE_BOX fits the 40% maskable circle
+# the maskable ones are safe because INK_RADIUS (340px) sits inside the 40%
+# (410px) maskable circle
 PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons \
     generate --app tutor --android --web
 ```
@@ -45,13 +46,18 @@ the density buckets and `mipmap-anydpi-v26/ic_launcher.xml`.
 - **Negative space ≥ half the stroke weight.** Strokes closer than that merge
   into a solid blob at launcher size. A fork whose tines sat exactly one stroke
   width apart rendered as a tulip.
-- **Ink must stay inside the 560px safe box.** Android masks adaptive icons to
-  roughly the inner 66% of the canvas. `generate` warns when a glyph overflows.
+- **Every glyph fills the same circle.** `fit.placement` centres the ink and
+  scales it so the furthest inked pixel sits `style.INK_RADIUS` (340px, 24.4dp)
+  from the centre; the stroke width is divided by the scale so strokes stay
+  72px. Check negative space at that final scale, since big drawings shrink.
 - **Stroked outlines can read wrong.** A stroked three-tine fork reads as a
   trident; a filled fork-and-knife pair reads as cutlery. Prefer a filled
   silhouette when the outline is ambiguous.
-- Glyph positioning inside the fragment is irrelevant — `render.centre_offset`
-  measures the rendered ink and recentres it. Only the extents matter.
+- Glyph position and size inside the fragment are irrelevant. Only the shape
+  matters.
+- **Launcher names** live in `labels.py`: a capital first letter, ASCII letters
+  only, ≤ 10 chars and ≤ 522 wide in the launcher font (`_label_widths.py`),
+  because the Pixel app drawer cuts wider names.
 
 ## Adding an app
 

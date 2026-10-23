@@ -41,3 +41,42 @@ _HEADPHONES = """\
 fill="{{ACCENT}}" stroke="none"/>
     <rect x="656" y="520" width="112" height="216" rx="40" \
 fill="{{ACCENT}}" stroke="none"/>"""
+
+# A speech bubble with two text lines -- sufler, a prompter that reads the
+# partner's lines aloud: the prompt being spoken. Ported verbatim from
+# ~/src/sufler/assets/icon/icon_foreground.svg (commit 5d38160), drawn before
+# the glyph was registered here; only its translate(0,-4) is dropped, since the
+# renderer recentres every fragment anyway.
+#
+# Geometry, ink inside SAFE_BOX (x=260..764 = 504 wide, y=248..784 = 536 tall):
+#   bubble rounded rect x=296..728, y=284..636, corner r=64, with a tail from
+#          (480,636) down to a point at (360,748) and back up at x=384.
+#   lines  x=408..616 at y=398 and a shorter x=408..520 at y=522. Gaps
+#          bubble->line1, line1->line2 and line2->bubble are 42 / 52 / 42px,
+#          clear of MIN_NEGATIVE_SPACE=36; the fit scales this glyph up
+#          (authored ink radius 326 < 340), which only widens them.
+_PROMPT_BUBBLE = """\
+    <path d="M 360 284 L 664 284 A 64 64 0 0 1 728 348 L 728 572 \
+A 64 64 0 0 1 664 636 L 480 636 L 360 748 L 384 636 L 360 636 \
+A 64 64 0 0 1 296 572 L 296 348 A 64 64 0 0 1 360 284 Z"/>
+    <path d="M 408 398 L 616 398"/>
+    <path d="M 408 522 L 520 522"/>"""
+
+# A camera -- macro-cam, which estimates a meal's macros from a photo: the
+# photo being taken. Stroked body with a viewfinder hump over a stroked lens.
+# The food itself is already taken (``shield-cutlery``, ``bowl-star``), so the
+# camera carries the meaning.
+#
+# Geometry, ink x=220..804 (584 wide), y=236..788 (552 tall):
+#   body  rounded rect x=256..768, y=336..752, corner r=64, with a hump
+#         rising to y=272 between x=416..528. The corner arcs set the ink
+#         radius (~360), so the fit shrinks the glyph to ~0.94.
+#   lens  circle r=88 about (512,544). Centreline gaps lens->body are 120px
+#         above and below, so after the ~0.94 fit the ink gap is ~41px, and
+#         the lens hole is ~94px across: both clear of MIN_NEGATIVE_SPACE=36
+#         at the FINAL scale (tests/test_registry.py measures it).
+_CAMERA = """\
+    <path d="M 320 336 L 384 336 L 416 272 L 528 272 L 560 336 L 704 336 \
+A 64 64 0 0 1 768 400 L 768 688 A 64 64 0 0 1 704 752 L 320 752 \
+A 64 64 0 0 1 256 688 L 256 400 A 64 64 0 0 1 320 336 Z"/>
+    <circle cx="512" cy="544" r="88"/>"""

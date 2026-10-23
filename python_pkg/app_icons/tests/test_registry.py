@@ -2,9 +2,34 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+import numpy as np
+from PIL import Image
 import pytest
 
-from python_pkg.app_icons import apps, glyphs, style
+from python_pkg.app_icons import apps, fit, glyphs, render, style
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _centre_column_gaps(glyph_name: str, tmp_path: Path) -> list[int]:
+    """Render a glyph at its FINAL fitted scale and list the transparent runs
+    between inked runs down the centre column, in pixels of the 1024 canvas.
+    """
+    glyph = glyphs.get_glyph(glyph_name)
+    placement = fit.placement(glyph, "#FFFFFF")
+    png = tmp_path / f"{glyph_name}.png"
+    svg = render.build_svg(glyph, "#FFFFFF", with_background=False, offset=placement)
+    render.rasterise(svg, png, style.CANVAS)
+    with Image.open(png) as image:
+        alpha = np.asarray(image.convert("RGBA"))[:, int(style.CENTRE), 3]
+    ink = alpha > 127
+    edges = np.flatnonzero(np.diff(ink.astype(np.int8)))
+    # edges alternate ink-end / ink-start once past the first ink run.
+    ends, starts = edges[1::2], edges[2::2]
+    return [int(start - end) for end, start in zip(ends, starts, strict=False)]
 
 
 class TestGlyphLookup:
@@ -106,3 +131,31 @@ class TestHeadphonesGlyph:
         body = glyphs.get_glyph("headphones").body
         assert f'fill="{style.ACCENT_MARKER}"' in body
         assert 'stroke="none"' in body
+
+
+class TestPromptBubbleGlyph:
+    def test_sufler_uses_it(self) -> None:
+        app = apps.get_app("sufler")
+        assert app.glyph == "prompt-bubble"
+        assert app.linux
+
+    def test_negative_space_at_final_scale(self, tmp_path: Path) -> None:
+        """Bubble top, two text lines, bubble bottom: three gaps, none merging."""
+        gaps = _centre_column_gaps("prompt-bubble", tmp_path)
+        assert len(gaps) == 3
+        assert min(gaps) >= style.MIN_NEGATIVE_SPACE
+
+
+class TestCameraGlyph:
+    def test_macro_cam_uses_it(self) -> None:
+        app = apps.get_app("macro_cam")
+        assert app.glyph == "camera"
+        assert not app.linux
+
+    def test_negative_space_at_final_scale(self, tmp_path: Path) -> None:
+        """Hump->lens, lens hole, lens->body bottom, measured after the fit
+        shrinks the glyph: the authoring-space gaps alone would overstate them.
+        """
+        gaps = _centre_column_gaps("camera", tmp_path)
+        assert len(gaps) == 3
+        assert min(gaps) >= style.MIN_NEGATIVE_SPACE
