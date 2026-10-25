@@ -28,6 +28,11 @@
 # evidence of whose home the sibling repos are in.
 extracted_repo_home() {
 	local real_user real_home
+	# Test seam: resolve against a fake home without faking a passwd entry.
+	if [[ -n ${EXTRACTED_REPOS_HOME:-} ]]; then
+		printf '%s' "$EXTRACTED_REPOS_HOME"
+		return 0
+	fi
 	real_user="${SUDO_USER:-${USER:-$(id -un)}}"
 	if [[ $real_user == "root" ]]; then
 		real_user="${REPO_OWNER_USER:-$(stat -c %U "${BASH_SOURCE[0]}" 2>/dev/null)}"
@@ -42,15 +47,24 @@ extracted_repo_home() {
 # Prints the expected checkout path. An override env var (e.g.
 # HOSTS_BLOCKER_DIR for hosts-blocker) wins, so a non-standard checkout does
 # not require editing these scripts.
+#
+# Repos live in ~/src/<name> since the 2026-09-11 home tidy. A checkout still
+# at the legacy ~/<name> is honoured only when ~/src/<name> is absent; a repo
+# found in neither place resolves to ~/src/<name>, where the clone lands.
 extracted_repo_dir() {
-	local name="$1" var override
+	local name="$1" var override home
 	var="$(printf '%s' "$name" | tr '[:lower:]-' '[:upper:]_')_DIR"
 	override="${!var:-}"
 	if [[ -n $override ]]; then
 		printf '%s' "$override"
 		return 0
 	fi
-	printf '%s/%s' "$(extracted_repo_home)" "$name"
+	home="$(extracted_repo_home)"
+	if [[ ! -d $home/src/$name && -d $home/$name ]]; then
+		printf '%s/%s' "$home" "$name"
+		return 0
+	fi
+	printf '%s/src/%s' "$home" "$name"
 }
 
 # extracted_repo_clone <repo-name>

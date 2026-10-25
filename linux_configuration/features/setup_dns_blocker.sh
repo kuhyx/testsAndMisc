@@ -8,15 +8,17 @@
 # repo's generate_hosts_file.sh (same StevenBlack variant + custom entries +
 # unblocks that /etc/hosts uses), so blocking is identical by construction.
 #
-# The PC is NOT the gateway, so it can only be a resolver that clients are
-# POINTED at (via the router's DHCP-advertised DNS). See the manual steps
-# printed by `setup`. Known bypasses (DoH / Private DNS / manual DNS / VPN)
-# are documented there too -- a voluntary-DNS design cannot force traffic.
+# By default clients are only POINTED at it (DHCP-advertised DNS), which DoH,
+# a manual DNS or a VPN bypasses. `gateway` closes most of that: DHCP clients
+# then route through this PC, DNS is forced here and DoH/DoT are dropped.
+# Recovery: docs/DOCS-lan-blocker-contingency.md.
 #
 # Usage:
 #   sudo ./setup_dns_blocker.sh setup     # first-time install + enable
 #        ./setup_dns_blocker.sh status    # is it set up & serving?  (no root)
 #   sudo ./setup_dns_blocker.sh refresh   # rebuild feed + reload (timer runs this)
+#   sudo ./setup_dns_blocker.sh gateway   # route LAN clients through this PC
+#   sudo ./setup_dns_blocker.sh gateway-off
 #        ./setup_dns_blocker.sh help
 #
 # Idempotent and safe to re-run.
@@ -44,7 +46,8 @@ readonly WATCHDOG_SERVICE="/etc/systemd/system/dnsmasq-watchdog.service"
 readonly WATCHDOG_TIMER="/etc/systemd/system/dnsmasq-watchdog.timer"
 # Optional DHCP-server mode (for routers that cannot advertise a custom DNS).
 readonly DHCP_CONF="/etc/dnsmasq.d/lan-dhcp.conf"
-readonly DHCP_LEASE="12h"
+# Short, so devices pick up a gateway-off or a revived Funbox DHCP quickly.
+readonly DHCP_LEASE="2h"
 readonly DHCP_START_HOST="10" # .10 .. .150 mirrors a common router default range
 readonly DHCP_END_HOST="150"
 # Feed generator (chattr +i but still executable) and firewall owner script.
@@ -73,8 +76,6 @@ detect_lan() {
 	GATEWAY="$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}')"
 	[[ -n ${LAN_IFACE:-} && -n ${LAN_IP:-} ]] ||
 		die "Could not detect the LAN interface/IP from the default route."
-	# Upstream for non-blocked names: the gateway if known, else a public resolver.
-	UPSTREAM="${GATEWAY:-1.1.1.1}"
 }
 
 # ---- Setup steps -----------------------------------------------------------
@@ -126,6 +127,8 @@ source "$SCRIPT_DIR/lib/dns_units.sh"
 source "$SCRIPT_DIR/lib/dns_firewall.sh"
 # shellcheck source=lib/dns_dhcp.sh
 source "$SCRIPT_DIR/lib/dns_dhcp.sh"
+# shellcheck source=lib/dns_gateway.sh
+source "$SCRIPT_DIR/lib/dns_gateway.sh"
 
 cmd_setup() {
 	detect_lan
@@ -181,6 +184,8 @@ Commands:
   dhcp      Make this PC the LAN DHCP server so every device uses it as DNS (root).
             Use when the router cannot advertise a custom DNS. Disable router DHCP first.
   dhcp-off  Revert DHCP mode: stop serving leases, return the NIC to DHCP-client (root).
+  gateway   Route DHCP clients through this PC: forced DNS, DoH/DoT dropped (root).
+  gateway-off  Give clients the router back as gateway; blocking stays on (root).
   help      Show this message.
 EOF
 }
@@ -188,7 +193,7 @@ EOF
 main() {
 	local cmd="${1:-help}"
 	case "$cmd" in
-	setup | refresh | dhcp | dhcp-off)
+	setup | refresh | dhcp | dhcp-off | gateway | gateway-off)
 		require_root "$@"
 		;;
 	esac
@@ -198,6 +203,8 @@ main() {
 	refresh) cmd_refresh ;;
 	dhcp) cmd_dhcp ;;
 	dhcp-off) cmd_dhcp_off ;;
+	gateway) cmd_gateway ;;
+	gateway-off) cmd_gateway_off ;;
 	status) cmd_status ;;
 	help | -h | --help) usage ;;
 	*)

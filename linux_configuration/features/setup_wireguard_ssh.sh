@@ -42,6 +42,7 @@ export ALLOW_DNS="${ALLOW_DNS:-false}"
 export ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT:-false}"
 export ALLOW_DOT="${ALLOW_DOT:-false}"
 export ALLOW_WORKOUT_POKE="${ALLOW_WORKOUT_POKE:-false}"
+export ALLOW_LAN_GATEWAY="${ALLOW_LAN_GATEWAY:-false}"
 
 die() {
 	log_error "$1"
@@ -58,6 +59,7 @@ ALLOW_DNS="${ALLOW_DNS}"
 ALLOW_HOMEASSISTANT="${ALLOW_HOMEASSISTANT}"
 ALLOW_DOT="${ALLOW_DOT}"
 ALLOW_WORKOUT_POKE="${ALLOW_WORKOUT_POKE}"
+ALLOW_LAN_GATEWAY="${ALLOW_LAN_GATEWAY}"
 EOF
 	chmod 600 "$CONFIG_FILE"
 }
@@ -83,6 +85,8 @@ install_dependencies() {
 
 # shellcheck source=lib/wg_keys.sh
 source "$SCRIPT_DIR/lib/wg_keys.sh"
+# shellcheck source=lib/wg_gateway.sh
+source "$SCRIPT_DIR/lib/wg_gateway.sh"
 # shellcheck source=lib/wg_firewall.sh
 source "$SCRIPT_DIR/lib/wg_firewall.sh"
 # shellcheck source=lib/wg_sshd.sh
@@ -97,7 +101,7 @@ main() {
 	# off -- exec sudo "$0" "$@" inside require_root must re-launch with the
 	# subcommand still present, or sudo would silently run with no args.
 	case "$cmd" in
-	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | allow-dot | allow-workout-poke | verify | install-verify)
+	setup | add-peer | revoke | allow-web | allow-dns | allow-homeassistant | allow-dot | allow-workout-poke | allow-lan-gateway | deny-lan-gateway | verify | install-verify)
 		require_root "$@"
 		;;
 	esac
@@ -144,6 +148,14 @@ main() {
 		;;
 	allow-workout-poke)
 		allow_workout_poke
+		install_verify_units
+		;;
+	allow-lan-gateway)
+		allow_lan_gateway
+		install_verify_units
+		;;
+	deny-lan-gateway)
+		deny_lan_gateway
 		install_verify_units
 		;;
 	verify)

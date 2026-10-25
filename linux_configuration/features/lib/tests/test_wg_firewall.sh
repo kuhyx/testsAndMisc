@@ -37,6 +37,8 @@ die() {
 }
 is_service_active() { [[ ${DOCKER_ACTIVE:-yes} == yes ]]; }
 
+# shellcheck source=../wg_gateway.sh
+. "$FEATURES_LIB_DIR/wg_gateway.sh"
 # shellcheck source=../wg_firewall.sh
 . "$FEATURES_LIB_DIR/wg_firewall.sh"
 
@@ -137,5 +139,65 @@ _t_eq "save_config ALLOW_WORKOUT_POKE=true|apply" "$(IFS='|' && printf '%s' "${c
 _t_file_has "${NFT_CONF}.new" 'ip saddr 192.168.1.0/24 tcp dport 8774 accept' \
 	"the applied ruleset carries the LAN-only 8774 rule"
 _t_has "$out" 'not wg0' "the confirmation says the port stays off WireGuard"
+
+printf '\n-- LAN gateway mode --\n'
+LAN_IFACE="enp6s0"
+LAN_IP="192.168.1.43"
+ALLOW_LAN_GATEWAY="false"
+render_nftables_ruleset "$RULES"
+_t_eq "table ip lan_gateway|delete table ip lan_gateway" \
+	"$(grep -E '^(delete )?table ip lan_gateway$' "$RULES" | paste -sd'|')" \
+	"gateway off still deletes a stale nat table on apply"
+if grep -qE 'masquerade|dnat|oifname "enp6s0"' "$RULES"; then
+	_t_fail "gateway off renders no forwarding or nat"
+else
+	_t_pass "gateway off renders no forwarding or nat"
+fi
+ALLOW_LAN_GATEWAY="true"
+render_nftables_ruleset "$RULES"
+_t_file_has "$RULES" 'iifname "enp6s0" oifname "enp6s0" ip saddr 192.168.1.0/24 accept' \
+	"LAN traffic is forwarded back out of the same NIC"
+_t_file_has "$RULES" 'iifname "enp6s0" ip saddr 192.168.1.0/24 ip daddr @doh_v4 drop' \
+	"traffic to DoH resolvers is dropped"
+_t_file_has "$RULES" 'iifname "enp6s0" ip saddr 192.168.1.0/24 tcp dport 853 drop' "DoT tcp/853 dropped"
+_t_file_has "$RULES" 'iifname "enp6s0" ip saddr 192.168.1.0/24 udp dport 853 drop' "DoQ udp/853 dropped"
+_t_file_has "$RULES" 'ip saddr != 192.168.1.43 ip daddr != 192.168.1.43 udp dport 53 dnat to 192.168.1.43' \
+	"plain DNS to any server is redirected to the blocker"
+_t_file_has "$RULES" 'oifname "enp6s0" ip saddr 192.168.1.0/24 ip saddr != 192.168.1.43 ip daddr != 192.168.1.0/24 masquerade' \
+	"forwarded traffic is masqueraded, the PC's own is not"
+doh_line=$(grep -n '@doh_v4 drop' "$RULES" | cut -d: -f1)
+accept_line=$(grep -n 'oifname "enp6s0" ip saddr 192.168.1.0/24 accept' "$RULES" | cut -d: -f1)
+if [[ -n $doh_line && -n $accept_line ]] && ((doh_line < accept_line)); then
+	_t_pass "the DoH drop precedes the forward accept"
+else
+	_t_fail "the DoH drop precedes the forward accept"
+fi
+_t_file_has "$RULES" 'iifname "enp6s0" ip saddr 192.168.1.0/24 ip saddr != @warp_open ip daddr @warp_v4 drop' \
+	"traffic to the WARP tunnel ingress is dropped unless the window is open"
+_t_file_has "$RULES" 'iifname "enp6s0" ip saddr 192.168.1.0/24 ip saddr != @warp_open ip daddr @warp_udp_v4 meta l4proto udp drop' \
+	"UDP to the shared consumer-WARP ranges is dropped unless the window is open"
+_t_file_has "$RULES" 'set warp_open' "the WARP window set is declared"
+_t_file_has "$RULES" 'flags interval,timeout' "the window set expires its elements by itself"
+_t_file_has "$RULES" '162.159.193.0/24' "the WireGuard ingress is in the WARP set"
+_t_file_has "$RULES" '162.159.197.0/24' "the MASQUE ingress (incl. its TCP 443 fallback) is in the WARP set"
+_t_file_has "$RULES" '188.114.96.0/22' "consumer WARP endpoints are in the UDP-only set"
+if grep -qE 'udp dport (500|1701|4500) drop' "$RULES"; then
+	_t_fail "IPsec ports stay open for the rest of the LAN"
+else
+	_t_pass "IPsec ports stay open for the rest of the LAN"
+fi
+warp_line=$(grep -n '@warp_v4 drop' "$RULES" | cut -d: -f1)
+if [[ -n $warp_line && -n $accept_line ]] && ((warp_line < accept_line)); then
+	_t_pass "the WARP drop precedes the forward accept"
+else
+	_t_fail "the WARP drop precedes the forward accept"
+fi
+_t_file_has "$RULES" 'iifname "docker0" accept' "docker forwarding is untouched by gateway mode"
+if command -v nft >/dev/null 2>&1 && nft -c -f "$RULES" >/dev/null 2>&1; then
+	_t_pass "nft -c accepts the gateway ruleset"
+else
+	printf '  (skipped: nft -c not permitted here)\n'
+fi
+ALLOW_LAN_GATEWAY="false"
 
 _t_report "test_wg_firewall.sh"

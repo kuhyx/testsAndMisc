@@ -4,9 +4,22 @@
 # Sourced by setup_dns_blocker.sh; split out to keep it under the 250-line cap.
 # Sourced rather than run, so it inherits the caller's strict mode.
 
+# Upstream resolvers for every name not in the blocklist.
+readonly UPSTREAMS=(1.1.1.1 9.9.9.9)
+# Hostnames browsers use to reach DoH providers; answered 0.0.0.0 so a browser
+# set to "secure DNS" falls back to this resolver instead of bypassing it.
+readonly DOH_HOSTNAMES=(
+	dns.google cloudflare-dns.com one.one.one.one dns.quad9.net
+	dns.nextdns.io doh.opendns.com dns.adguard-dns.com doh.cleanbrowsing.org
+	dns.mullvad.net dns.controld.com freedns.controld.com doh.libredns.gr
+)
+
 write_dnsmasq_conf() {
 	ensure_dir "$(dirname "$DNSMASQ_CONF")" # /etc/dnsmasq.d may not exist yet
-	log_info "Writing ${DNSMASQ_CONF} (listen on ${LAN_IFACE}/${LAN_IP}, upstream ${UPSTREAM})."
+	local server_lines doh_lines
+	server_lines="$(printf 'server=%s\n' "${UPSTREAMS[@]}")"
+	doh_lines="$(printf 'address=/%s/0.0.0.0\n' "${DOH_HOSTNAMES[@]}")"
+	log_info "Writing ${DNSMASQ_CONF} (listen on ${LAN_IFACE}/${LAN_IP}, upstream ${UPSTREAMS[*]})."
 	cat >"$DNSMASQ_CONF" <<EOF
 # Managed by setup_dns_blocker.sh -- LAN DNS blocker.
 # Serves the identical blocklist as /etc/hosts to LAN clients via addn-hosts.
@@ -26,15 +39,28 @@ bind-dynamic
 no-hosts
 addn-hosts=${FEED}
 
-# Forward everything not in the blocklist to the upstream resolver ONLY.
+# Forward everything not in the blocklist to the upstream resolvers ONLY.
 # no-resolv: ignore /etc/resolv.conf so we never chain through the
 # systemd-resolved stub (127.0.0.53) that the /etc/hosts installer enables.
+# Not the Funbox: it drops ~20% of queries (measured 2026-09-18), which is
+# every device's problem once gateway mode forces all LAN DNS through here.
 no-resolv
-server=${UPSTREAM}
+${server_lines}
 domain-needed
 bogus-priv
 
 cache-size=10000
+
+# The feed only carries 0.0.0.0, so every AAAA query used to be forwarded and a
+# "blocked" name resolved to its real IPv6 address. Strip AAAA everywhere: the
+# LAN has no IPv6 from the Funbox anyway, and IPv6 would bypass gateway mode.
+filter-AAAA
+
+# DoH bypasses this resolver. Firefox turns its default DoH off only when the
+# canary domain is NXDOMAIN; the bootstrap names stop browsers resolving the
+# common DoH providers (gateway mode also drops their IPs).
+local=/use-application-dns.net/
+${doh_lines}
 
 # Log dnsmasq's own messages (startup, upstream failures) -- "log failures".
 log-facility=${LOG_FILE}

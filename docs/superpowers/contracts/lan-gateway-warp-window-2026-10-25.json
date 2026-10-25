@@ -1,0 +1,16 @@
+{
+  "title": "LAN gateway mode drops DoH/DoT and Cloudflare WARP, with a Mon/Fri 09:00-15:30 WARP window",
+  "objective": "Devices on the LAN route through the PC so the DNS blocklist cannot be bypassed by DoH, DoT or the WARP tunnel; kuhy's work laptop stays online at home with the blocklist and may use WARP at home only Mon/Fri 09:00-15:30 on request, and always on other networks.",
+  "acceptance_criteria": [
+    "With gateway mode on, forwarded LAN packets to the WARP WireGuard/MASQUE ingress and UDP to the consumer ranges are dropped, while TCP to 188.114.96.0/22 and IPsec ports elsewhere pass (e2e_warp_forward_drop.sh)",
+    "warp_window.sh open succeeds only Mon/Fri 09:00:00-15:29:59 and fills warp_open with a timeout ending at 15:30; the forced command accepts only open|status (test_warp_window.sh)",
+    "warp_home.sh tick disconnects WARP at home when no window is open or the PC reports closed, and never touches WARP off the home network (test_warp_home.sh)",
+    "The nightly dns-blocklist-refresh resolves hosts-blocker under ~/src (test_extracted_repos.sh)"
+  ],
+  "out_of_scope": [
+    "A custom blocklist inside WARP / Cloudflare Zero Trust (employer org)",
+    "IPv6 filtering (no IPv6 route is handed out on the LAN)",
+    "python_pkg/app_icons changes in the working tree"
+  ],
+  "verifier": "meta/scripts/shell_coverage_jail.sh --subject linux_configuration/features/lib/tests/run_all.sh $(jail_args) --min 0 --fail-on-case-error -- ''; sudo linux_configuration/features/lib/tests/e2e_warp_forward_drop.sh; sudo linux_configuration/features/setup_wireguard_ssh.sh verify; on the laptop: warp-home status"
+}

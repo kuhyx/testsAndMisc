@@ -1,0 +1,51 @@
+{
+  "intent": "LAN devices cannot bypass the PC's DNS blocklist: gateway mode routes them through the PC (forced DNS, DoH/DoT dropped), the Cloudflare WARP tunnel is dropped, and kuhy can open WARP for the LAN only Mon/Fri 09:00-15:30 via `warp-home on` on the work laptop, which otherwise keeps WARP off at home so the laptop stays online with the blocklist.",
+  "scope": [
+    "linux_configuration/features: setup_dns_blocker.sh (gateway/gateway-off), setup_wireguard_ssh.sh, lib/{dns_gateway,dns_units,wg_gateway,wg_firewall,wg_sshd}.sh, warp_window.sh (PC), warp_home.sh (laptop, no root)",
+    "linux_configuration/lib/extracted_repos.sh: resolve ~/src/<repo> first (nightly dns-blocklist-refresh had failed since 2026-09-11)",
+    "Non-goal: a blocklist inside WARP itself (laptop is enrolled in the employer's Zero Trust org 'aiclearing'); IPv6 (no native v6 route on the LAN)"
+  ],
+  "changes": [
+    "Gateway mode: DHCP router=PC, nft lan_gateway table DNATs LAN :53 to dnsmasq and masquerades; forward drops DoH resolvers and :853",
+    "WARP drop in the gateway forward chain: 162.159.192.0/24, 162.159.193.0/24 (WireGuard), 162.159.197.0/24 (MASQUE incl. TCP 443 fallback) fully; UDP only to shared consumer ranges 162.159.192.0/22, 162.159.204.0/22, 188.114.96.0/22; no LAN-wide IPsec port drops",
+    "nft set warp_open (interval,timeout): warp_window.sh open fills it with 0.0.0.0/0 timing out at 15:30, only Mon/Fri 09:00-15:30 by the PC clock; reachable from the laptop via a restrict,from=LAN forced-command key (open|status only; sudoers env_keep SSH_ORIGINAL_COMMAND)",
+    "warp_home.sh: user systemd timer every 30 s disconnects WARP at home outside a window, or when the PC reports the window closed early; leaves WARP alone on other networks; 15:25 warning",
+    "dnsmasq: upstreams 1.1.1.1 + 9.9.9.9, filter-AAAA, Firefox DoH canary, DoH hostnames to 0.0.0.0; DHCP lease 2h"
+  ],
+  "verification": [
+    {
+      "command": "meta/scripts/shell_coverage_jail.sh --subject linux_configuration/features/lib/tests/run_all.sh <jail_args> --min 0 --fail-on-case-error",
+      "result": "pass",
+      "evidence": "rc=0; test_warp_window 33/0, test_warp_home 35/0, test_wg_firewall 37/0, test_dns_gateway 15/0, test_dns_units 12/0 (unit runs). test_extracted_repos.sh and test_setup_dns_blocker.sh PASS"
+    },
+    {
+      "command": "vmbox: sudo e2e_warp_forward_drop.sh (netns, real nft) red without the WARP drops, then green",
+      "result": "pass",
+      "evidence": "passed in vmbox: red 4 FAIL (WARP probes reached the far side); green 9 OK incl. tcp 188.114.96.3:443 and udp 4500 elsewhere passing, open window lets WARP through, 3 s timeout closes it"
+    },
+    {
+      "command": "vmbox (clock Mon 2026-10-26 10:00): warp_window.sh install + ssh forced command",
+      "result": "pass",
+      "evidence": "passed in vmbox: open -> seconds_left=19800, status open (expires 5h29m59s); close/id/'open; id' refused over ssh; Tuesday refused; Mon 15:29:58 -> 2 s then closed; 15:30:01 refused"
+    },
+    {
+      "command": "host: setup_wireguard_ssh.sh allow-lan-gateway with auto-revert armed, cancelled after checks; setup_wireguard_ssh.sh verify",
+      "result": "pass",
+      "evidence": "host: PC example.com 200, docker egress OK, revert timer cancelled, verify reports nftables.conf matches; warp_open set live"
+    },
+    {
+      "command": "laptop 192.168.1.21 over ssh: warp-home on / status / warp-cli connect then wait",
+      "result": "pass",
+      "evidence": "host+laptop: Sunday on refused by the PC; with WARP blocked the tick disconnected a reconnected WARP after 27 s; example.com 200, www.ubereats.com resolves 0.0.0.0 even via 8.8.8.8; kuhy confirmed. Real Mon/Fri open on the host not yet exercised"
+    }
+  ],
+  "risks": [
+    "Any re-apply of the PC nftables ruleset empties warp_open mid-window; the laptop tick detects 'closed' and turns WARP off, kuhy reruns warp-home on",
+    "WARP fails closed: if the laptop agent stops running, the laptop is offline at home whenever WARP is on",
+    "Shared consumer-WARP ranges are UDP-only drops; QUIC to sites in 188.114.96.0/22 falls back to TCP"
+  ],
+  "rollback": [
+    "sudo linux_configuration/features/setup_dns_blocker.sh gateway-off (removes gateway mode incl. WARP drops); git revert this commit",
+    "Laptop: systemctl --user disable --now warp-home.timer; PC: remove /usr/local/sbin/warp-window, /etc/sudoers.d/warp-window and the warp-home authorized_keys line; confirm LAN devices browse via the Funbox"
+  ]
+}

@@ -50,6 +50,19 @@ _t_file_has() {
 	fi
 }
 
+# Pass when the command succeeds (_t_ok) or fails (_t_not).
+_t_ok() {
+	local desc="$1"
+	shift
+	if "$@"; then _t_pass "$desc"; else _t_fail "$desc"; fi
+}
+
+_t_not() {
+	local desc="$1"
+	shift
+	if "$@"; then _t_fail "$desc"; else _t_pass "$desc"; fi
+}
+
 # A function that calls `exit` would kill the test script if invoked directly
 # in an `if` condition, so failures are asserted inside a subshell.
 _t_exits_nonzero() {

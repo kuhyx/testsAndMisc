@@ -237,6 +237,7 @@ Commands:
   allow-dns        Open udp/tcp 53 from the LAN in the firewall (for the DNS blocker on this host).
   allow-dot        Open tcp/853 on wg0 in the firewall (for the DoT resolver on this host).
   allow-workout-poke  Open tcp/8774 from the LAN only (screen-locker's workout poke).
+  allow-lan-gateway|deny-lan-gateway  LAN gateway rules (run by 'setup_dns_blocker.sh gateway').
   verify           Check /etc/nftables.conf matches this script and that
                    the live forward chain still lets Docker through.
   install-verify   Install the units that run 'verify' at every boot, so

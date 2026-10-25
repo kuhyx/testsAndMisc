@@ -49,6 +49,11 @@ render_nftables_ruleset() {
 	if [[ ${ALLOW_DOT:-false} == "true" ]]; then
 		dot_rule=$'\n\t\tiifname "'"${WG_IFACE}"$'" tcp dport 853 accept'
 	fi
+	# LAN gateway (setup_dns_blocker.sh gateway), rendered by wg_gateway.sh.
+	local gw_set gw_forward gw_table
+	gw_set="$(lan_gateway_set)"
+	gw_forward="$(lan_gateway_forward)"
+	gw_table="$(lan_gateway_table)"
 	cat >"$target" <<EOF
 #!/usr/sbin/nft -f
 # Replaces ONLY this table, atomically. 'flush ruleset' also deleted every
@@ -58,7 +63,7 @@ render_nftables_ruleset() {
 table inet filter
 delete table inet filter
 
-table inet filter {
+table inet filter {${gw_set}
 	chain input {
 		type filter hook input priority 0; policy drop;
 
@@ -75,7 +80,7 @@ table inet filter {
 		ip saddr ${LAN_SUBNET} tcp dport 22 accept${web_rule}${dns_rule}${ha_rule}${poke_rule}${dot_rule}
 	}
 	chain forward {
-		type filter hook forward priority 0; policy drop;
+		type filter hook forward priority 0; policy drop;${gw_forward}
 
 		# Docker keeps its own FORWARD rules (DOCKER-USER, DOCKER-FORWARD,
 		# the isolation chains) in the ip/filter table. This chain runs at
@@ -94,6 +99,8 @@ table inet filter {
 		type filter hook output priority 0; policy accept;
 	}
 }
+
+${gw_table}
 EOF
 }
 

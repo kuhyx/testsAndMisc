@@ -26,7 +26,7 @@ trap cleanup EXIT
 
 # --- Dispatch tests (real script, no root needed) --------------------------
 help_out=$("$TARGET_SCRIPT" help)
-for cmd in setup status refresh dhcp dhcp-off; do
+for cmd in setup status refresh dhcp dhcp-off gateway gateway-off; do
 	[[ "$help_out" == *"$cmd"* ]] || fail "help output missing '$cmd' subcommand"
 done
 
