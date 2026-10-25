@@ -19,6 +19,8 @@
       "evidence": "Passed; CI run 39954483117 had listed hypothesis and importlib-metadata as behind, the local gate then also listed anthropic"
     }
   ],
-  "risks": ["importlib-metadata major bump 9 -> 10 is transitive-only here; caught by python-tests CI if an importer breaks"],
+  "risks": [
+    "importlib-metadata major bump 9 -> 10 is transitive-only here; caught by python-tests CI if an importer breaks"
+  ],
   "rollback": ["git revert this commit"]
 }

@@ -3,11 +3,11 @@
 This PC (`192.168.1.43`, wired `enp6s0`) does three jobs for the home network
 (Orange Światłowód Funbox at `192.168.1.1`, both Ethernet and WiFi):
 
-| Job | What it means | Script |
-| --- | --- | --- |
-| DHCP server | hands every device its IP address | `setup_dns_blocker.sh dhcp` |
-| DNS blocker | answers DNS, blocked names get `0.0.0.0` | `setup_dns_blocker.sh setup` |
-| Gateway | other devices' internet traffic goes through this PC, DNS is forced to the blocker, DoH/DoT are dropped | `setup_dns_blocker.sh gateway` |
+| Job         | What it means                                                                                           | Script                         |
+| ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| DHCP server | hands every device its IP address                                                                       | `setup_dns_blocker.sh dhcp`    |
+| DNS blocker | answers DNS, blocked names get `0.0.0.0`                                                                | `setup_dns_blocker.sh setup`   |
+| Gateway     | other devices' internet traffic goes through this PC, DNS is forced to the blocker, DoH/DoT are dropped | `setup_dns_blocker.sh gateway` |
 
 **The PC itself never depends on any of this.** Its own address is static
 (`192.168.1.43/24`, gateway `192.168.1.1`, set in NetworkManager), its own
