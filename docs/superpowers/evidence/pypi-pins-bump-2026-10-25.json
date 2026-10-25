@@ -1,0 +1,24 @@
+{
+  "intent": "meta/requirements.txt pins are the newest stable releases again, so the dependency-freshness CI job and the ci-baseline-green hook go green.",
+  "scope": [
+    "meta/requirements.txt (anthropic, hypothesis, importlib-metadata only)",
+    "Non-goal: any code change; existing allowlist entries unchanged"
+  ],
+  "changes": [
+    "anthropic 2.1.0 -> 2.3.0, hypothesis 6.170.6 -> 6.170.9, importlib-metadata 9.0.1 -> 10.1.0 (released after the previous bumps)"
+  ],
+  "verification": [
+    {
+      "command": "uv pip compile --python-version 3.14 meta/requirements.txt",
+      "result": "pass",
+      "evidence": "resolves with exactly the new pins (rc=0)"
+    },
+    {
+      "command": "pre-commit run dependency-freshness --files meta/requirements.txt",
+      "result": "pass",
+      "evidence": "Passed; CI run 39954483117 had listed hypothesis and importlib-metadata as behind, the local gate then also listed anthropic"
+    }
+  ],
+  "risks": ["importlib-metadata major bump 9 -> 10 is transitive-only here; caught by python-tests CI if an importer breaks"],
+  "rollback": ["git revert this commit"]
+}
