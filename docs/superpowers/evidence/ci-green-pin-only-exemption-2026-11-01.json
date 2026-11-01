@@ -1,0 +1,32 @@
+{
+  "intent": "A red CI baseline no longer blocks a commit or push that touches only dependency-pin files, so a pin bump can fix a red freshness gate.",
+  "scope": [
+    "meta/scripts/check_ci_green.sh: PIN_FILE_RE, changed_files, only_pin_files and the exemption branch",
+    "linux_configuration/tests/test_check_ci_green.bats (new)",
+    "Non-goal: any other bypass; everything else stays fail-closed on a red baseline"
+  ],
+  "changes": [
+    "On a red baseline the hook exits 0 when every changed file is .fvmrc, pubspec.yaml/.lock, package.json, pnpm-lock.yaml, requirements*.txt or pyproject.toml, and prints an EXEMPTION FIRED line listing them",
+    "Scope is the push range (PRE_COMMIT_FROM_REF..TO_REF) when set, else the staged files; empty or unusable scope is not exempt"
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_check_ci_green.bats",
+      "result": "pass",
+      "evidence": "8/8 ok: green passes, red blocks code, empty scope, pin-only exempt, mixed blocked, lookalikes blocked, push range, bad range fails closed"
+    },
+    {
+      "command": "pre-commit run --files meta/scripts/check_ci_green.sh linux_configuration/tests/test_check_ci_green.bats",
+      "result": "pass",
+      "evidence": "no hook output beyond Passed/Skipped"
+    }
+  ],
+  "risks": [
+    "A pin-only change can still break the build; the pre-push CI mirror and CI itself remain the guard",
+    "A poisoned pin file is exempt from the red-baseline check only, not from other hooks"
+  ],
+  "rollback": [
+    "git revert the commit; the hook returns to blocking every commit on a red baseline",
+    "Validate by running bats linux_configuration/tests/test_check_ci_green.bats is gone and the hook still passes on green"
+  ]
+}
