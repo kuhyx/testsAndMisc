@@ -1,0 +1,33 @@
+{
+  "intent": "Add a Docker-backed MySQL 8.0.33 practice harness that grades SQL by exact output match, with 12 original drills.",
+  "scope": [
+    "python_pkg/sql_drills (new package, fixtures, tests, README)",
+    "meta/pyproject.toml: register the docker pytest marker",
+    "Non-goal: bumping the pinned mysql image; copying third-party problems"
+  ],
+  "changes": [
+    "CLI start/stop/list/show/check over one long-lived tmpfs container",
+    "Judge-style normaliser and line diff, unit-tested without Docker",
+    "12 original drills with live-verified reference solutions kept in tests only"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q python_pkg/sql_drills (container running)",
+      "result": "pass",
+      "evidence": "71 passed, 16 of them live against mysql:8.0.33; package coverage 100% branch"
+    },
+    {
+      "command": "python3 -m python_pkg.sql_drills check <id> <reference> for all 12 drills",
+      "result": "pass",
+      "evidence": "every drill prints PASS; wrong query prints a line diff, syntax error exits 2"
+    }
+  ],
+  "risks": [
+    "Local MySQL image must be pulled once; start fails with a clear error otherwise",
+    "A runaway query is cut off client-side after 30 s but may keep running in the container until stop"
+  ],
+  "rollback": [
+    "git revert the commit; run python3 -m python_pkg.sql_drills stop first",
+    "Check that pytest still collects with the marker line removed"
+  ]
+}

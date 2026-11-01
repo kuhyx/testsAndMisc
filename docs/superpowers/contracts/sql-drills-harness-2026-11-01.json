@@ -1,0 +1,15 @@
+{
+  "title": "sql_drills: MySQL 8.0.33 exact-output practice harness",
+  "objective": "A CLI grades a SQL file against an original drill on a pinned mysql:8.0.33 container by exact judge-style output match, with 12 drills ordered by priority.",
+  "acceptance_criteria": [
+    "start/stop/list/show/check work; check exits 0 pass, 1 mismatch (line diff), 2 SQL or engine error",
+    "Normaliser and diff are unit-tested without Docker; package coverage is 100% branch",
+    "Every drill's reference solution (tests/solutions only) reproduces expected.txt on live MySQL; those tests skip when the container is down",
+    "show and check never print reference SQL"
+  ],
+  "out_of_scope": [
+    "Bumping the pinned image version",
+    "python_pkg/app_icons and AGENTS.md changes already in the working tree"
+  ],
+  "verifier": "python3 -m python_pkg.sql_drills start; ~/.claude/scripts/capped.sh python3 -m pytest -q -o addopts='--strict-markers --strict-config' python_pkg/sql_drills"
+}

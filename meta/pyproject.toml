@@ -297,6 +297,9 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=lcov",
 ]
+markers = [
+    "docker: needs the live sql-drills MySQL container (skipped when it is down)",
+]
 filterwarnings = [
     "error",
     "ignore::DeprecationWarning",
