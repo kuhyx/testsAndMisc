@@ -58,7 +58,9 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-python
         with:
-          python-version: "3.x"
+          # pylint shard: pygame 2.6.1 (newest) has no cp315 wheel and its
+          # source build fails on 3.15. Revisit when pygame ships 3.15 support.
+          python-version: ${{ matrix.group == 'pylint' && '3.14' || '3.x' }}
       - uses: astral-sh/setup-uv@v10.2.0
 
       # Every hook brings its own environment except the `language: system`
