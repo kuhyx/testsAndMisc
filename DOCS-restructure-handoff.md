@@ -73,10 +73,6 @@ copies were the only ones on the machine.
   detached worktree at HEAD. Live-system state, not a regression.
 - **`workout_locker` reports error** in `check_and_enable_services.sh`. That is
   the separate `screen-locker` repo.
-- **`syncyomi-guard` is red** since 00:00 on 2026-08-23, working as designed:
-  the library collapsed from 2185 manga to 8. See the
-  `syncyomi-restore-silent-partial` memory; do NOT checkpoint the WAL before
-  recovering. Newest snapshot: `~/services/syncyomi/snapshots/`, 2026-08-15.
 
 ## Traps worth keeping
 

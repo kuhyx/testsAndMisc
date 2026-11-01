@@ -96,7 +96,7 @@ volumes:
 EOF
 
 	# The root Caddyfile only imports per-service snippets; every service
-	# (gitea, dufs, syncyomi, the personal website, ...) owns its own file in
+	# (gitea, dufs, the personal website, ...) owns its own file in
 	# sites/ so re-running any one setup script never drops another's block.
 	ensure_dir "$SITES_DIR"
 	cat >"$CADDYFILE" <<'EOF'

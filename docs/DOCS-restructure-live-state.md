@@ -27,9 +27,6 @@ its timer next fires.
   /home/kuhy/.config/systemd/user/morning-routine.service
       13:Environment=PYTHONPATH=%h/src/testsAndMisc
       16:WorkingDirectory=%h/src/testsAndMisc
-  /home/kuhy/.config/systemd/user/syncyomi-guard.service
-      8:WorkingDirectory=/home/kuhy/src/testsAndMisc
-      9:Environment=PYTHONPATH=/home/kuhy/src/testsAndMisc
 
 ## /etc references
   /etc/guard-lib/targets/nsswitch.conf

@@ -45,7 +45,7 @@ which your own hook (`track_reads_pretool.sh`, since disabled) was already tryin
 ### Docker MCP Gateway (mcp, sandbox, cli, 1.5k★)
 
 You run 23+ Dockerfiles for self-hosted MCP server containers (`~/src/mcp-servers/servers/*`) per the repo survey, on top
-of an already-Docker-heavy self-hosted stack (Gitea, SearXNG, Syncyomi, Joplin Server, all `docker-compose.yml`-based).
+of an already-Docker-heavy self-hosted stack (Gitea, SearXNG, Joplin Server, all `docker-compose.yml`-based).
 A container-aware MCP gateway is a direct fit for consolidating discovery/auth across a fleet this size, rather than
 each server being wired in ad hoc. Speculative on the _specific_ tool, high-confidence on the _need_ — you already
 have the infrastructure pattern this tool assumes.
@@ -159,7 +159,7 @@ with the browser tooling you already have that a swap would fix.
 
 ### OpenClaw, Khoj, nanobot, CowAgent (self-hosted "personal agent" runtimes)
 
-Surface-level strong fit — you unambiguously self-host (Gitea, SearXNG, Syncyomi, Joplin Server + DuckDNS, Ollama on
+Surface-level strong fit — you unambiguously self-host (Gitea, SearXNG, Joplin Server + DuckDNS, Ollama on
 an RTX 3090) and run 39 systemd user units as personal automation. But these products are chat/webhook-fronted
 always-on daemons (Telegram/Discord/WhatsApp bots, "second brain" Q&A) — a different shape of automation than what you
 actually build, which is narrow, single-purpose guard daemons with typed configs and 100%-coverage test suites

@@ -52,8 +52,6 @@ linux_configuration/features/lib/searxng_settings.sh
 linux_configuration/features/lib/searxng_stack.sh
 linux_configuration/features/lib/searxng_start.sh
 linux_configuration/features/lib/searxng_status.sh
-linux_configuration/features/lib/syncyomi_expose.sh
-linux_configuration/features/lib/syncyomi_stack.sh
 linux_configuration/features/lib/unreal_mcp_repo.sh
 linux_configuration/features/lib/website_build.sh
 linux_configuration/features/lib/wg_firewall.sh

@@ -130,7 +130,7 @@
 
 <h2 id="background">1. Background</h2>
 
-<p>This machine leads a double life. By day it is a desktop. Around the clock it is a small server: <strong>Gitea</strong>, a public <strong>Caddy</strong> TLS edge on ports 80/443, <strong>SyncYomi</strong>, a personal website, <strong>Open WebUI</strong>, <strong>Joplin</strong>, <strong>dufs</strong>, plus <code>ollama</code>, <code>dnsmasq</code>, <code>wg-quick@wg0</code>, <code>nftables</code> and <code>sshd</code>.</p>
+<p>This machine leads a double life. By day it is a desktop. Around the clock it is a small server: <strong>Gitea</strong>, a public <strong>Caddy</strong> TLS edge on ports 80/443, a personal website, <strong>Open WebUI</strong>, <strong>Joplin</strong>, <strong>dufs</strong>, plus <code>ollama</code>, <code>dnsmasq</code>, <code>wg-quick@wg0</code>, <code>nftables</code> and <code>sshd</code>.</p>
 
 <p>It also runs a <em>digital-wellbeing curfew</em>: a deliberately hard-to-defeat system that stopped you using the PC late at night. It is built as a fortress, and the distinction between its parts is the key to this whole change:</p>
 
@@ -184,7 +184,7 @@ esac</code></pre>
   <div class="flow">
     <div class="box kill"><b>Torn down at 21:00</b>lightdm → X → i3<br>TTY logins (<code>getty@</code> masked)<br>console (blanked)<br>RGB (black)<br>audio (muted)</div>
     <div class="arrow">|</div>
-    <div class="box live"><b>Untouched, all night</b>Docker: gitea, caddy, syncyomi, website, open-webui, joplin, dufs<br><code>ollama</code>, <code>dnsmasq</code>, <code>wg-quick@wg0</code>, <code>nftables</code>, <code>sshd</code></div>
+    <div class="box live"><b>Untouched, all night</b>Docker: gitea, caddy, website, open-webui, joplin, dufs<br><code>ollama</code>, <code>dnsmasq</code>, <code>wg-quick@wg0</code>, <code>nftables</code>, <code>sshd</code></div>
   </div>
   <figcaption>The dividing line: everything on the left needs a graphical session; nothing on the right does. That is why the split is clean rather than a compromise.</figcaption>
 </figure>

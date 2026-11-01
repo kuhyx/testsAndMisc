@@ -19,7 +19,7 @@
   <p>
     This home server hosts several things at once: a self-hosted
     <strong>Gitea</strong> (a GitHub-like git host), a <strong>dufs</strong>
-    file cloud, a <strong>SyncYomi</strong> manga-sync service — and now a
+    file cloud — and now a
     personal website. They all share a single public IP and a single pair of
     open ports (<code>80</code>/<code>443</code>).
   </p>
@@ -44,7 +44,6 @@
       <div class="backcol">
         <div class="back">gitea → <code>127.0.0.1:3000</code></div>
         <div class="back">dufs → <code>127.0.0.1:5000</code></div>
-        <div class="back">syncyomi → <code>127.0.0.1:8282</code></div>
       </div>
     </div>
   </div>
@@ -56,7 +55,6 @@
 
   <div class="code"><pre>kuhy.duckdns.org      { reverse_proxy 127.0.0.1:3000 }   # Gitea (the root!)
 kuhy-cloud.duckdns.org{ reverse_proxy 127.0.0.1:5000 }   # dufs
-kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
 
   <p>
     Two details matter for this change. First, the bare root
@@ -71,7 +69,7 @@ kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
 
   <p>
     Finally, that Caddyfile isn't hand-written — it's <em>generated</em> by
-    <code>setup_gitea.sh</code>. SyncYomi and dufs each <em>appended</em> their
+    <code>setup_gitea.sh</code>. dufs <em>appended</em> its
     block to the same file from their own setup scripts. Hold that thought.
   </p>
 </section>
@@ -84,8 +82,8 @@ kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
     <code>setup_gitea.sh</code> is meant to be safe to re-run. But its way of
     writing the Caddyfile was <code>cat &gt; Caddyfile</code> — it
     <strong>regenerated the whole file from scratch, containing only Gitea's
-    block.</strong> dufs and SyncYomi had appended <em>their</em> blocks later.
-    So every time you re-ran the Gitea setup, those blocks silently vanished and
+    block.</strong> dufs had appended <em>its</em> block later.
+    So every time you re-ran the Gitea setup, that block silently vanished and
     two live services went dark. A latent trap, waiting for the next re-run.
   </p>
 
@@ -108,7 +106,7 @@ kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
       <button id="mw-rerun">▶ Re-run setup_gitea.sh</button>
       <button id="mw-reset" class="secondary">↺ Reset</button>
     </div>
-    <p class="mw-log" id="mw-log">All four services are up. Now re-run the Gitea setup…</p>
+    <p class="mw-log" id="mw-log">All three services are up. Now re-run the Gitea setup…</p>
   </div>
 
   <h3>Problem B — two Caddies, one admin port</h3>
@@ -181,10 +179,10 @@ kuhy-sync.duckdns.org { reverse_proxy 127.0.0.1:8282 }   # SyncYomi</pre></div>
     <code>setup_personal_website.sh</code> orchestrates the whole cutover. The
     <strong>order</strong> is the safety property: existing blocks are migrated
     into snippets <em>before</em> the root file is switched to the import line —
-    otherwise dufs and SyncYomi would blink out during the migration itself.
+    otherwise dufs would blink out during the migration itself.
   </p>
   <div class="code"><pre>preflight            # deps, docker up, gitea-caddy present
-migrate_caddy_snippets   # split TODAY's Caddyfile → sites/*.caddy (keep dufs, sync)
+migrate_caddy_snippets   # split TODAY's Caddyfile → sites/*.caddy (keep dufs)
 relocate_gitea       # re-run setup_gitea.sh (now writes import + gitea.caddy)
 build_website        # pnpm build → ~/src/personal-website/dist
 write_website_stack  # loopback caddy compose + inner Caddyfile
@@ -336,7 +334,6 @@ ensure_firewall      # 80/443 already open — idempotent</pre></div>
   const SERVICES = [
     { key: "gitea", name: "Gitea", host: "gitea.kuhy…:3000" },
     { key: "dufs", name: "dufs", host: "kuhy-cloud…:5000" },
-    { key: "sync", name: "SyncYomi", host: "kuhy-sync…:8282" },
     { key: "web", name: "Website", host: "kuhy…:8088" },
   ];
   let mode = "mono";
@@ -347,7 +344,7 @@ ensure_firewall      # 80/443 already open — idempotent</pre></div>
   function resetState() {
     SERVICES.forEach((s) => (state[s.key] = true));
     render();
-    elLog.textContent = "All four services are up. Now re-run the Gitea setup…";
+    elLog.textContent = "All three services are up. Now re-run the Gitea setup…";
   }
   function render() {
     elServices.innerHTML = "";
@@ -368,7 +365,7 @@ ensure_firewall      # 80/443 already open — idempotent</pre></div>
       SERVICES.forEach((s) => (state[s.key] = s.key === "gitea"));
       render();
       elLog.innerHTML =
-        "<strong style='color:var(--bad)'>Clobbered.</strong> The whole Caddyfile was rewritten with only Gitea's block — dufs, SyncYomi and the website disappeared.";
+        "<strong style='color:var(--bad)'>Clobbered.</strong> The whole Caddyfile was rewritten with only Gitea's block — dufs and the website disappeared.";
     } else {
       // Only touches gitea.caddy; imports leave the rest intact.
       SERVICES.forEach((s) => (state[s.key] = true));
@@ -392,7 +389,7 @@ ensure_firewall      # 80/443 already open — idempotent</pre></div>
   // ---- Quiz (debiased: correct never the longest; positions spread) ----
   const QUIZ = [
     {
-      stem: "Before this change, why did re-running setup_gitea.sh drop the SyncYomi and dufs blocks?",
+      stem: "Before this change, why did re-running setup_gitea.sh drop the dufs block?",
       options: [
         "Docker restarted the Caddy container, which cleared its in-memory config.",
         "It rewrote the entire Caddyfile from scratch, keeping only Gitea's block.",
@@ -433,7 +430,7 @@ ensure_firewall      # 80/443 already open — idempotent</pre></div>
         "The DuckDNS wildcard has to resolve before Caddy can request certificates.",
       ],
       correct: 2,
-      why: "The migration must copy dufs/SyncYomi out of the old monolith before it's overwritten.",
+      why: "The migration must copy dufs out of the old monolith before it's overwritten.",
     },
     {
       stem: "Why is the site served by a separate loopback container fronted by gitea-caddy, not binding 80/443 itself?",

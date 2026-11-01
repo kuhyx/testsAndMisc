@@ -11,7 +11,7 @@
 #   - Installs build/runtime deps (node, pnpm, docker, ...).
 #   - Migrates the shared Caddyfile to a per-service snippet directory so no
 #     service block ever clobbers another (fixes a latent bug where re-running
-#     setup_gitea.sh dropped the dufs/syncyomi blocks).
+#     setup_gitea.sh dropped the dufs block).
 #   - Moves Gitea to gitea.kuhy.duckdns.org via setup_gitea.sh (single source).
 #   - Builds the website and serves dist/ from a loopback caddy container on
 #     127.0.0.1:8088, fronted by a reverse-proxy snippet on the root domain.
@@ -104,7 +104,7 @@ preflight() {
 # Reads the CURRENT monolithic Caddyfile and writes every top-level block to
 # sites/<label>.caddy, EXCEPT the old root block (kuhy.duckdns.org, previously
 # gitea — now repurposed for the website) and the gitea block (setup_gitea.sh
-# rewrites its own). This preserves dufs (kuhy-cloud) and syncyomi (kuhy-sync)
+# rewrites its own). This preserves dufs (kuhy-cloud)
 # before setup_gitea.sh switches the root Caddyfile to `import`. Idempotent.
 migrate_caddy_snippets() {
 	ensure_dir "$SITES_DIR"

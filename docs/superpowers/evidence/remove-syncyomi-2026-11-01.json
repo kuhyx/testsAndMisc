@@ -1,0 +1,25 @@
+{
+  "intent": "Remove every SyncYomi and TachiyomiSY trace; kuhy replaced the app with kartka.",
+  "scope": [
+    "python_pkg/syncyomi_guard, setup_syncyomi*.sh, lib/syncyomi_*.sh, syncyomi docs",
+    "Non-goal: Suwayomi and eu.kanade.tachiyomi.extension mentions stay"
+  ],
+  "changes": [
+    "Deleted the syncyomi_guard package, its setup scripts, libs and runbook",
+    "Dropped syncyomi lines from shared docs, comments and the coverage allowlist"
+  ],
+  "verification": [
+    {
+      "command": "grep -rIliE 'syncyomi|tachiyomisy|tachiyomi\\.sy' . (excluding .git, caches)",
+      "result": "pass",
+      "evidence": "no matches in tracked files"
+    },
+    {
+      "command": "shellcheck setup_gitea.sh setup_personal_website.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": ["Stale references in untracked local settings"],
+  "rollback": ["git revert the commit", "Restore services from the 2026-11-01 backup tarball"]
+}
