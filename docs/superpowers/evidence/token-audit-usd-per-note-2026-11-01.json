@@ -1,0 +1,38 @@
+{
+  "intent": "Add a USD-per-completed-todo-note efficiency metric to the Claude Code token audit, plus notes.json for the control-panel dashboard. Also summarise the new build-class A/B log (agent-ab-build.jsonl) into its own meta row for the dashboard.",
+  "scope": [
+    "python_pkg/token_audit/notes*.py (new), __main__.py and review.py (wiring), tests/test_notes_*.py + tests/notes_fixtures.py; python_pkg/token_dashboard/ab.py + tests/test_ab_build.py + tests/conftest.py",
+    "Non-goal: changing existing metrics or pricing; app_icons working-tree changes belong to another session"
+  ],
+  "changes": [
+    "notes_backlog: BACKLOG.md parse plus done dates from the status-field HLC in the first Firebase dump showing the terminal status, BACKLOG updated as fallback",
+    "notes_scan/notes_link: per-session facts from typed prompts and tool_use blocks only; rules a (note_claim.sh), b (todo-images/<uuid>/ in a prompt, <=2 notes), c (first prompt, max of body Dice and first-line/title Dice >= 0.5), d (handoff readers inherit the earliest creator's notes)",
+    "notes_cost/notes_collect/notes: lifetime spend of linked sessions (main + subagents, reusing audit-loaded files), usd_per_note, note_linked_usd_share, notes_done, notes_done_linked, WEEKLY section and notes.json; standalone python -m python_pkg.token_audit.notes",
+    "token_dashboard.ab: rebuild() also joins ~/.claude/logs/agent-ab-build.jsonl and stores meta 'ab_build' with a 'A/B build agents' banner; ab_rows stays judgment-only"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q -o addopts='' python_pkg/token_audit/tests --cov=python_pkg.token_audit --cov-branch",
+      "result": "pass",
+      "evidence": "253 passed; token_audit TOTAL 100% line and branch"
+    },
+    {
+      "command": "capped.sh env PYTHONPATH=$HOME/src/testsAndMisc python3 -m python_pkg.token_audit --since <30 days ago> --no-write",
+      "result": "pass",
+      "evidence": "48.2 s total; notes: 135 sessions linked (b=14 c=102 d=19); usd_per_note $55.77, note_linked_usd_share 64.6%, notes_done 98 (44 linked)"
+    },
+    {
+      "command": "python3 -m pytest -q -o addopts='' python_pkg/token_dashboard/tests",
+      "result": "pass",
+      "evidence": "147 passed; ab.py 100% branch; live ingest stored ab_build and /api/tokens/panel/ab returns build banner 'A/B build agents: collecting (n=0)'"
+    }
+  ],
+  "risks": [
+    "Fuzzy rule c can mislink a prompt that paraphrases another note; threshold calibrated by hand-labelling the 0.25-0.8 band (10/10 correct at >= 0.5, 15/16 image ground truths matched)",
+    "Done dates before the first dump (2026-09-26) are upper bounds"
+  ],
+  "rollback": [
+    "git revert the commit; the audit falls back to its previous metrics",
+    "Run python3 -m python_pkg.token_audit --no-write and check it exits 0"
+  ]
+}

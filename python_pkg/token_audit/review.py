@@ -20,6 +20,7 @@ SNAPSHOT_VERSION = 2
 # windows differ in length (the "up 122%" of 2026-10-04 compared 37 days to 7).
 COMPARED: tuple[str, ...] = (
     "usd_per_commit",
+    "usd_per_note",
     "usd_per_day",
     "usd_per_call",
     "calls_per_day",

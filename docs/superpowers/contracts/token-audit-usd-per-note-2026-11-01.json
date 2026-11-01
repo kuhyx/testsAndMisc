@@ -1,0 +1,16 @@
+{
+  "title": "token_audit: USD per completed todo note",
+  "objective": "The weekly token audit reports how many list-price dollars each finished todo note cost, by linking sessions to notes (note_claim.sh, todo-images prompts, fuzzy first prompt, handoff chains) and dating completions from the Firebase dumps.",
+  "acceptance_criteria": [
+    "Join rules a-d, the done-date recovery and the metric math are covered by python_pkg/token_audit/tests/test_notes_*.py at 100% branch coverage",
+    "The audit snapshot metrics carry usd_per_note (absent when no linked done note), note_linked_usd_share and notes_done; WEEKLY.md gains a 'Cost per todo note' section",
+    "notes.json in the report dir lists every note with linked spend (id, title, status, priority, done_at, sessions, usd, tokens)",
+    "A 30-day audit including the notes stage finishes under 60 s",
+    "token_dashboard stores the build-class A/B (agent-ab-build.jsonl) as meta ab_build, separate from the judgment meta ab (tests/test_ab_build.py)"
+  ],
+  "out_of_scope": [
+    "python_pkg/app_icons changes in the working tree",
+    "Editing ~/.claude/CLAUDE.md (left to kuhy)"
+  ],
+  "verifier": "python3 -m pytest -q -o addopts='' python_pkg/token_audit/tests --cov=python_pkg.token_audit --cov-branch; capped.sh env PYTHONPATH=$HOME/src/testsAndMisc python3 -m python_pkg.token_audit --since $(date -d '30 days ago' +%s) --no-write"
+}

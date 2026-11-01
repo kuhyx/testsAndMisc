@@ -30,6 +30,7 @@ def _isolated_sources(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(aux, "PROMPT_HISTORY", claude / "history.jsonl")
     monkeypatch.setattr(aux, "TIME_CAP", claude / "time-cap.jsonl")
     monkeypatch.setattr(ab, "LOG", claude / "agent-ab.jsonl")
+    monkeypatch.setattr(ab, "BUILD_LOG", claude / "agent-ab-build.jsonl")
     monkeypatch.setattr(context_files, "CLAUDE_DIR", claude)
     monkeypatch.setattr(context_files, "SRC_DIR", claude / "src")
 

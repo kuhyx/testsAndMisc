@@ -22,6 +22,7 @@ from python_pkg.token_audit import (
     discover,
     history,
     imagecost,
+    notes,
     parse,
     pricing,
     report,
@@ -135,12 +136,16 @@ def main(argv: list[str] | None = None) -> int:
     drift = attribute.reconcile(totals, sessions)
     window = report.Window(since=since, until=until)
     snap = report.snapshot(totals, axes, window, len(sessions))
-    priced = breakdown.build(sessions, pricing.load())
+    book = pricing.load()
+    priced = breakdown.build(sessions, book)
     snap["v"] = review.SNAPSHOT_VERSION
     snap["effective_window"] = {"since": priced.earliest, "until": priced.latest}
     snap["metrics"] = breakdown.metrics(priced) | review.extra_metrics(
         totals, axes, priced.days
     )
+    noted = notes.section(args.root, book, sessions, (since, until))
+    if noted is not None:
+        snap["metrics"] |= noted[0]
     previous = history.last_snapshot(args.out)
     found = review.candidates(snap, previous) if args.recommend else None
     if found is not None:
@@ -154,6 +159,7 @@ def main(argv: list[str] | None = None) -> int:
             *breakdown.render(priced),
             "",
             *review.render(snap, previous, levers=args.recommend, found=found),
+            *(noted[1] if noted is not None else []),
             "",
         ],
     )
@@ -161,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_write:
         written = report.write(markdown, snap, args.out)
         history.save_snapshot(snap, args.out)
+        if noted is not None:
+            notes.write_json(noted[2], args.out)
         sys.stderr.write(f"Wrote {written}\n")
 
     sys.stdout.write(json.dumps(snap, indent=2) if args.json else markdown)

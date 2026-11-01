@@ -1,22 +1,12 @@
-"""A/B test of judgment subagents: Sonnet arm vs Opus arm, 0 tokens.
+"""A/B test of subagents: Sonnet arm vs Opus arm, one verdict per log.
 
-Assignments come from ``~/.claude/logs/agent-ab.jsonl`` (one line per
-dispatched review/debug/design/plan agent: ``tool_use_id``, ``arm``, ...).
-Each is joined on ``tool_use_id`` to the ``Agent`` call the ingester stored,
-and judged on outcomes visible in the transcript after the agent returned:
-
-* **redo** -- the parent dispatched another Agent in the same session whose
-  description shares >= :data:`REDO_JACCARD` of its word set;
-* **follow-up** -- the parent sent that agent a ``SendMessage``;
-* **error** -- the call errored or the agent was aborted;
-* **correction** (noisy) -- the next user prompt opens with a correction
-  phrase (:data:`CORRECTION`);
-* the parent session's end tag.
-
-Rates get 95% Wilson intervals and per-arm differences Newcombe's hybrid
-interval. The banner turns RED only when, with >= :data:`MIN_N` per arm, the
-Sonnet arm's redo or correction rate is higher and the two Wilson intervals do
-not overlap.
+Logs: ``agent-ab.jsonl`` (judgment, closed), ``agent-ab-build.jsonl`` (build).
+Assignments join on ``tool_use_id`` to the stored ``Agent`` call: **redo** (a
+later Agent shares >= :data:`REDO_JACCARD` of its words), **follow-up** (a
+``SendMessage`` to it), **error**, **correction** (noisy: next prompt matches
+:data:`CORRECTION`), end tag. Wilson / Newcombe 95% intervals; the banner is
+RED only when, with >= :data:`MIN_N` per arm, Sonnet's redo or correction rate
+is higher and the two Wilson intervals do not overlap.
 """
 
 from __future__ import annotations
@@ -34,6 +24,7 @@ if TYPE_CHECKING:
     import sqlite3
 
 LOG = Path.home() / ".claude" / "logs" / "agent-ab.jsonl"
+BUILD_LOG = LOG.with_name("agent-ab-build.jsonl")  # build-class arm, own verdict
 Z = 1.96
 MIN_N = 20
 REDO_JACCARD = 0.6
@@ -45,6 +36,7 @@ CORRECTION = re.compile(
 )
 WORD = re.compile(r"[a-z0-9]+")
 RATES = ("redo", "followup", "error", "correction")
+_UPSERT = "INSERT OR REPLACE INTO meta VALUES (?, ?)"
 
 
 def wilson(k: int, n: int, z: float = Z) -> tuple[float, float]:
@@ -90,11 +82,13 @@ class ArmCounts:
     correction: int
 
 
-def banner(sonnet: ArmCounts, opus: ArmCounts) -> dict[str, str]:
+def banner(
+    sonnet: ArmCounts, opus: ArmCounts, label: str = "judgment"
+) -> dict[str, str]:
     """RED / GREEN / GREY verdict for the top of every /tokens view."""
     n = min(sonnet.n, opus.n)
     if n < MIN_N:
-        return {"level": "grey", "text": f"A/B judgment agents: collecting (n={n})"}
+        return {"level": "grey", "text": f"A/B {label} agents: collecting (n={n})"}
     for name in ("redo", "correction"):
         ks, ko = getattr(sonnet, name), getattr(opus, name)
         low_s, _ = wilson(ks, sonnet.n)
@@ -107,7 +101,7 @@ def banner(sonnet: ArmCounts, opus: ArmCounts) -> dict[str, str]:
             }
     return {
         "level": "green",
-        "text": f"A/B judgment agents: no detectable drop (n={n})",
+        "text": f"A/B {label} agents: no detectable drop (n={n})",
     }
 
 
@@ -198,19 +192,20 @@ def _arm(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
-def rebuild(conn: sqlite3.Connection, log: Path | None = None) -> dict[str, Any]:
-    """Join every assignment, summarise both arms, store in ``meta['ab']``."""
+def _summary(
+    conn: sqlite3.Connection, log: Path, label: str
+) -> tuple[dict[str, Any], list[tuple[str, str, dict[str, Any]]]]:
+    """Join one log's assignments; the per-arm payload and the joined rows."""
     joined: dict[str, list[dict[str, Any]]] = {"sonnet": [], "opus": []}
     kept: list[tuple[str, str, dict[str, Any]]] = []
     unjoined = 0
-    for row in _assignments(log or LOG):
+    for row in _assignments(log):
         found = _outcome(conn, str(row["tool_use_id"]))
         if found is None or row["arm"] not in joined:
             unjoined += 1
             continue
         joined[row["arm"]].append(found)
         kept.append((row["arm"], str(row["tool_use_id"]), found))
-    ab_rows.store(conn, kept)
     arms = {name: _arm(rows) for name, rows in joined.items()}
     diffs = {
         name: dict(
@@ -237,7 +232,18 @@ def rebuild(conn: sqlite3.Connection, log: Path | None = None) -> dict[str, Any]
         "arms": arms,
         "diffs": diffs,
         "unjoined": unjoined,
-        "banner": banner(counts["sonnet"], counts["opus"]),
+        "banner": banner(counts["sonnet"], counts["opus"], label),
     }
-    conn.execute("INSERT OR REPLACE INTO meta VALUES ('ab', ?)", (json.dumps(payload),))
+    return payload, kept
+
+
+def rebuild(
+    conn: sqlite3.Connection, log: Path | None = None, build_log: Path | None = None
+) -> dict[str, Any]:
+    """Store the judgment A/B in ``meta['ab']``, the build A/B in ``ab_build``."""
+    payload, kept = _summary(conn, log or LOG, "judgment")
+    ab_rows.store(conn, kept)
+    build, _ = _summary(conn, build_log or BUILD_LOG, "build")
+    for key, value in (("ab", payload), ("ab_build", build)):
+        conn.execute(_UPSERT, (key, json.dumps(value)))
     return payload
