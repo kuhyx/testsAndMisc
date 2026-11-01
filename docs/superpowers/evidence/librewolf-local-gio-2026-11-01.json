@@ -1,0 +1,32 @@
+{
+  "intent": "LibreWolf opens in seconds instead of ~4 min after login: it no longer waits on gvfs D-Bus calls that hit the 25 s timeout.",
+  "scope": [
+    "linux_configuration/scripts/librewolf-local-gio.sh (symlinked as ~/.local/bin/librewolf)",
+    "meta/requirements.txt, meta/requirements-test.txt: stale pins that kept the Pre-commit CI baseline red",
+    "Non-goal: the .desktop entry (calls /usr/lib/librewolf/librewolf directly); launcher is PATH-based"
+  ],
+  "changes": [
+    "PATH wrapper exec's /usr/bin/librewolf with GIO_USE_VFS=local, same pattern as krita-scaled.sh",
+    "anthropic 2.1.0->2.3.0 (CI finding) plus 17 other patch/minor pins bumped to newest stable"
+  ],
+  "verification": [
+    {
+      "command": "check_librewolf_gio.sh (Xvfb, throwaway profile, reads /proc/<pid>/environ)",
+      "result": "pass",
+      "evidence": "wrapper on PATH: PASS; /usr/bin/librewolf only: FAIL: GIO_USE_VFS not set; user confirmed real launch is fast"
+    },
+    {
+      "command": "scripts/check_dependency_freshness.sh meta/requirements.txt meta/requirements-test.txt && uv pip compile -p 3.14 both",
+      "result": "pass",
+      "evidence": "exit=0, no findings; RESOLVES"
+    }
+  ],
+  "risks": [
+    "GTK dialogs inside LibreWolf lose gvfs URIs (smb://, sftp://)",
+    "Minor bumps (flake8 7.5, pyflakes 4.1, prospector 1.20, python-kasa 0.12) may surface new lint findings"
+  ],
+  "rollback": [
+    "rm ~/.local/bin/librewolf restores /usr/bin/librewolf; git revert for the pins",
+    "After rollback: `command -v librewolf` prints /usr/bin/librewolf"
+  ]
+}
