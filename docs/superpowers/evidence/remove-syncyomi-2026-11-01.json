@@ -21,5 +21,8 @@
     }
   ],
   "risks": ["Stale references in untracked local settings"],
-  "rollback": ["git revert the commit", "Restore services from the 2026-11-01 backup tarball"]
+  "rollback": [
+    "git revert the commit",
+    "Restore services from the 2026-11-01 backup tarball"
+  ]
 }
