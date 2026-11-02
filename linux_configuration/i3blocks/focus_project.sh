@@ -16,7 +16,13 @@
 #
 # A missing, garbage or >180 s old cache hides the block: the neighbouring
 # gaming_budget block already says "⏱?" for the same cache, and old minutes
-# must never be shown. Left-click opens `daily-limits --gui`.
+# must never be shown.
+#
+# Clicks (the block says what to do, so a click goes where the work is):
+#   left   `python3 -m focus_project.open`: the tutor focus screen (starts the
+#          focus timer if it is not running) and the project's work URL
+#   middle the same with --no-site (the focus screen only)
+#   right  `daily-limits --gui`, the day's detail
 # ============================================================================
 
 set -euo pipefail
@@ -36,9 +42,13 @@ emit() {
 
 # i3blocks' PATH has no ~/.local/bin, where daily-limits' install.sh puts it.
 readonly DAILY_LIMITS_BIN=${DAILY_LIMITS_BIN:-$HOME/.local/bin/daily-limits}
-if [[ ${BLOCK_BUTTON:-0} -eq 1 && -x $DAILY_LIMITS_BIN ]]; then
-	setsid -f "$DAILY_LIMITS_BIN" --gui >/dev/null 2>&1
-fi
+# The system python: focus_project is installed in its user site (install.sh).
+readonly FOCUS_OPEN_PYTHON=${FOCUS_OPEN_PYTHON:-/usr/bin/python3}
+case ${BLOCK_BUTTON:-0} in
+1) setsid -f "$FOCUS_OPEN_PYTHON" -m focus_project.open >/dev/null 2>&1 ;;
+2) setsid -f "$FOCUS_OPEN_PYTHON" -m focus_project.open --no-site >/dev/null 2>&1 ;;
+3) [[ -x $DAILY_LIMITS_BIN ]] && setsid -f "$DAILY_LIMITS_BIN" --gui >/dev/null 2>&1 ;;
+esac
 
 hide() {
 	emit '' '' "$YELLOW"

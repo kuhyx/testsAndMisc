@@ -1,12 +1,13 @@
 {
-  "intent": "kuhy sees the active focus project in i3bar: a focus_project block renders the focus field daily-limits now writes to its cache.",
+  "intent": "kuhy sees the active focus project in i3bar: a focus_project block renders the focus field daily-limits now writes to its cache. A click takes him to the work: left opens the tutor focus screen plus the work URL (focus_project.open), middle only the tutor, right daily-limits --gui.",
   "scope": [
     "linux_configuration/i3blocks/focus_project.sh, the [focus_project] stanza in linux_configuration/i3blocks/config, linux_configuration/tests/test_i3blocks_focus_project.sh",
     "Non-goal: no focus logic here (focus_project.status() decides); daily-limits owns the cache"
   ],
   "changes": [
     "New block: `🎯 <name> <minutes>/<daily_minutes>`, green at the daily target, hidden with no project or a missing/stale/garbage cache; jq re-parse only on cache mtime change",
-    "Stanza has signal=11 so daily-limits can refresh it with pkill -RTMIN+11 -x i3blocks"
+    "Stanza has signal=11 so daily-limits can refresh it with pkill -RTMIN+11 -x i3blocks",
+    "Clicks: left `python3 -m focus_project.open`, middle `--no-site`, right `daily-limits --gui`"
   ],
   "verification": [
     {
@@ -18,10 +19,16 @@
       "command": "bash ~/.config/i3blocks/focus_project.sh (live cache after daily-limits.service)",
       "result": "pass",
       "evidence": "🎯 HackerRank prep 0/120, #F1FA8C"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_focus_project.sh",
+      "result": "pass",
+      "evidence": "clicks section: all checks passed (red first: left click ran '--gui')"
     }
   ],
   "risks": [
-    "The running i3bar loads the stanza only after its next restart; until then the poke is harmless (i3blocks 1.5 survived an unconfigured RTMIN+11)"
+    "The running i3bar loads the stanza only after its next restart; until then the poke is harmless (i3blocks 1.5 survived an unconfigured RTMIN+11)",
+    "A click needs focus_project >= 0.5.0 in the system python user site"
   ],
   "rollback": [
     "git revert the commit and remove the symlink ~/.config/i3blocks/focus_project.sh"

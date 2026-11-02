@@ -93,14 +93,23 @@ printf '%s\n' "$NOW" '🎯 CACHED 1/1' '🎯 1/1' '#50FA7B' >"$RENDER"
 touch -d '+1 second' "$RENDER"
 assert_eq '🎯 CACHED 1/1' "$(line 1 "$(run_block)")" 'unchanged cache is not re-parsed'
 
-printf 'Checking a click opens the GUI...\n'
+printf 'Checking the clicks...\n'
+# Stubs record their argv: the block must never open anything for real.
 printf '#!/bin/bash\necho "$*" >>"%s/clicks"\n' "$TMP_DIR" >"$TMP_DIR/dl"
-chmod +x "$TMP_DIR/dl"
-BLOCK_BUTTON=1 run_block >/dev/null
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-	[[ -s "$TMP_DIR/clicks" ]] && break
-	sleep 0.1
-done
-assert_eq '--gui' "$(cat "$TMP_DIR/clicks" 2>/dev/null)" 'click runs daily-limits --gui'
+printf '#!/bin/bash\necho "py $*" >>"%s/clicks"\n' "$TMP_DIR" >"$TMP_DIR/py"
+chmod +x "$TMP_DIR/dl" "$TMP_DIR/py"
+click() { # BUTTON -> what the stubs recorded (empty if nothing ran)
+	rm -f "$TMP_DIR/clicks"
+	BLOCK_BUTTON="$1" FOCUS_OPEN_PYTHON="$TMP_DIR/py" run_block >/dev/null
+	for _ in 1 2 3 4 5 6 7 8 9 10; do
+		[[ -s "$TMP_DIR/clicks" ]] && break
+		sleep 0.1
+	done
+	cat "$TMP_DIR/clicks" 2>/dev/null || true
+}
+assert_eq 'py -m focus_project.open' "$(click 1)" 'left click opens the tutor and the work site'
+assert_eq 'py -m focus_project.open --no-site' "$(click 2)" 'middle click opens only the tutor'
+assert_eq '--gui' "$(click 3)" 'right click opens daily-limits --gui'
+assert_eq '' "$(click 0)" 'no click opens nothing'
 
 printf 'focus_project block: all checks passed\n'
