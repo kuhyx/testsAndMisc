@@ -72,6 +72,13 @@ interval=30
 command=~/.config/i3blocks/tutor.sh
 interval=30
 
+# Active focus project. signal=11: daily-limits sends `pkill -RTMIN+11 -x
+# i3blocks` the moment the focus status changes; 30 s is only the fallback.
+[focus_project]
+command=~/.config/i3blocks/focus_project.sh
+interval=30
+signal=11
+
 [issue_dashboard]
 command=~/.config/i3blocks/issue_dashboard.sh
 interval=30
