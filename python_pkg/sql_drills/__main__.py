@@ -1,4 +1,7 @@
-"""CLI: ``python3 -m python_pkg.sql_drills start|stop|list|show|check``."""
+"""CLI: ``python3 -m python_pkg.sql_drills start|stop|list|show|check``.
+
+A thin wrapper over the shared ``sql_drills`` package (kuhyx/utils).
+"""
 
 from __future__ import annotations
 
@@ -8,9 +11,8 @@ import logging
 from pathlib import Path
 import sys
 
-from python_pkg.sql_drills import _check, _drills, _engine
+import sql_drills as sd
 
-_EXIT_CODES = {"pass": 0, "fail": 1, "error": 2}
 _LOG = logging.getLogger(__name__)
 
 
@@ -18,8 +20,7 @@ def _heartbeat() -> None:
     """Tell the optional focus tracker that practice is happening.
 
     Soft dependency: absent module -> silent no-op; a tracker error is logged
-    (file or registry errors) and never changes the drill's result or
-    exit code.
+    and never changes the drill's result or exit code.
     """
     try:
         tracker = importlib.import_module("focus_project")
@@ -53,24 +54,50 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _render_show(drill: sd.Drill) -> str:
+    tail = "## Query to predict" if drill.query else "## Expected output (sample)"
+    body = drill.query or "\n".join("\t".join(r) for r in drill.expected_preview)
+    return (
+        f"{drill.task_md.strip()}\n\n## Schema\n\n{drill.schema_sql.strip()}\n\n"
+        f"{tail}\n\n{body}\n"
+    )
+
+
+def _check(drill_id: str, sql_file: Path) -> int:
+    if not sql_file.is_file():
+        _out(f"query file not found: {sql_file}")
+        return 2
+    res = sd.run(drill_id, sql_file.read_text())
+    if res.error is not None and not res.match:
+        _out(f"SQL error: {res.error}")
+        return 2
+    if res.match:
+        _out(f"PASS {drill_id} ({len(res.rows)} rows)")
+        return 0
+    _out(
+        f"FAIL {drill_id}: expected {len(res.expected_rows)} rows, got {len(res.rows)}"
+    )
+    for row, col, want, got in res.cell_diff:
+        _out(f"line {row + 1} cell {col + 1}: expected {want!r}, actual {got!r}")
+    return 1
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     if args.cmd == "start":
-        _engine.start()
-        _out(f"{_engine.CONTAINER} ready ({_engine.IMAGE})")
+        sd.ensure_running()
+        _out(f"{sd.CONTAINER} ready ({sd.IMAGE})")
     elif args.cmd == "stop":
-        _engine.stop()
-        _out(f"{_engine.CONTAINER} removed")
+        sd.stop()
+        _out(f"{sd.CONTAINER} removed")
     elif args.cmd == "list":
-        for drill in _drills.list_drills():
-            _out(f"{drill.id}  {_drills.title_of(drill)}")
+        for meta in sd.list_drills():
+            _out(f"{meta.id}  {meta.title}")
     elif args.cmd == "show":
         _heartbeat()
-        sys.stdout.write(_drills.render_show(_drills.get_drill(args.drill)))
+        sys.stdout.write(_render_show(sd.get_drill(args.drill)))
     else:
         _heartbeat()
-        result = _check.run_check(_drills.get_drill(args.drill), args.sql_file)
-        _out(result.message)
-        return _EXIT_CODES[result.status]
+        return _check(args.drill, args.sql_file)
     return 0
 
 
@@ -79,9 +106,9 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
         return _dispatch(args)
-    except _drills.UnknownDrillError as exc:
+    except sd.UnknownDrillError as exc:
         _err(exc.args[0])
-    except _engine.EngineError as exc:
+    except sd.EngineError as exc:
         _err(f"error: {exc}")
     return 2
 

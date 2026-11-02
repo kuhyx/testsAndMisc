@@ -1,0 +1,33 @@
+{
+  "intent": "python_pkg.sql_drills CLI keeps its commands but imports the shared sql_drills package from kuhyx/utils.",
+  "scope": [
+    "python_pkg/sql_drills (engine, fixtures, solutions, engine tests removed)",
+    "meta/requirements.txt pin sql-drills-v0.1.0",
+    "Non-goal: changing CLI commands or exit codes"
+  ],
+  "changes": [
+    "__main__.py calls sql_drills.ensure_running/stop/list_drills/get_drill/run",
+    "Fixtures, normaliser, docker engine and live tests moved to utils/sql_drills",
+    "check prints per-cell diffs instead of per-line diffs"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q python_pkg/sql_drills --cov=python_pkg/sql_drills --cov-branch",
+      "result": "pass",
+      "evidence": "18 passed, 100% branch coverage"
+    },
+    {
+      "command": "python3 -m python_pkg.sql_drills check 06 <reference.sql> (live container)",
+      "result": "pass",
+      "evidence": "PASS 06 (3 rows), exit 0; wrong query: FAIL with cell diffs, exit 1"
+    }
+  ],
+  "risks": [
+    "CI needs the utils git pin to resolve",
+    "The shared package must be installed in any python running the CLI"
+  ],
+  "rollback": [
+    "git revert this commit to restore the in-repo engine",
+    "Re-run python3 -m python_pkg.sql_drills list and check 01 on a reference"
+  ]
+}

@@ -243,6 +243,9 @@ min-similarity-lines = 10
 spelling-dict = ""
 
 [tool.pylint.typecheck]
+# The init-hook puts python_pkg/ on sys.path, so the shared `sql_drills`
+# package (kuhyx/utils) resolves to the CLI folder python_pkg/sql_drills.
+ignored-modules = ["sql_drills"]
 # cv2 (OpenCV) dynamically loads members from C extension at runtime.
 # unittest.mock.MagicMock generates assertion/introspection methods at runtime.
 # wave.open(path, "wb") returns a Wave_write, but pylint's stdlib stub infers the

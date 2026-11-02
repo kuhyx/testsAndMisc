@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 import pytest
+import sql_drills as sd
 
 from python_pkg.sql_drills import __main__ as cli
-from python_pkg.sql_drills import _check
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,9 +42,13 @@ def test_show_sends_heartbeat(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_check_sends_heartbeat(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls = _fake_tracker(monkeypatch)
-    result = _check.CheckResult("fail", "MSG")
-    with patch.object(_check, "run_check", return_value=result):
-        assert cli.main(["check", "01", str(tmp_path / "q.sql")]) == 1
+    result = sd.RunResult(
+        ok=True, error=None, columns=[], rows=[], expected_rows=[["x"]], match=False
+    )
+    with patch.object(sd, "run", return_value=result):
+        query = tmp_path / "q.sql"
+        query.write_text("SELECT 1;")
+        assert cli.main(["check", "01", str(query)]) == 1
     assert calls == [("sql_drills", "heartbeat")]
 
 

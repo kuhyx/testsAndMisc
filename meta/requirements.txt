@@ -83,6 +83,7 @@ ruff==0.17.3
 # which would hold the typer this repo actually imports below latest.
 secretstorage==3.5.0
 selenium==4.52.0
+sql_drills @ git+https://github.com/kuhyx/utils@sql-drills-v0.1.0#subdirectory=sql_drills
 typer==0.27.3
 types-python-dateutil==2.9.0.20261029
 types-PyYAML==6.0.12.20261030
