@@ -1,0 +1,28 @@
+{
+  "intent": "Publish a loopback service at <name>.kuhy.duckdns.org through the existing gitea-caddy edge with one validated command.",
+  "scope": [
+    "linux_configuration/features/publish_caddy_site.sh (new)",
+    "Non-goal: no change to the live Caddy config, setup_gitea.sh or DNS"
+  ],
+  "changes": [
+    "Writes sites/<name>.kuhy.duckdns.org.caddy (reverse_proxy to 127.0.0.1:<port>, optional bearer gate), validates on a tmp copy in a throwaway caddy:2.8 container, then reloads gitea-caddy"
+  ],
+  "verification": [
+    {
+      "command": "shellcheck linux_configuration/features/publish_caddy_site.sh",
+      "result": "pass",
+      "evidence": "exit 0"
+    },
+    {
+      "command": "publish_caddy_site.sh todo 8799 --dry-run (with and without a token file)",
+      "result": "pass",
+      "evidence": "caddy validate: Valid configuration, exit 0; live edge not modified"
+    }
+  ],
+  "risks": [
+    "A real run reloads the shared edge; a bad snippet is caught by the pre-validation, but a reload still briefly touches all sites"
+  ],
+  "rollback": [
+    "Delete ~/services/gitea/sites/<name>.kuhy.duckdns.org.caddy and run docker exec gitea-caddy caddy reload --config /etc/caddy/Caddyfile"
+  ]
+}
