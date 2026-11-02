@@ -3,12 +3,14 @@
   "scope": [
     "python_pkg/sql_drills (new package, fixtures, tests, README)",
     "meta/pyproject.toml: register the docker pytest marker",
-    "Non-goal: bumping the pinned mysql image; copying third-party problems"
+    "Non-goal: bumping the pinned mysql image; copying third-party problems",
+    "2026-11-02: show/check send an optional focus-tracker heartbeat (__main__.py, tests/conftest.py, tests/test_focus_hook.py)"
   ],
   "changes": [
     "CLI start/stop/list/show/check over one long-lived tmpfs container",
     "Judge-style normaliser and line diff, unit-tested without Docker",
-    "12 original drills with live-verified reference solutions kept in tests only"
+    "12 original drills with live-verified reference solutions kept in tests only",
+    "_heartbeat(): soft import of focus_project; absent -> no-op, tracker error -> logged, result and exit code unchanged"
   ],
   "verification": [
     {
@@ -20,11 +22,17 @@
       "command": "python3 -m python_pkg.sql_drills check <id> <reference> for all 12 drills",
       "result": "pass",
       "evidence": "every drill prints PASS; wrong query prints a line diff, syntax error exits 2"
+    },
+    {
+      "command": "python3 -m pytest -q python_pkg/sql_drills/tests --cov=python_pkg.sql_drills --cov-branch",
+      "result": "pass",
+      "evidence": "61 passed, 15 live tests skipped (no container), 100% branch coverage; show 01 wrote one sql_drills heartbeat row to a scratch FOCUS_PROJECT_DATA"
     }
   ],
   "risks": [
     "Local MySQL image must be pulled once; start fails with a clear error otherwise",
-    "A runaway query is cut off client-side after 30 s but may keep running in the container until stop"
+    "A runaway query is cut off client-side after 30 s but may keep running in the container until stop",
+    "A hanging tracker would delay show/check; the real one is a local file append"
   ],
   "rollback": [
     "git revert the commit; run python3 -m python_pkg.sql_drills stop first",

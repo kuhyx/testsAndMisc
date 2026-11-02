@@ -3,12 +3,32 @@
 from __future__ import annotations
 
 import argparse
+import importlib
+import logging
 from pathlib import Path
 import sys
 
 from python_pkg.sql_drills import _check, _drills, _engine
 
 _EXIT_CODES = {"pass": 0, "fail": 1, "error": 2}
+_LOG = logging.getLogger(__name__)
+
+
+def _heartbeat() -> None:
+    """Tell the optional focus tracker that practice is happening.
+
+    Soft dependency: absent module -> silent no-op; a tracker error is logged
+    (file or registry errors) and never changes the drill's result or
+    exit code.
+    """
+    try:
+        tracker = importlib.import_module("focus_project")
+    except ImportError:
+        return
+    try:
+        tracker.record_activity("sql_drills", "heartbeat")
+    except OSError, ValueError:
+        _LOG.exception("focus tracker heartbeat failed")
 
 
 def _out(line: str) -> None:
@@ -44,8 +64,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         for drill in _drills.list_drills():
             _out(f"{drill.id}  {_drills.title_of(drill)}")
     elif args.cmd == "show":
+        _heartbeat()
         sys.stdout.write(_drills.render_show(_drills.get_drill(args.drill)))
     else:
+        _heartbeat()
         result = _check.run_check(_drills.get_drill(args.drill), args.sql_file)
         _out(result.message)
         return _EXIT_CODES[result.status]
