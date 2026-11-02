@@ -86,7 +86,7 @@ ui.wait_for("Connected.", timeout=30)
     Nine widget tests passed green on the build whose on-device labels had
     just gone empty.
 - A widget outside the viewport is not in the tree. `android-ui scroll-to
-  QUERY` (`AndroidUi.scroll_to`) swipes up until it appears, and stops with an
+QUERY` (`AndroidUi.scroll_to`) swipes up until it appears, and stops with an
   error at the end of the list or after 8 swipes. It only scrolls downward.
 
 ## One phone, many sessions
