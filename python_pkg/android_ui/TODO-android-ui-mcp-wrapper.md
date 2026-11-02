@@ -1,13 +1,12 @@
 # Task: replace blind coordinate tapping with element-targeted Android UI automation
 
-> **STATUS 2026-08-10: BUILT.** The tool now exists at
-> `~/src/testsAndMisc/python_pkg/android_ui/` (see its README). It covers `dump` /
-> `find` / `tap` / `type` / `wait` / `focus` with verified typing, ambiguity as
-> an error, keyboard detection, and partial-tree retries — all exercised
-> against the physical Pixel 6a. What remains from the spec below is the
-> optional MCP wrapper, `scroll_to()`, and rolling it out to `~/src/todo` and
-> `~/src/dufs-cloud/app`. Everything after this line is the original brief, kept
-> because it records WHY each guarantee exists.
+> **STATUS 2026-11-02: PARTIAL.** The CLI (`dump`/`find`/`tap`/`type`/`wait`/
+> `scroll-to`/`focus`) exists at `~/src/testsAndMisc/python_pkg/android_ui/` (see
+> its README). Remaining: (1) the optional MCP wrapper over the same driver;
+> (2) rolling it out to `~/src/todo` and `~/src/dufs-cloud/app` (other repos,
+> needs their own sessions); (3) the `## done` run on the physical Pixel 6a:
+> needs kuhy, phone not connected. Everything after this line is the original
+> brief, kept because it records WHY each guarantee exists.
 
 ## what
 

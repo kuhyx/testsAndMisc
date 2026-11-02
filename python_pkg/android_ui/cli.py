@@ -9,6 +9,7 @@ successful no-op instead of guessing from a screenshot.
     android-ui tap "Connect Firebase"
     android-ui type "Sync account email" kuhy@example.com
     android-ui wait "Connected to Firebase." --timeout 30
+    android-ui scroll-to "Offline backup"    # widget below the fold
     android-ui --display self tap "Save"     # this session's phone_vd display
 """
 
@@ -63,6 +64,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ("find", "locate an element without touching it"),
         ("tap", "tap the element matching QUERY"),
         ("wait", "poll until QUERY appears"),
+        ("scroll-to", "swipe up until QUERY is on screen"),
     ):
         cmd = sub.add_parser(name, help=helptext)
         cmd.add_argument("query")
@@ -135,6 +137,8 @@ def _run(ui: AndroidUi, args: argparse.Namespace) -> None:
     elif args.command == "wait":
         found = ui.wait_for(args.query, timeout=args.timeout, exact=args.exact)
         sys.stdout.write(f"{found}\n")
+    elif args.command == "scroll-to":
+        sys.stdout.write(f"{ui.scroll_to(args.query, exact=args.exact)}\n")
     elif args.command == "type":
         ui.type_into(args.query, args.text, exact=args.exact, timeout=args.timeout)
         sys.stdout.write(f"typed into {args.query!r} and verified\n")

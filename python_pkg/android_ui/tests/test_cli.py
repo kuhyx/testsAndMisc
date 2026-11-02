@@ -140,6 +140,19 @@ class TestWait:
         assert cli.main(["wait", "Nope"]) == 1
 
 
+class TestScrollTo:
+    def test_prints_the_element_once_scrolled_into_view(
+        self, ui: MagicMock, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        ui.scroll_to.return_value = _element("Offline backup")
+        assert cli.main(["scroll-to", "Offline backup"]) == 0
+        assert "Offline backup" in capsys.readouterr().out
+
+    def test_never_found_exits_non_zero(self, ui: MagicMock) -> None:
+        ui.scroll_to.side_effect = ElementNotFoundError("never appeared")
+        assert cli.main(["scroll-to", "Nope"]) == 1
+
+
 class TestType:
     def test_confirms_the_text_was_verified(
         self, ui: MagicMock, capsys: pytest.CaptureFixture[str]

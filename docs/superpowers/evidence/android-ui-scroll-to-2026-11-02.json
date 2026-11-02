@@ -1,0 +1,25 @@
+{
+  "intent": "android-ui can bring a widget below the fold on screen with scroll-to.",
+  "scope": [
+    "python_pkg/android_ui: _scroll.py, driver.py, cli.py, README, tests",
+    "Non-goal: MCP wrapper and rollout to other repos"
+  ],
+  "changes": [
+    "Added ScrollMixin.scroll_to (swipe up until the query matches once)",
+    "Added the scroll-to CLI subcommand and narrowed the TODO"
+  ],
+  "verification": [
+    {
+      "command": "pytest python_pkg/android_ui --cov=python_pkg.android_ui",
+      "result": "pass",
+      "evidence": "95 passed, every android_ui module 100% covered"
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "all hooks pass"
+    }
+  ],
+  "risks": ["Swipe distance is tuned for a 1080x2400 screen only by fraction"],
+  "rollback": ["git revert the commit", "Re-run pytest python_pkg/android_ui"]
+}

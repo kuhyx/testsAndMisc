@@ -1,0 +1,11 @@
+{
+  "title": "android-ui scroll-to",
+  "objective": "AndroidUi.scroll_to and android-ui scroll-to find a widget outside the viewport, fail loudly at the end of the list, and keep ambiguity an error.",
+  "acceptance_criteria": [
+    "Visible element returns with no swipe",
+    "Off-screen element is reached by upward swipes",
+    "End of list or max swipes raises ElementNotFoundError naming the query"
+  ],
+  "out_of_scope": ["MCP wrapper", "Rollout to todo and dufs-cloud"],
+  "verifier": "pytest python_pkg/android_ui and pre-commit run --files <changed-files>"
+}

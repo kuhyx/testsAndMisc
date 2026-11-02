@@ -17,6 +17,7 @@ from python_pkg.android_ui._elements import (
     _escape,
     _parse_tree,
 )
+from python_pkg.android_ui._scroll import ScrollMixin
 from python_pkg.android_ui._text_entry import TextEntryMixin
 
 _logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ _REMOTE_DUMP = "/sdcard/window_dump.xml"
 _SUSPICIOUSLY_SMALL_TREE = 4
 
 
-class AndroidUi(TextEntryMixin):
+class AndroidUi(ScrollMixin, TextEntryMixin):
     """Drives one device. Every action re-reads the tree before acting."""
 
     def __init__(

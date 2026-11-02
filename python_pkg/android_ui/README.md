@@ -85,8 +85,9 @@ ui.wait_for("Connected.", timeout=30)
     `SemanticsNode`, while this tool reads Android's `AccessibilityNodeInfo`.
     Nine widget tests passed green on the build whose on-device labels had
     just gone empty.
-- Scrolling is not yet modelled: a widget outside the viewport is not in the
-  tree. Scroll with `adb shell input swipe` first, or add `scroll_to()`.
+- A widget outside the viewport is not in the tree. `android-ui scroll-to
+  QUERY` (`AndroidUi.scroll_to`) swipes up until it appears, and stops with an
+  error at the end of the list or after 8 swipes. It only scrolls downward.
 
 ## One phone, many sessions
 
