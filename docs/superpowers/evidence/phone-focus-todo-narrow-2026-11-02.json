@@ -1,0 +1,14 @@
+{
+  "intent": "Replace the stale 2000-line phone recovery plan with its remaining live-verification steps.",
+  "scope": ["docs/superpowers/plans/TODO-phone-focus-recovery.md"],
+  "changes": ["Plan chunks 1-7 are built in phone-focus-mode; TODO keeps Chunk 8 only"],
+  "verification": [
+    {
+      "command": "bash lib/tests/test_adb_common.sh; bash lib/tests/test_monitor.sh (in ~/src/phone-focus-mode)",
+      "result": "pass",
+      "evidence": "10 passed, 82 passed; run_phone.sh --help exits 0"
+    }
+  ],
+  "risks": ["Live phone steps stay unverified until a phone is attached"],
+  "rollback": ["git revert the commit"]
+}
