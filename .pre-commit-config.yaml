@@ -273,7 +273,7 @@ repos:
           # js_anki builds the Anki .apkg; same isolated-venv reason as above.
           - genanki
           - gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.1.0#subdirectory=gatelock
-          - sql_drills @ git+https://github.com/kuhyx/utils@sql-drills-v0.1.0#subdirectory=sql_drills
+          - sql_drills @ git+https://github.com/kuhyx/utils@sql-drills-v0.2.2#subdirectory=sql_drills
           - anthropic
           - rich
           - typer
