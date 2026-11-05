@@ -1,0 +1,14 @@
+{
+  "title": "WARP home window: add Thursday, widen to 08:00-16:00",
+  "objective": "kuhy can run `warp-home on` on the work laptop at home Mon/Thu/Fri 08:00-16:00 (was Mon/Fri 09:00-15:30); the PC's clock still decides, and WARP stays blocked at home outside that window.",
+  "acceptance_criteria": [
+    "warp_window.sh open succeeds only Mon/Thu/Fri 08:00:00-15:59:59 and fills warp_open with a timeout ending at 16:00; Tue/Wed/Sat/Sun stay closed (test_warp_window.sh)",
+    "warp_home.sh messages name Mon/Thu/Fri 08:00-16:00 and the 16:00 cut-off (test_warp_home.sh)",
+    "Live: on Thursday `warp-home on` from the laptop opens the PC window until 16:00 and WARP connects"
+  ],
+  "out_of_scope": [
+    "Install path, sudoers entry and authorized_keys forced command (unchanged)",
+    "Jail-only suites in features/lib/tests (dwm, nc_php, rpi_nc, dot_resolver_install, website_admin)"
+  ],
+  "verifier": "linux_configuration/features/lib/tests/test_warp_window.sh; linux_configuration/features/lib/tests/test_warp_home.sh; on the laptop: warp-home on && warp-home status"
+}

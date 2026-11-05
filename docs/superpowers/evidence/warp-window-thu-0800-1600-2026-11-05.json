@@ -1,0 +1,37 @@
+{
+  "intent": "The home WARP window for the work laptop opens Mon/Thu/Fri 08:00-16:00 instead of Mon/Fri 09:00-15:30.",
+  "scope": [
+    "linux_configuration/features/warp_window.sh (PC, enforces the window)",
+    "linux_configuration/features/warp_home.sh (laptop, messages only)",
+    "lib/wg_gateway.sh comment, DOCS-lan-blocker-contingency.md, both test files",
+    "No change to install, sudoers or the ssh forced command"
+  ],
+  "changes": [
+    "WINDOW_DAYS ' 1 5 ' -> ' 1 4 5 '; OPEN_SEC 09:00 -> 08:00; CLOSE_SEC 15:30 -> 16:00; refusal/open messages updated",
+    "test_warp_window.sh asserts the 07:59:59/08:00/15:59:59/16:00 edges, Thursday open, Tue/Wed/Sat/Sun closed, 21600 s timeout at Mon 10:00"
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/features/lib/tests/test_warp_window.sh (before the change)",
+      "result": "fail",
+      "evidence": "red first: 27 passed, 8 failed (Thursday closed, 08:00 closed, 12600 instead of 14400)"
+    },
+    {
+      "command": "linux_configuration/features/lib/tests/test_warp_window.sh; test_warp_home.sh",
+      "result": "pass",
+      "evidence": "35 passed, 0 failed; 35 passed, 0 failed"
+    },
+    {
+      "command": "sudo install -m 0755 warp_window.sh /usr/local/sbin/warp-window; laptop 192.168.1.21: ~/.local/bin/warp-home replaced (sha256 bf242be5...), then warp-home on; warp-home status",
+      "result": "pass",
+      "evidence": "Thu 2026-11-05 09:11: 'Home window ends at 16:00', pc: open (expires 6h48m), warp Connected, example.com 200; kuhy confirmed"
+    }
+  ],
+  "risks": [
+    "Laptop copy is installed by hand; a later warp_home.sh install overwrites it with the repo version (same content now)"
+  ],
+  "rollback": [
+    "PC: sudo cp -a /usr/local/sbin/warp-window.bak-2026-11-05 /usr/local/sbin/warp-window; laptop: restore ~/.local/bin/warp-home.bak-2026-11-05",
+    "Then: sudo warp-window status shows closed outside Mon/Fri 09:00-15:30"
+  ]
+}

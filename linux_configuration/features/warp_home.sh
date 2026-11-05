@@ -9,7 +9,7 @@
 # plain internet (with the DNS blocklist) comes back. On any other network,
 # e.g. the office, it never touches WARP.
 #
-#   warp-home on       Mon/Fri 09:00-15:30 at home: ask the PC, then connect.
+#   warp-home on       Mon/Thu/Fri 08:00-16:00 at home: ask the PC, then connect.
 #                      Anywhere else: just connect.
 #   warp-home off      disconnect and forget the window
 #   warp-home status   network, window, WARP and the PC's view
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 readonly PC_IP="192.168.1.43" PC_MAC="9c:6b:00:5c:c5:6d" PC_USER="kuhy"
-readonly WARN_SEC=300 # warn five minutes before the 15:30 cut-off
+readonly WARN_SEC=300 # warn five minutes before the 16:00 cut-off
 KEY="$HOME/.ssh/warp_window_ed25519"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/warp-home"
 OPEN_UNTIL="$STATE_DIR/open-until"
@@ -70,17 +70,17 @@ warp_off_because() {
 cmd_tick() {
 	at_home || return 0
 	window_open || {
-		warp_off_because "WARP turned off at home. 'warp-home on' works Mon/Fri 09:00-15:30."
+		warp_off_because "WARP turned off at home. 'warp-home on' works Mon/Thu/Fri 08:00-16:00."
 		return 0
 	}
-	# Any re-apply of the PC firewall empties its set before 15:30. Only an
+	# Any re-apply of the PC firewall empties its set before 16:00. Only an
 	# explicit "closed" counts: an unreachable PC proves nothing.
 	if [[ $(pc status 2>/dev/null) == closed ]]; then
 		warp_off_because "The PC closed the WARP window early; run 'warp-home on' again."
 		return 0
 	fi
 	if (($(<"$OPEN_UNTIL") - $(date +%s) <= WARN_SEC)) && [[ ! -e $WARNED ]]; then
-		notify "WARP closes at 15:30, in five minutes."
+		notify "WARP closes at 16:00, in five minutes."
 		touch "$WARNED"
 	fi
 }
@@ -96,7 +96,7 @@ cmd_on() {
 		printf '%s\n' "$(($(date +%s) + left))" >"$OPEN_UNTIL"
 	fi
 	warp connect >/dev/null
-	printf 'WARP connecting.%s\n' "$(at_home && printf ' Home window ends at 15:30.')"
+	printf 'WARP connecting.%s\n' "$(at_home && printf ' Home window ends at 16:00.')"
 }
 
 cmd_off() {

@@ -120,7 +120,7 @@ _t_not "the early-closed window is forgotten" test -e "$OPEN_UNTIL"
 SSH_OUT="seconds_left=600"
 
 printf '\n-- on: a refusal connects nothing --\n'
-SSH_OUT="WARP window is Mon/Fri 09:00-15:30 only"
+SSH_OUT="WARP window is Mon/Thu/Fri 08:00-16:00 only"
 SSH_RC=1
 reset_calls
 on_refused() { cmd_on; }

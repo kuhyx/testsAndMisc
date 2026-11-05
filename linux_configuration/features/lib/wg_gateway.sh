@@ -26,7 +26,7 @@ readonly WARP_V4="162.159.192.0/24, 162.159.193.0/24, 162.159.197.0/24"
 # No LAN-wide drop of UDP 500/1701/4500: that would break IPsec for everyone.
 readonly WARP_UDP_V4="162.159.192.0/22, 162.159.204.0/22, 188.114.96.0/22"
 # Sources in warp_open skip both WARP drops. Empty by default; warp_window.sh
-# fills it Mon/Fri 09:00-15:30 with an element that times out by itself. Any
+# fills it Mon/Thu/Fri 08:00-16:00 with an element that times out by itself. Any
 # re-apply of this ruleset empties it again.
 
 # Fill in LAN_IFACE/LAN_IP from the default route unless the caller set them.

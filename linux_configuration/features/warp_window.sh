@@ -4,9 +4,9 @@
 #
 # Gateway mode (setup_dns_blocker.sh gateway) drops the WARP tunnel, because
 # WARP carries all traffic past the DNS block. This opens it for every LAN
-# device, but ONLY Mon/Fri 09:00-15:30 by this PC's clock: the open adds one
-# element to the nft set warp_open whose timeout ends at 15:30, so the kernel
-# closes it again with nothing left to fail. The office days (Tue-Thu) need
+# device, but ONLY Mon/Thu/Fri 08:00-16:00 by this PC's clock: the open adds one
+# element to the nft set warp_open whose timeout ends at 16:00, so the kernel
+# closes it again with nothing left to fail. The office days (Tue/Wed) need
 # nothing here: the home gateway never touches the work network.
 #
 # The laptop (warp_home.sh) asks over an SSH key whose forced command is
@@ -22,8 +22,8 @@
 
 set -euo pipefail
 
-readonly WINDOW_DAYS=" 1 5 " # date +%u: Monday, Friday
-readonly OPEN_SEC=$((9 * 3600)) CLOSE_SEC=$((15 * 3600 + 30 * 60))
+readonly WINDOW_DAYS=" 1 4 5 " # date +%u: Monday, Thursday, Friday
+readonly OPEN_SEC=$((8 * 3600)) CLOSE_SEC=$((16 * 3600))
 readonly NFT_SET="inet filter warp_open"
 readonly KEY_FROM="192.168.1.0/24" # the key works only from the LAN
 INSTALL_PATH="/usr/local/sbin/warp-window"
@@ -36,8 +36,8 @@ die() {
 	exit 1
 }
 
-# Seconds until 15:30 while the window is open; fails when it is closed.
-# Plain arithmetic, not `date -d 15:30`: DST never changes on a Mon/Fri day.
+# Seconds until 16:00 while the window is open; fails when it is closed.
+# Plain arithmetic, not `date -d 16:00`: DST never changes on a window day.
 window_seconds_left() {
 	local day h m s now
 	read -r day h m s <<<"$(date '+%u %H %M %S')"
@@ -49,13 +49,13 @@ window_seconds_left() {
 
 cmd_open() {
 	local left
-	left="$(window_seconds_left)" || die "WARP window is Mon/Fri 09:00-15:30 only."
+	left="$(window_seconds_left)" || die "WARP window is Mon/Thu/Fri 08:00-16:00 only."
 	# Re-opening must refresh the timeout, and add keeps an old one: flush first.
 	# shellcheck disable=SC2086 # NFT_SET is three words on purpose
 	nft flush set $NFT_SET 2>/dev/null || die "no warp_open set: is gateway mode on?"
 	# shellcheck disable=SC2086
 	nft add element $NFT_SET "{ 0.0.0.0/0 timeout ${left}s }"
-	printf 'WARP open for the LAN until 15:30.\nseconds_left=%s\n' "$left"
+	printf 'WARP open for the LAN until 16:00.\nseconds_left=%s\n' "$left"
 }
 
 cmd_close() {
