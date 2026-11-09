@@ -2,7 +2,7 @@
 # Tests for warp_window.sh -- the PC side of the work-from-home WARP window.
 #
 # Gateway mode drops the Cloudflare WARP tunnel because it carries everything
-# past the DNS block. kuhy may open it only Mon/Thu/Fri 08:00-16:00; the laptop
+# past the DNS block. kuhy may open it only Mon/Thu/Fri 07:00-17:00; the laptop
 # asks over an SSH key whose forced command can run nothing but open/status.
 # The window edges and the forced-command filter are the security boundary,
 # so both are asserted exactly. The clock and nft are stubbed.
@@ -28,26 +28,26 @@ left_at() {
 	window_seconds_left || printf 'closed'
 }
 
-printf '\n-- the window is Mon/Thu/Fri 08:00-16:00, nothing else --\n'
-_t_eq "closed" "$(left_at '1 07 59 59')" "Monday 07:59:59 is closed"
-_t_eq "28800" "$(left_at '1 08 00 00')" "Monday 08:00 opens until 16:00"
-_t_eq "1" "$(left_at '1 15 59 59')" "Monday 15:59:59 has one second left"
-_t_eq "closed" "$(left_at '1 16 00 00')" "Monday 16:00 is closed"
-_t_eq "14400" "$(left_at '5 12 00 00')" "Friday noon is open"
-_t_eq "28800" "$(left_at '4 08 00 00')" "Thursday 08:00 opens until 16:00"
-_t_eq "closed" "$(left_at '4 16 00 00')" "Thursday 16:00 is closed"
+printf '\n-- the window is Mon/Thu/Fri 07:00-17:00, nothing else --\n'
+_t_eq "closed" "$(left_at '1 06 59 59')" "Monday 06:59:59 is closed"
+_t_eq "36000" "$(left_at '1 07 00 00')" "Monday 07:00 opens until 17:00"
+_t_eq "1" "$(left_at '1 16 59 59')" "Monday 16:59:59 has one second left"
+_t_eq "closed" "$(left_at '1 17 00 00')" "Monday 17:00 is closed"
+_t_eq "18000" "$(left_at '5 12 00 00')" "Friday noon is open"
+_t_eq "36000" "$(left_at '4 07 00 00')" "Thursday 07:00 opens until 17:00"
+_t_eq "closed" "$(left_at '4 17 00 00')" "Thursday 17:00 is closed"
 for day in 2 3 6 7; do
 	_t_eq "closed" "$(left_at "$day 12 00 00")" "weekday $day noon is closed"
 done
-_t_eq "28260" "$(left_at '5 08 09 00')" "a leading-zero hour is decimal, not octal"
+_t_eq "31860" "$(left_at '5 08 09 00')" "a leading-zero hour is decimal, not octal"
 
-printf '\n-- open fills the set with a timeout ending at 16:00 --\n'
+printf '\n-- open fills the set with a timeout ending at 17:00 --\n'
 FAKE_DATE="1 10 00 00"
 out="$(cmd_open)"
-_t_called 'nft add element inet filter warp_open { 0.0.0.0/0 timeout 21600s }' \
+_t_called 'nft add element inet filter warp_open { 0.0.0.0/0 timeout 25200s }' \
 	"open adds the catch-all element with the time left"
-_t_has "$out" "seconds_left=21600" "open reports the seconds left for the laptop"
-_t_has "$out" "until 16:00" "open names the 16:00 cut-off"
+_t_has "$out" "seconds_left=25200" "open reports the seconds left for the laptop"
+_t_has "$out" "until 17:00" "open names the 17:00 cut-off"
 
 printf '\n-- outside the window open refuses and touches nothing --\n'
 : >"$TEST_TMPDIR/calls.log"

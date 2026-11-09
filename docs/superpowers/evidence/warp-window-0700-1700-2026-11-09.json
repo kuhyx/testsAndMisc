@@ -1,0 +1,37 @@
+{
+  "intent": "The home WARP window for the work laptop opens Mon/Thu/Fri 07:00-17:00 instead of 08:00-16:00. Away from home WARP stays always available, any day or time.",
+  "scope": [
+    "linux_configuration/features/warp_window.sh (PC, enforces the window)",
+    "linux_configuration/features/warp_home.sh (laptop, messages only)",
+    "DOCS-lan-blocker-contingency.md, test_warp_window.sh, test_warp_home.sh",
+    "No change to days, install, sudoers, the ssh forced command or the away-from-home path"
+  ],
+  "changes": [
+    "OPEN_SEC 08:00 -> 07:00; CLOSE_SEC 16:00 -> 17:00; refusal/open/warning messages updated",
+    "test_warp_window.sh asserts the 06:59:59/07:00/16:59:59/17:00 edges and a 25200 s timeout at Mon 10:00"
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/features/lib/tests/test_warp_window.sh (before the change)",
+      "result": "fail",
+      "evidence": "red first: 27 passed, 8 failed (07:00 closed, 14400 instead of 18000 at Friday noon)"
+    },
+    {
+      "command": "linux_configuration/features/lib/tests/test_warp_window.sh; test_warp_home.sh",
+      "result": "pass",
+      "evidence": "35 passed, 0 failed; 35 passed, 0 failed (incl. away-from-home tick never touches WARP, on away connects without the PC)"
+    },
+    {
+      "command": "sudo install -m 0755 warp_window.sh /usr/local/sbin/warp-window; scp warp_home.sh to laptop ~/.local/bin/warp-home; . /usr/local/sbin/warp-window; window_seconds_left",
+      "result": "pass",
+      "evidence": "Mon 2026-11-09 07:56:42 -> 32598 s left (open until 17:00; closed under the old window); kuhy ran warp-home on and confirmed it works"
+    }
+  ],
+  "risks": [
+    "Laptop copy is installed by hand; a later warp_home.sh install overwrites it with the repo version (same content now)"
+  ],
+  "rollback": [
+    "git revert this commit, then sudo install -m 0755 warp_window.sh /usr/local/sbin/warp-window and copy warp_home.sh to the laptop again",
+    "Then: window_seconds_left is closed at Mon 07:30 and 16:30"
+  ]
+}

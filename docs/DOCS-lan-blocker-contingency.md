@@ -120,8 +120,8 @@ with no internet. So the laptop runs `warp-home` (user timer, every 30 s): at
 home with no window open it turns WARP off, and plain internet with the
 blocklist comes back. On any other network (office) it never touches WARP.
 
-- Mon/Thu/Fri 08:00-16:00 at home: `warp-home on` asks the PC, then connects.
-  The PC opens WARP for the LAN until 16:00 sharp, then closes by itself.
+- Mon/Thu/Fri 07:00-17:00 at home: `warp-home on` asks the PC, then connects.
+  The PC opens WARP for the LAN until 17:00 sharp, then closes by itself.
   Outside that window the PC refuses. `warp-home off` / `warp-home status`.
 - Window closed early (the PC firewall was re-applied): `warp-home on` again.
 - PC side by hand: `sudo warp-window open|close|status`.
@@ -139,4 +139,4 @@ blocklist comes back. On any other network (office) it never touches WARP.
   real IPv6 address); Firefox DoH canary + DoH hostnames blocked; DHCP lease
   12h -> 2h; gateway mode added (nextcloud-pi and the P110 plug exempt).
 - 2026-10-25: WARP tunnel dropped at the gateway (work laptop bypassed the
-  DNS block through it); Mon/Thu/Fri 08:00-16:00 window via `warp-home on`.
+  DNS block through it); Mon/Thu/Fri 07:00-17:00 window via `warp-home on`.
