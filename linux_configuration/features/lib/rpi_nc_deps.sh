@@ -36,8 +36,8 @@ wait_for_apt_lock() {
 ensure_dependencies() {
 	local missing_packages=()
 
-	if ! command -v nmap &>/dev/null; then
-		missing_packages+=("nmap")
+	if ! command -v rustscan &>/dev/null; then
+		missing_packages+=("rustscan")
 	fi
 
 	if ! command -v sshpass &>/dev/null; then
@@ -88,10 +88,9 @@ discover_raspberry_pi() {
 	fi
 
 	log_info "Hostname resolution failed, scanning network..."
-	nmap -sn -T4 "$network" &>/dev/null || true
 
 	local ssh_hosts
-	ssh_hosts=$(nmap -p 22 --open -sT -T4 "$network" 2>/dev/null | grep "Nmap scan report" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | grep -vw "$my_ip" | sort -u) || true
+	ssh_hosts=$(rustscan -a "$network" -p 22 -g 2>/dev/null | awk '{print $1}' | grep -vw "$my_ip" | sort -u) || true
 
 	if [[ -z $ssh_hosts ]]; then
 		die "No SSH-enabled devices found. Is the Pi connected and booted?"

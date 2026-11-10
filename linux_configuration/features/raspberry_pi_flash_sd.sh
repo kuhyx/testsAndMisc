@@ -14,8 +14,8 @@ CONFIG_FILE="${SCRIPT_DIR}/.raspberry_pi.conf"
 
 # Load configuration from gitignored config file if it exists
 if [[ -f $CONFIG_FILE ]]; then
-  # shellcheck source=/dev/null
-  source "$CONFIG_FILE"
+	# shellcheck source=/dev/null
+	source "$CONFIG_FILE"
 fi
 
 # Configuration - Customize these values (or set in config file)
@@ -38,34 +38,34 @@ NC='\033[0m'
 
 # All log functions output to stderr so they don't interfere with function return values
 log_info() {
-  echo -e "${BLUE}[INFO]${NC} $1" >&2
+	echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 log_success() {
-  echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
+	echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 log_warning() {
-  echo -e "${YELLOW}[WARNING]${NC} $1" >&2
+	echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
 log_error() {
-  echo -e "${RED}[ERROR]${NC} $1" >&2
+	echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 die() {
-  log_error "$1"
-  exit 1
+	log_error "$1"
+	exit 1
 }
 
 check_root() {
-  if [[ $EUID -ne 0 ]]; then
-    die "This script must be run as root. Use: sudo $0"
-  fi
+	if [[ $EUID -ne 0 ]]; then
+		die "This script must be run as root. Use: sudo $0"
+	fi
 }
 
 save_config() {
-  cat > "$CONFIG_FILE" << EOF
+	cat >"$CONFIG_FILE" <<EOF
 # Raspberry Pi Setup - Auto-generated config
 # This file is gitignored and stores discovered settings
 
@@ -81,22 +81,22 @@ PI_TIMEZONE="${PI_TIMEZONE}"
 # Generated passwords (KEEP THIS FILE SECURE!)
 PI_PASSWORD="${PI_PASSWORD}"
 EOF
-  chmod 600 "$CONFIG_FILE"
-  log_info "Configuration saved to $CONFIG_FILE"
+	chmod 600 "$CONFIG_FILE"
+	log_info "Configuration saved to $CONFIG_FILE"
 }
 
 generate_password() {
-  local length="${1:-16}"
-  local chars
-  chars=$(dd if=/dev/urandom bs=256 count=1 2> /dev/null | tr -dc 'A-Za-z0-9!@#$%&*' | cut -c1-"$length")
-  echo "$chars"
+	local length="${1:-16}"
+	local chars
+	chars=$(dd if=/dev/urandom bs=256 count=1 2>/dev/null | tr -dc 'A-Za-z0-9!@#$%&*' | cut -c1-"$length")
+	echo "$chars"
 }
 
 auto_generate_pi_password() {
-  if [[ -z $PI_PASSWORD ]]; then
-    PI_PASSWORD=$(generate_password 16)
-    log_info "Auto-generated Pi password (will be saved to config file)"
-  fi
+	if [[ -z $PI_PASSWORD ]]; then
+		PI_PASSWORD=$(generate_password 16)
+		log_info "Auto-generated Pi password (will be saved to config file)"
+	fi
 }
 
 # =============================================================================
@@ -104,31 +104,31 @@ auto_generate_pi_password() {
 # =============================================================================
 
 ensure_dependencies() {
-  local missing_packages=()
+	local missing_packages=()
 
-  if ! command -v nmap &> /dev/null; then
-    missing_packages+=("nmap")
-  fi
+	if ! command -v rustscan &>/dev/null; then
+		missing_packages+=("rustscan")
+	fi
 
-  if ! command -v sshpass &> /dev/null; then
-    missing_packages+=("sshpass")
-  fi
+	if ! command -v sshpass &>/dev/null; then
+		missing_packages+=("sshpass")
+	fi
 
-  if [[ ${#missing_packages[@]} -gt 0 ]]; then
-    log_info "Installing missing packages: ${missing_packages[*]}"
+	if [[ ${#missing_packages[@]} -gt 0 ]]; then
+		log_info "Installing missing packages: ${missing_packages[*]}"
 
-    if command -v pacman &> /dev/null; then
-      sudo pacman -S --noconfirm "${missing_packages[@]}"
-    elif command -v apt-get &> /dev/null; then
-      sudo apt-get update && sudo apt-get install -y "${missing_packages[@]}"
-    elif command -v dnf &> /dev/null; then
-      sudo dnf install -y "${missing_packages[@]}"
-    else
-      die "Could not detect package manager. Please install manually: ${missing_packages[*]}"
-    fi
+		if command -v pacman &>/dev/null; then
+			sudo pacman -S --noconfirm "${missing_packages[@]}"
+		elif command -v apt-get &>/dev/null; then
+			sudo apt-get update && sudo apt-get install -y "${missing_packages[@]}"
+		elif command -v dnf &>/dev/null; then
+			sudo dnf install -y "${missing_packages[@]}"
+		else
+			die "Could not detect package manager. Please install manually: ${missing_packages[*]}"
+		fi
 
-    log_success "Dependencies installed"
-  fi
+		log_success "Dependencies installed"
+	fi
 }
 
 # shellcheck source=lib/pi_flash_remote.sh
@@ -138,29 +138,28 @@ source "$SCRIPT_DIR/lib/pi_flash_image.sh"
 # shellcheck source=lib/pi_flash_exec.sh
 source "$SCRIPT_DIR/lib/pi_flash_exec.sh"
 
-
 main() {
-  local command="${1:-help}"
+	local command="${1:-help}"
 
-  case "$command" in
-    local)
-      phase_flash_local
-      ;;
-    remote)
-      phase_flash_remote
-      ;;
-    execute-remote)
-      phase_execute_remote "${2:-}"
-      ;;
-    help | --help | -h)
-      show_help
-      ;;
-    *)
-      log_error "Unknown command: $command"
-      show_help
-      exit 1
-      ;;
-  esac
+	case "$command" in
+	local)
+		phase_flash_local
+		;;
+	remote)
+		phase_flash_remote
+		;;
+	execute-remote)
+		phase_execute_remote "${2:-}"
+		;;
+	help | --help | -h)
+		show_help
+		;;
+	*)
+		log_error "Unknown command: $command"
+		show_help
+		exit 1
+		;;
+	esac
 }
 
 main "$@"

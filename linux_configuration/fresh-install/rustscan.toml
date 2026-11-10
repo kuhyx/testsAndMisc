@@ -1,0 +1,4 @@
+# RustScan config (copied to ~/.rustscan.toml by main.sh).
+# "None" keeps rustscan from piping open ports into nmap (nonfree, blocked by
+# the pacman wrapper; the /usr/local/bin/nmap shim would only exit 1).
+scripts = "None"

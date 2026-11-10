@@ -67,9 +67,9 @@ ensure_dependencies() {
 
 	local missing_packages=()
 
-	# Check for nmap (fast network scanning)
-	if ! command -v nmap &>/dev/null; then
-		missing_packages+=("nmap")
+	# Check for rustscan (fast network scanning)
+	if ! command -v rustscan &>/dev/null; then
+		missing_packages+=("rustscan")
 	fi
 
 	# Check for sshpass (for initial SSH key setup)

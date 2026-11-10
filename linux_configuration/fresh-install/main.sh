@@ -169,6 +169,8 @@ if [ ! -d "$HOME/.config/mpv" ]; then
 	mkdir -p "$HOME/.config/mpv"
 fi
 cp mpv.conf "$HOME/.config/mpv/mpv.conf"
+# rustscan must never call nmap (nonfree, blocked by the pacman wrapper)
+cp rustscan.toml "$HOME/.rustscan.toml"
 
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
 	yes | sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"

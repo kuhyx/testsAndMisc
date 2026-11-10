@@ -1,0 +1,13 @@
+{
+  "title": "Pi flashing: discover SSH hosts with rustscan, not nmap",
+  "objective": "The Pi flash/discovery scripts find SSH hosts on the LAN with `rustscan -a <net> -p 22 -g`, install/check for rustscan instead of nmap, and rustscan is configured (scripts = \"None\") so it never pipes into nmap, which the pacman wrapper blocks.",
+  "acceptance_criteria": [
+    "No nmap references remain in the Pi flashing scripts and rpi_nc_deps checks for rustscan (test_pi_discovery_rustscan.sh)",
+    "fresh-install/main.sh installs fresh-install/rustscan.toml to ~/.rustscan.toml"
+  ],
+  "out_of_scope": [
+    "The pacman nmap block and /usr/local/bin/nmap shim (digital-wellbeing repo)",
+    "Live scan of a real LAN"
+  ],
+  "verifier": "linux_configuration/tests/test_pi_discovery_rustscan.sh; pre-commit run --files <changed-files>"
+}

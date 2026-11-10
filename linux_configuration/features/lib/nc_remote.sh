@@ -22,13 +22,11 @@ discover_remote_laptop() {
 
 	log_info "Local IP: $my_ip, Gateway: $gateway, Network: $network"
 
-	# Use nmap for fast parallel SSH port scanning
-	log_info "Scanning network for SSH-enabled devices (using nmap)..."
+	# Use rustscan for fast parallel SSH port scanning
+	log_info "Scanning network for SSH-enabled devices (using rustscan)..."
 	local ssh_hosts
-	# First do a ping sweep to wake up hosts, then scan SSH port
-	nmap -sn -T4 "$network" &>/dev/null || true
-	# Extract IPs from nmap output - grep for report lines then extract IP
-	ssh_hosts=$(nmap -p 22 --open -sT -T4 "$network" 2>/dev/null | grep "Nmap scan report" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | grep -vw "$my_ip" | sort -u)
+	# Greppable output: one "IP -> [22]" line per host with the port open
+	ssh_hosts=$(rustscan -a "$network" -p 22 -g 2>/dev/null | awk '{print $1}' | grep -vw "$my_ip" | sort -u) || true
 
 	if [[ -z $ssh_hosts ]]; then
 		die "No SSH-enabled devices found on network"

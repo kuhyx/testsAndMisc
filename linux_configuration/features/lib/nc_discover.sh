@@ -39,13 +39,11 @@ discover_raspberry_pi() {
 		return
 	fi
 
-	# Ping sweep to wake up hosts
 	log_info "Hostname resolution failed, scanning network..."
-	nmap -sn -T4 "$network" &>/dev/null || true
 
 	# Scan for SSH-enabled devices (excluding our IP and known laptop)
 	local ssh_hosts
-	ssh_hosts=$(nmap -p 22 --open -sT -T4 "$network" 2>/dev/null | grep "Nmap scan report" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | grep -vw "$my_ip" | grep -vw "$REMOTE_LAPTOP_IP" 2>/dev/null | sort -u) || true
+	ssh_hosts=$(rustscan -a "$network" -p 22 -g 2>/dev/null | awk '{print $1}' | grep -vw "$my_ip" | grep -vw "$REMOTE_LAPTOP_IP" 2>/dev/null | sort -u) || true
 
 	if [[ -z $ssh_hosts ]]; then
 		die "No new SSH-enabled devices found. Is the Pi connected and booted?"

@@ -1,0 +1,35 @@
+{
+  "intent": "Pi flashing scripts discover SSH hosts with rustscan instead of nmap; rustscan runs with scripts = \"None\" so it never calls nmap.",
+  "scope": [
+    "linux_configuration/features/lib/{nc_discover,nc_flash,nc_image,nc_remote,pi_flash_remote,rpi_nc_deps}.sh",
+    "linux_configuration/features/raspberry_pi_flash_sd.sh",
+    "linux_configuration/fresh-install/main.sh, rustscan.toml",
+    "linux_configuration/tests/test_pi_discovery_rustscan.sh",
+    "Not touched: pacman wrapper (digital-wellbeing), live LAN scanning"
+  ],
+  "changes": [
+    "nmap ping sweep + port scan replaced by `rustscan -a <net> -p 22 -g | awk '{print $1}'` (greppable output, one IP per line)",
+    "Dependency checks and hint messages name rustscan instead of nmap",
+    "fresh-install/rustscan.toml (scripts = \"None\") copied to ~/.rustscan.toml by main.sh"
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/tests/test_pi_discovery_rustscan.sh",
+      "result": "pass",
+      "evidence": "ok per discovery script, ok rpi_nc_deps dependencies, ok no nmap references"
+    },
+    {
+      "command": "pre-commit run --files <changed-files>",
+      "result": "pass",
+      "evidence": "shellcheck, codespell and secrets hooks passed on the shell files"
+    }
+  ],
+  "risks": [
+    "rustscan -g output format change would break the awk IP extraction",
+    "Hosts that drop rustscan's fast SYN probing may be missed versus nmap"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Re-run a Pi discovery and confirm hosts are listed"
+  ]
+}

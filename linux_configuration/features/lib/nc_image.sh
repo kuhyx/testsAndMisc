@@ -176,5 +176,5 @@ EOF
 
 	log_success "SD card configured for headless boot!"
 	log_info "Insert the SD card into your Raspberry Pi and power it on."
-	log_info "Find the Pi's IP address from your router or use: nmap -sn 192.168.1.0/24"
+	log_info "Find the Pi's IP address from your router or use: rustscan -a 192.168.1.0/24 -p 22 -g"
 }
