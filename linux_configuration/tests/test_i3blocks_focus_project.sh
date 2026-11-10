@@ -63,6 +63,51 @@ out=$(run_block)
 assert_eq '🎯 HackerRank prep 120/120' "$(line 1 "$out")" 'target reached text'
 assert_eq '#50FA7B' "$(line 3 "$out")" 'green at daily_minutes'
 
+printf 'Checking interview milestones (red when missed, suitcase when a trip question is open)...\n'
+RED='#FF5555'
+SUITCASE=$'\uf0f2'
+# focus_ms MISSED MINUTES MILESTONE_JSON_ARRAY
+focus_ms() {
+	jq -nc --argjson x "$1" --argjson m "$2" --argjson ms "$3" \
+		'{project:"p",name:"Interview",minutes:$m,daily_minutes:30,missed:$x,milestones:$ms}'
+}
+ms_json() { # ID STATE
+	jq -nc --arg i "$1" --arg s "$2" '[{id:$i,due:"2026-11-12T23:59:00",state:$s}]'
+}
+write_cache "$NOW" "$(focus_ms true 5 "$(ms_json rules missed)")"
+out=$(run_block)
+assert_eq "$RED" "$(line 3 "$out")" 'a missed milestone turns the block red'
+assert_eq '🎯 Interview 5/30' "$(line 1 "$out")" 'red adds no text'
+write_cache "$NOW" "$(focus_ms true 30 "$(ms_json rules missed)")"
+assert_eq "$RED" "$(line 3 "$(run_block)")" 'red beats green once the daily target is reached'
+write_cache "$NOW" "$(focus_ms false 30 "$(ms_json rules "done")")"
+assert_eq '#50FA7B' "$(line 3 "$(run_block)")" 'all milestones done: not red'
+write_cache "$NOW" "$(focus_ms false 5 "$(ms_json rules pending)")"
+assert_eq '#F1FA8C' "$(line 3 "$(run_block)")" 'only pending milestones: not red'
+write_cache "$NOW" "$(focus_json 'No milestones' 5 120)"
+assert_eq '#F1FA8C' "$(line 3 "$(run_block)")" 'a project without milestones is not red'
+write_cache "$NOW" '{"project":null,"minutes":0,"daily_minutes":0,"missed":true}'
+assert_eq '' "$(line 1 "$(run_block)")" 'missed without a project stays hidden'
+
+write_cache "$NOW" "$(focus_ms false 5 "$(ms_json trip_ask:2026-11-14 pending)")"
+out=$(run_block)
+assert_eq "🎯 Interview 5/30 $SUITCASE" "$(line 1 "$out")" 'pending trip question shows the suitcase'
+assert_eq "🎯 5/30 $SUITCASE" "$(line 2 "$out")" 'suitcase in the short text too'
+assert_eq '#F1FA8C' "$(line 3 "$out")" 'a pending trip question alone is not red'
+write_cache "$NOW" "$(focus_ms true 5 "$(ms_json trip_ask:2026-11-14 missed)")"
+out=$(run_block)
+assert_eq "🎯 Interview 5/30 $SUITCASE" "$(line 1 "$out")" 'missed trip question shows the suitcase'
+assert_eq "$RED" "$(line 3 "$out")" 'missed trip question is red'
+for state in "done" late_done; do
+	write_cache "$NOW" "$(focus_ms false 5 "$(ms_json trip_ask:2026-11-14 "$state")")"
+	assert_eq '🎯 Interview 5/30' "$(line 1 "$(run_block)")" "$state trip question shows no suitcase"
+done
+write_cache "$NOW" "$(focus_ms false 5 "$(ms_json phone:2026-11-14 pending)")"
+assert_eq '🎯 Interview 5/30' "$(line 1 "$(run_block)")" 'other open milestones show no suitcase'
+
+write_cache "$NOW" "$(focus_ms false 5 '["junk",{"id":7},null]')"
+assert_eq '🎯 Interview 5/30' "$(line 1 "$(run_block)")" 'malformed milestones are ignored, not fatal'
+
 printf 'Checking the hidden states...\n'
 write_cache "$NOW" '{"project":null,"minutes":0,"daily_minutes":0}'
 out=$(run_block)

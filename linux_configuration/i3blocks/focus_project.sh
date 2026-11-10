@@ -18,6 +18,9 @@
 # gaming_budget block already says "⏱?" for the same cache, and old minutes
 # must never be shown.
 #
+# Interview projects: focus.missed (any milestone missed or unknown) turns the
+# block red, over green and yellow; no text is added.
+#
 # Clicks (the block says what to do, so a click goes where the work is):
 #   left   `python3 -m focus_project.open`: the tutor focus screen (starts the
 #          focus timer if it is not running) and the project's work URL
@@ -34,6 +37,10 @@ readonly STALE_AFTER_SECONDS=180
 # Dracula-ish palette, matching gaming_budget.sh.
 readonly YELLOW='#F1FA8C'
 readonly GREEN='#50FA7B'
+readonly RED='#FF5555'
+# FontAwesome suitcase (the bar's icon font): an interview project's trip
+# question (milestone trip_ask:*) is still open, pending or missed.
+readonly SUITCASE=$'\uf0f2'
 
 emit() {
 	# full_text, short_text, color: the three lines i3blocks reads.
@@ -60,14 +67,21 @@ hide() {
 # can never add lines to the block's output.
 render_focus() {
 	local rendered
-	rendered=$(jq -r --arg green "$GREEN" --arg yellow "$YELLOW" '
+	rendered=$(jq -r --arg green "$GREEN" --arg yellow "$YELLOW" \
+		--arg red "$RED" --arg suitcase "$SUITCASE" '
 		(.generated_at | if type == "number" then floor else "none" end),
 		(.focus | if type == "object" and (.project | type) == "string" then
 			(.minutes // 0 | floor) as $m
 			| (.daily_minutes // 0 | floor) as $d
 			| ((.name // .project) | tostring | gsub("[\u0001-\u001f\u007f]"; " ")) as $name
-			| "🎯 \($name) \($m)/\($d)", "🎯 \($m)/\($d)",
-			  (if $d > 0 and $m >= $d then $green else $yellow end)
+			| (if any((.milestones | if type == "array" then .[] else empty end);
+					type == "object" and ((.id | type) == "string")
+					and (.id | startswith("trip_ask:"))
+					and (.state == "pending" or .state == "missed"))
+				then " " + $suitcase else "" end) as $trip
+			| "🎯 \($name) \($m)/\($d)\($trip)", "🎯 \($m)/\($d)\($trip)",
+			  (if .missed == true then $red
+			   elif $d > 0 and $m >= $d then $green else $yellow end)
 		  else "", "", $yellow end)' "$LIMITS_CACHE" 2>/dev/null) || return 1
 	printf '%s\n' "$rendered" >"$RENDER_CACHE"
 }

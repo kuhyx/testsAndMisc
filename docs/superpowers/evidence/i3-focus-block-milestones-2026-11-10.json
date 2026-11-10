@@ -1,0 +1,31 @@
+{
+  "intent": "The i3 focus block turns red when an interview milestone is missed and shows a suitcase while a trip question is open; no new text.",
+  "scope": [
+    "linux_configuration/i3blocks/focus_project.sh",
+    "linux_configuration/tests/test_i3blocks_focus_project.sh",
+    "Non-goal: the block still renders only daily-limits' cached focus field"
+  ],
+  "changes": [
+    "jq render picks #FF5555 when focus.missed is true, over green and yellow",
+    "jq render appends the FontAwesome suitcase (U+F0F2) when a trip_ask:* milestone is pending or missed; malformed milestones are ignored"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_focus_project.sh",
+      "result": "pass",
+      "evidence": "red first (missed block stayed yellow), then all checks passed incl. red, suitcase, no-suitcase and malformed milestone cases"
+    },
+    {
+      "command": "shellcheck linux_configuration/i3blocks/focus_project.sh linux_configuration/tests/test_i3blocks_focus_project.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": [
+    "Suitcase glyph needs the bar's FontAwesome font (installed: Font Awesome 7 Free Solid)"
+  ],
+  "rollback": [
+    "git revert the commit; the live ~/.config/i3blocks/focus_project.sh is a symlink to the repo file",
+    "Check the block renders yellow/green again"
+  ]
+}
