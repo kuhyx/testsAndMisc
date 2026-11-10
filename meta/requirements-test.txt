@@ -21,7 +21,7 @@
 # suite itself fails loudly here on a missing import.
 # ==============================================================================
 
-anthropic==2.6.0
+anthropic==2.7.0
 beautifulsoup4==4.15.0
 coverage==7.17.2
 defusedxml==0.7.1
@@ -31,12 +31,12 @@ numpy==2.5.4
 pillow==13.0.0
 pytest==9.2.0
 pytest-cov==7.1.0
-pytest-randomly==5.0.0
+pytest-randomly==5.1.0
 pytest-sugar==1.1.1
 pytest-timeout==2.4.0
 pytest-xdist==3.8.0
 requests==2.34.2
 rich==15.0.0
 sql_drills @ git+https://github.com/kuhyx/utils@sql-drills-v0.2.2#subdirectory=sql_drills
-typer==0.28.0
+typer==0.29.0
 typing_extensions==4.16.0
