@@ -1,0 +1,34 @@
+{
+  "intent": "blender-mcp-host/serve and the session_autopsy hook test point at the relocated MCP server checkouts (~/.local/share/mcp-servers, ~/.claude/mcp-servers) instead of the removed ~/src/mcp-servers.",
+  "scope": [
+    "linux_configuration/scripts/blender-mcp-host",
+    "linux_configuration/scripts/blender-mcp-serve",
+    "linux_configuration/tests/test_session_autopsy_hooks.py",
+    "Non-goal: moving or re-cloning the MCP servers themselves"
+  ],
+  "changes": [
+    "blender-mcp-host: ADDON_PATH and the embedded start_addon spec path now /home/kuhy/.local/share/mcp-servers/blender-mcp/addon.py",
+    "blender-mcp-serve: SERVER_DIR now /home/kuhy/.local/share/mcp-servers/blender-mcp",
+    "test_session_autopsy_hooks.py: expected PYTHONPATH is {home}/.claude/mcp-servers/session-autopsy; comment names kuhyx/claude-config"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest linux_configuration/tests/test_session_autopsy_hooks.py -q -p no:randomly --no-cov",
+      "result": "pass",
+      "evidence": "12 passed in 4.12s"
+    },
+    {
+      "command": "grep -c src/mcp-servers linux_configuration/scripts/blender-mcp-host linux_configuration/scripts/blender-mcp-serve linux_configuration/tests/test_session_autopsy_hooks.py",
+      "result": "pass",
+      "evidence": "0 matches in each of the three files"
+    }
+  ],
+  "risks": [
+    "Hardcoded absolute /home/kuhy paths still break on another account or machine",
+    "If the checkout under ~/.local/share/mcp-servers is missing, blender-mcp-serve fails at start"
+  ],
+  "rollback": [
+    "git revert the commit; paths return to ~/src/mcp-servers",
+    "Re-run test_session_autopsy_hooks.py and start blender-mcp-serve once to confirm"
+  ]
+}

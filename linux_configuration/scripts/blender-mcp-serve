@@ -14,7 +14,7 @@
 set -euo pipefail
 
 readonly HOST_SCRIPT="/home/kuhy/.local/bin/blender-mcp-host"
-readonly SERVER_DIR="/home/kuhy/src/mcp-servers/servers/blender-mcp"
+readonly SERVER_DIR="/home/kuhy/.local/share/mcp-servers/blender-mcp"
 readonly UV="/home/kuhy/.local/bin/uv"
 
 # stdout is the MCP JSON-RPC channel -- any stray byte written there corrupts

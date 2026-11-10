@@ -1,0 +1,31 @@
+{
+  "intent": "The session_autopsy mutation gate finishes in about 19 s instead of about 51 s so a commit touching it fits the 60 s per-action cap.",
+  "scope": [
+    "meta/scripts/mutate_session_autopsy_hooks.py",
+    "Non-goal: changing the mutation definitions or the pass/fail rule"
+  ],
+  "changes": [
+    "Mutants run in a ThreadPoolExecutor (4 workers) via _run_mutant; each uses its own hook copy and its own coverage file",
+    "Per-mutant report lines are still printed in MUTATIONS order after all finish"
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/mutate_session_autopsy_hooks.py (before)",
+      "result": "pass",
+      "evidence": "PASS: all 12 tests killed, 51.4 s wall"
+    },
+    {
+      "command": "python3 meta/scripts/mutate_session_autopsy_hooks.py (after)",
+      "result": "pass",
+      "evidence": "PASS: all 12 tests killed, same per-mutant kill lists, 19.1 s wall"
+    }
+  ],
+  "risks": [
+    "Four concurrent pytest runs use more CPU and RAM for a few seconds",
+    "A test that shares global state across processes could become flaky under concurrency"
+  ],
+  "rollback": [
+    "git revert the commit; mutants run sequentially again",
+    "Re-run the script and expect PASS in about 51 s"
+  ]
+}

@@ -20,7 +20,7 @@ set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
-readonly ADDON_PATH="/home/kuhy/src/mcp-servers/servers/blender-mcp/addon.py"
+readonly ADDON_PATH="/home/kuhy/.local/share/mcp-servers/blender-mcp/addon.py"
 readonly START_SCRIPT="/home/kuhy/.local/share/blender-mcp-host/start_addon.py"
 readonly LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/blender-mcp-host.log"
 
@@ -87,7 +87,7 @@ import importlib.util
 import sys
 
 _SPEC = importlib.util.spec_from_file_location(
-    "blendermcp_addon", "/home/kuhy/src/mcp-servers/servers/blender-mcp/addon.py")
+    "blendermcp_addon", "/home/kuhy/.local/share/mcp-servers/blender-mcp/addon.py")
 _MOD = importlib.util.module_from_spec(_SPEC)
 sys.modules["blendermcp_addon"] = _MOD
 _SPEC.loader.exec_module(_MOD)

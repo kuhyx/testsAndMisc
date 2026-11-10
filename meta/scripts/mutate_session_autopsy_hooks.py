@@ -25,6 +25,7 @@ nothing to mutate.
 from __future__ import annotations
 
 import ast
+import concurrent.futures
 import os
 from pathlib import Path
 import re
@@ -36,6 +37,9 @@ import tempfile
 from _session_autopsy_mutations import END_HOOK, MUTATIONS, START_HOOK, Mutation
 
 _TEST_FILE = "linux_configuration/tests/test_session_autopsy_hooks.py"
+# Mutants are independent (own hook copy, own coverage file), so they run side by
+# side; sequentially the ~4 s suite x 9 mutants pushed a commit past 60 s.
+_WORKERS = 4
 _OUTCOME = re.compile(r"::(test_\w+)\s+(PASSED|FAILED|ERROR|SKIPPED)")
 
 
@@ -133,6 +137,14 @@ def _apply(mutation: Mutation, hooks_dir: Path, target_dir: Path) -> None:
     target.chmod(0o755)
 
 
+def _run_mutant(mutation: Mutation, hooks_dir: Path) -> tuple[Mutation, set[str]]:
+    """Apply one mutation in a private directory and return the tests it kills."""
+    with tempfile.TemporaryDirectory() as mutant_name:
+        mutant_dir = Path(mutant_name)
+        _apply(mutation, hooks_dir, mutant_dir)
+        return mutation, _run_suite(mutant_dir, mutant_dir)
+
+
 def main() -> int:
     """Run every mutation and fail if any test survives them all."""
     hooks_dir = _hooks_dir()
@@ -148,15 +160,13 @@ def main() -> int:
             return 1
 
         killed_by: dict[str, list[str]] = {}
-        for mutation in MUTATIONS:
-            try:
-                with tempfile.TemporaryDirectory() as mutant_name:
-                    mutant_dir = Path(mutant_name)
-                    _apply(mutation, hooks_dir, mutant_dir)
-                    failures = _run_suite(mutant_dir, scratch)
-            except RuntimeError as error:
-                _emit(f"{mutation.name:26s} ERROR: {error}")
-                return 1
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=_WORKERS) as pool:
+                results = list(pool.map(lambda m: _run_mutant(m, hooks_dir), MUTATIONS))
+        except RuntimeError as error:
+            _emit(f"ERROR: {error}")
+            return 1
+        for mutation, failures in results:
             _emit(f"{mutation.name:26s} killed {len(failures):2d}: {sorted(failures)}")
             for test in failures:
                 killed_by.setdefault(test, []).append(mutation.name)
