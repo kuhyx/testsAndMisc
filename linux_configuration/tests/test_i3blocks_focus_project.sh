@@ -65,7 +65,7 @@ assert_eq '#50FA7B' "$(line 3 "$out")" 'green at daily_minutes'
 
 printf 'Checking interview milestones (red when missed, suitcase when a trip question is open)...\n'
 RED='#FF5555'
-SUITCASE=$'\uf0f2'
+SUITCASE='🧳'
 # focus_ms MISSED MINUTES MILESTONE_JSON_ARRAY
 focus_ms() {
 	jq -nc --argjson x "$1" --argjson m "$2" --argjson ms "$3" \

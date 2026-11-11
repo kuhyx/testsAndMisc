@@ -38,9 +38,10 @@ readonly STALE_AFTER_SECONDS=180
 readonly YELLOW='#F1FA8C'
 readonly GREEN='#50FA7B'
 readonly RED='#FF5555'
-# FontAwesome suitcase (the bar's icon font): an interview project's trip
+# Luggage emoji (not a Font Awesome private-use glyph, which the i3bar
+# checks forbid): an interview project's trip
 # question (milestone trip_ask:*) is still open, pending or missed.
-readonly SUITCASE=$'\uf0f2'
+readonly SUITCASE='🧳'
 
 emit() {
 	# full_text, short_text, color: the three lines i3blocks reads.
