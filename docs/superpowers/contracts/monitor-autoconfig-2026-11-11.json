@@ -1,0 +1,11 @@
+{
+  "title": "Monitors: best mode automatically on hotplug",
+  "objective": "A systemd user service keeps every connected monitor at its native resolution and highest refresh rate, DP-0 primary and leftmost, others to its right, re-applied whenever a monitor is connected or disconnected.",
+  "acceptance_criteria": [
+    "plan() turns the 2026-11-11 DP-0-off state into DP-0 3840x2160@144 at 0x0 plus HDMI-0 2560x1440@143.98 at 3840x0, and returns [] when already there",
+    "The watcher handles one burst of output events with one apply, survives a failed xrandr, and waits for late EDID modes",
+    "setup_monitor_autoconfig.sh leaves monitor-autoconfig.service enabled and active"
+  ],
+  "out_of_scope": ["Undoing deliberate mode changes by games or manual xrandr", "Wayland"],
+  "verifier": "python3 -m pytest linux_configuration/tests/test_monitor_layout.py linux_configuration/tests/test_monitor_autoconfig.py; pre-commit run --files <changed-files>"
+}

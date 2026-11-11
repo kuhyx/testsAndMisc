@@ -1,0 +1,17 @@
+[Unit]
+Description=Every monitor at its best resolution and refresh rate, on hotplug
+After=graphical-session.target
+# An X restart kills the watcher (exit 1) and Restart= brings it back; a
+# genuinely broken setup trips this limit and shows as a failed unit.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/python3 @FEATURES_DIR@/monitor_autoconfig.py
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=graphical-session.target
