@@ -1,0 +1,9 @@
+[Unit]
+Description=Desktop background tick every 15 minutes (new style every 3 hours)
+
+[Timer]
+OnCalendar=*:0/15
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

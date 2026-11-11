@@ -23,6 +23,37 @@ font pango:System San Francisco Display, FontAwesome 8
 # https://wiki.archlinux.org/index.php/XDG_Autostart
 exec --no-startup-id dex --autostart --environment i3
 
+# OpenTabletDriver daemon (Huion HS64 -> DP-0 mapping). Started here because i3
+# does not reliably activate graphical-session.target, which the packaged
+# systemd user service depends on. This guarantees the tablet works on login.
+exec --no-startup-id systemctl --user start opentabletdriver.service
+
+# Workout screen locker. Same reason as the line above: the unit is
+# WantedBy=graphical-session.target, and if i3 does not activate that target
+# the login run never happens -- which on 2026-08-30 left the machine
+# unenforced from a 14:06 reboot until the next timer tick. The run is
+# idempotent (its early-exit ladder handles "already logged", "weekly minimum
+# met", "window still active"), so starting it here as well costs nothing.
+exec --no-startup-id systemctl --user start workout-locker.service
+
+# LeetCode gate. Same reason again: WantedBy=graphical-session.target is not a
+# guarantee under i3, and on 2026-09-13 the timer's boot-time catch-up died
+# before X existed and burned the day's slot. The run is idempotent (a settled
+# day exits "already unlocked" with no window) and waits for X itself.
+exec --no-startup-id systemctl --user start leetcode-guard.service
+
+# Book gate (book-guard). Same reason as the two above: WantedBy=graphical-
+# session.target is not a guarantee under i3. The run is idempotent (on pace,
+# a free day, an escape or the morning-session carrot all exit without a
+# window), so starting it here as well costs nothing.
+exec --no-startup-id systemctl --user start book-guard.service
+
+# Wallpaper rotator (python_pkg/wallpaper_rotator): a dark, text-free
+# background, new every 3 hours via a 15-minute systemd timer. This start
+# paints right at login instead of at the next tick. Installed by
+# linux_configuration/i3/install_wallpaper_rotator.sh.
+exec --no-startup-id systemctl --user start wallpaper-rotator.service
+
 # The combination of xss-lock, nm-applet and pactl is a popular choice, so
 # they are included here as an example. Modify as you see fit.
 
@@ -33,6 +64,11 @@ exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
 # NetworkManager is the most popular way to manage wireless networks on Linux,
 # and nm-applet is a desktop environment-independent system tray GUI for it.
 exec --no-startup-id nm-applet
+
+# Workout screen-locker status now lives in the i3blocks bar
+# ([screen_locker], clicking it opens http://127.0.0.1:8770). The GTK tray icon
+# it replaced had been commented out here since 2026-08-21, which is part of
+# why a miscounted week went unnoticed for two of them.
 
 # Keep screen awake and unlocked; also treat controller input as activity
 exec --no-startup-id bash /home/kuhy/src/testsAndMisc/linux_configuration/utils/turn_off_auto_idle_screen_shutdown.sh --watch-controller
@@ -217,4 +253,14 @@ bar {
   }
 }
 
-bindsym $mod+d exec "dmenu_run -nf '#F8F8F2' -nb '#282A36' -sb '#6272A4' -sf '#F8F8F2' -fn 'monospace-10' -p 'dmenu%'"
+bindsym $mod+d exec "PATH=$HOME/.local/bin:$PATH dmenu_run -nf '#F8F8F2' -nb '#282A36' -sb '#6272A4' -sf '#F8F8F2' -fn 'monospace-10' -p 'dmenu%'"
+
+
+
+# leetcode-guard status tray. Left-click TOGGLES the status window
+# (open/close); right-click gives refresh and quit.
+exec --no-startup-id /usr/bin/python3 /home/kuhy/.config/i3/scripts/leetcode_guard_tray.py
+
+# control-panel fleet tray. Left-click opens the dashboard;
+# right-click lists every service and its own dashboards.
+exec --no-startup-id /usr/bin/python3 /home/kuhy/.config/i3/scripts/control_panel_tray.py

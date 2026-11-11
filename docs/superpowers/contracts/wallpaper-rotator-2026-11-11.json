@@ -1,0 +1,14 @@
+{
+  "title": "Desktop background: six dark styles, new one every 3 hours",
+  "objective": "Replace the white i3 root window with a dark, text-free background that changes every 3 hours to a random style different from the previous one on that monitor and from the other monitor's.",
+  "acceptance_criteria": [
+    "Six styles (gradient, procedural, heatmap, clock, earth, plasma) render the exact output size with mean brightness below 80/255",
+    "plan() rotates after 3 h to styles unlike each monitor's previous and unlike each other; inside 3 h static styles stay, live styles redraw, a lost root pixmap repaints",
+    "install_wallpaper_rotator.sh leaves wallpaper-rotator.timer enabled and active and paints once"
+  ],
+  "out_of_scope": [
+    "Animated backgrounds",
+    "Any text on the background"
+  ],
+  "verifier": "python3 -m pytest python_pkg/wallpaper_rotator/tests --cov=python_pkg.wallpaper_rotator --cov-branch --cov-fail-under=100; pre-commit run --files <changed-files>"
+}

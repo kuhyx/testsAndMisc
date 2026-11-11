@@ -1,0 +1,39 @@
+{
+  "intent": "The empty i3 desktop shows a dark, text-free background instead of blinding white, changing every 3 hours to a different random style per monitor.",
+  "scope": [
+    "python_pkg/wallpaper_rotator (new package, tests)",
+    "linux_configuration/i3: config exec line, wallpaper-rotator.service/.timer, install_wallpaper_rotator.sh",
+    "linux_configuration/i3/config synced from the live ~/.config/i3/config (adds the guard exec lines the repo lacked)",
+    "Non-goal: animation, text, per-reveal rotation (dropped at the user's request)"
+  ],
+  "changes": [
+    "Six numpy/PIL styles in the Dracula palette: gradient+grain, flow field/Voronoi, habit heatmap from guard ledgers, shutdown clock from /etc/shutdown-schedule.conf, Earth day/night from NASA Blue/Black Marble, plasma still",
+    "_rotation.plan() decides rotate/refresh/repaint from a JSON state; _tick composes per-output images into one root image and sets it with feh",
+    "systemd user oneshot service + 15-minute timer; i3 exec paints at login"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest python_pkg/wallpaper_rotator/tests --cov=python_pkg.wallpaper_rotator --cov-branch --cov-fail-under=100",
+      "result": "pass",
+      "evidence": "53 passed, TOTAL 434 stmts 44 branches, 100.00% branch coverage"
+    },
+    {
+      "command": "~/data/claude-scratch/wallpaper/e2e_timer.sh (private Xvfb :77 + nested i3, run 3x)",
+      "result": "pass",
+      "evidence": "tick1 painted; tick2 unchanged (static) or painted (live style); tick3 after 3 h painted a different style; PASS x3"
+    },
+    {
+      "command": "install_wallpaper_rotator.sh on the live session",
+      "result": "pass",
+      "evidence": "timer active, next 16:15; state DP-0 gradient, HDMI-0 clock; user confirmed ok on screen"
+    }
+  ],
+  "risks": [
+    "NASA asset URLs move again: the earth style is then skipped (available() false), others unaffected",
+    "Render CPU every 15 min while a live style is shown (~1-3 s at Nice 19)"
+  ],
+  "rollback": [
+    "systemctl --user disable --now wallpaper-rotator.timer; git revert the commit",
+    "Check that the root reverts to its plain colour after the next login"
+  ]
+}

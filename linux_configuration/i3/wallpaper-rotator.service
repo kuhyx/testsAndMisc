@@ -1,0 +1,14 @@
+[Unit]
+Description=Rotate or refresh the desktop background (one tick)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/src/testsAndMisc
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+# i3-msg finds the live socket via the X root property; a stale I3SOCK
+# inherited from an older session would point at a dead socket.
+UnsetEnvironment=I3SOCK
+ExecStart=/usr/bin/python3 -m python_pkg.wallpaper_rotator
+Nice=19
+IOSchedulingClass=idle
