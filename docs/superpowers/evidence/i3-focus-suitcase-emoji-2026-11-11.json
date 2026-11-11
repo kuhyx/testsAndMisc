@@ -1,11 +1,30 @@
 {
   "intent": "Turn main's Shell tests CI green again: the focus_project i3blocks block used a Font Awesome private-use codepoint (U+F0F2) for the interview-trip suitcase, which the i3blocks config checks forbid.",
-  "scope": ["linux_configuration/i3blocks/focus_project.sh", "linux_configuration/tests/test_i3blocks_focus_project.sh", "Non-goal: any other change to the focus block"],
-  "changes": ["SUITCASE is now the luggage emoji U+1F9F3 (rendered by Noto Color Emoji, like the block's existing target emoji) in the block and its test"],
-  "verification": [
-    {"command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh", "result": "pass", "evidence": "exit 0; was the failing check on CI run 43017516672"},
-    {"command": "bash linux_configuration/tests/test_i3blocks_focus_project.sh", "result": "pass", "evidence": "exit 0, suitcase assertions use the emoji"}
+  "scope": [
+    "linux_configuration/i3blocks/focus_project.sh",
+    "linux_configuration/tests/test_i3blocks_focus_project.sh",
+    "Non-goal: any other change to the focus block"
   ],
-  "risks": ["The suitcase now renders as a colour emoji instead of a monochrome Font Awesome glyph"],
-  "rollback": ["git revert this commit", "Shell tests CI goes red again on the private-use check"]
+  "changes": [
+    "SUITCASE is now the luggage emoji U+1F9F3 (rendered by Noto Color Emoji, like the block's existing target emoji) in the block and its test"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "exit 0; was the failing check on CI run 43017516672"
+    },
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_focus_project.sh",
+      "result": "pass",
+      "evidence": "exit 0, suitcase assertions use the emoji"
+    }
+  ],
+  "risks": [
+    "The suitcase now renders as a colour emoji instead of a monochrome Font Awesome glyph"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Shell tests CI goes red again on the private-use check"
+  ]
 }

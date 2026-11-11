@@ -1,12 +1,37 @@
 {
   "intent": "Every monitor kuhy connects runs at its native resolution and highest refresh rate automatically, with DP-0 primary on the left, without running xrandr by hand.",
-  "scope": ["linux_configuration/features/monitor_layout.py, monitor_autoconfig.py, setup_monitor_autoconfig.sh, systemd/monitor-autoconfig.service", "linux_configuration/tests/test_monitor_layout.py, test_monitor_autoconfig.py, conftest.py; meta/pyproject.toml pylint init-hook path", "Non-goal: reverting deliberate mode changes (games, manual xrandr); only connect/disconnect triggers a re-layout"],
-  "changes": ["monitor_layout.py: parses xrandr --query and plans one row: native size at max refresh, preferred primary leftmost, disconnected outputs holding a CRTC switched off; returns [] when already there", "monitor_autoconfig.py: systemd user service; RandR version handshake, listens for RROutputChangeNotify, settles 1 s, retries while a connected monitor lists no modes, logs and survives a failed xrandr", "setup_monitor_autoconfig.sh installs deps, the user unit (WantedBy graphical-session.target) and starts it"],
-  "verification": [
-    {"command": "python3 -m pytest linux_configuration/tests/test_monitor_layout.py linux_configuration/tests/test_monitor_autoconfig.py --cov=monitor_layout --cov=monitor_autoconfig --cov-branch", "result": "pass", "evidence": "23 passed, 100% line+branch coverage on both modules"},
-    {"command": "linux_configuration/features/setup_monitor_autoconfig.sh", "result": "pass", "evidence": "unit enabled and active; layout DP-0 3840x2160@144 + HDMI-0 2560x1440@143.98 left unchanged (dry-run plan empty)"},
-    {"command": "RandR probe with/without xrandr_query_version", "result": "pass", "evidence": "no events before the handshake, CrtcChange/ScreenChange events after it"}
+  "scope": [
+    "linux_configuration/features/monitor_layout.py, monitor_autoconfig.py, setup_monitor_autoconfig.sh, systemd/monitor-autoconfig.service",
+    "linux_configuration/tests/test_monitor_layout.py, test_monitor_autoconfig.py, conftest.py; meta/pyproject.toml pylint init-hook path",
+    "Non-goal: reverting deliberate mode changes (games, manual xrandr); only connect/disconnect triggers a re-layout"
   ],
-  "risks": ["Physical hotplug not exercised on the real machine (kuhy declined the replug check); relies on the NVIDIA driver emitting RROutputChangeNotify on connect"],
-  "rollback": ["systemctl --user disable --now monitor-autoconfig.service; git revert", "xrandr layout stays as last applied"]
+  "changes": [
+    "monitor_layout.py: parses xrandr --query and plans one row: native size at max refresh, preferred primary leftmost, disconnected outputs holding a CRTC switched off; returns [] when already there",
+    "monitor_autoconfig.py: systemd user service; RandR version handshake, listens for RROutputChangeNotify, settles 1 s, retries while a connected monitor lists no modes, logs and survives a failed xrandr",
+    "setup_monitor_autoconfig.sh installs deps, the user unit (WantedBy graphical-session.target) and starts it"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest linux_configuration/tests/test_monitor_layout.py linux_configuration/tests/test_monitor_autoconfig.py --cov=monitor_layout --cov=monitor_autoconfig --cov-branch",
+      "result": "pass",
+      "evidence": "23 passed, 100% line+branch coverage on both modules"
+    },
+    {
+      "command": "linux_configuration/features/setup_monitor_autoconfig.sh",
+      "result": "pass",
+      "evidence": "unit enabled and active; layout DP-0 3840x2160@144 + HDMI-0 2560x1440@143.98 left unchanged (dry-run plan empty)"
+    },
+    {
+      "command": "RandR probe with/without xrandr_query_version",
+      "result": "pass",
+      "evidence": "no events before the handshake, CrtcChange/ScreenChange events after it"
+    }
+  ],
+  "risks": [
+    "Physical hotplug not exercised on the real machine (kuhy declined the replug check); relies on the NVIDIA driver emitting RROutputChangeNotify on connect"
+  ],
+  "rollback": [
+    "systemctl --user disable --now monitor-autoconfig.service; git revert",
+    "xrandr layout stays as last applied"
+  ]
 }
