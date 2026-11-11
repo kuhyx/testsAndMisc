@@ -6,9 +6,6 @@
     "plan() rotates after 3 h to styles unlike each monitor's previous and unlike each other; inside 3 h static styles stay, live styles redraw, a lost root pixmap repaints",
     "install_wallpaper_rotator.sh leaves wallpaper-rotator.timer enabled and active and paints once"
   ],
-  "out_of_scope": [
-    "Animated backgrounds",
-    "Any text on the background"
-  ],
+  "out_of_scope": ["Animated backgrounds", "Any text on the background"],
   "verifier": "python3 -m pytest python_pkg/wallpaper_rotator/tests --cov=python_pkg.wallpaper_rotator --cov-branch --cov-fail-under=100; pre-commit run --files <changed-files>"
 }
