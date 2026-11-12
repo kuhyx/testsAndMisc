@@ -1,0 +1,12 @@
+# AMD X3D (dual-CCD V-cache) CPU: prefer the V-cache CCD for games.
+# amd_x3d_mode=cache makes the scheduler rank the V-cache CCD (CPUs 0-5,12-17)
+# above the frequency CCD; the firmware default is "frequency". Background jobs
+# are already pinned to the other CCD (6-11,18-23).
+#
+# Why udev and not tmpfiles.d: a tmpfiles `w` line needs the exact device path
+# (a firmware-assigned ACPI name) and runs once at boot, so it
+# misses a driver rebind or module reload. This rule matches the DRIVER, hard-
+# codes no device name, and fires on "add" (boot coldplug, driver already
+# bound) and on "bind" (every later driver (re)bind, e.g. modprobe -r/+).
+# Installed by fixes/fix_amd_x3d_vcache.sh.
+ACTION=="add|bind", SUBSYSTEM=="platform", DRIVER=="amd_x3d_vcache", ATTR{amd_x3d_mode}="cache"

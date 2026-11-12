@@ -1,0 +1,11 @@
+{
+  "title": "AMD X3D V-cache mode set to cache, persistently",
+  "objective": "amd_x3d_mode reads cache after boot and after a driver rebind, installed by a repo script using a driver-matching udev rule.",
+  "acceptance_criteria": [
+    "amd_x3d_mode reads cache on the host after install",
+    "prefcore ranking of CPUs 0-5,12-17 exceeds 6-11,18-23",
+    "The rule hard-codes no device name and survives unbind/bind"
+  ],
+  "out_of_scope": ["Pinning background jobs", "Other CPU tuning"],
+  "verifier": "bats linux_configuration/tests/test_fix_amd_x3d_vcache.bats plus host sysfs reads"
+}

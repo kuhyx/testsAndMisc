@@ -1,0 +1,38 @@
+{
+  "intent": "AMD X3D V-cache mode is cache on every boot and driver rebind, so the scheduler prefers the V-cache CCD for games.",
+  "scope": [
+    "linux_configuration/fixes/60-amd-x3d-vcache-mode.rules",
+    "linux_configuration/fixes/fix_amd_x3d_vcache.sh",
+    "linux_configuration/tests/test_fix_amd_x3d_vcache.bats",
+    "Non-goal: CPU pinning of background jobs (already done)"
+  ],
+  "changes": [
+    "udev rule matching DRIVER amd_x3d_vcache on add and bind, no device name",
+    "Installer with install, --remove and --status, same pattern as fix_webcam_c270.sh"
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_fix_amd_x3d_vcache.bats",
+      "result": "pass",
+      "evidence": "red while the script was missing; 8 ok after"
+    },
+    {
+      "command": "fixes/fix_amd_x3d_vcache.sh on the host",
+      "result": "pass",
+      "evidence": "amd_x3d_mode frequency -> cache; prefcore ranking CPUs 0-5,12-17 now 196-216 vs 6-11,18-23 166-191 (before 166-191 vs 196-216); unbind/bind keeps cache"
+    },
+    {
+      "command": "vm run atomichosts fix_amd_x3d_vcache.sh",
+      "result": "pass",
+      "evidence": "installs the rule, udevadm verify clean; no X3D device in vmbox so the mode itself is host-only"
+    }
+  ],
+  "risks": [
+    "Games on the V-cache CCD may boost lower than on the frequency CCD",
+    "Background load spills onto the V-cache CCD if the pinning is lifted"
+  ],
+  "rollback": [
+    "fixes/fix_amd_x3d_vcache.sh --remove, then write frequency to amd_x3d_mode or reboot",
+    "Check cat /sys/bus/platform/drivers/amd_x3d_vcache/*/amd_x3d_mode"
+  ]
+}
