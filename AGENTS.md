@@ -172,6 +172,7 @@ number of error codes, so it is weaker than the `strict = true` in the config.
 ## Commands
 
 - run: n/a: monorepo of independent scripts and apps, no single entry point (see Repository Layout)
+- deploy: `scripts/deploy.sh` (fast-forwards the live `~/src/testsAndMisc` checkout to origin/main, keeping unrelated local edits; exits non-zero unless HEAD = origin/main and the tracked hooks are wired)
 - test: `python3 -m pytest -q -o addopts="--strict-markers --strict-config"`
 - test-changed: `scripts/test_changed.sh`
 - lint: `pre-commit run --hook-stage pre-commit`

@@ -1,0 +1,30 @@
+{
+  "intent": "testsAndMisc declares a deploy command, so Ship can deploy a pushed change instead of reporting 'pushed, not deployed'.",
+  "scope": [
+    "scripts/deploy.sh (new), CLAUDE.md Commands, linux_configuration/tests/test_deploy.bats (new)",
+    "Non-goal: refreshing copies the sudo installers put under /usr/local or /etc"
+  ],
+  "changes": [
+    "scripts/deploy.sh fast-forwards ~/src/testsAndMisc to origin/main (pull --ff-only), keeps unrelated local edits, refuses on collision",
+    "Health check: on main, HEAD = origin/main, core.hooksPath = linux_configuration/.githooks; exits non-zero otherwise",
+    "CLAUDE.md Commands gains '- deploy: `scripts/deploy.sh`'"
+  ],
+  "verification": [
+    {
+      "command": "bats linux_configuration/tests/test_deploy.bats",
+      "result": "pass",
+      "evidence": "red first (deploy.sh missing, exit 127); then 7/7 ok: ff, idempotent, keeps WIP, refuses collision, hooks unwired fails, off-main fails, CLAUDE.md line"
+    },
+    {
+      "command": "shellcheck scripts/deploy.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": [
+    "Live checkout carries kuhy's uncommitted edits; an incoming commit touching them makes deploy fail rather than overwrite"
+  ],
+  "rollback": [
+    "git revert this commit; the live checkout stays where the last deploy left it"
+  ]
+}
