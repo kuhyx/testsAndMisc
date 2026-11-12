@@ -1,0 +1,12 @@
+{
+  "title": "Monitor autoconfig: survive boot, biggest monitor primary",
+  "objective": "DP-2 (4K) connects automatically on every boot and hotplug with no manual xrandr: the watcher waits for X at the LightDM greeter instead of crashing, and the biggest monitor becomes primary and leftmost.",
+  "acceptance_criteria": [
+    "plan(outputs) with no primary named puts the largest native mode first at 0x0 with --primary",
+    "_open_display retries on DisplayConnectionError instead of exiting",
+    "unit sets XAUTHORITY=%h/.Xauthority; i3 config restarts the unit on login/reload",
+    "live: xrandr --listmonitors shows DP-2 primary 3840x2160+0+0 and HDMI-0 at +3840+0"
+  ],
+  "out_of_scope": ["Per-monitor custom layouts", "Wayland"],
+  "verifier": "python3 -m pytest -q linux_configuration/tests/test_monitor_layout.py linux_configuration/tests/test_monitor_autoconfig.py; pre-commit run --files <changed-files>"
+}

@@ -10,9 +10,10 @@ Policy, agreed 2026-11-11:
   highest refresh rate offered for that size. A bigger listed size is a
   downscale, not "better". Without a preferred mode: largest area, then
   fastest, interlaced modes skipped.
-- layout = one row at y=0; the preferred primary (default DP-0) leftmost,
-  the rest in xrandr order to its right. If it is absent, the first
-  connected output is primary.
+- layout = one row at y=0; the primary leftmost, the rest in xrandr order
+  to its right. Primary = the monitor whose best mode has the most pixels
+  (agreed 2026-11-12; ties keep xrandr order), unless one is named and
+  connected.
 - disconnected outputs that still hold a CRTC are switched off, so no gap.
 """
 
@@ -104,14 +105,17 @@ def pick_mode(output: Output) -> Mode | None:
     return max(candidates, key=lambda m: (m.width * m.height, float(m.rate)))
 
 
-def _ordered(outputs: list[Output], primary: str) -> list[tuple[Output, Mode]]:
-    """Connected outputs with a usable mode, preferred primary first."""
+def _ordered(outputs: list[Output], primary: str | None) -> list[tuple[Output, Mode]]:
+    """Connected outputs with a usable mode, primary first."""
     usable = [(o, m) for o in outputs if o.connected and (m := pick_mode(o))]
+    if usable and primary not in {o.name for o, _ in usable}:
+        biggest = max(usable, key=lambda pair: pair[1].width * pair[1].height)
+        primary = biggest[0].name
     usable.sort(key=lambda pair: pair[0].name != primary)
     return usable
 
 
-def plan(outputs: list[Output], primary: str) -> list[str]:
+def plan(outputs: list[Output], primary: str | None = None) -> list[str]:
     """Return the xrandr arguments to reach the policy, ``[]`` if already there."""
     row = _ordered(outputs, primary)
     args: list[str] = []
@@ -134,7 +138,7 @@ def plan(outputs: list[Output], primary: str) -> list[str]:
 
 def main() -> int:
     """Print the plan for ``xrandr --query`` text read from stdin."""
-    sys.stdout.write(" ".join(plan(parse_xrandr(sys.stdin.read()), "DP-0")) + "\n")
+    sys.stdout.write(" ".join(plan(parse_xrandr(sys.stdin.read()))) + "\n")
     return 0
 
 

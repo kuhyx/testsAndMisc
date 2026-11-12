@@ -48,6 +48,12 @@ exec --no-startup-id systemctl --user start leetcode-guard.service
 # window), so starting it here as well costs nothing.
 exec --no-startup-id systemctl --user start book-guard.service
 
+# Monitor autoconfig (features/monitor_autoconfig.py): every monitor at its
+# best mode, the biggest one primary and leftmost, re-applied on hotplug. At
+# boot the unit starts at the LightDM greeter and waits for X; this restart
+# re-arms it at login (and on i3 reload) even if systemd gave up on it.
+exec_always --no-startup-id systemctl --user restart monitor-autoconfig.service
+
 # Wallpaper rotator (python_pkg/wallpaper_rotator): a dark, text-free
 # background, new every 3 hours via a 15-minute systemd timer. This start
 # paints right at login instead of at the next tick. Installed by

@@ -36,6 +36,10 @@ OUTPUT_CHANGE_MASK = 4
 SETTLE_SECONDS = 1.0
 # How many settle periods to wait for a connected monitor to list any mode.
 MODE_TRIES = 5
+# At boot the user manager starts this unit while LightDM's greeter still owns
+# :0, so X refuses us until kuhy logs in. Wait for that instead of exiting:
+# exiting burned the restart limit in 15 s on 2026-11-12 and left DP-2 dark.
+CONNECT_WAIT = 2.0
 
 
 class _Root(Protocol):
@@ -91,7 +95,7 @@ def _query(
 
 
 def apply_once(
-    primary: str,
+    primary: str | None,
     run: Callable[[list[str]], str] = _run,
     settle: Callable[[], None] = _settle,
     tries: int = MODE_TRIES,
@@ -107,7 +111,7 @@ def apply_once(
 
 
 def _safe_apply(
-    primary: str, run: Callable[[list[str]], str], settle: Callable[[], None]
+    primary: str | None, run: Callable[[list[str]], str], settle: Callable[[], None]
 ) -> None:
     """Apply, but log a failed xrandr instead of dying.
 
@@ -119,14 +123,24 @@ def _safe_apply(
         sys.stderr.write(f"xrandr failed ({error.returncode}): {error.stderr}\n")
 
 
-def _open_display() -> Display:
-    """Connect to ``$DISPLAY`` (Xlib imported lazily; tests never need it)."""
-    display: Display = importlib.import_module("Xlib.display").Display()
-    return display
+def _open_display(sleep: Callable[[float], None] = time.sleep) -> Display:
+    """Connect to ``$DISPLAY``, waiting as long as X refuses (greeter, no login).
+
+    Xlib is imported lazily so the tests never need it.
+    """
+    xlib_display = importlib.import_module("Xlib.display")
+    refused = importlib.import_module("Xlib.error").DisplayConnectionError
+    while True:
+        try:
+            display: Display = xlib_display.Display()
+        except refused:
+            sleep(CONNECT_WAIT)
+        else:
+            return display
 
 
 def watch(
-    primary: str,
+    primary: str | None,
     display: Display | None = None,
     run: Callable[[list[str]], str] = _run,
     settle: Callable[[], None] = _settle,
@@ -150,7 +164,9 @@ def watch(
 def main(argv: list[str] | None = None, run: Callable[[list[str]], str] = _run) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--primary", default="DP-0", help="leftmost primary output")
+    parser.add_argument(
+        "--primary", default=None, help="leftmost primary (default: biggest)"
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true", help="apply and exit")
     mode.add_argument("--dry-run", action="store_true", help="print, change nothing")

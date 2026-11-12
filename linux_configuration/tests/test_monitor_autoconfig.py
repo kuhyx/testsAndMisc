@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -130,7 +131,7 @@ def test_main_default_watches(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[str] = []
     monkeypatch.setattr(monitor_autoconfig, "watch", seen.append)
     assert main([]) == 0
-    assert seen == ["DP-0"]
+    assert seen == [None]
 
 
 def test_apply_once_waits_for_late_edid_modes() -> None:
@@ -171,19 +172,42 @@ def test_run_returns_stdout(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls[0][1]["check"] is True
 
 
-def test_open_display_uses_xlib(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The real display comes from ``Xlib.display.Display()``."""
-    sentinel = object()
-    fake_module = SimpleNamespace(Display=lambda: sentinel)
-    monkeypatch.setattr(
-        monitor_autoconfig.importlib, "import_module", lambda name: fake_module
-    )
-    assert monitor_autoconfig._open_display() is sentinel
-
-
 def test_settle_sleeps_settle_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     """The real settle waits ``SETTLE_SECONDS`` for EDID to arrive."""
     slept: list[float] = []
     monkeypatch.setattr(monitor_autoconfig.time, "sleep", slept.append)
     monitor_autoconfig._settle()
     assert slept == [monitor_autoconfig.SETTLE_SECONDS]
+
+
+class _RefusedError(Exception):
+    """Stands in for ``Xlib.error.DisplayConnectionError``."""
+
+
+def test_open_display_waits_for_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    """At the greeter X refuses us; keep retrying until the login's auth works."""
+    sentinel = object()
+    answers: list[object] = [_RefusedError(), _RefusedError(), sentinel]
+
+    def display() -> object:
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    modules = {
+        "Xlib.display": SimpleNamespace(Display=display),
+        "Xlib.error": SimpleNamespace(DisplayConnectionError=_RefusedError),
+    }
+    monkeypatch.setattr(monitor_autoconfig.importlib, "import_module", modules.get)
+    slept: list[float] = []
+    assert monitor_autoconfig._open_display(sleep=slept.append) is sentinel
+    assert slept == [monitor_autoconfig.CONNECT_WAIT] * 2
+
+
+def test_unit_passes_xauthority() -> None:
+    """The unit must find the login's X cookie even before i3 exports it."""
+    unit = (
+        Path(monitor_autoconfig.__file__).parent / "systemd/monitor-autoconfig.service"
+    )
+    assert "Environment=XAUTHORITY=%h/.Xauthority" in unit.read_text()

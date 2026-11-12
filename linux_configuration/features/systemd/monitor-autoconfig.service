@@ -9,6 +9,8 @@ StartLimitBurst=5
 [Service]
 Type=simple
 Environment=DISPLAY=:0
+# The login's cookie; i3 may not have exported XAUTHORITY to systemd yet.
+Environment=XAUTHORITY=%h/.Xauthority
 ExecStart=/usr/bin/python3 @FEATURES_DIR@/monitor_autoconfig.py
 Restart=on-failure
 RestartSec=3s

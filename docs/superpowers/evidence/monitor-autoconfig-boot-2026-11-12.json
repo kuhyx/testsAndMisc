@@ -1,0 +1,38 @@
+{
+  "intent": "DP-2 connects automatically at every boot; the biggest monitor is primary and leftmost.",
+  "scope": [
+    "linux_configuration/features/monitor_{layout,autoconfig}.py, unit, setup script",
+    "linux_configuration/i3/config",
+    "Non-goal: per-monitor custom layouts"
+  ],
+  "changes": [
+    "monitor_autoconfig._open_display waits (2 s steps) while X refuses the connection; the unit no longer burns its restart limit at the greeter",
+    "Unit sets XAUTHORITY=%h/.Xauthority; i3 exec_always restarts the unit at login and reload",
+    "Default primary is now the connected output with the largest best mode (was hardcoded DP-0, absent on this machine)"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q linux_configuration/tests/test_monitor_layout.py linux_configuration/tests/test_monitor_autoconfig.py",
+      "result": "pass",
+      "evidence": "4 new tests red before the change; 26 passed after"
+    },
+    {
+      "command": "setup_monitor_autoconfig.sh && xrandr --listmonitors",
+      "result": "pass",
+      "evidence": "applied: DP-2 3840x2160@144 --pos 0x0 --primary, HDMI-0 2560x1440@143.98 --pos 3840x0; kuhy confirmed layout"
+    },
+    {
+      "command": "XAUTHORITY=/dev/null timeout 7 monitor_autoconfig.py",
+      "result": "pass",
+      "evidence": "exit 124: still waiting for X, no crash"
+    }
+  ],
+  "risks": [
+    "Watcher waits forever if X never accepts it (cheap: one connect attempt per 2 s)",
+    "exec_always restart re-applies the layout on i3 reload, overriding a manual xrandr change"
+  ],
+  "rollback": [
+    "git revert this commit, rerun setup_monitor_autoconfig.sh, copy i3/config to ~/.config/i3/config",
+    "Check systemctl --user status monitor-autoconfig"
+  ]
+}

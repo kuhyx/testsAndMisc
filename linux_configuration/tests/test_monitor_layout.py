@@ -56,6 +56,19 @@ DP-1 connected {AXES}
    1280x1024     85.00
 """
 
+# Real `xrandr --query` from 2026-11-12: DP-2 (4K) connected but off. The
+# bigger monitor must become primary and leftmost without naming it.
+DP2_OFF = f"""\
+Screen 0: minimum 8 x 8, current 6400 x 1440, maximum 32767 x 32767
+HDMI-0 connected primary 2560x1440+3840+0 {AXES} 600mm x 330mm
+   2560x1440     59.95 + 143.98*  120.00
+   3840x2160     59.94    50.00
+DP-1 disconnected {AXES}
+DP-2 connected {AXES}
+   3840x2160     60.00 + 144.00   119.88   100.00
+   2560x1440    144.00   120.00
+"""
+
 HDMI_BEST = ["--output", "HDMI-0", "--mode", "2560x1440", "--rate", "143.98"]
 
 
@@ -125,10 +138,19 @@ class TestPlan:
             "--output", "DP-0", "--off",
         ]  # fmt: skip
 
-    def test_unknown_primary_uses_first_connected(self) -> None:
-        """A missing preferred primary falls back to xrandr order."""
-        args = plan(parse_xrandr(DP0_OFF), "DP-9")
-        assert args[:9] == [*HDMI_BEST, "--pos", "0x0", "--primary"]
+    def test_unknown_primary_uses_biggest(self) -> None:
+        """A named primary that is not connected falls back to the biggest."""
+        args = plan(parse_xrandr(DP2_OFF), "DP-9")
+        assert args[:10] == plan(parse_xrandr(DP2_OFF))[:10]
+        assert args[1] == "DP-2"
+
+    def test_no_primary_named_picks_biggest_native_leftmost(self) -> None:
+        """``primary=None``: the largest native mode (DP-2 4K) leads the row."""
+        assert plan(parse_xrandr(DP2_OFF), None) == [
+            "--output", "DP-2", "--mode", "3840x2160", "--rate", "144.00",
+            "--pos", "0x0", "--primary",
+            *HDMI_BEST, "--pos", "3840x0",
+        ]  # fmt: skip
 
     def test_nothing_connected_is_noop(self) -> None:
         """No connected output means no xrandr call at all."""

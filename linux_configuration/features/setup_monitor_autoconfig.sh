@@ -4,7 +4,7 @@
 # Installs the monitor-autoconfig systemd user service. It applies the layout
 # at login and again whenever a monitor is plugged or unplugged:
 #   - each monitor runs its native resolution at the highest refresh rate;
-#   - DP-0 is primary and leftmost, the others sit to its right;
+#   - the biggest monitor is primary and leftmost, the others to its right;
 #   - an unplugged monitor is switched off so no gap is left.
 # Policy lives in monitor_layout.py; the watcher in monitor_autoconfig.py.
 #
