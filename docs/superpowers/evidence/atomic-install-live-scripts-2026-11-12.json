@@ -1,0 +1,40 @@
+{
+  "intent": "The periodic setup replaces live /usr/local/bin scripts by atomic rename, so a running hosts-file-monitor never executes a half-written file.",
+  "scope": [
+    "linux_configuration/periodic_background/lib/atomic_install.sh",
+    "linux_configuration/periodic_background/setup_periodic_system.sh",
+    "linux_configuration/periodic_background/lib/periodic_browser.sh",
+    "linux_configuration/periodic_background/lib/tests/test_services_atomic_install.sh",
+    "Non-goal: re-running the installer on the host"
+  ],
+  "changes": [
+    "install_rendered_script renders to a temp file beside the target, bash -n, chmod/chown, mv -f",
+    "Maintenance script, hosts monitor, browser wrapper and auto-update script use it",
+    "restart_if_active restarts hosts-file-monitor.service after install"
+  ],
+  "verification": [
+    {
+      "command": "lib/tests/test_services_atomic_install.sh",
+      "result": "pass",
+      "evidence": "red against in-place write (inode kept, old fd saw new bytes), 12 passed after"
+    },
+    {
+      "command": "vm run atomichosts guest_check.sh",
+      "result": "pass",
+      "evidence": "real hosts-file-monitor template under systemd: inode 85520 -> 85524, MainPID 745 -> 768, service active"
+    },
+    {
+      "command": "lib/tests/run_all.sh",
+      "result": "pass",
+      "evidence": "all check_and_enable_services test files passed"
+    }
+  ],
+  "risks": [
+    "Temp file left in /usr/local/bin if the installer is killed between mktemp and mv",
+    "Restart briefly interrupts the hosts monitor"
+  ],
+  "rollback": [
+    "git revert the commit; the old installer overwrites in place again",
+    "Check systemctl is-active hosts-file-monitor.service"
+  ]
+}

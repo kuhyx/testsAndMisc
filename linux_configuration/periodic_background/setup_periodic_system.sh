@@ -122,13 +122,10 @@ create_execution_script() {
 	local exec_script="/usr/local/bin/periodic-system-maintenance.sh"
 
 	# Install from template with path substitutions
-	sed \
+	install_rendered_script "$TEMPLATE_MAINT_SCRIPT" "$exec_script" \
 		-e "s|__PACMAN_WRAPPER_INSTALL__|$PACMAN_WRAPPER_INSTALL|g" \
 		-e "s|__MAKEPKG_WRAPPER_INSTALL__|$MAKEPKG_WRAPPER_INSTALL|g" \
-		-e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g" \
-		"$TEMPLATE_MAINT_SCRIPT" >"$exec_script"
-
-	chmod +x "$exec_script"
+		-e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g"
 	echo "✓ Installed execution script from template: $exec_script"
 }
 
@@ -174,17 +171,22 @@ create_hosts_monitor_service() {
 	local monitor_script="/usr/local/bin/hosts-file-monitor.sh"
 	local monitor_service="/etc/systemd/system/hosts-file-monitor.service"
 
-	# Install the monitor script from template with substitution
-	sed -e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g" \
-		"$TEMPLATE_HOSTS_MONITOR" >"$monitor_script"
-	chmod +x "$monitor_script"
+	# Install the monitor script from template with substitution. The service
+	# runs it in a loop, so it is replaced by rename (see lib/atomic_install.sh).
+	install_rendered_script "$TEMPLATE_HOSTS_MONITOR" "$monitor_script" \
+		-e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g"
 	echo "✓ Installed hosts monitor script from template: $monitor_script"
 
 	# Install the systemd service from template
 	install -m 0644 "$TEMPLATE_HOSTS_SVC" "$monitor_service"
 	echo "✓ Installed hosts monitor service from template: $monitor_service"
+
+	# The running instance still holds the old inode; move it onto the new one.
+	restart_if_active hosts-file-monitor.service
 }
 
+# shellcheck source=lib/atomic_install.sh
+source "$SCRIPT_DIR/lib/atomic_install.sh"
 # shellcheck source=lib/periodic_browser.sh
 source "$SCRIPT_DIR/lib/periodic_browser.sh"
 

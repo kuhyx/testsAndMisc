@@ -1,0 +1,11 @@
+{
+  "title": "Atomic install of live periodic-setup scripts",
+  "objective": "Installing the periodic system scripts never truncates a file a service is running; the target gets a new inode and a bad template leaves the live file untouched.",
+  "acceptance_criteria": [
+    "Target inode changes and the old inode keeps its bytes",
+    "A template failing bash -n is not installed and leaves no temp file",
+    "hosts-file-monitor.service is restarted only if it was running"
+  ],
+  "out_of_scope": ["Re-running the installer on the host", "Other installers"],
+  "verifier": "lib/tests/test_services_atomic_install.sh, lib/tests/run_all.sh, vmbox guest check"
+}

@@ -2,6 +2,7 @@
 # Browser wrapper install, desktop-entry redirect, auto-update units and
 # service enablement for the periodic system setup.
 #
+# Needs install_rendered_script from lib/atomic_install.sh (sourced by the caller).
 # Sourced by setup_periodic_system.sh; split out to keep it under the
 # 250-line cap. Sourced rather than run, so it inherits the caller's strict
 # mode and the variables defined above the source line.
@@ -13,9 +14,8 @@ install_browser_preexec_wrapper() {
 	echo "========================================="
 
 	local wrapper="/usr/local/bin/browser-preexec-wrapper"
-	sed -e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g" \
-		"$TEMPLATE_BROWSER_WRAPPER" >"$wrapper"
-	chmod +x "$wrapper"
+	install_rendered_script "$TEMPLATE_BROWSER_WRAPPER" "$wrapper" \
+		-e "s|__HOSTS_INSTALL_SCRIPT__|$HOSTS_INSTALL_SCRIPT|g"
 	echo "✓ Installed wrapper: $wrapper"
 
 	# Allow passwordless execution of hosts installer for root-only actions
@@ -88,9 +88,8 @@ install_auto_update() {
 
 	# Install script from template with user substitution
 	local actual_user="${SUDO_USER:-$USER}"
-	sed -e "s|__ACTUAL_USER__|$actual_user|g" \
-		"$TEMPLATE_AUTO_UPDATE" >"$update_script"
-	chmod +x "$update_script"
+	install_rendered_script "$TEMPLATE_AUTO_UPDATE" "$update_script" \
+		-e "s|__ACTUAL_USER__|$actual_user|g"
 	echo "✓ Installed auto-update script: $update_script (user: $actual_user)"
 
 	# Install systemd service and timer from templates
