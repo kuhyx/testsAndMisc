@@ -1,0 +1,30 @@
+{
+  "intent": "meta/scripts/run_all/run_phone.sh runs the phone-focus-mode workflow again instead of failing with 'implementation script not found'.",
+  "scope": [
+    "meta/scripts/run_all/run_phone.sh",
+    "Non-goal: the unrooted-mode changes in the extracted phone-focus-mode repo"
+  ],
+  "changes": [
+    "Resolve the extracted phone-focus-mode checkout via linux_configuration/lib/extracted_repos.sh (require_extracted_repo) instead of the deleted in-repo phone_focus_mode/ dir",
+    "Fix the _REPO_ROOT depth (meta/scripts/run_all is three levels deep) and the usage paths in the header"
+  ],
+  "verification": [
+    {
+      "command": "bash meta/scripts/run_all/run_phone.sh --help; echo $?",
+      "result": "pass",
+      "evidence": "before: 'ERROR: implementation script not found ... wt/meta/phone_focus_mode/run_phone.sh', exit 1; after: phone-focus-mode usage printed, exit 0"
+    },
+    {
+      "command": "shellcheck -x meta/scripts/run_all/run_phone.sh && shfmt -d meta/scripts/run_all/run_phone.sh",
+      "result": "pass",
+      "evidence": "no findings, no diff"
+    }
+  ],
+  "risks": [
+    "require_extracted_repo clones ~/src/phone-focus-mode when it is missing; same behaviour as the other extracted-repo callers"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Re-run --help; it fails again with 'not found' (the previous state)"
+  ]
+}
