@@ -67,6 +67,22 @@ ui.wait_for("Connected.", timeout=30)
 - **Partial trees are retried,** and `keyboard_is_up()` distinguishes "element
   absent" from "element behind the keyboard".
 
+## MCP server
+
+```bash
+.venv/bin/python -m python_pkg.android_ui.mcp_server   # stdio; registered in .mcp.json
+```
+
+Tools, 1:1 with `AndroidUi`: `dump`, `find`, `tap`, `type_into`,
+`type_into_field`, `wait_for`, `scroll_to`, `focus`. No screenshot tool. Each
+takes optional `serial` (default: the one attached device; with several it
+errors and lists them) and `display` (default `self`, this session's virtual
+display, never created by the server; `0` for the real screen).
+
+Error contract: zero or several matches, an unchanged field, an adb failure,
+a busy phone or a bad display all return `isError` naming the query and the
+count (or before/after length). Typed text is never echoed.
+
 ## Known gaps
 
 - A widget with no accessibility label cannot be targeted at all. The workout

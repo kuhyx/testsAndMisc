@@ -1,0 +1,67 @@
+{
+  "intent": "An agent drives Android apps by element through MCP tools (dump, find, tap, type_into, type_into_field, wait_for, scroll_to, focus) instead of shelling out to adb or tapping coordinates, with the CLI's guarantees: 0 or >1 matches and unchanged fields are errors.",
+  "scope": [
+    "python_pkg/android_ui/mcp_server.py, _mcp_target.py, workout_firebase_flow.py and their tests",
+    "driver.py/_text_entry.py: unchanged-field messages give before/after length, never the typed text",
+    "fastmcp==4.2.0 pinned (bumped from 4.1.6 by the freshness gate) in meta/requirements.txt, requirements-test.txt and the pylint hook deps",
+    "Non-goals: screenshots, emulator support, app source changes, ~/.claude.json"
+  ],
+  "changes": [
+    "FastMCP stdio server, one tool per AndroidUi method; every UiAutomationError and device/display/lease refusal is a ToolError (isError)",
+    "Target resolution reuses cli._target and phone_lease; default display 'self' never creates a virtual display; several devices without serial errors listing them",
+    "Typed text is redacted from every error, including adb 'input text' command echoes",
+    "workout_firebase_flow.py: label-only Home -> Settings -> Firebase sync -> Sign in with Google flow, hands over on secret screens, --negative step",
+    ".mcp.json registers the server (project scope, stdio, ${HOME}/src/testsAndMisc/.venv/bin/python -m python_pkg.android_ui.mcp_server)"
+  ],
+  "verification": [
+    {
+      "command": "capped.sh python -m pytest -q --cov=python_pkg.android_ui --cov-branch python_pkg/android_ui/tests",
+      "result": "pass",
+      "evidence": "137 passed; 100.00% branch coverage (rerun 2026-11-08 after the chooser fix)"
+    },
+    {
+      "command": "stdio smoke client: python -m python_pkg.android_ui.mcp_server, list_tools + call dump/focus",
+      "result": "pass",
+      "evidence": "8 tools listed, no screenshot tool; no device: isError 'no phone serial ...'; one device, no virtual display: isError 'no virtual display for this session: run phone_vd.sh start <package>'"
+    },
+    {
+      "command": "clean venv: capped.sh pip install --dry-run -r meta/requirements.txt (baseline vs with fastmcp)",
+      "result": "pass",
+      "evidence": "both resolve, exit 0; fastmcp 4.2.0 rechecked after the bump"
+    },
+    {
+      "command": "pre-commit hooks on changed files (SKIP=pylint) + standalone pylint",
+      "result": "pass",
+      "evidence": "ruff/mypy/prettier hooks pass; pylint 10.00/10 from the test venv; pylint hook env with fastmcp not installed under the 60 s cap; pytest-coverage hook needs defusedxml/sql_drills deps on the hook interpreter"
+    },
+    {
+      "command": "stdio MCP client on Pixel 23181JEGR08034 (slot com.kuhy.slot5, own virtual display): find/tap/dump",
+      "result": "pass",
+      "evidence": "no serial with Pixel+emulator attached: isError '2 devices attached (23181JEGR08034, emulator-5554) and no serial given'; find 'Settings': one Button bounds [954,11,1080,137]; tap 'No Such Button': isError naming the query + on-screen list; tap 'Workout': isError '5 elements match', nothing tapped"
+    },
+    {
+      "command": "python -m python_pkg.android_ui.workout_firebase_flow --serial 23181JEGR08034 --display self --account <kuhy-syncs account>",
+      "result": "pass",
+      "evidence": "exit 0 'workout-firebase-flow: connected'; screenshot shows 'Connected to Firebase.' and Disconnect. First attempt exposed a bug: the account chooser title is localised ('Wybierz konto'), so the chooser is now found by its GMS container id (red test first, then green); the app opens into the workout screen on launch, so one KEYCODE_BACK (phone_vd.sh key) put it on Home before the script ran"
+    },
+    {
+      "command": "python -m python_pkg.android_ui.workout_firebase_flow --serial 23181JEGR08034 --display self --negative",
+      "result": "pass",
+      "evidence": "exit 1; stderr: waited 3.0s for 'No Such Button': no element matches 'No Such Button'"
+    },
+    {
+      "command": "reorder run (SYNC/OFFLINE BACKUP swapped in a scratch screen-locker clone)",
+      "result": "fail",
+      "evidence": "NOT RUN: phone_deploy --slot prep exits 47 (shared-storage guard added 18:43 the same day): workout_app hard-codes /sdcard paths; swap reverted, scratch clone clean"
+    }
+  ],
+  "risks": [
+    "Phone run on the Pixel 6a (C8-C12) not done yet: the device was not attached",
+    "Not registered yet (.mcp.json waits for kuhy's confirmation); the launching venv needs pip install -r meta/requirements.txt",
+    "display=self needs the server to share the caller's phone_lease identity: a stdio client that strips the env (MCP SDK default) got 'no virtual display'; under Claude Code the claude ancestor matches, but PHONE_LEASE_OWNER (board sessions) reaching the server is unverified"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Validate: android-ui CLI tests still pass and the CLI dump works"
+  ]
+}

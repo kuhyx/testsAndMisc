@@ -1,0 +1,17 @@
+{
+  "title": "android_ui MCP server",
+  "objective": "Expose AndroidUi's eight element-targeted methods as FastMCP stdio tools with the CLI's error guarantees, plus a label-only workout_app Firebase flow script.",
+  "acceptance_criteria": [
+    "The in-process client lists exactly dump, find, tap, type_into, type_into_field, wait_for, scroll_to, focus (test_mcp_server.py)",
+    "tap with 0 and >1 matches returns isError naming the query and count (test_mcp_server.py)",
+    "type_into / type_into_field on an unchanged field return isError with before/after length and never the typed text (test_mcp_server.py, test_mcp_target.py)",
+    "No serial with 2 devices returns isError listing both; display=self with no virtual display returns isError and creates none (test_mcp_target.py)",
+    "100% branch coverage of python_pkg/android_ui"
+  ],
+  "out_of_scope": [
+    "Screenshots",
+    "Rollout to ~/src/todo and ~/src/dufs-cloud",
+    "Any screen-locker source change"
+  ],
+  "verifier": "python_pkg/android_ui/tests under pytest --cov-branch, plus a stdio smoke client"
+}

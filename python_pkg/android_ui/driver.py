@@ -223,6 +223,7 @@ class AndroidUi(ScrollMixin, TextEntryMixin):
         # A password field renders as bullets, so compare length, not content.
         msg = (
             f"typed {len(text)} character(s) into {query!r} but its contents "
-            f"did not change — the tap probably did not focus the field"
+            f"did not change (length {len(before)} before and after) — the tap "
+            f"probably did not focus the field"
         )
         raise UiAutomationError(msg)

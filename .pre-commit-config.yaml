@@ -267,6 +267,8 @@ repos:
           # android_ui parses `uiautomator dump` output. Same reason as
           # beautifulsoup4 above: requirements.txt is not on pylint's path.
           - defusedxml
+          # android_ui's MCP server; same isolated-venv reason.
+          - fastmcp==4.2.0
           # artgate computes image gates over pixel arrays. Same reason again:
           # it is the first package here to import numpy.
           - numpy

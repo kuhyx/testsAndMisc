@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "android-ui": {
+      "type": "stdio",
+      "command": "${HOME}/src/testsAndMisc/.venv/bin/python",
+      "args": ["-m", "python_pkg.android_ui.mcp_server"]
+    }
+  }
+}

@@ -101,7 +101,8 @@ class TextEntryMixin(ABC):
         if not changed:
             msg = (
                 f"typed {len(text)} character(s) into editable field #{index} "
-                f"but its contents did not change — the tap did not focus it"
+                f"but its contents did not change (length {len(before)} before "
+                f"and after) — the tap did not focus it"
             )
             raise UiAutomationError(msg)
 
