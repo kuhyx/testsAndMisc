@@ -1,0 +1,15 @@
+{
+  "title": "workout flow reaches Home before Settings",
+  "objective": "The workout_app Firebase flow starts from wherever the app reopens (e.g. an in-progress workout) by pressing BACK until Home's Settings gear shows, bounded to 3 presses.",
+  "acceptance_criteria": [
+    "AndroidUi.back sends keyevent 4 to its display (test_driver.py)",
+    "run_flow presses BACK only while Settings is absent and at most MAX_BACKS times (test_workout_firebase_flow.py)",
+    "Live slot run on the Pixel exits 0 on the current and the reordered layout",
+    "100% branch coverage of python_pkg/android_ui"
+  ],
+  "out_of_scope": [
+    "A new MCP tool for back",
+    "Any committed screen-locker change"
+  ],
+  "verifier": "python_pkg/android_ui/tests under pytest --cov-branch, plus the live flow run on slot com.kuhy.slot1"
+}

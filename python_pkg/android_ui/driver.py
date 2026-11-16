@@ -191,6 +191,11 @@ class AndroidUi(ScrollMixin, TextEntryMixin):
         time.sleep(self._settle)
         return element
 
+    def back(self) -> None:
+        """Press BACK on this driver's display (Flutter pops the top route)."""
+        self._input("keyevent", "4")
+        time.sleep(self._settle)
+
     def type_into(
         self,
         query: str,

@@ -1,0 +1,48 @@
+{
+  "intent": "workout_firebase_flow passes on the Pixel slot even when workout_app reopens into an in-progress workout instead of Home.",
+  "scope": [
+    "python_pkg/android_ui/driver.py (new AndroidUi.back)",
+    "python_pkg/android_ui/workout_firebase_flow.py (bounded _reach_home before tapping Settings)",
+    "No screen-locker source change; the SYNC/OFFLINE BACKUP reorder was a throwaway worktree edit, reverted and rebuilt"
+  ],
+  "changes": [
+    "Root cause: the slot app resumed into the workout screen, which has no Settings gear, so tap('Settings') failed after 15 s",
+    "AndroidUi.back() sends KEYCODE_BACK (4) to the driver's own display",
+    "run_flow first presses BACK up to MAX_BACKS=3 times until Home's 'Settings' gear is on screen; if it never appears, tap('Settings') still fails naming the query"
+  ],
+  "verification": [
+    {
+      "command": "pytest python_pkg/android_ui/tests --cov=python_pkg.android_ui --cov-branch",
+      "result": "pass",
+      "evidence": "143 passed, 100.00% branch coverage; 3 new tests were red first (no back(), no MAX_BACKS)"
+    },
+    {
+      "command": "workout_firebase_flow --serial 23181JEGR08034 --display self --account <linked account> (slot com.kuhy.slot1 v37, current layout, app reopened mid-workout)",
+      "result": "pass",
+      "evidence": "workout-firebase-flow: connected, exit 0 (the other account was rejected by the app as the wrong uid, flow timed out exit 1 as designed)"
+    },
+    {
+      "command": "same flow on slot v38 with SYNC and OFFLINE BACKUP swapped in settings_screen.dart",
+      "result": "pass",
+      "evidence": "dump shows OFFLINE BACKUP at y=1452 above SYNC at y=2178; flow: already connected, exit 0"
+    },
+    {
+      "command": "workout_firebase_flow --serial 23181JEGR08034 --display self --negative",
+      "result": "pass",
+      "evidence": "exit 1, stderr: waited 3.0s for 'No Such Button': no element matches 'No Such Button'"
+    },
+    {
+      "command": "git checkout settings_screen.dart, rebuild slot v39, rerun flow",
+      "result": "pass",
+      "evidence": "already connected, exit 0; screen-locker worktree removed, slot released, com.kuhy.workout_app untouched"
+    }
+  ],
+  "risks": [
+    "BACK on an in-progress workout leaves that screen; workout_screen.dart allows the pop outside lock mode and the state persists (the slot reopened into it)",
+    "An unexpected route deeper than 3 levels still fails, naming 'Settings'"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Rerun pytest python_pkg/android_ui/tests"
+  ]
+}

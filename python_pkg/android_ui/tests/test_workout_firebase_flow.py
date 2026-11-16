@@ -68,6 +68,22 @@ class TestFlow:
         assert taps == [flow.SETTINGS, flow.SYNC_ROW, flow.SIGN_IN]
         ui.scroll_to.assert_called_once_with(flow.SYNC_ROW)
 
+    def test_backs_out_of_a_workout_to_home_before_settings(self) -> None:
+        # The app reopens into an in-progress workout, which has no gear.
+        ui = _ui(CONNECTED)
+        ui.find_all.side_effect = [[], [], [_el(desc="Settings")]]
+        flow.run_flow(ui, account=None, timeout=5)
+        assert ui.back.call_count == 2
+        ui.find_all.assert_called_with(flow.SETTINGS, exact=True)
+
+    def test_gives_up_backing_out_and_lets_the_tap_name_settings(self) -> None:
+        ui = _ui(CONNECTED)
+        ui.find_all.return_value = []
+        ui.tap.side_effect = ElementNotFoundError("no element matches 'Settings'")
+        with pytest.raises(ElementNotFoundError, match="Settings"):
+            flow.run_flow(ui, account=None, timeout=5)
+        assert ui.back.call_count == flow.MAX_BACKS
+
     def test_already_connected_taps_nothing_on_the_sync_screen(self) -> None:
         ui = _ui(CONNECTED)
         assert flow.run_flow(ui, account=None, timeout=5) == "already connected"

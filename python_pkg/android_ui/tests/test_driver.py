@@ -159,6 +159,10 @@ class TestTap:
         ]
         assert keyevents, "expected the keyboard to be dismissed first"
 
+    def test_back_sends_keycode_back_to_its_display(self, ui: Harness) -> None:
+        ui.ui.back()
+        assert ("shell", "input", "-d", "0", "keyevent", "4") in ui.device.calls
+
 
 def test_hint_names_an_empty_material_field() -> None:
     """A Flutter/Material field publishes its label only as ``hint``.

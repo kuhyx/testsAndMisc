@@ -4,11 +4,11 @@
         [--display self] [--account EMAIL]
     python3 -m python_pkg.android_ui.workout_firebase_flow --serial ... --negative
 
-Home -> Settings (gear tooltip) -> scroll to the "Sync settings" row -> Sync
-settings -> "Sign in with Google" -> wait for "Disconnect". Every workout_app
-label lives in this file and nowhere else, so a layout change (reordering the
-SYNC and OFFLINE BACKUP sections) needs no edit here -- only a renamed label
-does, and then the run fails naming it.
+[BACK to Home] -> Settings (gear semanticLabel) -> scroll to the "Sync
+settings" row -> Sync settings -> "Sign in with Google" -> wait for
+"Disconnect". Every workout_app label lives in this file and nowhere else, so a
+layout change (reordering the SYNC and OFFLINE BACKUP sections) needs no edit
+here -- only a renamed label does, and then the run fails naming it.
 
 Exit codes: 0 connected (or already was), 1 an element was missing or
 ambiguous (stderr names the query), 4 bad device/display/lease, 6 a screen
@@ -53,6 +53,9 @@ EXIT_ELEMENT = 1
 EXIT_TARGET = 4
 EXIT_HAND_OVER = 6
 _POLL_S = 1.0
+# Routes stacked over Home when the app reopens (an in-progress workout, a
+# summary); more than this means the app is somewhere unexpected.
+MAX_BACKS = 3
 _NEGATIVE_TIMEOUT_S = 3.0
 
 
@@ -83,8 +86,17 @@ def _chooser_up(screen: list[UiElement]) -> bool:
     return False
 
 
+def _reach_home(ui: AndroidUi) -> None:
+    """Pop routes until Home's gear shows; the app may reopen mid-workout."""
+    for _ in range(MAX_BACKS):
+        if ui.find_all(SETTINGS, exact=True):
+            return
+        ui.back()
+
+
 def run_flow(ui: AndroidUi, *, account: str | None, timeout: float) -> str:
-    """Run the flow from the home screen; return how it ended."""
+    """Run the flow from wherever the app is; return how it ended."""
+    _reach_home(ui)
     ui.tap(SETTINGS, exact=True)
     # Below the fold on a phone; scrolling to it is what makes the run survive
     # a section reorder without a coordinate.
