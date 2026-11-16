@@ -23,11 +23,11 @@
 
 anthropic==2.8.0
 beautifulsoup4==4.15.0
-coverage==7.17.2
+coverage==7.17.3
 defusedxml==0.7.1
 genanki==0.13.1
 markdownify==1.2.3
-numpy==2.5.4
+numpy==2.5.5
 pillow==13.0.0
 pytest==9.2.0
 pytest-cov==7.1.0
