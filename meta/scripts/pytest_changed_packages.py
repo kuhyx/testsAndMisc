@@ -17,8 +17,10 @@ they are not coverage-measured (coverage stays scoped to ``python_pkg``).
 
 from __future__ import annotations
 
+from importlib import metadata
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +37,50 @@ _TOTAL_MEM = "2G"
 # not coverage-measured. Skipped silently if the directory does not exist.
 _EXTRA_TEST_DIRS = ("linux_configuration/tests",)
 
+# The suite's own dependency list. A pin added here (fastmcp, 2026-11) used to
+# reach every checkout whose interpreter never installed it as a collection
+# ImportError; the preflight below installs it instead.
+_TEST_REQUIREMENTS = Path("meta/requirements-test.txt")
+# pip's comment rule: "#" at line start or after whitespace. A bare "#" is a
+# URL fragment (``#subdirectory=sql_drills``) and must survive.
+_COMMENT = re.compile(r"(^|\s)#.*$")
+_DIST_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def _missing_requirements() -> list[str]:
+    """Return the ``name==version`` pins whose distribution is not installed."""
+    if not _TEST_REQUIREMENTS.is_file():
+        return []
+    missing = []
+    for raw in _TEST_REQUIREMENTS.read_text(encoding="utf-8").splitlines():
+        pin = _COMMENT.sub("", raw).strip()
+        name = _DIST_NAME.match(pin)
+        if name is None:  # blank, or a "-r"/"-c" option line
+            continue
+        try:
+            metadata.distribution(name.group(0))
+        except metadata.PackageNotFoundError:
+            missing.append(pin)
+    return missing
+
+
+def _install_missing_requirements() -> int:
+    """Install absent test pins into this interpreter; 0 when nothing is missing.
+
+    Only ABSENT packages are installed: a present one at another version is
+    left alone, so the hook never churns a working environment. Outside a venv
+    the system interpreter is externally managed, so it goes to the user site.
+    """
+    missing = _missing_requirements()
+    if not missing:
+        return 0
+    sys.stdout.write(f"Installing missing test requirements: {' '.join(missing)}\n")
+    sys.stdout.flush()
+    cmd = [sys.executable, "-m", "pip", "install", "--quiet"]
+    if sys.prefix == sys.base_prefix:
+        cmd += ["--user", "--break-system-packages"]
+    return subprocess.run([*cmd, *missing], check=False).returncode
+
 
 def main() -> int:
     """Entry point."""
@@ -48,6 +94,11 @@ def main() -> int:
     )
     if not packages:
         return 0
+
+    installed = _install_missing_requirements()
+    if installed != 0:
+        sys.stderr.write("Installing the missing test requirements failed.\n")
+        return installed
 
     test_dirs = [f"python_pkg/{pkg}/tests" for pkg in packages]
     test_dirs += [d for d in _EXTRA_TEST_DIRS if Path(d).is_dir()]

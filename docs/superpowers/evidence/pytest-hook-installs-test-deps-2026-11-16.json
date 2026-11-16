@@ -1,0 +1,37 @@
+{
+  "intent": "pre-commit's pytest hook stops failing with a collection ImportError when meta/requirements-test.txt gains a pin the hook's interpreter lacks (fastmcp from a4738c6f), and main's CI pre-commit job goes green again.",
+  "scope": [
+    "meta/scripts/pytest_changed_packages.py: install absent test pins before running pytest",
+    "meta/requirements.txt: gatelock 0.13.0 -> 0.14.0, types-python-dateutil 2.9.0.20261104 -> 2.9.0.20261116",
+    "Non-goal: upgrading present packages at other versions; only absent ones are installed"
+  ],
+  "changes": [
+    "pytest_changed_packages.py lists requirements-test.txt pins whose distribution is not installed (pip comment rule keeps #subdirectory URL fragments) and pip-installs them into the running interpreter (--user --break-system-packages outside a venv) before pytest; a failed install fails the hook",
+    "Bumped the two pins the dependency-freshness gate reports behind latest stable (the cause of main's red Pre-commit checks run 43829221139)"
+  ],
+  "verification": [
+    {
+      "command": "python meta/scripts/pytest_changed_packages.py x.py (system python, before fix)",
+      "result": "fail",
+      "evidence": "ModuleNotFoundError: No module named 'fastmcp'; 3 errors during collection, rc=2"
+    },
+    {
+      "command": "python meta/scripts/pytest_changed_packages.py x.py (system python, after fix)",
+      "result": "pass",
+      "evidence": "Installing missing test requirements: fastmcp==4.2.0 pytest-sugar==1.1.1; 1824 passed, coverage 100.00%, rc=0"
+    },
+    {
+      "command": "scripts/check_dependency_freshness.sh --refresh meta/requirements.txt meta/requirements-test.txt",
+      "result": "pass",
+      "evidence": "before: 2 findings (gatelock, types-python-dateutil), rc=1; after: rc=0"
+    }
+  ],
+  "risks": [
+    "The hook now needs network the first time a new test pin appears; offline it fails closed with a clear message instead of an ImportError",
+    "Installs into the user site of the system interpreter, matching how the existing test deps got there"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Re-run pre-commit run --all-files and confirm the fastmcp ImportError returns only where fastmcp is absent"
+  ]
+}
