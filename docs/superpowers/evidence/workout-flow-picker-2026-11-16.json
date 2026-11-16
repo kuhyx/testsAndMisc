@@ -1,0 +1,46 @@
+{
+  "intent": "workout_firebase_flow reaches the connected state again on the current workout_app: the text-free settings screen and Android's AccountManager account picker broke the 2026-11-08 version.",
+  "scope": [
+    "python_pkg/android_ui/workout_firebase_flow.py and its test only",
+    "No change to the MCP server, the CLI or the driver"
+  ],
+  "changes": [
+    "SYNC_ROW is now 'Sync settings' (the cloud icon's semanticLabel); the 'Firebase sync' subtitle was removed by screen-locker's textgate commit b584c04",
+    "The account chooser is also recognised as a CheckedTextView list of e-mails (AccountManager picker); after tapping the account the flow re-dumps and taps OK (android:id/button2, measured: button1 is Cancel) only if the picker is still up"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest -q python_pkg/android_ui/tests/test_workout_firebase_flow.py --cov=python_pkg.android_ui.workout_firebase_flow --cov-branch",
+      "result": "pass",
+      "evidence": "red first: 2 failed (AccountManager picker tests); then 16 passed, workout_firebase_flow.py 100% line+branch"
+    },
+    {
+      "command": "workout_firebase_flow --serial 23181JEGR08034 --display self --account <linked account> (slot com.kuhy.slot1, current layout)",
+      "result": "pass",
+      "evidence": "exit 0 'workout-firebase-flow: connected'; screenshot shows the account row with the unlink icon and the synced cloud"
+    },
+    {
+      "command": "same command, after swapping _SyncSection and _OfflineBackupSection in settings_screen.dart, rebuilding and reinstalling the slot",
+      "result": "pass",
+      "evidence": "exit 0 'connected'; dump shows OFFLINE BACKUP at y=1452 above SYNC at y=2178. Script unchanged between runs"
+    },
+    {
+      "command": "workout_firebase_flow --serial 23181JEGR08034 --display self --negative",
+      "result": "pass",
+      "evidence": "exit 1; stderr: waited 3.0s for 'No Such Button': no element matches 'No Such Button'. On screen now: ..."
+    },
+    {
+      "command": "android-ui --display self tap Back (on Settings)",
+      "result": "pass",
+      "evidence": "error, nothing tapped: 2 elements match 'Back': 'Back' <Button>; 'OFFLINE BACKUP' <View> (C4 on the phone)"
+    }
+  ],
+  "risks": [
+    "--account must name the Google account linked to the sync data; another account gets the app's 'signed in as the wrong account' error and the flow times out naming 'Disconnect'",
+    "button2-as-OK is measured on this Pixel's Android build; a different picker layout falls back to the timeout error, never a wrong success"
+  ],
+  "rollback": [
+    "git revert the commit; the 2026-11-08 flow returns (it fails on the current app at the 'Firebase sync' scroll)",
+    "Re-run test_workout_firebase_flow.py"
+  ]
+}

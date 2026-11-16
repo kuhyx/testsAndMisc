@@ -80,6 +80,31 @@ class TestFlow:
         assert flow.run_flow(ui, account="me@example.com", timeout=5) == "connected"
         ui.tap.assert_called_with("me@example.com", exact=True)
 
+    def test_account_manager_chooser_picks_account_then_confirms(self) -> None:
+        """Android's AccountManager picker: a checked list plus an OK button."""
+        picker = [
+            _el("Wybierz konto"),
+            _el("me@example.com", cls="android.widget.CheckedTextView"),
+            _el("OK", cls="android.widget.Button", res="android:id/button2"),
+        ]
+        ui = _ui(SIGN_IN, picker, picker, CONNECTED)
+        assert flow.run_flow(ui, account="me@example.com", timeout=5) == "connected"
+        taps = [c.args[0] for c in ui.tap.call_args_list]
+        assert taps[-2:] == ["me@example.com", "android:id/button2"]
+
+    def test_picker_closed_by_the_account_tap_is_not_confirmed(self) -> None:
+        picker = [_el("me@example.com", cls="android.widget.CheckedTextView")]
+        ui = _ui(SIGN_IN, picker, [], CONNECTED)
+        assert flow.run_flow(ui, account="me@example.com", timeout=5) == "connected"
+        taps = [c.args[0] for c in ui.tap.call_args_list]
+        assert taps[-1] == "me@example.com"
+
+    def test_account_manager_chooser_without_account_hands_over(self) -> None:
+        picker = [_el("me@example.com", cls="android.widget.CheckedTextView")]
+        ui = _ui(SIGN_IN, picker)
+        with pytest.raises(flow.HandOverError, match="--account"):
+            flow.run_flow(ui, account=None, timeout=5)
+
     def test_account_chooser_without_account_hands_over(self) -> None:
         ui = _ui(SIGN_IN, [_el("Wybierz konto", res=_CHOOSER_ID)])
         with pytest.raises(flow.HandOverError, match="--account"):

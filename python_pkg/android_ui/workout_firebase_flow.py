@@ -4,7 +4,7 @@
         [--display self] [--account EMAIL]
     python3 -m python_pkg.android_ui.workout_firebase_flow --serial ... --negative
 
-Home -> Settings (gear tooltip) -> scroll to the "Firebase sync" row -> Sync
+Home -> Settings (gear tooltip) -> scroll to the "Sync settings" row -> Sync
 settings -> "Sign in with Google" -> wait for "Disconnect". Every workout_app
 label lives in this file and nowhere else, so a layout change (reordering the
 SYNC and OFFLINE BACKUP sections) needs no edit here -- only a renamed label
@@ -34,12 +34,16 @@ if TYPE_CHECKING:
 
 # workout_app / sync_settings_ui labels (sync_settings_ui-v0.5.2).
 SETTINGS = "Settings"  # home_screen.dart: the gear's tooltip
-SYNC_ROW = "Firebase sync"  # settings_screen_sections.dart: the row's subtitle
+SYNC_ROW = "Sync settings"  # settings_screen_sections.dart: cloud icon semanticLabel
 SIGN_IN = "Sign in with Google"
 CONNECTED = "Disconnect"  # only rendered while Firebase is connected
 # Google's account chooser: its title follows the phone's locale ("Wybierz
 # konto" on the Pixel), so it is found by its GMS container id instead.
 CHOOSER = "com.google.android.gms:id/google_sign_in_container"
+# Android's AccountManager picker (seen 2026-11-16) has no GMS container: it is
+# a checked list of account e-mails plus OK; tapping a row only checks it.
+CHOOSER_ROW_CLASS = "CheckedTextView"
+CHOOSER_OK = "android:id/button2"  # OK; button1 is Cancel (measured)
 NEGATIVE = "No Such Button"
 # Text that means a screen wants a secret. Matched on editable fields only, so
 # a label such as "Use the account password instead" does not trip it.
@@ -70,6 +74,15 @@ def _asks_for_secret(screen: list[UiElement]) -> bool:
     return False
 
 
+def _chooser_up(screen: list[UiElement]) -> bool:
+    for element in screen:
+        if element.matches(CHOOSER, exact=True):
+            return True
+        if element.class_name.endswith(CHOOSER_ROW_CLASS) and "@" in element.text:
+            return True
+    return False
+
+
 def run_flow(ui: AndroidUi, *, account: str | None, timeout: float) -> str:
     """Run the flow from the home screen; return how it ended."""
     ui.tap(SETTINGS, exact=True)
@@ -88,11 +101,14 @@ def run_flow(ui: AndroidUi, *, account: str | None, timeout: float) -> str:
         if _asks_for_secret(screen):
             msg = "the sign-in asks for a password or 2FA code (a secret)"
             raise HandOverError(msg)
-        if any(e.matches(CHOOSER, exact=True) for e in screen):
+        if _chooser_up(screen):
             if account is None:
                 msg = "the Google account chooser is up: pass --account <email>"
                 raise HandOverError(msg)
             ui.tap(account, exact=True)
+            # A single tap closes some pickers; only confirm one still up.
+            if any(e.matches(CHOOSER_OK, exact=True) for e in ui.dump()):
+                ui.tap(CHOOSER_OK, exact=True)
         time.sleep(_POLL_S)
     msg = f"waited {timeout}s for {CONNECTED!r} after tapping {SIGN_IN!r}"
     raise ElementNotFoundError(msg)
