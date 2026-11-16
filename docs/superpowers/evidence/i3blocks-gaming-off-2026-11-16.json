@@ -1,0 +1,31 @@
+{
+  "intent": "Gaming has no budget from 2026-11-16 (earned_time 0.22.0): the i3bar shows no gaming or leisure-shadow block; the shutdown, tutor and focus blocks stay.",
+  "scope": [
+    "linux_configuration/i3blocks/config, gaming_budget.sh, leisure_shadow.sh and their two test scripts",
+    "Non-goal: no accounting, no new keys written; a missing or true gaming_enforced keeps today's output"
+  ],
+  "changes": [
+    "config: the [gaming_budget] and [leisure_shadow] sections are removed",
+    "gaming_budget.sh, leisure_shadow.sh: when the cache's gaming_enforced is exactly false the render is empty text plus the hidden sentinel and the block prints nothing, exit 0, whatever the cache age (covers a bar config that still lists them)",
+    "tests: hidden cases for both blocks (four caches each, enforced true and absent still render, flip false -> true re-renders) and the config no longer wires either block"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/tests/test_i3blocks_gaming_budget.sh && bash linux_configuration/tests/test_i3blocks_leisure_shadow.sh && bash linux_configuration/tests/test_i3blocks_efficiency.sh",
+      "result": "pass",
+      "evidence": "All gaming_budget checks passed. All leisure_shadow checks passed. (both new sections RED before the change)"
+    },
+    {
+      "command": "shellcheck on the two scripts and two tests",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": [
+    "i3blocks does not re-read its config on a signal: the removed sections vanish at the next i3blocks restart; until then the scripts print nothing",
+    "Depends on daily-limits >= 8219dce writing gaming_enforced"
+  ],
+  "rollback": [
+    "git revert the commit; the symlinks in ~/.config/i3blocks pick it up on the next tick"
+  ]
+}

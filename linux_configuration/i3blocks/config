@@ -50,16 +50,6 @@ command=~/.config/i3blocks/pc_startup_status.sh
 interval=30
 color=#FFFFFF
 
-
-[gaming_budget]
-command=~/.config/i3blocks/gaming_budget.sh
-interval=30
-
-# Shadow week: the would-be leisure budget. Never urgent (no flashing).
-[leisure_shadow]
-command=~/.config/i3blocks/leisure_shadow.sh
-interval=30
-
 [screen_locker]
 command=~/.config/i3blocks/screen_locker.sh
 interval=30

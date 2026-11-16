@@ -1,0 +1,11 @@
+{
+  "title": "i3blocks: no gaming or shadow block once gaming is not limited",
+  "objective": "Remove [gaming_budget] and [leisure_shadow] from the i3blocks config and make both scripts print nothing when daily-limits' cache has gaming_enforced false; a missing or true key keeps current behaviour; both always exit 0 and stay shellcheck clean.",
+  "acceptance_criteria": [
+    "gaming_enforced false: gaming_budget and leisure_shadow print 0 lines and exit 0, even for stale or no-data caches",
+    "gaming_enforced missing or true: output identical to before",
+    "the config wires neither block; shutdown_countdown, tutor and focus_project sections are unchanged"
+  ],
+  "out_of_scope": ["daily-limits itself (own repo)", "enforcer behaviour"],
+  "verifier": "linux_configuration/tests/test_i3blocks_gaming_budget.sh, test_i3blocks_leisure_shadow.sh, test_i3blocks_efficiency.sh, shellcheck, pre-commit"
+}

@@ -203,4 +203,36 @@ assert_eq "notify -u critical daily-limits not installed: $TMP_DIR/absent" "$(ca
 	'a missing launcher raises a notification'
 rm -f "$TMP_DIR/clicks"
 
+printf 'Checking the block hides itself once gaming is not limited...\n'
+# set_enforced VALUE -- rewrite the cache's top-level gaming_enforced (2026-11-16).
+set_enforced() {
+	jq -c ".gaming_enforced = $1" "$CACHE" >"$CACHE.new" && mv "$CACHE.new" "$CACHE"
+	rm -f "$RENDER"
+}
+for spec in "360 480 $NOW" "480 480 $NOW" "null 480 $NOW" "60 480 $((NOW - 600))"; do
+	read -r used budget generated <<<"$spec"
+	write_cache "$used" "$budget" "$generated" "$D" workout:todo:60
+	set_enforced false
+	set +e
+	output=$(run_block)
+	status=$?
+	set -e
+	assert_eq '0' "$status" "unenforced ($spec) exits 0"
+	assert_eq '' "$output" "unenforced ($spec) prints nothing: the block is hidden"
+done
+# The key absent (an older cache) or true keeps the block: gaming is limited.
+write_cache 360 480 "$NOW" "$D" workout:todo:60
+assert_eq '🎮 2h00 left · 6h00/8h00 +💪1h' "$(line 1)" 'no gaming_enforced key still shows the budget'
+set_enforced true
+assert_eq '🎮 2h00 left · 6h00/8h00 +💪1h' "$(line 1)" 'gaming_enforced true still shows the budget'
+# Re-enforcing after hidden shows it again (the render cache is rebuilt, not stuck).
+set_enforced false
+assert_eq '' "$(run_block)" 'hidden again'
+set_enforced true
+assert_eq '🎮 2h00 left · 6h00/8h00 +💪1h' "$(line 1)" 'visible again'
+
+printf 'Checking the config no longer wires the gaming or shadow blocks...\n'
+! grep -q '^\[gaming_budget\]$' "$REPO_DIR/i3blocks/config" || fail '[gaming_budget] must not be in the config'
+! grep -q 'gaming_budget.sh' "$REPO_DIR/i3blocks/config" || fail 'config must not run gaming_budget.sh'
+
 printf 'All gaming_budget checks passed.\n'

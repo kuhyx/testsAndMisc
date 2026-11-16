@@ -163,13 +163,29 @@ for value in false null; do
 	assert_eq '🛋 SHADOW 3h12 left · 1h48 used' "$(line 1)" "leisure_active $value still shows the shadow"
 done
 
-printf 'Checking the config wires the block next to gaming_budget...\n'
-CONFIG="$REPO_DIR/i3blocks/config"
-grep -A3 '^\[leisure_shadow\]$' "$CONFIG" | grep -q '^command=~/.config/i3blocks/leisure_shadow.sh$' ||
-	fail '[leisure_shadow] should run leisure_shadow.sh'
-next_section=$(sed -n '/^\[gaming_budget\]$/,$p' "$CONFIG" | grep -m2 '^\[' | tail -1)
-assert_eq '[leisure_shadow]' "$next_section" '[leisure_shadow] sits right after [gaming_budget]'
-! grep -A4 '^\[leisure_shadow\]$' "$CONFIG" | grep -q '^urgent' ||
-	fail '[leisure_shadow] must never be urgent'
+printf 'Checking the block hides itself once gaming is not limited...\n'
+# set_enforced VALUE -- rewrite the cache's top-level gaming_enforced (2026-11-16).
+set_enforced() {
+	jq -c ".gaming_enforced = $1" "$CACHE" >"$CACHE.new" && mv "$CACHE.new" "$CACHE"
+	rm -f "$RENDER"
+}
+for spec in '108 300' '300 300' 'null null' "60 300 $((NOW - 600))"; do
+	read -r used budget generated <<<"$spec"
+	write_cache "$used" "$budget" "${generated:-$NOW}"
+	set_enforced false
+	set +e
+	output=$(run_block)
+	status=$?
+	set -e
+	assert_eq '0' "$status" "unenforced ($spec) exits 0"
+	assert_eq '' "$output" "unenforced ($spec) prints nothing: the block is hidden"
+done
+write_cache 108 300
+set_enforced true
+assert_eq '🛋 SHADOW 3h12 left · 1h48 used' "$(line 1)" 'gaming_enforced true still shows the shadow'
+
+printf 'Checking the config no longer wires the shadow block...\n'
+! grep -q '^\[leisure_shadow\]$' "$REPO_DIR/i3blocks/config" || fail '[leisure_shadow] must not be in the config'
+! grep -q 'leisure_shadow.sh' "$REPO_DIR/i3blocks/config" || fail 'config must not run leisure_shadow.sh'
 
 printf 'All leisure_shadow checks passed.\n'

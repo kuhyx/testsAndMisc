@@ -14,6 +14,11 @@
 # Phase 2 (leisure rollout): once the cache's top-level `leisure_active` is
 # true, the same block is the leisure budget: 🎮 becomes `🛋 Leisure`, colours
 # unchanged. A missing/false/non-boolean key keeps the 🎮 gaming label.
+#
+# Gaming is not limited from 2026-11-16 (earned_time 0.22.0): once the cache's
+# top-level `gaming_enforced` is exactly false there is no budget and the
+# block prints nothing (i3bar hides it), whatever the cache's age. A missing
+# or true key keeps the block.
 # ============================================================================
 
 set -euo pipefail
@@ -46,7 +51,9 @@ if [[ ${BLOCK_BUTTON:-0} -eq 1 ]]; then
 fi
 
 # One jq pass renders five lines: generated_at, full text, short text, color
-# and the label (🎮, or `🛋 Leisure` once live) the stale state reuses.
+# and the label (🎮, or `🛋 Leisure` once live) the stale state reuses. With
+# gaming not limited, full/short are empty and color is "hidden" (non-empty,
+# so $(...) cannot strip the lines).
 # Thresholds mirror the enforcer's own warn_at (1h, 30m, 10m). Bonuses still
 # not done are listed as " +💪2h +🧩?1h" ("?" = status unknown, still counted);
 # a gaming day other than the date is shown as " (10-08)"; used_minutes == null means the enforcer
@@ -67,7 +74,9 @@ render_limits() {
 			| if length > 0 then " " + join(" ") else "" end) as $todo
 		| (if (.gaming.day // .date) != .date then " (\((.gaming.day // .date)[5:]))" else "" end) as $day
 		| (.generated_at | if type == "number" then floor else "none" end),
-		  (if $g.used_minutes == null then
+		  (if .gaming_enforced == false then
+			"", "", "hidden"
+		  elif $g.used_minutes == null then
 			"\($label) budget \($g.budget_minutes | hm)\($day)\($todo)", "\($icon) \($g.budget_minutes | hm)", $grey
 		  else
 			([$g.budget_minutes - $g.used_minutes, 0] | max) as $left
@@ -113,6 +122,9 @@ fi
 	emit '🎮 unreadable cache' '🎮 !' "$RED"
 	exit 0
 }
+
+# Hidden (no gaming budget): print nothing, whatever the cache's age.
+[[ -n $full_text ]] || exit 0
 
 if [[ -n ${NOW_EPOCH:-} ]]; then
 	now=$NOW_EPOCH

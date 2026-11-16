@@ -15,7 +15,8 @@
 # Phase 2 (leisure rollout): once the cache's top-level `leisure_active` is
 # true the shadow week is over and the block prints nothing (i3bar hides it);
 # gaming_budget.sh shows the real leisure budget instead. A missing/false key
-# keeps the shadow block.
+# keeps the shadow block. Likewise once `gaming_enforced` is exactly false
+# (2026-11-16: no gaming budget, so no shadow of one).
 # ============================================================================
 
 set -euo pipefail
@@ -47,7 +48,7 @@ render_shadow() {
 			| "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)";
 		(.leisure_shadow // {}) as $s
 		| (.generated_at | if type == "number" then floor else "none" end),
-		  (if .leisure_active == true then
+		  (if .leisure_active == true or .gaming_enforced == false then
 			"", "", "hidden"
 		  elif $s.used_minutes == null or $s.budget_minutes == null then
 			"🛋 SHADOW ⏱? no data", "🛋 ⏱?", $orange
