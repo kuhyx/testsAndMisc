@@ -1,0 +1,22 @@
+{
+  "intent": "Give the todoImplementer native Flutter app (com.kuhy.todo_implementer) a launcher icon from the shared family and a launcher label.",
+  "scope": ["python_pkg/app_icons: new glyph module, registry entry, label, glyph test", "Non-goal: restyling any other app's icon or style.py"],
+  "changes": [
+    "New glyph card-check-play (_glyph_art_board.py): stroked rounded card, stroked tick, filled play arrow",
+    "Registry entry todo_implementer -> ~/src/todoImplementer/app, linux=True; label TodoImpl"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q python_pkg/app_icons/tests --cov=python_pkg/app_icons --cov-branch",
+      "result": "pass",
+      "evidence": "130 passed; no app_icons source line missing; row gaps at final scale >= MIN_NEGATIVE_SPACE"
+    },
+    {
+      "command": "python3 -m python_pkg.app_icons preview --app todo_implementer --app todo --app tutor",
+      "result": "pass",
+      "evidence": "full, circle-masked and 48dp rows read as a card with tick and play arrow, distinct from todo's checklist"
+    }
+  ],
+  "risks": ["Another session has uncommitted app_icons edits (game_research) in the main checkout: merging may conflict in glyphs.py/_apps_more.py/labels.py"],
+  "rollback": ["git revert this commit", "rerun the app_icons tests"]
+}

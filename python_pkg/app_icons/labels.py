@@ -46,6 +46,7 @@ LABELS: Final[dict[str, str]] = {
     "book_guard_app": "BookGuard",
     "daily_limits": "DailyLimit",
     "tutor": "Tutor",
+    "todo_implementer": "TodoImpl",
     "tunedeck": "TuneDeck",
     "sufler": "Sufler",
     "macro_cam": "MacroCam",

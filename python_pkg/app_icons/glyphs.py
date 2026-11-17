@@ -29,6 +29,7 @@ from python_pkg.app_icons._glyph_art import (
     _SHIELD_CUTLERY,
     _STORAGE_BOX,
 )
+from python_pkg.app_icons._glyph_art_board import _CARD_CHECK_PLAY
 from python_pkg.app_icons._glyph_art_extra import (
     _CAMERA,
     _HEADPHONES,
@@ -68,6 +69,11 @@ GLYPHS: Final[dict[str, Glyph]] = {
     glyph.name: glyph
     for glyph in (
         Glyph("cloud-down", "Cloud with a download arrow", _CLOUD_DOWN),
+        Glyph(
+            "card-check-play",
+            "Board card with a tick and a filled play arrow",
+            _CARD_CHECK_PLAY,
+        ),
         Glyph("barbell", "Barbell with plates and collars", _BARBELL),
         Glyph("clock", "Clock face with hands", _CLOCK),
         Glyph("punch-card", "Time card with punched holes", _PUNCH_CARD),

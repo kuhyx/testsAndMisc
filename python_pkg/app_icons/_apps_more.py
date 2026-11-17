@@ -24,6 +24,16 @@ MORE_APPS: Final[tuple[AppIcon, ...]] = (
         linux=True,
     ),
     AppIcon(
+        key="todo_implementer",
+        repo=_HOME / "src/todoImplementer/app",
+        accent="#B8862E",
+        glyph="card-check-play",
+        icon_name="todo-implementer",
+        # Desktop is the Flutter web build in a Chrome --app window, so it
+        # gets the hicolor set like tutor.
+        linux=True,
+    ),
+    AppIcon(
         key="tunedeck",
         repo=_HOME / "src/tunedeck",
         accent="#B8862E",
