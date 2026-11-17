@@ -1,7 +1,11 @@
 {
   "title": "Launcher icon for todo_implementer",
   "objective": "Register com.kuhy.todo_implementer in the shared icon family with a card-check-play glyph and label TodoImpl, keeping every family invariant (negative space at final scale, label width rule, 100% coverage).",
-  "acceptance_criteria": ["apps.get_app('todo_implementer') returns glyph card-check-play", "glyph gaps at the final fitted scale >= MIN_NEGATIVE_SPACE", "labels test suite passes for TodoImpl"],
+  "acceptance_criteria": [
+    "apps.get_app('todo_implementer') returns glyph card-check-play",
+    "glyph gaps at the final fitted scale >= MIN_NEGATIVE_SPACE",
+    "labels test suite passes for TodoImpl"
+  ],
   "out_of_scope": ["Other apps' icons", "style.py"],
   "verifier": "python3 -m pytest -q python_pkg/app_icons/tests"
 }
