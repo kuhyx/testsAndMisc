@@ -22,6 +22,9 @@ font pango:System San Francisco Display, FontAwesome 8
 # Start XDG autostart .desktop files using dex. See also
 # https://wiki.archlinux.org/index.php/XDG_Autostart
 exec --no-startup-id dex --autostart --environment i3
+# Refresh the DISPLAY/XAUTHORITY the systemd --user manager and D-Bus activation
+# hand to units (e.g. xfce4-notifyd) on every i3 start.
+exec --no-startup-id dbus-update-activation-environment --systemd DISPLAY XAUTHORITY
 
 # OpenTabletDriver daemon (Huion HS64 -> DP-0 mapping). Started here because i3
 # does not reliably activate graphical-session.target, which the packaged

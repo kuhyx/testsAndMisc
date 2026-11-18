@@ -2,7 +2,10 @@
 
 # Resolve the directory this script lives in and work from there, so every
 # relative path below (i3blocks/, i3/) resolves no matter where it is invoked.
-SCRIPT_DIR=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
+SCRIPT_DIR=$(
+	unset CDPATH
+	cd -- "$(dirname -- "$0")" && pwd
+)
 cd "$SCRIPT_DIR" || exit 1
 
 # Function to detect if the system is Ubuntu
@@ -65,6 +68,13 @@ for src in "$SCRIPT_DIR"/i3blocks/*; do
 	[ -f "$src" ] || continue
 	ln -sfn "$src" "$HOME/.config/i3blocks/$(basename "$src")"
 done
+
+# The notification daemon is D-Bus activated and the systemd --user manager
+# outlives X sessions: this drop-in makes it wait for X instead of failing
+# (see wait_for_x.sh).
+mkdir -p "$HOME/.config/systemd/user/xfce4-notifyd.service.d"
+cp "$SCRIPT_DIR"/systemd/xfce4-notifyd.service.d/*.conf "$HOME/.config/systemd/user/xfce4-notifyd.service.d/"
+systemctl --user daemon-reload
 
 # i3 config is copied (not symlinked) because it needs a per-machine font-size
 # mutation applied below; symlinking would write that change back into the repo.

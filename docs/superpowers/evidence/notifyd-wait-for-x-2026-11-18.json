@@ -1,0 +1,32 @@
+{
+  "intent": "xfce4-notifyd starts only once X answers, so a night-lockdown X restart no longer exhausts its start limit and leaves notify-send with NameHasNoOwner (2026-11-18).",
+  "scope": [
+    "linux_configuration/i3/{config,install.sh,wait_for_x.sh,check_notifyd_survives_x_restart.sh,systemd/xfce4-notifyd.service.d/wait-for-x.conf}",
+    "Non-goal: no change to what notifyd shows or to the notification senders"
+  ],
+  "changes": [
+    "wait_for_x.sh: polls up to 15 s for the display before notifyd execs",
+    "drop-in wait-for-x.conf: runs wait_for_x.sh as ExecStartPre and drops the start limit; install.sh copies it to ~/.config/systemd/user/",
+    "i3 config: refreshes the D-Bus/systemd activation environment on start",
+    "check_notifyd_survives_x_restart.sh: sandboxed repro that brings X up late and sends a notification"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/i3/check_notifyd_survives_x_restart.sh",
+      "result": "pass",
+      "evidence": "OK: notify-send succeeded while X came up late (exit 0)"
+    },
+    {
+      "command": "shellcheck linux_configuration/i3/{check_notifyd_survives_x_restart,wait_for_x,install}.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": [
+    "A running user manager needs daemon-reload to see the drop-in; install.sh runs it",
+    "If X never comes up the unit fails after 15 s instead of looping"
+  ],
+  "rollback": [
+    "git revert the commit and delete ~/.config/systemd/user/xfce4-notifyd.service.d/wait-for-x.conf, then systemctl --user daemon-reload"
+  ]
+}
