@@ -204,7 +204,7 @@ repos:
           - anthropic==1.5.0
           - beautifulsoup4==4.15.0
           - defusedxml==0.7.1
-          - markdownify==1.2.3
+          - markdownify==1.2.4
           - numpy==2.5.3
           - pillow==12.3.0
           - rich==15.0.0
