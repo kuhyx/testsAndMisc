@@ -1,0 +1,35 @@
+{
+  "intent": "Run the dependency-freshness gate only locally (pre-commit hook), never in GitHub Actions.",
+  "scope": [
+    ".github/workflows/dependency-freshness.yml (deleted)",
+    ".github/workflows/pre-commit.yml (CI skips the dependency-freshness hook)",
+    ".dep-freshness-no-workflow (opt-out marker for the fleet installer)",
+    "Non-goal: the local hook and the shared gate logic stay unchanged"
+  ],
+  "changes": [
+    "Deleted the dependency-freshness CI workflow",
+    "Added dependency-freshness to the rest group's SKIP list in the pre-commit CI workflow",
+    "Added .dep-freshness-no-workflow so kuhyx/utils dep_freshness.install does not re-add the workflow",
+    "Bumped ruff 0.17.5 -> 0.17.6 in meta/requirements.txt (gate was red before the change)"
+  ],
+  "verification": [
+    {
+      "command": "bash scripts/check_dependency_freshness.sh --all",
+      "result": "pass",
+      "evidence": "exit 0, no pins behind latest stable"
+    },
+    {
+      "command": "pre-commit run --all-files",
+      "result": "pass",
+      "evidence": "all hooks passed in the worktree"
+    }
+  ],
+  "risks": [
+    "A stale pin can now reach main from a clone without pre-commit installed",
+    "CI no longer notices overnight upstream releases"
+  ],
+  "rollback": [
+    "git revert the commit to restore the workflow and drop the marker",
+    "Check that the dependency freshness workflow runs on the next push"
+  ]
+}

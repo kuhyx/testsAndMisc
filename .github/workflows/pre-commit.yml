@@ -39,11 +39,12 @@ jobs:
       UTILS_ROOT: ${{ github.workspace }}/.utils
       # SKIP=pytest-coverage: the Python tests workflow already runs the
       # whole suite with the same 100% coverage gate, so running it again
-      # here doubled the cost of this job for no extra signal. It is the
-      # only hook skipped, and it is skipped because it is DUPLICATED, not
-      # because it is slow -- if that workflow is ever removed, drop this.
+      # here doubled the cost of this job for no extra signal. It is
+      # skipped because it is DUPLICATED, not because it is slow -- if that
+      # workflow is ever removed, drop this.
       # `rest` also skips the three hooks that run in their own group above.
-      SKIP: ${{ matrix.group == 'rest' && 'pytest-coverage,mypy,pylint,shellcheck' || 'pytest-coverage' }}
+      # dependency-freshness runs locally only (see .dep-freshness-no-workflow).
+      SKIP: ${{ matrix.group == 'rest' && 'pytest-coverage,mypy,pylint,shellcheck,dependency-freshness' || 'pytest-coverage' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -64,8 +65,9 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
 
       # Every hook brings its own environment except the `language: system`
-      # ones, and of those only dependency-freshness imports third-party code
-      # (pyyaml, packaging); check_requirements_sync.py, the evidence/contract
+      # ones. pyyaml and packaging were for dependency-freshness, which CI now
+      # skips; they stay because the shared utils gates are not audited for
+      # them and cost under a second. check_requirements_sync.py, the evidence/contract
       # validators and the session_autopsy mutation hook are stdlib-only. The
       # full requirements.txt (~90 packages, a pygame source build included)
       # used to be installed here for nothing: 49 s of every run.
