@@ -1,0 +1,38 @@
+{
+  "intent": "Register kartka, leetcode-guard/app and todoImplementer/app in python_pkg/app_icons so the generator can regenerate the family icons they already ship, with no visible change.",
+  "scope": [
+    "python_pkg/app_icons/_glyph_art_code.py (new), glyphs.py, _apps_more.py, labels.py, tests/test_registry_code_apps.py (new)",
+    "Non-goal: no sibling repo is touched or regenerated; betting_sim and the shared track-bars glyph are untouched"
+  ],
+  "changes": [
+    "Three glyphs ported verbatim from each app's shipped assets/icon/icon_foreground.svg: document-split (kartka), code-brackets (leetcode), screen-tick-play (todoimpl); literal accent replaced by the accent marker",
+    "Registry entries and launcher labels Kartka / LeetGuard / TodoImpl (taken from each AndroidManifest android:label)",
+    "Linux flags: kartka=True (desktop/install_desktop_entry.sh installs a hicolor set from desktop/icons, built with --linux-out); leetcode=True (tool/install_desktop.sh writes leetcode-guard-app.desktop, so icon_name=leetcode-guard-app; it currently points Icon= at assets/icon/icon.png); todoimpl=False (no linux/ target or desktop entry in the Flutter app; the desktop board is the separate web/ TS app)"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest -q python_pkg/app_icons --cov=python_pkg.app_icons --cov-branch",
+      "result": "pass",
+      "evidence": "144 passed; Total coverage: 100.00%. New tests were red first (12 failed, KeyError on the unregistered keys)"
+    },
+    {
+      "command": "regenerate the three apps into a temp dir with generate.write_assets on a repo-replaced AppIcon, then paste shipped vs new icon.png side by side",
+      "result": "pass",
+      "evidence": "Every new icon.png is 1024x1024 (shipped leetcode/todoimpl were 640x640). Side-by-side sheet shows the same glyph shape, gold #B8862E accent and charcoal field for all three"
+    },
+    {
+      "command": "python -m python_pkg.app_icons list; git -C ~/src/{kartka,leetcode-guard,todoImplementer} status --short",
+      "result": "pass",
+      "evidence": "list shows kartka document-split +linux, leetcode code-brackets +linux, todoimpl screen-tick-play; sibling repos show only their pre-existing untracked .claude/ and tools/errors/"
+    }
+  ],
+  "risks": [
+    "Follow-up: leetcode-guard/app and todoImplementer/app ship 640px icon.png (drift); regenerating there will write the standard 1024px set",
+    "Follow-up, not changed: betting_sim's registry path ~/src/betting-sim/app does not exist",
+    "Follow-up, not changed: kuhylog and betting_sim share the track-bars glyph"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "python -m pytest python_pkg/app_icons passes and list no longer shows the three keys"
+  ]
+}

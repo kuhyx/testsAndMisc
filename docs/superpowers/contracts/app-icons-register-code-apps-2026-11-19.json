@@ -1,0 +1,15 @@
+{
+  "title": "Register kartka, leetcode and todoimpl in app_icons",
+  "objective": "The app_icons generator can regenerate the family icons kartka, leetcode-guard/app and todoImplementer/app already ship, with the same glyph shape, accent and field.",
+  "acceptance_criteria": [
+    "apps.get_app returns kartka, leetcode and todoimpl with glyph, icon_name and linux flag taken from disk facts",
+    "Each renders the standard 1024px svg+png layer set into a temp dir without error; linux-flagged ones render the hicolor sizes",
+    "Regenerated icon.png matches the shipped one side by side",
+    "python_pkg/app_icons stays at 100% branch coverage"
+  ],
+  "out_of_scope": [
+    "Writing into any sibling repo",
+    "betting_sim's dead registry path and the shared track-bars glyph"
+  ],
+  "verifier": "python -m pytest -q python_pkg/app_icons --cov=python_pkg.app_icons --cov-branch"
+}

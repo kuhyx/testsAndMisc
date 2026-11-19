@@ -49,6 +49,9 @@ LABELS: Final[dict[str, str]] = {
     "tunedeck": "TuneDeck",
     "sufler": "Sufler",
     "macro_cam": "MacroCam",
+    "kartka": "Kartka",
+    "leetcode": "LeetGuard",
+    "todoimpl": "TodoImpl",
 }
 
 

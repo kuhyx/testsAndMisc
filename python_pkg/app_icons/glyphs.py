@@ -29,6 +29,11 @@ from python_pkg.app_icons._glyph_art import (
     _SHIELD_CUTLERY,
     _STORAGE_BOX,
 )
+from python_pkg.app_icons._glyph_art_code import (
+    _CODE_BRACKETS,
+    _DOCUMENT_SPLIT,
+    _SCREEN_TICK_PLAY,
+)
 from python_pkg.app_icons._glyph_art_extra import (
     _CAMERA,
     _HEADPHONES,
@@ -112,6 +117,17 @@ GLYPHS: Final[dict[str, Glyph]] = {
             _PROMPT_BUBBLE,
         ),
         Glyph("camera", "Camera body with a viewfinder hump and a lens", _CAMERA),
+        Glyph(
+            "document-split",
+            "Page with a filled folded corner over a split lower panel",
+            _DOCUMENT_SPLIT,
+        ),
+        Glyph("code-brackets", "Angle brackets around a slash: </>", _CODE_BRACKETS),
+        Glyph(
+            "screen-tick-play",
+            "Rounded screen holding a tick and a filled play triangle",
+            _SCREEN_TICK_PLAY,
+        ),
     )
 }
 

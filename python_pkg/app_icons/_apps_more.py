@@ -52,4 +52,34 @@ MORE_APPS: Final[tuple[AppIcon, ...]] = (
         # Android only: no linux/ target and no desktop entry.
         linux=False,
     ),
+    AppIcon(
+        key="kartka",
+        repo=_HOME / "src/kartka",
+        accent="#B8862E",
+        glyph="document-split",
+        icon_name="kartka",
+        # desktop/install_desktop_entry.sh installs desktop/icons/<size>/
+        # kartka.png into hicolor; its header names `--linux-out desktop/icons`.
+        linux=True,
+    ),
+    AppIcon(
+        key="leetcode",
+        repo=_HOME / "src/leetcode-guard/app",
+        accent="#B8862E",
+        glyph="code-brackets",
+        icon_name="leetcode-guard-app",
+        # tool/install_desktop.sh writes leetcode-guard-app.desktop. It points
+        # Icon= at assets/icon/icon.png today, not at a hicolor set.
+        linux=True,
+    ),
+    AppIcon(
+        key="todoimpl",
+        repo=_HOME / "src/todoImplementer/app",
+        accent="#B8862E",
+        glyph="screen-tick-play",
+        icon_name="todoimpl",
+        # Android only: no linux/ target and no desktop entry. The desktop
+        # board is the separate web/ TypeScript app, not this Flutter build.
+        linux=False,
+    ),
 )
