@@ -160,6 +160,8 @@ create_startup_service() {
 	local startup_service="/etc/systemd/system/periodic-system-startup.service"
 	install -m 0644 "$TEMPLATE_STARTUP" "$startup_service"
 	echo "✓ Installed startup service from template: $startup_service"
+	# Boot-time network units race DNS here; both retry instead of staying failed.
+	install -D -m 0644 "$SYSTEMD_TEMPLATES/reflector.service.d/retry-on-dns.conf" /etc/systemd/system/reflector.service.d/retry-on-dns.conf
 }
 
 # Function to create hosts file monitor service

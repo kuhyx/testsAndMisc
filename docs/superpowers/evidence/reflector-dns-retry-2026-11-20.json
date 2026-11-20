@@ -1,0 +1,19 @@
+{
+  "intent": "reflector.service no longer stays in systemctl --failed after a boot where DNS comes up after network-online.target.",
+  "scope": ["linux_configuration/periodic_background/setup_periodic_system.sh", "drop-in source lives in kuhyx/system-maintenance systemd/reflector.service.d/retry-on-dns.conf"],
+  "changes": ["setup_periodic_system.sh installs the reflector Restart=on-failure drop-in next to periodic-system-startup.service"],
+  "verification": [
+    {
+      "command": "bash tests/test_boot_dns_retry.sh (system-maintenance)",
+      "result": "pass",
+      "evidence": "red before the drop-in existed, then PASS for both units and systemd-analyze verify"
+    },
+    {
+      "command": "shellcheck linux_configuration/periodic_background/setup_periodic_system.sh",
+      "result": "pass",
+      "evidence": "no findings"
+    }
+  ],
+  "risks": ["Installer aborts if ~/src/system-maintenance is not pulled first (install -D on a missing template)"],
+  "rollback": ["git revert; rm /etc/systemd/system/reflector.service.d/retry-on-dns.conf; systemctl daemon-reload"]
+}
