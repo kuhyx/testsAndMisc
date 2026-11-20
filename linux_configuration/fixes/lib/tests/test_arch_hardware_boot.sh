@@ -79,18 +79,19 @@ _t_lacks "$(_t_calls)" "grub-mkconfig" "tweak_mitigations: does not regenerate w
 
 printf '\n-- tweak_nm_wait_online --\n'
 
-# Case 16: already disabled -> skip.
-arch_desktop_reset
-_t_stub systemctl 'exit 1'
-_t_run tweak_nm_wait_online
-_t_contains "$out" "already disabled" "tweak_nm_wait_online: reports the skip"
-
-# Case 17: enabled -> disabled.
+# Case 16: already enabled -> skip, never disable (network-online.target needs it).
 arch_desktop_reset
 _t_stub systemctl 'exit 0'
 _t_run tweak_nm_wait_online
-_t_contains "$(_t_calls)" "systemctl disable NetworkManager-wait-online.service" \
-	"tweak_nm_wait_online: disables the service"
+_t_contains "$out" "already enabled" "tweak_nm_wait_online: reports the skip"
+_t_lacks "$(_t_calls)" "systemctl disable" "tweak_nm_wait_online: never disables it"
+
+# Case 17: disabled -> enabled.
+arch_desktop_reset
+_t_stub systemctl 'exit 1'
+_t_run tweak_nm_wait_online
+_t_contains "$(_t_calls)" "systemctl enable NetworkManager-wait-online.service" \
+	"tweak_nm_wait_online: enables the service"
 
 printf '\n-- tweak_journal --\n'
 

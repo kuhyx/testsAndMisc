@@ -1,0 +1,29 @@
+{
+  "intent": "Boot units ordered after network-online.target (reflector, periodic maintenance, nftables-drift) stop failing at boot.",
+  "scope": [
+    "linux_configuration/fixes/lib/arch_perf_fixes.sh, lib/arch_hardware.sh, fix_arch_performance.sh, optimize_arch_desktop.sh",
+    "fix_ubuntu_performance.sh left alone: other machine, not observed failing"
+  ],
+  "changes": [
+    "fix_nm_wait_online and tweak_nm_wait_online now ENABLE NetworkManager-wait-online instead of disabling it",
+    "menu/header text updated to match"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/fixes/lib/tests/test_arch_perf_fixes.sh && bash linux_configuration/fixes/lib/tests/test_arch_hardware_boot.sh",
+      "result": "pass",
+      "evidence": "red first (3 + 3 failures), then 21/0 and 27/0"
+    },
+    {
+      "command": "systemctl list-dependencies network-online.target",
+      "result": "pass",
+      "evidence": "host now lists NetworkManager-wait-online.service (was empty, target reached at 08:22:13 before the LAN was up)"
+    }
+  ],
+  "risks": [
+    "Boot units after network-online wait up to NM's 30 s timeout when there is no network"
+  ],
+  "rollback": [
+    "git revert; systemctl disable NetworkManager-wait-online.service"
+  ]
+}

@@ -7,7 +7,7 @@
 # 2. CPU governor stuck on powersave → AMD Ryzen throttled despite AC power
 # 3. No power management daemon → inconsistent CPU/GPU power state management
 # 4. Systemd journal bloated (>1GiB) → wastes disk I/O
-# 5. NetworkManager-wait-online.service → adds ~6s to every boot for no benefit
+# 5. NetworkManager-wait-online.service → kept enabled: network-online.target needs it
 # 6. media-organizer.service broken → wrong script path & user, fails every boot
 #
 # Usage:
@@ -49,7 +49,7 @@ Fixes applied:
   1. Enable NVIDIA hardware acceleration (RenderAccel true)
   2. Install/enable power-profiles-daemon, set performance profile
   3. Vacuum systemd journal to 300M, cap future size
-  4. Disable NetworkManager-wait-online.service (saves ~6s boot)
+  4. Keep NetworkManager-wait-online.service enabled (boot units need the network)
   5. Fix media-organizer.service (correct path and user)
 
 All fixes are idempotent and safe to re-run.
@@ -183,7 +183,7 @@ main() {
 		fix_journal
 
 	apply_fix \
-		"Fix 4/5: Disable NetworkManager-wait-online.service (~6s boot saving)" \
+		"Fix 4/5: Keep NetworkManager-wait-online.service enabled" \
 		fix_nm_wait_online
 
 	apply_fix \

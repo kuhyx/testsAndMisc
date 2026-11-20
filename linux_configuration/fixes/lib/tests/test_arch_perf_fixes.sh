@@ -50,20 +50,22 @@ _t_lacks "$(_t_calls)" "systemctl restart systemd-journald" \
 	"fix_journal: does not restart journald when the cap already exists"
 
 # --- fix_nm_wait_online -----------------------------------------------------
-
-arch_reset
-_t_stub systemctl 'exit 0'
-fix_nm_wait_online
-_t_contains "$(_t_calls)" "systemctl disable NetworkManager-wait-online.service" \
-	"fix_nm_wait_online: disables the wait-online unit when it is enabled"
+# Disabling it left network-online.target with no dependencies, so every
+# After=network-online.target unit raced DNS at boot and failed (2026-11-20).
 
 arch_reset
 _t_stub systemctl 'exit 1'
+fix_nm_wait_online
+_t_contains "$(_t_calls)" "systemctl enable NetworkManager-wait-online.service" \
+	"fix_nm_wait_online: enables the wait-online unit when it is disabled"
+
+arch_reset
+_t_stub systemctl 'exit 0'
 out="$(fix_nm_wait_online 2>&1)"
-_t_contains "$out" "already disabled" \
-	"fix_nm_wait_online: reports a unit that is already disabled"
+_t_contains "$out" "already enabled" \
+	"fix_nm_wait_online: reports a unit that is already enabled"
 _t_lacks "$(_t_calls)" "systemctl disable" \
-	"fix_nm_wait_online: does not re-disable an already-disabled unit"
+	"fix_nm_wait_online: never disables the wait-online unit"
 
 # --- fix_media_organizer ----------------------------------------------------
 

@@ -125,15 +125,20 @@ tweak_mitigations() {
 }
 
 # ===================================================================
-# 8. Disable NetworkManager-wait-online
+# 8. Keep NetworkManager-wait-online enabled
 # ===================================================================
+# Keep NetworkManager-wait-online ENABLED. Disabling it once "saved ~6s" but
+# left network-online.target with no dependencies: reflector, the periodic
+# maintenance units and nftables-drift then ran before DNS/LAN existed and
+# failed on every boot (2026-11-20). Only units ordered after
+# network-online.target wait for it; the desktop does not.
 tweak_nm_wait_online() {
-	if ! systemctl is-enabled NetworkManager-wait-online.service >/dev/null 2>&1; then
-		log_ok "NetworkManager-wait-online already disabled — skipping."
+	if systemctl is-enabled NetworkManager-wait-online.service >/dev/null 2>&1; then
+		log_ok "NetworkManager-wait-online already enabled — skipping."
 		return 0
 	fi
 
-	systemctl disable NetworkManager-wait-online.service
+	systemctl enable NetworkManager-wait-online.service
 	return 0
 }
 

@@ -10,7 +10,7 @@
 #  5. Filesystem — fstrim timer, noatime advisory
 #  6. NVIDIA GPU — max performance level via persistence mode
 #  7. Kernel mitigations — option to disable CPU vulnerability mitigations for extra speed
-#  8. Boot speed — disable unnecessary wait-online services
+#  8. Keep NetworkManager-wait-online enabled (boot units need the network)
 #  9. Journal housekeeping — cap at 300M
 # 10. Process scheduler — install ananicy-cpp for automatic nice/ionice/scheduling
 #
@@ -64,7 +64,7 @@ Optimizations applied:
    5. Enable fstrim.timer for SSD TRIM maintenance
    6. Set NVIDIA GPU to max performance level (persistence mode)
    7. [--aggressive] Disable CPU vulnerability mitigations
-   8. Disable NetworkManager-wait-online.service for faster boot
+   8. Keep NetworkManager-wait-online.service enabled
    9. Vacuum & cap systemd journal at 300M
   10. Install/enable ananicy-cpp for automatic process prioritization
 
@@ -150,7 +150,7 @@ main() {
 		tweak_mitigations
 
 	apply_tweak \
-		"Tweak  8/10: Disable NetworkManager-wait-online (faster boot)" \
+		"Tweak  8/10: Keep NetworkManager-wait-online enabled" \
 		tweak_nm_wait_online
 
 	apply_tweak \

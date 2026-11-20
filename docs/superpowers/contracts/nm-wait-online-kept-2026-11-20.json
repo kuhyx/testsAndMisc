@@ -1,0 +1,10 @@
+{
+  "title": "Keep NetworkManager-wait-online enabled",
+  "objective": "The Arch performance fixers stop disabling NetworkManager-wait-online, so network-online.target waits for the LAN and the boot units ordered after it (reflector, periodic maintenance, nftables-drift) stop failing.",
+  "acceptance_criteria": [
+    "fix_nm_wait_online and tweak_nm_wait_online enable the unit when disabled and never disable it",
+    "After a boot, systemctl --failed lists none of reflector, periodic-system-*, nftables-drift"
+  ],
+  "out_of_scope": ["fix_ubuntu_performance.sh (other machine)"],
+  "verifier": "bash linux_configuration/fixes/lib/tests/test_arch_perf_fixes.sh; bash linux_configuration/fixes/lib/tests/test_arch_hardware_boot.sh; systemctl --failed after the next boot"
+}
