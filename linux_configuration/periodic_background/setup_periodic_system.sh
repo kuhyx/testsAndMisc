@@ -16,6 +16,8 @@ init_setup_script "Periodic System Setup - Pacman Wrapper & Hosts File" "$@"
 # Get the directory where this script is located
 CONFIG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
+# shellcheck source=../lib/extracted_repos.sh
+source "$SCRIPT_DIR/../lib/extracted_repos.sh"
 # Define paths
 DW_REPO="$(require_extracted_repo digital-wellbeing "the periodic system setup")" || exit 1
 PACMAN_WRAPPER_SCRIPT="$DW_REPO/pacman/pacman_wrapper.sh"
@@ -24,8 +26,6 @@ MAKEPKG_WRAPPER_INSTALL="$DW_REPO/pacman/install_makepkg_wrapper.sh"
 # hosts-blocker was EXTRACTED out of this monorepo
 # (github.com/kuhyx/hosts-blocker), so this path deliberately lives
 # outside it. A missing checkout is fatal, never a silent skip.
-# shellcheck source=../lib/extracted_repos.sh
-source "$CONFIG_DIR/lib/extracted_repos.sh"
 HOSTS_BLOCKER_DIR_RESOLVED="$(require_extracted_repo hosts-blocker "the periodic system setup")" || exit 1
 HOSTS_INSTALL_SCRIPT="$HOSTS_BLOCKER_DIR_RESOLVED/install.sh"
 

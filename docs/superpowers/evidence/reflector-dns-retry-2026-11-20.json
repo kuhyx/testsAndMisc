@@ -2,10 +2,12 @@
   "intent": "reflector.service no longer stays in systemctl --failed after a boot where DNS comes up after network-online.target.",
   "scope": [
     "linux_configuration/periodic_background/setup_periodic_system.sh",
-    "drop-in source lives in kuhyx/system-maintenance systemd/reflector.service.d/retry-on-dns.conf"
+    "drop-in source lives in kuhyx/system-maintenance systemd/reflector.service.d/retry-on-dns.conf",
+    "linux_configuration/periodic_background/setup_periodic_system.sh sourced extracted_repos.sh after first use and from the wrong directory"
   ],
   "changes": [
-    "setup_periodic_system.sh installs the reflector Restart=on-failure drop-in next to periodic-system-startup.service"
+    "setup_periodic_system.sh installs the reflector Restart=on-failure drop-in next to periodic-system-startup.service",
+    "source linux_configuration/lib/extracted_repos.sh before require_extracted_repo is called"
   ],
   "verification": [
     {
@@ -17,6 +19,11 @@
       "command": "shellcheck linux_configuration/periodic_background/setup_periodic_system.sh",
       "result": "pass",
       "evidence": "no findings"
+    },
+    {
+      "command": "sudo systemd-run --wait bash setup_periodic_system.sh",
+      "result": "pass",
+      "evidence": "red: line 20 require_extracted_repo: command not found; green: rc=0, reflector drop-in live, system-maintenance deploy.sh --check green"
     }
   ],
   "risks": [
