@@ -1,0 +1,31 @@
+{
+  "intent": "The logo-review phone app (LogoJudge) gets a family launcher icon: a tick in a rounded square.",
+  "scope": [
+    "python_pkg/app_icons: one new glyph (square-tick), one registry entry (logo_review), one label (LogoJudge)",
+    "No change to style.py or to any other app's icon"
+  ],
+  "changes": [
+    "Added _SQUARE_TICK to _glyph_art_code.py and registered it in glyphs.py",
+    "Registered logo_review in _apps_more.py and its launcher name in labels.py",
+    "Extended tests/test_registry_code_apps.py with the new entry"
+  ],
+  "verification": [
+    {
+      "command": "python -m pytest python_pkg/app_icons -q",
+      "result": "pass",
+      "evidence": "149 passed"
+    },
+    {
+      "command": "~/.claude/skills/app-icon/scripts/icon_qa.py <logo-review>/app",
+      "result": "pass",
+      "evidence": "bw, px48, px16, bg, accent, svg: all PASS"
+    }
+  ],
+  "risks": [
+    "The tick could merge with the frame at small sizes; px48 and px16 checks pass"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "python -m pytest python_pkg/app_icons"
+  ]
+}

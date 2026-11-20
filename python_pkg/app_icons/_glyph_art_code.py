@@ -47,3 +47,16 @@ A 72 72 0 0 1 744 752 L 280 752 A 72 72 0 0 1 208 680 L 208 344 \
 A 72 72 0 0 1 280 272 Z"/>
     <path d="M 345 525 L 410 590 L 515 465"/>
     <path fill="{{ACCENT}}" stroke="none" d="M 615 430 L 712 520 L 615 610 Z"/>"""
+
+# A tick in a rounded square -- logo-review, where each logo candidate gets
+# judged: the approving check mark (kuhy's pick, 2026-11-20).
+#
+# Geometry: rounded square x=232..792, y=232..792, corner r=96; tick
+# (368,520)->(468,620)->(656,412). Tick ends sit 136px (centrelines) from the
+# walls: 64px of ink gap, ~55px after the fit shrinks the glyph (~0.87), clear
+# of MIN_NEGATIVE_SPACE=36.
+_SQUARE_TICK = """\
+    <path d="M 328 232 L 696 232 A 96 96 0 0 1 792 328 L 792 696 \
+A 96 96 0 0 1 696 792 L 328 792 A 96 96 0 0 1 232 696 L 232 328 \
+A 96 96 0 0 1 328 232 Z"/>
+    <path d="M 368 520 L 468 620 L 656 412"/>"""

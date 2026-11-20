@@ -1,0 +1,11 @@
+{
+  "title": "Family icon for the logo-review app",
+  "objective": "Register a square-tick glyph and the logo_review app so the generator can write its launcher icon; done when the registry tests pass and icon_qa passes all six checks on the app.",
+  "acceptance_criteria": [
+    "apps.get_app('logo_review') uses glyph square-tick and label LogoJudge",
+    "The label passes labels.label_problems",
+    "The standard asset set renders at 1024 px"
+  ],
+  "out_of_scope": ["style.py", "other apps' glyphs", "Linux desktop icons"],
+  "verifier": "python -m pytest python_pkg/app_icons; ~/.claude/skills/app-icon/scripts/icon_qa.py"
+}

@@ -52,6 +52,7 @@ LABELS: Final[dict[str, str]] = {
     "kartka": "Kartka",
     "leetcode": "LeetGuard",
     "todoimpl": "TodoImpl",
+    "logo_review": "LogoJudge",
 }
 
 

@@ -33,6 +33,7 @@ from python_pkg.app_icons._glyph_art_code import (
     _CODE_BRACKETS,
     _DOCUMENT_SPLIT,
     _SCREEN_TICK_PLAY,
+    _SQUARE_TICK,
 )
 from python_pkg.app_icons._glyph_art_extra import (
     _CAMERA,
@@ -128,6 +129,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
             "Rounded screen holding a tick and a filled play triangle",
             _SCREEN_TICK_PLAY,
         ),
+        Glyph("square-tick", "Rounded square holding a tick", _SQUARE_TICK),
     )
 }
 

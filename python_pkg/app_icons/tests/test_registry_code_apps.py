@@ -24,6 +24,7 @@ _EXPECTED: dict[str, tuple[str, str, bool, str]] = {
     "kartka": ("document-split", "kartka", True, "src/kartka"),
     "leetcode": ("code-brackets", "leetcode-guard-app", True, "src/leetcode-guard/app"),
     "todoimpl": ("screen-tick-play", "todoimpl", False, "src/todoImplementer/app"),
+    "logo_review": ("square-tick", "logo-review", False, "src/logo-review/app"),
 }
 
 

@@ -82,4 +82,13 @@ MORE_APPS: Final[tuple[AppIcon, ...]] = (
         # board is the separate web/ TypeScript app, not this Flutter build.
         linux=False,
     ),
+    AppIcon(
+        key="logo_review",
+        repo=_HOME / "src/logo-review/app",
+        accent="#B8862E",
+        glyph="square-tick",
+        icon_name="logo-review",
+        # Android only: the desktop half is the server's own web page.
+        linux=False,
+    ),
 )
