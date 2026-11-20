@@ -1,0 +1,41 @@
+{
+  "intent": "A firewall reload on the PC (e.g. a deploy running allow-web) no longer closes the home WARP window, so the work laptop keeps WARP until 17:00.",
+  "scope": [
+    "linux_configuration/features/lib/wg_firewall.sh",
+    "linux_configuration/features/lib/tests/test_wg_firewall_apply.sh",
+    "Non-goal: the laptop side (warp_home.sh) and the window rules are unchanged"
+  ],
+  "changes": [
+    "verify_nftables_then_apply restores an open warp_open element right after nft -f, with the timeout it had left (never extends, never opens a closed one)",
+    "An identical ruleset that is already live is not reloaded; nftables is enabled without --now so it is not loaded a second time"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/features/lib/tests/test_wg_firewall_apply.sh",
+      "result": "pass",
+      "evidence": "RED before fix: 3 passed, 4 failed; after: 7 passed, 0 failed"
+    },
+    {
+      "command": "unshare -rn /tmp/warpe2e/run.sh live.conf (real nft, private netns)",
+      "result": "pass",
+      "evidence": "before 2h59m59s998ms, after changed reload 2h59m59s975ms, unchanged skipped, closed stays []"
+    },
+    {
+      "command": "sudo features/setup_wireguard_ssh.sh allow-web (live PC)",
+      "result": "pass",
+      "evidence": "nftables ruleset unchanged; not reloading. No nftables.service start logged."
+    },
+    {
+      "command": "test_wg_firewall.sh, test_warp_window.sh, test_warp_home.sh, test_dns_gateway.sh",
+      "result": "pass",
+      "evidence": "37, 35, 35, 15 passed, 0 failed"
+    }
+  ],
+  "risks": [
+    "A live ruleset that drifted while /etc/nftables.conf stayed identical is no longer re-applied by allow-* (nftables-drift verify still reports it)"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "After rollback, a reload empties warp_open again: check sudo warp-window status"
+  ]
+}

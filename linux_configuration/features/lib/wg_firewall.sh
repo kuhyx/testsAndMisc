@@ -163,11 +163,36 @@ restore_docker_rules() {
 	log_ok "docker restarted; its firewall rules are back."
 }
 
+# Loading the ruleset replaces 'inet filter', and with it the warp_open set
+# warp_window.sh fills. Empty, the work laptop's warp-home tick reads "closed"
+# and drops WARP, so an open window is put back with the time it had left:
+# a reload neither closes nor extends it. Prints nothing when it is closed.
+warp_window_left() {
+	nft list set inet filter warp_open 2>/dev/null |
+		grep -o 'expires [0-9hms]*' | head -n1 | cut -d' ' -f2 || true
+}
+
+warp_window_restore() {
+	[[ -n $1 ]] || return 0
+	nft add element inet filter warp_open "{ 0.0.0.0/0 timeout $1 }"
+	log_ok "WARP window kept open (${1} left)."
+}
+
 verify_nftables_then_apply() {
 	nft -c -f "${NFT_CONF}.new" || die "nftables ruleset failed syntax check -- not applying."
+	# Deploys re-run allow-web on every push; an identical ruleset that is
+	# already live needs no reload, and every reload is a window for drops.
+	if cmp -s "${NFT_CONF}.new" "$NFT_CONF" && nft list table inet filter >/dev/null 2>&1; then
+		rm -f "${NFT_CONF}.new"
+		log_ok "nftables ruleset unchanged; not reloading."
+		return 0
+	fi
+	local warp_left
+	warp_left="$(warp_window_left)"
 	mv "${NFT_CONF}.new" "$NFT_CONF"
 	log_warn "Applying a default-drop firewall now."
 	nft -f "$NFT_CONF"
+	warp_window_restore "$warp_left"
 	sleep 2
 	if ! is_service_active sshd; then
 		nft delete table inet filter
@@ -176,7 +201,10 @@ verify_nftables_then_apply() {
 	log_ok "nftables applied; sshd is still active."
 	restore_docker_rules
 	log_warn "Before closing this terminal, open a SECOND ssh session now and confirm it connects."
-	enable_service nftables
+	# Enable only: nftables.service is a oneshot without RemainAfterExit, so
+	# 'enable --now' would load the same file a second time and empty
+	# warp_open again right after it was restored.
+	systemctl enable nftables
 }
 
 allow_dot() {
