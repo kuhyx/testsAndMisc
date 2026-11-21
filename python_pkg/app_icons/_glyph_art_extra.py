@@ -80,3 +80,16 @@ _CAMERA = """\
 A 64 64 0 0 1 768 400 L 768 688 A 64 64 0 0 1 704 752 L 320 752 \
 A 64 64 0 0 1 256 688 L 256 400 A 64 64 0 0 1 320 336 Z"/>
     <circle cx="512" cy="544" r="88"/>"""
+
+# A mahjong tile -- mahjong (com.kuhy.mahjong), the Riichi teaching game: one
+# upright tile showing the one-of-circles dot. The game's own object, and no
+# other family glyph is a tall rounded card with a single dot.
+#
+# Geometry, ink x=326..698 (372 wide), y=236..788 (552 tall):
+#   tile  rounded rect x=362..662, y=272..752, corner r=56 (stroked).
+#   dot   filled circle r=52 about (512,512). Ink gap dot->tile wall is
+#         150-52-36 = 62px sideways: r=72 left 42px, which merged into the
+#         wall at 48px (icon_qa px48), so the dot stays small.
+_MAHJONG_TILE = """\
+    <rect x="362" y="272" width="300" height="480" rx="56" ry="56"/>
+    <circle fill="{{ACCENT}}" cx="512" cy="512" r="52"/>"""

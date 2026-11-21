@@ -39,6 +39,7 @@ from python_pkg.app_icons._glyph_art_extra import (
     _CAMERA,
     _HEADPHONES,
     _LIGHTBULB,
+    _MAHJONG_TILE,
     _PROMPT_BUBBLE,
 )
 from python_pkg.app_icons._glyph_art_more import (
@@ -130,6 +131,7 @@ GLYPHS: Final[dict[str, Glyph]] = {
             _SCREEN_TICK_PLAY,
         ),
         Glyph("square-tick", "Rounded square holding a tick", _SQUARE_TICK),
+        Glyph("mahjong-tile", "Upright tile with one filled dot", _MAHJONG_TILE),
     )
 }
 

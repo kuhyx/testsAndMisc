@@ -1,0 +1,10 @@
+{
+  "title": "Mahjong launcher icon",
+  "objective": "Register a family icon for com.kuhy.mahjong that passes every icon_qa check.",
+  "acceptance_criteria": [
+    "apps.get_app('mahjong') renders the standard set",
+    "icon_qa.py prints PASS for all six checks"
+  ],
+  "out_of_scope": ["Changing other apps or style.py"],
+  "verifier": "pytest python_pkg/app_icons/tests; ~/.claude/skills/app-icon/scripts/icon_qa.py"
+}

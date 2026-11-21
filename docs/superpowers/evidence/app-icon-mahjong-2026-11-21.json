@@ -1,0 +1,25 @@
+{
+  "intent": "com.kuhy.mahjong (kuhyx/mahjong-teacher app/) gets a family launcher icon: an upright tile with one dot.",
+  "scope": [
+    "python_pkg/app_icons: glyph, registry entry, launcher label, registry test",
+    "No style.py or other app changes"
+  ],
+  "changes": [
+    "New glyph mahjong-tile in _glyph_art_extra.py (dot r=52 so it does not merge with the wall at 48px)",
+    "Registry entry mahjong (Android only) and label Mahjong"
+  ],
+  "verification": [
+    {
+      "command": "pytest -q python_pkg/app_icons/tests --no-cov",
+      "result": "pass",
+      "evidence": "154 passed"
+    },
+    {
+      "command": "icon_qa.py <mahjong-teacher worktree>/app",
+      "result": "pass",
+      "evidence": "bw, px48, px16, bg, accent, svg all PASS"
+    }
+  ],
+  "risks": ["None outside the new entry"],
+  "rollback": ["git revert this commit", "rerun app_icons tests"]
+}

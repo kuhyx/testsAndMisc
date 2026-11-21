@@ -91,4 +91,13 @@ MORE_APPS: Final[tuple[AppIcon, ...]] = (
         # Android only: the desktop half is the server's own web page.
         linux=False,
     ),
+    AppIcon(
+        key="mahjong",
+        repo=_HOME / "src/mahjong-teacher/app",
+        accent="#B8862E",
+        glyph="mahjong-tile",
+        icon_name="mahjong",
+        # Android only: the PC plays the same game in a normal browser.
+        linux=False,
+    ),
 )
