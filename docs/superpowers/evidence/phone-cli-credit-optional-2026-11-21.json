@@ -1,0 +1,32 @@
+{
+  "intent": "phone_lease and android_ui CLIs run under any python3, even one without kuhy-credit, so phone_deploy.sh works from any venv.",
+  "scope": [
+    "python_pkg/_optional_credit.py",
+    "python_pkg/phone_lease/__main__.py",
+    "python_pkg/android_ui/cli.py",
+    "python_pkg/phone_lease/tests/test_optional_credit.py"
+  ],
+  "changes": [
+    "New help_epilog() imports kuhy_credit lazily and returns None when it is missing.",
+    "phone_lease and android_ui take their argparse epilog from help_epilog() instead of a top-level kuhy_credit import."
+  ],
+  "verification": [
+    {
+      "command": "pytest python_pkg/phone_lease/tests/test_optional_credit.py python_pkg/tests/test_cli_credit.py -k 'phone_lease or android_ui'",
+      "result": "pass",
+      "evidence": "2 failed before the change (ModuleNotFoundError: kuhy_credit); 5 passed after."
+    },
+    {
+      "command": "/home/kuhy/src/todoImplementer/.venv/bin/python3 -m python_pkg.phone_lease status",
+      "result": "pass",
+      "evidence": "Printed the lease table instead of ModuleNotFoundError."
+    }
+  ],
+  "risks": [
+    "With kuhy-credit absent the two CLIs show --help without the credit line."
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Then run phone_deploy.sh from a venv that has kuhy-credit installed."
+  ]
+}

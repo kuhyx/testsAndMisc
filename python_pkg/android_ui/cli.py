@@ -18,8 +18,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from kuhy_credit import credit_line
-
+from python_pkg._optional_credit import help_epilog
 from python_pkg.android_ui.driver import AndroidUi, UiAutomationError
 from python_pkg.phone_guard.vd_state import display_owner, own_display
 from python_pkg.phone_lease import (
@@ -46,7 +45,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="android-ui",
         description="Drive an Android app by element, never by coordinates.",
-        epilog=credit_line(),
+        epilog=help_epilog(),
     )
     parser.add_argument("-s", "--serial", help="target device serial")
     parser.add_argument(

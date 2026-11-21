@@ -12,8 +12,7 @@ from dataclasses import asdict
 import json
 import sys
 
-from kuhy_credit import credit_line
-
+from python_pkg._optional_credit import help_epilog
 from python_pkg.phone_lease.lease import (
     DEFAULT_TTL,
     DEFAULT_WAIT,
@@ -42,7 +41,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phone-lease",
         description=__doc__,
-        epilog=credit_line(),
+        epilog=help_epilog(),
     )
     sub = parser.add_subparsers(dest="command", required=True)
     take = sub.add_parser(

@@ -1,0 +1,12 @@
+{
+  "title": "Phone CLIs survive a missing kuhy-credit",
+  "objective": "phone_deploy.sh calls python3 -m python_pkg.phone_lease with whatever python3 is on PATH. A missing kuhy-credit package must not crash the lease or the android_ui driver; the credit stays in --help whenever the package is present.",
+  "acceptance_criteria": [
+    "python -m python_pkg.phone_lease --help and python -m python_pkg.android_ui --help exit 0 with kuhy_credit blocked.",
+    "test_cli_credit.py still finds the credit line in both --help outputs when kuhy_credit is installed."
+  ],
+  "out_of_scope": [
+    "The other ten credited CLIs, which are not started by phone tooling."
+  ],
+  "verifier": "pytest python_pkg/phone_lease/tests/test_optional_credit.py python_pkg/tests/test_cli_credit.py"
+}
