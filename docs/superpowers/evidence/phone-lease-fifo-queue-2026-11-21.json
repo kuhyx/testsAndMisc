@@ -1,0 +1,33 @@
+{
+  "intent": "Finish the phone_lease FIFO queue left uncommitted on 2026-11-17 so the repo's test gate collects again, and drop fix_waifu2x.sh, dead since waifu2x-converter-cpp-cuda-git was removed.",
+  "scope": [
+    "python_pkg/phone_lease: lease.py, ops.py, owner.py, __init__.py, _model.py, _queue.py and tests",
+    "linux_configuration/fixes/fix_waifu2x.sh deleted",
+    "Non-goal: the CLI exit codes and the ~/.claude phone scripts stay as they are"
+  ],
+  "changes": [
+    "lease.py loads and saves a Book (leases, queue, next ticket number, whole-phone start) under flock and delegates grant/queue rules to the pure _queue core; acquire raises PhoneQueuedError (a PhoneBusyError) with the caller's position",
+    "ops.release drops the caller's ticket as well as its lease; ops.queue_of lists the line; owner.owner_alive decides which owners are dead so tidy() reaps them",
+    "test_fifo's clock fixture also drives ops.time, since release and status_all read the wall clock"
+  ],
+  "verification": [
+    {
+      "command": ".venv/bin/python -m pytest -q --cov=python_pkg/phone_lease --cov-branch python_pkg/phone_lease",
+      "result": "pass",
+      "evidence": "91 passed; every phone_lease module at 100% branch coverage"
+    },
+    {
+      "command": "PHONE_LEASE_DIR=<tmp> python -m python_pkg.phone_lease acquire PIXEL --package a --wait 0 (owners A, B, C, then A release, B again)",
+      "result": "pass",
+      "evidence": "A rc=0; B rc=3 'you are #1 in line (ticket 1)'; C on pkg:c rc=0; B after release rc=0; queue empty"
+    }
+  ],
+  "risks": [
+    "WHOLE_PHONE_MAX_TTL drops from 300 s to 30 s and DEFAULT_WAIT from 60 s to 50 s (the WIP's design for the 60 s tool cap); a whole-phone job longer than 30 s now loses its hold",
+    "Old lease files without a queue read as an empty queue"
+  ],
+  "rollback": [
+    "git revert this commit",
+    "Rerun python_pkg/phone_lease tests and one phone_deploy.sh claim"
+  ]
+}

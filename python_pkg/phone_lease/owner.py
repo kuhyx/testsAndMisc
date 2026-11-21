@@ -34,3 +34,23 @@ def owner_id(pid: int | None = None, environ: dict[str, str] | None = None) -> s
         # it may contain spaces, so split after its closing paren.
         current = int(stat.rsplit(")", 1)[1].split()[1])
     return f"pid:{origin}"
+
+
+def owner_alive(owner: str, *, proc_root: Path = Path("/proc")) -> bool:
+    """Whether ``owner``'s session still runs, so its leases and tickets stay.
+
+    ``claude:<pid>`` lives while that pid is a ``claude`` process (a reused pid
+    running anything else counts as dead); ``<tool>:<pid>`` lives while the pid
+    exists. ``pid:<pid>`` is the CLI's own short-lived process, and explicit
+    names (``PHONE_LEASE_OWNER``) carry no pid, so both always count as alive.
+    """
+    kind, _, pid = owner.partition(":")
+    if not pid.isdigit() or kind == "pid":
+        return True
+    comm = proc_root / pid / "comm"
+    if kind != "claude":
+        return comm.parent.exists()
+    try:
+        return comm.read_text(encoding="utf-8").strip() == "claude"
+    except OSError:
+        return False

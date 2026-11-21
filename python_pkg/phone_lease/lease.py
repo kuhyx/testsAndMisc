@@ -1,6 +1,7 @@
-"""The lease file, its owner identity, and the acquire/release operations.
+"""The lease file, and the acquire operation that waits in its fair queue.
 
-One JSON file per phone holds every live lease on it. A lease has a *scope*:
+One JSON file per phone holds every live lease on it, the queue of callers
+waiting for one, and the start of each whole-phone hold. A lease has a *scope*:
 
 * ``pkg:<package>`` -- one app (install, launch, driving it). Two sessions can
   hold different packages at once. ``pkg:__screen__`` is the phone's real
@@ -9,87 +10,65 @@ One JSON file per phone holds every live lease on it. A lease has a *scope*:
   Doze, screen sleep, reboot, a focus-mode deploy). It conflicts with every
   foreign lease, is capped at :data:`WHOLE_PHONE_MAX_TTL`, and carries cleanup
   commands that run exactly once, on release or expiry.
+
+The queue rules live in :mod:`._queue`; this module only loads and saves the
+file under ``flock`` and runs cleanup commands outside the lock.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 import fcntl
 import json
 import os
 from pathlib import Path
-import time
 from typing import TYPE_CHECKING
 
-from python_pkg.phone_lease import _cleanup
+from python_pkg.phone_lease import _cleanup, _queue
+from python_pkg.phone_lease import owner as owner_mod
+from python_pkg.phone_lease._model import (
+    DEFAULT_TTL,
+    DEFAULT_WAIT,
+    QUEUED_EXIT,
+    SCREEN,
+    TICKET_TTL,
+    WHOLE_PHONE,
+    WHOLE_PHONE_MAX_TTL,
+    Clock,
+    Lease,
+    PhoneBusyError,
+    PhoneQueuedError,
+    Ticket,
+    scope_of,
+)
+from python_pkg.phone_lease._queue import Book
 from python_pkg.phone_lease.owner import owner_id
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+__all__ = [
+    "DEFAULT_TTL",
+    "DEFAULT_WAIT",
+    "QUEUED_EXIT",
+    "SCREEN",
+    "TICKET_TTL",
+    "WHOLE_PHONE",
+    "WHOLE_PHONE_MAX_TTL",
+    "Clock",
+    "Lease",
+    "PhoneBusyError",
+    "PhoneQueuedError",
+    "Terms",
+    "Ticket",
+    "acquire",
+    "scope_of",
+]
 
-@dataclass(frozen=True)
-class Clock:
-    """The two things ``acquire`` needs from ``time``; tests hand in fakes."""
-
-    now: Callable[[], float] = time.time
-    sleep: Callable[[float], None] = time.sleep
-
-
-# Seconds a lease outlives its last refresh; a quiet session frees the phone.
-DEFAULT_TTL = 180.0
-# Seconds ``acquire`` waits on a foreign lease before giving up.
-DEFAULT_WAIT = 60.0
-# A whole-phone lease stops everyone else, so it can never be held for long.
-WHOLE_PHONE_MAX_TTL = 300.0
-SCREEN = "__screen__"
-WHOLE_PHONE = "whole-phone"
 # Where lease files live; overridable so tests never touch the real one.
 LEASE_DIR = Path(
     os.environ.get("PHONE_LEASE_DIR", str(Path.home() / ".cache" / "phone-lease"))
 )
-
-
-class PhoneBusyError(RuntimeError):
-    """Raised when a fresh, conflicting lease belongs to another owner."""
-
-
-@dataclass(frozen=True)
-class Lease:
-    """One entry of the lease file."""
-
-    serial: str
-    owner: str
-    expires: float
-    note: str
-    scope: str = f"pkg:{SCREEN}"
-    cleanup: tuple[str, ...] = field(default_factory=tuple)
-
-    def is_expired(self, now: float) -> bool:
-        """True once ``now`` has passed the expiry."""
-        return now >= self.expires
-
-    def conflicts_with(self, owner: str, scope: str) -> bool:
-        """Whether this lease stops ``owner`` from taking ``scope``."""
-        if self.owner == owner:
-            return False
-        return WHOLE_PHONE in (self.scope, scope) or self.scope == scope
-
-    def describe(self) -> str:
-        """One line for an error or a status readout."""
-        until = time.strftime("%H:%M:%S", time.localtime(self.expires))
-        what = "" if self.scope == f"pkg:{SCREEN}" else f" [{self.scope}]"
-        return (
-            f"phone {self.serial}{what} held by {self.owner} ({self.note}) "
-            f"until {until}"
-        )
-
-
-def scope_of(package: str | None = None, *, whole_phone: bool = False) -> str:
-    """The scope string for a package, the whole phone, or the real screen."""
-    if whole_phone:
-        return WHOLE_PHONE
-    return f"pkg:{package or SCREEN}"
 
 
 def lease_paths(serial: str) -> tuple[Path, Path]:
@@ -109,67 +88,74 @@ def _parse(raw: object) -> Lease | None:
     return Lease(**{**asdict(lease), "cleanup": tuple(lease.cleanup)})
 
 
-def read_leases(path: Path) -> list[Lease]:
-    """Every lease in the file. Pre-scope files hold one bare object."""
+def _ticket(raw: object) -> Ticket | None:
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return Ticket(**raw)
+    except TypeError:
+        return None
+
+
+def read_book(path: Path) -> Book:
+    """Everything in the file; damaged parts read as empty.
+
+    Pre-scope files hold one bare lease object, pre-queue files only leases.
+    """
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except OSError, ValueError:
-        return []
-    items = raw.get("leases", [raw]) if isinstance(raw, dict) else []
-    return [lease for lease in map(_parse, items) if lease is not None]
-
-
-def write_leases(path: Path, leases: list[Lease]) -> None:
-    """Replace the lease file's contents with ``leases``."""
-    path.write_text(
-        json.dumps({"leases": [asdict(lease) for lease in leases]}), encoding="utf-8"
+        return Book()
+    if not isinstance(raw, dict):
+        return Book()
+    leases = [x for x in map(_parse, raw.get("leases", [raw])) if x is not None]
+    queue = raw.get("queue", [])
+    tickets = [x for x in map(_ticket, queue if isinstance(queue, list) else []) if x]
+    after = max((x.number for x in tickets), default=0) + 1
+    number = raw.get("next")
+    since = raw.get("since")
+    return Book(
+        leases=leases,
+        tickets=tickets,
+        next_number=max(number, after) if isinstance(number, int) else after,
+        since=dict(since) if isinstance(since, dict) else {},
     )
 
 
-def locked_update(
-    serial: str, change: Callable[[list[Lease], float], list[Lease]], now: float
-) -> list[Lease]:
-    """Apply ``change`` to the live leases under the lock.
+def read_leases(path: Path) -> list[Lease]:
+    """Every lease in the file, expired or not."""
+    return read_book(path).leases
 
-    Expired leases are dropped on the way in; their cleanup commands run after
-    the lock is released, so a slow ``adb`` never blocks another session.
+
+def write_book(path: Path, book: Book) -> None:
+    """Replace the file's contents with ``book``."""
+    body = {
+        "leases": [asdict(x) for x in book.leases],
+        "queue": [asdict(x) for x in book.tickets],
+        "next": book.next_number,
+        "since": book.since,
+    }
+    path.write_text(json.dumps(body), encoding="utf-8")
+
+
+def locked_update[T](serial: str, change: Callable[[Book, float], T], now: float) -> T:
+    """Apply ``change`` to the tidied book under the lock and return its result.
+
+    Expired leases and those of dead owners are dropped first (:func:`._queue.tidy`);
+    their cleanup commands run after the lock is released, so a slow ``adb``
+    never blocks another session.
     """
-    lock_path, lease_path = lease_paths(serial)
+    lock_path, path = lease_paths(serial)
     with lock_path.open("w", encoding="utf-8") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        leases = read_leases(lease_path)
-        expired = [lease for lease in leases if lease.is_expired(now)]
-        live = change([lease for lease in leases if not lease.is_expired(now)], now)
-        write_leases(lease_path, live)
-    for lease in expired:
+        book = read_book(path)
+        # Looked up on each call so tests (and conftest) can patch owner_alive.
+        gone = _queue.tidy(book, now, owner_mod.owner_alive)
+        result = change(book, now)
+        write_book(path, book)
+    for lease in gone:
         _cleanup.run(lease.cleanup)
-    return live
-
-
-def _attempt(
-    serial: str, want: Lease, ttl: float, now: float
-) -> tuple[Lease | None, Lease | None, bool]:
-    """One locked try at ``want``: (granted lease, blocker, newly taken)."""
-    out: list[Lease | None] = [None, None]
-    fresh = [True]
-
-    def take(live: list[Lease], at: float) -> list[Lease]:
-        blocker = next(
-            (x for x in live if x.conflicts_with(want.owner, want.scope)), None
-        )
-        if blocker is not None:
-            out[1] = blocker
-            return live
-        prior = next(
-            (x for x in live if (x.owner, x.scope) == (want.owner, want.scope)), None
-        )
-        fresh[0] = prior is None
-        granted = Lease(**{**asdict(want), "expires": at + ttl})
-        out[0] = granted
-        return [x for x in live if x is not prior] + [granted]
-
-    locked_update(serial, take, now)
-    return out[0], out[1], fresh[0]
+    return result
 
 
 @dataclass(frozen=True)
@@ -179,6 +165,17 @@ class Terms:
     ttl: float = DEFAULT_TTL
     wait: float = DEFAULT_WAIT
     cleanup: tuple[str, ...] = ()
+
+
+def _queued_message(grant: _queue.Grant, wait: float) -> str:
+    return (
+        f"{grant.blocker} -- waited {wait:.0f}s; you are #{grant.position} in line "
+        f"(ticket {grant.number}). To keep your place, rerun the same command "
+        f"within {TICKET_TTL:.0f}s. Or drive the app on your own virtual display "
+        "(~/.claude/scripts/phone_vd.sh, needs only a package lease), or the "
+        "headless emulator (~/.claude/scripts/phone_emu.sh); see the phone-deploy "
+        "skill."
+    )
 
 
 def acquire(
@@ -192,34 +189,28 @@ def acquire(
 ) -> Lease:
     """Take or refresh a lease on ``serial`` for one ``scope`` (see :func:`scope_of`).
 
-    Waits up to ``terms.wait`` seconds for conflicting foreign leases to
-    expire, polling once a second, then raises :class:`PhoneBusyError`.
+    Waits in line up to ``terms.wait`` seconds, polling once a second, then
+    raises :class:`PhoneQueuedError` with the caller's ticket kept.
     """
     me = owner_id() if owner is None else owner
     terms = terms or Terms()
-    ttl = terms.ttl
-    if scope == WHOLE_PHONE:
-        ttl = min(ttl, WHOLE_PHONE_MAX_TTL)
-    cleanup = terms.cleanup
-    wait = terms.wait
     clock = clock or Clock()
-    deadline = clock.now() + wait
+    want = Lease(serial, me, 0.0, note, scope, terms.cleanup)
+    deadline = clock.now() + terms.wait
     while True:
-        mine, blocker, is_new = _attempt(
-            serial, Lease(serial, me, 0.0, note, scope, cleanup), ttl, clock.now()
+        grant = locked_update(
+            serial,
+            lambda book, at: _queue.take(book, want, terms.ttl, at),
+            clock.now(),
         )
-        if mine is not None:
-            if is_new and cleanup:
+        if grant.lease is not None:
+            if grant.new_cleanup:
                 _cleanup.spawn_reaper(serial, me, scope)
-            return mine
+            return grant.lease
         if clock.now() >= deadline:
-            msg = (
-                f"{blocker.describe() if blocker else serial} -- waited {wait:.0f}s. "
-                "Do not retry "
-                "in a loop: drive the app on your own virtual display instead "
-                "(~/.claude/scripts/phone_vd.sh, needs only a package lease), or the "
-                "headless emulator (~/.claude/scripts/phone_emu.sh); see the "
-                "phone-deploy skill."
+            raise PhoneQueuedError(
+                _queued_message(grant, terms.wait),
+                position=grant.position,
+                number=grant.number,
             )
-            raise PhoneBusyError(msg)
         clock.sleep(1.0)

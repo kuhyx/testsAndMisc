@@ -5,14 +5,16 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from python_pkg.phone_lease import _cleanup
+from python_pkg.phone_lease import _cleanup, _queue
 from python_pkg.phone_lease.lease import (
     SCREEN,
     WHOLE_PHONE,
     Clock,
     Lease,
+    Ticket,
     lease_paths,
     locked_update,
+    read_book,
     read_leases,
 )
 from python_pkg.phone_lease.owner import owner_id
@@ -27,24 +29,32 @@ REAP_POLL = 5.0
 def release(
     serial: str, *, scope: str = f"pkg:{SCREEN}", owner: str | None = None
 ) -> bool:
-    """Drop ``owner``'s lease on ``scope``, running its cleanup. True if dropped."""
+    """Drop ``owner``'s lease and ticket on ``scope``, running the lease's cleanup.
+
+    True if anything was dropped.
+    """
     me = owner_id() if owner is None else owner
-    dropped: list[Lease] = []
-
-    def drop(live: list[Lease], _now: float) -> list[Lease]:
-        dropped.extend(x for x in live if (x.owner, x.scope) == (me, scope))
-        return [x for x in live if x not in dropped]
-
-    locked_update(serial, drop, time.time())
+    dropped, found = locked_update(
+        serial, lambda book, _now: _queue.leave(book, me, scope), time.time()
+    )
     for lease in dropped:
         _cleanup.run(lease.cleanup)
-    return bool(dropped)
+    return found
 
 
 def status_all(serial: str, now: float | None = None) -> list[Lease]:
     """Every live lease on ``serial`` (read-only: no cleanup runs here)."""
     at = time.time() if now is None else now
     return [x for x in read_leases(lease_paths(serial)[1]) if not x.is_expired(at)]
+
+
+def queue_of(serial: str) -> list[Ticket]:
+    """The tickets in ``serial``'s file, first in line first (read-only).
+
+    Stale tickets stay listed until the next locked update tidies them out.
+    """
+    tickets = read_book(lease_paths(serial)[1]).tickets
+    return sorted(tickets, key=lambda x: x.number)
 
 
 def status(
@@ -96,7 +106,7 @@ def reap(
             return False
         if lease.is_expired(clock.now()):
             # locked_update drops expired leases and runs their cleanup itself.
-            locked_update(serial, lambda live, _now: live, clock.now())
+            locked_update(serial, lambda _book, _now: None, clock.now())
             return True
         # Wake at least every few seconds so a released lease frees the reaper.
         clock.sleep(min(REAP_POLL, max(0.5, lease.expires - clock.now())))

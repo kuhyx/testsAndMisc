@@ -1,0 +1,14 @@
+{
+  "title": "phone_lease fair FIFO queue",
+  "objective": "Sessions that find a phone scope taken get a ticket and are granted in arrival order; dead sessions' leases and tickets are dropped at once; a whole-phone hold ends 30 s after its first grant.",
+  "acceptance_criteria": [
+    "python_pkg/phone_lease tests pass with 100% branch coverage (test_fifo, test_alive, test_queue_props plus the old suites)",
+    "CLI: a second owner on a held package exits 3 with its place in line; another package is granted in parallel; the queued owner gets the lease after release",
+    "the CLI keeps exit 3 for a held scope, which phone_deploy_launch.sh depends on"
+  ],
+  "out_of_scope": [
+    "Changing the CLI exit code to QUEUED_EXIT (75)",
+    "~/.claude phone scripts"
+  ],
+  "verifier": "python_pkg/phone_lease/tests and the CLI run in the evidence file"
+}
