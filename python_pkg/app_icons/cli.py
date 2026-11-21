@@ -12,6 +12,8 @@ import argparse
 from pathlib import Path
 import sys
 
+from kuhy_credit import credit_line
+
 from python_pkg.app_icons import apps, generate, glyphs, preview
 
 
@@ -49,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m python_pkg.app_icons",
         description="Generate on-style launcher icons for kuhy's Flutter apps.",
+        epilog=credit_line(),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

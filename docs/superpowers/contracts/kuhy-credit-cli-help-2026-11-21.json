@@ -1,0 +1,15 @@
+{
+  "title": "kuhy credit on CLI --help",
+  "objective": "Every interactive python_pkg CLI prints the shared kuhy credit line at the end of --help, imported from kuhy-credit v0.3.1.",
+  "acceptance_criteria": [
+    "--help of android_ui, android_ui.workout_firebase_flow, app_icons, archwiki_rag, artgate, code_tutor, js_anki, morning_routine, phone_lease, random_jpg, sql_drills and vscode_optimizer contains 'Created by kuhy https://kuhy.duckdns.org'",
+    "the same 12 work under /usr/bin/python",
+    "pre-commit hooks for the changed files pass"
+  ],
+  "out_of_scope": [
+    "Changes to kuhyx/utils",
+    "stdio/daemon entry points without argparse",
+    "linux_configuration system tooling"
+  ],
+  "verifier": "python_pkg/tests/test_cli_credit.py and pre-commit run"
+}

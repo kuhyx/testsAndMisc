@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
+from kuhy_credit import credit_line
 import requests
 from rich.console import Console
 from rich.table import Table
@@ -36,7 +37,7 @@ from python_pkg.code_tutor._progress import (
 from python_pkg.code_tutor._session import run_session
 from python_pkg.code_tutor._verifier import Verifier
 
-app = typer.Typer(help="Socratic codebase understanding tutor.")
+app = typer.Typer(help="Socratic codebase understanding tutor.", epilog=credit_line())
 _console = Console()
 
 _OLLAMA_API = "http://localhost:11434/api/tags"

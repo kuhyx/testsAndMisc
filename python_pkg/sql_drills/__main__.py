@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 import sys
 
+from kuhy_credit import credit_line
 import sql_drills as sd
 
 _LOG = logging.getLogger(__name__)
@@ -41,7 +42,9 @@ def _err(line: str) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="sql_drills", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="sql_drills", description=__doc__, epilog=credit_line()
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("start", help="start the MySQL 8.0.33 container and wait")
     sub.add_parser("stop", help="remove the container")

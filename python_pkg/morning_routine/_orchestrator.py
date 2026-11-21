@@ -25,6 +25,8 @@ import logging
 import subprocess
 import sys
 
+from kuhy_credit import credit_line
+
 from python_pkg.shared.logging_setup import configure_logging
 
 _logger = logging.getLogger(__name__)
@@ -59,7 +61,9 @@ def _run_workout_lock() -> int:
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse CLI arguments for the orchestrator."""
-    parser = argparse.ArgumentParser(description="Unified morning routine.")
+    parser = argparse.ArgumentParser(
+        description="Unified morning routine.", epilog=credit_line()
+    )
     parser.add_argument(
         "--production",
         action="store_true",

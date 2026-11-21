@@ -6,6 +6,8 @@ import argparse
 from pathlib import Path
 import sys
 
+from kuhy_credit import credit_line
+
 from python_pkg.js_anki.deck import build_package
 from python_pkg.js_anki.models import load_all
 from python_pkg.js_anki.verify import VerificationError, verify
@@ -15,7 +17,11 @@ DEFAULT_OUT = Path(__file__).parent / "build" / "js_methods.apkg"
 
 def build_parser() -> argparse.ArgumentParser:
     """Argument parser with a single `build` subcommand."""
-    parser = argparse.ArgumentParser(prog="js_anki", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="js_anki",
+        description=__doc__,
+        epilog=credit_line(),
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     build = sub.add_parser("build", help="verify examples and write the .apkg")
     build.add_argument("--out", type=Path, default=DEFAULT_OUT)

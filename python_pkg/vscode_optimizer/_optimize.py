@@ -9,6 +9,8 @@ import argparse
 import sys
 from typing import TYPE_CHECKING
 
+from kuhy_credit import credit_line
+
 from python_pkg.vscode_optimizer._config_io import (
     _backup,
     _discover_variants,
@@ -78,7 +80,8 @@ def _apply_variant(
 def main() -> None:
     """Entry point: detect hardware, compute optimizations, and apply."""
     ap = argparse.ArgumentParser(
-        description="Auto-optimize VS Code for current hardware."
+        description="Auto-optimize VS Code for current hardware.",
+        epilog=credit_line(),
     )
     ap.add_argument("--dry-run", action="store_true", help="Preview without writing.")
     ap.add_argument("--yes", "-y", action="store_true", help="Skip confirmation.")

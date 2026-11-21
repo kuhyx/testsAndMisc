@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 import secrets
 
+from kuhy_credit import credit_line
 from PIL import Image
 
 _logger = logging.getLogger(__name__)
@@ -89,7 +90,8 @@ def _save_image(
 def main() -> None:
     """Generate bloated JPEG images from command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Generate bloated JPEG images with random colors."
+        description="Generate bloated JPEG images with random colors.",
+        epilog=credit_line(),
     )
     parser.add_argument(
         "-n",

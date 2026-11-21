@@ -12,6 +12,8 @@ from dataclasses import asdict
 import json
 import sys
 
+from kuhy_credit import credit_line
+
 from python_pkg.phone_lease.lease import (
     DEFAULT_TTL,
     DEFAULT_WAIT,
@@ -37,7 +39,11 @@ def _scoped(parser: argparse.ArgumentParser) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phone-lease", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="phone-lease",
+        description=__doc__,
+        epilog=credit_line(),
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     take = sub.add_parser(
         "acquire", help="take or refresh a lease (exit 3 when held elsewhere)"

@@ -11,6 +11,8 @@ import argparse
 from pathlib import Path
 import sys
 
+from kuhy_credit import credit_line
+
 from python_pkg.archwiki_rag import reindex as reindex_mod
 from python_pkg.archwiki_rag.constants import (
     DEFAULT_STORE_DIR,
@@ -38,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m python_pkg.archwiki_rag",
         description="Convert the offline ArchWiki dump into a knowledge-rag corpus.",
+        epilog=credit_line(),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

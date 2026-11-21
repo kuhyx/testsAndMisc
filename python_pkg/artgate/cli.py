@@ -17,6 +17,7 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
+from kuhy_credit import credit_line
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
@@ -134,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="artgate",
         description="Gate generated game art deterministically.",
+        epilog=credit_line(),
     )
     parser.add_argument("image", type=Path, help="PNG to check")
     parser.add_argument("--spec", type=Path, required=True, help="TOML spec")

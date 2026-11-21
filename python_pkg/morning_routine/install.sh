@@ -2,6 +2,7 @@
 # Install the morning routine: the workout lock, started at the alarm time.
 #
 # What it does:
+#   0. Installs kuhy-credit (pinned in meta/requirements.txt) for /usr/bin/python.
 #   1. Installs morning-routine.service (user service, started at alarm time).
 #   2. Clears the retired standalone wake-alarm.service left by old installs.
 #   3. Leaves workout-locker.service + the early-bird timer for login / 08:30.
@@ -16,8 +17,16 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 SERVICE_SRC="$SCRIPT_DIR/morning-routine.service"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+REQUIREMENTS="$SCRIPT_DIR/../../meta/requirements.txt"
 
 echo "=== Unified Morning Routine Installer ==="
+
+# 0. The unit runs /usr/bin/python, not the repo venv, so the one third-party
+#    import (the kuhy credit on --help) goes into that interpreter's user site.
+#    The pin is read from meta/requirements.txt so the two never drift.
+echo "[0/2] Installing kuhy-credit for /usr/bin/python..."
+credit_pin="$(grep -m1 '^kuhy-credit @' "$REQUIREMENTS")"
+/usr/bin/python -m pip install --user --break-system-packages --quiet "$credit_pin"
 
 # 1. Install the orchestrator user service.
 echo "[1/2] Installing morning-routine.service..."

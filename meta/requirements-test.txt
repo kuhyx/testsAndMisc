@@ -21,12 +21,13 @@
 # suite itself fails loudly here on a missing import.
 # ==============================================================================
 
-anthropic==2.10.0
+anthropic==2.12.0
 beautifulsoup4==4.15.0
-coverage==7.17.3
+coverage==7.17.4
 defusedxml==0.7.1
-fastmcp==4.2.2
+fastmcp==4.2.4
 genanki==0.13.1
+kuhy-credit @ git+https://github.com/kuhyx/utils@kuhy-credit-v0.3.1#subdirectory=kuhy_credit
 markdownify==1.2.4
 numpy==2.5.5
 pillow==13.0.0

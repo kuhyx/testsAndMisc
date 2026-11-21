@@ -25,6 +25,7 @@ import time
 from typing import TYPE_CHECKING
 
 from fastmcp.exceptions import ToolError
+from kuhy_credit import credit_line
 
 from python_pkg.android_ui._mcp_target import connect
 from python_pkg.android_ui.driver import ElementNotFoundError, UiAutomationError
@@ -127,7 +128,7 @@ def run_flow(ui: AndroidUi, *, account: str | None, timeout: float) -> str:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="workout-firebase-flow")
+    parser = argparse.ArgumentParser(prog="workout-firebase-flow", epilog=credit_line())
     parser.add_argument("--serial", help="device serial (required with 2+ devices)")
     parser.add_argument(
         "--display", default="self", help="'self' (default) or 0 for the real screen"

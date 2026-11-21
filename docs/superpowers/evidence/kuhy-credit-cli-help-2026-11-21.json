@@ -1,0 +1,52 @@
+{
+  "intent": "Every interactive python_pkg CLI ends its --help on kuhy's shared logo credit line (Created by kuhy https://kuhy.duckdns.org). testsAndMisc holds no GUI, web app or game, so --help is the only place the credit can go here.",
+  "scope": [
+    "python_pkg: android_ui (cli, workout_firebase_flow), app_icons, archwiki_rag, artgate, code_tutor, js_anki, morning_routine, phone_lease, random_jpg, sql_drills, vscode_optimizer",
+    "python_pkg/morning_routine/install.sh installs the pin for /usr/bin/python",
+    "meta/requirements*.txt, .pre-commit-config.yaml pylint hook, meta/.fvmrc",
+    "No change to kuhyx/utils: credit_line() already covers terminal programs"
+  ],
+  "changes": [
+    "argparse parsers take epilog=credit_line(); code_tutor's typer.Typer takes epilog=credit_line()",
+    "kuhy-credit pinned at v0.3.1 (newest tag) in meta/requirements.txt, meta/requirements-test.txt and the pylint hook env",
+    "test_cli_credit.py runs each CLI as python -m <module> --help in a subprocess (12 modules)",
+    "morning_routine/install.sh pip-installs the requirements.txt pin into /usr/bin/python's user site, since its unit runs the system interpreter",
+    "Flutter pin 3.50.0 -> 3.50.1; stale Python pins bumped (anthropic 2.12.0, coverage 7.17.4, fastmcp 4.2.4, hypothesis 6.170.17)",
+    "pylint hook: rev v4.1.4, --jobs=1 (dill breaks on 3.15), unused pygame/python-chess deps dropped"
+  ],
+  "excluded": [
+    "android_ui/mcp_server.py: stdio JSON-RPC, extra stdout breaks the protocol",
+    "live_calc/calc_eval.py: called per keystroke by the zsh widget; output is the result",
+    "brother_printer, wallpaper_rotator, phone_guard, endurain_import, archwiki_rag/_reindex_entry: no argparse, daemons or status producers whose stdout other programs read",
+    "linux_configuration/*.py: monitor_autoconfig (background watcher), g29_shifter_capture (root BPF diagnostic), verify_helium / migrate_helium (installer steps), transcribe_fw/helpers (run in their own venv without kuhy-credit) - system tooling, not apps",
+    "meta/scripts/*: repo gate tooling",
+    "GUIs/games: git grep for gatelock|tkinter|pygame|godot outside docs hits only package lists and lint configs; no *.desktop, project.godot or pubspec.yaml is tracked"
+  ],
+  "verification": [
+    {
+      "command": ".venv/bin/python -m pytest -q -o addopts= python_pkg/tests/test_cli_credit.py",
+      "result": "pass",
+      "evidence": "red first: 7 failed, 5 passed; after the change: 12 passed"
+    },
+    {
+      "command": "/usr/bin/python -m python_pkg.<module> --help for all 12 modules",
+      "result": "pass",
+      "evidence": "each prints 'Created by kuhy https://kuhy.duckdns.org'"
+    },
+    {
+      "command": "/usr/bin/python -m pip install --user --break-system-packages <requirements.txt kuhy-credit pin>",
+      "result": "pass",
+      "evidence": "the install.sh step exits 0 with the v0.3.1 pin"
+    },
+    {
+      "command": "scripts/check_dependency_freshness.sh --all",
+      "result": "pass",
+      "evidence": "exit 0 after the Flutter bump"
+    }
+  ],
+  "risks": [
+    "morning_routine now imports a third-party package under /usr/bin/python; a fresh machine needs install.sh rerun",
+    "pylint 4 may flag files the 3.3 hook passed"
+  ],
+  "rollback": ["git revert the commit", "re-run pre-commit run pylint"]
+}
