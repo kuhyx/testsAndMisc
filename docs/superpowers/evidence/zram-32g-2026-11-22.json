@@ -1,0 +1,37 @@
+{
+  "intent": "Grow zram swap from 4 GiB to 32 GiB, permanently, with disk swapfiles kept as lower-priority fallback.",
+  "scope": [
+    "linux_configuration/fixes/setup_zram.sh and zram-generator.conf",
+    "oom-prevention skill wording only",
+    "non-goal: swappiness, swapfiles, other sysctl"
+  ],
+  "changes": [
+    "Add zram-generator.conf (zram-size 32 GiB, zstd, priority 100)",
+    "Add setup_zram.sh: installs the conf, guards MemAvailable, swapoff, settle+retry reset, recreate"
+  ],
+  "verification": [
+    {
+      "command": "vm run zr1 (RED zramctl 1.9G -> bash setup_zram.sh -> GREEN 32G, survives reboot)",
+      "result": "pass",
+      "evidence": "vmbox guest: DISKSIZE 32G, swapon zram0 prio 100 above swapfile -1 before and after reboot"
+    },
+    {
+      "command": "fixes/setup_zram.sh on host; zramctl; swapon --show",
+      "result": "pass",
+      "evidence": "host zram0 32G prio 100, swapfile2/swapfile prio -1"
+    },
+    {
+      "command": "shellcheck and shfmt -d fixes/setup_zram.sh",
+      "result": "pass",
+      "evidence": "no output"
+    }
+  ],
+  "risks": [
+    "A full zram holds ~11 GiB of RAM at 3:1 zstd",
+    "Host swapoff raced udev once (reset busy); script now settles and retries"
+  ],
+  "rollback": [
+    "Restore /etc/systemd/zram-generator.conf to a bare [zram0] section and rerun swapoff plus systemd-zram-setup@zram0 restart",
+    "Validate zramctl shows 4G"
+  ]
+}
