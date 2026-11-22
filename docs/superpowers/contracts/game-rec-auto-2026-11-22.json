@@ -1,0 +1,16 @@
+{
+  "title": "game-rec: automatic game recording watcher in linux_configuration/gaming",
+  "objective": "Launching a game starts a 3-track recording (screen, game audio, mic) without a keypress; a relaunch within 30 s continues the same recording; the recording stops 30 s after the final quit; the i3 hotkey and i3blocks indicator control and show it.",
+  "acceptance_criteria": [
+    "features/setup_game_rec.sh exits 0 on a fresh guest and leaves game-rec-auto.service active with ExecStart on gaming/game_rec_watch.sh.",
+    "A game scope appearing starts a recording; game-rec status reports recording with pid and auto ids.",
+    "Quitting and relaunching within 30 s resumes the same recording instead of starting a new one.",
+    "A systemd daemon-reload while a game runs does not drop the live scope or stop the recording.",
+    "The hotkey start names every spelling of the game when it is not yet in --list-application-audio."
+  ],
+  "out_of_scope": [
+    "python_pkg/app_icons/ and other unrelated dirty files.",
+    "Uploading or post-processing recordings."
+  ],
+  "verifier": "bats linux_configuration/tests/test_game_rec*.bats (47 passed), pytest test_game_rec_scopes.py + test_game_rec_dbus.py (18 passed); vmbox guest gamerec setup exit 0 with unit active; host deploy at 22:46 recording with NRestarts=0."
+}

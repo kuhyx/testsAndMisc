@@ -107,6 +107,11 @@ bindsym $mod+Return exec terminator
 bindsym $mod+c exec --no-startup-id /home/kuhy/src/testsAndMisc/linux_configuration/zsh/calc-popup.sh
 for_window [window_role="calc"] floating enable, border pixel 3, resize set 820 px 220 px, move position center
 
+# game recorder (gaming/game_rec.sh, linked by features/setup_game_rec.sh):
+# toggles a gpu-screen-recorder capture of the Steam game's monitor; the
+# i3blocks game_rec block shows a red dot while it runs.
+bindsym $mod+Shift+g exec --no-startup-id $HOME/.local/bin/game-rec toggle
+
 # kill focused window
 bindsym $mod+Shift+q kill
 

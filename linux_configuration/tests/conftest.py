@@ -26,6 +26,7 @@ _SCRIPT_DIRS = (
     _REPO_ROOT / "linux_configuration" / "utils",  # fast_count
     _REPO_ROOT / "linux_configuration" / "features",  # monitor_layout
     _REPO_ROOT / "linux_configuration" / "fixes",  # g29_shifter_capture
+    _REPO_ROOT / "linux_configuration" / "gaming",  # game_rec_scopes
     _REPO_ROOT
     / "linux_configuration"
     / "misc"

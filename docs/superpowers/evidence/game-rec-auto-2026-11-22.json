@@ -1,0 +1,51 @@
+{
+  "intent": "game-rec records games automatically: a systemd user watcher starts a 3-track gpu-screen-recorder recording when a game scope appears, keeps it through a 30 s relaunch grace, and stops it after a final quit; i3 hotkey and an i3blocks indicator drive and show it.",
+  "scope": [
+    "linux_configuration/gaming/ (game_rec.sh, game_rec_lib.sh, game_rec_watch.sh, game_rec_scopes.py, game_rec_dbus.py, README.md)",
+    "linux_configuration/features/setup_game_rec.sh and features/systemd/game-rec-auto.service",
+    "linux_configuration/i3/config, linux_configuration/i3blocks/config and i3blocks/game_rec.sh",
+    "linux_configuration/tests/ (conftest.py, game_rec_helpers.bash, test_game_rec*.bats, test_game_rec_*.py)",
+    "Non-goals: python_pkg/app_icons/ and other dirty files"
+  ],
+  "changes": [
+    "Moved game-rec scripts from linux_configuration/scripts/ to linux_configuration/gaming/ and redeployed the live watcher from there",
+    "Watcher tracks game scopes over D-Bus, keeps a live scope across systemd daemon-reload, and resumes the same recording when a game relaunches within 30 s",
+    "Hotkey start names every spelling of the game when it is not yet in --list-application-audio",
+    "setup_game_rec.sh installs dependencies and enables game-rec-auto.service"
+  ],
+  "verification": [
+    {
+      "command": "~/.claude/scripts/capped.sh timeout 55 bats linux_configuration/tests/test_game_rec*.bats",
+      "result": "pass",
+      "evidence": "47/47 passed; red->green: 'game not in --list-application-audio yet: hotkey start names every spelling'"
+    },
+    {
+      "command": "~/.claude/scripts/capped.sh timeout 55 python -m pytest -c pyproject.toml --rootdir . -o addopts= -p no:xdist -q linux_configuration/tests/test_game_rec_scopes.py linux_configuration/tests/test_game_rec_dbus.py",
+      "result": "pass",
+      "evidence": "18/18 passed; red->green: test_daemon_reload_of_live_scope_is_not_removed[unit-removed|state]"
+    },
+    {
+      "command": "vmbox guest gamerec: bash linux_configuration/features/setup_game_rec.sh (pacman shimmed)",
+      "result": "pass",
+      "evidence": "exit 0, game-rec-auto.service active, ExecStart /bin/bash .../gaming/game_rec_watch.sh, game-rec status idle"
+    },
+    {
+      "command": "host deploy 22:46: systemctl --user show game-rec-auto.service; game-rec status",
+      "result": "pass",
+      "evidence": "ExecStart on gaming/, NRestarts=0, status recording pid=1498936 auto=2708450"
+    },
+    {
+      "command": "live play test with Oh Deer, journalctl --user -u game-rec-auto.service",
+      "result": "pass",
+      "evidence": "3-track recording, app audio track max -12.8 dB; quit and relaunch within 30 s grace resumed the same recording (22:18:22 gone/grace, 22:18:29 resume)"
+    }
+  ],
+  "risks": [
+    "Not yet observed live: the stop 30 s after a final quit",
+    "Not yet observed live: a daemon-reload during a game with the new keep-live-scope fix"
+  ],
+  "rollback": [
+    "Revert this commit",
+    "systemctl --user disable --now game-rec-auto.service"
+  ]
+}

@@ -62,3 +62,30 @@ To stop: close the Steam window or `pkill -u player2 -f steam`.
 | ------ | ---------- | ----------- |
 | DP-0   | 3840×2160  | kuhy (main) |
 | HDMI-0 | 2560×1440  | player2     |
+
+## game-rec (record every Steam game)
+
+`game_rec.sh` records the game's monitor with gpu-screen-recorder: mic, game
+and desktop audio as three tracks. `$mod+Shift+g` toggles it. The
+`game-rec-auto` user service runs `game_rec_watch.sh`, which starts a
+recording when a Steam game scope appears and stops it 30 s after the game
+exits. `game_rec_scopes.py` feeds the watcher those scope events from
+systemd's D-Bus signals.
+
+Helpers (setup_game_rec.sh installs neither; each sits next to its caller's
+resolved path): `game_rec.sh` sources `game_rec_lib.sh` (state files, game
+and monitor detection, app-audio matching), and `game_rec_scopes.py` imports
+`game_rec_dbus.py` (the jeepney bus, match rules, the "is this unit still
+live" query).
+
+Install or update (links `~/.local/bin/game-rec`, renders and restarts the
+unit; a running recording survives the restart):
+
+```bash
+~/src/testsAndMisc/linux_configuration/features/setup_game_rec.sh
+```
+
+Tests: `linux_configuration/tests/test_game_rec*.bats`,
+`linux_configuration/tests/test_game_rec_scopes.py` and
+`test_game_rec_dbus.py` (fake bus and connection shared via
+`test_game_rec_fakes.py`, which holds no tests).

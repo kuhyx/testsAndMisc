@@ -79,6 +79,14 @@ interval=60
 markup=pango
 
 
+# Red dot while game-rec records. signal=12: game-rec sends `pkill -RTMIN+12
+# -x i3blocks` on start/stop/recorder exit; no polling at all.
+[game_rec]
+command=~/.config/i3blocks/game_rec.sh
+interval=once
+signal=12
+
+
 [time]
 command=~/.config/i3blocks/time.sh
 interval=persist

@@ -1,0 +1,21 @@
+[Unit]
+Description=Record every Steam game with game-rec, start to exit
+After=graphical-session.target
+PartOf=graphical-session.target
+# A broken helper (exit 1 on every start) shows as a failed unit, not a loop.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+# The login's cookie; i3 may not have exported XAUTHORITY to systemd yet.
+Environment=XAUTHORITY=%h/.Xauthority
+# Recordings run in their own transient scopes (systemd-run --scope), so a
+# stop or restart here never kills one.
+ExecStart=/bin/bash @GAME_REC_DIR@/game_rec_watch.sh
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=graphical-session.target
