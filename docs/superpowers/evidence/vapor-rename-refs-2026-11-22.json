@@ -1,0 +1,26 @@
+{
+  "intent": "The extracted Steam repo is now called vapor; the core installer clones and names it so, and the docs link to it.",
+  "scope": [
+    "linux_configuration/install_core_system.sh (module 4 repo name and header comments)",
+    "AGENTS.md (extracted repo link)",
+    "Non-goals: historical DOCS and evidence files keep the old name"
+  ],
+  "changes": [
+    "install_module_from_repo now asks for the vapor checkout (~/src/vapor) instead of steam-backlog-enforcer",
+    "Header comment and AGENTS.md link point at github.com/kuhyx/vapor"
+  ],
+  "verification": [
+    {
+      "command": "bash -n linux_configuration/install_core_system.sh",
+      "result": "pass",
+      "evidence": "syntax ok; vapor repo renamed on GitHub and checked out at ~/src/vapor"
+    }
+  ],
+  "risks": [
+    "A machine that still has ~/src/steam-backlog-enforcer would clone vapor next to it"
+  ],
+  "rollback": [
+    "Revert this commit",
+    "Re-run install_core_system.sh --help to check it still parses"
+  ]
+}

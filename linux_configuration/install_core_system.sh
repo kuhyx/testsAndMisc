@@ -12,7 +12,7 @@
 #   3. Midnight shutdown timer  – github.com/kuhyx/digital-wellbeing
 #
 # SECONDARY modules (prompted unless --all / --none given):
-#   4. Steam backlog enforcer   – github.com/kuhyx/steam-backlog-enforcer
+#   4. vapor (Steam backlog enforcer) – github.com/kuhyx/vapor
 #   5. Pacman wrapper           – github.com/kuhyx/digital-wellbeing (~/src/digital-wellbeing)
 #   6. i3 configuration         – i3/
 #   7. Compulsive opening block – block_compulsive_opening.sh
@@ -83,7 +83,7 @@ run_installer() {
 # install_module_from_repo <repo-name> <what> <script-rel-path> [args...]
 # Runs an installer that lives in a sibling repo extracted out of this monorepo.
 #
-# This installer is cross-repo: screen-locker, steam-backlog-enforcer and
+# This installer is cross-repo: screen-locker, vapor and
 # guard-lib (inside utils) are separate checkouts now. require_extracted_repo
 # clones a missing one, so a bare machine still gets a working install from the
 # single documented command. If the clone fails, or the repo is present but the
@@ -200,7 +200,7 @@ run_installer "Midnight shutdown timer" \
 printf '\n%s\n' "$(bold "Secondary modules (${SECONDARY_MODE})…")"
 
 ask_install "Steam backlog enforcer" \
-	install_module_from_repo steam-backlog-enforcer "Steam backlog enforcer" install.sh
+	install_module_from_repo vapor "Steam backlog enforcer" install.sh
 
 ask_install "Pacman wrapper" \
 	install_module_from_repo digital-wellbeing "Pacman wrapper" pacman/install_pacman_wrapper.sh

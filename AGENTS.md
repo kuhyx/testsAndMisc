@@ -25,7 +25,7 @@ leave room for them. Categories sit directly under it — `features/`, `fixes/`,
 own `lib/` and `tests/` subdirectories are exempt from the cap, so those stay
 where they are.
 
-Extracted to their own repos: [`steam-backlog-enforcer`](https://github.com/kuhyx/steam-backlog-enforcer),
+Extracted to their own repos: [`vapor`](https://github.com/kuhyx/vapor),
 [`screen-locker`](https://github.com/kuhyx/screen-locker),
 [`diet-guard`](https://github.com/kuhyx/diet-guard),
 [`wake-alarm`](https://github.com/kuhyx/wake-alarm),
