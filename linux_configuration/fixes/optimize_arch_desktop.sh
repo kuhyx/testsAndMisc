@@ -5,7 +5,7 @@
 # Tuning areas:
 #  1. CPU scheduler — performance governor on all cores
 #  2. I/O scheduler — optimal scheduler per drive type (none for NVMe, mq-deadline for SATA SSD)
-#  3. Memory / swap — lower swappiness, tune dirty page writeback for responsiveness
+#  3. Memory / swap — high swappiness for zram swap, tune dirty page writeback for responsiveness
 #  4. Kernel network — TCP BBR, fastopen, larger buffers
 #  5. Filesystem — fstrim timer, noatime advisory
 #  6. NVIDIA GPU — max performance level via persistence mode

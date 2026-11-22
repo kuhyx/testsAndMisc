@@ -1,0 +1,41 @@
+{
+  "intent": "Raise vm.swappiness from 10 to 100 permanently so the kernel uses the 32 GiB zram swap.",
+  "scope": [
+    "linux_configuration/fixes/lib/arch_sysctl.sh (owns /etc/sysctl.d/90-desktop-performance.conf)",
+    "its test arch_sysctl_quarantined_cases.sh and the optimizer header comment",
+    "non-goal: other sysctl values, zram sizing, arch_perf_probes advice text"
+  ],
+  "changes": [
+    "tweak_vm_sysctl: vm.swappiness 10 -> 100 in params map and drop-in",
+    "Test expectations updated to 100"
+  ],
+  "verification": [
+    {
+      "command": "bash fixes/lib/tests/arch_sysctl_quarantined_cases.sh",
+      "result": "pass",
+      "evidence": "RED 18 passed 5 failed with tests at 100 and code at 10; GREEN 23 passed 0 failed after the code change"
+    },
+    {
+      "command": "vm run swp: sysctl -n vm.swappiness before, tweak_vm_sysctl, after guest reboot",
+      "result": "pass",
+      "evidence": "60 -> 100 -> 100 after reboot (uptime 39s); guest deleted"
+    },
+    {
+      "command": "sudo -n tweak_vm_sysctl on host; sysctl -n vm.swappiness",
+      "result": "pass",
+      "evidence": "100; drop-in has vm.swappiness = 100"
+    },
+    {
+      "command": "fixes/lib/tests/test_*.sh in 4 shards; pre-commit run on touched files",
+      "result": "pass",
+      "evidence": "34 test files passed, 0 failed; pre-commit green"
+    }
+  ],
+  "risks": [
+    "More anonymous pages move to zram earlier; a full zram holds about 11 GiB of RAM",
+    "arch_perf_probes.sh still suggests sysctl vm.swappiness=10 under memory pressure"
+  ],
+  "rollback": [
+    "Set vm.swappiness = 10 in /etc/sysctl.d/90-desktop-performance.conf and run sysctl --system"
+  ]
+}

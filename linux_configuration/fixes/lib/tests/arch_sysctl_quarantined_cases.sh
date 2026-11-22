@@ -49,7 +49,7 @@ printf '\n-- tweak_vm_sysctl --\n'
 _stub_sysctl_tuned() {
 	_t_stub_stdin sysctl <<'STUB'
 case "$2" in
-vm.swappiness) echo 10 ;;
+vm.swappiness) echo 100 ;;
 vm.vfs_cache_pressure) echo 50 ;;
 vm.dirty_ratio) echo 15 ;;
 vm.dirty_background_ratio) echo 5 ;;
@@ -85,7 +85,7 @@ _t_lacks "$(_t_calls)" "sysctl --system" \
 arch_desktop_reset
 _stub_sysctl_tuned
 _t_run tweak_vm_sysctl
-_t_contains "$(_t_dropin 90-desktop-performance.conf)" "vm.swappiness = 10" \
+_t_contains "$(_t_dropin 90-desktop-performance.conf)" "vm.swappiness = 100" \
 	"tweak_vm_sysctl: writes the drop-in when it is missing"
 _t_lacks "$out" "already tuned" \
 	"tweak_vm_sysctl: does not report a skip when the drop-in is absent"
@@ -100,7 +100,7 @@ esac
 STUB
 _t_run tweak_vm_sysctl
 dropin="$(_t_dropin 90-desktop-performance.conf)"
-_t_contains "$dropin" "vm.swappiness = 10" "tweak_vm_sysctl: writes swappiness"
+_t_contains "$dropin" "vm.swappiness = 100" "tweak_vm_sysctl: writes swappiness"
 _t_contains "$dropin" "vm.vfs_cache_pressure = 50" \
 	"tweak_vm_sysctl: writes vfs_cache_pressure"
 _t_contains "$dropin" "vm.page-cluster = 0" "tweak_vm_sysctl: writes page-cluster"
