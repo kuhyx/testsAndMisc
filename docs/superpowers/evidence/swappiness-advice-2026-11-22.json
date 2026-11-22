@@ -1,0 +1,20 @@
+{
+  "intent": "Stop arch_perf_probes.sh advising vm.swappiness=10 now that the host runs 32 GiB zram at swappiness 100.",
+  "scope": [
+    "linux_configuration/fixes/lib/arch_perf_probes.sh check_memory_pressure action text",
+    "linux_configuration/fixes/lib/tests/test_arch_perf_probes_health.sh",
+    "non-goal: ubuntu_perf_fixes.sh / fix_ubuntu_performance.sh (Ubuntu, no zram setup)"
+  ],
+  "changes": [
+    "High-swap action now points at zramctl and the top memory users instead of lowering swappiness"
+  ],
+  "verification": [
+    {
+      "command": "bash fixes/lib/tests/test_arch_perf_probes_health.sh",
+      "result": "pass",
+      "evidence": "RED 26 passed 3 failed; GREEN 29 passed 0 failed"
+    }
+  ],
+  "risks": ["Advice text only; no runtime behaviour change"],
+  "rollback": ["git revert the commit"]
+}

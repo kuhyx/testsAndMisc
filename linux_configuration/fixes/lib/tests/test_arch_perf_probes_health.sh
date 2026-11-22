@@ -148,8 +148,12 @@ _t_contains "$(_t_report)" "Swap usage: 75%" \
 	"check_memory_pressure: computes the swap usage percentage"
 _t_contains "$(_t_findings)" "High swap usage while RAM is still available" \
 	"check_memory_pressure: flags heavy swapping while RAM is free"
-_t_contains "$(_t_actions)" "lowering swappiness" \
-	"check_memory_pressure: recommends lowering swappiness"
+_t_lacks "$(_t_actions)" "swappiness" \
+	"check_memory_pressure: does not suggest tuning swappiness (zram setup runs at 100)"
+_t_contains "$(_t_actions)" "zramctl" \
+	"check_memory_pressure: points at zramctl usage"
+_t_contains "$(_t_actions)" "ps aux --sort=-rss" \
+	"check_memory_pressure: points at the top memory users"
 
 # Heavy swap use with RAM genuinely exhausted is NOT the stutter signature,
 # so it must not be flagged.

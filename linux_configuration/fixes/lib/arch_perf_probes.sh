@@ -158,7 +158,7 @@ check_memory_pressure() {
 		echo "Swap usage: ${swap_pct}%" >>"$REPORT_FILE"
 		if [[ $swap_pct -ge 35 && ${mem_available:-0} -gt $((mem_total / 3)) ]]; then
 			add_finding "High swap usage while RAM is still available; this can cause stutter."
-			add_action "Consider lowering swappiness (temporary: sudo sysctl vm.swappiness=10)."
+			add_action "Swap is zram by design; check zramctl usage and the top memory users (ps aux --sort=-rss | head), then stop idle services."
 		fi
 	fi
 
