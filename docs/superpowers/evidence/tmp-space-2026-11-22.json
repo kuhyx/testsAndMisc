@@ -1,0 +1,45 @@
+{
+  "intent": "Stop EDQUOT on /tmp: grow the /tmp tmpfs to 30G live, raise each logged-in user's /tmp cap live to 80% of it, and add a 64G disk-backed temp area at /var/disktmp for heavy writers.",
+  "scope": [
+    "linux_configuration/fixes/fix_tmp_space.sh (entry), lib/tmp_space.sh (apply), lib/tmp_space_verify.sh (--verify-only)",
+    "linux_configuration/fixes/tmp_quota.py: quotactl_fd get/set helper run by /usr/bin/python3",
+    "Tests: fixes/lib/tests/tmp_space_harness.sh, test_tmp_space_apply.sh, test_tmp_space_verify.sh; linux_configuration/tests/test_tmp_quota.py; guest check fixes/lib/tests/vmbox_tmp_space.sh",
+    "Non-goal: pointing TMPDIR at /var/disktmp; /dev/shm is left alone; the script was not run on the host"
+  ],
+  "changes": [
+    "tmp.mount drop-in with the stock options and size=30G, one daemon-reload, live remount (never unmount/restart; X11 sockets live in /tmp)",
+    "Raise-only live cap for every non-root uid under /run/user via quotactl_fd (soft = hard, QIF_BLIMITS only); systemd re-applies its own 80% at login",
+    "Sparse 64G ext4 image (0600, no reserved blocks) loop-mounted at /var/disktmp through one fstab line, ordered before systemd-tmpfiles-setup; tmpfiles D entry empties it at boot and ages it 10d"
+  ],
+  "verification": [
+    {
+      "command": "bash linux_configuration/fixes/lib/tests/test_tmp_space_apply.sh; bash linux_configuration/fixes/lib/tests/test_tmp_space_verify.sh",
+      "result": "pass",
+      "evidence": "red before the lib existed (18/41 and 4/36 passing); green after: 42 passed 0 failed, 36 passed 0 failed"
+    },
+    {
+      "command": "python3 -m pytest -q linux_configuration/tests/test_tmp_quota.py",
+      "result": "pass",
+      "evidence": "red: ImportError at collection; green: 11 passed"
+    },
+    {
+      "command": "vmbox guest tmpspace: sudo bash vmbox_tmp_space.sh before|apply|quota|disk|again, reboot, rebooted",
+      "result": "pass",
+      "evidence": "before: --verify-only exit 1 (red). apply: findmnt size=31457280k usrquota kept, /tmp canary and /tmp/.X11-unix/X0 survive, xset q answers, uid 1000 cap 25165824 KiB. quota: 60M write under 50M cap 'Disk quota exceeded', 100M after raising to 200M ok. disk: /dev/loop0 ext4, 1777, 64G apparent / 517M used, user file visible via debugfs. again: one line 'already applied, nothing changed', --verify-only 0 as root and as the user. rebooted: /tmp 30G, systemd-user-runtime-dir 'on /tmp to 24G', disk area mounted and canary gone. Image removed + reboot: boot continues, only var-disktmp.mount failed, /var/disktmp a 1777 dir, --verify-only exit 1. Passed in vmbox, not verified on the host."
+    },
+    {
+      "command": "pre-commit run --hook-stage pre-commit --files <changed files>",
+      "result": "pass",
+      "evidence": "ruff, ruff format, mypy, pylint, bandit, shellcheck, shell coverage ratchet, file-length cap all Passed"
+    }
+  ],
+  "risks": [
+    "A 30G tmpfs equals the host's RAM: a full /tmp now pushes into swap or OOM instead of failing with EDQUOT at 12G",
+    "The image is sparse: if the root filesystem fills, writes into /var/disktmp fail with I/O errors rather than ENOSPC",
+    "If the image fails to mount, /var/disktmp is an uncapped 1777 directory on the root filesystem (fail-open on purpose)"
+  ],
+  "rollback": [
+    "rm /etc/systemd/system/tmp.mount.d/size.conf /etc/tmpfiles.d/disktmp.conf; drop the disktmp line from /etc/fstab; systemctl daemon-reload; mount -o remount,size=50% /tmp; umount /var/disktmp; rm /var/lib/disktmp/disktmp.img",
+    "Validate with findmnt /tmp and the next login's systemd-user-runtime-dir journal line"
+  ]
+}

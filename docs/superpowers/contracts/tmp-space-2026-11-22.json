@@ -1,0 +1,17 @@
+{
+  "title": "fix_tmp_space.sh: 30G /tmp tmpfs, live user cap, 64G /var/disktmp",
+  "objective": "Commands stop failing with EDQUOT on /tmp: the tmpfs grows to 30G without an unmount, each logged-in user's cap rises live to 80% of it, and a 64G disk-backed temp area exists at /var/disktmp for heavy writers to use later through TMPDIR.",
+  "acceptance_criteria": [
+    "`sudo fix_tmp_space.sh` on a stock machine writes the tmp.mount drop-in, the fstab line and the tmpfiles entry, reloads systemd once, remounts /tmp at size=30G and keeps usrquota, files and X11 sockets in /tmp.",
+    "Each non-root uid under /run/user gets a cap of 80% of 30G live (25165824 KiB); a cap of 0 or one already within 1 MiB is left alone.",
+    "/var/disktmp is a mounted 64G sparse ext4 image, mode 1777; a file written there by a user lands in the image.",
+    "A second run changes nothing and prints one line; --verify-only changes nothing, works without root and exits non-zero on drift.",
+    "After a reboot /tmp is 30G from the drop-in, systemd applies its own 80% cap at login, and /var/disktmp is mounted and emptied by tmpfiles."
+  ],
+  "out_of_scope": [
+    "Pointing heavy writers at /var/disktmp through TMPDIR.",
+    "/dev/shm and its quota.",
+    "Running the script on the host (the coordinator does that after review)."
+  ],
+  "verifier": "test_tmp_space_apply.sh (42 passed), test_tmp_space_verify.sh (36 passed), test_tmp_quota.py (11 passed); every phase of vmbox_tmp_space.sh OK in guest tmpspace, including the reboot and a fail-open boot without the image."
+}
