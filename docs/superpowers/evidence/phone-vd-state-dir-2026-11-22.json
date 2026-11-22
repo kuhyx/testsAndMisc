@@ -1,0 +1,28 @@
+{
+  "intent": "phone_guard.vd_state resolves the virtual-display state directory exactly as phone_vd_dir.sh does, so TMPDIR no longer splits the two sides.",
+  "scope": [
+    "python_pkg/phone_guard/vd_state.py (state_root)",
+    "python_pkg/phone_guard/tests/test_vd_state.py"
+  ],
+  "changes": [
+    "state_root: PHONE_VD_STATE_DIR if non-empty, else XDG_RUNTIME_DIR (or /run/user/<uid>) + phone_vd when that dir exists, else /tmp/phone_vd",
+    "tempfile.gettempdir() and TMPDIR are no longer read for this path",
+    "Tests: runtime-dir default, TMPDIR independence, override wins, missing runtime dir fallback, unset XDG uses /run/user/<uid>"
+  ],
+  "verification": [
+    {
+      "command": "pytest python_pkg/phone_guard/tests/test_vd_state.py --no-cov",
+      "result": "pass",
+      "evidence": "red first: 4 failed, 5 passed against the old TMPDIR rule; green after the change"
+    },
+    {
+      "command": "pytest python_pkg/phone_guard python_pkg/android_ui --no-cov",
+      "result": "pass",
+      "evidence": "215 passed; vd_state.py 100% line and branch coverage"
+    }
+  ],
+  "risks": [
+    "A direct caller that relied on TMPDIR for the state directory now reads the runtime dir; the shell side already did"
+  ],
+  "rollback": ["git revert this commit", "Rerun pytest python_pkg/phone_guard"]
+}

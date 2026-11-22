@@ -14,7 +14,6 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 import re
-import tempfile
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9_.-]")
 
@@ -22,11 +21,19 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9_.-]")
 def state_root() -> Path:
     """The directory ``phone_vd.sh`` keeps its per-phone state in.
 
-    ``$PHONE_VD_STATE_DIR``, else ``phone_vd`` under the temp dir -- the same
-    ``${TMPDIR:-/tmp}`` rule the script applies, so both sides agree.
+    Mirrors ``phone_vd_state_root`` in ``~/.claude/scripts/lib/phone_vd_dir.sh``:
+    ``$PHONE_VD_STATE_DIR`` (the test seam) if non-empty, else
+    ``${XDG_RUNTIME_DIR:-/run/user/<uid>}/phone_vd`` when that runtime dir
+    exists, else ``/tmp/phone_vd``. ``TMPDIR`` is never read, so a session
+    with a private ``TMPDIR`` sees the same directory as the shell side.
     """
-    default = Path(tempfile.gettempdir()) / "phone_vd"
-    return Path(os.environ.get("PHONE_VD_STATE_DIR", str(default)))
+    override = os.environ.get("PHONE_VD_STATE_DIR")
+    if override:
+        return Path(override)
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+    if runtime.is_dir():
+        return runtime / "phone_vd"
+    return Path("/", "tmp", "phone_vd")
 
 
 def owner_dir_name(owner: str) -> str:
