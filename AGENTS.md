@@ -131,6 +131,11 @@ Deletions in `docs/superpowers/sessions/*` abort the commit (append-only).
 
 ## Code Conventions
 
+- **Offline-first sync.** Every app or script that syncs or shares data saves
+  locally first and is usable at once; sync runs whenever the remote is
+  reachable; everything fetched (details included) is cached locally; an
+  unreachable remote is a retry-later skip, never "the remote is empty".
+
 Anything already enforced by a hook is omitted here — run
 `pre-commit run --all-files` and read `.pre-commit-config.yaml` for the
 complete list. What follows is what a linter cannot check.

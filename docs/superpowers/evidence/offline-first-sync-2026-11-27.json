@@ -1,0 +1,48 @@
+{
+  "intent": "Syncing tools stay offline-first: phone workouts reach the local inbox even when Endurain is down, and a KeePass server outage never overwrites the remote vault.",
+  "scope": [
+    "python_pkg/endurain_import/__main__.py, tests/test_orchestration.py",
+    "linux_configuration/features/keepass_sync.sh, tests/test_keepass_sync.bats",
+    "AGENTS.md offline-first convention; no other packages touched",
+    "meta/requirements.txt, meta/requirements-test.txt: hypothesis 6.170.19, gatelock 0.16.2 (freshness gate)"
+  ],
+  "changes": [
+    "endurain_import pulls phone exports before probing Endurain; an unreachable server logs the queued file count and exits 1",
+    "keepass_sync remote_hash tells 404 (no remote) from outage/other status (return 2); reconcile skips on outage instead of publishing over the remote",
+    "Bump hypothesis 6.170.17 -> 6.170.19 and gatelock 0.16.1 -> 0.16.2 so the dependency-freshness gate passes"
+  ],
+  "verification": [
+    {
+      "command": "pytest python_pkg/endurain_import --cov=python_pkg/endurain_import --cov-branch",
+      "result": "pass",
+      "evidence": "104 passed, 100% branch; new test fails on the old order"
+    },
+    {
+      "command": "bats linux_configuration/tests/test_keepass_sync.bats",
+      "result": "pass",
+      "evidence": "3/3 ok; outage and 503 cases fail on the old script"
+    },
+    {
+      "command": "ENDURAIN_URL=http://127.0.0.1:1 python -m python_pkg.endurain_import (fake adb)",
+      "result": "pass",
+      "evidence": "exit 1, '1 file(s) wait in the inbox', file present in scratch inbox"
+    },
+    {
+      "command": "keepass_sync.sh against REMOTE_URL=http://127.0.0.1:1 with a throwaway vault",
+      "result": "pass",
+      "evidence": "skip: remote unreachable; exit 0; vault sha256 unchanged"
+    },
+    {
+      "command": "bash scripts/check_dependency_freshness.sh --all",
+      "result": "pass",
+      "evidence": "exit 0; only the recorded typescript exception remains"
+    }
+  ],
+  "risks": [
+    "A dufs that answers ?hash with a status other than 200/404 for an existing file now skips every cycle instead of syncing"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Rerun the endurain and keepass tests after the revert"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Offline-first sync for every syncing tool",
+  "objective": "Syncing apps and scripts save locally first, stay usable offline, sync whenever the remote is reachable, and never read an unreachable remote as an empty one.",
+  "acceptance_criteria": [
+    "AGENTS.md (CLAUDE.md) states the offline-first convention for every syncing app or script",
+    "endurain_import pulls phone exports into the local inbox before probing Endurain; a down server leaves them queued for the next run",
+    "keepass_sync treats only a 404 as 'no remote yet'; an outage or other status skips the cycle and leaves both vaults untouched",
+    "Dependency-freshness gate passes (hypothesis 6.170.19, gatelock 0.16.2)"
+  ],
+  "out_of_scope": [
+    "Apps extracted to their own repos (todo, diet-guard, wake-alarm, ...)",
+    "Changing the KeePass merge or CAS logic"
+  ],
+  "verifier": "pytest python_pkg/endurain_import 104 passed at 100% branch; bats test_keepass_sync.bats 3/3; keepass_sync.sh against a dead REMOTE_URL with a scratch vault: skip, exit 0, sha256 unchanged; check_dependency_freshness.sh --all exit 0."
+}

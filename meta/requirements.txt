@@ -36,11 +36,11 @@ flake8-pyi==26.5.0
 flake8-pytest-style==2.2.0
 flake8-return==1.2.0
 flake8-simplify==0.31.1
-gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.16.1#subdirectory=gatelock
+gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.16.2#subdirectory=gatelock
 genanki==0.13.1
 geopandas==1.2.0
 howlongtobeatpy==1.0.24
-hypothesis==6.170.17
+hypothesis==6.170.19
 importlib-metadata==10.2.0
 interrogate==1.7.0
 jeepney==0.9.0

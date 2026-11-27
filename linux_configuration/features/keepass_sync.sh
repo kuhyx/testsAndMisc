@@ -34,9 +34,15 @@ readonly LOCKFILE="$STATE_DIR/lock"
 readonly MAX_CAS_RETRIES=3
 
 log() { printf '[keepass-sync] %s\n' "$*" >&2; }
-die() { printf '[keepass-sync] ERROR: %s\n' "$*" >&2; exit 1; }
+die() {
+	printf '[keepass-sync] ERROR: %s\n' "$*" >&2
+	exit 1
+}
 # Clean, non-fatal skip (keyring locked / server down) — retried next cycle.
-skip() { printf '[keepass-sync] skip: %s\n' "$*" >&2; exit 0; }
+skip() {
+	printf '[keepass-sync] skip: %s\n' "$*" >&2
+	exit 0
+}
 
 # --- load config -------------------------------------------------------------
 [[ -f "$KP_SYNC_CONFIG" ]] || die "config not found: $KP_SYNC_CONFIG (run setup_keepass_sync.sh)"
@@ -80,27 +86,49 @@ remote_get() {
 	case "$REMOTE_MODE" in
 	file)
 		[[ -f "$REMOTE_FILE" ]] || return 1
-		cp -f "$REMOTE_FILE" "$dest" ;;
+		cp -f "$REMOTE_FILE" "$dest"
+		;;
 	webdav)
-		curl -fsS -u "$DUFS_USER:$DUFS_PASS" -o "$dest" "$REMOTE_URL" 2>/dev/null || return 1 ;;
+		curl -fsS -u "$DUFS_USER:$DUFS_PASS" -o "$dest" "$REMOTE_URL" 2>/dev/null || return 1
+		;;
 	*) die "unknown REMOTE_MODE: $REMOTE_MODE" ;;
 	esac
 }
 remote_hash() {
 	case "$REMOTE_MODE" in
-	file)   if [[ -f "$REMOTE_FILE" ]]; then sha "$REMOTE_FILE" || true; fi ;;
-	webdav) curl -fsS -u "$DUFS_USER:$DUFS_PASS" "${REMOTE_URL}?hash" 2>/dev/null || true ;;
+	file) if [[ -f "$REMOTE_FILE" ]]; then sha "$REMOTE_FILE" || true; fi ;;
+	webdav)
+		# Only a real 404 means "no remote yet"; an outage (000) or any other
+		# status is unknowable and must not be read as an empty remote.
+		local out code
+		out="$(mktemp)"
+		code="$(curl -sS -u "$DUFS_USER:$DUFS_PASS" -o "$out" -w '%{http_code}' "${REMOTE_URL}?hash" 2>/dev/null || true)"
+		case "$code" in
+		200)
+			cat "$out"
+			rm -f "$out"
+			;;
+		404) rm -f "$out" ;;
+		*)
+			rm -f "$out"
+			return 2
+			;;
+		esac
+		;;
 	esac
 }
 remote_put() {
 	local src="$1"
 	case "$REMOTE_MODE" in
 	file)
-		local dir; dir="$(dirname "$REMOTE_FILE")"
+		local dir
+		dir="$(dirname "$REMOTE_FILE")"
 		mkdir -p "$dir"
-		cp -f "$src" "$REMOTE_FILE.tmp.$$" && mv -f "$REMOTE_FILE.tmp.$$" "$REMOTE_FILE" ;;
+		cp -f "$src" "$REMOTE_FILE.tmp.$$" && mv -f "$REMOTE_FILE.tmp.$$" "$REMOTE_FILE"
+		;;
 	webdav)
-		curl -fsS -u "$DUFS_USER:$DUFS_PASS" -T "$src" "$REMOTE_URL" -o /dev/null ;;
+		curl -fsS -u "$DUFS_USER:$DUFS_PASS" -T "$src" "$REMOTE_URL" -o /dev/null
+		;;
 	esac
 }
 
@@ -135,17 +163,19 @@ reconcile() {
 	verify_pw "$LOCAL_DB" || die "master password from keyring does not open $LOCAL_DB — refusing to touch it"
 
 	local attempt=0
-	while (( attempt < MAX_CAS_RETRIES )); do
+	while ((attempt < MAX_CAS_RETRIES)); do
 		attempt=$((attempt + 1))
 
-		local remote_hash_before; remote_hash_before="$(remote_hash)"
+		local remote_hash_before
+		remote_hash_before="$(remote_hash)" || skip "remote unreachable; local vault unchanged, retrying next cycle"
 		if [[ -z "$remote_hash_before" ]]; then
 			# No remote yet — publish our local copy as the first version.
 			remote_put "$LOCAL_DB" && log "published local vault to remote (first copy)"
 			return 0
 		fi
 
-		local local_before; local_before="$(sha "$LOCAL_DB")"
+		local local_before
+		local_before="$(sha "$LOCAL_DB")"
 		if [[ "$remote_hash_before" == "$local_before" ]]; then
 			log "already in sync (hash $local_before)"
 			return 0
@@ -160,12 +190,14 @@ reconcile() {
 			die "keepassxc-cli merge failed — local vault left intact (see latest .backup_*)"
 		fi
 
-		local local_after; local_after="$(sha "$LOCAL_DB")"
+		local local_after
+		local_after="$(sha "$LOCAL_DB")"
 
 		# Compare-and-swap: only upload if the remote hasn't changed since our
 		# read; otherwise someone else wrote concurrently — retry the whole
 		# reconcile with the new remote (merges are commutative, so it converges).
-		local remote_hash_now; remote_hash_now="$(remote_hash)"
+		local remote_hash_now
+		remote_hash_now="$(remote_hash)" || skip "remote unreachable; local vault unchanged, retrying next cycle"
 		if [[ "$remote_hash_now" != "$remote_hash_before" ]]; then
 			log "remote changed during merge (CAS) — retrying ($attempt/$MAX_CAS_RETRIES)"
 			continue

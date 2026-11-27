@@ -104,6 +104,33 @@ def test_main_runs_adb_fallback_when_enabled(
     assert called == [inbox]
 
 
+def test_unreachable_still_pulls_phone_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, inbox: Path
+) -> None:
+    """Offline-first: a down Endurain must not block the phone pull.
+
+    The pull (and ledger init) has to land BEFORE the reachability probe, so the
+    unreachable path still runs it and leaves the files in the inbox for the
+    next run. This blocks re-ordering the probe back ahead of the pull.
+    """
+    _env(monkeypatch, tmp_path, inbox)
+    monkeypatch.delenv("ENDURAIN_NO_ADB")
+    called: list[Path] = []
+    import python_pkg.endurain_import.__main__ as mod
+
+    def _record(path: Path) -> list[Path]:
+        called.append(path)
+        return []
+
+    monkeypatch.setattr(mod, "pull_from_phone", _record)
+    _patch_client(
+        monkeypatch,
+        _StubMainClient(Result(Outcome.OK, 1, "ok"), reachable=False),
+    )
+    assert main() == 1
+    assert called == [inbox]
+
+
 def test_route_rejected_handles_unwritable_bulk_dir(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

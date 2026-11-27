@@ -180,6 +180,15 @@ def main() -> int:
     bulk_dir = Path(bulk) if bulk else None
 
     client = EndurainClient(base_url, api_key)
+
+    # Offline-first: local saves land before the remote is probed, so a down
+    # Endurain never blocks the phone files from reaching the inbox.
+    ledger = Ledger(state / "ledger.json")
+    processed_dir = processed_dir_for(inbox)
+
+    if os.environ.get("ENDURAIN_NO_ADB") != "1":
+        pull_from_phone(inbox)
+
     try:
         client.about()
     # requests.RequestException covers the transport failures; OSError/ValueError
@@ -187,13 +196,11 @@ def main() -> int:
     # separate requests handler would be unreachable.
     except OSError, ValueError, RuntimeError, requests.RequestException:
         _logger.exception("Endurain is not reachable at %s", base_url)
+        _logger.info(
+            "%d file(s) wait in the inbox; they upload on the next run",
+            len(inbox_files(inbox)),
+        )
         return 1
-
-    ledger = Ledger(state / "ledger.json")
-    processed_dir = processed_dir_for(inbox)
-
-    if os.environ.get("ENDURAIN_NO_ADB") != "1":
-        pull_from_phone(inbox)
 
     # TCX carries more than GPX (laps, cadence, HR), so when a run is present
     # in both formats the TCX must be the one that wins the dedupe race.
