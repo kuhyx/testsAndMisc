@@ -334,15 +334,17 @@ repos:
         pass_filenames: false
         files: ^(python_pkg/.*\.py|requirements\.txt)$
       - id: requirements-test-sync
-        name: requirements-test.txt covers all python_pkg imports
+        name: requirements-test.txt covers every import the CI pytest run makes
         # python-tests.yml installs this SUBSET rather than the full list, so
-        # it needs the same completeness guarantee. Without this hook a new
-        # third-party import would pass locally and fail in CI with a bare
-        # ModuleNotFoundError.
-        entry: python3 meta/scripts/check_requirements_sync.py --package python_pkg --requirements meta/requirements-test.txt
+        # it needs the same completeness guarantee. --testpaths walks the
+        # import closure of pyproject's testpaths, tests included: a test-only
+        # import (hypothesis) or a dependency of a linux_configuration script
+        # the tests load (jeepney) otherwise passed here and failed CI with a
+        # bare ModuleNotFoundError.
+        entry: python3 meta/scripts/check_requirements_sync.py --testpaths python_pkg linux_configuration/tests --requirements meta/requirements-test.txt
         language: system
         pass_filenames: false
-        files: ^(python_pkg/.*\.py|meta/requirements-test\.txt)$
+        files: ^(python_pkg/.*|linux_configuration/.*|meta/scripts/.*)\.py$|^meta/requirements-test\.txt$
       - id: session-autopsy-hook-mutations
         name: session_autopsy hook tests are non-vacuous (mutation)
         entry: python3 meta/scripts/mutate_session_autopsy_hooks.py

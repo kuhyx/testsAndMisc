@@ -1,0 +1,36 @@
+{
+  "intent": "Fix the red Python tests CI job (ModuleNotFoundError: hypothesis, jeepney) and block the bug class: requirements-test.txt missing an import the CI pytest run makes.",
+  "scope": [
+    "meta/requirements-test.txt and meta/requirements.txt: pin hypothesis==6.170.17 and jeepney==0.9.0 (newest stable)",
+    "meta/scripts/check_requirements_sync.py: new --testpaths mode; meta/scripts/_requirements_closure.py walks the import closure",
+    ".pre-commit-config.yaml: requirements-test-sync hook uses --testpaths and triggers on linux_configuration and meta/scripts .py files",
+    "Non-goal: the --package mode used by requirements-sync is unchanged"
+  ],
+  "changes": [
+    "The old check skipped tests/ directories and never looked at linux_configuration, so a test-only import (hypothesis in phone_lease tests) and a dependency of a script that linux_configuration/tests loads (jeepney via game_rec_dbus) passed locally and failed CI",
+    "--testpaths starts from every .py under the pytest testpaths, follows bare first-party imports into python_pkg, linux_configuration and meta/scripts, skips if TYPE_CHECKING blocks, and reports non-stdlib names missing from the requirements file"
+  ],
+  "verification": [
+    {
+      "command": "python3 meta/scripts/check_requirements_sync.py --testpaths python_pkg linux_configuration/tests --requirements meta/requirements-test.txt",
+      "result": "pass",
+      "evidence": "before the pins: exit 1 listing exactly hypothesis and jeepney (the two CI ImportErrors); after: exit 0"
+    },
+    {
+      "command": "check_requirements_sync.py --root ~/data/claude-scratch/reqsync --testpaths pkg lc/tests --requirements req.txt",
+      "result": "pass",
+      "evidence": "scratch tree: flags test-only import hyp and lazydep imported by a sibling helper; skips a TYPE_CHECKING import"
+    },
+    {
+      "command": "check_requirements_sync.py --package python_pkg (with and without --requirements meta/requirements-test.txt)",
+      "result": "pass",
+      "evidence": "exit 0 both, old mode unchanged"
+    }
+  ],
+  "risks": [
+    "A lazy import inside a function of a linux_configuration script counts as required even if no test reaches that function; the fix is to pin it, which costs CI install time only"
+  ],
+  "rollback": [
+    "git revert the commit; the hook returns to the --package python_pkg mode"
+  ]
+}

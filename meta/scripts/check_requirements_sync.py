@@ -30,6 +30,8 @@ from pathlib import Path
 import re
 import sys
 
+from _requirements_closure import import_closure
+
 # Import-name -> distribution-name overrides for the rare cases where PEP 503
 # normalisation (lowercase, runs of -/_/. collapsed to '-') is not enough.
 # Most packages import under their normalised dist name (crdt_sync ->
@@ -186,6 +188,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="Path to requirements.txt (default: %(default)s).",
     )
     parser.add_argument(
+        "--testpaths",
+        nargs="+",
+        help="Check the import closure of these pytest paths, tests included.",
+    )
+    parser.add_argument(
         "--root",
         default=".",
         help="Repository root to resolve paths against (default: %(default)s).",
@@ -208,20 +215,28 @@ def main(argv: list[str] | None = None) -> int:
     """Entry point: exit non-zero (with a report) when deps are missing."""
     args = _parse_args(argv)
     root = Path(args.root).resolve()
-    package = args.package or _detect_package(root)
-    package_dir = root / package
     requirements = root / args.requirements
-
-    if not package_dir.is_dir():
-        sys.exit(f"Package directory not found: {package_dir}")
     if not requirements.is_file():
         sys.exit(f"Requirements file not found: {requirements}")
+    if args.testpaths:
+        external = import_closure(root, args.testpaths) - _FOREIGN_RUNTIME_IMPORTS
+        declared = _requirement_names(requirements)
+        missing = sorted(n for n in external if _distribution_for(n) not in declared)
+        return _report(" ".join(args.testpaths), requirements, missing)
+    package = args.package or _detect_package(root)
+    package_dir = root / package
+    if not package_dir.is_dir():
+        sys.exit(f"Package directory not found: {package_dir}")
 
-    missing = check(package, package_dir, requirements)
+    return _report(package, requirements, check(package, package_dir, requirements))
+
+
+def _report(scope: str, requirements: Path, missing: list[str]) -> int:
+    """Print the missing imports for ``scope``; return the exit code."""
     if missing:
         joined = "\n  - ".join(missing)
         sys.stderr.write(
-            f"{package}: these third-party imports are not declared in "
+            f"{scope}: these third-party imports are not declared in "
             f"{requirements.name} (CI installs only that file, so they will "
             f"fail with ModuleNotFoundError):\n  - {joined}\n",
         )
