@@ -1,0 +1,17 @@
+{
+  "title": "zswap vs zram A/B test with one-command switching",
+  "objective": "Measure zswap against the 32 GiB zram setup with a seeded benchmark in vmbox and on the host, keep the winner as the boot default, and make each setup script the one-command switch to its setup.",
+  "acceptance_criteria": [
+    "setup_zswap.sh switches live (no zram0; zswap Y/zstd/35) and the cmdline carries the zswap tokens after a reboot",
+    "Hibernate/resume works in vmbox with zswap on",
+    "setup_zram.sh reverts in one command; a second run of either script changes nothing",
+    "setup_zswap.sh exits 3 'reboot to apply' when zram cannot drain, and the next boot is on zswap",
+    "swap_bench.sh run is under 60 s, appends one row, and the same seed gives the same workload; summary names the winner by the agreed rule",
+    "DOCS-zswap-vs-zram.md holds VM and host tables (3 runs x 2 setups) and the raw rows; the host boots the winner"
+  ],
+  "out_of_scope": [
+    "Hibernation config and swapfile priorities",
+    "fix_ubuntu_performance.sh"
+  ],
+  "verifier": "test_swap_switch.sh 45/45, test_swap_bench.sh 27/27, pytest python_pkg/swap_bench 28 passed at 100% branch, vmbox_swap.sh phases all OK, vm wake hibernate resumed with zswap on, host and VM summaries both pick zram, host verified on zram with zswap.enabled=0."
+}

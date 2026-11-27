@@ -1,0 +1,65 @@
+{
+  "intent": "A/B test zswap against the 32 GiB zram setup with a seeded memory-pressure benchmark, in vmbox and on the host; keep the winner (zram) as the host default, with each setup script the one-command switch to its setup.",
+  "scope": [
+    "linux_configuration/fixes: setup_zswap.sh (new), setup_zram.sh (now also the revert), swap_bench.sh (new), lib/swap_switch.sh (new), DOCS-zswap-vs-zram.md + swap-bench-results.tsv (results)",
+    "python_pkg/swap_bench: seeded workload, row parsing, medians + winner rule",
+    "Swap-setup-aware wording in lib/arch_sysctl.sh, lib/arch_perf_probes.sh, optimize_arch_desktop.sh; swappiness stays 100",
+    "Non-goal: hibernation config (resume= stays on /swapfile), swapfile priorities"
+  ],
+  "changes": [
+    "setup_zswap.sh persists zswap.enabled=1 zstd max_pool_percent=35 shrinker on every systemd-boot entry (or GRUB + grub-mkconfig), removes the zram-generator conf, switches live (swapoff zram0 first, zswap on after) or exits 3 'reboot to apply' when MemAvailable cannot absorb zram",
+    "setup_zram.sh restores zswap.enabled=0, reinstalls the conf (ZRAM_SIZE_MIB scales it for a small guest), starts zram0, then turns zswap off live",
+    "swap_bench.sh run host|vm: one seeded run per call in a MemoryMax=4G/MemorySwapMax=infinity scope (host) or system-wide (vm); records ratio, PSI some/full, major faults, disk writeback (pswpout minus zram writes), zswpwb, desktop session PSI; refuses a host run when MemAvailable < cap + 2G; summary applies the PSI-full / major-fault / 10 % rule",
+    "check_memory_pressure advice names the installed swap setup (zram, zswap or plain disk)"
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/fixes/lib/tests/test_swap_switch.sh",
+      "result": "pass",
+      "evidence": "45 passed, 0 failed: live switch both ways, three loader entries, GRUB, exit 3, idempotent reruns byte-identical, grub-mkconfig failure loud"
+    },
+    {
+      "command": "linux_configuration/fixes/lib/tests/test_swap_bench.sh",
+      "result": "pass",
+      "evidence": "27 passed: scope properties, same seed same CRCs, refusals record no row, low-RAM guard, summary"
+    },
+    {
+      "command": "python3 -m pytest python_pkg/swap_bench --cov=python_pkg.swap_bench --cov-branch",
+      "result": "pass",
+      "evidence": "28 passed, 100% branch coverage"
+    },
+    {
+      "command": "lib/tests/test_arch_perf_probes_health.sh; arch_sysctl_quarantined_cases.sh",
+      "result": "pass",
+      "evidence": "34 passed; 23 passed"
+    },
+    {
+      "command": "vm run zsw 'sudo bash lib/tests/vmbox_swap.sh zram|booted-zram|again|zswap|booted-zswap|fill|exit3'",
+      "result": "pass",
+      "evidence": "every phase OK: live switch both ways, persistence after reboot, reruns unchanged, exit 3 then next boot on zswap"
+    },
+    {
+      "command": "vm wake zswh -- 'rtcwake -m no -s 60 && systemctl hibernate' (guest booted on the zswap cmdline, 3 GB in the pool)",
+      "result": "pass",
+      "evidence": "verdict hibernate, same boot_id after resume, zswap enabled=Y max_pool_percent=35"
+    },
+    {
+      "command": "swap_bench.sh run vm x6, run host x6; swap_bench.sh summary",
+      "result": "pass",
+      "evidence": "vm PSI full 5996 zram vs 10360 zswap; host 7427 vs 8973; winner zram on both; identical CRCs across all 12 runs"
+    },
+    {
+      "command": "sudo setup_zswap.sh then sudo setup_zram.sh on the host",
+      "result": "pass",
+      "evidence": "live both ways without reboot; /proc/cmdline zswap.enabled=0, zram0 prio 100, enabled=N, loader entries byte-identical to /var/lib/swap-switch/*.orig"
+    }
+  ],
+  "risks": [
+    "Host benchmark numbers are noisy (other board jobs ran concurrently); the VM run, pressed system-wide, agrees with them",
+    "The vmbox guest that ran the benchmarks cold-booted on hibernate under both setups; a fresh guest resumed, cause not found"
+  ],
+  "rollback": [
+    "sudo linux_configuration/fixes/setup_zram.sh restores the zram setup and zswap.enabled=0 on every loader entry; originals stay in /var/lib/swap-switch/*.orig",
+    "After rollback check: cat /proc/cmdline; swapon --show; cat /sys/module/zswap/parameters/enabled"
+  ]
+}

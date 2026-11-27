@@ -133,8 +133,18 @@ fi
 # stubbing awk supplies controlled figures without touching /proc. The stub
 # answers on the pattern the lib greps for, and defers to the real awk for
 # any other call (check_thermal_state and collect_basics use it too).
-arch_reset
-_t_stub_stdin awk <<'STUB_BODY'
+# The advice names the installed swap setup, read from fixture copies of
+# /proc/swaps and the zswap enabled flag.
+export PROC_SWAPS="${TEST_TMPDIR}/proc_swaps"
+export ZSWAP_ENABLED_FILE="${TEST_TMPDIR}/zswap_enabled"
+_swap_fixture() { # _swap_fixture zram|zswap|disk
+	printf 'Filename Type Size Used Priority\n/swapfile file 1 0 -1\n' >"$PROC_SWAPS"
+	[[ $1 == zram ]] && printf '/dev/zram0 partition 1 0 100\n' >>"$PROC_SWAPS"
+	if [[ $1 == zswap ]]; then echo Y; else echo N; fi >"$ZSWAP_ENABLED_FILE"
+}
+_high_swap() {
+	arch_reset
+	_t_stub_stdin awk <<'STUB_BODY'
 case "$1" in
 *MemTotal*) echo 32000000 ;;
 *MemAvailable*) echo 20000000 ;;
@@ -143,13 +153,25 @@ case "$1" in
 *) exec /usr/bin/awk "$@" ;;
 esac
 STUB_BODY
-check_memory_pressure
+	check_memory_pressure
+}
+_swap_fixture zswap
+_high_swap
+_t_contains "$(_t_actions)" "zswap" "check_memory_pressure: names zswap when it is installed"
+_t_contains "$(_t_actions)" "Zswapped" "check_memory_pressure: points at the zswap pool counters"
+_t_lacks "$(_t_actions)" "zramctl" "check_memory_pressure: no zramctl advice under zswap"
+_swap_fixture disk
+_high_swap
+_t_contains "$(_t_actions)" "swapon --show" "check_memory_pressure: plain disk swap points at swapon"
+_t_lacks "$(_t_actions)" "zram" "check_memory_pressure: plain disk swap does not claim zram"
+_swap_fixture zram
+_high_swap
 _t_contains "$(_t_report)" "Swap usage: 75%" \
 	"check_memory_pressure: computes the swap usage percentage"
 _t_contains "$(_t_findings)" "High swap usage while RAM is still available" \
 	"check_memory_pressure: flags heavy swapping while RAM is free"
 _t_lacks "$(_t_actions)" "swappiness" \
-	"check_memory_pressure: does not suggest tuning swappiness (zram setup runs at 100)"
+	"check_memory_pressure: does not suggest tuning swappiness (both swap setups run at 100)"
 _t_contains "$(_t_actions)" "zramctl" \
 	"check_memory_pressure: points at zramctl usage"
 _t_contains "$(_t_actions)" "ps aux --sort=-rss" \

@@ -143,6 +143,18 @@ check_storage_health() {
 	fi
 }
 
+# swap_setup_advice — where to look first, by the installed swap setup:
+# zram (fixes/setup_zram.sh), zswap (fixes/setup_zswap.sh) or plain disk.
+swap_setup_advice() {
+	if grep -q '^/dev/zram' "${PROC_SWAPS:-/proc/swaps}" 2>/dev/null; then
+		echo "Swap is zram (fixes/setup_zram.sh); check zramctl usage"
+	elif [[ $(cat "${ZSWAP_ENABLED_FILE:-/sys/module/zswap/parameters/enabled}" 2>/dev/null) == Y ]]; then
+		echo "Swap is zswap over the disk swapfiles (fixes/setup_zswap.sh); check Zswap/Zswapped in /proc/meminfo"
+	else
+		echo "Swap is plain disk swap; check swapon --show"
+	fi
+}
+
 check_memory_pressure() {
 	local mem_total mem_available swap_total swap_free
 	mem_total=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
@@ -158,7 +170,7 @@ check_memory_pressure() {
 		echo "Swap usage: ${swap_pct}%" >>"$REPORT_FILE"
 		if [[ $swap_pct -ge 35 && ${mem_available:-0} -gt $((mem_total / 3)) ]]; then
 			add_finding "High swap usage while RAM is still available; this can cause stutter."
-			add_action "Swap is zram by design; check zramctl usage and the top memory users (ps aux --sort=-rss | head), then stop idle services."
+			add_action "$(swap_setup_advice) and the top memory users (ps aux --sort=-rss | head), then stop idle services."
 		fi
 	fi
 

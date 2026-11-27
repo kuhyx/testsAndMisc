@@ -1,60 +1,55 @@
 #!/bin/bash
-# Install fixes/zram-generator.conf and resize the live /dev/zram0 to match.
+# Switch swap to zram (the default) and size /dev/zram0 to match the conf.
+#
+# Also the one-command revert from setup_zswap.sh: puts zswap.enabled=0 back
+# on the kernel cmdline, installs fixes/zram-generator.conf, starts zram0,
+# and only then turns zswap off live. That order is always safe: pages left
+# in the zswap pool drain back as they fault in.
 #
 # Resizing needs the device reset, i.e. swapoff first: the zram pages move back
 # into RAM (disk swap is NOT a target of swapoff), so the script refuses when
 # MemAvailable could not absorb them. Disk swapfiles are left alone.
 #
-# Env overrides (tests/VM): ZRAM_CONF, ZRAM_WANT_BYTES, ZRAM_SKIP_APPLY=1.
+# Env overrides (tests/VM): ZRAM_CONF, ZRAM_SIZE_MIB (a smaller device for a
+# small guest; default 32768), ZRAM_GENERATOR_BIN, ZRAM_SKIP_APPLY=1, plus
+# those in lib/swap_switch.sh.
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SRC_DIR
+readonly SS_NAME=setup_zram
 readonly ZRAM_CONF="${ZRAM_CONF:-/etc/systemd/zram-generator.conf}"
-readonly ZRAM_WANT_BYTES="${ZRAM_WANT_BYTES:-34359738368}" # 32 GiB
-readonly DEV=/dev/zram0
-readonly MIN_SPARE_KIB=$((2 * 1024 * 1024)) # keep 2 GiB free after swapoff
-
-die() {
-	echo "setup_zram: $*" >&2
-	exit 1
-}
-
-as_root() {
-	if [[ $EUID -eq 0 ]]; then "$@"; else sudo -n "$@"; fi
-}
+readonly ZRAM_SIZE_MIB="${ZRAM_SIZE_MIB:-32768}"
+readonly ZRAM_WANT_BYTES=$((ZRAM_SIZE_MIB * 1024 * 1024))
+readonly ZRAM_GENERATOR_BIN="${ZRAM_GENERATOR_BIN:-/usr/lib/systemd/system-generators/zram-generator}"
+# shellcheck source=lib/swap_switch.sh
+. "${SRC_DIR}/lib/swap_switch.sh"
 
 ensure_package() {
-	[[ -x /usr/lib/systemd/system-generators/zram-generator ]] && return 0
+	[[ -x $ZRAM_GENERATOR_BIN ]] && return 0
 	as_root pacman -S --needed --noconfirm zram-generator
 }
 
 disksize() {
 	# sysfs is world-readable; blockdev needs root. Absent device reads as 0.
-	cat /sys/block/zram0/disksize 2>/dev/null || echo 0
+	cat "${ZRAM_SYSFS}/disksize" 2>/dev/null || echo 0
 }
 
-# KiB of RAM the swapoff will newly occupy: uncompressed data minus the
-# compressed pages that get freed as it drains.
-swapoff_cost_kib() {
-	local line orig total
-	line=$(zramctl --bytes --noheadings --raw -o DATA,TOTAL "$DEV")
-	read -r orig total <<<"$line"
-	echo $(((orig - total) / 1024))
-}
-
-mem_available_kib() {
-	awk '/^MemAvailable:/ {print $2}' /proc/meminfo
+# install_conf — the repo conf, with zram-size swapped for ZRAM_SIZE_MIB
+# when that is not the default. Rewrites only when the content differs.
+install_conf() {
+	local tmp
+	tmp="$(mktemp)"
+	sed -E "s/^zram-size = .*/zram-size = ${ZRAM_SIZE_MIB}/" "$SRC_DIR/zram-generator.conf" >"$tmp"
+	[[ $ZRAM_SIZE_MIB == 32768 ]] && cp "$SRC_DIR/zram-generator.conf" "$tmp"
+	cmp -s "$tmp" "$ZRAM_CONF" || as_root install -D -m 644 "$tmp" "$ZRAM_CONF"
+	rm -f "$tmp"
 }
 
 resize_live() {
-	if [[ -b $DEV ]] && swapon --noheadings --show=NAME | grep -qx "$DEV"; then
-		local cost avail
-		cost=$(swapoff_cost_kib)
-		avail=$(mem_available_kib)
-		((avail - cost >= MIN_SPARE_KIB)) ||
-			die "MemAvailable ${avail}K too low to drain zram (needs ${cost}K + 2G spare)"
-		as_root swapoff "$DEV"
+	if [[ -b $ZRAM_DEV ]] && ss_zram_active; then
+		ss_can_drain || ss_die "MemAvailable too low to drain zram (needs its contents + 2G spare)"
+		as_root swapoff "$ZRAM_DEV"
 	fi
 	# udev probes the freed device after swapoff and holds it open for a moment
 	# ("Device or resource busy" on reset), so settle and retry the restart:
@@ -63,7 +58,7 @@ resize_live() {
 	for try in 1 2 3 4 5; do
 		as_root udevadm settle
 		as_root systemctl restart systemd-zram-setup@zram0.service && break
-		((try < 5)) || die "zram0 stayed busy after 5 resets"
+		((try < 5)) || ss_die "zram0 stayed busy after 5 resets"
 		sleep 1
 	done
 	as_root systemctl start dev-zram0.swap 2>/dev/null || true
@@ -71,15 +66,18 @@ resize_live() {
 
 main() {
 	ensure_package
-	as_root install -D -m 644 "$SRC_DIR/zram-generator.conf" "$ZRAM_CONF"
+	ss_set_boot_tokens "zswap.enabled=0"
+	install_conf
 	[[ ${ZRAM_SKIP_APPLY:-0} == 1 ]] && return 0
 	as_root systemctl daemon-reload
-	if [[ $(disksize) -ne $ZRAM_WANT_BYTES ]]; then
+	if [[ $(disksize) -ne $ZRAM_WANT_BYTES ]] || ! ss_zram_active; then
 		resize_live
 	fi
-	[[ $(disksize) -eq $ZRAM_WANT_BYTES ]] || die "zram0 is $(disksize) bytes, want $ZRAM_WANT_BYTES"
+	[[ $(disksize) -eq $ZRAM_WANT_BYTES ]] || ss_die "zram0 is $(disksize) bytes, want $ZRAM_WANT_BYTES"
+	ss_zswap_set enabled N
 	zramctl
-	swapon --show
+	ss_report
 }
 
 main "$@"
+exit $?

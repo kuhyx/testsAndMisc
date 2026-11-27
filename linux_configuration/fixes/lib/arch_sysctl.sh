@@ -13,7 +13,9 @@ tweak_vm_sysctl() {
 	# by the test harness, which runs un-jailed in ci_mirror.sh and in CI.
 	local dropin="${SYSCTL_DROPIN_DIR:-/etc/sysctl.d}/90-desktop-performance.conf"
 
-	# Desktop workloads: high swappiness (zram swap is compressed RAM, see fixes/setup_zram.sh), aggressive VFS caching, tuned dirty ratios
+	# Desktop workloads: high swappiness (swap is compressed RAM first, zram or
+	# zswap: fixes/setup_zram.sh or fixes/setup_zswap.sh), aggressive VFS
+	# caching, tuned dirty ratios
 	local -A params=(
 		["vm.swappiness"]="100"
 		["vm.vfs_cache_pressure"]="50"
@@ -42,7 +44,7 @@ tweak_vm_sysctl() {
 	cat >"$dropin" <<'VMEOF'
 # Desktop performance tuning — managed by optimize_arch_desktop.sh
 #
-# vm.swappiness=100         — favor the 32 GiB zram swap (zstd, prio 100) over dropping page cache
+# vm.swappiness=100         — favor compressed-RAM swap (zram or zswap, zstd) over dropping page cache
 # vm.vfs_cache_pressure=50  — favor keeping inode/dentry caches (speeds up file operations)
 # vm.dirty_ratio=15         — allow up to 15% RAM dirty before synchronous writeback
 # vm.dirty_background_ratio=5  — start async writeback at 5% dirty
