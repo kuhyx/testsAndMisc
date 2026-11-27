@@ -35,10 +35,15 @@ printf '0::/bench.scope\n' >"$PROC_SELF_CGROUP"
 printf '1 0 0 0 1 0 80 0 0 0 0\n' >"${ZRAM_SYSFS}/stat"
 printf '4096 1024 0 0\n' >"${ZRAM_SYSFS}/mm_stat"
 
+# BUMP_DESKTOP_FULL_US: stall the login session by this much during the run.
 _t_stub_stdin systemd-run <<'STUB'
 while [[ $1 != -- ]]; do shift; done
 shift
-exec "$@"
+"$@" || exit $?
+if [[ -n ${BUMP_DESKTOP_FULL_US:-} ]]; then
+	printf 'some avg10=0.00 avg60=0.00 avg300=0.00 total=5000\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=%s\n' \
+		"$((2000 + BUMP_DESKTOP_FULL_US))" >"${CGROUP_ROOT}/user.slice/user-1000.slice/session-1.scope/memory.pressure"
+fi
 STUB
 _t_stub_cat swapon swaps
 _setup() { # _setup zram|zswap|none|both
@@ -60,7 +65,16 @@ _t_contains "$(_t_calls)" "MemorySwapMax=infinity" "run host: scope may swap"
 _t_contains "$(_t_calls)" "RuntimeMaxSec=55" "run host: scope dies before the 60 s cap"
 _t_eq "zram" "$(_col setup)" "run host: row records the zram setup"
 _t_eq "host" "$(_col env)" "run host: row records env"
-_t_contains "$out" "global memory PSI full avg10" "run host: prints the global PSI"
+_t_eq 0 "$(_col outside_pswpout)" "run host: records other processes' swap-outs"
+
+echo "host run that stalls the desktop fails loudly (C6)"
+rows_before=$(wc -l <"$SWAP_BENCH_RESULTS")
+BUMP_DESKTOP_FULL_US=2000000 _t_run bash "$BENCH" run host --seed 7 --size-mib 1
+_t_eq 3 "$?" "pressed desktop: exits 3"
+_t_contains "$out" "the login sessions stalled 2000 ms (limit 1000 ms)" "pressed desktop: names the stall"
+_t_eq "$((rows_before + 1))" "$(wc -l <"$SWAP_BENCH_RESULTS")" "pressed desktop: the row is still recorded"
+sed -i '$d' "$SWAP_BENCH_RESULTS"
+printf '%s\n' "$psi" >"${CGROUP_ROOT}/user.slice/user-1000.slice/session-1.scope/memory.pressure"
 _t_eq 0 "$(_col desktop_full_ms)" "run host: records the session scopes' PSI stall"
 
 echo "same seed, same workload (C7)"

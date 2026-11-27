@@ -1,0 +1,37 @@
+{
+  "intent": "Fix the C6 live-check failure of the zswap/zram A/B: the host bench's desktop check used global PSI, which counts the bench scope's own stall, and the DOCS claimed the scope keeps the desktop out of swap and that zram wrote nothing to disk.",
+  "scope": [
+    "python_pkg/swap_bench: outside_pswpout column, row --max-desktop-ms gate",
+    "linux_configuration/fixes/swap_bench.sh: passes the 1 s desktop limit on host runs, drops the global avg10 lines",
+    "DOCS-zswap-vs-zram.md and swap-bench-results.tsv: corrected claims, desktop check table, new column (na for the A/B rows)",
+    "Non-goal: the winner and the A/B rows"
+  ],
+  "changes": [
+    "Root cause 1: global PSI full counts moments when every busy task is stalled, which the scope causes alone; global minus scope came out negative (-685 ms), so no global PSI figure measures the desktop. The gate now reads the login session scopes' full stall",
+    "Root cause 2: zram's pool is not charged to the bench scope, so global reclaim also swaps other processes; the run now records outside_pswpout",
+    "Root cause 3: disk_wb_pages is system-wide; an idle 28 s had 20k pages of pswpout not taken by zram, the same range as the runs, so nonzero values on the host are background"
+  ],
+  "verification": [
+    {
+      "command": "linux_configuration/fixes/lib/tests/test_swap_bench.sh",
+      "result": "pass",
+      "evidence": "30 passed; before the shell change the new gate cases failed (exit 0 instead of 3, no stall message)"
+    },
+    {
+      "command": "python3 -m pytest python_pkg/swap_bench --cov=python_pkg.swap_bench --cov-branch",
+      "result": "pass",
+      "evidence": "31 passed, 100% branch; new column and gate tests failed before the implementation"
+    },
+    {
+      "command": "SWAP_BENCH_SYSTEMD_RUN=/usr/bin/systemd-run SWAP_BENCH_RESULTS=<scratch> swap_bench.sh run host (x3, zram)",
+      "result": "pass",
+      "evidence": "exit 0 each; desktop_full_ms 39, 6, 7; outside_pswpout 213501, 153179, 224178 vs 110829 over an idle 28 s; disk_wb_pages 14958, 9058, 14145 vs 20048 idle"
+    }
+  ],
+  "risks": [
+    "The 1 s desktop limit is set from a 4 ms idle baseline and 6-237 ms runs; a busy desktop during a run fails it, which is the intent"
+  ],
+  "rollback": [
+    "git revert the commit; swap_bench.sh returns to printing global avg10 with no gate"
+  ]
+}

@@ -29,6 +29,8 @@ def test_zram_host_row(run_dir: Path) -> None:
     assert row["global_full_avg10"] == "0.20"
     assert row["pages"] == "256"
     assert row["desktop_full_ms"] == "6"  # two sessions, 3000 us each
+    # Global pswpout grew 8000 pages, the scope swapped out 7000.
+    assert row["outside_pswpout"] == "1000"
     assert list(row) == list(COLUMNS)
 
 
@@ -45,6 +47,7 @@ def test_vm_rows_are_system_wide(run_dir: Path) -> None:
     assert row["zswpwb"] == "2"
     assert row["ratio"] == "2.50"
     assert row["desktop_full_ms"] == "na"
+    assert row["outside_pswpout"] == "na"
 
 
 def test_host_without_sessions_has_no_desktop_psi(run_dir: Path) -> None:

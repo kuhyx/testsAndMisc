@@ -36,6 +36,11 @@ def _parser() -> argparse.ArgumentParser:
     p_row.add_argument("--size-mib", type=int, required=True)
     p_row.add_argument("--date", required=True)
     p_row.add_argument("--header", action="store_true", help="print the header first")
+    p_row.add_argument(
+        "--max-desktop-ms",
+        type=int,
+        help="exit 3 when a host run stalled the login sessions longer",
+    )
     p_sum = sub.add_parser("summary", help="medians and the winner for a TSV")
     p_sum.add_argument("tsv", type=Path)
     return parser
@@ -70,6 +75,13 @@ def _cmd_row(args: argparse.Namespace) -> int:
     if args.header:
         sys.stdout.write(format_row(None) + "\n")
     sys.stdout.write(format_row(row) + "\n")
+    stall, limit = row["desktop_full_ms"], args.max_desktop_ms
+    if limit is not None and stall != "na" and int(stall) > limit:
+        sys.stderr.write(
+            f"swap_bench: the login sessions stalled {stall} ms "
+            f"(limit {limit} ms): this run pressed the desktop\n"
+        )
+        return 3
     return 0
 
 

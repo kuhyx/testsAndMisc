@@ -68,6 +68,26 @@ def test_row_with_and_without_header(
     assert len(_out(capsys).splitlines()) == 1
 
 
+@pytest.mark.parametrize(
+    ("env", "limit", "code"),
+    [("host", 5, 3), ("host", 6, 0), ("vm", 0, 0)],
+)
+def test_row_fails_when_the_desktop_stalled(
+    capsys: pytest.CaptureFixture[str],
+    run_dir: Path,
+    env: str,
+    limit: int,
+    code: int,
+) -> None:
+    """A host row whose desktop stall (6 ms here) passes the limit exits 3."""
+    argv = ["row", "--dir", str(run_dir), "--env", env, "--setup", "zram"]
+    argv += ["--seed", "1", "--size-mib", "1", "--date", "d"]
+    assert cli.main([*argv, "--max-desktop-ms", str(limit)]) == code
+    out, err = capsys.readouterr()
+    assert out.startswith("d\t")  # the row is printed either way
+    assert ("the login sessions stalled 6 ms" in err) == (code == 3)
+
+
 def test_summary(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     """``summary`` prints the medians table."""
     path = tmp_path / "r.tsv"

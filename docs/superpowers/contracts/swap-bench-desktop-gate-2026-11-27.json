@@ -1,0 +1,14 @@
+{
+  "title": "swap_bench host desktop gate and outside-scope swap column",
+  "objective": "Fix the C6 live-check failure: the host bench judged the desktop by global PSI (which counts the bench scope itself) and claimed only the scope swaps. Measure the desktop by the login sessions' own stall, gate on it, record other processes' swap-outs, and correct the DOCS.",
+  "acceptance_criteria": [
+    "A host run whose login sessions stalled over SWAP_BENCH_MAX_DESKTOP_MS (default 1000) records its row and exits 3 naming the stall",
+    "Host rows carry outside_pswpout = global pswpout delta minus the scope's own; VM rows carry na",
+    "The misleading global avg10 before/after lines are gone",
+    "DOCS-zswap-vs-zram.md shows the re-measured desktop check against an idle baseline and no longer claims zram wrote nothing to disk or that the scope keeps the desktop out of swap"
+  ],
+  "out_of_scope": [
+    "The A/B winner (PSI full, then major faults) and its 12 committed rows"
+  ],
+  "verifier": "test_swap_bench.sh 30/30, pytest python_pkg/swap_bench 31 passed at 100% branch, three live zram host runs exit 0 with desktop stall 6-39 ms and outside_pswpout 153k-224k vs 111k idle."
+}

@@ -39,6 +39,7 @@ COLUMNS = (
     "zswpwb",
     "global_full_avg10",
     "desktop_full_ms",
+    "outside_pswpout",
 )
 _SECTOR_PER_PAGE = 8  # 512-byte sectors in a 4 KiB page
 
@@ -86,6 +87,21 @@ def _desktop_full_ms(run: Path, env: str) -> str:
         run / "before/desktop_pressure"
     )
     return str(round(delta / 1000))
+
+
+def _outside_pswpout(
+    run: Path, env: str, before: dict[str, int], after: dict[str, int]
+) -> str:
+    """Pages the rest of the host swapped out during a host run.
+
+    Global pswpout minus the scope's own. zram's pool is not charged to the
+    scope, so a zram run can make global reclaim swap other processes out
+    too. A VM run has no outside: ``na``.
+    """
+    if env != "host":
+        return "na"
+    scope_out = _kv(run / "cg_memory.stat").get("pswpout", 0)
+    return str(after["pswpout"] - before["pswpout"] - scope_out)
 
 
 def _ratio(stored_in: float, stored_out: float) -> str:
@@ -150,6 +166,7 @@ def compute_row(
         "zswpwb": str(zswpwb),
         "global_full_avg10": f"{_psi(run / 'after/pressure')['full']['avg10']:.2f}",
         "desktop_full_ms": _desktop_full_ms(run, env),
+        "outside_pswpout": _outside_pswpout(run, env, before, after),
     }
     return {c: values[c] for c in COLUMNS}
 

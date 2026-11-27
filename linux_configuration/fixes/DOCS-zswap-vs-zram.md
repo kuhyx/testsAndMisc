@@ -60,8 +60,9 @@ medians and the winner. Every run stays under 60 s.
   `MemoryMax=4G`, `MemorySwapMax=infinity`, `RuntimeMaxSec=55`. Only the
   scope is pressed; PSI, zswap counters and writeback come from the scope's
   own `memory.pressure` and `memory.stat`. A host run refuses to start
-  when MemAvailable is below the 4 GiB cap plus 2 GiB, so the bench cannot
-  push the desktop into swap. (8 GiB took 37-45 s on zram with other jobs
+  when MemAvailable is below the 4 GiB cap plus 2 GiB. It fails (exit 3,
+  row kept) when the login sessions stalled more than 1 s during the run
+  (`SWAP_BENCH_MAX_DESKTOP_MS`). (8 GiB took 37-45 s on zram with other jobs
   running; zswap is slower, so 6 GiB keeps every run inside the 50 s limit.)
 - **VM.** 4.5 GiB in a 3.9 GiB guest (8 GiB swapfile), no scope: the whole
   guest is pressed and global counters are used.
@@ -69,9 +70,15 @@ medians and the winner. Every run stays under 60 s.
   `mm_stat` deltas at peak; zswap `zswapped/zswap` at peak). `psi_*_ms`:
   memory stall time over the run. `majflt`: the workload's own major faults.
   `disk_wb_pages`: pages written to disk swap, Δ`pswpout` minus Δ zram
-  writes (zram is a swap device, so `pswpout` counts it too). `zswpwb`:
-  zswap's writebacks. `desktop_full_ms` (host): full stall of the login
-  session scopes, i.e. the desktop, during the run.
+  writes (zram is a swap device, so `pswpout` counts it too). It is
+  system-wide, so on the host it includes other processes (see the C6
+  check below). `zswpwb`: zswap's writebacks. `desktop_full_ms` (host): full
+  stall of the login session scopes, i.e. the desktop, during the run.
+  `outside_pswpout` (host, added after the A/B rows): global Δ`pswpout`
+  minus the scope's own `pswpout`, the pages every other process swapped
+  out during the run. `global_full_avg10`: global PSI full after the run;
+  it counts the bench scope's own stall, so it does not measure the
+  desktop.
 - **Winner rule** (kuhy, 2026-11-27). Lower median PSI full wins; major
   faults break a tie; a difference under 10 % (the run-to-run noise) is a
   tie, and a tie on both keeps zram.
@@ -108,31 +115,61 @@ because other board jobs (gradle, an emulator, ollama) ran during the runs:
 zram 5546-8223 ms, zswap 5490-11684 ms. Major faults point the same way
 (-21 %). zswap wrote 1.3-2.3 GB of this run's pages back to disk per run
 (`zswpwb` 331649-586700 pages), because its pool counts against the scope's
-4 GiB. zram wrote nothing to disk. zram's ratio reads lower (2.8 vs 3.2)
+4 GiB. zram's three A/B runs recorded no disk writeback. zram's ratio reads lower (2.8 vs 3.2)
 only because `mm_stat` is device-wide, so other processes swapping during
 the run dilute it. zswap's ratio comes from the scope's own counters.
 
-The desktop was not pressed (C6). The login session scopes (i3 and
-everything it started) stalled for 0-29 ms per run (`desktop_full_ms`),
-against 8 ms over an idle 37 s measured the same way. Global PSI rises
-during a run only because global PSI counts the bench scope's own stalls.
+### Desktop check on the host (C6, zram, re-measured in the fix stage)
+
+The bench scope caps the bench's RAM, but it does not keep the rest of the
+host out of swap. Three zram runs with the `outside_pswpout` column,
+against an idle 28 s measured the same way with no bench running:
+
+| interval | seconds | desktop full stall ms | other processes' pswpout | pswpout not taken by zram |
+| -------- | ------- | --------------------- | ------------------------ | ------------------------- |
+| idle     | 28      | 4                     | 110829                   | 20048                     |
+| run 1    | 27.6    | 39                    | 213501                   | 14958                     |
+| run 2    | 26.1    | 6                     | 153179                   | 9058                      |
+| run 3    | 30.5    | 7                     | 224178                   | 14145                     |
+
+- **The desktop was not stalled.** The login sessions (i3 and everything it
+  started) stalled 6-39 ms per run, under the 1 s limit the bench now
+  enforces. Global PSI full rose during the runs (avg10 6.4-11.7 after
+  them), but global `full` counts the moments every busy task on the host is
+  stalled, which the bench scope causes by itself. It is not a desktop
+  measure, so the bench no longer prints it.
+- **Other processes do swap during a zram run.** They swapped out
+  153k-224k pages per run against 111k over the idle interval, so the run
+  adds roughly 40k-110k pages (0.2-0.4 GB). zram's pool is not charged to the
+  bench scope: zram grows in global RAM, and global reclaim then takes pages
+  from other processes too. zswap's pool is charged to the scope, so a zswap
+  run does not do this; the host A/B numbers favour zram for the same reason
+  as the known bias above. The VM result, pressed system-wide, still picks
+  zram.
+- **`disk_wb_pages` on a zram host run is background.** The idle interval
+  had 20k pages of `pswpout` that zram did not take, the same range as the
+  runs (9k-15k), so it is not the bench's. The swapfiles' Used did not grow
+  in any interval. That fits other processes writing pages back into
+  swapfile slots they still hold from the zswap test (about 17 GB of slots,
+  see the switch log), but it was not traced per device. The three A/B zram
+  rows were taken before the zswap test, and read 0.
 
 ### Raw rows
 
 ```tsv
-date	env	setup	seed	size_mib	pages	fill_crc	touch_crc	seconds	ratio	psi_some_ms	psi_full_ms	majflt	disk_wb_pages	zswpwb	global_full_avg10	desktop_full_ms
-2026-11-27T10:59:54Z	vm	zram	20261127	4608	1179648	531769134	2573270970	18.928	3.21	5996	5996	127223	0	0	34.56	na
-2026-11-27T11:00:14Z	vm	zram	20261127	4608	1179648	531769134	2573270970	13.248	3.21	5782	5782	124816	0	0	39.31	na
-2026-11-27T11:00:35Z	vm	zram	20261127	4608	1179648	531769134	2573270970	13.393	3.21	6118	6118	124559	0	0	43.00	na
-2026-11-27T11:02:00Z	vm	zswap	20261127	4608	1179648	531769134	2573270970	28.698	3.15	10366	10360	147757	92	92	38.06	na
-2026-11-27T11:02:29Z	vm	zswap	20261127	4608	1179648	531769134	2573270970	20.711	3.16	8833	8832	210005	128	128	40.12	na
-2026-11-27T11:03:04Z	vm	zswap	20261127	4608	1179648	531769134	2573270970	27.756	3.18	12828	12826	127486	0	0	52.34	na
-2026-11-27T11:16:58Z	host	zram	20261127	6144	1572864	2708526455	3876889511	24.548	2.83	5546	5546	177006	0	0	4.65	14
-2026-11-27T11:17:33Z	host	zram	20261127	6144	1572864	2708526455	3876889511	30.586	2.82	8223	8223	168862	0	0	4.21	1
-2026-11-27T11:18:05Z	host	zram	20261127	6144	1572864	2708526455	3876889511	29.029	3.18	7427	7427	172634	0	0	4.97	0
-2026-11-27T11:20:54Z	host	zswap	20261127	6144	1572864	2708526455	3876889511	49.381	3.21	11684	11684	218408	617001	586700	3.06	6
-2026-11-27T11:21:45Z	host	zswap	20261127	6144	1572864	2708526455	3876889511	45.383	3.21	8973	8973	208093	584944	453067	9.56	29
-2026-11-27T11:22:25Z	host	zswap	20261127	6144	1572864	2708526455	3876889511	35.541	3.21	5490	5490	223518	835213	331649	7.50	13
+date	env	setup	seed	size_mib	pages	fill_crc	touch_crc	seconds	ratio	psi_some_ms	psi_full_ms	majflt	disk_wb_pages	zswpwb	global_full_avg10	desktop_full_ms	outside_pswpout
+2026-11-27T10:59:54Z	vm	zram	20261127	4608	1179648	531769134	2573270970	18.928	3.21	5996	5996	127223	0	0	34.56	na	na
+2026-11-27T11:00:14Z	vm	zram	20261127	4608	1179648	531769134	2573270970	13.248	3.21	5782	5782	124816	0	0	39.31	na	na
+2026-11-27T11:00:35Z	vm	zram	20261127	4608	1179648	531769134	2573270970	13.393	3.21	6118	6118	124559	0	0	43.00	na	na
+2026-11-27T11:02:00Z	vm	zswap	20261127	4608	1179648	531769134	2573270970	28.698	3.15	10366	10360	147757	92	92	38.06	na	na
+2026-11-27T11:02:29Z	vm	zswap	20261127	4608	1179648	531769134	2573270970	20.711	3.16	8833	8832	210005	128	128	40.12	na	na
+2026-11-27T11:03:04Z	vm	zswap	20261127	4608	1179648	531769134	2573270970	27.756	3.18	12828	12826	127486	0	0	52.34	na	na
+2026-11-27T11:16:58Z	host	zram	20261127	6144	1572864	2708526455	3876889511	24.548	2.83	5546	5546	177006	0	0	4.65	14	na
+2026-11-27T11:17:33Z	host	zram	20261127	6144	1572864	2708526455	3876889511	30.586	2.82	8223	8223	168862	0	0	4.21	1	na
+2026-11-27T11:18:05Z	host	zram	20261127	6144	1572864	2708526455	3876889511	29.029	3.18	7427	7427	172634	0	0	4.97	0	na
+2026-11-27T11:20:54Z	host	zswap	20261127	6144	1572864	2708526455	3876889511	49.381	3.21	11684	11684	218408	617001	586700	3.06	6	na
+2026-11-27T11:21:45Z	host	zswap	20261127	6144	1572864	2708526455	3876889511	45.383	3.21	8973	8973	208093	584944	453067	9.56	29	na
+2026-11-27T11:22:25Z	host	zswap	20261127	6144	1572864	2708526455	3876889511	35.541	3.21	5490	5490	223518	835213	331649	7.50	13	na
 ```
 
 ## Host switch log

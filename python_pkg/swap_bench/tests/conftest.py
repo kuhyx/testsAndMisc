@@ -51,7 +51,9 @@ def run_dir(tmp_path: Path) -> Path:
         2 * _PSI.format(some=0, full=4000, f10="0.00"),
     )
     _write(tmp_path, "cg_pressure", _PSI.format(some=40000, full=30000, f10="1.00"))
-    _write(tmp_path, "cg_memory.stat", "zswpwb 3\nzswap 100\nzswapped 400\n")
+    _write(
+        tmp_path, "cg_memory.stat", "zswpwb 3\nzswap 100\nzswapped 400\npswpout 7000\n"
+    )
     _write(tmp_path, "peak/memory.stat", "zswap 1000\nzswapped 3500\n")
     _write(
         tmp_path,

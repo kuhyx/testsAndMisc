@@ -7,8 +7,10 @@
 #
 # One run per call, each under 60 s, appending one row to the results TSV.
 # Host mode confines the pressure to a transient scope (RAM capped, swap
-# allowed), so only the bench swaps and the desktop keeps its memory; its
-# PSI and zswap counters are the scope's own. VM mode puts the whole guest
+# allowed); its PSI and zswap counters are the scope's own. The scope does
+# not shield other processes from global reclaim (zram's pool is not charged
+# to it), so a host run records their swap-outs and fails when the login
+# sessions stall. VM mode puts the whole guest
 # under pressure and uses global counters. A run that fails or times out
 # records nothing. The Python side (python_pkg/swap_bench) holds the
 # workload, the parsing and the winner rule; this script only places it.
@@ -27,6 +29,10 @@ readonly CGROUP_ROOT="${CGROUP_ROOT:-/sys/fs/cgroup}"
 readonly ZRAM_SYSFS="${ZRAM_SYSFS:-/sys/block/zram0}"
 readonly ZSWAP_PARAMS_DIR="${ZSWAP_PARAMS_DIR:-/sys/module/zswap/parameters}"
 readonly HOST_MEMORY_MAX="${SWAP_BENCH_MEMORY_MAX:-4G}"
+# A host run fails (exit 3, row kept) when the login session scopes (i3 and
+# what it started) stalled longer than this. Global PSI cannot tell: it
+# counts the bench scope's own stall.
+readonly MAX_DESKTOP_MS="${SWAP_BENCH_MAX_DESKTOP_MS:-1000}"
 # A wrapper on PATH may add properties a scope refuses (Nice=); point this at
 # /usr/bin/systemd-run to bypass it.
 readonly SYSTEMD_RUN="${SWAP_BENCH_SYSTEMD_RUN:-systemd-run}"
@@ -81,8 +87,6 @@ host_has_room() {
 	((avail_kib >= cap_kib + 2 * 1024 * 1024))
 }
 
-global_full_avg10() { awk '/^full/ {sub("avg10=", "", $2); print $2}' "$PROC_PRESSURE"; }
-
 # inner DIR ENV SIZE SEED — runs inside the scope (host) or the guest (vm).
 inner() {
 	local dir="$1" env="$2" size="$3" seed="$4" cg
@@ -118,7 +122,6 @@ cmd_run() {
 	dir="$(mktemp -d)"
 	RUN_DIR="$dir" # global: the EXIT trap runs after this function's locals are gone
 	trap 'rm -rf "${RUN_DIR:?}"' EXIT
-	echo "global memory PSI full avg10 before: $(global_full_avg10)"
 	snap "${dir}/before"
 	if [[ $env == host ]]; then
 		"$SYSTEMD_RUN" --user --scope --quiet --unit="swap-bench-$$" \
@@ -129,11 +132,11 @@ cmd_run() {
 	fi
 	((rc == 0)) || die "workload failed (exit $rc): no row recorded"
 	snap "${dir}/after"
-	echo "global memory PSI full avg10 after:  $(global_full_avg10)"
-	local -a header=()
+	local -a header=() gate=()
 	[[ -s $RESULTS ]] || header=(--header)
+	[[ $env == vm ]] || gate=(--max-desktop-ms "$MAX_DESKTOP_MS")
 	py row --dir "$dir" --env "$env" --setup "$setup" --seed "$seed" --size-mib "$size" \
-		--date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${header[@]}" | tee -a "$RESULTS"
+		--date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${header[@]}" "${gate[@]}" | tee -a "$RESULTS"
 }
 
 main() {
