@@ -6,7 +6,7 @@
 
 add-trailing-comma==4.0.0
 aiohttp==3.14.5
-anthropic==2.12.0
+anthropic==2.14.0
 autoflake==2.4.0
 autopep8==2.3.2
 bandit==1.9.4
@@ -15,18 +15,18 @@ berserk==0.14.0
 black==26.10.1
 bottle==0.13.4
 codespell==2.4.3
-coverage==7.17.4
+coverage==7.17.5
 cryptography==50.0.2
 darglint==1.8.1
 dead==2.1.0
 defusedxml==0.7.1
 docformatter==1.7.8
-fastmcp==4.2.4
+fastmcp==4.2.6
 fixit==2.2.1
 flake8==7.5.0
 flake8-annotations==3.3.1
 flake8-bandit==4.1.1
-flake8-bugbear==26.11.16
+flake8-bugbear==26.11.22
 flake8-comprehensions==3.17.0
 flake8-docstrings==1.7.0
 flake8-eradicate==1.5.0
@@ -36,14 +36,14 @@ flake8-pyi==26.5.0
 flake8-pytest-style==2.2.0
 flake8-return==1.2.0
 flake8-simplify==0.31.1
-gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.16.0#subdirectory=gatelock
+gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.16.1#subdirectory=gatelock
 genanki==0.13.1
 geopandas==1.2.0
 howlongtobeatpy==1.0.24
 hypothesis==6.170.17
 importlib-metadata==10.2.0
 interrogate==1.7.0
-kuhy-credit @ git+https://github.com/kuhyx/utils@kuhy-credit-v0.3.1#subdirectory=kuhy_credit
+kuhy-credit @ git+https://github.com/kuhyx/utils@kuhy-credit-v0.3.2#subdirectory=kuhy_credit
 # isort is deliberately not pinned: nothing here imports it (ruff's isort
 # rules replaced it) and pylint constrains it (`isort!=5.13,<10,>=5` as of
 # 4.0.8), so pinning it independently risks an unsolvable environment for a
@@ -57,7 +57,7 @@ numpy==2.5.5
 opencv-python==5.1.0.95
 pillow==13.0.0
 pip-audit==2.10.1
-pipdeptree==4.2.15
+pipdeptree==4.2.16
 pre-commit==4.7.0
 prospector==1.20.1
 pycodestyle==2.15.0
@@ -84,12 +84,12 @@ ruff==0.17.6
 # commented-out pre-commit hook, and safety 3.8.1 declares `typer<0.26`,
 # which would hold the typer this repo actually imports below latest.
 secretstorage==3.5.0
-selenium==4.53.0
+selenium==4.54.0
 sql_drills @ git+https://github.com/kuhyx/utils@sql-drills-v0.2.2#subdirectory=sql_drills
-typer==0.29.2
-types-python-dateutil==2.9.0.20261116
-types-PyYAML==6.0.12.20261113
+typer==0.29.3
+types-python-dateutil==2.9.0.20261122
+types-PyYAML==6.0.12.20261122
 types-requests==2.33.0.20261030
-types-setuptools==84.2.0.20261104
+types-setuptools==84.2.0.20261122
 typing_extensions==4.16.0  # Self annotation on py310 target (session_autopsy store lock)
 websockets==17.4

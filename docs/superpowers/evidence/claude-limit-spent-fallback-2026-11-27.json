@@ -1,0 +1,35 @@
+{
+  "intent": "Claude-dependent features in testsAndMisc keep working once the Claude usage limit is spent: the interactive claude wrapper switches to the free models, and the Claude GitHub workflows no longer turn checks red.",
+  "scope": [
+    "linux_configuration/zsh/claude-tty-fix.zsh (claude and claude-* wrappers)",
+    ".github/workflows/claude.yml, .github/workflows/claude-code-review.yml",
+    "python_pkg/code_tutor already falls back to Ollama on anthropic.APIError; unchanged",
+    "Non-goal: free models in private repos (free providers log prompts)"
+  ],
+  "changes": [
+    "claude() reads the newest ~/.claude/cache/limit-state shard; a 5-hour or 7-day window at 100% with a future reset routes the call to claude-free when free-llm-check-dir allows the cwd",
+    "CLAUDE_USE_FREE=1 forces claude-free, CLAUDE_USE_FREE=0 keeps the real binary",
+    "Claude workflow steps get continue-on-error so a spent limit does not fail the check",
+    "Dependency pins bumped to newest stable for the freshness gate"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m pytest -q linux_configuration/tests/test_claude_tty_fix_free.py",
+      "result": "pass",
+      "evidence": "Red first: 3 failed, 7 passed (auto-routing absent). After the change: 10 passed."
+    },
+    {
+      "command": "LIMIT_STATE_DIR=<spent state> zsh -fc 'source claude-tty-fix.zsh; cd /tmp; claude -p \"Reply with exactly: FREE_OK\"'",
+      "result": "pass",
+      "evidence": "Answer FREE_OK came back through the OmniRoute free-best model; in ~/praca_magisterska the same state picked 'command claude'."
+    }
+  ],
+  "risks": [
+    "A stale shard with a future reset could route to free models after an early reset; CLAUDE_USE_FREE=0 overrides",
+    "One jq fork per claude launch"
+  ],
+  "rollback": [
+    "git revert the commit",
+    "Check that claude -p hi runs the real binary again"
+  ]
+}

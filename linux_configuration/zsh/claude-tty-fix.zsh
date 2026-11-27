@@ -27,6 +27,11 @@
 #      may have left on and reset the line discipline, so a garble never persists.
 #
 # Opt-out: `export CLAUDE_TTY_FIX_OFF=1` (falls back to the bare binary).
+# Usage limit spent: when the statusLine cache says the 5-hour or 7-day window
+# is at 100 % and has not reset yet, every claude / claude-* call below runs on
+# the free models via `claude-free` instead (only where `free-llm-check-dir`
+# allows it: public repos, /tmp, /var/log). `CLAUDE_USE_FREE=1` forces the free
+# models; `CLAUDE_USE_FREE=0` keeps the real binary even with the limit spent.
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -43,6 +48,32 @@ _claude_mouse_heal() {
 }
 autoload -Uz add-zsh-hook 2>/dev/null && add-zsh-hook precmd _claude_mouse_heal
 
+# True when the newest limit-state shard (written by ~/.claude/scripts/statusline.sh;
+# the limits are account-wide, so one file is enough) shows a window at 100 %
+# whose reset time is still ahead. The `om[1]` glob qualifier picks the newest
+# file without a fork; jq is the one fork, paid once per claude launch.
+_claude_limit_spent() {
+    local -a newest=("${LIMIT_STATE_DIR:-$HOME/.claude/cache/limit-state}"/*.json(N.om[1]))
+    (( ${#newest} )) || return 1
+    jq -e --argjson now "${EPOCHSECONDS:-$(date +%s)}" '
+        def spent(p; r): ((.[p] // 0) >= 100) and ((.[r] // 0) > $now);
+        spent("five_hour_pct"; "five_hour_resets_at")
+        or spent("seven_day_pct"; "seven_day_resets_at")' -- "${newest[1]}" >/dev/null 2>&1
+}
+
+# Pick the binary: real claude, or claude-free once the usage limit is spent.
+_claude_pick_cmd() {
+    case "${CLAUDE_USE_FREE:-}" in
+        0) reply=(command claude); return ;;
+        ?*) reply=(claude-free); return ;;
+    esac
+    reply=(command claude)
+    _claude_limit_spent || return 0
+    free-llm-check-dir . 2>/dev/null || return 0
+    print -ru2 -- "claude: usage limit spent, running claude-free (CLAUDE_USE_FREE=0 to skip)"
+    reply=(claude-free)
+}
+
 claude() {
     # Escape sequences that undo the terminal state Claude may leave enabled if it
     # is stopped/killed before its own teardown runs:
@@ -50,8 +81,13 @@ claude() {
     #   2004 bracketed paste, 25 cursor visibility.
     local -r _claude_tty_reset=$'\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1004l\e[?2004l\e[?25h'
 
+    # Route to the free models when the Claude usage limit is spent.
+    local -a reply
+    _claude_pick_cmd
+    local -a _claude_cmd=("${reply[@]}")
+
     if [[ -n "${CLAUDE_TTY_FIX_OFF:-}" ]]; then
-        command claude "$@"
+        "${_claude_cmd[@]}" "$@"
         return $?
     fi
 
@@ -71,9 +107,9 @@ claude() {
     fi
 
     if [[ -n "$_dbg" ]]; then
-        command claude --debug-file "$_dbg" "$@"
+        "${_claude_cmd[@]}" --debug-file "$_dbg" "$@"
     else
-        command claude "$@"
+        "${_claude_cmd[@]}" "$@"
     fi
     local -r rc=$?
 
