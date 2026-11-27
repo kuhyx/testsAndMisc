@@ -16,6 +16,9 @@
 #   vm run zsw 'sudo systemctl reboot'; vm start zsw; vm run zsw "$C booted-zswap"
 #   vm run zsw "$C zram"; vm run zsw "$C fill"; vm run zsw "$C exit3"
 #   vm run zsw 'sudo systemctl reboot'; vm start zsw; vm run zsw "$C booted-zswap"
+#   vm run zsw "$C stale-zram"; reboot as above; vm run zsw "$C booted-zram"
+#   vm run zsw "$C again"; vm run zsw "$C stale-zswap"; reboot as above
+#   vm run zsw "$C booted-zswap"; vm run zsw "$C again"; vm run zsw "$C noopts"
 #
 # The guest's zram device is scaled to the same RAM budget as the host's
 # 32 GiB on ~30 GiB: 35 % of RAM compressed at the 3.2:1 the bench measures.
@@ -36,12 +39,25 @@ bad() {
 }
 # want WHAT EXPECTED ACTUAL
 want() { if [[ $3 == "$2" ]]; then ok "$1"; else bad "$1 (want '$2', got '$3')"; fi; }
+# some WHAT COUNT — COUNT is above zero
+some() { if (($2 > 0)); then ok "$1"; else bad "$1 (got $2)"; fi; }
 # has WHAT HAYSTACK NEEDLE
 has() { if [[ $2 == *"$3"* ]]; then ok "$1"; else bad "$1 (no '$3' in: $2)"; fi; }
 
 zram_mib() { awk '/^MemTotal:/ {print int($2 / 1024 * 35 * 32 / 1000)}' /proc/meminfo; }
 zram_swap() { swapon --noheadings --show=NAME,PRIO | awk '$1 == "/dev/zram0" {print $2}'; }
 grub_line() { grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; }
+# cfg_lines PATTERN — how many grub.cfg `linux` lines carry PATTERN.
+cfg_lines() { grep -P '^\s*linux\s' /boot/grub/grub.cfg | grep -c -- "$1" || true; }
+
+# check_cfg WANT NOT — every grub.cfg `linux` line carries WANT, none NOT.
+check_cfg() {
+	local total
+	total="$(cfg_lines vmlinuz)"
+	some "grub.cfg has linux lines" "$total"
+	want "grub.cfg: all ${total} linux lines carry '$1'" "$total" "$(cfg_lines "$1")"
+	want "grub.cfg: no linux line carries '$2'" 0 "$(cfg_lines "$2")"
+}
 
 check_zram_live() {
 	want "zram0 is swap at prio 100" 100 "$(zram_swap)"
@@ -61,14 +77,14 @@ phase_zram() {
 	ZRAM_SIZE_MIB="$(zram_mib)" bash "${FIXES}/setup_zram.sh"
 	check_zram_live
 	has "GRUB defaults carry zswap.enabled=0" "$(grub_line)" "zswap.enabled=0"
-	has "grub.cfg carries zswap.enabled=0" "$(cat /boot/grub/grub.cfg)" "zswap.enabled=0"
+	check_cfg "zswap.enabled=0" "zswap.enabled=1"
 }
 
 phase_zswap() {
 	bash "${FIXES}/setup_zswap.sh"
 	check_zswap_live
 	has "GRUB defaults carry the zswap tokens" "$(grub_line)" "$ZSWAP_TOKENS"
-	has "grub.cfg carries the zswap tokens" "$(cat /boot/grub/grub.cfg)" "$ZSWAP_TOKENS"
+	check_cfg "$ZSWAP_TOKENS" "zswap.enabled=0"
 	has "resume= kept" "$(grub_line)" "resume_offset="
 }
 
@@ -88,11 +104,13 @@ phase_again() {
 	[[ -n $(zram_swap) ]] && script=setup_zram.sh
 	before="$(
 		md5sum /etc/default/grub /boot/grub/grub.cfg
+		stat -c '%Y %n' /boot/grub/grub.cfg
 		swapon --show
 	)"
 	out="$(ZRAM_SIZE_MIB="$(zram_mib)" bash "${FIXES}/${script}" 2>&1)"
 	after="$(
 		md5sum /etc/default/grub /boot/grub/grub.cfg
+		stat -c '%Y %n' /boot/grub/grub.cfg
 		swapon --show
 	)"
 	want "${script} rerun: GRUB files and swap list unchanged" "$before" "$after"
@@ -120,6 +138,47 @@ phase_exit3() {
 	has "GRUB defaults already carry the zswap tokens" "$(grub_line)" "$ZSWAP_TOKENS"
 }
 
+# stale-zram / stale-zswap — the half-finished run C3 caught: GRUB defaults
+# already name the target setup, grub.cfg still boots the old one. A rerun
+# of the target's script must rebuild grub.cfg and exit 0.
+phase_stale_zram() {
+	some "precondition: grub.cfg boots zswap" "$(cfg_lines zswap.enabled=1)"
+	sed -i "s/${ZSWAP_TOKENS}/zswap.enabled=0/" /etc/default/grub
+	phase_zram
+}
+
+phase_stale_zswap() {
+	some "precondition: grub.cfg boots zswap.enabled=0" "$(cfg_lines zswap.enabled=0)"
+	sed -i "s/zswap.enabled=0/${ZSWAP_TOKENS}/" /etc/default/grub
+	phase_zswap
+}
+
+# noopts — a loader entry without an options line: loud exit, live swap and
+# the GRUB files untouched. Runs against a scratch entries dir.
+phase_noopts() {
+	local dir=/root/le-test rc=0 out before after
+	rm -rf "$dir" /root/le-test-bak
+	mkdir -p "$dir"
+	printf 'title a\nlinux /vmlinuz-linux\noptions root=/dev/vda1 rw\n' >"${dir}/a.conf"
+	printf 'title b\nlinux /vmlinuz-linux\n' >"${dir}/b.conf"
+	before="$(
+		md5sum /etc/default/grub /boot/grub/grub.cfg
+		swapon --show
+		cat "$P/enabled"
+	)"
+	out="$(LOADER_ENTRIES_DIR="$dir" SWAP_SWITCH_BACKUP_DIR=/root/le-test-bak \
+		ZRAM_SIZE_MIB="$(zram_mib)" bash "${FIXES}/setup_zram.sh" 2>&1)" || rc=$?
+	after="$(
+		md5sum /etc/default/grub /boot/grub/grub.cfg
+		swapon --show
+		cat "$P/enabled"
+	)"
+	want "setup_zram exits 1 on an entry without options" 1 "$rc"
+	has "setup_zram names the entry" "$out" "b.conf"
+	want "GRUB files, swap list and zswap enabled unchanged" "$before" "$after"
+	rm -rf "$dir" /root/le-test-bak
+}
+
 main() {
 	[[ $EUID -eq 0 ]] || {
 		echo "run as root inside the guest" >&2
@@ -133,8 +192,11 @@ main() {
 	again) phase_again ;;
 	fill) phase_fill ;;
 	exit3) phase_exit3 ;;
+	stale-zram) phase_stale_zram ;;
+	stale-zswap) phase_stale_zswap ;;
+	noopts) phase_noopts ;;
 	*)
-		echo "usage: $0 zram|zswap|booted-zram|booted-zswap|again|fill|exit3" >&2
+		echo "usage: $0 zram|zswap|booted-zram|booted-zswap|again|fill|exit3|stale-zram|stale-zswap|noopts" >&2
 		exit 2
 		;;
 	esac

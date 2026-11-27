@@ -187,6 +187,12 @@ date	env	setup	seed	size_mib	pages	fill_crc	touch_crc	seconds	ratio	psi_some_ms	
   needed. Pages still in the zswap pool and on the swapfiles (about 17 GB of
   slots) come back as they fault in; zram takes all new swap-outs again.
 
+- Host sysctl comment, left on purpose: the host's
+  `/etc/sysctl.d/90-desktop-performance.conf` (mtime 2026-11-22) still says
+  the old zram-only comment. The values in it are the current ones; only
+  `optimize_arch_desktop.sh` rewrites the comment, and a full optimize run
+  on the host is not worth a comment.
+
 ## vmbox checks
 
 `lib/tests/vmbox_swap.sh` (phases, run inside a BIOS/GRUB guest):
@@ -195,8 +201,24 @@ date	env	setup	seed	size_mib	pages	fill_crc	touch_crc	seconds	ratio	psi_some_ms	
   and `Y`. After a reboot `/proc/cmdline` carries all four tokens.
 - **Revert zswap → zram:** zram0 is back at prio 100 with zstd, zswap reads
   `N`, and after a reboot `/proc/cmdline` has `zswap.enabled=0`.
-- **Rerun on the same state:** the GRUB files hash the same, the swap list
-  is unchanged and nothing is reported as changed.
+- **Rerun on the same state:** the GRUB files hash the same, grub.cfg keeps
+  its mtime, the swap list is unchanged and nothing is reported as changed.
+- **Half-finished switch is repaired (2026-11-27, guest `zc3`):** a run cut
+  off after `/etc/default/grub` but before grub-mkconfig used to leave
+  grub.cfg booting the old setup, and every rerun exited 0 (zswap `Y` plus
+  zram0 after the next boot). The scripts now rebuild grub.cfg whenever a
+  `linux` line does not carry exactly the target zswap words. `stale-zram`
+  (defaults `zswap.enabled=0`, grub.cfg on the zswap tokens) and
+  `stale-zswap` (the reverse) each exited 0 with both `linux` lines
+  rebuilt, and each reboot came up on the target: zram0 at prio 100 with
+  zswap `N`, then the four tokens with no zram0.
+- **Next boot that cannot match fails loudly:** when grub.cfg is still wrong
+  after the rebuild (zswap words in `GRUB_CMDLINE_LINUX`), or a
+  systemd-boot entry has no `options` line carrying the words, the script
+  exits 1 and names the line or entry before it touches live swap.
+  `noopts` (one entry without `options`) exited 1 naming `b.conf`, with
+  the swap list, zswap `enabled` and the GRUB files unchanged, on zram and
+  on zswap.
 - **Exit 3:** zram held 1.7 GB of a 5 GB tmpfs file and MemAvailable was
   50 MB. `setup_zswap.sh` exited 3 with "reboot to apply", leaving zram0
   active and zswap off. The next boot came up on zswap.

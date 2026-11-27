@@ -1,0 +1,35 @@
+{
+  "intent": "setup_zram.sh and setup_zswap.sh never exit 0 while the next boot would run a different swap setup: a stale grub.cfg is rebuilt, and an unfixable boot config fails loudly before live swap changes.",
+  "scope": [
+    "linux_configuration/fixes/lib/swap_switch.sh",
+    "linux_configuration/fixes/lib/tests/swap_switch_harness.sh, test_swap_switch.sh, vmbox_swap.sh",
+    "linux_configuration/fixes/DOCS-zswap-vs-zram.md",
+    "Non-goal: the host (systemd-boot) is not touched or rebooted"
+  ],
+  "changes": [
+    "_ss_set_grub rebuilds grub.cfg when the defaults changed OR any grub.cfg linux line does not carry exactly the target zswap words (missing file counts), then re-checks and exits 1 naming the offending line",
+    "ss_set_boot_tokens checks every systemd-boot entry's options lines carry the target words and exits 1 naming the entry otherwise",
+    "Harness grub-mkconfig stub writes an Arch-like grub.cfg (tab-indented linux lines, recovery from GRUB_CMDLINE_LINUX); snapshot includes grub.cfg",
+    "vmbox_swap.sh: new stale-zram, stale-zswap and noopts phases; grub.cfg checks every linux line; again compares grub.cfg mtime"
+  ],
+  "verification": [
+    {
+      "command": "~/.claude/scripts/capped.sh bash linux_configuration/fixes/lib/tests/test_swap_switch.sh",
+      "result": "pass",
+      "evidence": "Before the fix: 53 passed, 15 failed (stale grub.cfg not rebuilt, missing options line exited 0). After: 68 passed, 0 failed"
+    },
+    {
+      "command": "vm run zc3 'sudo bash ~/wt/linux_configuration/fixes/lib/tests/vmbox_swap.sh <phase>' (fresh BIOS/GRUB guest zc3 after vm hibernate-setup)",
+      "result": "pass",
+      "evidence": "zswap -> reboot -> booted-zswap OK; stale-zram RC=0 (precondition grub.cfg boots zswap; all 2 linux lines carry zswap.enabled=0) -> reboot -> booted-zram OK (cmdline zswap.enabled=0, zram0 prio 100 zstd, zswap N) -> again OK (md5, mtime, swap list unchanged); stale-zswap RC=0 (all 2 lines carry the 4 tokens) -> reboot -> booted-zswap OK -> again OK; noopts on zram and on zswap: exit 1 naming b.conf, GRUB files, swap list and zswap enabled unchanged"
+    }
+  ],
+  "risks": [
+    "A grub.cfg whose kernel lines are not named `linux` (linux16/linuxefi) would read as having no matching line and be rebuilt each run, then fail loudly",
+    "A systemd-boot UKI entry without an options line now makes the scripts exit 1 instead of silently skipping it"
+  ],
+  "rollback": [
+    "git revert the commit; setup_*.sh go back to rebuilding grub.cfg only when /etc/default/grub changed",
+    "Rerun bash linux_configuration/fixes/lib/tests/test_swap_switch.sh after the revert"
+  ]
+}

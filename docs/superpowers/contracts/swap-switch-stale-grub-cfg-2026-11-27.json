@@ -1,0 +1,14 @@
+{
+  "title": "setup_zram/setup_zswap repair a stale grub.cfg and fail loudly when the next boot cannot match",
+  "objective": "A rerun of either swap setup script heals a run cut off between the /etc/default/grub write and grub-mkconfig, stays byte-identical when everything already matches, and exits 1 before touching live swap when grub.cfg or a systemd-boot entry still would not boot the target zswap words.",
+  "acceptance_criteria": [
+    "GRUB defaults on the target, grub.cfg on the old setup: the target's script exits 0 and every grub.cfg linux line carries exactly the target zswap words; the next boot runs the target only",
+    "grub.cfg already matching: no grub-mkconfig run, boot files and grub.cfg mtime unchanged, nothing reported as changed",
+    "grub.cfg still wrong after the rebuild, or a loader entry with no options line carrying the words: exit 1 naming the line or entry, no swapoff, zswap enabled unchanged"
+  ],
+  "out_of_scope": [
+    "The host (systemd-boot, no derived file): no host runs or reboots",
+    "Rewriting the host's sysctl comment"
+  ],
+  "verifier": "bash linux_configuration/fixes/lib/tests/test_swap_switch.sh; vmbox_swap.sh stale-zram|stale-zswap|again|noopts in a fresh BIOS/GRUB guest; pre-commit run --files <changed-files>"
+}

@@ -100,11 +100,64 @@ _ss_rewrite() {
 	echo changed
 }
 
+# _ss_zswap_words — filter stdin: print a cmdline's zswap.* words, in order.
+# Splits on spaces and tabs, so a grub.cfg `linux` line works as is.
+_ss_zswap_words() {
+	local word out=""
+	local -a words
+	read -r -a words
+	for word in "${words[@]}"; do
+		if [[ $word == zswap.* ]]; then out+=" ${word}"; fi
+	done
+	printf '%s\n' "${out# }"
+}
+
+# _ss_grub_cfg_problem TOKENS — print why grub.cfg would not boot TOKENS;
+# nothing when it would. Every `linux` line with zswap.* words must carry
+# exactly TOKENS and at least one must: a recovery line, built from
+# GRUB_CMDLINE_LINUX alone, carries none. Read as root: grub.cfg can be 600.
+_ss_grub_cfg_problem() {
+	local tokens="$1" cfg line words matched=0
+	if ! cfg="$(as_root cat "$GRUB_CFG_FILE" 2>/dev/null)"; then
+		echo "$GRUB_CFG_FILE is missing"
+		return 0
+	fi
+	while IFS= read -r line; do
+		[[ $line =~ ^[[:space:]]*linux[[:space:]] ]] || continue
+		words="$(_ss_zswap_words <<<"$line")"
+		[[ -n $words ]] || continue
+		if [[ $words != "$tokens" ]]; then
+			printf 'this line boots "%s": %s\n' "$words" "${line#"${line%%[![:space:]]*}"}"
+			return 0
+		fi
+		matched=1
+	done <<<"$cfg"
+	((matched)) || echo "no linux line in $GRUB_CFG_FILE carries $tokens"
+}
+
+# _ss_set_grub TOKENS — GRUB's defaults, then grub.cfg: rebuilt when the
+# defaults changed OR it does not boot TOKENS yet. The second case heals a
+# run cut off between the two writes, which left the defaults right and
+# grub.cfg on the old setup. Prints "changed" when it wrote anything.
+_ss_set_grub() {
+	local tokens="$1" changed log problem
+	changed="$(_ss_rewrite "$GRUB_DEFAULT_FILE" grub "$tokens")"
+	[[ -n $changed || -n $(_ss_grub_cfg_problem "$tokens") ]] || return 0
+	# grub-mkconfig narrates every step on stderr; show it only on failure.
+	log="$(as_root grub-mkconfig -o "$GRUB_CFG_FILE" 2>&1)" ||
+		ss_die "grub-mkconfig failed: $log"
+	problem="$(_ss_grub_cfg_problem "$tokens")"
+	[[ -z $problem ]] || ss_die "grub.cfg still wrong after grub-mkconfig, $problem" \
+		"(zswap.* words belong only in GRUB_CMDLINE_LINUX_DEFAULT; check GRUB_CMDLINE_LINUX in $GRUB_DEFAULT_FILE)"
+	echo changed
+}
+
 # ss_set_boot_tokens TOKENS — persist the zswap.* words for the next boot:
-# every systemd-boot entry when there are any, else GRUB's defaults (plus a
-# grub.cfg rebuild when they changed). Other words, resume= included, stay.
+# every systemd-boot entry when there are any, else GRUB. Other words,
+# resume= included, stay. Exits 1 when the next boot would still not carry
+# TOKENS, before the caller touches any live swap.
 ss_set_boot_tokens() {
-	local tokens="$1" entry changed=""
+	local tokens="$1" entry changed="" bad=""
 	local -a entries=()
 	if [[ -d $LOADER_ENTRIES_DIR ]]; then
 		mapfile -t entries < <(find "$LOADER_ENTRIES_DIR" -maxdepth 1 -name '*.conf' | sort)
@@ -112,15 +165,12 @@ ss_set_boot_tokens() {
 	if ((${#entries[@]})); then
 		for entry in "${entries[@]}"; do
 			changed+="$(_ss_rewrite "$entry" loader "$tokens")"
+			[[ $(grep '^options ' "$entry" | tr '\n' ' ' | _ss_zswap_words) == "$tokens" ]] ||
+				bad+=" $(basename "$entry")"
 		done
+		[[ -z $bad ]] || ss_die "no options line carrying \"$tokens\" in${bad} ($LOADER_ENTRIES_DIR); fix the entry by hand"
 	elif [[ -f $GRUB_DEFAULT_FILE ]]; then
-		changed="$(_ss_rewrite "$GRUB_DEFAULT_FILE" grub "$tokens")"
-		if [[ -n $changed ]]; then
-			# grub-mkconfig narrates every step on stderr; show it only on failure.
-			local log
-			log="$(as_root grub-mkconfig -o "$GRUB_CFG_FILE" 2>&1)" ||
-				ss_die "grub-mkconfig failed: $log"
-		fi
+		changed="$(_ss_set_grub "$tokens")"
 	else
 		ss_die "no systemd-boot entries in $LOADER_ENTRIES_DIR and no $GRUB_DEFAULT_FILE"
 	fi

@@ -82,9 +82,26 @@ _sw_machine() {
 	_t_reset_calls
 }
 
+# _sw_grub STATE — the _sw_machine STATE machine, booted by GRUB instead of
+# systemd-boot: defaults carrying STATE's zswap words, grub.cfg built from them.
+_sw_grub() {
+	local words="zswap.enabled=0"
+	_sw_machine "$1"
+	[[ $1 == zswap ]] && words="zswap.enabled=1 zswap.compressor=zstd zswap.max_pool_percent=35 zswap.shrinker_enabled=1"
+	rm -rf "$LOADER_ENTRIES_DIR"
+	mkdir -p "${GRUB_DEFAULT_FILE%/*}" "${GRUB_CFG_FILE%/*}"
+	printf 'GRUB_TIMEOUT=1\nGRUB_CMDLINE_LINUX=""\nGRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 resume=/dev/vda2 %s"\n' \
+		"$words" >"$GRUB_DEFAULT_FILE"
+	grub-mkconfig -o "$GRUB_CFG_FILE"
+	_t_reset_calls
+}
+
+# _sw_cfg_lines PATTERN — how many grub.cfg `linux` lines match PATTERN.
+_sw_cfg_lines() { grep -P '^\s*linux\s' "$GRUB_CFG_FILE" | grep -c -- "$1"; }
+
 # _sw_snapshot — checksum of every boot-config file, for byte-identity checks.
 _sw_snapshot() {
-	cat "${LOADER_ENTRIES_DIR}"/*.conf "$GRUB_DEFAULT_FILE" 2>/dev/null | md5sum
+	cat "${LOADER_ENTRIES_DIR}"/*.conf "$GRUB_DEFAULT_FILE" "$GRUB_CFG_FILE" 2>/dev/null | md5sum
 }
 
 # _sw_param NAME — current fake zswap parameter.
@@ -97,7 +114,19 @@ exec "$@"
 STUB
 	_t_stub udevadm 'exit 0'
 	_t_stub pacman 'exit 0'
-	_t_stub grub-mkconfig 'exit 0'
+	# Writes grub.cfg the way Arch's does: tab-indented `linux` lines, the
+	# default and fallback entries get both cmdline variables, recovery only
+	# GRUB_CMDLINE_LINUX.
+	_t_stub_stdin grub-mkconfig <<'STUB'
+[[ $1 == -o ]] || exit 2
+. "$GRUB_DEFAULT_FILE"
+both="${GRUB_CMDLINE_LINUX:-} ${GRUB_CMDLINE_LINUX_DEFAULT:-}"
+{
+	printf 'menuentry "Arch Linux" {\n\tlinux\t/vmlinuz-linux root=UUID=x rw  %s\n}\n' "$both"
+	printf 'menuentry "Arch Linux (fallback)" {\n\tlinux\t/vmlinuz-linux root=UUID=x rw  %s\n}\n' "$both"
+	printf 'menuentry "Arch Linux (recovery)" {\n\tlinux\t/vmlinuz-linux root=UUID=x rw single %s\n}\n' "${GRUB_CMDLINE_LINUX:-}"
+} >"$2"
+STUB
 	_t_stub_stdin swapon <<'STUB'
 swaps="${LIB_TEST_DEV}/swaps"
 case "$*" in
