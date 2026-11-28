@@ -27,7 +27,7 @@ coverage==7.17.5
 defusedxml==0.7.1
 fastmcp==4.2.6
 genanki==0.13.1
-hypothesis==6.170.19
+hypothesis==6.170.23
 jeepney==0.9.0
 kuhy-credit @ git+https://github.com/kuhyx/utils@kuhy-credit-v0.3.2#subdirectory=kuhy_credit
 markdownify==1.2.4
