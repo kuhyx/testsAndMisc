@@ -13,7 +13,7 @@ bandit==1.9.4
 beautifulsoup4==4.15.0
 berserk==0.14.0
 black==26.10.1
-bottle==0.13.4
+bottle==0.13.5
 codespell==2.4.3
 coverage==7.17.5
 cryptography==50.0.2
