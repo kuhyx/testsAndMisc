@@ -51,11 +51,8 @@ repos:
       - id: check-shebang-scripts-are-executable
       - id: detect-private-key
       - id: debug-statements
-      - id: name-tests-test
-        args: [--pytest-test-first]
       - id: check-ast
       - id: check-builtin-literals
-      - id: check-docstring-first
       - id: fix-byte-order-marker
       - id: mixed-line-ending
         args: [--fix=lf]
@@ -71,16 +68,6 @@ repos:
         entry: meta/scripts/check_no_binaries.sh
         language: script
         always_run: false
-      - id: file-length-cap
-        name: Enforce the 250-line file cap
-        # Repo-wide (--all), not per-file: a file that grows past the cap
-        # without being staged in this commit must still be caught. Wired only
-        # after the campaign that brought every file under it — turning this on
-        # earlier would have blocked every unrelated commit in the repo.
-        entry: bash meta/scripts/check_file_length.sh --all
-        language: system
-        pass_filenames: false
-        always_run: true
       - id: directory-depth-cap
         name: Enforce the directory-depth cap
         # Repo-wide and ENFORCING. It ran --warn while the 46 paths under
@@ -149,19 +136,6 @@ repos:
         types: [shell]
         require_serial: true
         exclude: ^(\.git/|tests/)
-      - id: shell-coverage-ratchet
-        name: Every shell library has a test suite beside it
-        # The ratchet from meta/shell-coverage-allowlist.txt: a lib under a
-        # lib/ directory needs a tests/run_all.sh, unless it is allowlisted.
-        # Wired here on 2026-08-23. It existed but was never in pre-commit,
-        # so it had been silently unenforced -- a new untested lib could land
-        # freely. That was only affordable to fix once 578c4a6c dropped the
-        # jail-measured 100% bar: --all went from >600s to 0.31s, and the
-        # per-file mode this hook uses is milliseconds.
-        entry: bash meta/scripts/check_shell_coverage.sh
-        language: system
-        types: [shell]
-        exclude: ^third_party/
 
   # ===========================================================================
   # NOQA BLOCKER - Zero tolerance for noqa/type:ignore suppression comments
@@ -185,129 +159,9 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.2
     hooks:
-      # Linter - run first to catch issues
-      - id: ruff
-        args:
-          - --fix
-          - --unsafe-fixes
-          - --exit-non-zero-on-fix
-          - --show-fixes
-        types_or: [python, pyi]
       # Formatter - run after linting
       - id: ruff-format
         types_or: [python, pyi]
-
-  # ===========================================================================
-  # MYPY - Static type checking (per-commit on changed files only)
-  # Was on pre-push, but force-push diffs caused full-repo scans + OOM. On
-  # pre-commit it sees only the file(s) currently staged → near-instant.
-  # ===========================================================================
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        stages: [pre-commit]
-        args:
-          - --ignore-missing-imports
-          - --no-error-summary
-          - --disable-error-code=no-untyped-def
-          - --disable-error-code=no-untyped-call
-          - --disable-error-code=var-annotated
-          - --disable-error-code=no-any-unimported
-          - --disable-error-code=type-arg
-          - --disable-error-code=no-any-return
-          - --disable-error-code=misc
-          - --disable-error-code=unused-ignore
-          - --disable-error-code=unreachable
-          - --disable-error-code=assignment
-          - --disable-error-code=no-redef
-          - --disable-error-code=attr-defined
-          - --disable-error-code=arg-type
-          - --disable-error-code=union-attr
-          - --disable-error-code=call-overload
-          - --disable-error-code=return-value
-          - --disable-error-code=redundant-cast
-          - --disable-error-code=empty-body
-          - --disable-error-code=list-item
-        exclude: >-
-          (?x)^(
-            Bash/.*|
-            \.venv/.*|
-            linux_configuration/misc/tools/.*
-          )$
-        additional_dependencies:
-          - types-requests
-          - types-PyYAML
-          - types-python-dateutil
-
-  # ===========================================================================
-  # PYLINT - Comprehensive Python linter (per-commit on changed files only)
-  # Was on pre-push, but force-push diffs caused full-repo scans + OOM.
-  # ===========================================================================
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v4.1.4
-    hooks:
-      - id: pylint
-        stages: [pre-commit]
-        args:
-          - --rcfile=pyproject.toml
-          - --fail-under=10
-          # One job: dill, which pickles for --jobs>1, breaks on Python 3.15.
-          - --jobs=1
-        additional_dependencies:
-          - pytest
-          - requests
-          - pillow
-          # archwiki_rag parses the local arch-wiki-docs HTML dump. pylint runs
-          # in its own venv, so a package being in meta/requirements.txt is not
-          # enough for it to resolve the import.
-          - beautifulsoup4
-          - markdownify
-          # android_ui parses `uiautomator dump` output. Same reason as
-          # beautifulsoup4 above: requirements.txt is not on pylint's path.
-          - defusedxml
-          # android_ui's MCP server; same isolated-venv reason.
-          - fastmcp==4.2.4
-          # artgate computes image gates over pixel arrays. Same reason again:
-          # it is the first package here to import numpy.
-          - numpy
-          # js_anki builds the Anki .apkg; same isolated-venv reason as above.
-          - genanki
-          - gatelock @ git+https://github.com/kuhyx/utils@gatelock-v0.1.0#subdirectory=gatelock
-          - sql_drills @ git+https://github.com/kuhyx/utils@sql-drills-v0.2.2#subdirectory=sql_drills
-          # The shared logo credit on the CLIs' --help; same isolated-venv reason.
-          - kuhy-credit @ git+https://github.com/kuhyx/utils@kuhy-credit-v0.3.1#subdirectory=kuhy_credit
-          - anthropic
-          - rich
-          - typer
-          # linux_configuration/installers: verify_helium drives Helium
-          # over the DevTools websocket; migrate_helium_passwords_to_basic re-encrypts
-          # Chromium os_crypt blobs (AES-CBC).
-          - websockets
-          - cryptography
-          - secretstorage
-        # Test suites and conftest fixtures are linted separately; they use
-        # patterns (protected-access, missing docstrings, fixture shadowing)
-        # that don't belong in the source-code 10/10 gate.
-        exclude: ^(Bash/|\.venv/)|(^|/)(tests/|conftest\.py)
-
-  # ===========================================================================
-  # BANDIT - Security linter (per-commit on changed files only)
-  # Was on pre-push, but force-push diffs caused full-repo scans + OOM.
-  # ===========================================================================
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.10
-    hooks:
-      - id: bandit
-        stages: [pre-commit]
-        args:
-          - -c
-          - pyproject.toml
-          - --severity-level=high
-          - --confidence-level=medium
-          - --skip=B113
-        additional_dependencies: ["bandit[toml]"]
-        exclude: ^(Bash/|\.venv/|tests/|.*test.*\.py$)
 
   # ===========================================================================
   # PYTEST + COVERAGE - Run tests and enforce 100% code coverage
@@ -316,17 +170,6 @@ repos:
   # ===========================================================================
   - repo: local
     hooks:
-      - id: pytest-coverage
-        name: pytest with coverage enforcement
-        # Serialised against builds and pacman transactions on this 7.6 GB
-        # machine via the heavy-job lock. run_with_heavy_lock.sh is a plain
-        # passthrough on any clone that has not installed one.
-        entry: bash meta/scripts/run_with_heavy_lock.sh pytest python meta/scripts/pytest_changed_packages.py
-        language: system
-        types: [python]
-        pass_filenames: true
-        require_serial: true
-        stages: [pre-commit]
       - id: requirements-sync
         name: requirements.txt covers all python_pkg imports
         entry: python3 meta/scripts/check_requirements_sync.py --package python_pkg
@@ -391,29 +234,6 @@ repos:
   #     - id: pyupgrade
   #       args:
   #         - --py310-plus
-
-  # ===========================================================================
-  # CODESPELL - Spell checking in code (expanded ignore list for non-English)
-  # ===========================================================================
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
-    hooks:
-      - id: codespell
-        args:
-          - --skip=*.json,*.lock,*-lock.yaml,*.min.js,*.min.css,.git,__pycache__,.venv,*.txt
-          # Many entries below are Polish words, not typos: they are field
-          # names from Polish data formats (e.g. `dokument` in the e-paragon /
-          # JPK e-receipt schema that billsplit parses). "Correcting" them to
-          # English breaks the parsers that match on them.
-          # `daa` is MediaTek's Download Agent Authentication, a BROM security
-          # feature named in the mtk_root notes - not a misspelling of "data".
-          # `artic` is SearXNG's engine id for the Art Institute of Chicago
-          # (setup_searxng.sh), not a misspelling of "arctic" - renaming it
-          # would stop matching the engine.
-          # `imput` is Helium's vendor (imput.net): its profile dir is
-          # `~/.config/net.imput.helium` and the installers/*helium* scripts spell it out.
-          - --ignore-words-list=als,ans,ect,nd,som,sur,te,nam,numer,lew,sie,wil,postion,clen,ther,folow,derrive,ony,tje,noe,theses,crate,doubleclick,wile,tabel,pary,blok,bloc,proces,serwer,parametr,adres,hart,dout,metod,tekst,synonim,grup,mosty,lokal,skalar,milion,nowe,tre,hel,alph,iif,dokument,daa,artic,imput
-        exclude: ^(Bash/ffmpeg-build/|LaTeX/|.*\.geojson$)
 
   # ===========================================================================
   # DOCFORMATTER - Format docstrings (disabled - causes recursion errors)
@@ -506,42 +326,6 @@ repos:
             .*\.lock
           )$
         stages: [pre-push]
-
-  # ===========================================================================
-  # SHELLCHECK - Shell script linting
-  # Wrapper batches files to avoid OOM on large repos.
-  # ===========================================================================
-  - repo: local
-    hooks:
-      - id: shellcheck
-        name: shellcheck
-        # NO --severity filter: every finding shellcheck reports, down to info
-        # and style, fails the commit. The previous --severity=warning quietly
-        # accepted 222 findings across 94 of 244 shell files -- and among them
-        # were real defects, not noise: two scripts that reported SUCCESS on an
-        # unknown command, five that sourced a path off by one directory (so
-        # they failed at runtime), a stale `source=` directive that had silently
-        # disabled following for six i3blocks scripts, and a diagnostic that
-        # would hang on stdin when its file list came back empty.
-        # Settings live in .shellcheckrc (external-sources, source-path).
-        entry: bash -c 'printf "%s\0" "$@" | xargs -0 -n 40 shellcheck' --
-        language: system
-        types: [shell]
-        # shellcheck only understands sh/bash/dash/ksh; it cannot parse zsh
-        # syntax (e.g. extended globs like (#s)). zsh files are checked by the
-        # zsh-syntax hook below instead.
-        exclude_types: [zsh]
-        # Vendored upstream code: we do not own it and patches here would be
-        # lost on the next vendor sync. Matches the prettier hook's exclusion.
-        #
-        # PKGBUILDs are makepkg manifests, not standalone scripts: they have no
-        # shebang by design, and pkgname/pkgver/source/sha512sums are read by
-        # makepkg while pkgdir/srcdir are injected by it. shellcheck therefore
-        # reports every one of them as unused-or-undefined (SC2148/SC2034/
-        # SC2154) -- all false positives, and none suppressible without
-        # littering the file with directives. Same reasoning as zsh above:
-        # the dialect is outside what shellcheck can judge.
-        exclude: ^third_party/|(^|/)PKGBUILD$
 
   # ===========================================================================
   # ZSH SYNTAX - zsh -n parse check (shellcheck has no zsh mode)

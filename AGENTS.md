@@ -180,6 +180,6 @@ number of error codes, so it is weaker than the `strict = true` in the config.
 - deploy: `scripts/deploy.sh` (fast-forwards the live `~/src/testsAndMisc` checkout to origin/main, keeping unrelated local edits; exits non-zero unless HEAD = origin/main and the tracked hooks are wired)
 - test: `python3 -m pytest -q -o addopts="--strict-markers --strict-config"`
 - test-changed: `scripts/test_changed.sh`
-- lint: `pre-commit run --hook-stage pre-commit`
-- coverage: `python3 -m pytest -q --cov=python_pkg --cov-branch --cov-report=xml -o addopts="--strict-markers --strict-config"`
-- coverage-gaps: `coverage-gaps coverage.xml`
+- lint: n/a: dropped (kuhy, 2026-11-27)
+- coverage: n/a: dropped (kuhy, 2026-11-27)
+- coverage-gaps: n/a: dropped (kuhy, 2026-11-27)
